@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Collection;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -48,8 +47,6 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.DistributedSemaphore;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 /**
@@ -72,61 +69,6 @@ public class BasicResourceTest {
     basicProperties.setUser("bcd");
     basicProperties.setTag("tagvalue1");
 
-    Map<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> majorFIdToEndpoints = Maps.newHashMap();
-
-    CoordinationProtos.NodeEndpoint nodeEndpoint1 = CoordinationProtos.NodeEndpoint.newBuilder()
-      .setAddress("host1")
-      .setFabricPort(1234)
-      .setUserPort(2345)
-      .setAvailableCores(3)
-      .setMaxDirectMemory(8 * 1024)
-      .setRoles(ClusterCoordinator.Role.toEndpointRoles(Sets.newHashSet(ClusterCoordinator.Role.EXECUTOR)))
-      .build();
-
-    CoordinationProtos.NodeEndpoint nodeEndpoint2 = CoordinationProtos.NodeEndpoint.newBuilder()
-      .setAddress("host2")
-      .setFabricPort(1234)
-      .setUserPort(2345)
-      .setAvailableCores(5)
-      .setMaxDirectMemory(16 * 1024)
-      .setRoles(ClusterCoordinator.Role.toEndpointRoles(Sets.newHashSet(ClusterCoordinator.Role.EXECUTOR)))
-      .build();
-
-    CoordinationProtos.NodeEndpoint nodeEndpoint3 = CoordinationProtos.NodeEndpoint.newBuilder()
-      .setAddress("host3")
-      .setFabricPort(1234)
-      .setUserPort(2345)
-      .setAvailableCores(5)
-      .setMaxDirectMemory(16 * 1024)
-      .setRoles(ClusterCoordinator.Role.toEndpointRoles(Sets.newHashSet(ClusterCoordinator.Role.EXECUTOR)))
-      .build();
-
-    Map<CoordinationProtos.NodeEndpoint, Integer> endpoints = Maps.newHashMap();
-
-    endpoints.put(nodeEndpoint1, 2);
-    endpoints.put(nodeEndpoint2, 3);
-    endpoints.put(nodeEndpoint3, 5);
-
-    majorFIdToEndpoints.put(0, endpoints);
-
-    endpoints.clear();
-
-    endpoints.put(nodeEndpoint1, 10);
-    endpoints.put(nodeEndpoint2, 8);
-    endpoints.put(nodeEndpoint3, 15);
-
-    majorFIdToEndpoints.put(1, endpoints);
-
-    endpoints.clear();
-
-    endpoints.put(nodeEndpoint1, 20);
-    endpoints.put(nodeEndpoint2, 18);
-    endpoints.put(nodeEndpoint3, 16);
-
-    majorFIdToEndpoints.put(2, endpoints);
-
-    basicProperties.setResourceData(majorFIdToEndpoints);
-
     assertEquals(30000.0D,
       basicProperties.getQueryCost(),10E-6);
 
@@ -135,7 +77,6 @@ public class BasicResourceTest {
     assertEquals("bcd", basicProperties.getUser());
     assertEquals("tagvalue1", basicProperties.getTag());
 
-    assertEquals(majorFIdToEndpoints, basicProperties.getResourceData());
   }
 
   @Test
@@ -178,14 +119,7 @@ public class BasicResourceTest {
     final ResourceSchedulingContext resourceSchedulingContext2 = createQueryContext(queryId2, optionManager,
       nodeEndpoint);
 
-    final Map<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> endpoints = ImmutableMap.of(
-      0, ImmutableMap.of(nodeEndpoint, 2),
-      1, ImmutableMap.of(nodeEndpoint, 3),
-      2, ImmutableMap.of(nodeEndpoint, 1)
-    );
-
     final ResourceSchedulingProperties resourceSchedulingProperties = new ResourceSchedulingProperties();
-    resourceSchedulingProperties.setResourceData(endpoints);
     resourceSchedulingProperties.setQueryCost(112100D);
 
     final BasicResourceAllocator resourceAllocator = new BasicResourceAllocator(DirectProvider.wrap
@@ -207,16 +141,16 @@ public class BasicResourceTest {
       assertTrue(e.getMessage().contains("Workload Manager"));
     }
 
-    resourceSet.getResourceAllocations().forEach((v) -> assertEquals(4096, v.getMemory()));
+    assertEquals(4096, resourceSet.getPerNodeQueryMemoryLimit());
     resourceSet.close();
 
     final ResourceSet resourceSet2 =
       resourceAllocator.allocate(resourceSchedulingContext2, resourceSchedulingProperties).getResourceSetFuture().get();
 
-    resourceSet1.getResourceAllocations().forEach((v) -> assertEquals(4096, v.getMemory()));
+    assertEquals(4096, resourceSet1.getPerNodeQueryMemoryLimit());
     resourceSet1.close();
 
-    resourceSet2.getResourceAllocations().forEach((v) -> assertEquals(4096, v.getMemory()));
+    assertEquals(4096, resourceSet2.getPerNodeQueryMemoryLimit());
     resourceSet2.close();
   }
 
@@ -251,14 +185,7 @@ public class BasicResourceTest {
     final ResourceSchedulingContext resourceSchedulingContext2 = createQueryContext(queryId2, optionManager,
       nodeEndpoint);
 
-    final Map<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> endpoints = ImmutableMap.of(
-      0, ImmutableMap.of(nodeEndpoint, 2),
-      1, ImmutableMap.of(nodeEndpoint, 3),
-      2, ImmutableMap.of(nodeEndpoint, 1)
-    );
-
     final ResourceSchedulingProperties resourceSchedulingProperties = new ResourceSchedulingProperties();
-    resourceSchedulingProperties.setResourceData(endpoints);
     resourceSchedulingProperties.setQueryCost(112100D);
 
     DistributedSemaphore mockLease = mock(DistributedSemaphore.class);
@@ -319,21 +246,14 @@ public class BasicResourceTest {
       (clusterCoordinator));
     resourceAllocator.start();
 
-     final Map<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> endpoints = ImmutableMap.of(
-      0, ImmutableMap.of(nodeEndpoint1, 2),
-      1, ImmutableMap.of(nodeEndpoint1, 3),
-      2, ImmutableMap.of(nodeEndpoint1, 1)
-    );
-
     final ResourceSchedulingProperties resourceSchedulingProperties = new ResourceSchedulingProperties();
-    resourceSchedulingProperties.setResourceData(endpoints);
     resourceSchedulingProperties.setQueryCost(112100D);
 
     final ResourceSchedulingResult resourceSchedulingResult = resourceAllocator.allocate(resourceSchedulingContext,
       resourceSchedulingProperties);
 
     final ResourceSet resourceSet = resourceSchedulingResult.getResourceSetFuture().get();
-    resourceSet.getResourceAllocations().forEach((v) -> assertEquals(4096, v.getMemory()));
+    assertEquals(4096, resourceSet.getPerNodeQueryMemoryLimit());
 
     assertNull(resourceSchedulingResult.getResourceSchedulingDecisionInfo().getRuleContent());
     assertNull(resourceSchedulingResult.getResourceSchedulingDecisionInfo().getRuleId());

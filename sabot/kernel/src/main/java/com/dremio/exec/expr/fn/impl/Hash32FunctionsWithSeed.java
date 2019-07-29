@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -238,7 +238,7 @@ public class Hash32FunctionsWithSeed {
     public void eval() {
       out.isSet = 1;
       if (in.isSet == 0) {
-        out.value = 0;
+        out.value = seed.value;
       } else {
         out.value = com.dremio.exec.expr.fn.impl.HashHelper.hash32(in.start, in.start + 16, in
           .buffer, seed.value);

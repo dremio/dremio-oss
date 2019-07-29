@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,9 +39,10 @@ export function wrapUnsavedChangesWarningWithModal(Modal) {
       isFormDirty: false
     };
 
-    handleHide = () => {
+    handleHide = (promiseResolver) => {
       this.props.hide();
       this.updateFormDirtyState(false);
+      promiseResolver(true);
     }
 
     /**
@@ -57,15 +58,22 @@ export function wrapUnsavedChangesWarningWithModal(Modal) {
      *
      * @param  {object} [event]
      * @param  {boolean} [formSubmitted] `true` when form is submitted
+     * @returns {Promise} a promise which is resolved with {@see true}, if a modal close is confirmed,
+     * {@see false} otherwise
      */
     hide = (event, formSubmitted) => {
-      // strict check for non-true value because method arguments may vary and contains additional
-      // event objects as second arguments which supposed to be formSubmitted and responds as truthy
-      if (this.state.isFormDirty && formSubmitted !== true) {
-        this.props.showUnsavedChangesConfirmDialog({ confirm: this.handleHide });
-      } else {
-        this.handleHide();
-      }
+      return new Promise((resolve) => {
+        // strict check for non-true value because method arguments may vary and contains additional
+        // event objects as second arguments which supposed to be formSubmitted and responds as truthy
+        if (this.state.isFormDirty && formSubmitted !== true) {
+          this.props.showUnsavedChangesConfirmDialog({
+            confirm: () => this.handleHide(resolve),
+            cancel: () => resolve(false)
+          });
+        } else {
+          this.handleHide(resolve);
+        }
+      });
     }
 
     updateFormDirtyState = (isFormDirty) => {

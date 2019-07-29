@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ import exploreUtils from 'utils/explore/exploreUtils';
 import fullDatasetSchema from 'schemas/v2/fullDataset';
 import { constructFullPath } from 'utils/pathUtils';
 
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 import { API_URL_V2 } from 'constants/Api';
 import { postDatasetOperation } from './dataset/common';
 
@@ -77,7 +77,7 @@ export const LOAD_RECOMMENDED_JOIN_FAILURE = 'LOAD_RECOMMENDED_JOIN_FAILURE';
 function fetchRecommendedJoin({href}) {
   const meta = {viewId: 'RecommendedJoins'};
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: LOAD_RECOMMENDED_JOIN_START, meta },
         { type: LOAD_RECOMMENDED_JOIN_SUCCESS, meta },

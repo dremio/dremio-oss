@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.dremio;
 
 import java.math.BigDecimal;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -61,6 +62,7 @@ public class TestDecimalStreamAgg extends DecimalCompleteTest {
   }
 
   @Test
+  @Ignore("DX-11334")
   public void testDecimalSumAggOverflow_Parquet() throws Exception {
 
     exception.expect(UserException.class);
@@ -86,6 +88,7 @@ public class TestDecimalStreamAgg extends DecimalCompleteTest {
   }
 
   @Test
+  @Ignore("DX-11334")
   public void testDecimalSumZeroAggOverflow_Parquet() throws Exception {
 
     exception.expect(UserException.class);
@@ -133,6 +136,71 @@ public class TestDecimalStreamAgg extends DecimalCompleteTest {
       .unOrdered()
       .baselineColumns("EXPR$0")
       .baselineValues(new BigDecimal("-999999999999999999999999999999999999.99"))
+      .go();
+  }
+
+  @Test
+  public void testDecimalAvg_Parquet() throws Exception {
+
+    final String query = "select avg(val) from cp" +
+      ".\"parquet/decimals/simple-decimals-with-nulls.parquet\"";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(15.86158271560494D)
+      .go();
+  }
+
+  @Test
+  public void testDecimalVariance_Parquet() throws Exception {
+
+    final String query = "select variance(val) from cp" +
+      ".\"parquet/decimals/simple-decimals-with-nulls.parquet\"";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(1548.4187808596055D)
+      .go();
+  }
+
+  @Test
+  public void testDecimalVarPop_Parquet() throws Exception {
+
+    final String query = "select var_pop(val) from cp" +
+      ".\"parquet/decimals/simple-decimals-with-nulls.parquet\"";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(1393.5769027736449D)
+      .go();
+  }
+
+  @Test
+  public void testDecimalStdDev_Parquet() throws Exception {
+
+    final String query = "select stddev(val) from cp" +
+      ".\"parquet/decimals/simple-decimals-with-nulls.parquet\"";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(39.34995274278745D)
+      .go();
+  }
+
+  @Test
+  public void testDecimalStdDevPop_Parquet() throws Exception {
+
+    final String query = "select stddev_pop(val) from cp" +
+      ".\"parquet/decimals/simple-decimals-with-nulls.parquet\"";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(37.33064294615946D)
       .go();
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,11 +24,12 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.codahale.metrics.Gauge;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.exec.proto.CoordExecRPC.ActivateFragments;
+import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
-import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.rpc.Acks;
@@ -73,7 +74,6 @@ public class CoordExecService implements Service {
    * @param fabricService
    * @param coordToExec
    * @param execToCoord
-   * @param handler
    */
   public CoordExecService(
       SabotConfig config,
@@ -170,8 +170,8 @@ public class CoordExecService implements Service {
 
       // coordinator > executor
       case RpcType.REQ_CANCEL_FRAGMENTS_VALUE: {
-        final FragmentHandle handle = get(pBody, FragmentHandle.PARSER);
-        coordToExec.get().cancelFragment(handle);
+        final CancelFragments fragments = get(pBody, CancelFragments.PARSER);
+        coordToExec.get().cancelFragments(fragments);
         sender.send(OK);
         break;
       }
@@ -180,6 +180,14 @@ public class CoordExecService implements Service {
       case RpcType.REQ_START_FRAGMENTS_VALUE: {
         final InitializeFragments fragments = get(pBody, InitializeFragments.PARSER);
         coordToExec.get().startFragments(fragments, sender);
+        break;
+      }
+
+      // coordinator > executor
+      case RpcType.REQ_ACTIVATE_FRAGMENTS_VALUE: {
+        final ActivateFragments fragments = get(pBody, ActivateFragments.PARSER);
+        coordToExec.get().activateFragments(fragments);
+        sender.send(OK);
         break;
       }
 
@@ -212,7 +220,8 @@ public class CoordExecService implements Service {
         .name("CoordToExec")
         .timeout(config.getInt(RpcConstants.BIT_RPC_TIMEOUT))
         .add(RpcType.REQ_START_FRAGMENTS, InitializeFragments.class, RpcType.ACK, Ack.class)
-        .add(RpcType.REQ_CANCEL_FRAGMENTS, FragmentHandle.class, RpcType.ACK, Ack.class)
+        .add(RpcType.REQ_ACTIVATE_FRAGMENTS, ActivateFragments.class, RpcType.ACK, Ack.class)
+        .add(RpcType.REQ_CANCEL_FRAGMENTS, CancelFragments.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_FRAGMENT_STATUS, FragmentStatus.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_QUERY_DATA, QueryData.class, RpcType.ACK, Ack.class)
         .add(RpcType.REQ_NODE_QUERY_STATUS, NodeQueryStatus.class, RpcType.ACK, Ack.class)
@@ -230,7 +239,12 @@ public class CoordExecService implements Service {
     }
 
     @Override
-    public void cancelFragment(FragmentHandle fragments) throws RpcException {
+    public void activateFragments(ActivateFragments fragments) throws RpcException {
+      throw new RpcException("This daemon doesn't support execution operations.");
+    }
+
+    @Override
+    public void cancelFragments(CancelFragments fragments) throws RpcException {
       throw new RpcException("This daemon doesn't support execution operations.");
     }
 

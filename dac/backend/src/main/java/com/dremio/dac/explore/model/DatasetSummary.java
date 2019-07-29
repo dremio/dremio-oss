@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.model.job.JobFilters;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.service.jobs.JobIndexKeys;
-import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -61,8 +60,7 @@ public class DatasetSummary {
     this.datasetVersion = datasetVersion;
   }
 
-  public static DatasetSummary newInstance(DatasetConfig datasetConfig, int jobCount, int descendants)
-      throws NamespaceException {
+  public static DatasetSummary newInstance(DatasetConfig datasetConfig, int jobCount, int descendants) {
     List<String> fullPath = datasetConfig.getFullPathList();
 
     DatasetType datasetType = datasetConfig.getType();

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,6 +51,7 @@ import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SampleMutator;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
 import com.dremio.exec.store.easy.text.compliant.CompliantTextRecordReader;
 import com.dremio.exec.store.easy.text.compliant.TextParsingSettings;
 import com.dremio.options.OptionManager;
@@ -303,7 +304,7 @@ public class TestNewTextReader extends BaseTestQuery {
     Path path = new Path("/notExist");
     try (BufferAllocator sampleAllocator = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
          OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), sampleAllocator, optionManager, 1000);
-         FileSystemWrapper dfs = FileSystemWrapper.get(path, new Configuration(), null);
+         FileSystemWrapper dfs = FileSystemWrapperCreator.get(path, new Configuration(), null);
          SampleMutator mutator = new SampleMutator(sampleAllocator);
          CompliantTextRecordReader reader = new CompliantTextRecordReader(split, dfs, operatorContext, settings, columns);
     ){

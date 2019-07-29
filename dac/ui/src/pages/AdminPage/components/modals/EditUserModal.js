@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,8 @@
  */
 import { Component } from 'react';
 import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
-import Immutable from 'immutable';
 
 import Modal from 'components/Modals/Modal';
-import { editUser } from 'actions/admin';
-import { loadUser } from 'actions/resources/user';
-import { getUser } from 'selectors/admin';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
 
@@ -31,81 +26,51 @@ import './Modal.less';
 export class EditUserModal extends Component {
 
   static propTypes = {
+    userId: PropTypes.string,
     isOpen: PropTypes.bool,
     hide: PropTypes.func,
     loadUser: PropTypes.func,
-    pathname: PropTypes.string.isRequired,
     editUser: PropTypes.func,
     query: PropTypes.object,
-    updateFormDirtyState: PropTypes.func,
-    user: PropTypes.instanceOf(Immutable.Map)
+    updateFormDirtyState: PropTypes.func
   };
 
-  static contextTypes = {
-    location: PropTypes.object.isRequired
-  };
-
-  componentWillMount() {
-    this.loadUserInfo(this.props);
-  }
-
-  componentWillReceiveProps(nextProps, nextContext) {
-    if (this.props.isOpen !== nextProps.isOpen) {
-      this.loadUserInfo(nextProps, nextContext);
-    }
-  }
-
-  loadUserInfo(props, nextContext) {
-    const { isOpen } = props;
-    const user = nextContext ? nextContext.location.query.user : null;
-    if (isOpen && user) {
-      this.props.loadUser({userName: user});
-    }
-  }
-
-  submit = (values) => {
-    const { user } = this.props;
-    const mappedValues = {
-      userName: values.userName,
-      firstName: values.firstName,
-      lastName: values.lastName,
-      version: values.version,
-      email: values.email,
-      createdAt: new Date().getTime(), // todo: why is createdAt getting changed here?
-      password: values.password || undefined // undefined means no trying to set the pw to ""
-    };
+  submit = (submitPromise) => {
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.editUser(mappedValues, user.getIn(['userConfig', 'userName']))
-    ).then(() => this.props.hide(null, true));
+      submitPromise
+    ).then(() => {
+      this.onHide(null, true);
+    });
+  }
+
+  onHide = (...args) => {
+    const { hide } = this.props;
+    hide(...args);
   }
 
   render() {
-    const { isOpen, hide, user, updateFormDirtyState } = this.props;
+    const { userId, isOpen, updateFormDirtyState } = this.props;
     return (
       <Modal
-        title={la('Edit User')}
+        title={userId ? la('Edit User') : la('Add User')}
         size='small'
         isOpen={isOpen}
-        hide={hide}>
+        classQa='add-user-modal'
+        hide={this.onHide}
+      >
         <EditUserForm
+          userId={userId}
           updateFormDirtyState={updateFormDirtyState}
           onFormSubmit={this.submit}
-          onCancel={hide}
-          user={user}/>
+          onCancel={this.onHide}
+          passwordHasPadding
+          isModal
+        />
       </Modal>
     );
   }
 }
 
-function mapStateToProps(state) {
-  const location = state.routing.locationBeforeTransitions;
+export default FormUnsavedWarningHOC(EditUserModal);
 
-  return {
-    user: getUser(state, location.query.user)
-  };
-}
 
-export default connect(mapStateToProps, {
-  loadUser,
-  editUser
-})(FormUnsavedWarningHOC(EditUserModal));

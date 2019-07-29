@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -124,14 +124,21 @@ class PartitionWriteManager {
     if(obj == null){
       return NULL_PARTITION;
     } else {
-      String value = obj.toString().replaceAll("\\W+", "_");
+      // Decimal can have maximum precision 38, and if value starts with "-0." then max length can be 38 + 3
+      // All remaining number types coming from Arrow object have smaller length than Decimal
+      int TEXT_LIMIT = 41;
+      String value = obj.toString();
+      if (!(obj instanceof Number)) {
+        value = value.replaceAll("\\W+", "_");
+        TEXT_LIMIT = 24;
+      }
 
       if (value.isEmpty()) {
         return EMPTY_VALUE_PARTITION;
       }
 
-      if(value.length() > 24){
-        return value.substring(0, 24);
+      if(value.length() > TEXT_LIMIT){
+        return value.substring(0, TEXT_LIMIT);
       } else {
         return value;
       }

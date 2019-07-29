@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -116,10 +116,6 @@ public final class MemoryAllocationUtilities {
       for(NodeEndpoint e : entry.getValue().getAssignedEndpoints()) {
         nonConsideredOps.putAll(e, fco.getNonConsideredOperators());
       }
-      // All fragments should have the same max allocation (to the query max allocation). Getting the min just in case
-      if (entry.getValue().getMaxAllocation() < queryMaxAllocation) {
-        queryMaxAllocation = entry.getValue().getMaxAllocation();
-      }
     }
 
     // We now have a list of operators per endpoint.
@@ -131,7 +127,7 @@ public final class MemoryAllocationUtilities {
       // sum of initial allocations must not be less than the query limit
       if (outsideReserve + consideredOpsReserve > queryMaxAllocation) {
         throw UserException.resourceError()
-          .message("Query was cancelled because the initial memory requirement (%s) is greater than the job memory limit set by the administrator (%s)",
+          .message("Query was cancelled because the initial memory requirement (%s) is greater than the job memory limit set by the administrator (%s).",
             PrettyPrintUtils.bytePrint(outsideReserve + consideredOpsReserve, true),
             PrettyPrintUtils.bytePrint(queryMaxAllocation, true))
           .build(logger);

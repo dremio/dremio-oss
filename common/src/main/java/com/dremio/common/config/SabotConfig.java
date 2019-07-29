@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -97,9 +97,9 @@ public class SabotConfig extends NestedConfig {
     }
   }
 
-  public <T> T getInstance(String path, Class<T> iface, T defaultInstance) {
+  public <T> T getInstance(String path, Class<T> iface, T defaultInstance, Object... constructorArgs) {
     if (this.hasPath(path)) {
-      return getInstance(path, iface);
+      return getInstance(path, iface, constructorArgs);
     }
     return defaultInstance;
   }
@@ -108,7 +108,7 @@ public class SabotConfig extends NestedConfig {
   public <T> Class<? extends T> getClass(String path, Class<T> iface, Class<? extends T> defaultImpl) {
     if (this.hasPath(path)) {
       String className = this.getString(path);
-      ;
+
       try {
         Class<?> clazz = Class.forName(className);
         Preconditions.checkArgument(iface.isAssignableFrom(clazz));

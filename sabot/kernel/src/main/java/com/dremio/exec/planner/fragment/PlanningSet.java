@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 
-import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.exec.proto.CoordinationProtos;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 public class PlanningSet implements Iterable<Wrapper> {
@@ -69,18 +66,11 @@ public class PlanningSet implements Iterable<Wrapper> {
   }
 
   /**
-   * Update Wrappers with allocations received from scheduler
+   * Update Wrappers with query per-node memory limits
    */
-  public void updateWithAllocations(Map<Integer, Map<CoordinationProtos.NodeEndpoint, Long>> allocations) throws ExecutionSetupException {
+  public void setMemoryAllocationPerNode(long memoryLimit) {
     for (Wrapper wrapper : fragmentMap.values()) {
-      if (!wrapper.isEndpointsAssignmentDone()) {
-        throw new ExecutionSetupException("Node assignment is not done for major Fragment: " +
-          wrapper.getMajorFragmentId());
-      }
-      int majorFragmentId = wrapper.getMajorFragmentId();
-      final Map<CoordinationProtos.NodeEndpoint, Long> majorFragmentAllocations = allocations.get(majorFragmentId);
-      Preconditions.checkNotNull(majorFragmentAllocations);
-      wrapper.assignMemoryAllocations(allocations.get(majorFragmentId));
+      wrapper.setMemoryAllocationPerNode(memoryLimit);
     }
   }
 }

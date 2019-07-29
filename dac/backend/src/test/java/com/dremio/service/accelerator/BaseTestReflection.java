@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package com.dremio.service.accelerator;
 
 import static com.dremio.options.OptionValue.OptionType.SYSTEM;
+import static com.dremio.service.accelerator.proto.SubstitutionState.CHOSEN;
 import static com.dremio.service.reflection.ReflectionOptions.MATERIALIZATION_CACHE_ENABLED;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_DELETION_GRACE_PERIOD;
 import static com.dremio.service.reflection.ReflectionOptions.REFLECTION_MANAGER_REFRESH_DELAY_MILLIS;
@@ -26,12 +27,12 @@ import static java.util.concurrent.TimeUnit.HOURS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
@@ -43,6 +44,7 @@ import org.junit.ClassRule;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.datastore.KVStoreProvider;
@@ -55,6 +57,7 @@ import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionValue;
+import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobStatusListener;
@@ -77,6 +80,7 @@ import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.reflection.DependencyEntry;
 import com.dremio.service.reflection.DependencyEntry.DatasetDependency;
 import com.dremio.service.reflection.DependencyEntry.ReflectionDependency;
+import com.dremio.service.reflection.ReflectionMonitor;
 import com.dremio.service.reflection.ReflectionOptions;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionServiceImpl;
@@ -95,6 +99,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
 /**
@@ -233,6 +238,20 @@ public class BaseTestReflection extends BaseTestServer {
     return plan.get();
   }
 
+  protected static List<ReflectionField> reflectionFields(String ... fields) {
+    ImmutableList.Builder<ReflectionField> builder = new ImmutableList.Builder<>();
+    for (String field : fields) {
+      builder.add(new ReflectionField(field));
+    }
+    return builder.build();
+  }
+
+  protected static List<ReflectionRelationship> getChosen(List<ReflectionRelationship> relationships) {
+    return relationships.stream()
+      .filter((r) -> r.getState() == CHOSEN)
+      .collect(Collectors.toList());
+  }
+
   protected Materialization getMaterializationFor(final ReflectionId rId) {
     final Iterable<MaterializationId> mIds = FluentIterable.from(getMaterializationDescriptorProvider().get())
       .filter(new Predicate<MaterializationDescriptor>() {
@@ -254,31 +273,23 @@ public class BaseTestReflection extends BaseTestServer {
     assertTrue("materialization not found", m.isPresent());
     return m.get();
   }
-
-  protected DatasetPath createVdsFromQuery(String query, String testSpace) {
-    final String datasetName = "query" + queryNumber.getAndIncrement();
-    final List<String> path = Arrays.asList(testSpace, datasetName);
-    final DatasetPath datasetPath = new DatasetPath(path);
-    createDatasetFromSQLAndSave(datasetPath, query, Collections.<String>emptyList());
-    return datasetPath;
+  protected DatasetUI createVdsFromQuery(String query, String space, String dataset) {
+    final DatasetPath datasetPath = new DatasetPath(ImmutableList.of(space, dataset));
+    return createDatasetFromSQLAndSave(datasetPath, query, Collections.emptyList());
   }
 
-  protected ReflectionId createRawOnVds(DatasetPath datasetPath, String reflectionName, List<String> rawFields) throws Exception {
-    final DatasetConfig dataset = getNamespaceService().getDataset(datasetPath.toNamespaceKey());
+  protected DatasetUI createVdsFromQuery(String query, String testSpace) {
+    final String datasetName = "query" + queryNumber.getAndIncrement();
+    return createVdsFromQuery(query, testSpace, datasetName);
+  }
+
+  protected ReflectionId createRawOnVds(String datasetId, String reflectionName, List<String> rawFields) throws Exception {
     return getReflectionService().create(new ReflectionGoal()
       .setType(ReflectionType.RAW)
-      .setDatasetId(dataset.getId().getId())
+      .setDatasetId(datasetId)
       .setName(reflectionName)
       .setDetails(new ReflectionDetails()
-        .setDisplayFieldList(
-          FluentIterable.from(rawFields)
-            .transform(new Function<String, ReflectionField>() {
-              @Override
-              public ReflectionField apply(String field) {
-                return new ReflectionField(field);
-              }
-            }).toList()
-        )
+        .setDisplayFieldList(rawFields.stream().map(ReflectionField::new).collect(Collectors.toList()))
       )
     );
   }
@@ -289,8 +300,8 @@ public class BaseTestReflection extends BaseTestServer {
   }
 
   protected ReflectionId createRawFromQuery(String query, String testSpace, List<String> rawFields, String reflectionName) throws Exception {
-    final DatasetPath datasetPath = createVdsFromQuery(query, testSpace);
-    return createRawOnVds(datasetPath, reflectionName, rawFields);
+    final DatasetUI datasetUI = createVdsFromQuery(query, testSpace);
+    return createRawOnVds(datasetUI.getId(), reflectionName, rawFields);
   }
 
   protected static void setMaterializationCacheSettings(boolean enabled, long refreshDelayInSeconds) {

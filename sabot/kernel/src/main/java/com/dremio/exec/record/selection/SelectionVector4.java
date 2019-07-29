@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,17 +18,17 @@ package com.dremio.exec.record.selection;
 import com.dremio.exec.record.DeadBuf;
 import com.google.common.base.Preconditions;
 
-import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ArrowBuf;
 
 public class SelectionVector4 implements AutoCloseable {
   // private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SelectionVector4.class);
 
-  private ByteBuf data;
+  private ArrowBuf data;
   private int recordCount;
   private int start;
   private int length;
 
-  public SelectionVector4(ByteBuf vector, int recordCount, int batchRecordCount) {
+  public SelectionVector4(ArrowBuf vector, int recordCount, int batchRecordCount) {
     Preconditions.checkArgument(recordCount < Integer.MAX_VALUE / 4,
         "Currently, Dremio can only support allocations up to 2gb in size.  "
         + "You requested an allocation of %d bytes.", recordCount * 4);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -746,7 +746,10 @@ public class UserException extends RuntimeException {
      *
      * @param logger the logger to write to, if null call won't log
      * @return user exception
+     * @deprecated we are no longer required to log UserExceptions whenever we build them. The user will see the exception
+     * in the query profile, and the caller can always chose to log the exception if really needed.
      */
+    @Deprecated
     public UserException build(final Logger logger) {
       if (uex != null) {
         return uex;

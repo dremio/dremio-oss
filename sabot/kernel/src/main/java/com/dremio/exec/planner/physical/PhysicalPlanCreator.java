@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,41 +75,47 @@ public class PhysicalPlanCreator {
   }
 
   public OpProps props(int operatorId, Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption, double cost) {
-    return props(operatorId, username, schema, reserveOption, limitOption, cost, null,
+    return props(operatorId, username, schema,
+      reserveOption == null ? Prel.DEFAULT_RESERVE : context.getOptions().getOption(reserveOption),
+      limitOption, Prel.DEFAULT_LOW_LIMIT, cost,
       prel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE) == DistributionTrait.SINGLETON);
   }
 
   public OpProps props(Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption, double cost) {
-    return props(prel, username, schema, reserveOption, limitOption, cost, null);
+    return props(prel, username, schema,
+      reserveOption == null ? Prel.DEFAULT_RESERVE : context.getOptions().getOption(reserveOption),
+      limitOption, Prel.DEFAULT_LOW_LIMIT, cost);
   }
 
   public OpProps props(Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption) {
-    return props(prel, username, schema, reserveOption, limitOption, prel.getCostForParallelization(), null);
+    return props(prel, username, schema,
+      reserveOption == null ? Prel.DEFAULT_RESERVE : context.getOptions().getOption(reserveOption),
+      limitOption, Prel.DEFAULT_LOW_LIMIT, prel.getCostForParallelization());
   }
 
-  public OpProps props(Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption, LongValidator lowLimitOption) {
-    return props(prel, username, schema, reserveOption, limitOption, prel.getCostForParallelization(), lowLimitOption);
+  public OpProps props(Prel prel, String username, BatchSchema schema, long reservation, LongValidator limitOption, long lowLimit) {
+    return props(prel, username, schema, reservation, limitOption, lowLimit, prel.getCostForParallelization());
   }
 
-  private OpProps props(Prel prel, String username, BatchSchema schema, LongValidator reserveOption, LongValidator limitOption, double cost, LongValidator lowLimitOption) {
-    return props(getId(prel), username, schema, reserveOption, limitOption, cost, lowLimitOption,
+  private OpProps props(Prel prel, String username, BatchSchema schema, long reservation, LongValidator limitOption, long lowLimit, double cost) {
+    return props(getId(prel), username, schema, reservation, limitOption, lowLimit, cost,
       prel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE) == DistributionTrait.SINGLETON);
   }
 
   private OpProps props(int operatorId,
                         String username,
                         BatchSchema schema,
-                        LongValidator reserveOption,
+                        long reservation,
                         LongValidator limitOption,
+                        long lowLimit,
                         double cost,
-                        LongValidator lowLimitOption,
                         boolean singleStream) {
     return new OpProps(
       operatorId,
       username,
-      reserveOption == null ? Prel.DEFAULT_RESERVE : context.getOptions().getOption(reserveOption),
+      reservation,
       limitOption == null ? Prel.DEFAULT_LIMIT : context.getOptions().getOption(limitOption),
-      lowLimitOption == null ? Prel.DEFAULT_LOW_LIMIT: context.getOptions().getOption(lowLimitOption),
+      lowLimit,
       cost,
       singleStream,
       calculateTargetRecordSize(schema),

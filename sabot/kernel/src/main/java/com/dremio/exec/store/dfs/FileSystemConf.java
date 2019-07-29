@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,5 +55,33 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
    */
   public boolean isAsyncEnabled() {
     return false;
+  }
+
+  /**
+   * Interface for plugin implementations to communicate cache properties to underlying system.
+   */
+  public interface CacheProperties {
+    /**
+     * Indicates that the plugin requests caching whenever possible.
+     * (Note that even if plugin requests caching, underlying Dremio system must support caching and the source
+     * must have async reads enabled.)
+     * @return {@code true} if caching is requested.
+     */
+    default boolean isCachingEnabled() {
+      return false;
+    }
+
+    /**
+     * If caching is enabled and this feature is supported by underlying Dremio system, this controls the max amount
+     * of disk space that can be used to cache data for this source.
+     * @return {@code percentage} of max disk space to be used for this source, default is 100%.
+     */
+    default int cacheMaxSpaceLimitPct() {
+      return 100;
+    }
+  }
+
+  public CacheProperties getCacheProperties() {
+    return new CacheProperties() {};
   }
 }

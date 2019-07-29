@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -266,11 +266,11 @@ public class ColumnChunkIncReadStore implements PageReadStore {
     private ByteBuffer uncompressPage(PageHeader pageHeader, boolean isDataPage) throws IOException {
       final int compressedPageSize = pageHeader.compressed_page_size;
       final int uncompressedPageSize = pageHeader.uncompressed_page_size;
-      final ByteBuf src = allocator.buffer(compressedPageSize);
+      final ByteBuf src = allocator.buffer(compressedPageSize).asNettyBuffer();
       ByteBuf dest = null;
       try {
         readFully(src, compressedPageSize);
-        dest = allocator.buffer(uncompressedPageSize);
+        dest = allocator.buffer(uncompressedPageSize).asNettyBuffer();
         ByteBuffer destBuffer = dest.nioBuffer(0, uncompressedPageSize);
 
         switch (pageHeader.type) {
@@ -293,6 +293,8 @@ public class ColumnChunkIncReadStore implements PageReadStore {
               final int uncompressedDataSize = uncompressedPageSize - dataOffset;
               final ByteBuffer srcDataBuf = src.nioBuffer(dataOffset, compressedDataSize);
               final ByteBuffer destDataBuf = dest.nioBuffer(dataOffset, uncompressedDataSize);
+              // important to add the starting position to the sizes so that
+              // the decompresser sets limits correctly.
               decompressor.decompress(srcDataBuf, compressedDataSize,
                 destDataBuf, uncompressedDataSize);
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,13 @@
  */
 import IntercomUtilsMixin from 'dyn-load/utils/intercomUtilsMixin';
 import userUtils from 'utils/userUtils';
+import { escapeSpecialCharacters } from '@app/utils/regExpUtils';
 import localStorageUtils from './storageUtils/localStorageUtils';
 import config from './config';
 
 // DX-16408
 const testEmails = ['@dremio.com', '@dremio.test', '@test.com'];
-const testEmailRegex = new RegExp(`(${testEmails
-  // escape special characters for regular expression
-  .map(email => email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  .join('|')})`, 'i');
+const testEmailRegex = new RegExp(`(${testEmails.map(escapeSpecialCharacters).join('|')})`, 'i');
 
 // export for testing
 export const useTestIntercomApp = (userEmail) => !config.isReleaseBuild || testEmailRegex.test(userEmail);
@@ -35,14 +33,29 @@ const testIntercomAppId = 'z8apq4co';
 @IntercomUtilsMixin
 class IntercomUtils {
 
-  ifChatAllowed() {
-    return this._ifAllowed(true);
+  get _intercom() {
+    return global.Intercom;
   }
 
-  _ifAllowed(forChat = false) {
-    const Intercom = global.Intercom;
+  /**
+   * @param {func(error: Error) : void} errorCallback - callback, which is called in case intercom
+   *  is missing. If callback is missing, a error is logged using console.error
+   * @returns {boolean}
+   */
+  ifChatAllowed(errorCallback) {
+    return this._ifAllowed(true, errorCallback);
+  }
+
+  _ifAllowed(forChat = false, errorCallback) {
+    const Intercom = this._intercom;
     if (!Intercom) {
-      return Promise.reject(new Error('INTERCOM MISSING'));
+      const error = new Error('INTERCOM MISSING');
+      if (typeof errorCallback === 'function') {
+        errorCallback(error);
+      } else {
+        console.error('Intercom communication error', error);
+      }
+      return false;
     }
 
     const userData = localStorageUtils.getUserData();
@@ -51,50 +64,50 @@ class IntercomUtils {
       if (userUtils.isAuthenticated(userData)) {
         // connect to intercom for other intercom features even if chat is disabled
         if (!forChat || this._shouldAllowChatForUser(userData)) {
-          return Promise.resolve(Intercom);
+          return true;
         }
       }
     }
-    return Promise.reject(new Error('INTERCOM NOT ALLOWED'));
+    return false;
   }
 
   // silently does nothing if Intercom in not available
   _sendToIntercom() {
-    this._ifAllowed().then((Intercom) => {
-      Intercom(...arguments);
-    }, function() {
-      console.error('Intercom communication error', ...arguments);
-    }); // make non-fatal
+    if (this._ifAllowed()) {
+      this._intercom(...arguments);
+    }
   }
 
   // the following are pre-bound because it is common to pass the fcns around...
 
   boot = () => {
-    this._ifAllowed().then((Intercom) => {
-      const userData = localStorageUtils.getUserData();
-      if (userData) {
-        const email = userData.email;
-        const appId = useTestIntercomApp(email) ? testIntercomAppId :
-          (config.intercomAppId || testIntercomAppId); // if server does not provide app id, use a test one
+    if (!this._ifAllowed()) {
+      return;
+    }
 
-        Intercom('boot', {
-          'app_id': appId,
-          email,
-          'user_id': userData.clusterId + (email || userData.userId),
-          'created_at': userData.userCreatedAt / 1000,
-          'name': `${userData.firstName} ${userData.lastName}`.trim(),
-          'company': {
-            'id': userData.clusterId,
-            'version': userData.version,
-            'created_at': userData.clusterCreatedAt / 1000
-          },
-          widget: {
-            activator: '#header-chat-button'
-          },
-          ...this._getExtraBootData()
-        });
-      }
-    }, () => {}); // make non-fatal
+    const userData = localStorageUtils.getUserData();
+    if (userData) {
+      const email = userData.email;
+      const appId = useTestIntercomApp(email) ? testIntercomAppId :
+        (config.intercomAppId || testIntercomAppId); // if server does not provide app id, use a test one
+
+      this._sendToIntercom('boot', {
+        'app_id': appId,
+        email,
+        'user_id': userData.clusterId + (email || userData.userId),
+        'created_at': userData.userCreatedAt / 1000,
+        'name': `${userData.firstName} ${userData.lastName}`.trim(),
+        'company': {
+          'id': userData.clusterId,
+          'version': userData.version,
+          'created_at': userData.clusterCreatedAt / 1000
+        },
+        widget: {
+          activator: '#header-chat-button'
+        },
+        ...this._getExtraBootData()
+      });
+    }
   }
 
   // need so Intercom can keep track of where user is for single-page-app nav

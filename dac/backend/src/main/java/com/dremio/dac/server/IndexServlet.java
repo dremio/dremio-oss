@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,8 @@ package com.dremio.dac.server;
 
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.net.URL;
-import java.util.Properties;
+import java.util.function.Supplier;
 
-import javax.inject.Provider;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -28,19 +26,10 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 
 import org.eclipse.jetty.util.resource.Resource;
-import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
 
-import com.dremio.common.util.DremioVersionInfo;
-import com.dremio.dac.daemon.ServerHealthMonitor;
-import com.dremio.dac.server.ServerData.ClientSettings;
-import com.dremio.dac.service.admin.CommitInfo;
-import com.dremio.dac.service.admin.VersionInfo;
-import com.dremio.dac.support.SupportService;
-import com.dremio.options.OptionManager;
-import com.dremio.service.reflection.ReflectionOptions;
+import com.dremio.dac.server.models.ServerData;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.io.Resources;
 
 import freemarker.template.Configuration;
 import freemarker.template.Template;
@@ -61,24 +50,15 @@ class IndexServlet implements Servlet {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(IndexServlet.class);
 
   private final Configuration templateCfg;
-  private final Provider<ServerHealthMonitor> serverHealthMonitor;
-  private final DACConfig config;
-  private final Provider<OptionManager> optionManager;
-  private final Provider<SupportService> supportService;
+  private final Supplier<ServerData> dataProvider;
+  private final ObjectMapper mapper;
 
   private ServletConfig servletConfig;
 
-  public IndexServlet(
-    DACConfig config,
-    Provider<ServerHealthMonitor> serverHealthMonitor,
-    Provider<OptionManager> optionManager,
-    Provider<SupportService> supportService
-  ) {
-    this.config = config;
-    this.optionManager = optionManager;
+  public IndexServlet(Supplier<ServerData> dataProvider) {
+    this.dataProvider = dataProvider;
     this.templateCfg = new Configuration(Configuration.VERSION_2_3_23);
-    this.serverHealthMonitor = serverHealthMonitor;
-    this.supportService = supportService;
+    this.mapper = new ObjectMapper();
   }
 
   @Override
@@ -109,64 +89,20 @@ class IndexServlet implements Servlet {
 
   @Override
   public void service(ServletRequest servletRequest, ServletResponse response) throws ServletException, IOException {
-    OptionManager options = optionManager.get();
-    ClientSettings settings = new ClientSettings(
-        options.getOption(SupportService.SUPPORT_EMAIL_ADDR),
-        options.getOption(SupportService.SUPPORT_EMAIL_SUBJECT),
-        options.getOption(SupportService.OUTSIDE_COMMUNICATION_DISABLED),
-        options.getOption(ReflectionOptions.ENABLE_SUBHOUR_POLICIES),
-        options.getOption(UIOptions.ALLOW_LOWER_PROVISIONING_SETTINGS),
-        options.getOption(UIOptions.TABLEAU_TDS_MIMETYPE),
-        options.getOption(UIOptions.ALLOW_FILE_UPLOADS),
-        options.getOption(UIOptions.WHITE_LABEL_URL),
-        options.getOption(UIOptions.ALLOW_SPACE_MANAGEMENT)
-    );
-
-    String environment = config.allowTestApis ? "DEVELOPMENT" : "PRODUCTION";
-    final ServerData indexConfig = new ServerData(
-      environment,
-      serverHealthMonitor.get(),
-      config.getConfig(),
-      settings,
-      getVersionInfo(),
-      supportService.get().getClusterId().getIdentity()
-    );
-
     Template tmp = templateCfg.getTemplate("/index.html");
+    final ServerData data = dataProvider.get();
+
+    final String dataAsJSON = mapper.writeValueAsString(data);
 
     response.setContentType("text/html; charset=utf-8");
     OutputStreamWriter outputWriter = new OutputStreamWriter(response.getOutputStream());
     try {
-      tmp.process(ImmutableMap.of("dremio", indexConfig), outputWriter);
+      tmp.process(ImmutableMap.of("dremio", dataAsJSON), outputWriter);
       outputWriter.flush();
       outputWriter.close();
     } catch (TemplateException e) {
       throw new IOException("Error rendering index.html template", e);
     }
-  }
-
-  private VersionInfo getVersionInfo() {
-    String version = DremioVersionInfo.getVersion(); // get dremio version (x.y.z)
-    long buildTime = 0;
-    CommitInfo commitInfo = null;
-
-    try {
-      URL u = Resources.getResource("git.properties");
-
-      if (u != null) {
-        Properties p = new Properties();
-        p.load(Resources.asByteSource(u).openStream());
-        buildTime = DateTime.parse(p.getProperty("git.build.time"), DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZ")).getMillis();
-        commitInfo = new CommitInfo(
-          p.getProperty("git.commit.id"),
-          p.getProperty("git.build.user.email"),
-          DateTime.parse(p.getProperty("git.commit.time"), DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZ")).getMillis(),
-          p.getProperty("git.commit.message.short"));
-      }
-    } catch (Exception e) {
-      logger.warn("Failure when trying to access and parse git.properties.", e);
-    }
-    return new VersionInfo(version, buildTime, commitInfo);
   }
 
   @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,24 @@ import { KeyChangeTrigger } from './KeyChangeTrigger';
 describe('KeyChangeTrigger', () => {
   let stub;
   let wrapper;
+  const parameterToString = parameter => JSON.stringify(parameter, null, 2);
+  const testChange = (oldValue, newValue, isOnChangeCalled) =>
+    it(`${isOnChangeCalled ? 'calls' : 'does not call'} onChange if value changed from ${parameterToString(oldValue)} to ${parameterToString(newValue)}`, () => {
+      stub = sinon.stub();
+      wrapper = shallow(<KeyChangeTrigger keyValue={oldValue} onChange={stub} />, {
+        disableLifecycleMethods: false
+      });
+      stub.reset();
+      wrapper.setProps({
+        keyValue: newValue
+      });
+      if (isOnChangeCalled) {
+        expect(stub).to.be.calledWith(newValue);
+      } else {
+        expect(stub).to.not.be.called;
+      }
+    });
+
   beforeEach(() => {
     stub = sinon.stub();
     wrapper = shallow(<KeyChangeTrigger keyValue='1' onChange={stub} />, {
@@ -30,19 +48,30 @@ describe('KeyChangeTrigger', () => {
     expect(stub).to.be.calledWith('1');
   });
 
-  it('calls onChange if key value is changed', () => {
-    stub.reset();
-    wrapper.setProps({
-      keyValue: '2'
-    });
-    expect(stub).to.be.calledWith('2');
-  });
-
-  it('does not call onChange if key value is not changed', () => {
-    stub.reset();
-    wrapper.setProps({
-      keyValue: '1'
-    });
-    expect(stub).have.not.been.called;
-  });
+  [
+    //strings
+    ['1', '2', true],
+    ['1', '1', false],
+    // numbers
+    [1, 1, false],
+    [1, 2, true],
+    // boolean
+    [false, false, false],
+    [true, true, false],
+    [true, false, true],
+    [false, true, true],
+    //object
+    [{}, {}, false],
+    [{ a: 1 }, { a: 1 }, false],
+    [{}, { a : 1 }, true],
+    [{}, { a : null }, true],
+    [{}, { a : undefined }, true],
+    //arrays
+    [[], [], false],
+    [[1], [1], false],
+    [[1, 2, 3], [1, 2, 3], false],
+    [[1], [1, 2], true],
+    [[1, 2], [1], true],
+    [[1, 2], [2, 1], true]
+  ].map(args => testChange(...args));
 });

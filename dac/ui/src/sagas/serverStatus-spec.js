@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ describe('serverStatus saga', () => {
       let next = generator.next();
       expect(next.value).to.eql(call(delay, RETRY_TIME));
       next = generator.next();
-      expect(next.value).to.eql(put(checkServerStatus()));
+      expect(next.value).to.eql(put(checkServerStatus(RETRY_TIME * 2)));
     });
   });
 

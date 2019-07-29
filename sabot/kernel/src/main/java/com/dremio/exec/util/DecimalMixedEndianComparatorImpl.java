@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 package com.dremio.exec.util;
 
 import io.netty.buffer.ArrowBuf;
-import io.netty.util.internal.PlatformDependent;
 
 /**
  * Mixed endian decimal bytes comparator
@@ -27,7 +26,7 @@ public abstract class DecimalMixedEndianComparatorImpl implements DecimalMixedEn
   private boolean isRightValNegative;
   private long rightValLow;
   private long rightValHigh;
-  protected byte padZero = 0, padNegative = (byte) 255;
+  protected static final byte padZero = 0, padNegative = (byte) 255;
 
   protected long getRightValLow() {
     return rightValLow;
@@ -45,9 +44,8 @@ public abstract class DecimalMixedEndianComparatorImpl implements DecimalMixedEn
     isLeftValNegative = left.getByte(startIndexLeft) < 0;
     isRightValNegative = right.getByte(startIndexRight + DecimalUtils.OFFSET_LE_MSB) < 0;
     //value in right is assumed to be 16 bytes (used for compare values in parquet filters)
-    long startingAddressRight = right.memoryAddress() + (startIndexRight);
-    rightValLow = PlatformDependent.getLong(startingAddressRight);
-    rightValHigh = PlatformDependent.getLong(startingAddressRight + 8);
+    rightValLow = getLongValueLow(right, startIndexRight);
+    rightValHigh =  getLongValueHigh(right, startIndexRight);
   }
 
   /**

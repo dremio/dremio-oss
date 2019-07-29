@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.UUID;
@@ -133,7 +134,7 @@ public class DatasetSaver {
       }
       throw UserException.validationError(e)
           .build(logger);
-    } catch (Exception e) {
+    } catch (NamespaceException| IOException e) {
       throw UserException.validationError(e)
           .build(logger);
     }

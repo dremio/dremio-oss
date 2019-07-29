@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,15 +32,11 @@ public class FieldReference extends SchemaPath {
   private final CompleteType overrideType;
 
   public FieldReference(CharSequence value) {
-    this(value, true);
-  }
-
-  public FieldReference(CharSequence value, boolean check) {
-    this(validate(value, check), null);
+    this(new SchemaPath(new NameSegment(value)), null);
   }
 
   public FieldReference(String value, CompleteType dataType) {
-    this(validate(value, true), dataType);
+    this(new SchemaPath(new NameSegment(value)), dataType);
   }
 
   public FieldReference(SchemaPath sp) {
@@ -52,17 +48,6 @@ public class FieldReference extends SchemaPath {
     this.overrideType = override;
   }
 
-  private static SchemaPath validate(CharSequence value, boolean check){
-    if (check && value.toString().contains(".")) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "Unhandled field reference \"%s\"; a field reference identifier"
-              + " must not have the form of a qualified name (i.e., with \".\").",
-              value));
-    }
-    return new SchemaPath(new NameSegment(value));
-  }
-
   private static SchemaPath validate(SchemaPath path) {
     if (path.getRootSegment().getChild() != null) {
       throw new UnsupportedOperationException("Field references must be singular names.");
@@ -71,9 +56,8 @@ public class FieldReference extends SchemaPath {
   }
 
   public static FieldReference getWithQuotedRef(CharSequence safeString) {
-    return new FieldReference(safeString, false);
+    return new FieldReference(safeString);
   }
-
 
   @Override
   public CompleteType getCompleteType() {

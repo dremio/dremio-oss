@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 import { merge, get, set } from 'lodash/object';
 import { applyValidators, isRequired, isNumber, isWholeNumber, isRequiredIfAnotherPropertyEqual } from 'utils/validation';
 import { getCreatedSource } from 'selectors/resources';
+import { MEMORY_UNITS } from 'utils/numberFormatUtils';
 
 export default class FormUtils {
 
@@ -29,22 +30,19 @@ export default class FormUtils {
     week: 7 * 24 * 60 * 60 * 1000
   };
 
-  static MEMORY_UNITS = {
-    // memory units in bytes
-    KB: 1024,
-    MB: 1024 ** 2,
-    GB: 1024 ** 3,
-    TB: 1024 ** 4
-  };
-
   static noop = () => {};
 
   static getMinDuration(intervalCode) {
     return FormUtils.DURATIONS[intervalCode];
   }
 
-  static getMinByte(unitCode, scaleToByteUnitCode) {
-    return FormUtils.MEMORY_UNITS[unitCode];
+  /**
+   * get number of bytes in one unit of memory
+   * @param unitCode one of [KB, MB, GB, TB]
+   * @return {number}
+   */
+  static getMinByte(unitCode) {
+    return MEMORY_UNITS.get(unitCode);
   }
 
   static deepCopyConfig(config) {

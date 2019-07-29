@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,13 +35,14 @@ import com.dremio.common.expression.visitors.ConditionalExprOptimizer;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.exception.SchemaChangeException;
-import com.dremio.exec.expr.fn.BaseFunctionHolder;
+import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.resolver.FunctionResolver;
 import com.dremio.exec.resolver.FunctionResolverFactory;
+import com.dremio.exec.util.DecimalUtils;
 import com.dremio.sabot.op.llvm.expr.GandivaPushdownSieve;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -49,6 +50,8 @@ import com.google.common.collect.Lists;
 public class ExpressionTreeMaterializer {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionTreeMaterializer.class);
+  public static final boolean DISALLOW_GANDIVA_FUNCTIONS = false;
+  public static final boolean ALLOW_GANDIVA_FUNCTIONS = true;
 
   private ExpressionTreeMaterializer() {
   };
@@ -62,8 +65,15 @@ public class ExpressionTreeMaterializer {
   }
 
   public static LogicalExpression materializeAndCheckErrors(LogicalExpression expr, BatchSchema schema, FunctionLookupContext functionLookupContext, boolean allowComplex) throws SchemaChangeException {
+    return materializeAndCheckErrors(expr, schema, functionLookupContext, allowComplex, false);
+  }
+
+  public static LogicalExpression materializeAndCheckErrors(LogicalExpression expr, BatchSchema
+    schema, FunctionLookupContext functionLookupContext, boolean allowComplex, boolean
+    allowGandivaFunctions) throws SchemaChangeException {
     ErrorCollector collector = new ErrorCollectorImpl();
-    LogicalExpression e = ExpressionTreeMaterializer.materialize(expr, schema, collector, functionLookupContext, allowComplex);
+    LogicalExpression e = ExpressionTreeMaterializer.materialize(expr, schema, collector,
+      functionLookupContext, allowComplex, allowGandivaFunctions);
     if (collector.hasErrors()) {
       throw new SchemaChangeException(String.format("Failure while trying to materialize incoming schema.  Errors:\n %s.", collector.toErrorString()));
     }
@@ -79,18 +89,26 @@ public class ExpressionTreeMaterializer {
     return materializeFields(exprs, incoming, context, false);
   }
 
-  public static SchemaBuilder materializeFields(List<NamedExpression> exprs, BatchSchema incoming, FunctionLookupContext context, boolean allowComplex) {
+  public static SchemaBuilder materializeFields(List<NamedExpression> exprs, BatchSchema
+    incoming, FunctionLookupContext context, boolean allowComplex) {
+    return materializeFields(exprs, incoming, context, allowComplex,false);
+  }
+
+  public static SchemaBuilder materializeFields(List<NamedExpression> exprs, BatchSchema
+    incoming, FunctionLookupContext context, boolean allowComplex, boolean allowGandivaFunctions) {
     final SchemaBuilder builder = BatchSchema.newBuilder();
     for(NamedExpression e : exprs){
-      CompleteType type = ExpressionTreeMaterializer.materializeAndCheckErrors(e.getExpr(), incoming, context, allowComplex).getCompleteType();
+      CompleteType type = ExpressionTreeMaterializer.materializeAndCheckErrors(e.getExpr(),
+        incoming, context, allowComplex, allowGandivaFunctions).getCompleteType();
       builder.addField(type.toField(e.getRef()));
     }
     return builder;
   }
 
   public static LogicalExpression materialize(LogicalExpression expr, BatchSchema schema, ErrorCollector errorCollector, FunctionLookupContext functionLookupContext,
-      boolean allowComplexWriterExpr) {
-    LogicalExpression out =  expr.accept(new ExpressionMaterializationVisitor(schema, errorCollector, allowComplexWriterExpr), functionLookupContext);
+      boolean allowComplexWriterExpr, boolean allowGandivaFunctions) {
+    LogicalExpression out =  expr.accept(new ExpressionMaterializationVisitor(schema,
+      errorCollector, allowComplexWriterExpr, allowGandivaFunctions), functionLookupContext);
 
     if (!errorCollector.hasErrors()) {
       out = out.accept(ConditionalExprOptimizer.INSTANCE, null);
@@ -101,6 +119,12 @@ public class ExpressionTreeMaterializer {
     } else {
       return out;
     }
+  }
+
+  public static LogicalExpression materialize(LogicalExpression expr, BatchSchema schema, ErrorCollector errorCollector, FunctionLookupContext functionLookupContext,
+                                              boolean allowComplexWriterExpr) {
+   return materialize(expr, schema, errorCollector, functionLookupContext,
+     allowComplexWriterExpr, DISALLOW_GANDIVA_FUNCTIONS);
   }
 
   /**
@@ -115,7 +139,7 @@ public class ExpressionTreeMaterializer {
                                               boolean allowComplexWriterExpr) {
     Preconditions.checkNotNull(options);
     LogicalExpression out = materialize(expr, schema, errorCollector, functionLookupContext,
-      allowComplexWriterExpr);
+      allowComplexWriterExpr, ALLOW_GANDIVA_FUNCTIONS);
 
     SupportedEngines.CodeGenOption codeGenOption = options.getCodeGenOption();
 
@@ -125,7 +149,7 @@ public class ExpressionTreeMaterializer {
     switch (codeGenOption) {
       case Gandiva:
       case GandivaOnly:
-        return annotateGandivaExecution(codeGenOption, schema, contextTree);
+        return annotateGandivaExecution(codeGenOption, schema, contextTree, functionLookupContext.isDecimalV2Enabled());
       case Java:
       default:
         return contextTree;
@@ -134,8 +158,9 @@ public class ExpressionTreeMaterializer {
 
   private static LogicalExpression annotateGandivaExecution(SupportedEngines.CodeGenOption codeGenOption,
                                                             BatchSchema schema,
-                                                            CodeGenContext expr) {
-    GandivaPushdownSieve gandivaPushdownSieve = new GandivaPushdownSieve();
+                                                            CodeGenContext expr,
+                                                            boolean isDecimalV2Enabled) {
+    GandivaPushdownSieve gandivaPushdownSieve = new GandivaPushdownSieve(isDecimalV2Enabled);
     LogicalExpression modifiedExpression = gandivaPushdownSieve.annotateExpression(schema, expr);
 
     // Return the expression always
@@ -151,7 +176,8 @@ public class ExpressionTreeMaterializer {
     FunctionCall funcCall = new FunctionCall(funcName, args);
     FunctionResolver resolver = FunctionResolverFactory.getResolver(funcCall);
 
-    BaseFunctionHolder matchedConvertToNullableFuncHolder = functionLookupContext.findFunction(resolver, funcCall);
+    AbstractFunctionHolder matchedConvertToNullableFuncHolder = functionLookupContext
+      .findExactFunction(funcCall, DISALLOW_GANDIVA_FUNCTIONS);
     if (matchedConvertToNullableFuncHolder == null) {
       logFunctionResolutionError(errorCollector, funcCall);
       return NullExpression.INSTANCE;
@@ -161,32 +187,33 @@ public class ExpressionTreeMaterializer {
   }
 
   public static LogicalExpression addImplicitCastExact(
-      LogicalExpression input,
-      CompleteType toType,
-      FunctionLookupContext functionLookupContext,
-      ErrorCollector errorCollector) {
-    return addImplicitCast(input, toType, functionLookupContext, errorCollector, true);
+    LogicalExpression input,
+    CompleteType toType,
+    FunctionLookupContext functionLookupContext,
+    ErrorCollector errorCollector, boolean allowGandivaFunctions) {
+    return addImplicitCast(input, toType, functionLookupContext, errorCollector, true, allowGandivaFunctions);
   }
 
   public static LogicalExpression addImplicitCastApproximate(
-      LogicalExpression input,
-      CompleteType toType,
-      FunctionLookupContext functionLookupContext,
-      ErrorCollector errorCollector) {
-    return addImplicitCast(input, toType, functionLookupContext, errorCollector, false);
+    LogicalExpression input,
+    CompleteType toType,
+    FunctionLookupContext functionLookupContext,
+    ErrorCollector errorCollector, boolean allowGandivaFunctions) {
+    return addImplicitCast(input, toType, functionLookupContext, errorCollector, false, allowGandivaFunctions);
   }
 
   private static LogicalExpression addImplicitCast(
-      LogicalExpression input,
-      CompleteType toType,
-      FunctionLookupContext functionLookupContext,
-      ErrorCollector errorCollector,
-      boolean exactResolver) {
+    LogicalExpression input,
+    CompleteType toType,
+    FunctionLookupContext functionLookupContext,
+    ErrorCollector errorCollector,
+    boolean exactResolver, boolean allowGandivaFunctions) {
     String castFuncName = CastFunctions.getCastFunc(toType.toMinorType());
     List<LogicalExpression> castArgs = Lists.newArrayList();
     castArgs.add(input);  //input_expr
 
-    if(input.getCompleteType().isUnion() && toType.isUnion()) {
+    CompleteType fromType = input.getCompleteType();
+    if(fromType.isUnion() && toType.isUnion()) {
       return input;
     }
 
@@ -196,16 +223,47 @@ public class ExpressionTreeMaterializer {
       castArgs.add(new ValueExpressions.LongExpression(RelDataTypeSystemImpl.DEFAULT_PRECISION));
 
     } else if (toType.isDecimal()) {
-      Decimal decimal = toType.getType(Decimal.class);
-      // Add the scale and precision to the arguments of the implicit cast
-      castArgs.add(new ValueExpressions.LongExpression(decimal.getPrecision()));
-      castArgs.add(new ValueExpressions.LongExpression(decimal.getScale()));
+        Decimal decimal = toType.getType(Decimal.class);
+        // Add the scale and precision to the arguments of the implicit cast
+        // If it is long/int add the precision and scale for max values.
+        if (decimal.getPrecision() == 0) {
+          // determine precision
+          if (input.getCompleteType().equals(CompleteType.INT)) {
+            if (input instanceof ValueExpressions.IntExpression) {
+              // if it's a constant, we know the exact value.
+              int value = ((ValueExpressions.IntExpression) input).getInt();
+              int precision = DecimalUtils.getPrecisionForValue(value);
+              castArgs.add(new ValueExpressions.LongExpression(precision));
+            } else {
+              castArgs.add(new ValueExpressions.LongExpression(10));
+            }
+            castArgs.add(new ValueExpressions.LongExpression(0));
+          }
+          else if (input.getCompleteType().equals(CompleteType.BIGINT)) {
+            if (input instanceof ValueExpressions.LongExpression) {
+              // if it's a constant, we know the exact value.
+              long value = ((ValueExpressions.LongExpression) input)
+                .getLong();
+              int precision = DecimalUtils.getPrecisionForValue(value);;
+              castArgs.add(new ValueExpressions.LongExpression(precision));
+            } else {
+              castArgs.add(new ValueExpressions.LongExpression(19));
+            }
+          castArgs.add(new ValueExpressions.LongExpression(0));
+          } else {
+           throw new UnsupportedOperationException("Unsupported primitive type with precision 0.");
+          }
+        } else {
+          castArgs.add(new ValueExpressions.LongExpression(decimal.getPrecision()));
+          castArgs.add(new ValueExpressions.LongExpression(decimal.getScale()));
+        }
     }
     // done adding extra parameters.
 
     final FunctionCall castCall = new FunctionCall(castFuncName, castArgs);
     final FunctionResolver resolver = exactResolver ? FunctionResolverFactory.getExactResolver(castCall) : FunctionResolverFactory.getResolver(castCall);
-    final BaseFunctionHolder matchedCastFuncHolder = functionLookupContext.findFunction(resolver, castCall);
+    final AbstractFunctionHolder matchedCastFuncHolder = functionLookupContext.findExactFunction
+      (castCall, allowGandivaFunctions);
 
     if (matchedCastFuncHolder == null) {
       logFunctionResolutionError(errorCollector, castCall);

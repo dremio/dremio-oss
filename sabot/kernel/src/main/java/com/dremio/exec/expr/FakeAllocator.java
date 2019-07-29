@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.expr;
 
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Collection;
 
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.AllocationReservation;
@@ -33,7 +33,7 @@ import io.netty.buffer.UnsafeDirectLittleEndian;
 public class FakeAllocator implements BufferAllocator {
 
   private static final UnsafeDirectLittleEndian emptyUdle = (new PooledByteBufAllocatorL()).empty;
-  private static ArrowBuf empty = new ArrowBuf(new AtomicInteger(), null, emptyUdle, null, null, 0, 0, true);
+  private static ArrowBuf empty = new ArrowBuf(null, null, 0, 0, true);
   public static BufferAllocator INSTANCE = new FakeAllocator();
 
   private FakeAllocator() {}
@@ -71,6 +71,16 @@ public class FakeAllocator implements BufferAllocator {
   @Override
   public long getHeadroom() {
     return Long.MAX_VALUE;
+  }
+
+  @Override
+  public BufferAllocator getParentAllocator() {
+    return null;
+  }
+
+  @Override
+  public Collection<BufferAllocator> getChildAllocators() {
+    return null;
   }
 
   @Override

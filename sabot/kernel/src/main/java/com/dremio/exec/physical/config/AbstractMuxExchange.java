@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.physical.config;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +30,7 @@ import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -61,20 +63,27 @@ public abstract class AbstractMuxExchange extends AbstractExchange {
   }
 
   @Override
-  public ParallelizationInfo getReceiverParallelizationInfo(List<NodeEndpoint> senderFragmentEndpoints) {
-    Preconditions.checkArgument(senderFragmentEndpoints != null && senderFragmentEndpoints.size() > 0,
+  public ParallelizationInfo.WidthConstraint getReceiverParallelizationWidthConstraint() {
+    return ParallelizationInfo.WidthConstraint.AFFINITY_LIMITED;
+  }
+
+  @Override
+  public Supplier<Collection<EndpointAffinity>> getReceiverEndpointAffinity(Supplier<Collection<NodeEndpoint>> senderFragmentEndpointsSupplier) {
+    return () -> {
+      Collection<NodeEndpoint> senderFragmentEndpoints = senderFragmentEndpointsSupplier.get();
+      Preconditions.checkArgument(senderFragmentEndpoints != null && senderFragmentEndpoints.size() > 0,
         "Sender fragment endpoint list should not be empty");
 
-    // We want to run one mux receiver per SabotNode endpoint.
-    // Identify the number of unique SabotNode endpoints in sender fragment endpoints.
-    List<NodeEndpoint> nodeEndpoints = ImmutableSet.copyOf(senderFragmentEndpoints).asList();
+      // We want to run one mux receiver per SabotNode endpoint.
+      // Identify the number of unique SabotNode endpoints in sender fragment endpoints.
+      List<NodeEndpoint> nodeEndpoints = ImmutableSet.copyOf(senderFragmentEndpoints).asList();
 
-    List<EndpointAffinity> affinities = Lists.newArrayList();
-    for(NodeEndpoint ep : nodeEndpoints) {
-      affinities.add(new EndpointAffinity(ep, Double.POSITIVE_INFINITY));
-    }
-
-    return ParallelizationInfo.create(affinities.size(), affinities.size(), affinities);
+      List<EndpointAffinity> affinities = Lists.newArrayList();
+      for(NodeEndpoint ep : nodeEndpoints) {
+        affinities.add(new EndpointAffinity(ep, Double.POSITIVE_INFINITY));
+      }
+      return affinities;
+    };
   }
 
   @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -95,14 +95,14 @@ class RpcEncoder extends PromisingMessageToMessageEncoder<OutboundRpcMessage>{
       final ByteBuf withoutRawMessage;
       if(rawBodyLength > 0){
         try{
-          withoutRawMessage = ctx.alloc().buffer(rawBodyLength + 5);
+          withoutRawMessage = ctx.alloc().buffer(fullLength + 5);
         }catch(OutOfMemoryException ex){
           msg.release();
           promise.setFailure(ex);
           return;
         }
       } else {
-        withoutRawMessage = UnpooledByteBufAllocator.DEFAULT.heapBuffer(rawBodyLength + 5);
+        withoutRawMessage = UnpooledByteBufAllocator.DEFAULT.heapBuffer(fullLength + 5);
       }
 
       final OutputStream os = new ByteBufOutputStream(withoutRawMessage);

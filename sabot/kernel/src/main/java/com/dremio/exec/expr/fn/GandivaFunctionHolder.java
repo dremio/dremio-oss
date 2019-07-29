@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,11 +15,8 @@
  */
 package com.dremio.exec.expr.fn;
 
-import static org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.OperationType;
-
 import java.util.List;
 
-import org.apache.arrow.gandiva.evaluator.DecimalTypeUtil;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import com.dremio.common.expression.CompleteType;
@@ -34,92 +31,105 @@ public class GandivaFunctionHolder extends AbstractFunctionHolder {
   private final CompleteType returnType;
   private final String name;
   private final boolean returnTypeIndependent;
+
   public GandivaFunctionHolder(CompleteType[] argTypes, CompleteType returnType, String name) {
     this.argTypes = argTypes;
     this.returnType = returnType;
     this.name = name;
     // a function that processes decimals. we need to determine output return type.
     // it is based on input type.
-    if (argTypes[0].getType().getTypeID() == ArrowType.ArrowTypeID.Decimal) {
+    if (returnType.getType().getTypeID() == ArrowType.ArrowTypeID.Decimal) {
       this.returnTypeIndependent = false;
     } else {
       this.returnTypeIndependent = true;
     }
   }
+
   @Override
   public JVar[] renderStart(ClassGenerator<?> g, CompleteType resolvedOutput, ClassGenerator.HoldingContainer[] inputVariables, FunctionErrorContext errorContext) {
     throw new UnsupportedOperationException("Gandiva code generation is handled during build.");
   }
+
   @Override
   public ClassGenerator.HoldingContainer renderEnd(ClassGenerator<?> g, CompleteType resolvedOutput, ClassGenerator.HoldingContainer[] inputVariables, JVar[] workspaceJVars) {
     throw new UnsupportedOperationException("Gandiva code generation is handled during build.");
   }
+
   @Override
   public FunctionHolderExpression getExpr(String name, List<LogicalExpression> args) {
     return new GandivaFunctionHolderExpression(name, this, args);
   }
+
   @Override
   public CompleteType getParamType(int i) {
     return argTypes[i];
   }
+
   @Override
   public int getParamCount() {
     return argTypes.length;
   }
+
   // TODO: https://dremio.atlassian.net/browse/GDV-98
   // following will be done in task above.
   @Override
   public boolean checkPrecisionRange() {
     return false;
   }
+
   @Override
   public boolean isReturnTypeIndependent() {
     return returnTypeIndependent;
   }
+
   @Override
   public FunctionTemplate.NullHandling getNullHandling() {
     return null;
   }
+
   @Override
   public CompleteType getReturnType(List<LogicalExpression> args) {
     if (returnTypeIndependent) {
       return returnType;
     }
-    ArrowType.Decimal resultType;
+
+    OutputDerivation derivation;
     switch (name) {
       case "add" :
-        resultType = DecimalTypeUtil.getResultTypeForOperation(
-          OperationType.ADD,
-          args.get(0).getCompleteType().getType(ArrowType.Decimal.class),
-          args.get(1).getCompleteType().getType(ArrowType.Decimal.class));
+        derivation = OutputDerivation.DECIMAL_ADD;
         break;
       case "subtract" :
-        resultType = DecimalTypeUtil.getResultTypeForOperation(
-          OperationType.SUBTRACT,
-          args.get(0).getCompleteType().getType(ArrowType.Decimal.class),
-          args.get(1).getCompleteType().getType(ArrowType.Decimal.class));
+        derivation = OutputDerivation.DECIMAL_SUBTRACT;
         break;
       case "multiply" :
-        resultType = DecimalTypeUtil.getResultTypeForOperation(
-          OperationType.MULTIPLY,
-          args.get(0).getCompleteType().getType(ArrowType.Decimal.class),
-          args.get(1).getCompleteType().getType(ArrowType.Decimal.class));
+        derivation = OutputDerivation.DECIMAL_MULTIPLY;
         break;
       case "divide" :
-        resultType = DecimalTypeUtil.getResultTypeForOperation(
-          OperationType.DIVIDE,
-          args.get(0).getCompleteType().getType(ArrowType.Decimal.class),
-          args.get(1).getCompleteType().getType(ArrowType.Decimal.class));
+        derivation = OutputDerivation.DECIMAL_DIVIDE;
         break;
       case "mod" :
-        resultType = DecimalTypeUtil.getResultTypeForOperation(
-          OperationType.MOD,
-          args.get(0).getCompleteType().getType(ArrowType.Decimal.class),
-          args.get(1).getCompleteType().getType(ArrowType.Decimal.class));
+      case "modulo" :
+        derivation = OutputDerivation.DECIMAL_MOD;
+        break;
+      case "abs":
+        derivation = OutputDerivation.DECIMAL_MAX;
+        break;
+      case "ceil":
+      case "floor":
+        derivation = OutputDerivation.DECIMAL_ZERO_SCALE;
+        break;
+      case "round":
+      case "trunc":
+      case "truncate":
+        derivation = (args.size() == 1) ? OutputDerivation.DECIMAL_ZERO_SCALE :
+          OutputDerivation.DECIMAL_SET_SCALE;
+        break;
+      case "castDECIMAL":
+        derivation = OutputDerivation.DECIMAL_CAST;
         break;
       default:
-        throw new RuntimeException("Unsupported operation for decimal.");
+        throw new UnsupportedOperationException("unknown decimal function " + this.name);
     }
-    return new CompleteType(resultType);
+    return derivation.getOutputType(CompleteType.DECIMAL, args);
   }
 }

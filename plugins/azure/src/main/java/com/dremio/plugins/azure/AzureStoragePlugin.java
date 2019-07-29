@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -110,11 +110,29 @@ class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
     // configure hadoop fs implementation
     properties.add(new Property("fs.dremioAzureStorage.impl", AzureStorageFileSystem.class.getName()));
 
+    // Explicitly disable caching of the FileSystem backing this plugin. Hadoop's caching mechanism is only
+    // keyed by the URI, and not by connection properties, so if credentials are supplied through properties,
+    // Hadoop would return incorrect FileSystems from its cache.
+    // Note that the scheme for the FileSystem this FileSystemPlugin utilizes must match the second part of the
+    // property name.
+    properties.add(new Property("fs.dremioAzureStorage.impl.disable.cache", "true"));
+
     // configure azure properties.
-    properties.add(new Property(AzureStorageFileSystem.KEY, config.accessKey));
     properties.add(new Property(AzureStorageFileSystem.ACCOUNT, config.accountName));
     properties.add(new Property(AzureStorageFileSystem.SECURE, Boolean.toString(config.enableSSL)));
     properties.add(new Property(AzureStorageFileSystem.MODE, config.accountKind.name()));
+
+    AzureAuthenticationType credentialsType = config.credentialsType;
+
+    if(credentialsType == AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY) {
+      properties.add(new Property(AzureStorageFileSystem.CREDENTIALS_TYPE, AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY.name()));
+      properties.add(new Property(AzureStorageFileSystem.CLIENT_ID, config.clientId));
+      properties.add(new Property(AzureStorageFileSystem.CLIENT_SECRET, config.clientSecret));
+      properties.add(new Property(AzureStorageFileSystem.TOKEN_ENDPOINT, config.tokenEndpoint));
+    } else {
+      properties.add(new Property(AzureStorageFileSystem.CREDENTIALS_TYPE, AzureAuthenticationType.ACCESS_KEY.name()));
+      properties.add(new Property(AzureStorageFileSystem.KEY, config.accessKey));
+    }
 
     if(config.containers != null && config.containers.size() > 0) {
       String containers = config.containers.stream()

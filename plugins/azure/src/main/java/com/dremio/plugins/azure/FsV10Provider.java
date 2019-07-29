@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,9 @@ import java.util.Spliterators;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.dremio.plugins.util.ContainerFileSystem.ContainerCreator;
 import com.google.common.collect.AbstractIterator;
 import com.microsoft.azure.storage.v10.adlsg2.models.Filesystem;
@@ -31,6 +34,8 @@ import com.microsoft.azure.storage.v10.adlsg2.models.FilesystemListResponse;
  * Container provider for hierarchical storage accounts.
  */
 class FsV10Provider implements ContainerProvider {
+
+  private static final Logger logger = LoggerFactory.getLogger(AzureStorageFileSystem.class);
 
   private final AzureStorageFileSystem parent;
   private final DataLakeG2Client client;
@@ -60,7 +65,12 @@ class FsV10Provider implements ContainerProvider {
     @Override
     protected ContainerCreator computeNext() {
       if (response == null) {
-        response = client.listFilesystems(null, null).blockingGet();
+        try {
+          response = client.listFilesystems(null, null).blockingGet();
+        } catch(Exception ex) {
+          logger.error("Unable to list file systems with ADLSg2 client", ex);
+          return endOfData();
+        }
         iterator = response.body().filesystems().iterator();
       }
 
@@ -68,8 +78,12 @@ class FsV10Provider implements ContainerProvider {
         if (response.headers().xMsContinuation() == null || response.headers().xMsContinuation().isEmpty()) {
           return endOfData();
         }
-
-        response = client.listFilesystems(null, response.headers().xMsContinuation()).blockingGet();
+        try {
+          response = client.listFilesystems(null, response.headers().xMsContinuation()).blockingGet();
+        } catch(Exception ex) {
+          logger.error("Unable to list file systems with ADLSg2 client", ex);
+          return endOfData();
+        }
         iterator = response.body().filesystems().iterator();
       }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,8 @@ export default class Message extends Component {
     detailsStyle: PropTypes.object,
     isDismissable: PropTypes.bool,
     inFlow: PropTypes.bool,
-    useModalShowMore: PropTypes.bool
+    useModalShowMore: PropTypes.bool,
+    multilineMessage: PropTypes.bool
   };
 
   constructor(props) {
@@ -110,7 +111,23 @@ export default class Message extends Component {
       messageText = this.renderMessageForCode() || messageText.get('message') || messageText.get('errorMessage') || messageText.get('code');
     }
 
-    return messageText;
+    return this.getMessage(messageText);
+  }
+
+  getMessage(messageText) {
+    return this.props.multilineMessage ? this.injectNewLines(messageText) : messageText;
+  }
+
+  injectNewLines = (text) => {
+    if (!text || typeof text !== 'string') return text;
+
+    return text.split('\n').reduce((arr, t, i) => {
+      if (i > 0) {
+        arr.push(<br/>);
+      }
+      arr.push(t);
+      return arr;
+    }, []);
   }
 
   renderIcon(messageType) {
@@ -141,7 +158,7 @@ export default class Message extends Component {
       details.push(message.get('message'));
     }
 
-    details.push(message.get('moreInfo'));
+    details.push(this.getMessage(message.get('moreInfo')));
 
     const codeDetails = this.renderDetailsForCode();
     if (codeDetails === RENDER_NO_DETAILS) {

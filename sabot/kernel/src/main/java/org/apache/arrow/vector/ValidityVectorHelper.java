@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,8 @@ public class ValidityVectorHelper extends BaseValueVectorHelper {
   }
 
   public void load(SerializedField metadata, ArrowBuf buffer) {
-    Preconditions.checkArgument(vector.name.equals(metadata.getNamePart().getName()), "The field %s doesn't match the provided metadata %s.", vector.name, metadata);
+    Preconditions.checkArgument(vector.getName().equals(metadata.getNamePart().getName()), "The " +
+      "field %s doesn't match the provided metadata %s.", vector.getName(), metadata);
     final int valueCount = metadata.getValueCount();
     final int expectedLength = vector.getValidityBufferSizeFromCount(valueCount);
     final int actualLength = metadata.getBufferLength();

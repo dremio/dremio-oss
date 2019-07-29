@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!--
 
-    Copyright (C) 2017-2018 Dremio Corporation
+    Copyright (C) 2017-2019 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -92,6 +92,22 @@
           <pattern>%msg%n</pattern>
         </encoder>
       </appender>
+
+      <appender name="tracker" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${dremio.log.path}/tracker.json</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+          <fileNamePattern>${dremio.log.path}/archive/queries.%d{yyyy-MM-dd}.%i.json.gz</fileNamePattern>
+          <maxHistory>30</maxHistory>
+          <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+              <maxFileSize>100MB</maxFileSize>
+          </timeBasedFileNamingAndTriggeringPolicy>
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+      </appender>
+
     </then>
   </if>
 
@@ -106,6 +122,16 @@
         <appender-ref ref="query"/>
       </then>
     </if>
+  </logger>
+
+  <logger name="tracker.logger">
+      <level value="{dremio.log.level: -info}"/>
+      <if condition='isDefined("dremio.log.path")'>
+          <then>
+              <additivity value ="false"/>
+              <appender-ref ref="tracker"/>
+          </then>
+      </if>
   </logger>
 
   <logger name="com.dremio.exec.catalog.SourceMetadataManager" additivity="false">

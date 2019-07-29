@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.dremio.exec.planner.observer;
 
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
+import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.rpc.RpcOutcomeListener;
@@ -36,6 +37,11 @@ public class RemoteAttemptObserver extends AbstractAttemptObserver {
   @Override
   public void execDataArrived(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch batch) {
     handler.sendData(outcomeListener, ExternalIdHelper.replaceQueryId(batch, externalId));
+  }
+
+  @Override
+  public void planParallelized(PlanningSet planningSet) {
+    handler.planParallelized(planningSet);
   }
 
 }

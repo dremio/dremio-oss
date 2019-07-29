@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,10 +50,12 @@ describe('FormUnsavedWarningHOC', () => {
   });
 
   describe('#handleHide', () => {
-    it('should call hide from the props and reset form dirty state', () => {
+    it('should call hide from the props and reset form dirty state', async () => {
       const instance = shallow(<TestComponent {...minimalProps}/>).instance();
       sinon.spy(instance, 'updateFormDirtyState');
-      instance.handleHide();
+      const promiseResolveFn = sinon.stub();
+      await instance.handleHide(promiseResolveFn);
+      expect(promiseResolveFn).to.be.calledWith(true); // true means modal close is confirmed
       expect(minimalProps.hide).to.be.called;
       expect(instance.updateFormDirtyState).to.be.calledWith(false);
     });

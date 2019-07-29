@@ -1,6 +1,6 @@
 <#--
 
-    Copyright (C) 2017-2018 Dremio Corporation
+    Copyright (C) 2017-2019 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -26,8 +26,116 @@
         "queryid" : "${model.getQueryId()}",
         "operators" : ${model.getOperatorsJSON()?no_esc},
         "planText": "${model.getPlanText()}",
-        "fragmentProfileSize": ${model.getFragmentProfilesSize()}
+        "fragmentProfileSize": ${model.getFragmentProfilesSize()},
+        "fragmentProfiles":  ${model.getFragmentsJSON()?no_esc},
+        "operatorProfiles":   ${model.getOperatorProfilesJSON()?no_esc}
     };
+
+    function toggleFragment(id) {
+      // check if we have to build anything
+      const container = document.getElementById(id);
+      const fragment = container.querySelector(".fragment-table");
+
+      if (fragment.hasChildNodes()) {
+        // fragment has data so no need to do anything
+        return;
+      }
+
+      const data = globalconfig.fragmentProfiles[id];
+
+      renderTable(fragment, data.info.fields, data.info.data);
+    }
+
+    function toggleFragmentMetrics(id) {
+      // check if we have to build anything
+      const container = document.getElementById(id);
+      const metrics = container.querySelector(".metrics-table");
+
+      if (metrics.hasChildNodes()) {
+        // has data so no need to do anything
+        return;
+      }
+
+      const data = globalconfig.fragmentProfiles[id].metrics;
+
+      renderTable(metrics, data.fields, data.data);
+    }
+
+    function toggleOperator(id) {
+      // check if we have to build anything
+      const container = document.getElementById(id);
+      const operator = container.querySelector(".operator-table");
+
+      if (operator.hasChildNodes()) {
+        // operator has data so no need to do anything
+        return;
+      }
+
+      const data = globalconfig.operatorProfiles[id];
+
+      renderTable(operator, data.info.fields, data.info.data);
+    }
+
+    function toggleOperatorMetrics(id) {
+      // check if we have to build anything
+      const container = document.getElementById(id);
+      const metrics = container.querySelector(".metrics-table");
+
+      if (metrics.hasChildNodes()) {
+        // has data so no need to do anything
+        return;
+      }
+
+      const data = globalconfig.operatorProfiles[id].metrics;
+
+      renderTable(metrics, data.fields, data.data);
+    }
+
+    function toggleOperatorDetails(id) {
+      // check if we have to build anything
+      const container = document.getElementById(id);
+      const details = container.querySelector(".details-table");
+
+      if (details.hasChildNodes()) {
+        // has data so no need to do anything
+        return;
+      }
+
+      const data = globalconfig.operatorProfiles[id].details;
+      renderTable(details, data.fields, data.data);
+    }
+
+    function renderTable(container, fields, data) {
+      // build the fragment table
+      const table = document.createElement("table");
+      table.className = 'table text-right';
+
+      // headers
+      const thead = document.createElement('thead');
+      const tr = document.createElement('tr');
+      fields.forEach((field) => {
+        const th = document.createElement('th');
+        th.innerText = field;
+        tr.appendChild(th);
+      });
+      thead.appendChild(tr);
+      table.appendChild(thead);
+
+      // body
+      const tbody = document.createElement('tbody');
+      data.forEach((cells) => {
+        const tr = document.createElement('tr');
+        cells.forEach((cell) => {
+          const td = document.createElement('td');
+          td.innerText = cell;
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+
+      container.appendChild(table);
+    }
 </script>
 </#macro>
 
@@ -334,34 +442,34 @@
       </div>
     </div>
     <#list model.getFragmentProfiles() as frag>
-    <div class="panel panel-default">
-      <div class="panel-heading">
-        <h4 class="panel-title">
-          <a data-toggle="collapse" href="#${frag.getId()}" class="collapsed">
-            ${frag.getDisplayName()}
-          </a>
-        </h4>
-      </div>
-      <div id="${frag.getId()}" class="panel-collapse collapse">
-        <div class="panel-body">
-          ${frag.getContent()?no_esc}
-          <div class="panel panel-default">
-            <div class="panel-heading">
-              <h4 class="panel-title">
-                <a data-toggle="collapse" href="#${frag.getId()}-metrics" class="collapsed">
-                  Phase Metrics
-                </a>
-              </h4>
-            </div>
-            <div id="${frag.getId()}-metrics" class="panel-collapse collapse">
-              <div class="panel-body">
-                ${frag.getMetricsTable()?no_esc}
+      <div class="panel panel-default">
+        <div class="panel-heading" onclick="toggleFragment('${frag.getId()}')">
+          <h4 class="panel-title">
+            <a data-toggle="collapse" href="#${frag.getId()}" class="collapsed">
+              ${frag.getDisplayName()}
+            </a>
+          </h4>
+        </div>
+        <div id="${frag.getId()}" class="panel-collapse collapse">
+          <div class="panel-body">
+            <div class="fragment-table"></div>
+            <div class="panel panel-default">
+              <div class="panel-heading" onclick="toggleFragmentMetrics('${frag.getId()}')">
+                <h4 class="panel-title">
+                  <a data-toggle="collapse" href="#${frag.getId()}-metrics" class="collapsed">
+                    Phase Metrics
+                  </a>
+                </h4>
+              </div>
+              <div id="${frag.getId()}-metrics" class="panel-collapse collapse">
+                <div class="panel-body">
+                  <div class="metrics-table"></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
     </#list>
   </div>
 
@@ -421,7 +529,7 @@
 
     <#list model.getOperatorProfiles() as op>
     <div class="panel panel-default">
-      <div class="panel-heading">
+      <div class="panel-heading" onclick="toggleOperator('${op.getId()}')">
         <h4 class="panel-title">
           <a data-toggle="collapse" href="#${op.getId()}" class="collapsed">
             ${op.getDisplayName()}
@@ -430,9 +538,9 @@
       </div>
       <div id="${op.getId()}" class="panel-collapse collapse">
         <div class="panel-body">
-          ${op.getContent()?no_esc}
+          <div class="operator-table"></div>
           <div class="panel panel-default">
-            <div class="panel-heading">
+            <div class="panel-heading" onclick="toggleOperatorMetrics('${op.getId()}')">
               <h4 class="panel-title">
                 <a data-toggle="collapse" href="#${op.getId()}-metrics" class="collapsed">
                   Operator Metrics
@@ -441,10 +549,24 @@
             </div>
             <div id="${op.getId()}-metrics" class="panel-collapse collapse">
               <div class="panel-body">
-                ${op.getMetricsTable()?no_esc}
+                <div class="metrics-table"></div>
               </div>
             </div>
           </div>
+          <div class="panel panel-default">
+            <div class="panel-heading" onclick="toggleOperatorDetails('${op.getId()}')">
+              <h4 class="panel-title">
+                <a data-toggle="collapse" href="#${op.getId()}-details" class="collapsed">
+                  Operator Details
+                </a>
+              </h4>
+            </div>
+            <div id="${op.getId()}-details" class="panel-collapse collapse">
+              <div class="panel-body">
+                <div class="details-table"></div>
+              </div>
+            </div>
+           </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,9 @@ import {smallModal, mediumModal, largeModal, tallModal, smallestModal, modalBody
 import ModalHeader from './ModalHeader';
 import './Modals.less';
 
+// react-modal recommends to set app element. It put warnings in console without this.
+ReactModal.setAppElement(document.body);
+
 export const ModalSize = {
   small: 'small',
   large: 'large',
@@ -31,6 +34,7 @@ export const ModalSize = {
   smallest: 'smallest'
 };
 
+export const MODAL_CLOSE_ANIMATION_DURATION = 150;
 export default class Modal extends Component {
 
   static propTypes = {
@@ -90,7 +94,7 @@ export default class Modal extends Component {
         isOpen={isOpen}
         onRequestClose={hide}
         style={styles[size]}
-        closeTimeoutMS={150}
+        closeTimeoutMS={MODAL_CLOSE_ANIMATION_DURATION}
         className={className}
       >
         {stringTitle ?

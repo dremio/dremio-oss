@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -188,7 +188,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(20, tables.size());
+    assertEquals(19, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -203,7 +203,6 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "memory", iterator.next());
     verifyTable("sys", "nodes", iterator.next());
     verifyTable("sys", "options", iterator.next());
-    verifyTable("sys", "queries", iterator.next());
     verifyTable("sys", "reflections", iterator.next());
     verifyTable("sys", "refreshes", iterator.next());
     verifyTable("sys", "services", iterator.next());
@@ -234,7 +233,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(19, tables.size());
+    assertEquals(18, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -249,7 +248,6 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "memory", iterator.next());
     verifyTable("sys", "nodes", iterator.next());
     verifyTable("sys", "options", iterator.next());
-    verifyTable("sys", "queries", iterator.next());
     verifyTable("sys", "reflections", iterator.next());
     verifyTable("sys", "refreshes", iterator.next());
     verifyTable("sys", "services", iterator.next());
@@ -308,7 +306,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     assertEquals(RequestStatus.OK, resp1.getStatus());
 
     final List<ColumnMetadata> columns1 = resp1.getColumnsList();
-    assertEquals(167, columns1.size());
+    assertEquals(162, columns1.size());
     assertTrue("incremental update column shouldn't be returned",
       columns1.stream().noneMatch(input -> input.getColumnName().equals(IncrementalUpdateUtils.UPDATE_COLUMN)));
   }

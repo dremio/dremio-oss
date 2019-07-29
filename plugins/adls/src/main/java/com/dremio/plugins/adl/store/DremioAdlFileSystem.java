@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.net.URI;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.adl.AdlFileSystem;
 
 import com.dremio.exec.store.dfs.async.AsyncByteReader;
@@ -61,8 +60,8 @@ public class DremioAdlFileSystem extends AdlFileSystem implements AsyncByteReade
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(Path hadoopPath) {
+  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey) {
     return new AdlsAsyncFileReader(asyncHttpClientManager.getClient(), asyncHttpClientManager.getAsyncHttpClient(),
-      hadoopPath.toUri().getPath());
+      fileKey.getPath().toUri().getPath());
   }
 }

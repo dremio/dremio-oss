@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!--
 
-    Copyright (C) 2017-2018 Dremio Corporation
+    Copyright (C) 2017-2019 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@
 
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-      <level>${dremio.admin.log.verbosity:-OFF}</level>
+      <level>${dremio.admin.log.verbosity:-INFO}</level>
     </filter>
     <encoder>
       <pattern>%date{ISO8601} [%thread] %-5level %logger{30} - %msg%n</pattern>
@@ -38,7 +38,7 @@
     <then>
       <appender name="ADMINLOG" class="ch.qos.logback.core.FileAppender">
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-          <level>${dremio.admin.log.verbosity:-OFF}</level>
+          <level>${dremio.admin.log.verbosity:-INFO}</level>
         </filter>
         <file>${dremio.admin.log.path}</file>
         <encoder>
@@ -52,8 +52,12 @@
     <appender-ref ref="STDOUT"/>
   </logger>
 
+  <logger name="com.dremio" additivity="true">
+    <level value="${dremio.admin.log.verbosity:-INFO}" />
+  </logger>
+
   <root>
-    <level value="${dremio.admin.log.verbosity:-OFF}"/>
+    <level value="${dremio.admin.log.verbosity:-ERROR}"/>
     <if condition='isDefined("dremio.admin.log.path")'>
       <then>
         <appender-ref ref="ADMINLOG"/>

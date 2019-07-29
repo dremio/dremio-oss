@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,9 +31,9 @@ import org.apache.calcite.util.TimestampString;
 
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.common.types.TypeProtos;
-import com.dremio.common.util.CoreDecimalUtility;
 import com.dremio.common.util.DateTimes;
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 
 public class ValueExpressions {
 
@@ -107,8 +107,8 @@ public class ValueExpressions {
       return new IntervalDayExpression(intervalInMillis);
   }
 
-  public static LogicalExpression getDecimal(BigDecimal i) {
-    return new DecimalExpression(i);
+  public static LogicalExpression getDecimal(BigDecimal i, int precision, int scale) {
+    return new DecimalExpression(i, precision, scale);
   }
 
   public static LogicalExpression getNumericExpression(String sign, String s) {
@@ -132,8 +132,7 @@ public class ValueExpressions {
     }
 
     if(lastChar == 'm') {
-      BigDecimal decimal = new BigDecimal(numStr.substring(0, numStr.length()-1));
-      return new DecimalExpression(decimal);
+      return ExpressionStringBuilder.deserializeDecimalConstant(numStr.substring(0, numStr.length()-1));
     }
 
     try {
@@ -324,27 +323,26 @@ public class ValueExpressions {
   public static class DecimalExpression extends LogicalExpressionBase {
 
     private BigDecimal decimal;
-    private int decimalIntValue;
-    private int scale;
     private int precision;
 
-    public DecimalExpression(BigDecimal input) {
-      this.scale = input.scale();
-      this.precision = input.precision();
-      this.decimal = input;
-      this.decimalIntValue = CoreDecimalUtility.getDecimal9FromBigDecimal(input, scale, precision);
+    public DecimalExpression(BigDecimal input, int precision, int scale) {
+      Preconditions.checkArgument(scale >= 0,
+        "invalid scale " + scale + ", must be >=0");
+      Preconditions.checkArgument(precision > 0,
+        "invalid precision " + precision + ", must be > 0");
+      Preconditions.checkArgument(precision >= scale,
+        "invalid precision " + precision + ", must be >= scale " + scale);
+
+      this.decimal = input.setScale(scale, BigDecimal.ROUND_HALF_UP);
+      this.precision = precision;
     }
 
     public BigDecimal getDecimal() {
       return decimal;
     }
 
-    public int getIntFromDecimal() {
-      return decimalIntValue;
-    }
-
     public int getScale() {
-      return scale;
+      return decimal.scale();
     }
 
     public int getPrecision() {
@@ -353,7 +351,7 @@ public class ValueExpressions {
 
     @Override
     public CompleteType getCompleteType() {
-      return CompleteType.fromDecimalPrecisionScale(precision, scale);
+      return CompleteType.fromDecimalPrecisionScale(getPrecision(), getScale());
     }
 
     @Override
@@ -367,7 +365,7 @@ public class ValueExpressions {
         return false;
       }
       DecimalExpression castOther = (DecimalExpression) other;
-      return Objects.equal(decimal, castOther.decimal) && Objects.equal(precision, castOther.precision) && Objects.equal(scale, castOther.scale) ;
+      return Objects.equal(decimal, castOther.decimal) && Objects.equal(precision, castOther.precision);
     }
 
     @Override
@@ -377,12 +375,12 @@ public class ValueExpressions {
 
     @Override
     public String toString() {
-      return "ValueExpression[decimal=" + decimal + ", " + scale + ", " + precision + "]";
+      return "ValueExpression[decimal=" + decimal + ", precision " + getPrecision() + "]";
     }
 
     public TypeProtos.MajorType getMajorType() {
       return TypeProtos.MajorType.newBuilder().setMinorType(TypeProtos.MinorType.DECIMAL).setScale
-        (scale).setPrecision(precision).setMode(TypeProtos.DataMode.REQUIRED).build();
+        (getScale()).setPrecision(getPrecision()).setMode(TypeProtos.DataMode.REQUIRED).build();
     }
   }
 

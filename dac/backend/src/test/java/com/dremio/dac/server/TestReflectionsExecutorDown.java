@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,10 +24,10 @@ import org.junit.Test;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.service.accelerator.BaseTestReflection;
-import com.dremio.service.accelerator.ReflectionMonitor;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.reflection.ReflectionMonitor;
 import com.dremio.service.reflection.proto.ReflectionDetails;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionField;
@@ -79,7 +79,7 @@ public class TestReflectionsExecutorDown extends BaseTestReflection  {
 
     // refresh should fail
     try {
-      monitor.waitUntilMaterialized(rawId, null);
+      monitor.waitUntilMaterialized(rawId);
       Assert.fail("reflection should not be refreshed");
     } catch (ReflectionMonitor.TimeoutException e) {
       // expected

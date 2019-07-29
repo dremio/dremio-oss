@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import DurationField from 'components/Fields/DurationField';
 import FieldWithError from 'components/Fields/FieldWithError';
 import Checkbox from 'components/Fields/Checkbox';
 import Button from 'components/Buttons/Button';
-import config from 'utils/config';
+import config from 'dyn-load/utils/config';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import NotificationSystem from 'react-notification-system';
 import Message from 'components/Message';

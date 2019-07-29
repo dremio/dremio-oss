@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,16 +23,20 @@ import org.apache.arrow.vector.util.TransferPair;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.LogicalExpression;
+import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.ExpressionEvaluationOptions;
 import com.dremio.exec.expr.ExpressionSplitter;
 import com.dremio.exec.physical.config.Filter;
+import com.dremio.exec.proto.UserBitShared.OperatorProfileDetails;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.filter.FilterStats.Metric;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Stopwatch;
@@ -67,12 +71,11 @@ public class FilterOperator implements SingleInputOperator {
   public VectorAccessible setup(VectorAccessible accessible) throws Exception {
     state.is(State.NEEDS_SETUP);
     input = accessible;
-    splitter = new ExpressionSplitter(context, accessible, filterOptions);
 
     switch (input.getSchema().getSelectionVectorMode()) {
       case NONE:
       case TWO_BYTE:
-        generateSV2Filterer();
+        generateSV2Filterer(accessible);
         break;
       case FOUR_BYTE:
       default:
@@ -127,20 +130,26 @@ public class FilterOperator implements SingleInputOperator {
     AutoCloseables.close(output, splitter);
     context.getStats().addLongStat(Metric.JAVA_EXECUTE_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
     context.getStats().addLongStat(Metric.GANDIVA_EXECUTE_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
-    context.getStats().addLongStat(Metric.JAVA_EXPRESSIONS, splitter.getNumExprsInJava());
-    context.getStats().addLongStat(Metric.GANDIVA_EXPRESSIONS, splitter.getNumExprsInGandiva());
-    context.getStats().addLongStat(Metric.MIXED_SPLITS, splitter.getNumSplitsInBoth());
     javaCodeGenWatch.reset();
     gandivaCodeGenWatch.reset();
   }
 
-  protected void generateSV2Filterer() throws Exception {
+  protected void generateSV2Filterer(VectorAccessible accessible) throws Exception {
     setupTransfers();
+    setupSplitter(accessible);
 
-    final LogicalExpression expr = context.getClassProducer().materializeAndAllowComplex(filterOptions, config.getExpr(), input);
-    splitter.setupFilter(expr, output, javaCodeGenWatch, gandivaCodeGenWatch);
-    context.getStats().addLongStat(Metric.JAVA_BUILD_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
-    context.getStats().addLongStat(Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    OperatorStats stats = context.getStats();
+    stats.addLongStat(Metric.JAVA_EXPRESSIONS, splitter.getNumExprsInJava());
+    stats.addLongStat(Metric.GANDIVA_EXPRESSIONS, splitter.getNumExprsInGandiva());
+    stats.addLongStat(Metric.MIXED_SPLITS, splitter.getNumSplitsInBoth());
+    stats.addLongStat(Metric.JAVA_BUILD_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    stats.addLongStat(Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    stats.setProfileDetails(OperatorProfileDetails
+      .newBuilder()
+      .addAllSplitInfos(splitter.getSplitInfos())
+      .build()
+    );
+
     javaCodeGenWatch.reset();
     gandivaCodeGenWatch.reset();
   }
@@ -152,6 +161,14 @@ public class FilterOperator implements SingleInputOperator {
       transfers.add(pair);
     }
     tx = transfers.toArray(new TransferPair[transfers.size()]);
+  }
+
+  private void setupSplitter(VectorAccessible accessible) throws Exception {
+    final LogicalExpression expr = context.getClassProducer().materializeAndAllowComplex(filterOptions,
+      config.getExpr(), input);
+    splitter = new ExpressionSplitter(context, accessible, filterOptions,
+      context.getClassProducer().getFunctionLookupContext().isDecimalV2Enabled());
+    splitter.setupFilter(output, new NamedExpression(expr, new FieldReference("_filter_")), javaCodeGenWatch, gandivaCodeGenWatch);
   }
 
   private void doTransfers(){

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +39,6 @@ public class PathWrapperWithFileSystem extends Path {
     // - this method might be called from a different security context (and the filesystem
     //   should reflect this)
     // Instead recreate a new wrapper (but keep the stats context)
-    return FileSystemWrapper.get(this.toUri(), conf, fs.getOperatorStats());
+    return FileSystemWrapperCreator.get(this.toUri(), conf, fs.getOperatorStats());
   }
 }

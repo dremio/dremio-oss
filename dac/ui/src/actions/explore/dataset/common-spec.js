@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,6 +46,26 @@ describe('common', () => {
 
     let getStore;
     let location;
+
+    const testActionWithPathnameToSubpage = (pageType) => {
+      const pathWithPageType = `${pathname}/${pageType}`;
+      const getStateLocal = () => ({
+        routing: {locationBeforeTransitions: {
+          state: {},
+          pathname: pathWithPageType
+        }}
+      });
+      const result = Actions.navigateToNextDataset({payload: responsePayload})(obj => obj, getStateLocal);
+      expect(result).to.eql(push({
+        pathname: pathWithPageType,
+        query: {
+          version: datasetVersion,
+          tipVersion: '123'
+        },
+        state: {}
+      }));
+    };
+
     beforeEach(() => {
       location = {
         query: {tipVersion: 'tip123'},
@@ -70,41 +90,15 @@ describe('common', () => {
     });
 
     it('should return push action with pathname to graph', () => {
-      const pathWithGraph = `${pathname}/graph`;
-      const getStoreLocal = () => ({
-        routing: {locationBeforeTransitions: {
-          state: {},
-          pathname: pathWithGraph
-        }}
-      });
-      const result = Actions.navigateToNextDataset({payload: responsePayload})(obj => obj, getStoreLocal);
-      expect(result).to.eql(push({
-        pathname: pathWithGraph,
-        query: {
-          version: datasetVersion,
-          tipVersion: '123'
-        },
-        state: {}
-      }));
+      testActionWithPathnameToSubpage('graph');
     });
 
     it('should return push action with pathname to wiki', () => {
-      const pathWithWiki = `${pathname}/wiki`;
-      const getStoreLocal = () => ({
-        routing: {locationBeforeTransitions: {
-          state: {},
-          pathname: pathWithWiki
-        }}
-      });
-      const result = Actions.navigateToNextDataset({payload: responsePayload})(obj => obj, getStoreLocal);
-      expect(result).to.eql(push({
-        pathname: pathWithWiki,
-        query: {
-          version: datasetVersion,
-          tipVersion: '123'
-        },
-        state: {}
-      }));
+      testActionWithPathnameToSubpage('wiki');
+    });
+
+    it('should return push action with pathname to reflections', () => {
+      testActionWithPathnameToSubpage('reflections');
     });
 
     it('should set jobId from getNextJobId', () => {

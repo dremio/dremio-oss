@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component } from 'react';
+import React, { Component, Fragment } from 'react';
 import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 import { withLocation } from 'containers/dremioLocation';
+import { MODAL_CLOSE_ANIMATION_DURATION } from '@app/components/Modals/Modal';
 
 @pureRender
 class ModalsContainer extends Component {
@@ -30,35 +31,29 @@ class ModalsContainer extends Component {
     bodyClassName: PropTypes.string,
     modals: PropTypes.object,
     children: PropTypes.node,
-    style: PropTypes.object,
     location: PropTypes.object.isRequired
-  }
-
-  state = {
-    shown: new Set() // can't hard-remove once added thanks to transitions out
   }
 
   componentWillUnmount() {
     $(document.body).removeClass(this.props.bodyClassName);
+    clearTimeout(this.lastModalHideTimerId);
   }
 
+  lastModalHideTimerId = null;
+  lastModalKey = null;
   handleHide = () => {
     this.context.router.replace({...this.props.location, state: {}});
+    this.lastModalHideTimerId = setTimeout(() => {
+      this.lastModalKey = null;
+      this.lastModalHideTimerId = null;
+      // update a component to make sure that a modal for 'lastModalKey' is unmounted
+      this.forceUpdate();
+    }, MODAL_CLOSE_ANIMATION_DURATION);
   }
 
   renderModals() {
-    const {bodyClassName, modals, location} = this.props;
-    const {modal, query, ...state} = location.state || {};
-
-    modal && this.state.shown.add(modal);
-
-    const result = [];
-    for (const key in modals) {
-      // lazily create (faster page mount/unmount)
-      this.state.shown.has(key) && result.push(React.createElement(modals[key], {
-        key, isOpen: modal === key, hide: this.handleHide, location, pathname: location.pathname,
-        query: query || {}, ...state}));
-    }
+    const { bodyClassName, location} = this.props;
+    const { modal } = location.state || {};
 
     //TODO use body class from react-modal when this issue is fixed
     //https://github.com/reactjs/react-modal/issues/99
@@ -67,16 +62,31 @@ class ModalsContainer extends Component {
     } else {
       $(document.body).removeClass(bodyClassName);
     }
-    return result;
+
+    // cache a previous value before update
+    const lastModalKey = this.lastModalKey;
+    if (modal) { // set a new prev key only if we get a not empty modal
+      this.lastModalKey = modal;
+    }
+    return this.renderModalByKey(modal || lastModalKey); // we need render a prev modal to let it finish close animation
+  }
+
+  renderModalByKey = key => {
+    const { modals, location } = this.props;
+    const { modal, query, ...state} = location.state || {};
+
+    return modals[key] && React.createElement(modals[key], {
+      key, isOpen: modal === key, hide: this.handleHide, location, pathname: location.pathname,
+      query: query || {}, ...state});
   }
 
   render() {
-    const { style, children } = this.props;
+    const { children } = this.props;
     return (
-      <div style={{height: '100%', ...style}}>
+      <Fragment>
         {this.renderModals()}
         {children}
-      </div>
+      </Fragment>
     );
   }
 }

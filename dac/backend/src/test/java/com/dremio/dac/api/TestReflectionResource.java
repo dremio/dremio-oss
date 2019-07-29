@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,9 +50,9 @@ import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionValue;
 import com.dremio.service.accelerator.AccelerationTestUtil;
-import com.dremio.service.accelerator.ReflectionMonitor;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.FileType;
+import com.dremio.service.reflection.ReflectionMonitor;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionStatusService;
 import com.dremio.service.reflection.proto.PartitionDistributionStrategy;

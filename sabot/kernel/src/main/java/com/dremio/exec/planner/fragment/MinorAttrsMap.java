@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,47 +18,71 @@ package com.dremio.exec.planner.fragment;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
-import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.proto.CoordExecRPC.MinorSpecificAttr;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.ByteString;
 
-/** Holds the shared data for a major fragment. Used to inject into the pops */
+/**
+ * Map for minor-specific attributes.
+ */
 public class MinorAttrsMap {
-  private final Map<Key, MinorSpecificAttr> map;
+  private final Map<Key, MinorAttr> map;
 
-  private MinorAttrsMap(final Map<Key, MinorSpecificAttr> map) {
+  private MinorAttrsMap(final Map<Key, MinorAttr> map) {
     this.map = map;
   }
 
-  public ByteString getMinorAttrsValue(PhysicalOperator pop, String name) {
-    MinorSpecificAttr attr = map.get(new Key(pop.getProps().getLocalOperatorId(), name));
+  public ByteString getAttrValue(OpProps props, String name) {
+    return getAttrValue(new Key(props.getOperatorId(), name));
+  }
+
+  public ByteString getAttrValue(Key key) {
+    MinorAttr attr = map.get(key);
     Preconditions.checkNotNull(
-        attr,
-        String.format(
-            "Could not find minor specific attr value for operator:%d, %s\nMap:%s",
-            pop.getProps().getLocalOperatorId(), name, map));
+      attr,
+      String.format(
+        "Could not find minor specific attr value for operator %d-xx-%d, %s\nMap:%s",
+        OpProps.getMajorFragmentId(key.getOperatorId()),
+        OpProps.getLocalOperatorId(key.getOperatorId()),
+        key.getName(), map));
+
     return attr.getValue();
   }
 
   public static MinorAttrsMap create(
-      List<MinorSpecificAttr> attrsList) {
-    Map<Key, MinorSpecificAttr> map =
-        FluentIterable.from(attrsList)
-            .uniqueIndex(s -> new Key(s.getOperatorId(), s.getName()));
-
+      List<MinorAttr> attrsList) {
+    /* Make it immutable so that it's thread-safe */
+    Map<Key, MinorAttr> map = ImmutableMap.copyOf(
+      attrsList
+        .stream()
+        .collect(
+          Collectors.toMap(
+            s -> new Key(s.getOperatorId(), s.getName()),
+            s -> s)
+        )
+    );
     return new MinorAttrsMap(map);
   }
 
-  private static class Key {
+  public static class Key {
     private final int operatorId;
     private final String name;
 
     public Key(int operatorId, String name) {
       this.operatorId = operatorId;
       this.name = name;
+    }
+
+    public int getOperatorId() {
+      return operatorId;
+    }
+
+    public String getName() {
+      return name;
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,15 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 
 import { API_URL_V2 } from 'constants/Api';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 
 import folderSchema from 'schemas/folder';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
-import actionUtils from 'utils/actionUtils/actionUtils';
+import actionUtils from '@app/utils/actionUtils/actionUtils';
 import { sidebarMinWidth } from '@app/pages/HomePage/components/Columns.less';
+import { makeUncachebleURL } from '@app/ie11';
+import * as schemas from '@app/schemas';
 
 export const CONVERT_FOLDER_TO_DATASET_START = 'CONVERT_FOLDER_TO_DATASET_START';
 export const CONVERT_FOLDER_TO_DATASET_SUCCESS = 'CONVERT_FOLDER_TO_DATASET_SUCCESS';
@@ -30,7 +32,7 @@ export const CONVERT_FOLDER_TO_DATASET_FAILURE = 'CONVERT_FOLDER_TO_DATASET_FAIL
 function fetchConvertFolder({folder, values, viewId}) {
   const meta = {viewId, invalidateViewIds: ['HomeContents']};
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         CONVERT_FOLDER_TO_DATASET_START,
         schemaUtils.getSuccessActionTypeWithSchema(CONVERT_FOLDER_TO_DATASET_SUCCESS, folderSchema, meta),
@@ -61,7 +63,7 @@ function fetchConvertDataset(entity, viewId) {
   const successMeta = {...meta, success: true}; // doesn't invalidateViewIds without `success: true`
   const errorMessage = la('There was an error removing the format for the folder.');
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: CONVERT_DATASET_TO_FOLDER_START, meta},
         schemaUtils.getSuccessActionTypeWithSchema(CONVERT_DATASET_TO_FOLDER_SUCCESS, folderSchema, successMeta),
@@ -114,7 +116,7 @@ export const loadWiki = (dispatch) => entityId => {
     ...commonActionProps
   });
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     ApiUtils.fetch(`catalog/${entityId}/collaboration/wiki`)
     .then(response => response.json().then((wikiData) => {
       wikiSuccess(dispatch, resolve, wikiData, commonActionProps);
@@ -133,7 +135,6 @@ export const loadWiki = (dispatch) => entityId => {
         ...errorInfo,
         ...commonActionProps
       });
-      reject(errorInfo);
     });
   });
 };
@@ -152,3 +153,23 @@ export const setSidebarSize = size => ({
   type: SET_SIDEBAR_SIZE,
   size: Math.max(MIN_SIDEBAR_WIDTH, size)
 });
+
+
+export const contentLoadActions = actionUtils.generateRequestActions('HOME_CONTENT_LOAD');
+
+export const loadHomeContent = (getDataUrl, entityType, viewId) => {
+  const entitySchema = schemas[entityType];
+
+  const meta = { viewId };
+  return {
+    [RSAA]: {
+      types: [
+        { type: contentLoadActions.start, meta },
+        { type: contentLoadActions.success, meta: { entitySchema, ...meta } },
+        { type: contentLoadActions.failure, meta }
+      ],
+      method: 'GET',
+      endpoint: makeUncachebleURL(`${API_URL_V2}${getDataUrl}`)
+    }
+  };
+};

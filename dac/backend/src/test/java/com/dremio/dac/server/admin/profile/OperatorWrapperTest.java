@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,8 @@ package com.dremio.dac.server.admin.profile;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.junit.Test;
@@ -26,7 +26,11 @@ import org.junit.Test;
 import com.dremio.exec.ops.OperatorMetricRegistry;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.collect.ImmutableList;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 
 /**
  * Test cases for @{@link OperatorWrapper}
@@ -34,7 +38,7 @@ import com.google.common.collect.ImmutableList;
 public class OperatorWrapperTest {
 
   @Test
-  public void testGetMetricsTableHandlesNotRegisteredMetrics() {
+  public void testGetMetricsTableHandlesNotRegisteredMetrics() throws IOException {
 
     OperatorProfile op = OperatorProfile
       .newBuilder().addMetric(
@@ -51,16 +55,17 @@ public class OperatorWrapperTest {
     ImmutablePair<OperatorProfile, Integer> pair = new ImmutablePair<>(op, 1);
 
     OperatorWrapper ow = new OperatorWrapper(1, ImmutableList.of(pair), OperatorMetricRegistry.getCoreOperatorTypeMetricsMap());
-    String html = ow.getMetricsTable();
-    Pattern columnPattern = Pattern.compile("<td>.*?</td>");
-    Matcher matcher = columnPattern.matcher(html);
-    int count = 0;
-    while (matcher.find()){
-      count++;
-    }
 
-    // Unregistered metrics should not appear on profiles screen
-    assertEquals(2, count);
+    final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(outputStream);
+    jsonGenerator.writeStartObject();
+    ow.addMetrics(jsonGenerator);
+    jsonGenerator.writeEndObject();
+    jsonGenerator.flush();
+
+    final JsonElement element = new JsonParser().parse(outputStream.toString());
+    final int size = element.getAsJsonObject().get("metrics").getAsJsonObject().get("data").getAsJsonArray().get(0).getAsJsonArray().size();
+    assertEquals(2, size);
   }
 
 }

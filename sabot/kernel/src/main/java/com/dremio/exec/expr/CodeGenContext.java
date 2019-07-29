@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,6 +51,18 @@ public class CodeGenContext implements LogicalExpression {
     }
   }
 
+  /**
+   * Used to create context free nodes, where support is hand managed.
+   * @param child
+   */
+  public static CodeGenContext buildWithNoDefaultSupport(LogicalExpression child) {
+    CodeGenContext context =  new CodeGenContext(child);
+    // clear all of the engines.
+    context.markSubExprIsMixed();
+    context.getExecutionEngineForExpression().clear();
+    return context;
+  }
+
   private void addSupportedEngine(SupportedEngines.Engine engine) {
     executionEngineForChildNode.add(engine);
     executionEngineForChildNodeSubExpressions.add(engine);
@@ -88,6 +100,14 @@ public class CodeGenContext implements LogicalExpression {
     executionEngineForChildNodeSubExpressions.remove(engine);
   }
 
+  public void markSubExprIsMixed() {
+    executionEngineForChildNodeSubExpressions.clear();
+  }
+
+  public boolean isMixedModeExecution() {
+    return executionEngineForChildNodeSubExpressions.supportedEngines.isEmpty();
+  }
+
   @Override
   public CompleteType getCompleteType() {
     if (outputType != null) {
@@ -122,7 +142,9 @@ public class CodeGenContext implements LogicalExpression {
   }
 
   public String toString() {
-    return child.toString();
+    LogicalExpression childWithoutContext = CodeGenerationContextRemover.removeCodeGenContext
+      (child);
+    return childWithoutContext.toString();
   }
 
   @Override

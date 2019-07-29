@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,8 @@ import Art from 'components/Art';
 import DragSource from 'components/DragComponents/DragSource';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 import EllipsedText from 'components/EllipsedText';
-import { getIconByEntityType, getArtPropsByEntityIconType } from 'utils/iconUtils';
+import { getIconTypeByEntityTypeAndStatus } from 'utils/iconUtils';
+import { PureEntityIcon } from '@app/pages/HomePage/components/EntityIcon';
 
 import Tree from './Tree';
 
@@ -68,12 +69,12 @@ export default class ResourceTree extends Component {
       : <div style={styles.emptyDiv}></div>;
 
     const classes = classNames('node', {'active-node': this.props.selectedNodeId === nodeId});
-    const iconType = getIconByEntityType(node.get('type'));
-    const iconForResourceProps = getArtPropsByEntityIconType(iconType);
+    const nodeStatus = node.getIn(['state', 'status'], null);
+    const iconType = getIconTypeByEntityTypeAndStatus(node.get('type'), nodeStatus);
 
     const nodeElement = ResourceTree.isNodeExpandable(node) ?
       <div style={{ display: 'flex', minWidth: 0 }}>
-        <Art {...iconForResourceProps} style={styles.icon}/>
+        <PureEntityIcon entityType={node.get('type')} sourceStatus={nodeStatus} style={styles.icon} />
         <EllipsedText className='node-text' style={styles.text} text={node.get('name')} />
       </div>
       :
@@ -161,8 +162,14 @@ const styles = {
     flex: '0 0 auto'
   },
   icon: {
-    width: 21,
-    height: 21
+    Container: {
+      width: 21,
+      height: 21
+    },
+    Icon: {
+      width: 21,
+      height: 21
+    }
   },
   text: {
     marginLeft: 5,

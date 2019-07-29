@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,14 @@
  */
 package com.dremio.sabot.exec;
 
+import java.util.Collection;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.proto.CoordExecRPC.NodePhaseStatus;
+import com.google.common.collect.ImmutableList;
 
 /**
  *  Manages the phase (major fragment) level allocator. Allows for reporting of phase-level stats to the coordinator.<br>
@@ -35,6 +40,7 @@ import com.dremio.exec.proto.CoordExecRPC.NodePhaseStatus;
 public class PhaseTicket extends TicketWithChildren {
   private final QueryTicket queryTicket;
   private final int majorFragmentId;
+  private final Set<FragmentTicket> fragmentTickets = ConcurrentHashMap.newKeySet();
 
   public PhaseTicket(QueryTicket queryTicket, int majorFragmentId, BufferAllocator allocator) {
     super(allocator);
@@ -48,6 +54,20 @@ public class PhaseTicket extends TicketWithChildren {
 
   public QueryTicket getQueryTicket() {
     return queryTicket;
+  }
+
+  public void reserve(FragmentTicket fragmentTicket) {
+    fragmentTickets.add(fragmentTicket);
+    super.reserve();
+  }
+
+  public boolean release(FragmentTicket fragmentTicket) {
+    fragmentTickets.remove(fragmentTicket);
+    return super.release();
+  }
+
+  public Collection<FragmentTicket> getFragmentTickets() {
+    return ImmutableList.copyOf(fragmentTickets);
   }
 
   /**

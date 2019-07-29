@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -89,6 +89,7 @@ import com.dremio.service.reflection.store.ExternalReflectionStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -337,6 +338,11 @@ public class ReflectionManager implements Runnable {
       return;
     }
 
+    if (!job.isCompleted()) {
+      // job not done yet
+      return;
+    }
+
     switch (job.getJobAttempt().getState()) {
       case COMPLETED:
         try {
@@ -562,7 +568,8 @@ public class ReflectionManager implements Runnable {
     // when the materialization entry is deleted
   }
 
-  private void handleSuccessfulJob(ReflectionEntry entry, Materialization materialization, Job job) {
+  @VisibleForTesting
+  void handleSuccessfulJob(ReflectionEntry entry, Materialization materialization, Job job) {
     switch (entry.getState()) {
       case REFRESHING:
         refreshingJobSucceded(entry, materialization, job);
@@ -756,11 +763,14 @@ public class ReflectionManager implements Runnable {
         .setFailure(new Failure().setMessage("Cache update failed"));
     }
 
+    if (materialization.getState() != MaterializationState.FAILED) {
+      handleMaterializationDone(entry, materialization);
+    }
+
+    // we need to check the state of the materialization again because handleMaterializationDone() can change its state
     if (materialization.getState() == MaterializationState.FAILED) {
       // materialization failed
       reportFailure(entry, ACTIVE);
-    } else {
-      handleMaterializationDone(entry, materialization);
     }
 
     materializationStore.save(materialization);

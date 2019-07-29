@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,16 +35,18 @@ public class GandivaOperator  {
    * 3. is of syntax function i.e. always called with paranthesis even if no args
    *
    * @param name - name of the function
-   * @param paramCount - number of parameters to the function
+   * @param minParamCount - number of parameters to the function
+   * @param maxParamCount - max number of paramters for a function with this name
    * @param returnTypeInference
    * @return
    */
-  public static SqlOperatorImpl getSimpleFunction(String name, int paramCount, SqlReturnTypeInference returnTypeInference) {
+  public static SqlOperatorImpl getSimpleFunction(String name, int minParamCount, int
+    maxParamCount, SqlReturnTypeInference returnTypeInference) {
 
     return new SqlOperatorImpl(
       name,
-      paramCount,
-      paramCount,
+      minParamCount,
+      maxParamCount,
       IS_DETERMINISTIC,
       IS_DYNAMIC,
       returnTypeInference,

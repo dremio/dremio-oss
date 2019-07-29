@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,8 +27,11 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.security.UserGroupInformation;
 
+import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
@@ -197,19 +200,35 @@ public class ImpersonationUtil {
    * @return
    */
   public static FileSystemWrapper createFileSystem(String proxyUserName, Configuration fsConf, boolean enableAsync) {
-    return createFileSystem(createProxyUgi(proxyUserName), fsConf, null, null, enableAsync);
+    return createFileSystem(null, null, null, null, createProxyUgi(proxyUserName),
+      fsConf, null, enableAsync);
   }
 
-  /** Helper method to create FileSystemWrapper */
-  public static FileSystemWrapper createFileSystem(UserGroupInformation proxyUserUgi, final Configuration fsConf,
-      final OperatorStats stats, final List<String> connectionUniqueProps, boolean enableAsync) {
+  /**
+   * Create FileSystemWrapper based on complete context information (SabotContext, FileSystemConf, and OperatorContext)
+   * for given proxyUserName, configuration, and connectioUniqueProps.
+   */
+  public static FileSystemWrapper createFileSystem(
+    final SabotContext sabotContext,
+    final String pluginUID,
+    final FileSystemConf pluginConfig,
+    final OperatorContext operatorContext,
+    final UserGroupInformation proxyUserUgi,
+    final Configuration fsConf,
+    final List<String> connectionUniqueProps,
+    final boolean enableAsync) {
     FileSystemWrapper fs;
     try {
       fs = proxyUserUgi.doAs(new PrivilegedExceptionAction<FileSystemWrapper>() {
         @Override
         public FileSystemWrapper run() throws Exception {
           logger.trace("Creating FileSystemWrapper for proxy user: " + UserGroupInformation.getCurrentUser());
-          return new FileSystemWrapper(fsConf, stats, connectionUniqueProps, enableAsync);
+          if (sabotContext == null) {
+            return FileSystemWrapperCreator.get(fsConf, operatorContext, connectionUniqueProps, enableAsync);
+          } else {
+            return sabotContext.getFileSystemWrapperCreator()
+              .get(operatorContext, pluginUID, pluginConfig, fsConf, connectionUniqueProps, enableAsync);
+          }
         }
       });
     } catch (InterruptedException | IOException e) {
@@ -241,7 +260,7 @@ public class ImpersonationUtil {
         @Override
         public FileSystemWrapper run() throws Exception {
           logger.trace("Creating FileSystemWrapper for proxy user: " + UserGroupInformation.getCurrentUser());
-          return FileSystemWrapper.get(path, fsConf);
+          return FileSystemWrapperCreator.get(path, fsConf);
         }
       });
     } catch (InterruptedException | IOException e) {

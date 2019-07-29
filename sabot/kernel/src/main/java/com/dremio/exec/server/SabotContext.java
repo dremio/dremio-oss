@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
@@ -89,6 +90,7 @@ public class SabotContext implements AutoCloseable {
   private final Provider<SpillService> spillService;
   private final Provider<ConnectionReader> connectionReaderProvider;
   private final ClusterResourceInformation clusterInfo;
+  private final FileSystemWrapperCreator fileSystemWrapperCreator;
 
   public SabotContext(
       DremioConfig dremioConfig,
@@ -149,6 +151,13 @@ public class SabotContext implements AutoCloseable {
     this.queryPlanningAllocator = queryPlanningAllocator;
     this.spillService = spillService;
     this.clusterInfo = new ClusterResourceInformation(coord);
+    this.fileSystemWrapperCreator = config.getInstance(
+      FileSystemWrapperCreator.FILE_SYSTEM_WRAPPER_CREATOR_CLASS,
+      FileSystemWrapperCreator.class,
+      FileSystemWrapperCreator.DEFAULT_INSTANCE,
+      dremioConfig,
+      systemOptions,
+      allocator);
   }
 
   private void checkIfCoordinator() {
@@ -322,7 +331,7 @@ public class SabotContext implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(systemOptions);
+    AutoCloseables.close(fileSystemWrapperCreator, systemOptions);
   }
 
   public Provider<WorkStats> getWorkStatsProvider() {
@@ -355,5 +364,9 @@ public class SabotContext implements AutoCloseable {
 
   public ViewCreator getViewCreator(String userName) {
     return viewCreatorFactory.get().get(userName);
+  }
+
+  public FileSystemWrapperCreator getFileSystemWrapperCreator() {
+    return fileSystemWrapperCreator;
   }
 }

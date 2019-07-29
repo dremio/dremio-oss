@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ import { shallow } from 'enzyme';
 
 import Immutable from 'immutable';
 
+import FinderNavItem from '@app/components/FinderNavItem';
 import FinderNavSection from './FinderNavSection';
 
 describe('FinderNavSection', () => {
@@ -34,7 +35,7 @@ describe('FinderNavSection', () => {
   it('renders items', () => {
     const wrapper = shallow(<FinderNavSection {...commonProps}/>);
     expect(wrapper.hasClass('holder')).to.be.true;
-    expect(wrapper.find('FinderNavItem')).to.have.length(commonProps.items.size);
+    expect(wrapper.find(FinderNavItem)).to.have.length(commonProps.items.size);
   });
 
   it('renders show all when items.size > maxItemsCount', () => {
@@ -44,13 +45,13 @@ describe('FinderNavSection', () => {
     wrapper = shallow(<FinderNavSection {...commonProps} maxItemsCount={2}/>);
     expect(wrapper.find('.show-more-btn')).to.have.length(1);
     expect(wrapper.find('.show-more-btn').props().children).to.equal('Show All (3) »');
-    expect(wrapper.find('FinderNavItem')).to.have.length(2);
+    expect(wrapper.find(FinderNavItem)).to.have.length(2);
   });
 
   it('without hidden items', () => {
     const wrapper = shallow(<FinderNavSection {...commonProps} maxItemsCount={100} />);
     expect(wrapper.find('.show-more-btn')).have.length(0);
-    expect(wrapper.find('FinderNavItem')).have.length(commonProps.items.size);
+    expect(wrapper.find(FinderNavItem)).have.length(commonProps.items.size);
   });
 
   it('loading state', () => {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 import { API_URL_V2 } from 'constants/Api';
 
 export const LOAD_RESOURCE_TREE_START = 'LOAD_RESOURCE_TREE_START';
@@ -25,7 +25,7 @@ const fetchResourceTree = (fullPath, { showDatasets, showSpaces, showSources, sh
   const datasetsQuery = `showDatasets=${showDatasets}`;
   const query = `?${datasetsQuery}&showSources=${showSources}&showSpaces=${showSpaces}&showHomes=${showHomes}`;
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: LOAD_RESOURCE_TREE_START, meta},
         { type: LOAD_RESOURCE_TREE_SUCCESS, meta},

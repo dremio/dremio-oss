@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 package org.apache.arrow.vector;
 
+import java.math.BigDecimal;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.BitHolder;
@@ -27,6 +29,7 @@ import org.apache.arrow.vector.holders.IntervalYearHolder;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableDateMilliHolder;
+import org.apache.arrow.vector.holders.NullableDecimalHolder;
 import org.apache.arrow.vector.holders.NullableFloat4Holder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.NullableIntervalDayHolder;
@@ -36,6 +39,7 @@ import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.holders.TimeMilliHolder;
 import org.apache.arrow.vector.holders.TimeStampMilliHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
+import org.apache.arrow.vector.util.DecimalUtility;
 
 import com.google.common.base.Charsets;
 
@@ -219,5 +223,22 @@ public class ValueHolderHelper {
     dch.milliseconds = millis;
     return dch;
   }
+  public static NullableDecimalHolder getNullableDecimalHolder(ArrowBuf buf, String value) {
+    BigDecimal bd = new BigDecimal(value);
+    return getNullableDecimalHolder(buf, bd, bd.precision(), bd.scale());
+  }
+
+  public static NullableDecimalHolder getNullableDecimalHolder(ArrowBuf buf, BigDecimal decimal, int precision, int scale) {
+    NullableDecimalHolder holder = new NullableDecimalHolder();
+    buf.reallocIfNeeded(16);
+    DecimalUtility.writeBigDecimalToArrowBuf(decimal, buf, 0);
+    holder.buffer = buf;
+    holder.start = 0;
+    holder.scale = scale;
+    holder.precision = precision;
+    holder.isSet = 1;
+    return holder;
+  }
+
 }
 

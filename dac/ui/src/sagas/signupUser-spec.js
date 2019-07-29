@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,10 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { put, take } from 'redux-saga/effects';
-import { replace } from 'react-router-redux';
+import { put } from 'redux-saga/effects';
 
-import { fetchLoginUser, LOGIN_USER_SUCCESS } from 'actions/account';
+import { loginUser } from 'actions/account';
 import { handleSignup } from './signupUser';
 
 describe('signupUser saga', () => {
@@ -24,16 +23,9 @@ describe('signupUser saga', () => {
     userName: 'u',
     password: 'p'
   };
-  it('should not do anything when created user is not first one', () => {
-    const gen = handleSignup({ meta: { form, isFirstUser: false}});
-    expect(gen.next().value).to.be.undefined;
-  });
 
-  it('should login user if he is the one and redirect to home page', () => {
-    const gen = handleSignup({ meta: { form, isFirstUser: true}});
-    gen.next(); // getLocation
-    expect(gen.next().value).to.eql(put(fetchLoginUser(form)));
-    expect(gen.next().value).to.eql(take(LOGIN_USER_SUCCESS));
-    expect(gen.next().value).to.eql(put(replace({pathname: '/'})));
+  it('should login a first user and redirect to home page', () => {
+    const gen = handleSignup({ meta: { form } });
+    expect(gen.next().value).to.eql(put(loginUser(form)));
   });
 });

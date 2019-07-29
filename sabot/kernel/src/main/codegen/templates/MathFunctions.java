@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -128,7 +128,13 @@ public class GMathFunctions{
 
     public void eval() {
       java.math.BigDecimal temp = java.math.BigDecimal.valueOf(input1.value);
+      <#if type.dataType =='BigInt'>
+        out.value = (${type.castType}) temp.setScale(input2.value, java.math.RoundingMode.${func.mode}).longValue();
+      <#elseif type.dataType =='Int'>
+        out.value = (${type.castType}) temp.setScale(input2.value, java.math.RoundingMode.${func.mode}).longValue();
+      <#else>
       out.value = (${type.castType}) temp.setScale(input2.value, java.math.RoundingMode.${func.mode}).doubleValue();
+      </#if>
     }
   }
   </#list>

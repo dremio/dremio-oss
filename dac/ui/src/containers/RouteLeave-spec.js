@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,59 +15,89 @@
  */
 import { shallow, mount } from 'enzyme';
 import PropTypes from 'prop-types';
-import { HookProviderView, HookConsumer, singleArgFnGenerator } from './RouteLeave';
+import { KeyChangeTrigger } from '@app/components/KeyChangeTrigger';
+import { HookProviderView, HookConsumer, singleArgFnGenerator, RouteLeaveEventView } from './RouteLeave';
+
+const routeProps = {
+  route: {
+    path: '/new_query'
+  },
+  router: {
+    setRouteLeaveHook: () => {},
+    push: () => {}
+  }
+};
 
 describe('RouteLeave.js', () => {
 
   const providerCommonProps = {
-    route: {
-      path: '/new_query'
-    },
-    router: {
-      setRouteLeaveHook: () => {},
-      push: () => {}
-    },
+    ...routeProps,
     showConfirmationDialog: () => {}
   };
+
+  describe('RouteLeaveEventView', () => {
+    const eventCompProps = {
+      ...routeProps,
+      doChangesCheck: () => Promise.resolve(true)
+    };
+    it('calls onRouteChange on route change', () => {
+      const wrapper = shallow(<RouteLeaveEventView {...eventCompProps} />);
+      const trigger = wrapper.find(KeyChangeTrigger);
+      expect(trigger).to.have.length(1);
+      expect(trigger.prop('keyValue')).to.be.equal(routeProps.route, 'route must be monitored');
+      expect(trigger.prop('onChange')).to.be.equal(wrapper.instance().onRouteChange);
+    });
+
+    it('onRouteChange sets a route leave hook', () => {
+      const props = {
+        ...eventCompProps,
+        router: {
+          setRouteLeaveHook: sinon.spy()
+        }
+      };
+      const wrapper = shallow(<RouteLeaveEventView {...props} />);
+      const instance = wrapper.instance();
+
+      instance.onRouteChange();
+      expect(props.router.setRouteLeaveHook).to.be.calledWith(props.route, instance.routeWillLeave);
+    });
+
+    it('routeWillLeave returns true, if leave was confirmed', async () => {
+      const userChoiceToLeaveOrStayPromise = Promise.resolve(true);
+      const doCheckFn = sinon.stub();
+      doCheckFn.returns({
+        hasChanges: true,
+        userChoiceToLeaveOrStayPromise
+      });
+
+      const props = {
+        ...eventCompProps,
+        doChangesCheck: doCheckFn
+      };
+      const instance = shallow(<RouteLeaveEventView {...props} />).instance();
+
+      expect(instance.routeWillLeave()).to.eql(false); // should not allow to leave a page;
+      expect(doCheckFn).to.be.called;
+      doCheckFn.reset();
+
+      await userChoiceToLeaveOrStayPromise;
+
+      expect(instance.routeWillLeave()).to.eql(true); // should allow to leave a page, as there was a confirmation
+      expect(doCheckFn).to.be.not.called;
+    });
+
+    it('routeWillLeave returns true, if redirect reason is unauthorized', () => {
+      const instance = shallow(<RouteLeaveEventView {...eventCompProps} />).instance();
+
+      expect(instance.routeWillLeave({search: 'abc&reason=401'})).to.eql(true);
+    });
+  });
 
   describe('HookProviderView', () => {
     let commonProps;
 
     beforeEach(() => {
       commonProps = providerCommonProps;
-    });
-
-    it('should call router.setRouteLeaveHook only if route has changed', () => {
-      const newProps = {
-        ...commonProps,
-        router: {
-          setRouteLeaveHook: sinon.spy()
-        }
-      };
-      const instance = shallow(<HookProviderView {...newProps} />).instance();
-      instance.componentWillReceiveProps(newProps);
-      expect(newProps.router.setRouteLeaveHook).to.not.be.called;
-      const props = {...newProps, route: { path: '/:resources' }};
-      instance.componentWillReceiveProps(props);
-      expect(props.router.setRouteLeaveHook).to.be.called;
-    });
-
-    it('routeWillLeave returns true, if leave was confirmed', () => {
-      const confirmFn = sinon.spy();
-      const instance = shallow(<HookProviderView
-        {...commonProps}
-        showConfirmationDialog={confirmFn} />).instance();
-      const hasChangesCallback = () => true; // simulate changes
-      instance.addCallback('test id', hasChangesCallback);
-
-      expect(instance.routeWillLeave()).to.eql(false); // should not allow to leave a page;
-      expect(confirmFn).to.be.called; // confimation should be called
-
-      confirmFn.reset();
-      instance.leaveConfirmed(); // confirm leave;
-
-      expect(instance.routeWillLeave()).to.eql(true); // should allow to leave a page, as there was a confirmation
-      expect(confirmFn).to.be.not.called; // confimation should not be called
     });
 
     describe('showConfirmationDialog', () => {
@@ -85,7 +115,7 @@ describe('RouteLeave.js', () => {
         const hasChangesCallback = () => false; // no changes
 
         instance.addCallback('test id', hasChangesCallback);
-        instance.routeWillLeave(); // simulate route change
+        instance.doChangesCheck(); // simulate route change
 
         expect(confirmFn).to.be.not.called; // confirm function should NOT be called
       });
@@ -96,7 +126,7 @@ describe('RouteLeave.js', () => {
 
         const changeValue = hasChanges => {
           hasChangesCallback.returns(true); // change the result
-          instance.routeWillLeave(); // simulate route change
+          instance.doChangesCheck(); // simulate route change
           expect(confirmFn).to.be[hasChanges ? 'called' : 'notCalled']; // should be called or not depending on hasChanges value
         };
 
@@ -110,14 +140,14 @@ describe('RouteLeave.js', () => {
         const hasChangesCallback = () => true; // simulate changes
 
         const removeHandler = instance.addCallback('test id', hasChangesCallback);
-        instance.routeWillLeave(); // simulate route change
+        instance.doChangesCheck(); // simulate route change
 
         expect(confirmFn).to.be.called; // confirm function should be called if there is any change
 
         removeHandler();
 
         confirmFn.reset();
-        instance.routeWillLeave(); // simulate route change
+        instance.doChangesCheck(); // simulate route change
         expect(confirmFn).to.be.not.called; // should Not be called, as callback is removed and not monitored anymore
       });
 
@@ -131,24 +161,15 @@ describe('RouteLeave.js', () => {
         hasChangesCalbackList.forEach((hasChanges, index) => {
           removeHandlers[index] = instance.addCallback(`test id ${index}`, () => hasChanges);
         });
-        instance.routeWillLeave(); // simulate route change
+        instance.doChangesCheck(); // simulate route change
 
         expect(confirmFn).to.be.called;
 
         removeHandlers[trueIndex](); // remove a handler, that has changes
 
         confirmFn.reset();
-        instance.routeWillLeave(); // simulate route change
+        instance.doChangesCheck(); // simulate route change
         expect(confirmFn).to.be.not.called; // should not be called as the reset of handlers does not have changes
-      });
-
-      it('should not be called if redirect reason is unauthorized', () => {
-        const hasChangesCallback = sinon.stub();
-        instance.addCallback('test id', hasChangesCallback);
-
-        hasChangesCallback.returns(true); // change the result
-        instance.routeWillLeave({search: 'abc&reason=401'}); // simulate route change
-        expect(confirmFn).to.be.not.called;
       });
     });
 
@@ -156,7 +177,7 @@ describe('RouteLeave.js', () => {
 
   describe('HookConsumer', () => {
 
-    const getRenderFn = (hasChangesCallback) => (addCallback) => {
+    const getRenderFn = (hasChangesCallback) => ({ addCallback }) => { // eslint-disable-line
       addCallback(hasChangesCallback);
       return <div></div>;
     };

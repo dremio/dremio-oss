@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import com.dremio.exec.exception.JsonFieldChangeExceptionContext;
 import com.dremio.exec.exception.SchemaChangeExceptionContext;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.PlannerPhase;
+import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.DelegatingAttemptObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
@@ -63,6 +64,7 @@ import com.dremio.proto.model.attempts.AttemptReason;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.commandpool.CommandPool;
+import com.dremio.service.execselector.ExecutorSelectionService;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Optional;
@@ -102,6 +104,7 @@ public class Foreman {
   private final CoordToExecTunnelCreator tunnelCreator;
   private final Cache<Long, PreparedPlan> plans;
   private final ResourceAllocator queryResourceManager;
+  private final ExecutorSelectionService executorSelectionService;
 
   private AttemptId attemptId; // id of last attempt
 
@@ -111,19 +114,20 @@ public class Foreman {
   private volatile boolean canceled; // did the user cancel the query ?
 
   protected Foreman(
-    final SabotContext context,
-    final Executor executor,
-    final CommandPool commandPool,
-    final CompletionListener listener,
-    final ExternalId externalId,
-    final QueryObserver observer,
-    final UserSession session,
-    final UserRequest request,
-    final OptionProvider config,
-    final ReAttemptHandler attemptHandler,
-    final CoordToExecTunnelCreator tunnelCreator,
-    Cache<Long, PreparedPlan> plans,
-    final ResourceAllocator queryResourceManager) {
+      final SabotContext context,
+      final Executor executor,
+      final CommandPool commandPool,
+      final CompletionListener listener,
+      final ExternalId externalId,
+      final QueryObserver observer,
+      final UserSession session,
+      final UserRequest request,
+      final OptionProvider config,
+      final ReAttemptHandler attemptHandler,
+      final CoordToExecTunnelCreator tunnelCreator,
+      Cache<Long, PreparedPlan> plans,
+      final ResourceAllocator queryResourceManager,
+      final ExecutorSelectionService executorSelectionService) {
     this.attemptId = AttemptId.of(externalId);
     this.executor = executor;
     this.commandPool = commandPool;
@@ -137,6 +141,7 @@ public class Foreman {
     this.tunnelCreator = tunnelCreator;
     this.plans = plans;
     this.queryResourceManager = queryResourceManager;
+    this.executorSelectionService = executorSelectionService;
   }
 
   public void start() {
@@ -176,18 +181,18 @@ public class Foreman {
     }
 
     attemptManager = newAttemptManager(context, attemptId, request, attemptObserver, session,
-      optionProvider, tunnelCreator, plans, datasetValidityChecker, queryResourceManager, commandPool);
+      optionProvider, tunnelCreator, plans, datasetValidityChecker, queryResourceManager, commandPool, executorSelectionService);
     executor.execute(attemptManager);
   }
 
   protected AttemptManager newAttemptManager(SabotContext context, AttemptId attemptId, UserRequest queryRequest,
       AttemptObserver observer, UserSession session, OptionProvider options, CoordToExecTunnelCreator tunnelCreator,
       Cache<Long, PreparedPlan> plans, Predicate<DatasetConfig> datasetValidityChecker, ResourceAllocator resourceAllocator,
-      CommandPool commandPool) {
+      CommandPool commandPool, ExecutorSelectionService executorSelectionService) {
     final QueryContext queryContext = new QueryContext(session, context, attemptId.toQueryId(),
         queryRequest.getPriority(), queryRequest.getMaxAllocation(), datasetValidityChecker);
     return new AttemptManager(context, attemptId, queryRequest, observer, options, tunnelCreator, plans,
-      queryContext, resourceAllocator, commandPool);
+      queryContext, resourceAllocator, commandPool, executorSelectionService);
   }
 
   public void updateStatus(FragmentStatus status) {
@@ -408,8 +413,12 @@ public class Foreman {
           if (ex.getErrorType() == UserBitShared.DremioPBError.ErrorType.SCHEMA_CHANGE) {
             UserException e = handleSchemaChangeException(result.getException());
             if (e != null) {
-              ex = e;
-              result = result.withException(ex);
+              if (e.getErrorType() == UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION) {
+                result = result.replaceException(e);
+              } else {
+                ex = e;
+                result = result.withException(ex);
+              }
             }
           } else if (ex.getErrorType() == UserBitShared.DremioPBError.ErrorType.JSON_FIELD_CHANGE) {
             UserException e = handleJsonFieldChangeException(result.getException());
@@ -457,6 +466,11 @@ public class Foreman {
       observer.execCompletion(result);
 
       listener.completed();
+    }
+
+    @Override
+    public void planParallelized(PlanningSet planningSet) {
+      super.planParallelized(planningSet);
     }
 
   }

@@ -9,6 +9,8 @@ notices and/or trademarks:
 
 # List of contributors  Red Hat Inc. Akira Kawauchi Davide D'Alto Dhanji R. Prasanna Emmanuel Bernard Gavin King Gerhard Petracek Guillaume Smet Gunnar Morling Hardy Ferentschik Hendrik Ebbers Kevin Pollet Sebastian Thomschke
 
+AWS EventStream for Java Copyright 2017 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
 AWS SDK for AWS KMS Copyright 2010-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.  This product includes software developed by Amazon Technologies, Inc (http://www.amazon.com/).
 
 AWS SDK for AWS S3 Copyright 2010-2014 Amazon.com, Inc. or its affiliates. All Rights Reserved.  This product includes software developed by Amazon Technologies, Inc (http://www.amazon.com/).
@@ -213,8 +215,6 @@ Copyright (c) 2014, 2015, 2016, 2017 Simon Lydell
 
 Copyright (c) 2014, Facebook, Inc. All rights reserved.
 
-Copyright (c) 2014-2015 Sebastian McKenzie <sebmck@gmail.com>
-
 Copyright (c) 2014-2015, Felix Boehm <me@feedic.com>
 
 Copyright (c) 2014-2016 GitHub, Inc.
@@ -397,8 +397,6 @@ Copyright 2010-2013, Carrot Search s.c., Boznicza 11/56, Poznan, Poland
 
 Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/> Based on Underscore.js, copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors <http://underscorejs.org/>
 
-Copyright 2012-2016 The Dojo Foundation <http://dojofoundation.org/> Based on Underscore.js, copyright 2009-2016 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors <http://underscorejs.org/>
-
 Copyright 2013 Thorsten Lorenz.  All rights reserved.
 
 Copyright 2013 Yahoo! Inc. All rights reserved.
@@ -461,7 +459,13 @@ Jetty Web Container Copyright 1995-2017 Mort Bay Consulting Pty Ltd.
 
 Logback: the reliable, generic, fast and flexible logging framework. Copyright (C) 1999-2017, QOS.ch. All rights reserved.
 
+MIT License  Copyright (c) Microsoft Corporation  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 Nimbus JOSE + JWT  Copyright 2012 - 2018, Connect2id Ltd.
+
+Nimbus Language Tags  Copyright 2012-2016, Connect2id Ltd.
+
+Nimbus OAuth 2.0 SDK with OpenID Connect extensions  Copyright (c) Connect2id Ltd., 2012 - 2019
 
 The MIT License (MIT)  Copyright (c) 2016 Microsoft Azure  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 

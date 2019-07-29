@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -206,15 +206,15 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return createFs(userName, null);
   }
 
-  public FileSystemWrapper createFs(String userName, OperatorContext context) {
-    return ImpersonationUtil.createFileSystem(getUGIForUser(userName), getFsConf(), context != null ?context.getStats() : null,
-        getConnectionUniqueProperties(),
-      isAsyncEnabledForQuery(context) && getConfig().isAsyncEnabled());
+  public FileSystemWrapper createFs(String userName, OperatorContext operatorContext) {
+    return ImpersonationUtil.createFileSystem(context, getName(), config, operatorContext,
+      getUGIForUser(userName), getFsConf(), getConnectionUniqueProperties(),
+      isAsyncEnabledForQuery(operatorContext) && getConfig().isAsyncEnabled());
   }
 
-  public FileSystemWrapper getFileSystem(Configuration config, OperatorContext context) throws IOException {
-    return FileSystemWrapper.get(config, context.getStats(),
-      isAsyncEnabledForQuery(context) && getConfig().isAsyncEnabled());
+  public FileSystemWrapper getFileSystem(Configuration config, OperatorContext operatorContext) throws IOException {
+    return FileSystemWrapperCreator.get(config, (operatorContext == null) ? null : operatorContext.getStats(),
+      isAsyncEnabledForQuery(operatorContext) && getConfig().isAsyncEnabled());
   }
 
   public UserGroupInformation getUGIForUser(String userName) {

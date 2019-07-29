@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -456,7 +456,7 @@ public class TestVectorizedHashAggPartitionSerializable {
         LBlockHashTable sourceHashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000, 10, true, accumulator, MAX_VALUES_PER_BATCH);
         VectorizedHashAggPartition hashAggPartition =  new VectorizedHashAggPartition
           (accumulator, sourceHashTable, pivot.getBlockWidth(), "P0", offsets, false);
-        final VectorizedHashAggPartitionSpillHandler partitionSpillHandler = new VectorizedHashAggPartitionSpillHandler(hashAggPartitions, fragmentHandle, null, sabotConfig, 1, partitionToLoadSpilledData, spillService, true);
+        final VectorizedHashAggPartitionSpillHandler partitionSpillHandler = new VectorizedHashAggPartitionSpillHandler(hashAggPartitions, fragmentHandle, null, sabotConfig, 1, partitionToLoadSpilledData, spillService, true, null);
         hashAggPartitions[0] = hashAggPartition;
 
         final long keyFixedVectorAddr = fbv.getMemoryAddress();

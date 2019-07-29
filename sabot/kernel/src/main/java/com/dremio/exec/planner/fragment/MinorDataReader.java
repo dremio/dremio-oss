@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,10 @@ package com.dremio.exec.planner.fragment;
 import java.io.IOException;
 import java.util.List;
 
-import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
 import com.google.protobuf.ByteString;
 
 /**
@@ -49,30 +49,32 @@ public class MinorDataReader {
     return handle;
   }
 
-  public List<SplitInfo> readSplits(PhysicalOperator op, String key) throws Exception {
-    ByteString buffer = attrsMap.getMinorAttrsValue(op, key);
-    return serDe.deserializeSplits(buffer);
-  }
-
-  public MinorFragmentIndexEndpoint readMinorFragmentIndexEndpoint(PhysicalOperator op, String key) throws Exception {
-    ByteString buffer = attrsMap.getMinorAttrsValue(op, key);
+  public MinorFragmentIndexEndpoint readMinorFragmentIndexEndpoint(OpProps props, String key) throws Exception {
+    ByteString buffer = attrsMap.getAttrValue(props, key);
     return serDe.deserializeMinorFragmentIndexEndpoint(buffer);
   }
 
-  public List<MinorFragmentIndexEndpoint> readMinorFragmentIndexEndpoints(PhysicalOperator op, String key) throws Exception {
-    ByteString buffer = attrsMap.getMinorAttrsValue(op, key);
+  public List<MinorFragmentIndexEndpoint> readMinorFragmentIndexEndpoints(OpProps props, String key) throws Exception {
+    ByteString buffer = attrsMap.getAttrValue(props, key);
     return serDe.deserializeMinorFragmentIndexEndpointList(buffer).getFragsList();
   }
 
-  public ByteString readProtoEntry(PhysicalOperator op, String key) throws Exception {
-    return attrsMap.getMinorAttrsValue(op, key);
+  public ByteString readProtoEntry(OpProps props, String key) throws Exception {
+    return attrsMap.getAttrValue(props, key);
+  }
+
+  /*
+   * Partition infos are shared attributes (de-deuped at the rpc level).
+   */
+  public NormalizedPartitionInfo readSplitPartition(OpProps props, String key) throws Exception {
+    return index.getSharedAttrsIndex().getSplitPartitionEntry(props, key);
   }
 
   /*
    * Deserialize pojo from compressed json extracted from the value part of the kv pair.
    */
-  public <T> T readJsonEntry(PhysicalOperator op, String key, Class<T> clazz) throws IOException {
-    ByteString buffer = attrsMap.getMinorAttrsValue(op, key);
+  public <T> T readJsonEntry(OpProps props, String key, Class<T> clazz) throws IOException {
+    ByteString buffer = attrsMap.getAttrValue(props, key);
     return serDe.deserializeObjectFromJson(clazz, buffer);
   }
 }

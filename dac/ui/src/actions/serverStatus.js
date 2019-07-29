@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 
 import { API_URL_V2} from 'constants/Api';
 
@@ -42,7 +42,7 @@ export const CHECK_SERVER_STATUS_FAILURE = 'CHECK_SERVER_STATUS_FAILURE';
 export function checkServerStatus(delay) {
   const meta = {viewId: CHECK_SERVER_STATUS_VIEW_ID, delay};
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: CHECK_SERVER_STATUS_START, meta },
         { type: CHECK_SERVER_STATUS_SUCCESS, meta },

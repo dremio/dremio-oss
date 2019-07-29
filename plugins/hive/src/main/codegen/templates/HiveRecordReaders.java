@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,17 +40,22 @@ import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.ValueVector;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.ScanFilter;
+import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.hive.ORCScanFilter;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
+import com.dremio.sabot.op.scan.ScanOperator;
+import com.dremio.sabot.op.scan.ScanOperator.Metric;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 
 import org.apache.hadoop.fs.FSError;
 <#if entry.hiveReader == "Orc">
+import org.apache.hadoop.hive.ql.io.orc.OrcFile;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
+import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
 import org.apache.hadoop.hive.ql.io.orc.OrcStruct;
 </#if>
 import org.apache.hadoop.hive.ql.io.sarg.ConvertAstToSearchArg;
@@ -75,7 +80,11 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters.C
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
-
+<#if entry.hiveReader == "Orc">
+  import org.apache.orc.OrcConf;
+  import org.apache.orc.OrcProto;
+  import org.apache.orc.impl.DataReaderProperties;
+</#if>
 public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
 
 <#-- Specialized reader for Hive ORC, allowing zero copy to use the Dremio allocator -->
@@ -89,10 +98,13 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
   private ${KeyType} key;
   private ${ValueType} value;
   private RecordReader<${KeyType}, ${ValueType}> reader;
+<#if entry.hiveReader == "Orc">
+  private DremioORCRecordUtils.DefaultDataReader dataReader;
+</#if>
   // Converter which converts data from partition schema to table schema.
   protected Converter partTblObjectInspectorConverter;
 
-  public Hive${entry.hiveReader}Reader(final HiveTableXattr tableAttr, final SplitInfo split,
+  public Hive${entry.hiveReader}Reader(final HiveTableXattr tableAttr, final SplitAndPartitionInfo split,
       final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
       final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
       final StructObjectInspector partitionOI, final ScanFilter filter, final Collection<List<String>> referencedTables) {
@@ -108,15 +120,37 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
       jobConf.set(ColumnProjectionUtils.READ_COLUMN_NAMES_CONF_STR, jobConf.get(serdeConstants.LIST_COLUMNS));
       jobConf.set(ConvertAstToSearchArg.SARG_PUSHDOWN, scanFilter.getKryoBase64EncodedFilter());
     }
+  Reader.Options options = new Reader.Options();
+  if ( !((OrcInputFormat)jobConf.getInputFormat()).isAcidRead(jobConf, inputSplit) ){
+    final OrcFile.ReaderOptions opts = OrcFile.readerOptions(jobConf);
 
-    final Reader.Options options = new Reader.Options()
-      .zeroCopyPoolShim(new HiveORCZeroCopyShim(context.getAllocator()));
-    try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {
-      reader = ((OrcInputFormat)jobConf.getInputFormat()).getRecordReader(inputSplit, jobConf, Reporter.NULL, options);
-    }
-    catch(FSError e) {
-      throw FileSystemWrapper.propagateFSError(e);
-    }
+    final OrcSplit fSplit = (OrcSplit)inputSplit;
+    final org.apache.hadoop.fs.Path path = fSplit.getPath();
+    // TODO: DX-16001 make enabling async configurable.
+    final org.apache.hadoop.fs.FileSystem fs = com.dremio.exec.store.dfs.FileSystemWrapperCreator.get(path, jobConf, this.context.getStats());
+    opts.filesystem(fs);
+    final Reader hiveReader = OrcFile.createReader(path, opts);
+
+    final List<OrcProto.Type> types = hiveReader.getTypes();
+
+    Boolean zeroCopy = OrcConf.USE_ZEROCOPY.getBoolean(jobConf);
+    Boolean useDirectMemory = context.getOptions().getOption(HivePluginOptions.HIVE_ORC_READER_USE_DIRECT_MEMORY);
+    dataReader = DremioORCRecordUtils.createDefaultDataReader(context.getAllocator(), DataReaderProperties.builder()
+                              .withBufferSize(hiveReader.getCompressionSize())
+                              .withCompression(hiveReader.getCompressionKind())
+                              .withFileSystem(fs)
+                              .withPath(path)
+                              .withTypeCount(types.size())
+                              .withZeroCopy(zeroCopy)
+                              .build(), useDirectMemory);
+    options.dataReader(dataReader);
+  }
+  try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {
+    reader = ((OrcInputFormat)jobConf.getInputFormat()).getRecordReader(inputSplit, jobConf, Reporter.NULL, options);
+  }
+  catch(FSError e) {
+    throw FileSystemWrapper.propagateFSError(e);
+  }
 <#else>
     reader = jobConf.getInputFormat().getRecordReader(inputSplit, jobConf, Reporter.NULL);
 </#if>
@@ -193,6 +227,16 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
       }
       reader = null;
     }
+<#if entry.hiveReader == "Orc">
+    if (dataReader != null) {
+      if (dataReader.isRemoteRead()) {
+        context.getStats().addLongStat(ScanOperator.Metric.NUM_REMOTE_READERS, 1);
+      } else {
+        context.getStats().addLongStat(ScanOperator.Metric.NUM_REMOTE_READERS, 0);
+      }
+      dataReader = null;
+    }
+</#if>
     this.partTblObjectInspectorConverter = null;
     super.close();
   }

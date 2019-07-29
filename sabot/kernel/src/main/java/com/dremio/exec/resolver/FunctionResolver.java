@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ package com.dremio.exec.resolver;
 import java.util.List;
 
 import com.dremio.common.expression.FunctionCall;
-import com.dremio.exec.expr.fn.BaseFunctionHolder;
+import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 
 /**
  * An implementing class of FunctionResolver provide their own algorithm to choose a BaseFunctionHolder from a given list of
@@ -31,11 +31,9 @@ public interface FunctionResolver {
    * possibly qualified name. This name must be resolved into either a builtin
    * function or a user-defined function.
    *
-   * @param methods   a list of candidates of BaseFunctionHolder to be chosen from
+   * @param methods   a list of candidates of AbstractFunctionHolder to be chosen from
    * @param call      a given function call whose BaseFunctionHolder is to be determined via this method
-   * @param isDecimalV2Enabled if v2Decimal implementation is on
    * @return BaseFunctionHolder the chosen BaseFunctionHolder
    */
-  BaseFunctionHolder getBestMatch(List<BaseFunctionHolder> methods, FunctionCall call,
-                                  boolean isDecimalV2Enabled);
+  AbstractFunctionHolder getBestMatch(List<AbstractFunctionHolder> methods, FunctionCall call);
 }

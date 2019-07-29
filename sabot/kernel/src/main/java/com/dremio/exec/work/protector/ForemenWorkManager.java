@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -70,6 +70,7 @@ import com.dremio.service.BindingCreator;
 import com.dremio.service.Service;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.execselector.ExecutorSelectionService;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
 import com.google.common.base.Optional;
@@ -111,6 +112,7 @@ public class ForemenWorkManager implements Service, SafeExit {
   private final BindingCreator bindingCreator;
   private final Provider<ResourceAllocator> queryResourceManager;
   private final Provider<CommandPool> commandPool;
+  private final Provider<ExecutorSelectionService> executorSelectionService;
 
   private ClusterCoordinator coordinator;
   private ExtendedLatch exitLatch = null; // This is used to wait to exit when things are still running
@@ -123,6 +125,7 @@ public class ForemenWorkManager implements Service, SafeExit {
       final Provider<SabotContext> dbContext,
       final Provider<ResourceAllocator> queryResourceManager,
       final Provider<CommandPool> commandPool,
+      final Provider<ExecutorSelectionService> executorSelectionService,
       final BindingCreator bindingCreator) {
     this.coord = coord;
     this.dbContext = dbContext;
@@ -130,6 +133,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     this.bindingCreator = bindingCreator;
     this.queryResourceManager = queryResourceManager;
     this.commandPool = commandPool;
+    this.executorSelectionService = executorSelectionService;
   }
 
   @Override
@@ -202,7 +206,7 @@ public class ForemenWorkManager implements Service, SafeExit {
       ReAttemptHandler attemptHandler, CoordToExecTunnelCreator tunnelCreator,
       Cache<Long, PreparedPlan> plans) {
     return new Foreman(dbContext.get(), executor, commandPool, listener, externalId, observer, session, request, config,
-      attemptHandler, tunnelCreator, plans, queryResourceManager.get());
+      attemptHandler, tunnelCreator, plans, queryResourceManager.get(), executorSelectionService.get());
   }
 
   private class RunningQueryProviderImpl implements RunningQueryProvider {

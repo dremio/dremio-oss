@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,7 +56,6 @@ import com.google.common.annotations.VisibleForTesting;
 /**
  * Resource for getting profiles from Dremio.
  */
-// TODO DX-3158 - learn how we can re-enable auth and still get regression to work
 @Secured
 @RolesAllowed({"admin", "user"})
 @RestResource

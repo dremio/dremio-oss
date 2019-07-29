@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobUI;
-import com.dremio.dac.proto.model.system.NodeInfo;
+import com.dremio.dac.model.system.Nodes;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.server.SabotContext;
@@ -49,7 +49,6 @@ import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 
 /**
  * Resource for system info
@@ -67,7 +66,11 @@ public class SystemResource {
   private final Provider<SabotContext> context;
 
   @Inject
-  public SystemResource(Provider<SabotContext> context, Provider<JobsService> jobsService, SecurityContext securityContext) {
+  public SystemResource(
+    Provider<SabotContext> context,
+    Provider<JobsService> jobsService,
+    SecurityContext securityContext
+  ) {
     this.jobsService = jobsService;
     this.securityContext = securityContext;
     this.context = context;
@@ -122,11 +125,9 @@ public class SystemResource {
   @GET
   @Path("/nodes")
   @Produces(MediaType.APPLICATION_JSON)
-  public List<NodeInfo> getNodes(){
-
-
-    List<NodeInfo> result = new ArrayList<>();
-    Map<String, NodeEndpoint> map = new HashMap<>();
+  public List<Nodes.NodeInfo> getNodes(){
+    final List<Nodes.NodeInfo> result = new ArrayList<>();
+    final Map<String, NodeEndpoint> map = new HashMap<>();
 
     // first get the coordinator nodes (in case there are no executors running)
     for(NodeEndpoint ep : context.get().getCoordinators()){
@@ -184,7 +185,6 @@ public class SystemResource {
       }
 
       for (int i = 0; i < pojo.getReturnedRowCount(); i++) {
-
         String name = pojo.extractString("name", i);
         String port = pojo.extractString("port", i);
         String key = name + ":" + port;
@@ -194,7 +194,6 @@ public class SystemResource {
           continue;
         }
 
-        NodeInfo nodeInfo = new NodeInfo();
         boolean exec = ep.getRoles().getJavaExecutor();
         boolean coord = ep.getRoles().getSqlQuery();
 
@@ -207,13 +206,17 @@ public class SystemResource {
           name += " (c)";
         }
 
-
-        nodeInfo.setName(name);
-        nodeInfo.setIp(pojo.extractString("ip", i));
-        nodeInfo.setCpu(pojo.extractString("cpu", i));
-        nodeInfo.setPort(port);
-        nodeInfo.setMemory(pojo.extractString("memory", i));
-        nodeInfo.setStatus(pojo.extractString("status", i));
+        final Nodes.NodeInfo nodeInfo = new Nodes.NodeInfo(
+          name,
+          pojo.extractString("name", i),
+          pojo.extractString("ip", i),
+          port,
+          pojo.extractString("cpu", i),
+          pojo.extractString("memory", i),
+          pojo.extractString("status", i),
+          coord,
+          exec
+        );
         result.add(nodeInfo);
       }
     } catch (UserException e) {
@@ -222,17 +225,20 @@ public class SystemResource {
       throw e;
     }
 
-    List<NodeInfo> finalList = new ArrayList<>();
+    final List<Nodes.NodeInfo> finalList = new ArrayList<>();
 
-    for(NodeEndpoint ep : map.values()){
-      NodeInfo nodeInfo = new NodeInfo();
-      nodeInfo.setName(ep.getAddress() + " (c)");
-      nodeInfo.setIp(ep.getAddress());
-      nodeInfo.setCpu("0");
-      nodeInfo.setPort(Integer.toString(ep.getUserPort()));
-      nodeInfo.setMemory("0");
-      nodeInfo.setStatus("green");
-      nodeInfo.setCpu("0");
+    for (NodeEndpoint ep : map.values()){
+      Nodes.NodeInfo nodeInfo = new Nodes.NodeInfo(
+        ep.getAddress() + " (c)",
+        ep.getAddress(),
+        ep.getAddress(),
+        Integer.toString(ep.getUserPort()),
+        "0",
+        "0",
+        "green",
+        true,
+        false
+      );
       finalList.add(nodeInfo);
     }
 

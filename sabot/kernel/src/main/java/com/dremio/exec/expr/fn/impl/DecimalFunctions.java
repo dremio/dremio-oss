@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,26 +45,8 @@ import com.dremio.exec.expr.fn.OutputDerivation;
 
 import io.netty.buffer.ArrowBuf;
 
+
 public class DecimalFunctions {
-
-  @FunctionTemplate(names = {"equal", "==", "="},
-          scope = FunctionTemplate.FunctionScope.SIMPLE,
-          nulls = NullHandling.NULL_IF_NULL)
-  public static class EqualsDecimalVsDecimal implements SimpleFunction {
-
-    @Param DecimalHolder left;
-    @Param DecimalHolder right;
-    @Output
-    BitHolder out;
-
-    public void setup() {}
-
-    public void eval() {
-      out.value = left.scale == right.scale ?
-              org.apache.arrow.vector.util.ByteFunctionHelpers.equal(left.buffer, left.start, left.start + 16, right.buffer, right.start, right.start + 16) :
-              0;
-    }
-  }
 
   @SuppressWarnings("unused")
   @FunctionTemplate(names = {"castVARCHAR"}, scope = FunctionScope.SIMPLE, nulls= NullHandling.NULL_IF_NULL)
@@ -729,6 +711,774 @@ public class DecimalFunctions {
       } // outside
     }
   }
+
+  public static BigDecimal checkOverflow(BigDecimal in) {
+    return in.precision() > 38 ? new BigDecimal(0) : in;
+  }
+
+  public static BigDecimal addOrSubtract(boolean isSubtract, BigDecimal left, BigDecimal right,
+                                   int outPrecision, int outScale) {
+
+    if (isSubtract) {
+      right = right.negate();
+    }
+
+    int higherScale = Math.max(left.scale(), right.scale()); // >= outScale
+    BigDecimal leftScaled = left.setScale(higherScale, BigDecimal.ROUND_UNNECESSARY);
+    BigDecimal rightScaled = right.setScale(higherScale, BigDecimal.ROUND_UNNECESSARY);
+    BigDecimal result = leftScaled.add(rightScaled);
+
+    if (higherScale > outScale) {
+      result = result.setScale(outScale, BigDecimal.ROUND_HALF_UP);
+    }
+    return checkOverflow(result);
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "add", scope = FunctionScope.SIMPLE, derivation = OutputDerivation.DecimalAdd.class, nulls = NullHandling.NULL_IF_NULL)
+  public static class AddTwoDecimals implements SimpleFunction {
+
+    @Param
+    DecimalHolder in1;
+    @Param
+    DecimalHolder in2;
+    @Output
+    DecimalHolder out;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext errorContext;
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+      int index = (in1.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal left = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in1.buffer, index, in1.scale);
+
+      index = (in2.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in2.buffer, index, in2.scale);
+
+      org.apache.arrow.vector.types.pojo.ArrowType.Decimal resultTypeForOperation = org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.getResultTypeForOperation(org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.OperationType.ADD,
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(in1.precision, in1.scale),
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(in2.precision, in2.scale));
+      out.precision = resultTypeForOperation.getPrecision();
+      out.scale = resultTypeForOperation.getScale();
+
+      java.math.BigDecimal result = com.dremio.exec.expr.fn.impl.DecimalFunctions.addOrSubtract(false, left, right, out.precision, out.scale);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+      } catch (RuntimeException e) {
+        throw errorContext.error(e)
+          .build();
+      }
+      out.buffer = buffer;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "subtract", scope = FunctionScope.SIMPLE, derivation = OutputDerivation.DecimalSubtract.class, nulls = NullHandling.NULL_IF_NULL)
+  public static class SubtractDecimals implements SimpleFunction {
+
+    @Param
+    DecimalHolder leftHolder;
+    @Param
+    DecimalHolder rightHolder;
+    @Output
+    DecimalHolder resultHolder;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext functionErrorContext;
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+      int index = (leftHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal left = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(leftHolder.buffer, index, leftHolder.scale);
+
+      index = (rightHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(rightHolder.buffer, index, rightHolder.scale);
+
+      org.apache.arrow.vector.types.pojo.ArrowType.Decimal resultTypeForOperation = org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.getResultTypeForOperation(org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.OperationType.SUBTRACT,
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(leftHolder.precision, leftHolder.scale),
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(rightHolder.precision, rightHolder.scale));
+      resultHolder.precision = resultTypeForOperation.getPrecision();
+      resultHolder.scale = resultTypeForOperation.getScale();
+
+      java.math.BigDecimal result = com.dremio.exec.expr.fn.impl.DecimalFunctions.addOrSubtract(true, left, right, resultHolder.precision, resultHolder.scale);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+      } catch (RuntimeException e) {
+        throw functionErrorContext.error(e)
+          .build();
+      }
+      resultHolder.buffer = buffer;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "multiply", derivation = OutputDerivation.DecimalMultiply.class, scope = FunctionTemplate.FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class MultiplyDecimals implements SimpleFunction {
+    @Param
+    DecimalHolder leftHolder;
+    @Param
+    DecimalHolder rightHolder;
+    @Output
+    DecimalHolder resultHolder;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext functionErrorContext;
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+      int index = (leftHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal left = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(leftHolder.buffer, index, leftHolder.scale);
+
+      index = (rightHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(rightHolder.buffer, index, rightHolder.scale);
+
+      org.apache.arrow.vector.types.pojo.ArrowType.Decimal resultTypeForOperation = org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.getResultTypeForOperation(org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.OperationType.MULTIPLY,
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(leftHolder.precision, leftHolder.scale),
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(rightHolder.precision, rightHolder.scale));
+      resultHolder.precision = resultTypeForOperation.getPrecision();
+      resultHolder.scale = resultTypeForOperation.getScale();
+
+      java.math.BigDecimal result = left.multiply(right).setScale(resultHolder.scale, java.math.BigDecimal.ROUND_HALF_UP);
+      result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+      } catch (RuntimeException e) {
+        throw functionErrorContext.error(e)
+          .build();
+      }
+      resultHolder.buffer = buffer;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "divide", derivation = OutputDerivation.DecimalDivide.class, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class DivideDecimals implements SimpleFunction {
+    @Param
+    DecimalHolder leftHolder;
+    @Param
+    DecimalHolder rightHolder;
+    @Output
+    DecimalHolder resultHolder;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext functionErrorContext;
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+
+      int index = (leftHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal left = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(leftHolder.buffer, index, leftHolder.scale);
+
+      index = (rightHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(rightHolder.buffer, index, rightHolder.scale);
+
+      org.apache.arrow.vector.types.pojo.ArrowType.Decimal resultTypeForOperation = org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.getResultTypeForOperation(org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.OperationType.DIVIDE,
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(leftHolder.precision, leftHolder.scale),
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(rightHolder.precision, rightHolder.scale));
+      resultHolder.precision = resultTypeForOperation.getPrecision();
+      resultHolder.scale = resultTypeForOperation.getScale();
+
+      if (resultHolder.scale > leftHolder.scale - rightHolder.scale) {
+        left = left.setScale(resultHolder.scale + rightHolder.scale, java.math.BigDecimal.ROUND_UNNECESSARY);
+      }
+      java.math.BigInteger leftUnscaled = left.unscaledValue();
+      java.math.BigInteger rightUnscaled = right.unscaledValue();
+      java.math.BigInteger[] quotientAndRemainder = leftUnscaled.divideAndRemainder(rightUnscaled);
+      java.math.BigInteger resultUnscaled = quotientAndRemainder[0];
+      if (quotientAndRemainder[1].abs().multiply(java.math.BigInteger.valueOf(2)).compareTo
+        (rightUnscaled.abs()) >= 0) {
+        resultUnscaled = resultUnscaled.add(java.math.BigInteger.valueOf((leftUnscaled.signum() ^
+          rightUnscaled.signum()) + 1));
+      }
+      java.math.BigDecimal result = new java.math.BigDecimal(resultUnscaled, resultHolder.scale);
+      result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+      } catch (RuntimeException e) {
+        throw functionErrorContext.error(e)
+          .build();
+      }
+      resultHolder.buffer = buffer;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(names = {"modulo", "mod"}, derivation = OutputDerivation.DecimalMod.class, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class ModuloFunction implements SimpleFunction {
+    @Param
+    DecimalHolder leftHolder;
+    @Param
+    DecimalHolder rightHolder;
+    @Output
+    DecimalHolder resultHolder;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext functionErrorContext;
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+
+      int index = (leftHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal left = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(leftHolder.buffer, index, leftHolder.scale);
+
+      index = (rightHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(rightHolder.buffer, index, rightHolder.scale);
+
+      org.apache.arrow.vector.types.pojo.ArrowType.Decimal resultTypeForOperation = org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.getResultTypeForOperation(org.apache.arrow.gandiva.evaluator.DecimalTypeUtil.OperationType.MOD,
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(leftHolder.precision, leftHolder.scale),
+        new org.apache.arrow.vector.types.pojo.ArrowType.Decimal(rightHolder.precision, rightHolder.scale));
+      resultHolder.precision = resultTypeForOperation.getPrecision();
+      resultHolder.scale = resultTypeForOperation.getScale();
+
+
+      if (leftHolder.scale < rightHolder.scale) {
+        left = left.setScale(rightHolder.scale, java.math.BigDecimal.ROUND_UNNECESSARY);
+      } else {
+        right = right.setScale(leftHolder.scale, java.math.BigDecimal.ROUND_UNNECESSARY);
+      }
+
+      java.math.BigInteger leftUnscaled = left.unscaledValue();
+      java.math.BigInteger rightUnscaled = right.unscaledValue();
+      java.math.BigInteger remainder = leftUnscaled.remainder(rightUnscaled);
+      java.math.BigDecimal result = new java.math.BigDecimal(remainder, resultHolder.scale);
+      result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+      } catch (RuntimeException e) {
+        throw functionErrorContext.error(e)
+          .build();
+      }
+      resultHolder.buffer = buffer;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(names = {"equal", "==", "="},
+    scope = FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
+  public static class EqualsDecimals implements SimpleFunction {
+    @Param
+    DecimalHolder leftHolder;
+    @Param
+    DecimalHolder rightHolder;
+    @Output
+    BitHolder resultHolder;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      int index = (leftHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal left = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(leftHolder.buffer, index, leftHolder.scale);
+
+      index = (rightHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(rightHolder.buffer, index, rightHolder.scale);
+
+      resultHolder.value = (left.compareTo(right) == 0) ? 1 : 0;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(
+    names = {"not_equal", "<>", "!="},
+    scope = FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
+  public static class NotEqualsDecimals implements SimpleFunction {
+    @Param
+    DecimalHolder leftHolder;
+    @Param
+    DecimalHolder rightHolder;
+    @Output
+    BitHolder resultHolder;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      int index = (leftHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal left = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(leftHolder.buffer, index, leftHolder.scale);
+
+      index = (rightHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(rightHolder.buffer, index, rightHolder.scale);
+
+      resultHolder.value = (left.compareTo(right) != 0) ? 1 : 0;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(
+    names = {"less_than", "<"},
+    scope = FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
+  public static class LessThanDecimals implements SimpleFunction {
+    @Param
+    DecimalHolder leftHolder;
+    @Param
+    DecimalHolder rightHolder;
+    @Output
+    BitHolder resultHolder;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      int index = (leftHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal left = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(leftHolder.buffer, index, leftHolder.scale);
+
+      index = (rightHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(rightHolder.buffer, index, rightHolder.scale);
+
+      resultHolder.value = (left.compareTo(right) < 0) ? 1 : 0;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(
+    names = {"less_than_or_equal_to", "<="},
+    scope = FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
+  public static class LessThanEqDecimals implements SimpleFunction {
+    @Param
+    DecimalHolder leftHolder;
+    @Param
+    DecimalHolder rightHolder;
+    @Output
+    BitHolder resultHolder;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      int index = (leftHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal left = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(leftHolder.buffer, index, leftHolder.scale);
+
+      index = (rightHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(rightHolder.buffer, index, rightHolder.scale);
+
+      resultHolder.value = (left.compareTo(right) <= 0) ? 1 : 0;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(
+    names = {"greater_than", ">"},
+    scope = FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
+  public static class GreaterThanDecimals implements SimpleFunction {
+    @Param
+    DecimalHolder leftHolder;
+    @Param
+    DecimalHolder rightHolder;
+    @Output
+    BitHolder resultHolder;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      int index = (leftHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal left = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(leftHolder.buffer, index, leftHolder.scale);
+
+      index = (rightHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(rightHolder.buffer, index, rightHolder.scale);
+
+      resultHolder.value = (left.compareTo(right) > 0) ? 1 : 0;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(
+    names = {"greater_than_or_equal_to", ">="},
+    scope = FunctionScope.SIMPLE,
+    nulls = NullHandling.NULL_IF_NULL)
+  public static class GreaterThanEqDecimals implements SimpleFunction {
+    @Param
+    DecimalHolder leftHolder;
+    @Param
+    DecimalHolder rightHolder;
+    @Output
+    BitHolder resultHolder;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      int index = (leftHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal left = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(leftHolder.buffer, index, leftHolder.scale);
+
+      index = (rightHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal right = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(rightHolder.buffer, index, rightHolder.scale);
+
+      resultHolder.value = (left.compareTo(right) >= 0) ? 1 : 0;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "abs", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalMax.class)
+  public static class AbsDecimal implements SimpleFunction {
+
+    @Param
+    DecimalHolder inputHolder;
+    @Output
+    DecimalHolder resultHolder;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext functionErrorContext;
+
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+
+      int index = (inputHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal input = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(inputHolder.buffer, index, inputHolder.scale);
+
+      java.math.BigDecimal result = input.abs();
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+      } catch (RuntimeException e) {
+        throw functionErrorContext.error(e)
+          .build();
+      }
+      resultHolder.buffer = buffer;
+      resultHolder.precision = inputHolder.precision;
+      resultHolder.scale = inputHolder.scale;
+    }
+  }
+
+
+  public static java.math.BigDecimal round(BigDecimal input, int scale, java.math.RoundingMode roundingMode) {
+    if (scale < 0) {
+      return com.dremio.exec.expr.fn.impl.DecimalFunctions.roundWithNegativeScale(input, scale, roundingMode);
+    }
+    return com.dremio.exec.expr.fn.impl.DecimalFunctions.roundWithPositiveScale(input, scale, roundingMode);
+  }
+
+  // scale is negative
+  private static BigDecimal roundWithNegativeScale(BigDecimal input, int scale, java.math.RoundingMode roundingMode) {
+    java.math.BigDecimal inputNoFractional = input.setScale(0, roundingMode);
+    java.math.BigDecimal result = new java.math.BigDecimal(inputNoFractional.unscaledValue()
+      .subtract(inputNoFractional.unscaledValue().remainder(java.math.BigInteger.TEN.pow(-scale))), scale);
+    result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+    return result;
+  }
+
+  private static BigDecimal roundWithPositiveScale(BigDecimal input, int scale, java.math.RoundingMode roundingMode) {
+    java.math.BigDecimal result = input.setScale(scale, roundingMode);
+    result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+    return result;
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "round", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalSetScale.class)
+  public static class RoundDecimalWithScale implements SimpleFunction {
+
+    @Param
+    DecimalHolder inputHolder;
+    @Param(constant = true)
+    IntHolder scale;
+    @Output
+    DecimalHolder resultHolder;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext functionErrorContext;
+
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+      int index = (inputHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal input = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(inputHolder.buffer, index, inputHolder.scale);
+
+      java.math.BigDecimal result = com.dremio.exec.expr.fn.impl.DecimalFunctions.round(input, scale.value, java.math.RoundingMode.HALF_UP);
+      result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+      } catch (RuntimeException e) {
+        throw functionErrorContext.error(e)
+          .build();
+      }
+      resultHolder.buffer = buffer;
+      com.dremio.common.expression.CompleteType outputType =
+        com.dremio.exec.expr.fn.OutputDerivation.DECIMAL_SET_SCALE.getOutputType(
+          com.dremio.common.expression.CompleteType.DECIMAL,
+          java.util.Arrays.asList(
+            new com.dremio.common.expression.ValueExpressions.DecimalExpression(input, inputHolder.precision, inputHolder.scale),
+            new com.dremio.common.expression.ValueExpressions.IntExpression(scale.value)));
+      resultHolder.scale = outputType.getScale();
+      resultHolder.precision = outputType.getPrecision();
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "round", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalZeroScale.class)
+  public static class RoundDecimal implements SimpleFunction {
+
+    @Param
+    DecimalHolder inputHolder;
+    @Output
+    DecimalHolder resultHolder;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext functionErrorContext;
+
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+      int index = (inputHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal input = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(inputHolder.buffer, index, inputHolder.scale);
+
+      java.math.BigDecimal result = com.dremio.exec.expr.fn.impl.DecimalFunctions.round(input, 0, java.math.RoundingMode.HALF_UP);
+      result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+      } catch (RuntimeException e) {
+        throw functionErrorContext.error(e)
+          .build();
+      }
+      resultHolder.buffer = buffer;
+      com.dremio.common.expression.CompleteType outputType =
+        com.dremio.exec.expr.fn.OutputDerivation.DECIMAL_ZERO_SCALE.getOutputType(
+          com.dremio.common.expression.CompleteType.DECIMAL,
+          java.util.Arrays.asList(
+            new com.dremio.common.expression.ValueExpressions.DecimalExpression(input, inputHolder.precision, inputHolder.scale)));
+      resultHolder.scale = outputType.getScale();
+      resultHolder.precision = outputType.getPrecision();
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "truncate", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalSetScale.class)
+  public static class TruncateDecimalWithScale implements SimpleFunction {
+
+    @Param
+    DecimalHolder inputHolder;
+    @Param(constant = true)
+    IntHolder scale;
+    @Output
+    DecimalHolder resultHolder;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext functionErrorContext;
+
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+      int index = (inputHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal input = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(inputHolder.buffer, index, inputHolder.scale);
+
+      java.math.BigDecimal result = com.dremio.exec.expr.fn.impl.DecimalFunctions.round(input, scale.value, java.math.RoundingMode.DOWN);
+      result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+      } catch (RuntimeException e) {
+        throw functionErrorContext.error(e)
+          .build();
+      }
+      resultHolder.buffer = buffer;
+      com.dremio.common.expression.CompleteType outputType =
+        com.dremio.exec.expr.fn.OutputDerivation.DECIMAL_SET_SCALE.getOutputType(
+          com.dremio.common.expression.CompleteType.DECIMAL,
+          java.util.Arrays.asList(
+            new com.dremio.common.expression.ValueExpressions.DecimalExpression(input, inputHolder.precision, inputHolder.scale),
+            new com.dremio.common.expression.ValueExpressions.IntExpression(scale.value)));
+      resultHolder.scale = outputType.getScale();
+      resultHolder.precision = outputType.getPrecision();
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "truncate", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalZeroScale.class)
+  public static class TruncateDecimal implements SimpleFunction {
+
+    @Param
+    DecimalHolder inputHolder;
+    @Output
+    DecimalHolder resultHolder;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext functionErrorContext;
+
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+      int index = (inputHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal input = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(inputHolder.buffer, index, inputHolder.scale);
+
+      java.math.BigDecimal result = com.dremio.exec.expr.fn.impl.DecimalFunctions.round(input, 0, java.math.RoundingMode.DOWN);
+      result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+      } catch (RuntimeException e) {
+        throw functionErrorContext.error(e)
+          .build();
+      }
+      resultHolder.buffer = buffer;
+      com.dremio.common.expression.CompleteType outputType =
+        com.dremio.exec.expr.fn.OutputDerivation.DECIMAL_ZERO_SCALE.getOutputType(
+          com.dremio.common.expression.CompleteType.DECIMAL,
+          java.util.Arrays.asList(
+            new com.dremio.common.expression.ValueExpressions.DecimalExpression(input, inputHolder.precision, inputHolder.scale)));
+      resultHolder.scale = outputType.getScale();
+      resultHolder.precision = outputType.getPrecision();
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "ceil", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalZeroScale.class)
+  public static class CeilDecimal implements SimpleFunction {
+
+    @Param
+    DecimalHolder inputHolder;
+    @Output
+    DecimalHolder resultHolder;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext functionErrorContext;
+
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+      int index = (inputHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal input = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(inputHolder.buffer, index, inputHolder.scale);
+
+      java.math.BigDecimal result = com.dremio.exec.expr.fn.impl.DecimalFunctions.round(input, 0, java.math.RoundingMode.CEILING);
+      result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+      } catch (RuntimeException e) {
+        throw functionErrorContext.error(e)
+          .build();
+      }
+      resultHolder.buffer = buffer;
+      com.dremio.common.expression.CompleteType outputType =
+        com.dremio.exec.expr.fn.OutputDerivation.DECIMAL_ZERO_SCALE.getOutputType(
+          com.dremio.common.expression.CompleteType.DECIMAL,
+          java.util.Arrays.asList(
+            new com.dremio.common.expression.ValueExpressions.DecimalExpression(input, inputHolder.precision, inputHolder.scale)));
+      resultHolder.scale = outputType.getScale();
+      resultHolder.precision = outputType.getPrecision();
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(name = "floor", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalZeroScale.class)
+  public static class FloorDecimal implements SimpleFunction {
+
+    @Param
+    DecimalHolder inputHolder;
+    @Output
+    DecimalHolder resultHolder;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext functionErrorContext;
+
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+      int index = (inputHolder.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal input = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(inputHolder.buffer, index, inputHolder.scale);
+
+      java.math.BigDecimal result = com.dremio.exec.expr.fn.impl.DecimalFunctions.round(input, 0, java.math.RoundingMode.FLOOR);
+      result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+      } catch (RuntimeException e) {
+        throw functionErrorContext.error(e)
+          .build();
+      }
+      resultHolder.buffer = buffer;
+      com.dremio.common.expression.CompleteType outputType =
+        com.dremio.exec.expr.fn.OutputDerivation.DECIMAL_ZERO_SCALE.getOutputType(
+          com.dremio.common.expression.CompleteType.DECIMAL,
+          java.util.Arrays.asList(
+            new com.dremio.common.expression.ValueExpressions.DecimalExpression(input, inputHolder.precision, inputHolder.scale)));
+      resultHolder.scale = outputType.getScale();
+      resultHolder.precision = outputType.getPrecision();
+    }
+  }
+
 }
-
-

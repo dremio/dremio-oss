@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,9 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScanWithProjection;
 import com.dremio.exec.planner.fragment.MinorDataReader;
 import com.dremio.exec.planner.fragment.MinorDataWriter;
+import com.dremio.exec.planner.fragment.SplitNormalizer;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -47,12 +48,12 @@ public class EasySubScan extends SubScanWithProjection {
   private final List<String> partitionColumns;
 
   @JsonIgnore
-  private List<SplitInfo> splits;
+  private List<SplitAndPartitionInfo> splits;
 
   public EasySubScan(
     OpProps props,
     FileConfig config,
-    List<SplitInfo> splits,
+    List<SplitAndPartitionInfo> splits,
     BatchSchema fullSchema,
     List<String> tablePath,
     StoragePluginId pluginId,
@@ -81,7 +82,7 @@ public class EasySubScan extends SubScanWithProjection {
     this(props, config, null, fullSchema, tablePath, pluginId, columns, partitionColumns, extendedProperty);
   }
 
-  public List<SplitInfo> getSplits() {
+  public List<SplitAndPartitionInfo> getSplits() {
     return splits;
   }
 
@@ -108,11 +109,11 @@ public class EasySubScan extends SubScanWithProjection {
 
   @Override
   public void collectMinorSpecificAttrs(MinorDataWriter writer) {
-    writer.writeSplits(this, SPLITS_ATTRIBUTE_KEY, splits);
+    SplitNormalizer.write(getProps(), writer, splits);
   }
 
   @Override
   public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
-    this.splits = reader.readSplits(this, SPLITS_ATTRIBUTE_KEY);
+    splits = SplitNormalizer.read(getProps(), reader);
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,20 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
-import Radium from 'radium';
-import pureRender from 'pure-render-decorator';
+import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import browserUtils from 'utils/browserUtils';
 import UnsupportedBrowserForm from 'components/UnsupportedBrowserForm';
 
 import SignupForm from './components/SignupForm';
 
-@Radium
-@pureRender
-export default class SignupPage extends Component {
+export default class SignupPage extends PureComponent {
   static propTypes = {
-    style: PropTypes.object,
     location: PropTypes.object.isRequired
   }
   state = {
@@ -41,9 +36,9 @@ export default class SignupPage extends Component {
   }
   renderSignupForm() {
     return (
-      <div id='signup-page' style={[this.props.style, styles.base]}>
-        <div className='explore-header' style={{width: '100%'}}/>
-        <div style={[styles.form]}>
+      <div id='signup-page' className='page' style={styles.base}>
+        <div className='explore-header' style={styles.header} />
+        <div style={styles.form}>
           <SignupForm location={this.props.location}/>
         </div>
       </div>
@@ -53,14 +48,16 @@ export default class SignupPage extends Component {
   render() {
     return (
       this.state.showSignupForm ? this.renderSignupForm()
-        : <UnsupportedBrowserForm approveBrowser={this.approveBrowser} style={this.props.style}/>
+        : <UnsupportedBrowserForm approveBrowser={this.approveBrowser} />
     );
   }
 }
 
 const styles = {
   base: {
-    alignItems: 'center',
+    alignItems: 'center'
+  },
+  header: {
     width: '100%'
   },
   form: {

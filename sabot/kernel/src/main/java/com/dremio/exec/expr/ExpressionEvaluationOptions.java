@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,5 +36,17 @@ public class ExpressionEvaluationOptions {
     return codeGenOption;
   }
 
+  public double getWorkThresholdForSplit() { return options.getOption(ExecConstants.WORK_THRESHOLD_FOR_SPLIT); }
+
   public boolean isSplitEnabled() { return options.getOption(ExecConstants.SPLIT_ENABLED); }
+
+  public ExpressionEvaluationOptions flipPreferredCodeGen() {
+    ExpressionEvaluationOptions clone = new ExpressionEvaluationOptions(options);
+    if (this.codeGenOption == SupportedEngines.CodeGenOption.Java) {
+      clone.setCodeGenOption(SupportedEngines.CodeGenOption.Gandiva.toString());
+    } else {
+      clone.setCodeGenOption(SupportedEngines.CodeGenOption.Java.toString());
+    }
+    return clone;
+  }
 }

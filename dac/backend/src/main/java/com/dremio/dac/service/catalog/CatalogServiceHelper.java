@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,9 +23,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.inject.Inject;
 import javax.ws.rs.core.SecurityContext;
@@ -68,9 +71,11 @@ import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.SchemaEntity;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -102,6 +107,52 @@ import com.google.common.collect.Lists;
 public class CatalogServiceHelper {
   private static final Logger logger = LoggerFactory.getLogger(CatalogServiceHelper.class);
   public static final NamespaceAttribute[] DEFAULT_NS_ATTRIBUTES = new NamespaceAttribute[]{};
+
+  /**
+   * Additional details that could be included in a result
+   */
+  public enum DetailType {
+
+    datasetCount {
+      @Override
+      Stream<CatalogItem.Builder> addInfo(Stream<CatalogItem.Builder> items, final CatalogServiceHelper helper) {
+        return items.map(builder -> {
+          try {
+            final BoundedDatasetCount datasetCount = helper.namespaceService.getDatasetCount(new NamespaceKey(builder.getPath()),
+              BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
+
+            return builder
+              .setDatasetCount(datasetCount.getCount())
+              .setDatasetCountBounded(datasetCount.isCountBound() || datasetCount.isTimeBound());
+
+          } catch (NamespaceException e) {
+            throw new RuntimeException(e);
+          }
+        });
+      }
+    },
+
+    tags,
+
+    jobCount;
+
+    private static final Set<String> availableValues;
+
+    static {
+      availableValues = new HashSet<String>(Arrays.stream(DetailType.values())
+        .map(Enum::name)
+        .collect(Collectors.toList()));
+    }
+
+    public static boolean hasValue(final String key) {
+      return availableValues.contains(key);
+    }
+
+    Stream<CatalogItem.Builder> addInfo(final Stream<CatalogItem.Builder> items,
+      final CatalogServiceHelper helper) {
+      throw new IllegalStateException("Not implemented");
+    }
+  }
 
   private final Catalog catalog;
   private final SecurityContext context;
@@ -152,7 +203,9 @@ public class CatalogServiceHelper {
     return namespaceService.getHome(homePath.toNamespaceKey());
   }
 
-  public List<CatalogItem> getTopLevelCatalogItems() {
+  public List<? extends CatalogItem> getTopLevelCatalogItems(final List<String> include) {
+    Preconditions.checkNotNull(include);
+
     List<CatalogItem> topLevelItems = new ArrayList<>();
 
     try {
@@ -171,7 +224,9 @@ public class CatalogServiceHelper {
       topLevelItems.add(CatalogItem.fromSourceConfig(sourceConfig));
     }
 
-    return topLevelItems;
+    return applyAdditionalInfoToContainers(topLevelItems, include.stream()
+        .map(CatalogServiceHelper.DetailType::valueOf)
+        .collect(Collectors.toList()));
   }
 
   private NameSpaceContainer getNamespaceEntity(NamespaceKey namespaceKey) throws NamespaceException {
@@ -299,6 +354,7 @@ public class CatalogServiceHelper {
     throw new RuntimeException(String.format("Could not retrieve internal item [%s]", catalogItem.toString()));
   }
 
+  // TODO: "?" is losing ACLs info, which requires another lookup against ACS
   private Optional<?> extractFromNamespaceContainer(NameSpaceContainer entity) {
     if (entity == null) {
       // if we can't find it by id, maybe its not in the namespace
@@ -662,7 +718,7 @@ public class CatalogServiceHelper {
 
       List<String> path = dataset.getPath();
 
-      View view = new View(path.get(path.size() - 1), dataset.getSql(), Collections.emptyList(), virtualDataset.getContextList());
+      View view = new View(path.get(path.size() - 1), dataset.getSql(), Collections.emptyList(), null, virtualDataset.getContextList());
       catalog.updateView(namespaceKey, view, attributes);
     }
   }
@@ -1105,5 +1161,30 @@ public class CatalogServiceHelper {
       .filter(Optional::isPresent)
       .map(Optional::get)
       .collect(Collectors.toList());
+  }
+
+  public List<CatalogItem> applyAdditionalInfoToContainers(
+    final List<CatalogItem> items, final List<DetailType> include) {
+    Stream<CatalogItem.Builder> resultList = items.stream().map(CatalogItem.Builder::new);
+
+    for (DetailType detail : include) {
+      resultList = detail.addInfo(resultList, this);
+    }
+
+    return resultList
+      .map(CatalogItem.Builder::build)
+      .collect(Collectors.toList());
+  }
+
+  public static void ensureUserHasHomespace(NamespaceService namespaceService, String userName) throws NamespaceException {
+    final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath(userName)).toNamespaceKey();
+    try {
+      namespaceService.getHome(homeKey);
+    } catch (NamespaceNotFoundException ignored) {
+      // create home
+      namespaceService.addOrUpdateHome(homeKey,
+        new HomeConfig().setCtime(System.currentTimeMillis()).setOwner(userName)
+      );
+    }
   }
 }

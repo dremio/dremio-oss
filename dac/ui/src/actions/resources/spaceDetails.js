@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 import { API_URL_V2 } from 'constants/Api';
 
 import { makeUncachebleURL } from 'ie11.js';
@@ -26,18 +26,22 @@ import actionUtils from 'utils/actionUtils/actionUtils';
 import { constructFullPathAndEncode } from 'utils/pathUtils';
 
 import { VIEW_ID as HOME_CONTENTS_VIEW_ID } from 'pages/HomePage/subpages/HomeContents';
+import { getEntityType, getNormalizedEntityPath } from '@app/selectors/home';
+import { ENTITY_TYPES } from '@app/constants/Constants';
 
 export const ADD_FOLDER_START = 'ADD_FOLDER_START';
 export const ADD_FOLDER_SUCCESS = 'ADD_FOLDER_SUCCESS';
 export const ADD_FOLDER_FAILURE = 'ADD_FOLDER_FAILURE';
 
-function fetchAddNewFolder(parentEntity, parentType, name) {
-  const parentPath = parentEntity.getIn(['links', 'self']);
-  const resourcePath = parentType === 'folder' ? `${parentPath}`
+export const addNewFolderForSpace = (name) => (dispatch, getState) => {
+  const state = getState();
+  const parentType = getEntityType(state);
+  const parentPath = getNormalizedEntityPath(state);
+  const resourcePath = parentType === ENTITY_TYPES.folder ? `${parentPath}`
     : `${parentPath}/folder/`;
   const meta = { resourcePath, invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
-  return {
-    [CALL_API]: {
+  return dispatch({
+    [RSAA]: {
       types: [
         {
           type: ADD_FOLDER_START,
@@ -57,14 +61,8 @@ function fetchAddNewFolder(parentEntity, parentType, name) {
 
       endpoint: makeUncachebleURL(`${API_URL_V2}${resourcePath}`)
     }
-  };
-}
-
-export function addNewFolderForSpace(parentEntity, parentType, name) {
-  return (dispatch) => {
-    return dispatch(fetchAddNewFolder(parentEntity, parentType, name));
-  };
-}
+  });
+};
 
 export const REMOVE_SPACE_FOLDER_START = 'REMOVE_SPACE_FOLDER_START';
 export const REMOVE_SPACE_FOLDER_SUCCESS = 'REMOVE_SPACE_FOLDER_SUCCESS';
@@ -77,7 +75,7 @@ function fetchRemoveFolder(folder) {
     invalidateViewIds: [HOME_CONTENTS_VIEW_ID]
   };
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {
           type: REMOVE_SPACE_FOLDER_START,
@@ -122,7 +120,7 @@ function fetchRemoveFile(file) {
   };
   const errorMessage = la('There was an error removing the file.');
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {
           type: REMOVE_FILE_START,
@@ -163,7 +161,7 @@ function fetchRemoveFileFormat(file) {
   const errorMessage = la('There was an error removing the format for the file.');
   const entityRemovePaths = [['fileFormat', file.getIn(['fileFormat', 'id'])]];
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: REMOVE_FILE_FORMAT_START, meta},
         { type: REMOVE_FILE_FORMAT_SUCCESS, meta: {...meta, success: true, entityRemovePaths}},
@@ -197,7 +195,7 @@ function fetchRenameDataset(dataset, newName) {
   const encodedNewName = encodeURIComponent(newName);
   const meta = { newName, invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {
           type: RENAME_SPACE_DATASET_START,
@@ -237,7 +235,7 @@ function fetchRemoveDataset(dataset) {
   };
   const errorMessage = la('There was an error removing the dataset.');
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {
           type: REMOVE_DATASET_START, meta
@@ -271,7 +269,7 @@ export const RENAME_FOLDER_FAILURE = 'RENAME_FOLDER_FAILURE';
 function fetchRenameFolder(folder, newName) {
   const meta = { invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {
           type: RENAME_FOLDER_START,
@@ -305,7 +303,7 @@ export const LOAD_DEPENDENT_DATASETS_FAILURE = 'LOAD_DEPENDENT_DATASETS_FAILURE'
 function fetchDependentDatasets(fullPath) {
   const href = constructFullPathAndEncode(fullPath);
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [LOAD_DEPENDENT_DATASETS_STARTED, LOAD_DEPENDENT_DATASETS_SUCCESS, LOAD_DEPENDENT_DATASETS_FAILURE],
       method: 'GET',
       endpoint: `${API_URL_V2}/dataset/${href}/descendants`
@@ -328,7 +326,7 @@ function fetchParents(fullPath, version, viewId) {
   const href = constructFullPathAndEncode(fullPath);
   const meta = {viewId};
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [{
         type: LOAD_PARENTS_START, meta
       }, {

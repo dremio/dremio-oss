@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@ import { connect } from 'react-redux';
 import { injectIntl } from 'react-intl';
 
 
-import { getEntity, getViewState } from 'selectors/resources';
+import { getViewState } from 'selectors/resources';
+import { getSpaceVersion, getSpaceName } from '@app/selectors/home';
 import Modal from 'components/Modals/Modal';
 import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
-import { ENTITY_TYPES } from '@app/constants/Constants';
 
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import { createNewSpace, updateSpace } from 'actions/resources/spaces';
@@ -32,11 +32,10 @@ import './Modal.less';
 
 export const VIEW_ID = 'SpaceModal';
 
-const mapStateToProps = (state, props) => {
-  const entity = getEntity(state, props.entityId, ENTITY_TYPES.space);
+const mapStateToProps = (state, { entityId }) => {
   return {
-    spaceName: entity ? entity.get('name') : null,
-    spaceVersion: entity ? entity.get('version') : null,
+    spaceName: getSpaceName(state, entityId),
+    spaceVersion: getSpaceVersion(state, entityId),
     viewState: getViewState(state, VIEW_ID)
   };
 };

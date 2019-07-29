@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ export class AccelerationForm extends Component {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
     reflections: PropTypes.instanceOf(Immutable.Map).isRequired,
-    onCancel: PropTypes.func.isRequired,
+    onCancel: PropTypes.func,
     handleSubmit: PropTypes.func.isRequired,
     location: PropTypes.object.isRequired,
     fields: PropTypes.object,
@@ -55,7 +55,8 @@ export class AccelerationForm extends Component {
     updateFormDirtyState: PropTypes.func,
     submitFailed: PropTypes.bool,
     values: PropTypes.object,
-    initializeForm: PropTypes.func,
+    destroyForm: PropTypes.func,
+    isModal: PropTypes.bool,
 
     putReflection: PropTypes.func.isRequired,
     postReflection: PropTypes.func.isRequired,
@@ -104,8 +105,12 @@ export class AccelerationForm extends Component {
   }
 
   componentWillMount() {
+    this.initializeForm();
+  }
+
+  initializeForm() {
     let { reflections, dataset } = this.props;
-    dataset = this.props.dataset.toJS();
+    dataset = dataset.toJS();
 
     const lostFieldsByReflection = {};
     const aggregationReflectionValues = [];
@@ -191,7 +196,7 @@ export class AccelerationForm extends Component {
 
   skipRecommendations = () => {
     this.setState({waitingForRecommendations: false});
-  }
+  };
 
   updateInitialValues() {
     // let the redux update run so that this.props.values gets updated
@@ -235,6 +240,8 @@ export class AccelerationForm extends Component {
     columnsDimensions.forEach(() => columnsDimensions.removeField());
     columnsMeasures.forEach(() => columnsMeasures.removeField());
 
+    if (!firstAggValues) return;
+
     firstAggValues.dimensionFields.forEach(
       ({name}) => columnsDimensions.addField({column: name})
     );
@@ -269,11 +276,11 @@ export class AccelerationForm extends Component {
     this.setState({
       mode: mode === 'BASIC' ? 'ADVANCED' : 'BASIC'
     });
-  }
+  };
 
   clearReflections = () => {
     this.props.fields.rawReflections.concat(this.props.fields.aggregationReflections).forEach(reflection => reflection.shouldDelete.onChange(true));
-  }
+  };
 
   prepare(values) {
     const { mode } = this.state;
@@ -300,11 +307,7 @@ export class AccelerationForm extends Component {
 
     reflections = reflections.filter(reflection => {
       // can simply ignore new reflections which were then deleted
-      if (!reflection.tag && reflection.shouldDelete) {
-        return false;
-      }
-
-      return true;
+      return (reflection.tag || !reflection.shouldDelete);
     });
 
     // todo: reveal/scroll to errored reflection
@@ -406,10 +409,11 @@ export class AccelerationForm extends Component {
 
     return Promise.all(promises).then((data) => {
       this.setState({saving: false});
+      this.updateInitialValues();
 
       if (Object.keys(errors).length) return this.createSubmitErrorWrapper(errors, [...values.aggregationReflections, ...values.rawReflections].length);
     });
-  }
+  };
 
   createSubmitErrorWrapper(reflectionSaveErrors, totalCount) {
     reflectionSaveErrors = Immutable.Map(reflectionSaveErrors).map((message, reflectionId) => Immutable.fromJS({
@@ -544,15 +548,28 @@ export class AccelerationForm extends Component {
     return messages;
   }
 
+  resetForm = () => {
+    this.props.destroyForm();
+    this.initializeForm();
+  };
+
   render() {
-    const { handleSubmit, onCancel } = this.props;
+    const { handleSubmit, onCancel, isModal = true } = this.props;
+    const modalFormStyle = isModal ? {} : styles.noModalForm;
+    const confirmStyle = isModal ? {} : styles.noModalConfirmCancel;
+    const cancelText = isModal ? la('Cancel') : la('Revert');
+    const onCancelClick = isModal ? onCancel : this.resetForm;
 
     return (
       <div style={styles.base}>
         <ModalForm
+          isModal={isModal}
           {...modalFormProps(this.props)}
+          style={modalFormStyle}
+          confirmStyle={confirmStyle}
+          cancelText={cancelText}
           onSubmit={handleSubmit(this.submitForm)}
-          onCancel={onCancel}
+          onCancel={onCancelClick}
         >
           {this.renderFormErrorMessage()}
           {this.renderExtraErrorMessages()}
@@ -579,6 +596,14 @@ const styles = {
   },
   extraError: {
     marginBottom: 0
+  },
+  noModalForm: {
+    width: '100%',
+    height: '100%',
+    flexWrap: 'nowrap'
+  },
+  noModalConfirmCancel: {
+    margin: '10px 11px 30px 0'
   }
 };
 

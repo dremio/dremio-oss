@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import javax.inject.Provider;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 
 import org.hibernate.validator.constraints.NotEmpty;
 
@@ -63,6 +65,8 @@ public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginCo
   public String hostname;
 
   @Tag(2)
+  @Min(1)
+  @Max(65535)
   @DisplayMetadata(label = "Port")
   public Integer port = 443;
 

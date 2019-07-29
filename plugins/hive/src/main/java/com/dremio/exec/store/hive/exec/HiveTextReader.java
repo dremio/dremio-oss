@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,11 +45,11 @@ import org.apache.hadoop.mapred.Reporter;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.ScanFilter;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.google.common.collect.Lists;
 
 public class HiveTextReader extends HiveAbstractReader {
@@ -62,7 +62,7 @@ public class HiveTextReader extends HiveAbstractReader {
   // Converter which converts data from partition schema to table schema.
   protected Converter partTblObjectInspectorConverter;
 
-  public HiveTextReader(final HiveTableXattr tableAttr, final SplitInfo split,
+  public HiveTextReader(final HiveTableXattr tableAttr, final SplitAndPartitionInfo split,
       final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
       final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
       final StructObjectInspector partitionOI, final ScanFilter filter, final Collection<List<String>> referencedTables) {

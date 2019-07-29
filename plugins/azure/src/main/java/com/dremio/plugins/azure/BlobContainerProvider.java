@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import com.dremio.plugins.util.ContainerFileSystem.ContainerCreator;
+import com.microsoft.azure.storage.StorageCredentials;
 import com.microsoft.azure.storage.StorageCredentialsAccountAndKey;
 import com.microsoft.azure.storage.blob.CloudBlobClient;
 
@@ -30,26 +31,42 @@ import com.microsoft.azure.storage.blob.CloudBlobClient;
  */
 class BlobContainerProvider implements ContainerProvider {
 
-  private final CloudBlobClient cloubBlobClient;
+  private CloudBlobClient cloudBlobClient;
   private final AzureStorageFileSystem parent;
+  private final URI connection;
+  private final String account;
 
   public BlobContainerProvider(AzureStorageFileSystem parent, String connection, String account, String key) throws IOException {
-    try {
-      this.parent = parent;
+    this(parent, account, connection, new StorageCredentialsAccountAndKey(account, key), false);
+  }
 
-      StorageCredentialsAccountAndKey credentials = new StorageCredentialsAccountAndKey(account, key);
-      cloubBlobClient = new CloudBlobClient(new URI(connection), credentials);
+  protected BlobContainerProvider(AzureStorageFileSystem parent, String account, String connection, StorageCredentials credentials, boolean useAzureAD) throws IOException {
+    this.parent = parent;
+    try {
+      this.account = account;
+      this.connection = new URI(connection);
+      cloudBlobClient = new CloudBlobClient(this.connection, credentials);
     } catch (URISyntaxException e) {
       throw new IOException(e);
     }
   }
 
+  protected String getAccount() {
+    return this.account;
+  }
+
+  protected URI getConnection() {
+    return this.connection;
+  }
+
+  protected void setCloudBlobClient(CloudBlobClient cloudBlobClient) {
+    this.cloudBlobClient = cloudBlobClient;
+  }
+
   @Override
   public Stream<ContainerCreator> getContainerCreators() throws IOException {
     return StreamSupport
-        .stream(cloubBlobClient.listContainers().spliterator(), false)
+        .stream(cloudBlobClient.listContainers().spliterator(), false)
         .map(c -> new AzureStorageFileSystem.ContainerCreatorImpl(parent, c.getName()));
-
   }
-
 }

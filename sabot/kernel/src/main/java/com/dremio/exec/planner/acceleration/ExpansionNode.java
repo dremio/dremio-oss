@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.RelWriter;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
+import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql2rel.RelStructuredTypeFlattener;
 import org.apache.calcite.sql2rel.RelStructuredTypeFlattener.SelfFlatteningRel;
 
@@ -44,19 +45,20 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
   private final NamespaceKey path;
   private final boolean contextSensitive;
 
-  private ExpansionNode(NamespaceKey path, RelOptCluster cluster, RelTraitSet traits, RelNode input, boolean contextSensitive) {
+  private ExpansionNode(NamespaceKey path, RelDataType rowType, RelOptCluster cluster, RelTraitSet traits, RelNode input, boolean contextSensitive) {
     super(cluster, traits, input);
     this.path = path;
     this.contextSensitive = contextSensitive;
+    this.rowType = rowType;
   }
 
-  public static RelNode wrap(NamespaceKey path, RelNode node, boolean contextSensitive) {
-    return new ExpansionNode(path, node.getCluster(), node.getTraitSet(), node, contextSensitive);
+  public static RelNode wrap(NamespaceKey path, RelNode node, RelDataType rowType, boolean contextSensitive) {
+    return new ExpansionNode(path, rowType, node.getCluster(), node.getTraitSet(), node, contextSensitive);
   }
 
   @Override
   public RelNode copyWith(CopyWithCluster copier) {
-    return new ExpansionNode(path, copier.getCluster(), copier.copyOf(getTraitSet()), getInput().accept(copier), contextSensitive);
+    return new ExpansionNode(path, rowType, copier.getCluster(), copier.copyOf(getTraitSet()), getInput().accept(copier), contextSensitive);
   }
 
   @Override
@@ -77,7 +79,7 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ExpansionNode(path, this.getCluster(), traitSet, inputs.get(0), contextSensitive);
+    return new ExpansionNode(path, rowType, this.getCluster(), traitSet, inputs.get(0), contextSensitive);
   }
 
   @Override

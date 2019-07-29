@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { expect } from 'chai';
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 
 import { API_URL_V2 } from 'constants/Api';
 
@@ -47,7 +47,7 @@ describe('sql actions', () => {
         data: { name: ''}
       };
       const expectedResult = {
-        [CALL_API]: {
+        [RSAA]: {
           types: [Actions.CREATE_DATASET_START, Actions.CREATE_DATASET_SUCCESS, Actions.CREATE_DATASET_FAILURE],
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -55,8 +55,8 @@ describe('sql actions', () => {
           endpoint: `${API_URL_V2}/dataset${location}`
         }
       };
-      const realResult = Actions.createDataset(cpath, dataset)((obj) => obj)[CALL_API];
-      expect(realResult).to.eql(expectedResult[CALL_API]);
+      const realResult = Actions.createDataset(cpath, dataset)((obj) => obj)[RSAA];
+      expect(realResult).to.eql(expectedResult[RSAA]);
     });
     it('test result of calling of function createDatasetFromExisting', () => {
       const existingDataset = ['dataset', '1'];
@@ -68,7 +68,7 @@ describe('sql actions', () => {
         data: { name: ''}
       };
       const realResult =
-        Actions.createDatasetFromExisting(existingDataset, fullPathTarget, dataset)((obj) => obj)[CALL_API];
+        Actions.createDatasetFromExisting(existingDataset, fullPathTarget, dataset)((obj) => obj)[RSAA];
       expect(realResult.types[1].type).to.eql(Actions.CREATE_DATASET_FROM_EXISTING_SUCCESS);
       expect(realResult.method).to.eql('PUT');
       expect(realResult.body).to.eql(JSON.stringify(datasetConfig));
@@ -80,7 +80,7 @@ describe('sql actions', () => {
       const dataset = {
         data: { name: ''}
       };
-      const realResult = Actions.moveDataSet(fullPathSource,  fullPathTarget, dataset)((obj) => obj)[CALL_API];
+      const realResult = Actions.moveDataSet(fullPathSource,  fullPathTarget, dataset)((obj) => obj)[RSAA];
       expect(realResult.types[1].type).to.eql(Actions.MOVE_DATASET_SUCCESS);
       expect(realResult.method).to.eql('POST');
       expect(realResult.endpoint).to.eql(`${API_URL_V2}/dataset/bla.bla/moveTo/bla.bla2`);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.server;
 
+import org.apache.arrow.memory.OutOfMemoryException;
+
 import com.dremio.common.exceptions.UserException;
 
 /**
@@ -28,6 +30,10 @@ public interface NodeDebugContextProvider {
     @Override
     public void addMemoryContext(UserException.Builder exceptionBuilder) {
     }
+
+    @Override
+    public void addMemoryContext(UserException.Builder exceptionBuilder, OutOfMemoryException e) {
+    }
   };
 
   /**
@@ -35,4 +41,11 @@ public interface NodeDebugContextProvider {
    * @param exceptionBuilder the exception (builder) that's about to get thrown
    */
   void addMemoryContext(UserException.Builder exceptionBuilder);
+
+  /**
+   * Add information about the specific allocator that caused the failure. Useful when dealing with
+   * an OOM
+   * @param exceptionBuilder the exception (builder) that's about to get thrown
+   */
+  void addMemoryContext(UserException.Builder exceptionBuilder, OutOfMemoryException e);
 }

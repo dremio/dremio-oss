@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -94,7 +94,7 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
       // expansion context sensitive even if it isn't locally.
       final boolean contextSensitive = root.isContextSensitive() || ExpansionNode.isContextSensitive(root.rel);
 
-      return new RelRoot(ExpansionNode.wrap(path, root.rel, contextSensitive), root.validatedRowType, root.kind, root.fields, root.collation);
+      return new RelRoot(ExpansionNode.wrap(path, root.rel, root.validatedRowType, contextSensitive), root.validatedRowType, root.kind, root.fields, root.collation);
 
     } finally {
       if (token != null) {

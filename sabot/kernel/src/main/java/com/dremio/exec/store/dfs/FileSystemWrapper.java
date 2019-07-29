@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -94,9 +94,6 @@ public class FileSystemWrapper extends FileSystem
   public static final String MAPRFS_SCHEME = "maprfs";
   public static final String NAS_SCHEME = "file";
 
-  private static final String NON_EXISTENT_FILE_SUFFIX = ".___NoFile___._";
-  private static long NON_EXISTENT_FILE_COUNTER = 1;
-
   private final ConcurrentMap<FSDataInputStream, DebugStackTrace> openedFiles = Maps.newConcurrentMap();
 
   private final FileSystem underlyingFs;
@@ -115,10 +112,10 @@ public class FileSystemWrapper extends FileSystem
     this(fsConf, operatorStats, connectionUniqueProps, false);
   }
 
-  public FileSystemWrapper(Configuration fsConf, OperatorStats operatorStats, List<String> connectionUniqueProps, boolean enableAsync) throws IOException {
+  public FileSystemWrapper(Configuration fsConf, OperatorStats operatorStats, List<String> connectionUniqueProps,
+                           boolean enableAsync) throws IOException {
     this(fsConf, DREMIO_FS_CACHE.get(FileSystem.getDefaultUri(fsConf),
       fsConf, connectionUniqueProps), operatorStats, enableAsync);
-
   }
 
   public FileSystemWrapper(Configuration fsConf, FileSystem fs)  {
@@ -159,42 +156,6 @@ public class FileSystemWrapper extends FileSystem
     return false;
   }
 
-  public static FileSystemWrapper get(Configuration fsConf) throws IOException {
-    return new FileSystemWrapper(fsConf);
-  }
-
-  public static FileSystemWrapper get(URI uri, Configuration fsConf, boolean enableAsync) throws IOException {
-    FileSystem fs = FileSystem.get(uri, fsConf);
-    return new FileSystemWrapper(fsConf, fs, enableAsync);
-  }
-
-  public static FileSystemWrapper get(Path path, Configuration fsConf) throws IOException {
-    FileSystem fs = path.getFileSystem(fsConf);
-    return new FileSystemWrapper(fsConf, fs);
-  }
-
-  public static FileSystemWrapper get(Configuration fsConf, OperatorStats stats, boolean enableAsync) throws IOException {
-    return new FileSystemWrapper(fsConf, stats, null, enableAsync);
-  }
-
-  public static FileSystemWrapper get(Configuration fsConf, OperatorStats stats) throws IOException {
-    return get(fsConf, stats, false);
-  }
-
-  public static FileSystemWrapper get(Path path, Configuration fsConf, OperatorStats stats) throws IOException {
-    return get(path, fsConf, stats, false);
-  }
-
-  public static FileSystemWrapper get(Path path, Configuration fsConf, OperatorStats stats, boolean enableAsync) throws IOException {
-    FileSystem fs = path.getFileSystem(fsConf);
-    return new FileSystemWrapper(fsConf, fs, stats, enableAsync);
-  }
-
-  public static FileSystemWrapper get(URI uri, Configuration fsConf, OperatorStats stats) throws IOException {
-    FileSystem fs = FileSystem.get(uri, fsConf);
-    return new FileSystemWrapper(fsConf, fs, stats, false);
-  }
-
   public OperatorStats getOperatorStats() {
     return operatorStats;
   }
@@ -213,49 +174,8 @@ public class FileSystemWrapper extends FileSystem
     return underlyingFs.getConf();
   }
 
-  // See DX-15492
-  private void openNonExistentFileInPath(Path f) throws IOException {
-    Path nonExistentFile = f.suffix(NON_EXISTENT_FILE_SUFFIX + NON_EXISTENT_FILE_COUNTER++);
-
-    try (FSDataInputStream is = underlyingFs.open(nonExistentFile)) {
-    } catch (FileNotFoundException fileNotFoundException) {
-      return;
-    } catch (AccessControlException accessControlException) {
-      String errMsg = "Open failed for file: " + f.toString() + " error: Permission denied (13)";
-      throw new AccessControlException(errMsg);
-    } catch (Exception e) {
-      // Re-throw exception
-      throw e;
-    }
-  }
-
-  private void checkAccessAllowedOnPathIfMaprfs(Path f) throws IOException {
-    if (!isMapRfs) {
-      return;
-    }
-
-    openNonExistentFileInPath(f);
-  }
-
-  private FSDataInputStream openFile(Path f, int bufferSize) throws IOException {
-    checkAccessAllowedOnPathIfMaprfs(f);
-    return underlyingFs.open(f, bufferSize);
-  }
-
-  private FSDataInputStream openFile(Path f) throws IOException {
-    checkAccessAllowedOnPathIfMaprfs(f);
-    return underlyingFs.open(f);
-  }
-
-  // See DX-15492
-  private void checkAccessAllowed(Path f, FsAction mode) throws IOException {
-    if (!isMapRfs) {
-      underlyingFs.access(f, mode);
-      return;
-    }
-
-    openNonExistentFileInPath(f);
-    underlyingFs.access(f, mode);
+  protected FileSystem getUnderlyingFs() {
+    return underlyingFs;
   }
 
   /**
@@ -264,7 +184,7 @@ public class FileSystemWrapper extends FileSystem
   @Override
   public FSDataInputStream open(Path f, int bufferSize) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return newFSDataInputStreamWrapper(f, openFile(f, bufferSize));
+      return newFSDataInputStreamWrapper(f, underlyingFs.open(f, bufferSize));
     } catch(FSError e) {
       throw propagateFSError(e);
     }
@@ -276,7 +196,7 @@ public class FileSystemWrapper extends FileSystem
   @Override
   public FSDataInputStream open(Path f) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return newFSDataInputStreamWrapper(f, openFile(f));
+      return newFSDataInputStreamWrapper(f, underlyingFs.open(f));
     } catch(FSError e) {
       throw propagateFSError(e);
     }
@@ -1234,7 +1154,7 @@ public class FileSystemWrapper extends FileSystem
   @Override
   public void access(final Path path, final FsAction mode) throws AccessControlException, FileNotFoundException, IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      checkAccessAllowed(path, mode);
+      underlyingFs.access(path, mode);
     } catch(FSError e) {
       throw propagateFSError(e);
     }
@@ -1424,11 +1344,11 @@ public class FileSystemWrapper extends FileSystem
     }
   }
 
-  public boolean isValidFS(String path) {
-    return isValidFS(new Path(path));
+  public boolean supportsPath(String path) {
+    return supportsPath(new Path(path));
   }
 
-  public boolean isValidFS(Path path) {
+  public boolean supportsPath(Path path) {
     try {
       checkPath(path);
       return true;
@@ -1517,8 +1437,8 @@ public class FileSystemWrapper extends FileSystem
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(Path path) throws IOException {
-    return ((AsyncByteReader.MayProvideAsyncStream) underlyingFs).getAsyncByteReader(path);
+  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey) throws IOException {
+    return ((AsyncByteReader.MayProvideAsyncStream) underlyingFs).getAsyncByteReader(fileKey);
   }
 
   public static class DebugStackTrace {

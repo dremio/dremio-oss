@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,12 +23,10 @@ import java.util.Set;
 
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
 
 public class ResolverTypePrecedence {
 
   public static final ImmutableMap<MinorType, Integer> PRECEDENCE_MAP;
-  public static final ImmutableMap<MinorType, Integer> PRECEDENCE_MAP_DECIMAL;
   public static final ImmutableMap<MinorType, Set<MinorType>> SECONDARY_IMPLICIT_CAST_RULES;
   public static int MAX_IMPLICIT_CAST_COST;
 
@@ -57,8 +55,8 @@ public class ResolverTypePrecedence {
     precMap.put(MinorType.UINT4, i += 2);
     precMap.put(MinorType.BIGINT, i += 2);
     precMap.put(MinorType.UINT8, i += 2);
-    precMap.put(MinorType.FLOAT4, i += 2);
     precMap.put(MinorType.DECIMAL, i += 2);
+    precMap.put(MinorType.FLOAT4, i += 2);
     precMap.put(MinorType.FLOAT8, i += 2);
     precMap.put(MinorType.DATE, i += 2);
     precMap.put(MinorType.TIMESTAMP, i += 2);
@@ -70,14 +68,6 @@ public class ResolverTypePrecedence {
     PRECEDENCE_MAP = ImmutableMap.copyOf(precMap);
     MAX_IMPLICIT_CAST_COST = i;
 
-    // Create a decimal v2 precedence map which shows decimal is of
-    // higher precision than double.
-    Map<MinorType, Integer> precMapDecimal = Maps.newHashMap(precMap);
-    int actualPrecedenceOfDouble = precMapDecimal.get(MinorType.DECIMAL);
-    int actualPrecedenceOfDecimal = precMapDecimal.get(MinorType.FLOAT8);
-    precMapDecimal.put(MinorType.FLOAT8, actualPrecedenceOfDouble);
-    precMapDecimal.put(MinorType.DECIMAL, actualPrecedenceOfDecimal);
-    PRECEDENCE_MAP_DECIMAL = ImmutableMap.copyOf(precMapDecimal);
 
     /* Currently implicit cast follows the precedence rules.
      * It may be useful to perform an implicit cast in

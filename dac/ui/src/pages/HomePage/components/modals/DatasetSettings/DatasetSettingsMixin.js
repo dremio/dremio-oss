@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,10 @@ export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
     extendContentRenderers(contentRenderers) {
       return contentRenderers;
+    },
+    isReflectionsFullPage() {
+      const { location: { pathname } } = this.props;
+      return pathname && pathname.endsWith('/reflections');
     },
     getTabs() {
       const {entity, intl} = this.props;
@@ -40,10 +44,12 @@ export default function(input) {
         return new Immutable.OrderedMap(map);
       }
 
+      const isReflectionsPage = this.isReflectionsFullPage();
+
       map.push(
         ['overview', intl.formatMessage({ id: 'Common.Overview' })],
         format,
-        ['acceleration', intl.formatMessage({ id: 'Reflection.Reflections' })],
+        !isReflectionsPage && ['acceleration', intl.formatMessage({ id: 'Reflection.Reflections' })],
         canSetAccelerationUpdates && ['accelerationUpdates', intl.formatMessage({ id: 'Acceleration.RefreshPolicy' })]
       );
 

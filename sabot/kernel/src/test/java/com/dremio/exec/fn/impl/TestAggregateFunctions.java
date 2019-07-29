@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.fn.impl;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -65,7 +66,7 @@ public class TestAggregateFunctions extends BaseTestQuery {
         .sqlQuery("select max(employee_id * 0.0) as max_val from cp.\"employee.json\"")
         .unOrdered()
         .baselineColumns("max_val")
-        .baselineValues(0.0d)
+        .baselineValues(BigDecimal.valueOf(0.0d))
         .go();
   }
 

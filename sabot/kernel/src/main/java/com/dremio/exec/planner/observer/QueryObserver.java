@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.observer;
 
+import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.work.AttemptId;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.proto.model.attempts.AttemptReason;
@@ -38,4 +39,6 @@ public interface QueryObserver {
    * called when QueryJob is done and no more queries will be attempted
    */
   void execCompletion(UserResult result);
+
+  default void planParallelized(PlanningSet planningSet) {};
 }

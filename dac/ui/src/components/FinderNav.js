@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ const MAX_TO_SHOW = Infinity;
 export default class FinderNav extends Component {
   static propTypes = {
     title: PropTypes.string.isRequired,
+    addTooltip: PropTypes.string,
     navItems: PropTypes.instanceOf(Immutable.List).isRequired,
     isInProgress: PropTypes.bool,
     addHref: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
@@ -39,7 +40,7 @@ export default class FinderNav extends Component {
   };
 
   render() {
-    const { title, navItems, isInProgress, addHref, listHref, children } = this.props;
+    const { title, addTooltip, navItems, isInProgress, addHref, listHref, children } = this.props;
     const wrapClass = classNames('finder-nav', `${title.toLowerCase()}-wrap`); // todo: don't use ui-string for code keys
 
     return (
@@ -51,7 +52,7 @@ export default class FinderNav extends Component {
               className='pull-right'
               data-qa={`add-${title.toLowerCase()}`}
               to={addHref}>
-              <FontIcon type='Add' hoverType='AddHover' theme={styles.fontIcon}/>
+              <FontIcon type='Add' hoverType='AddHover' tooltip={addTooltip} theme={styles.fontIcon}/>
             </Link>
           )}
         </h4>

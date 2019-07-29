@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,8 +31,8 @@ import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 
 /**
  * If Dremio Jdbc client on the session is using record batch format older than 1.4,
@@ -78,7 +78,7 @@ class Dremio09BackwardCompatibilityHandler extends BaseBackwardsCompatibilityHan
           /* DecimalVector: {validityBuffer, dataBuffer} */
           final int decimalBufferIndex = 1;
           SerializedField.Builder decimalField = children.get(decimalBufferIndex);
-          final ArrowBuf decimalBuffer = (ArrowBuf)buffers[bufferStart + decimalBufferIndex];
+          final NettyArrowBuf decimalBuffer = (NettyArrowBuf)buffers[bufferStart + decimalBufferIndex];
           if (decimalField.getMajorType().getMinorType() != DECIMAL
             || decimalField.getMajorType().getMode() != REQUIRED) {
             throw new IllegalStateException("Found incorrect decimal field: " + field.build());
@@ -110,7 +110,7 @@ class Dremio09BackwardCompatibilityHandler extends BaseBackwardsCompatibilityHan
    * swap the bytes in place to get the BE byte order in NullableDecimalVector
    * @param dataBuffer data buffer of decimal vector
    */
-  static void patchDecimal(final ArrowBuf dataBuffer) {
+  static void patchDecimal(final NettyArrowBuf dataBuffer) {
     final int decimalLength = DecimalVector.TYPE_WIDTH;
     int startPoint = dataBuffer.readerIndex();
     final int valueCount = dataBuffer.readableBytes()/decimalLength;

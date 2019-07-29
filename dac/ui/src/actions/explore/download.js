@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 import { push } from 'react-router-redux';
 import { API_URL_V2 } from 'constants/Api';
 import { saveAsDataset } from 'actions/explore/dataset/save';
@@ -22,7 +22,7 @@ import { showConfirmationDialog, hideConfirmationDialog } from 'actions/confirma
 import { POWER_BI_MANUAL } from 'constants/links.json';
 
 import FileUtils from 'utils/FileUtils';
-import config from 'utils/config';
+import config from 'dyn-load/utils/config';
 import jobsUtils from 'utils/jobsUtils';
 import { constructFullPathAndEncode } from 'utils/pathUtils';
 
@@ -42,7 +42,7 @@ const fetchDownloadDataset = (dataset, format) => {
   const meta = { dataset, notification: true };
   const href = dataset.getIn(['apiLinks', 'self']) + '/download';
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: DOWNLOAD_DATASET_REQUEST, meta},
         {type: DOWNLOAD_DATASET_SUCCESS, meta},
@@ -116,7 +116,7 @@ export const LOAD_TABLEAU_SUCCESS = 'LOAD_TABLEAU_SUCCESS';
 export const LOAD_TABLEAU_FAILURE = 'LOAD_TABLEAU_FAILURE';
 
 const fetchDownloadTableau = ({ href }) => ({
-  [CALL_API]: {
+  [RSAA]: {
     types: [
       LOAD_TABLEAU_START,
       {type: LOAD_TABLEAU_SUCCESS, payload: (action, state, res) => FileUtils.getFileDownloadConfigFromResponse(res)},

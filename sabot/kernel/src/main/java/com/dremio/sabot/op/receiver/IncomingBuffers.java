@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  */
 package com.dremio.sabot.op.receiver;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
@@ -30,8 +29,8 @@ import com.dremio.common.DeferredException;
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.common.utils.protos.QueryIdHelper;
-import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.planner.fragment.PlanFragmentsIndex;
@@ -144,10 +143,13 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
     return collector;
   }
 
-  public void batchArrived(final IncomingDataBatch incomingBatch) throws FragmentSetupException, IOException {
-    if(!incomingBatch.checkAcceptance(allocator.getHeadroom())){
+  public void batchArrived(final IncomingDataBatch incomingBatch) {
+    try {
+      incomingBatch.checkAcceptance(allocator);
+    } catch (OutOfMemoryException e) {
       deferredException.addException(UserException.memoryError()
-          .message("Out of memory while receiving incoming message. Message size: %d, Current thread allocation: %d, thread limit: %d.", incomingBatch.size(), allocator.getAllocatedMemory(), allocator.getLimit())
+          .message("Out of memory while receiving incoming message. Message size: %d", incomingBatch.size())
+          .addContext(MemoryDebugInfo.getDetailsOnAllocationFailure(e, allocator))
           .build(logger));
       return;
     }

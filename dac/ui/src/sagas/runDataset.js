@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,12 +19,11 @@ import invariant from 'invariant';
 import { loadNextRows, EXPLORE_PAGE_EXIT } from 'actions/explore/dataset/data';
 import { updateHistoryWithJobState } from 'actions/explore/history';
 
-import socket, { WS_MESSAGE_JOB_PROGRESS } from 'utils/socket';
-import { addNotification } from 'actions/notification';
+import socket, { WS_MESSAGE_JOB_PROGRESS, WS_CONNECTION_OPEN } from 'utils/socket';
 import { getExplorePageLocationChangePredicate } from '@app/sagas/utils';
 import { getTableDataRaw, getCurrentRouteParams } from '@app/selectors/explore';
-
-import Immutable from 'immutable';
+import { log } from '@app/utils/logger';
+import { LOGOUT_USER_SUCCESS } from '@app/actions/account';
 
 const getJobDoneActionFilter = (jobId) => (action) =>
   action.type === WS_MESSAGE_JOB_PROGRESS && action.payload.id.id === jobId && action.payload.update.isComplete;
@@ -78,6 +77,24 @@ export class DataLoadError {
  */
 export function* waitForRunToComplete(datasetVersion, paginationUrl, jobId) {
   try {
+    log('Check if socket is opened:', socket.isOpen);
+    if (!socket.isOpen) {
+      const raceResult = yield race({
+        // When explore page is refreshed, we register 'pageChangeListener'
+        // (see oss/dac/ui/src/sagas/performLoadDataset.js), which may call this saga
+        // earlier, than application is booted ('APP_INIT' action) and socket is opened.
+        // We must wait for WS_CONNECTION_OPEN before 'socket.startListenToJobProgress'
+        socketOpen: take(WS_CONNECTION_OPEN),
+        stop: take(LOGOUT_USER_SUCCESS)
+      });
+
+      log('wait for socket open result:', raceResult);
+      if (raceResult.stop) {
+        // if a user is logged out before socket is opened, terminate current saga
+        return;
+      }
+    }
+
     yield call([socket, socket.startListenToJobProgress],
       jobId,
       // force listen request to force a response from server.
@@ -85,8 +102,6 @@ export function* waitForRunToComplete(datasetVersion, paginationUrl, jobId) {
       true
     );
     console.warn(`=+=+= socket listener registered for job id ${jobId}`);
-
-    if (!socket.isOpen) yield put(addNotification(Immutable.Map({code: 'WS_CLOSED'}), 'error'));
 
     const { jobDone } = yield race({
       jobProgress: call(watchUpdateHistoryOnJobProgress, datasetVersion, jobId),

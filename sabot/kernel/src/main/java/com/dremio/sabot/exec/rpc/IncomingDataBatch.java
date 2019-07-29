@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.dremio.sabot.exec.rpc;
 
 import org.apache.arrow.memory.BufferAllocator;
 
+import com.dremio.common.memory.AllocatorUtil;
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.sabot.op.receiver.RawFragmentBatch;
 import com.google.common.base.Preconditions;
@@ -60,7 +61,9 @@ public class IncomingDataBatch {
    * @return The newly created RawFragmentBatch
    */
   public RawFragmentBatch newRawFragmentBatch(final BufferAllocator allocator) {
-    final ArrowBuf transferredBuffer = body == null ? null : body.transferOwnership(allocator).buffer;
+    final ArrowBuf transferredBuffer = body == null ? null : body.getReferenceManager()
+      .transferOwnership(body, allocator)
+      .getTransferredBuffer();
     sender.increment();
     return new RawFragmentBatch(header, transferredBuffer, sender);
   }
@@ -71,20 +74,16 @@ public class IncomingDataBatch {
 
   /**
    * Check if the batch size is acceptable.
-   * @return true if acceptable sized.
+   * throws exception if not acceptable.
    */
-  public boolean checkAcceptance(long availableMemory){
-    if(size() > availableMemory){
-      sender.increment();
-      sender.sendOk();
-      return false;
-    }
-
-    return true;
+  public void checkAcceptance(final BufferAllocator allocator) {
+    AllocatorUtil.ensureHeadroom(allocator, size());
+    sender.increment();
+    sender.sendOk();
   }
 
-  public long size(){
-    if(body == null){
+  public int size() {
+    if (body == null){
       return 0;
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,7 +40,7 @@ public class TestImplicitCasting {
     Mockito.when(optionManager.getOption(PlannerSettings.ENABLE_DECIMAL_V2_KEY)).thenReturn
       (OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, PlannerSettings
         .ENABLE_DECIMAL_V2_KEY, true));
-    final MinorType result = TypeCastRules.getLeastRestrictiveType(inputTypes, false);
+    final MinorType result = TypeCastRules.getLeastRestrictiveType(inputTypes);
 
     assertEquals(result, MinorType.TIME);
   }

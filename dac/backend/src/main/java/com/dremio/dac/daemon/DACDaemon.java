@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
+import com.dremio.dac.admin.LocalAdmin;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.LivenessService;
 import com.dremio.dac.server.WebServer;
@@ -196,6 +197,7 @@ public final class DACDaemon implements AutoCloseable {
         text = "worker";
       }
       System.out.println("Dremio Daemon Started as " + text);
+      LocalAdmin.getInstance().setDaemon(this);
       if(webServer != null){
         System.out.println(String.format("Webserver available at: %s://%s:%d",
             dacConfig.webSSLEnabled() ? "https" : "http", thisNode, webServer.getPort()));

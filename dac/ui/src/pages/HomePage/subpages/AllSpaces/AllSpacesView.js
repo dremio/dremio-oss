@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,16 +24,16 @@ import EntityLink from '@app/pages/HomePage/components/EntityLink';
 import SpacesLoader from '@app/pages/HomePage/components/SpacesLoader';
 import { RestrictedArea } from '@app/components/Auth/RestrictedArea';
 import { manageSpaceRule } from '@app/utils/authUtils';
+import { EntityIcon } from '@app/pages/HomePage/components/EntityIcon';
+import { EntityName } from '@app/pages/HomePage/components/EntityName';
 
 import * as allSpacesAndAllSources from 'uiTheme/radium/allSpacesAndAllSources';
 
-import EllipsedText from 'components/EllipsedText';
-import { getSpaces } from 'selectors/resources';
+import { getSpaces, getNameFromRootEntity } from 'selectors/home';
 
 import LinkButton from 'components/Buttons/LinkButton';
 import ResourcePin from 'components/ResourcePin';
 import AllSpacesMenu from 'components/Menus/HomePage/AllSpacesMenu';
-import FontIcon from 'components/Icon/FontIcon';
 
 import SettingsBtn from 'components/Buttons/SettingsBtn';
 import { SortDirection } from 'components/VirtualizedTableViewer';
@@ -60,25 +60,26 @@ export class AllSpacesView extends PureComponent {
   getTableData = () => {
     const [ name, created, action ] = this.getTableColumns();
     return this.props.spaces.toList().sort((a, b) => b.get('isActivePin') - a.get('isActivePin')).map((item) => {
-      const icon = <FontIcon type={item.get('iconClass')}/>;
+      const entityId = item.get('id');
+      const itemName = getNameFromRootEntity(item);
       return {
-        rowClassName: item.get('name'),
+        rowClassName: itemName,
         data: {
           [name.key]: {
             node: () => (
               <div style={allSpacesAndAllSources.listItem}>
-                {icon}
-                <EntityLink entityId={item.get('id')}>
-                  <EllipsedText text={item.get('name')} />
+                <EntityIcon entityId={entityId} />
+                <EntityLink entityId={entityId}>
+                  <EntityName entityId={entityId} />
                 </EntityLink>
-                <ResourcePin entityId={item.get('id')} />
+                <ResourcePin entityId={entityId} />
               </div>
             ),
             value(sortDirection = null) { // todo: DRY
-              if (!sortDirection) return item.get('name');
+              if (!sortDirection) return itemName;
               const activePrefix = sortDirection === SortDirection.ASC ? 'a' : 'z';
               const inactivePrefix = sortDirection === SortDirection.ASC ? 'z' : 'a';
-              return (item.get('isActivePin') ? activePrefix : inactivePrefix) + item.get('name');
+              return (item.get('isActivePin') ? activePrefix : inactivePrefix) + itemName;
             }
           },
           [created.key]: {
@@ -90,8 +91,8 @@ export class AllSpacesView extends PureComponent {
               <span className='action-wrap'>
                 <SettingsBtn
                   routeParams={this.context.location.query}
-                  menu={<AllSpacesMenu item={item}/>}
-                  dataQa={item.get('name')}
+                  menu={<AllSpacesMenu spaceId={item.get('id')}/>}
+                  dataQa={itemName}
                 />
               </span>
             )

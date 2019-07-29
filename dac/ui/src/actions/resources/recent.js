@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 
 import { CALL_MOCK_API } from 'mockApi';
 import { API_URL } from 'constants/Api';
@@ -56,7 +56,7 @@ export const LOAD_FILTERED_RECENT_DATASETS_FAILURE = 'LOAD_FILTERED_RECENT_DATAS
 
 function fetchFilteredRecentDatasets(pattern) {
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         LOAD_FILTERED_RECENT_DATASETS_START,
         LOAD_FILTERED_RECENT_DATASETS_SUCCESS,
@@ -80,7 +80,7 @@ export const CLEAR_HISTORY_FAILURE = 'CLEAR_HISTORY_FAILURE';
 
 function clearHistoryRequest() {
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         CLEAR_HISTORY_START,
         CLEAR_HISTORY_SUCCESS,
@@ -104,7 +104,7 @@ export const REMOVE_HISTORY_FAILURE = 'REMOVE_HISTORY_FAILURE';
 
 function removeFromHistoryRequest(id) {
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         REMOVE_HISTORY_START,
         REMOVE_HISTORY_SUCCESS,

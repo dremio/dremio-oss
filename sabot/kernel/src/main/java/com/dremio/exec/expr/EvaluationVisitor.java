@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -697,19 +697,16 @@ public class EvaluationVisitor {
 
     @Override
     public HoldingContainer visitDecimalConstant(DecimalExpression e, ClassGenerator<?> generator)
-        throws RuntimeException {
-      CompleteType majorType= e.getCompleteType();
+      throws RuntimeException {
+      CompleteType completeType = CompleteType.fromDecimalPrecisionScale(e.getPrecision(), e.getScale());
       JBlock setup = generator.getBlock(BlockType.SETUP);
-      JType holderType = majorType.getHolderType(generator.getModel());
-      JVar var = generator.declareClassField("dec", holderType);
-      JExpression valueLiteral = JExpr.lit(e.getIntFromDecimal());
-      JExpression scaleLiteral = JExpr.lit(e.getScale());
-      JExpression precisionLiteral = JExpr.lit(e.getPrecision());
-      setup.assign(
-          var,
-          generator.getModel().ref(ValueHolderHelper.class).staticInvoke("getNullableDecimalHolder").arg(valueLiteral)
-              .arg(scaleLiteral).arg(precisionLiteral));
-      return new HoldingContainer(majorType, var, var.ref("value"), var.ref("isSet"));
+      JType holderType = completeType.getHolderType(generator.getModel());
+      JVar var = generator.declareClassField("dec38", holderType);
+      JExpression decimal = JExpr.lit(e.getDecimal().toString());
+      JExpression buffer = JExpr.direct("context").invoke("getManagedBuffer");
+      setup.assign(var, ((JClass)generator.getModel().ref(ValueHolderHelper.class)).staticInvoke
+        ("getNullableDecimalHolder").arg(buffer).arg(decimal));
+      return new HoldingContainer(completeType, var, var.ref("value"), var.ref("isSet"));
     }
 
     @Override

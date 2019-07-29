@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ public class TestBackwardsCompatibilityHandler {
   }
 
   private ByteBuf buf(int size) {
-    return allocator.buffer(size).writerIndex(size);
+    return allocator.buffer(size).writerIndex(size).asNettyBuffer();
   }
 
   @Test
@@ -144,7 +144,7 @@ public class TestBackwardsCompatibilityHandler {
       ArrowBuf oldBuf = bits.getDataBuffer();
       oldBuf.retain();
       SerializedField.Builder fieldBuilder = TypeHelper.getMetadataBuilder(bits);
-      ArrowBuf newBuf = convertBitsToBytes(allocator, fieldBuilder, oldBuf);
+      ArrowBuf newBuf = convertBitsToBytes(allocator, fieldBuilder, oldBuf.asNettyBuffer()).arrowBuf();
       bytes.setValueCount(count);
       SerializedField.Builder newfieldBuilder = TypeHelper.getMetadataBuilder(bytes);
       TypeHelper.loadData(bytes, newfieldBuilder.build(), newBuf);
@@ -194,7 +194,8 @@ public class TestBackwardsCompatibilityHandler {
       NullableDecimalVectorHelper vectorHelper = new NullableDecimalVectorHelper(decimalVector);
       SerializedField.Builder decimalField = vectorHelper.getMetadataBuilder();
       SerializedField.Builder childDecimalField = decimalField.getChildBuilderList().get(1);
-      ByteBuf newBuffer = patchDecimal(allocator, decimalVector.getDataBuffer(), decimalField, childDecimalField);
+      ByteBuf newBuffer = patchDecimal(allocator, decimalVector.getDataBuffer().asNettyBuffer(), decimalField,
+        childDecimalField);
 
       int startIndex = 0;
       BigDecimal bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
@@ -252,7 +253,8 @@ public class TestBackwardsCompatibilityHandler {
       ArrowBuf oldBuf = bytes.getDataBuffer();
       oldBuf.retain();
       SerializedField.Builder fieldBuilder = TypeHelper.getMetadataBuilder(bytes);
-      ArrowBuf newBuf = padValues(allocator, fieldBuilder, oldBuf, originalTypeByteWidth, targetTypeByteWidth);
+      ArrowBuf newBuf = padValues(allocator, fieldBuilder, oldBuf.asNettyBuffer(), originalTypeByteWidth,
+        targetTypeByteWidth).arrowBuf();
       bytes.setValueCount(count * 12);
       SerializedField.Builder newfieldBuilder = TypeHelper.getMetadataBuilder(bytes);
       // load data in newBuf into bytes, all the validity will be set to one

@@ -765,6 +765,7 @@
               {
                 "uiType": "check_enabled_container",
                 "propName": "config.enableServerVerification",
+                "checkValue": true,
                 "tooltip": "Verify SQL Server instance when using encrypted connections.",
                 "container": {
                   "propName": "config.hostnameOverride",
@@ -1249,11 +1250,11 @@
                 "propName": "config.accountName"
               },
               {
-                "propName": "config.accountKind"
-              },
-              {
                 "tooltip": "Force encrypted connection over SSL",
                 "propName": "config.enableSSL"
+              },
+              {
+                "propName": "config.accountKind"
               }
             ]
           },
@@ -1262,7 +1263,46 @@
             "tooltip": "",
             "elements": [
               {
-                "propName": "config.accessKey"
+                "propName": "config.credentialsType",
+                "uiType": "container_selection",
+                "options": [
+                  {
+                    "value": "ACCESS_KEY",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.accessKey",
+                          "size": "half",
+                          "errMsg": "Access key is required for Azure storage accounts",
+                          "secure": true
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value": "AZURE_ACTIVE_DIRECTORY",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.clientId",
+                          "size": "half",
+                          "errMsg": "ApplicationId is required for Azure Active Directory OAuth 2.0"
+                        },
+                        {
+                          "propName": "config.tokenEndpoint",
+                          "size": "half",
+                          "errMsg": "Token endpoint is required for Azure Active Directory OAuth 2.0"
+                        },
+                        {
+                          "propName": "config.clientSecret",
+                          "size": "half",
+                          "errMsg": "Client secret is required for Azure Active Directory OAuth 2.0",
+                          "secure": true
+                        }
+                      ]
+                    }
+                  }
+                ]
               }
             ]
           }

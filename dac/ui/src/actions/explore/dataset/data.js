@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 
 import { API_URL_V2 } from 'constants/Api';
 import apiUtils from '@app/utils/apiUtils/apiUtils';
@@ -27,7 +27,7 @@ export const LOAD_NEXT_ROWS_FAILURE = 'LOAD_NEXT_ROWS_FAILURE';
 const fetchNextRows = (datasetVersion, paginationUrl, offset) => {
   const href = `${paginationUrl}?offset=${offset}&limit=${PAGE_SIZE}`;
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         LOAD_NEXT_ROWS_START,
         {type: LOAD_NEXT_ROWS_SUCCESS, meta: { datasetVersion, offset }},
@@ -45,12 +45,6 @@ export const loadNextRows = (datasetVersion, paginationUrl, offset) => (dispatch
   return dispatch(fetchNextRows(datasetVersion, paginationUrl, offset));
 };
 
-export const DELETE_TABLE_DATA = 'DELETE_TABLE_DATA';
-
-export const deleteTableData = (dataset) => {
-  return { type: DELETE_TABLE_DATA, meta: { datasetVersion: dataset.get('datasetVersion') }};
-};
-
 export const FULL_CELL_VIEW_ID = 'FULL_CELL_VIEW_ID';
 
 export const LOAD_FULL_CELL_VALUE_START = 'LOAD_FULL_CELL_VALUE_START';
@@ -63,7 +57,7 @@ export const CLEAR_FULL_CELL_VALUE = 'CLEAR_FULL_CELL_VALUE';
 export const loadFullCellValue = ({ href }) => {
   const meta = { viewId: FULL_CELL_VIEW_ID };
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: LOAD_FULL_CELL_VALUE_START, meta },
         { type: LOAD_FULL_CELL_VALUE_SUCCESS, meta },

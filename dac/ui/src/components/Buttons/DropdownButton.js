@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ const PRIMARY_BASE = {
 export default class DropdownButton extends Component {
   static propTypes = {
     className: PropTypes.string,
+    tooltip: PropTypes.string,
     menu: PropTypes.node,
     iconType: PropTypes.string,
     action: PropTypes.func,
@@ -84,7 +85,7 @@ export default class DropdownButton extends Component {
   }
 
   render() {
-    const { className, type, disabled, iconType, hideDropdown } = this.props;
+    const { className, tooltip, type, disabled, iconType, hideDropdown } = this.props;
     //const background = { backgroundColor: '#68C6D3' };
     const base = {...styles.base, ...(type === 'primary' ? PRIMARY_BASE : {})};
     const bodyFont = {...(type === 'primary' ? {color: '#fff'} : {})};
@@ -108,7 +109,7 @@ export default class DropdownButton extends Component {
     const cursorStyle = !disabled ? {} : { cursor: 'default' };
 
     return (
-      <div className={className} style={[base, cursorStyle, disabled && {opacity: 0.7}]}>
+      <div className={className} title={tooltip} style={[base, cursorStyle, disabled && {opacity: 0.7}]}>
         <div key='button' onClick={this.action} style={[styles.mainButton, cursorStyle, isButtonHovered && hoverStyle]}>
           <div style={[styles.iconWrap, !iconType ? {display: 'none'} : {}]}>
             <FontIcon

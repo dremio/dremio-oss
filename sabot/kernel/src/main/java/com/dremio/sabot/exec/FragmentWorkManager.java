@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -81,6 +81,7 @@ public class FragmentWorkManager implements Service, SafeExit {
 
   private FragmentStatusThread statusThread;
   private ThreadsStatsCollector statsCollectorThread;
+  private HeapMonitorThread heapMonitorThread;
 
   private final Provider<TaskPool> pool;
   private FragmentExecutors fragmentExecutors;
@@ -301,6 +302,17 @@ public class FragmentWorkManager implements Service, SafeExit {
     statsCollectorThread = new ThreadsStatsCollector(slicingThreadIds);
     statsCollectorThread.start();
 
+    // This makes sense only on executor nodes.
+    if (bitContext.isExecutor() &&
+        bitContext.getOptionManager().getOption(ExecConstants.ENABLE_HEAP_MONITORING)) {
+
+      HeapClawBackStrategy strategy = new FailGreediestQueriesStrategy(fragmentExecutors, clerk);
+      long thresholdPercentage =
+          bitContext.getOptionManager().getOption(ExecConstants.HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE);
+      heapMonitorThread = new HeapMonitorThread(strategy, thresholdPercentage);
+      heapMonitorThread.start();
+    }
+
     final String prefix = "rpc";
     Metrics.registerGauge(prefix + "bit.data.current", new Gauge<Long>() {
       @Override
@@ -331,7 +343,8 @@ public class FragmentWorkManager implements Service, SafeExit {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(statusThread, statsCollectorThread, closeableExecutor, fragmentExecutors, allocator);
+    AutoCloseables.close(statusThread, statsCollectorThread, heapMonitorThread,
+      closeableExecutor, fragmentExecutors, allocator);
   }
 
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,10 +15,6 @@
  */
 package com.dremio.resource;
 
-import java.util.Map;
-
-import com.dremio.exec.proto.CoordinationProtos;
-
 /**
  * Basic ResourceScheduling Properties
  */
@@ -31,7 +27,6 @@ public class ResourceSchedulingProperties {
   private String queryType;
   private String queueName;
   private String tag;
-  private Map<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> resourceData;
 
   public ResourceSchedulingProperties() {
 
@@ -97,15 +92,6 @@ public class ResourceSchedulingProperties {
 
   public ResourceSchedulingProperties setTag(String tag) {
     this.tag = tag;
-    return this;
-  }
-
-  public Map<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> getResourceData() {
-    return resourceData;
-  }
-
-  public ResourceSchedulingProperties setResourceData(Map<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> resourceData) {
-    this.resourceData = resourceData;
     return this;
   }
 }

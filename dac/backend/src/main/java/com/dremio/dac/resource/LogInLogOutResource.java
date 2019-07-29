@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
 import javax.ws.rs.HeaderParam;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -34,8 +35,7 @@ import javax.ws.rs.core.Response.Status;
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.annotations.RestResource;
-import com.dremio.dac.model.spaces.HomeName;
-import com.dremio.dac.model.spaces.HomePath;
+import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.usergroup.SessionPermissions;
 import com.dremio.dac.model.usergroup.UserLogin;
 import com.dremio.dac.model.usergroup.UserLoginSession;
@@ -44,14 +44,12 @@ import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.server.tokens.TokenDetails;
 import com.dremio.dac.server.tokens.TokenManager;
 import com.dremio.dac.server.tokens.TokenUtils;
+import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.support.SupportService;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserLoginException;
@@ -64,6 +62,8 @@ import com.google.common.base.Strings;
  */
 @RestResource
 @Path("/login")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
 public class LogInLogOutResource {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LogInLogOutResource.class);
 
@@ -79,7 +79,8 @@ public class LogInLogOutResource {
       SabotContext dContext,
       UserService userService,
       SupportService support,
-      TokenManager tokenManager) {
+      TokenManager tokenManager
+  ) {
     this.dremioConfig = dremioConfig;
     this.dContext = dContext;
     this.userService = userService;
@@ -88,8 +89,6 @@ public class LogInLogOutResource {
   }
 
   @POST
-  @Produces(MediaType.APPLICATION_JSON)
-  @Consumes(MediaType.APPLICATION_JSON)
   public Response login(UserLogin userLogin, @Context HttpServletRequest request) {
     try {
       if (userLogin == null || Strings.isNullOrEmpty(userLogin.getUserName()) || Strings.isNullOrEmpty(userLogin.getPassword())) {
@@ -109,15 +108,7 @@ public class LogInLogOutResource {
       // Make sure the logged-in user has a home space. If not create one.
       try {
         final NamespaceService ns = dContext.getNamespaceService(SystemUser.SYSTEM_USERNAME);
-        final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath(userConfig.getUserName())).toNamespaceKey();
-        try {
-          ns.getHome(homeKey);
-        } catch (NamespaceNotFoundException nnfe) {
-          // create home
-          ns.addOrUpdateHome(homeKey,
-              new HomeConfig().setCtime(System.currentTimeMillis()).setOwner(userConfig.getUserName())
-          );
-        }
+        CatalogServiceHelper.ensureUserHasHomespace(ns, userConfig.getUserName());
       } catch (NamespaceException ex) {
         logger.error("Failed to make sure the user has home space setup.", ex);
         return Response.status(Status.INTERNAL_SERVER_ERROR).entity(new GenericErrorMessage(ex.getMessage())).build();
@@ -157,5 +148,16 @@ public class LogInLogOutResource {
   @DELETE
   public void logout(@HeaderParam(HttpHeaders.AUTHORIZATION) String authHeader) {
     tokenManager.invalidateToken(TokenUtils.getTokenFromAuthHeader(authHeader));
+  }
+
+  @GET
+  @Secured
+  /**
+   * This method serves for following purposes:
+   * 1) Check if current user is still authenticated
+   * 2) If any user exists. See {@link com.dremio.dac.server.NoUserFilter}
+   */
+  public boolean isUserAuthorized() {
+    return true;
   }
 }

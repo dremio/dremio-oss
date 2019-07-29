@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 package com.dremio.plugins.s3.store;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -78,6 +80,11 @@ class S3AsyncByteReader implements AsyncByteReader {
       // exception
       logger.warn("Async read of {}.{} for length {} failed in {}ms when there are {} outstanding reads. Error {}", bucket, path, len, w.elapsed(TimeUnit.MILLISECONDS), numOutstanding, b);
     });
+  }
+
+  @Override
+  public List<ReaderStat> getStats() {
+    return new ArrayList<>();
   }
 
   /**

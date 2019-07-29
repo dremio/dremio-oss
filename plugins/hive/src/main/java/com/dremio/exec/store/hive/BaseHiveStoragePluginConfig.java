@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,9 @@ package com.dremio.exec.store.hive;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -52,6 +55,8 @@ public abstract class BaseHiveStoragePluginConfig<T extends ConnectionConf<T, P>
    * Listening port of Hive metastore server
    */
   @Tag(2)
+  @Min(1)
+  @Max(65535)
   @DisplayMetadata(label = "Port")
   public int port = 9083;
 

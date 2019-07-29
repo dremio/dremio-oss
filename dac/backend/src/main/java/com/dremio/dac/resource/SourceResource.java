@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,7 +88,7 @@ public class SourceResource {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SourceResource.class);
 
   private final QueryExecutor executor;
-  private final Provider<NamespaceService> namespaceService;
+  private final NamespaceService namespaceService;
   private final Provider<ReflectionService> reflectionService;
   private final SourceService sourceService;
   private final SourceName sourceName;
@@ -102,7 +102,7 @@ public class SourceResource {
 
   @Inject
   public SourceResource(
-      Provider<NamespaceService> namespaceService,
+      NamespaceService namespaceService,
       Provider<ReflectionService> reflectionService,
       SourceService sourceService,
       @PathParam("sourceName") SourceName sourceName,
@@ -137,13 +137,14 @@ public class SourceResource {
   public SourceUI getSource(@QueryParam("includeContents") @DefaultValue("true") boolean includeContents)
       throws Exception {
     try {
-      final SourceConfig config = namespaceService.get().getSource(sourcePath.toNamespaceKey());
+      final SourceConfig config = namespaceService.getSource(sourcePath.toNamespaceKey());
       final SourceState sourceState = sourceService.getSourceState(sourcePath.getSourceName().getName());
       if (sourceState == null) {
         throw new SourceNotFoundException(sourcePath.getSourceName().getName());
       }
 
-      final BoundedDatasetCount datasetCount = namespaceService.get().getDatasetCount(new NamespaceKey(config.getName()), BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
+      final BoundedDatasetCount datasetCount = namespaceService.getDatasetCount(new NamespaceKey(config.getName()),
+          BoundedDatasetCount.SEARCH_TIME_LIMIT_MS, BoundedDatasetCount.COUNT_LIMIT_TO_STOP_SEARCH);
       final SourceUI source = newSource(config)
           .setNumberOfDatasets(datasetCount.getCount());
       source.setDatasetCountBounded(datasetCount.isCountBound() || datasetCount.isTimeBound());
@@ -157,7 +158,7 @@ public class SourceResource {
       }
       if (includeContents) {
         source.setContents(sourceService.listSource(sourcePath.getSourceName(),
-          namespaceService.get().getSource(sourcePath.toNamespaceKey()), securityContext.getUserPrincipal().getName()));
+          namespaceService.getSource(sourcePath.toNamespaceKey()), securityContext.getUserPrincipal().getName()));
       }
       return source;
     } catch (NamespaceNotFoundException nfe) {
@@ -173,7 +174,7 @@ public class SourceResource {
       throw new ClientErrorException("missing version parameter");
     }
     try {
-      SourceConfig config = namespaceService.get().getSource(new SourcePath(sourceName).toNamespaceKey());
+      SourceConfig config = namespaceService.getSource(new SourcePath(sourceName).toNamespaceKey());
       if(!Objects.equals(config.getTag(), version)) {
         throw new ConcurrentModificationException(String.format("Unable to delete source, expected version %s, received version %s.", config.getTag(), version));
       }

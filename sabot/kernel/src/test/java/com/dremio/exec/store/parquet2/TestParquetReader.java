@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.arrow.DremioArrowSchema;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 
@@ -104,7 +105,8 @@ public class TestParquetReader extends BaseTestQuery {
     URL parquet205 = getClass().getResource("/dremio-region-205.parquet");
     Path filePath = new Path(parquet205.toURI());
     ParquetMetadata parquetMetadata =
-      SingletonParquetFooterCache.readFooter(localFs, filePath, ParquetMetadataConverter.NO_FILTER);
+      SingletonParquetFooterCache.readFooter(localFs, filePath, ParquetMetadataConverter.NO_FILTER,
+        ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getDefault().getNumVal());
     Map<String, String> metadata = parquetMetadata.getFileMetaData().getKeyValueMetaData();
 
     // should have DREMIO_ARROW_SCHEMA field, but no DREMIO_ARROW_SCHEMA_2_1
@@ -121,7 +123,8 @@ public class TestParquetReader extends BaseTestQuery {
     URL parquet210 = getClass().getResource("/dremio-region-210.parquet");
     Path filePath210 = new Path(parquet210.toURI());
     ParquetMetadata parquetMetadata210 =
-      SingletonParquetFooterCache.readFooter(localFs, filePath210, ParquetMetadataConverter.NO_FILTER);
+      SingletonParquetFooterCache.readFooter(localFs, filePath210, ParquetMetadataConverter.NO_FILTER,
+        ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getDefault().getNumVal());
     Map<String, String> metadata210 = parquetMetadata210.getFileMetaData().getKeyValueMetaData();
 
     // should not have DREMIO_ARROW_SCHEMA field, but should have DREMIO_ARROW_SCHEMA_2_1
@@ -139,7 +142,8 @@ public class TestParquetReader extends BaseTestQuery {
 
     Path filePathBad = new Path(badparquet.toURI());
     ParquetMetadata parquetMetadataBad =
-      SingletonParquetFooterCache.readFooter(localFs, filePathBad, ParquetMetadataConverter.NO_FILTER);
+      SingletonParquetFooterCache.readFooter(localFs, filePathBad, ParquetMetadataConverter.NO_FILTER,
+        ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getDefault().getNumVal());
     Map<String, String> metadataBad = parquetMetadataBad.getFileMetaData().getKeyValueMetaData();
 
     // should have DREMIO_ARROW_SCHEMA field, but no DREMIO_ARROW_SCHEMA_2_1

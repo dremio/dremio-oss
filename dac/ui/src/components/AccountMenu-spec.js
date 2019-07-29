@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,8 @@ describe('AccountMenu', () => {
   let context;
   beforeEach(() => {
     minimalProps = {
-      closeMenu: sinon.stub()
+      closeMenu: sinon.stub(),
+      logoutUser: sinon.stub()
     };
     context = {
       router: {push: sinon.spy()}
@@ -34,5 +35,4 @@ describe('AccountMenu', () => {
     const wrapper = shallow(<AccountMenu {...minimalProps}/>, {context});
     expect(wrapper).to.have.length(1);
   });
-
 });

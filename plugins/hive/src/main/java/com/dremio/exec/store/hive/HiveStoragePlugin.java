@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,7 +66,7 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.store.hive.exec.HiveReaderProtoUtil;
+import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
 import com.dremio.exec.store.hive.metadata.HiveDatasetHandle;
 import com.dremio.exec.store.hive.metadata.HiveDatasetHandleListing;
 import com.dremio.exec.store.hive.metadata.HiveDatasetMetadata;
@@ -206,7 +206,7 @@ public class HiveStoragePlugin implements StoragePlugin, SupportsReadSignature, 
                                   HiveTableXattr tableXattr) {
     List<TimedRunnable<Boolean>> permissionCheckers = new ArrayList<>();
     for (FileSystemPartitionUpdateKey updateKey : updateKeys) {
-      permissionCheckers.add(new FsTask(user, updateKey, tableXattr, TaskType.FS_PERMISSION));
+      permissionCheckers.add(new FsTask(user, updateKey, TaskType.FS_PERMISSION));
     }
     try {
       Stopwatch stopwatch = Stopwatch.createStarted();
@@ -232,13 +232,11 @@ public class HiveStoragePlugin implements StoragePlugin, SupportsReadSignature, 
   private class FsTask extends TimedRunnable<Boolean> {
     private final String user;
     private final FileSystemPartitionUpdateKey updateKey;
-    private final HiveTableXattr tableXattr;
     private final TaskType taskType;
 
-    FsTask(String user, FileSystemPartitionUpdateKey updateKey, HiveTableXattr tableXattr, TaskType taskType) {
+    FsTask(String user, FileSystemPartitionUpdateKey updateKey, TaskType taskType) {
       this.user = user;
       this.updateKey = updateKey;
-      this.tableXattr = tableXattr;
       this.taskType = taskType;
     }
 
@@ -267,9 +265,6 @@ public class HiveStoragePlugin implements StoragePlugin, SupportsReadSignature, 
 
     private boolean checkAccessPermission() throws IOException {
       final JobConf jobConf = new JobConf(hiveConf);
-      for (Prop prop : HiveReaderProtoUtil.getPartitionProperties(tableXattr, updateKey.getPartitionId())) {
-        jobConf.set(prop.getKey(), prop.getValue());
-      }
       Preconditions.checkArgument(updateKey.getCachedEntitiesCount() > 0, "hive partition update key should contain at least one path");
 
       for (FileSystemCachedEntity cachedEntity : updateKey.getCachedEntitiesList()) {
@@ -302,13 +297,10 @@ public class HiveStoragePlugin implements StoragePlugin, SupportsReadSignature, 
 
     private boolean hasChanged() throws IOException {
       final JobConf jobConf = new JobConf(hiveConf);
-      for (Prop prop : HiveReaderProtoUtil.getPartitionProperties(tableXattr, updateKey.getPartitionId())) {
-        jobConf.set(prop.getKey(), prop.getValue());
-      }
       Preconditions.checkArgument(updateKey.getCachedEntitiesCount() > 0, "hive partition update key should contain at least one path");
 
       // create filesystem based on the first path which is root of the partition directory.
-      final FileSystemWrapper fs = FileSystemWrapper.get(new Path(updateKey.getPartitionRootDir()), jobConf, null);
+      final FileSystemWrapper fs = FileSystemWrapperCreator.get(new Path(updateKey.getPartitionRootDir()), jobConf, null);
       for (FileSystemCachedEntity cachedEntity : updateKey.getCachedEntitiesList()) {
         final Path cachedEntityPath;
         if (cachedEntity.getPath() == null || cachedEntity.getPath().isEmpty()) {
@@ -401,7 +393,7 @@ public class HiveStoragePlugin implements StoragePlugin, SupportsReadSignature, 
               // get list of partition properties from read definition
               List<TimedRunnable<Boolean>> signatureValidators = new ArrayList<>();
               for (FileSystemPartitionUpdateKey updateKey : readSignature.getFsPartitionUpdateKeysList()) {
-                signatureValidators.add(new FsTask(SystemUser.SYSTEM_USERNAME, updateKey, tableXattr, TaskType.FS_VALIDATION));
+                signatureValidators.add(new FsTask(SystemUser.SYSTEM_USERNAME, updateKey, TaskType.FS_VALIDATION));
               }
 
               Stopwatch stopwatch = Stopwatch.createStarted();
@@ -564,8 +556,7 @@ public class HiveStoragePlugin implements StoragePlugin, SupportsReadSignature, 
     tableExtended.setTableHash(HiveMetadataUtils.getHash(table));
     tableExtended.setPartitionHash(metadataAccumulator.getPartitionHash());
     tableExtended.setReaderType(metadataAccumulator.getReaderType());
-
-    tableExtended.addAllPartitionProperties(hivePartitionChunkListing.getPartitionProperties(tableExtended));
+    tableExtended.addAllColumnInfo(tableMetadata.getColumnInfos());
 
     tableExtended.addAllInputFormatDictionary(metadataAccumulator.buildInputFormatDictionary());
     tableExtended.addAllSerializationLibDictionary(metadataAccumulator.buildSerializationLibDictionary());

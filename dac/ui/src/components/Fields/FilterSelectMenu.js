@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ export function FilterSelectMenuItem({item, onChange, checked}) {
     <Checkbox
       onChange={() => onChange(checked, item.id)}
       label={[
-        item.icon && <FontIcon type={item.icon} theme={{ Container: { overflow: 'hidden', height: 24, width: 24 }}}/>,
+        item.icon && <FontIcon type={item.icon} key={'fi_' + item.id} theme={{ Container: { overflow: 'hidden', height: 24, width: 24 }}}/>,
         item.label
       ]}
       checked={checked}
@@ -221,7 +221,7 @@ export default class FilterSelectMenu extends PureComponent {
 }
 
 /**
- * Generates data-qa attribute for filters on Jobs page.
+ * Generates data-qa attribute for filters.
  *
  * E2e test are build in assumption that FilterSelectMenu and {@see JobsFilters} have the same shape
  * of data-qa attributes. This method is created to explicitly define that relation
@@ -239,7 +239,7 @@ const styles = {
     display: 'flex',
     flexWrap: 'wrap',
     flexDirection: 'column',
-    minWidth: 130
+    minWidth: 135
   },
   divider: {
     borderTop: '1px solid #ccc',

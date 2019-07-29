@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,17 +23,17 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public class VersionInfo {
   private final String version;
-  private final long buildtime;
+  private final long buildTime;
   private final CommitInfo commit;
 
   @JsonCreator
   public VersionInfo(
       @JsonProperty("version") String version,
-      @JsonProperty("buildtime") long buildtime,
+      @JsonProperty("buildTime") long buildTime,
       @JsonProperty("commit") CommitInfo commit) {
     super();
     this.version = version;
-    this.buildtime = buildtime;
+    this.buildTime = buildTime;
     this.commit = commit;
   }
 
@@ -41,8 +41,8 @@ public class VersionInfo {
     return version;
   }
 
-  public long getBuildtime() {
-    return buildtime;
+  public long getBuildTime() {
+    return buildTime;
   }
 
   public CommitInfo getCommit() {

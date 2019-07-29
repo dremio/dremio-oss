@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ import com.google.common.collect.Lists;
 /**
  * Registry of Dremio functions.
  */
-public class FunctionRegistry {
+public class FunctionRegistry implements PrimaryFunctionRegistry{
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionRegistry.class);
 
   private static final ImmutableMap<String, Pair<Integer, Integer>> funcToRange = ImmutableMap.<String, Pair<Integer, Integer>> builder()
@@ -72,9 +72,9 @@ public class FunctionRegistry {
       null, OperandTypes.NILADIC, null, SqlFunctionCategory.NUMERIC);
 
   // key: function name (lowercase) value: list of functions with that name
-  private final ArrayListMultimap<String, BaseFunctionHolder> registeredFunctions = ArrayListMultimap.create();
+  private final ArrayListMultimap<String, AbstractFunctionHolder> registeredFunctions = ArrayListMultimap.create();
 
-  public ArrayListMultimap<String, BaseFunctionHolder> getRegisteredFunctions() {
+  public ArrayListMultimap<String, AbstractFunctionHolder> getRegisteredFunctions() {
     return registeredFunctions;
   }
 
@@ -120,7 +120,7 @@ public class FunctionRegistry {
     }
     if (logger.isTraceEnabled()) {
       StringBuilder allFunctions = new StringBuilder();
-      for (BaseFunctionHolder method: registeredFunctions.values()) {
+      for (AbstractFunctionHolder method: registeredFunctions.values()) {
         allFunctions.append(method.toString()).append("\n");
       }
       logger.trace("Registered functions: [\n{}]", allFunctions);
@@ -134,7 +134,8 @@ public class FunctionRegistry {
   }
 
   /** Returns functions with given name. Function name is case insensitive. */
-  public List<BaseFunctionHolder> getMethods(String name) {
+  @Override
+  public List<AbstractFunctionHolder> getMethods(String name) {
     return this.registeredFunctions.get(name.toLowerCase());
   }
 
@@ -144,17 +145,18 @@ public class FunctionRegistry {
     operatorTable.add("FLATTEN", SqlFlattenOperator.INSTANCE);
     operatorTable.add("E", E_FUNCTION);
 
-    for (Entry<String, Collection<BaseFunctionHolder>> function : registeredFunctions.asMap().entrySet()) {
+    for (Entry<String, Collection<AbstractFunctionHolder>> function : registeredFunctions.asMap().entrySet()) {
       final ArrayListMultimap<Pair<Integer, Integer>, BaseFunctionHolder> functions = ArrayListMultimap.create();
       final ArrayListMultimap<Integer, BaseFunctionHolder> aggregateFunctions = ArrayListMultimap.create();
       final String name = function.getKey().toUpperCase();
       boolean isDeterministic = true;
       boolean isDynamic = false;
       FunctionSyntax syntax = FunctionSyntax.FUNCTION;
-      for (BaseFunctionHolder func : function.getValue()) {
+      for (AbstractFunctionHolder func : function.getValue()) {
+        BaseFunctionHolder functionHolder = (BaseFunctionHolder) func;
         final int paramCount = func.getParamCount();
-        if(func.isAggregating()) {
-          aggregateFunctions.put(paramCount, func);
+        if(functionHolder.isAggregating()) {
+          aggregateFunctions.put(paramCount, functionHolder);
         } else {
           final Pair<Integer, Integer> argNumberRange;
           if(funcToRange.containsKey(name)) {
@@ -162,18 +164,18 @@ public class FunctionRegistry {
           } else {
             argNumberRange = Pair.of(func.getParamCount(), func.getParamCount());
           }
-          functions.put(argNumberRange, func);
+          functions.put(argNumberRange, functionHolder);
         }
 
-        if(!func.isDeterministic()) {
+        if(!functionHolder.isDeterministic()) {
           isDeterministic = false;
         }
-        if (func.isDynamic()) {
+        if (functionHolder.isDynamic()) {
           isDynamic = true;
         }
 
         // All the functions are assumed to share the same syntax
-        syntax = func.getSyntax();
+        syntax = functionHolder.getSyntax();
       }
 
       final SqlSyntax sqlSyntax;

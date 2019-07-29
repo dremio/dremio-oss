@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@
 import { shallow } from 'enzyme';
 import { Component } from 'react';
 
-import { wrapUnsavedChangesWithForm } from './FormUnsavedRouteLeave';
+import { wrapUnsavedChangesWithWrappedForm } from './FormUnsavedRouteLeave';
 
 describe('FormUnsavedRouteLeave', () => {
 
@@ -26,31 +26,39 @@ describe('FormUnsavedRouteLeave', () => {
     }
   };
 
-  const TestComponent = wrapUnsavedChangesWithForm(MockControllerComponent);
+  const routerMock = {
+    push: sinon.spy(),
+    setRouteLeaveHook: sinon.spy(),
+    go: sinon.spy(),
+    createPath: sinon.spy(),
+    isActive: sinon.spy(),
+    goBack: sinon.spy(),
+    goForward: sinon.spy(),
+    replace: sinon.spy()
+  };
+
+  const TestComponent = wrapUnsavedChangesWithWrappedForm(MockControllerComponent);
+
   let minimalProps;
-  let context;
   beforeEach(() => {
-    context = {
-      router: {
-        push: sinon.spy(),
-        setRouteLeaveHook: sinon.spy()
-      }
-    };
     minimalProps = {
       route: {},
+      routes: [],
+      router: routerMock,
       showUnsavedChangesConfirmDialog: sinon.spy()
     };
   });
 
   it('should render with minimal props without exploding', () => {
-    const wrapper = shallow(<TestComponent {...minimalProps}/>, {context});
+    const wrapper = shallow(<TestComponent {...minimalProps}/>);
     expect(wrapper).to.have.length(1);
   });
 
   describe('#updateFormDirtyState', () => {
 
     it('should set state', () => {
-      const instance = shallow(<TestComponent {...minimalProps}/>, {context}).instance();
+      const instance = shallow(<TestComponent {...minimalProps}/>).instance();
+
       instance.updateFormDirtyState(true);
       expect(instance.state.isFormDirty).to.be.true;
     });
@@ -60,7 +68,7 @@ describe('FormUnsavedRouteLeave', () => {
     let instance;
 
     beforeEach(() => {
-      instance = shallow(<TestComponent {...minimalProps}/>, {context}).instance();
+      instance = shallow(<TestComponent {...minimalProps}/>).instance();
     });
 
     it('should return true when form not dirty', () => {
@@ -91,7 +99,7 @@ describe('FormUnsavedRouteLeave', () => {
 
     beforeEach(() => {
       clock = sinon.useFakeTimers();
-      instance = shallow(<TestComponent {...minimalProps}/>, {context}).instance();
+      instance = shallow(<TestComponent {...minimalProps}/>).instance();
     });
 
     afterEach(() => {
@@ -104,15 +112,16 @@ describe('FormUnsavedRouteLeave', () => {
     });
 
     it('should call router.push when modal confirmed', () => {
+      minimalProps.router.push = sinon.spy(); // get fresh mock
       instance.leaveConfirmed();
       clock.tick(0);
-      expect(context.router.push).to.be.calledOnce;
+      expect(minimalProps.router.push).to.be.calledOnce;
     });
   });
 
   describe('#setChildDirtyState', () => {
     it('should update overall form state as pristine when all child forms are pristine', () => {
-      const instance = shallow(<TestComponent {...minimalProps} />, {context}).instance();
+      const instance = shallow(<TestComponent {...minimalProps} />).instance();
       sinon.spy(instance, 'updateFormDirtyState');
       instance.setChildDirtyState('form1')(false);
       instance.setChildDirtyState('form2')(false);
@@ -122,7 +131,7 @@ describe('FormUnsavedRouteLeave', () => {
     });
 
     it('should update overall form state as dirty when some child form is dirty', () => {
-      const instance = shallow(<TestComponent {...minimalProps} />, {context}).instance();
+      const instance = shallow(<TestComponent {...minimalProps} />).instance();
       sinon.spy(instance, 'updateFormDirtyState');
       instance.setChildDirtyState('form1')(true);
       instance.setChildDirtyState('form2')(false);

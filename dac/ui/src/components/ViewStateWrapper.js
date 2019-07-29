@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@ export class ViewStateWrapper extends Component {
     dismissViewStateError: PropTypes.func,
     onDismissError: PropTypes.func,
     messageIsDismissable: PropTypes.bool,
+    multilineErrorMessage: PropTypes.bool,
     className: PropTypes.string,
     // is used only for ExploreTable to not bock column headers on loading
     overlayStyle: PropTypes.object,
@@ -130,7 +131,8 @@ export class ViewStateWrapper extends Component {
       onDismissError,
       messageStyle,
       overlayStyle,
-      dataQa
+      dataQa,
+      multilineErrorMessage
     } = this.props;
     const resultOverlayStyle = { ...overlay, ...overlayStyle };
     const commonProps = {
@@ -164,6 +166,7 @@ export class ViewStateWrapper extends Component {
         messageId={viewState.getIn(['error', 'id'])}
         message={message}
         messageType={messageType}
+        multilineMessage={multilineErrorMessage}
         isDismissable={this.props.messageIsDismissable}
         inFlow={hideChildrenWhenFailed}
         style={messageStyle}

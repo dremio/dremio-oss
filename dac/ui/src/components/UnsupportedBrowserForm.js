@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ export default class UnsupportedBrowserForm extends Component {
   }
   render() {
     return (
-      <div style={[this.props.style, styles.base]}>
+      <div className='page' style={[this.props.style, styles.base]}>
         <div style={styles.form}>
           <LoginTitle subTitle={this.renderWarning()} />
           <Button

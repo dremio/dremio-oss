@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,29 +17,15 @@ package com.dremio.resource;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.google.common.collect.Lists;
-
 
 /**
  * To return allocated resources
  */
 public interface ResourceSet extends Closeable {
-
   /**
-   * Returns list of ResourceAllocation
-   * @return List<ResourceAllocation>
+   * Returns the per-node memory limit for the query
    */
-  List<ResourceAllocation> getResourceAllocations();
-
-  /**
-   * Re/Assign Major Fragment IDs based on final nodes distribution
-   * @param majorToEndpoinsMap - distribution of NodeEndPoints per MajorFragment
-   */
-  void reassignMajorFragments(Map<Integer, Map<NodeEndpoint, Integer>> majorToEndpoinsMap);
+  long getPerNodeQueryMemoryLimit();
 
   @Override
   /**
@@ -52,15 +38,9 @@ public interface ResourceSet extends Closeable {
    * NoOp Implementation if needed to operations that don't deal with resource allocations
    */
   class ResourceSetNoOp implements ResourceSet {
-
     @Override
-    public List<ResourceAllocation> getResourceAllocations() {
-      return Lists.newArrayList();
-    }
-
-    @Override
-    public void reassignMajorFragments(Map<Integer, Map<NodeEndpoint, Integer>> majorToEndpoinsMap) {
-
+    public long getPerNodeQueryMemoryLimit() {
+      return Long.MAX_VALUE;
     }
 
     @Override

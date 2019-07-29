@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,16 +19,16 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
-import com.dremio.exec.physical.base.PhysicalOperator;
+import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpointList;
-import com.dremio.exec.proto.CoordExecRPC.MinorSpecificAttr;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfoList;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 
@@ -40,87 +40,70 @@ import com.google.protobuf.MessageLite;
  */
 public class MinorDataWriter {
   private final FragmentHandle handle;
-  private final PlanFragmentsIndex.Builder indexBuilder;
+  private final SharedAttrsIndex.Builder sharedAttrsBuilder;
   private final MinorDataSerDe serDe;
-  private final List<MinorSpecificAttr> attrList = new ArrayList<>();
+  private final List<MinorAttr> attrList = new ArrayList<>();
   private final Set<String> keySet = new HashSet<>();
 
   public MinorDataWriter(
     FragmentHandle handle,
+    NodeEndpoint endpoint,
     MinorDataSerDe serDe,
     PlanFragmentsIndex.Builder indexBuilder) {
 
     this.handle = handle;
     this.serDe = serDe;
-    this.indexBuilder = indexBuilder;
+    this.sharedAttrsBuilder = indexBuilder.getSharedAttrsIndexBuilder(endpoint);
   }
 
-  public List<MinorSpecificAttr> getAttrList() {
+  public List<MinorAttr> getAllAttrs() {
     return attrList;
   }
 
   /*
    * Add a new (key, value) pair. The key consists of the operatorId and an arbitrary string.
    */
-  private void addEntry(PhysicalOperator op, String key, ByteString value) {
-    int operatorId = op.getProps().getLocalOperatorId();
+  private void addEntry(OpProps props, String key, ByteString value) {
+    int operatorId = props.getOperatorId();
 
-    assert !keySet.contains(operatorId + key) :
-      "duplicate attribute operatorId " + operatorId + " key " + key + " in fragment " + handle;
+    Preconditions.checkState(!keySet.contains(operatorId + key),
+      "duplicate attribute operatorId " + operatorId + " key " + key + " in fragment " + handle);
     keySet.add(operatorId + key);
 
-    attrList.add(MinorSpecificAttr.newBuilder()
+    attrList.add(MinorAttr.newBuilder()
       .setName(key)
       .setValue(value)
-      .setOperatorId(op.getProps().getLocalOperatorId())
+      .setOperatorId(operatorId)
       .build());
   }
 
-  /*
-   * serialize split info as protobuf and save as kv pair.
-   */
-  public void writeSplits(PhysicalOperator op, String key, List<SplitInfo> splits) {
-    // Trim the splits to eliminate the attributes that are not required by executors.
-    List<SplitInfo> trimmed =
-      splits
-        .stream()
-        .map(x -> SplitInfo.newBuilder(x).clearAffinities().build())
-        .collect(Collectors.toList());
-
-    SplitInfoList list =
-      SplitInfoList.newBuilder()
-        .addAllSplits(trimmed)
-        .build();
-
-    addEntry(op, key, serDe.serialize(list));
+  public void writeMinorFragmentIndexEndpoint(OpProps props, String key, MinorFragmentIndexEndpoint endpoint) {
+    addEntry(props, key, serDe.serialize(endpoint));
   }
 
-  public void writeMinorFragmentIndexEndpoint(PhysicalOperator op, String key, MinorFragmentIndexEndpoint endpoint) {
-    addEntry(op, key, serDe.serialize(endpoint));
-  }
-
-  public void writeMinorFragmentIndexEndpoints(PhysicalOperator op, String key, List<MinorFragmentIndexEndpoint> endpoints) {
+  public void writeMinorFragmentIndexEndpoints(OpProps props, String key, List<MinorFragmentIndexEndpoint> endpoints) {
     MinorFragmentIndexEndpointList indexEndpointList =
       MinorFragmentIndexEndpointList
         .newBuilder()
         .addAllFrags(endpoints)
         .build();
 
-    addEntry(op, key, serDe.serialize(indexEndpointList));
+    addEntry(props, key, serDe.serialize(indexEndpointList));
   }
 
-  /*
-   * Serialize protobuf message, and save as a kv pair.
-   */
-  public void writeProtoEntry(PhysicalOperator op, String key, MessageLite msg) {
-    addEntry(op, key, serDe.serialize(msg));
+  // Serialize protobuf message, and save as a kv pair.
+  public void writeProtoEntry(OpProps props, String key, MessageLite msg) {
+    addEntry(props, key, serDe.serialize(msg));
   }
 
-  /*
-   * Serialize pojo to compressed json, and save as kv pair.
-   */
-  public void writeJsonEntry(PhysicalOperator op, String key, Object object) throws JsonProcessingException {
-   addEntry(op, key, serDe.serializeObjectToJson(object));
+  // Serialize pojo to compressed json, and save as kv pair.
+  public void writeJsonEntry(OpProps props, String key, Object object) throws JsonProcessingException {
+   addEntry(props, key, serDe.serializeObjectToJson(object));
+  }
+
+  // Serialize split partition, and save as a kv pair in the shared attributes index.
+  public void writeSplitPartition(OpProps props, String key, NormalizedPartitionInfo partitionInfo) {
+    sharedAttrsBuilder.addAttr(props, key, () -> serDe.serialize(partitionInfo));
   }
 
 }

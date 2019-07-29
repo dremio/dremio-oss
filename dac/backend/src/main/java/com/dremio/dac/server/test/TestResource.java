@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 package com.dremio.dac.server.test;
 
 import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
+import static com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
+import static java.lang.String.format;
 import static javax.ws.rs.core.MediaType.TEXT_HTML;
 
 import java.io.IOException;
@@ -24,11 +26,15 @@ import java.nio.file.Paths;
 
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
@@ -49,6 +55,8 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.InitializerRegistry;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -169,5 +177,25 @@ public class TestResource {
     }
 
     return Response.serverError().build();
+  }
+
+  @GET
+  @Path("/get_plan/{queryid}")
+  public String getExecutorSelectionParams(@PathParam("queryid") String queryId,
+                                           @QueryParam("attempt") @DefaultValue("0") int attempt,
+                                           @QueryParam("planphase") String planPhase) {
+    final QueryProfile profile;
+    try {
+      profile = jobsService.getProfile(new JobId(queryId), attempt);
+    } catch (JobNotFoundException ignored) {
+      // TODO: should this be JobResourceNotFoundException?
+      throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
+    }
+    for (PlanPhaseProfile planPhaseProfile : profile.getPlanPhasesList()) {
+      if (planPhase.equals(planPhaseProfile.getPhaseName())) {
+        return planPhaseProfile.getPlan();
+      }
+    }
+    return "Not Found";
   }
 }

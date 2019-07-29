@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!--
 
-    Copyright (C) 2017-2018 Dremio Corporation
+    Copyright (C) 2017-2019 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.provision</groupId>
     <artifactId>dremio-yarn-parent</artifactId>
-    <version>3.2.8-201907180222520740-08f2b54</version>
+    <version>3.3.1-201907291852280797-df23756</version>
   </parent>
 
   <groupId>com.dremio.provision</groupId>
@@ -65,10 +65,6 @@
         </exclusion>
         <exclusion>
           <groupId>org.jboss.netty</groupId>
-          <artifactId>netty</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
           <artifactId>netty</artifactId>
         </exclusion>
         <exclusion>
@@ -203,11 +199,7 @@
           <groupId>commons-logging</groupId>
         </exclusion>
         <exclusion>
-          <artifactId>hadoop-yarn-client</artifactId>
-          <groupId>org.apache.hadoop</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>hadoop-yarn-common</artifactId>
+          <artifactId>*</artifactId>
           <groupId>org.apache.hadoop</groupId>
         </exclusion>
       </exclusions>
@@ -231,10 +223,6 @@
         </exclusion>
         <exclusion>
           <groupId>org.jboss.netty</groupId>
-          <artifactId>netty</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
           <artifactId>netty</artifactId>
         </exclusion>
         <exclusion>
@@ -323,6 +311,7 @@
                   <include>org.apache.twill:twill-zookeeper</include>
                   <include>org.apache.twill:twill-ext</include>
                   <include>com.google.guava:*</include>
+                  <include>io.netty:netty</include>
                 </includes> 
               </artifactSet> 
               <createDependencyReducedPom>false</createDependencyReducedPom>
@@ -336,6 +325,10 @@
                 <relocation>
                   <pattern>com.google.thirdparty</pattern>
                   <shadedPattern>twill.com.google.thirdparty</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.jboss.netty</pattern>
+                  <shadedPattern>twill.org.jboss.netty</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,17 +18,18 @@ import Radium from 'radium';
 
 import PropTypes from 'prop-types';
 
-import { FormBody } from 'components/Forms';
 import { FieldWithError, TextField, PasswordField } from 'components/Fields';
 import { applyValidators, isRequired, confirmPassword, isEmail } from 'utils/validation';
 import { formRow } from 'uiTheme/radium/forms';
 
-const FIELDS = ['firstName', 'lastName', 'userName', 'email', 'password', 'passwordVerify', 'version'];
+//export for testing only
+export const FIELDS = ['firstName', 'lastName', 'userName', 'email', 'password', 'passwordVerify', 'tag'];
 
 @Radium
 export default class UserForm extends Component { // todo: rename, make proper "Section", since this is not a full "Form"
   static propTypes = {
     fields: PropTypes.object.isRequired,
+    className: PropTypes.string,
     style: PropTypes.object,
     passwordHolderStyles: PropTypes.object,
     isReadMode: PropTypes.bool
@@ -40,18 +41,35 @@ export default class UserForm extends Component { // todo: rename, make proper "
     isReadMode: false
   }
 
+  //#region connectComplexForm.Sections region
+
+  static getFields = () => FIELDS;
+  static validate = (values) => { // todo: loc
+    const validators = [
+      isRequired('firstName', 'First Name'), isRequired('lastName', 'Last Name'),
+      isRequired('userName', 'Username'), isEmail('email'), isRequired('email')
+    ];
+    if (values.tag === undefined) { // only require password for a new user
+      validators.push(isRequired('password'), isRequired('passwordVerify', la('Confirm Password')));
+    }
+    validators.push(confirmPassword('password', 'passwordVerify'));
+    return applyValidators(values, validators);
+  };
+
+  //#endregion
+
   getIsEdit() {
-    const version = this.props.fields.version.value;
+    const version = this.props.fields.tag.value;
     // fields.version.value holds empty string even when it should hold undefined.
     // this might be from this https://github.com/erikras/redux-form/issues/621
     return version !== undefined && version !== '';
   }
 
   render() {
-    const { fields, style, passwordHolderStyles, isReadMode } = this.props;
+    const { fields, style, passwordHolderStyles, isReadMode, className } = this.props;
 
     return (
-      <FormBody style={style}>
+      <div style={style} className={className}>
         <div style={styles.formRow}>
           <FieldWithError
             label={la('First Name')} errorPlacement='top' labelStyle={styles.label} {...fields.firstName}
@@ -95,7 +113,7 @@ export default class UserForm extends Component { // todo: rename, make proper "
             </div>
           </div>
         }
-      </FormBody>
+      </div>
     );
   }
 }
@@ -118,17 +136,3 @@ const styles = {
     margin: '0 10px 0 0'
   }
 };
-
-export const userFormValidate = (values) => { // todo: loc
-  const validators = [
-    isRequired('firstName', 'First Name'), isRequired('lastName', 'Last Name'),
-    isRequired('userName', 'Username'), isEmail('email'), isRequired('email')
-  ];
-  if (values.version === undefined) { // only require password for a new user
-    validators.push(isRequired('password'), isRequired('passwordVerify', la('Confirm Password')));
-  }
-  validators.push(confirmPassword('password', 'passwordVerify'));
-  return applyValidators(values, validators);
-};
-
-export const userFormFields = FIELDS;

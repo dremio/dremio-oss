@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,10 +37,21 @@ public class CodeGenerationContextAnnotator extends AbstractExprVisitor<CodeGenC
     value) {
     List<LogicalExpression> newArgs = Lists.newArrayList();
     for (LogicalExpression arg : expr.args) {
-      newArgs.add(arg.accept(this, value));
+      CodeGenContext newArg = arg.accept(this, value);
+      newArgs.add(newArg);
     }
     LogicalExpression result = expr.copy(newArgs);
     CodeGenContext contextExpr = new CodeGenContext(result);
+    for (LogicalExpression arg : ((FunctionHolderExpression) result).args) {
+      CodeGenContext context = (CodeGenContext) arg;
+      // if expression and arg are not the same execution engine type then
+      // we have mixed mode engine, remove sub expression support to indicate that.
+      if (!context.getExecutionEngineForSubExpression().supportedEngines.equals(contextExpr
+        .getExecutionEngineForSubExpression().supportedEngines)) {
+        contextExpr.markSubExprIsMixed();
+        return contextExpr;
+      }
+    }
     return contextExpr;
   }
 
@@ -51,7 +62,18 @@ public class CodeGenerationContextAnnotator extends AbstractExprVisitor<CodeGenC
       newArgs.add(arg.accept(this, value));
     }
     LogicalExpression result = new BooleanOperator(operator.getName(), newArgs);
-    return new CodeGenContext(result);
+    CodeGenContext boolExpr = new CodeGenContext(result);
+    for (LogicalExpression arg : ((BooleanOperator) result).args) {
+      CodeGenContext context = (CodeGenContext) arg;
+      // if expression and arg are not the same execution engine type then
+      // we have mixed mode engine, remove sub expression support to indicate that.
+      if (!context.getExecutionEngineForSubExpression().supportedEngines.equals(boolExpr
+        .getExecutionEngineForSubExpression().supportedEngines)) {
+        boolExpr.markSubExprIsMixed();
+        return boolExpr;
+      }
+    }
+    return boolExpr;
   }
 
   @Override
@@ -64,7 +86,12 @@ public class CodeGenerationContextAnnotator extends AbstractExprVisitor<CodeGenC
       thenExpression);
     IfExpression result = IfExpression.newBuilder().setIfCondition(newCondition).setElse
       (elseExpression).build();
-    return new CodeGenContext(result);
+    CodeGenContext ifExpr = new CodeGenContext(result);
+    if (((CodeGenContext) conditionExpression).isMixedModeExecution() || ((CodeGenContext)
+      thenExpression).isMixedModeExecution() || ((CodeGenContext) elseExpression).isMixedModeExecution()) {
+      ifExpr.markSubExprIsMixed();
+    }
+    return ifExpr;
   }
 
   @Override

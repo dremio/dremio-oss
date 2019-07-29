@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package com.dremio.sabot.op.llvm.expr;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.arrow.gandiva.evaluator.ExpressionRegistry;
 import org.apache.arrow.gandiva.evaluator.FunctionSignature;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -47,9 +46,12 @@ import com.dremio.exec.expr.ExpressionSplitHelper;
 import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.expr.fn.GandivaFunctionHolder;
+import com.dremio.exec.expr.fn.GandivaRegistryWrapper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.TypedFieldId;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 /**
  * Annotates the expression in case the expression can be evaluated in native code.
@@ -60,6 +62,25 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
 
   private static final List<String> supportedBooleanOperators = Lists.newArrayList("booleanAnd",
     "booleanOr");
+
+  private final boolean isDecimalV2Enabled;
+  private Set<FunctionSignature> supportedFunctions = null;
+
+  static final Set<FunctionSignature> functionsToHide = Sets.newHashSet();
+
+  @VisibleForTesting
+  static void addFunctionToHide(FunctionSignature signature) {
+    functionsToHide.add(signature);
+  }
+
+  @VisibleForTesting
+  static void removeFunctionToHide(FunctionSignature signature) {
+    functionsToHide.remove(signature);
+  }
+
+  public GandivaPushdownSieve(boolean isDecimalV2Enabled) {
+    this.isDecimalV2Enabled = isDecimalV2Enabled;
+  }
 
   public CodeGenContext annotateExpression(BatchSchema batchSchema, CodeGenContext contextExpr) {
     try {
@@ -191,12 +212,15 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
 
   @Override
   public CodeGenContext visitFunctionHolderExpression(FunctionHolderExpression holder, CodeGenContext context) throws GandivaException {
-    // ignore hive functions.
     // will be removed once we integrate into dremio fn repository.
-    if (holder.getHolder() == null || ( !(holder.getHolder() instanceof BaseFunctionHolder) &&
-        !(holder.getHolder() instanceof GandivaFunctionHolder))) {
+    if (holder.getHolder() == null) {
       // No need to walk down the tree to annotate
       return context;
+    }
+
+    if (!(holder.getHolder() instanceof BaseFunctionHolder) &&
+        !(holder.getHolder() instanceof GandivaFunctionHolder)) {
+      context.addSupportedExecutionEngineForExpression(SupportedEngines.Engine.JAVA);
     }
 
     boolean allArgTreesSupported = gandivaSupportsAllSubExprs(holder.args);
@@ -233,16 +257,29 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
   }
 
   private boolean isFunctionSupported(FunctionHolderExpression holder, CompleteType completeType) throws GandivaException {
-    Set<FunctionSignature> supportedFunctions = ExpressionRegistry.getInstance()
-      .getSupportedFunctions();
+    if (this.supportedFunctions == null) {
+      GandivaRegistryWrapper instance = GandivaRegistryWrapper.getInstance();
+      this.supportedFunctions = isDecimalV2Enabled ? instance
+        .getSupportedFunctionsIncludingDecimal() : instance.getSupportedFunctionsExcludingDecimal();
+      if (!functionsToHide.isEmpty()) {
+        // test code adds/hides functions
+        // need to make a copy so that we dont modify the original list of Gandiva Functions
+        Set<FunctionSignature> supportedFnsClone = Sets.newHashSet();
+        supportedFnsClone.addAll(this.supportedFunctions);
+        supportedFnsClone.removeAll(functionsToHide);
+        this.supportedFunctions = supportedFnsClone;
+      }
+    }
+
     String name = holder.getName();
     ArrowType returnType = completeType.getType();
     List<ArrowType> argTypes = Lists.newArrayList();
     convertArgsToArrowType(holder, argTypes);
     returnType = generifyDecimalType(returnType);
     FunctionSignature functionSignature = new FunctionSignature(name, returnType, argTypes);
+
     if (!supportedFunctions.contains(functionSignature) || !isSpecificFuntionSupported(holder)) {
-      logger.info("function signature not supported in gandiva : " + functionSignature);
+      logger.debug("function signature not supported in gandiva : " + functionSignature);
       return false;
     }
     return true;
@@ -255,7 +292,7 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
    */
   private ArrowType generifyDecimalType(ArrowType returnType) {
     if (returnType.getTypeID() == ArrowType.ArrowTypeID.Decimal) {
-      returnType = new ArrowType.Decimal(1,0);
+      returnType = new ArrowType.Decimal(0,0);
     }
     return returnType;
   }
@@ -411,13 +448,13 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
   }
 
   private boolean isSupportedType(CompleteType type) throws GandivaException {
-    final Set<ArrowType> supportedTypes = ExpressionRegistry.getInstance().getSupportedTypes();
+    final Set<ArrowType> supportedTypes = GandivaRegistryWrapper.getInstance().getSupportedTypes();
     ArrowType argType = type.getType();
     argType = generifyDecimalType(argType);
     return supportedTypes.contains(argType);
   }
 
   private boolean isSupportedReturnType(CompleteType type) throws GandivaException {
-    return isSupportedType(type) && type.isFixedWidthScalar();
+    return isSupportedType(type) && type.isScalar();
   }
 }

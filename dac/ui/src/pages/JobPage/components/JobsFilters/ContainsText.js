@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ export default class ContainsText extends Component {
   static propTypes = {
     onEnterText: PropTypes.func.isRequired,
     defaultValue: PropTypes.string,
+    placeholderId: PropTypes.string,
     intl: PropTypes.object.isRequired
   };
 
@@ -50,13 +51,16 @@ export default class ContainsText extends Component {
   }
 
   render() {
+    const { defaultValue, intl, placeholderId = 'Job.ContainsText' } = this.props;
+    const placeholderText = intl.formatMessage({ id: placeholderId });
+
     return (
       <div className='contains-text'>
         <input
           className='form-placeholder'
-          defaultValue={this.props.defaultValue}
+          defaultValue={defaultValue}
           type='text'
-          placeholder={this.props.intl.formatMessage({ id: 'Job.ContainsText' })}
+          placeholder={placeholderText}
           style={styles.searchInput}
           onInput={this.handleContainsEnterText.bind(this)}/>
       </div>

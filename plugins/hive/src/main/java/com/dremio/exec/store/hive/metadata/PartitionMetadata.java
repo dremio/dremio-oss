@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.Objects;
 import org.apache.hadoop.hive.metastore.api.Partition;
 
 import com.dremio.connector.metadata.PartitionValue;
+import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
 
 /**
  * Helper class to hold elements needed to construct Dremio PartitionChunk objects. There is one for
@@ -35,14 +36,18 @@ public class PartitionMetadata {
   private final Partition partition;
   private final List<PartitionValue> partitionValues;
   private final InputSplitBatchIterator inputSplitBatchIterator;
-  private final DatasetSplitBuildConf buildDatasetSplitConf;
+  private final DatasetSplitBuildConf datasetSplitBuildConf;
+  private final PartitionXattr partitionXattr;
 
-  private PartitionMetadata(final int partitionId, final Partition partition, List<PartitionValue> partitionValues, InputSplitBatchIterator inputSplitBatchIterator, DatasetSplitBuildConf buildDatasetSplitConf) {
+  private PartitionMetadata(final int partitionId, final Partition partition, List<PartitionValue> partitionValues,
+                            InputSplitBatchIterator inputSplitBatchIterator, DatasetSplitBuildConf datasetSplitBuildConf,
+                            PartitionXattr partitionXattr) {
     this.partitionId = partitionId;
     this.partition = partition;
     this.partitionValues = Collections.unmodifiableList(partitionValues);
     this.inputSplitBatchIterator = inputSplitBatchIterator;
-    this.buildDatasetSplitConf = buildDatasetSplitConf;
+    this.datasetSplitBuildConf = datasetSplitBuildConf;
+    this.partitionXattr = partitionXattr;
   }
 
   public int getPartitionId() {
@@ -62,7 +67,11 @@ public class PartitionMetadata {
   }
 
   public DatasetSplitBuildConf getDatasetSplitBuildConf() {
-    return buildDatasetSplitConf;
+    return datasetSplitBuildConf;
+  }
+
+  public PartitionXattr getPartitionXattr() {
+    return partitionXattr;
   }
 
   public static Builder newBuilder() {
@@ -75,6 +84,7 @@ public class PartitionMetadata {
     private List<PartitionValue> partitionValues;
     private InputSplitBatchIterator inputSplitBatchIterator;
     private DatasetSplitBuildConf datasetSplitBuildConf;
+    private PartitionXattr partitionXattr;
 
     private Builder() {
     }
@@ -104,13 +114,17 @@ public class PartitionMetadata {
       return this;
     }
 
-    public PartitionMetadata build() {
+    public Builder partitionXattr(PartitionXattr partitionXattr) {
+      this.partitionXattr = partitionXattr;
+      return this;
+    }
 
+    public PartitionMetadata build() {
       Objects.requireNonNull(partitionId, "partition id is required");
       Objects.requireNonNull(inputSplitBatchIterator, "input split batch iterator is required");
       Objects.requireNonNull(partitionValues, "partition values is required");
 
-      return new PartitionMetadata(partitionId, partition, partitionValues, inputSplitBatchIterator, datasetSplitBuildConf);
+      return new PartitionMetadata(partitionId, partition, partitionValues, inputSplitBatchIterator, datasetSplitBuildConf, partitionXattr);
     }
   }
 }

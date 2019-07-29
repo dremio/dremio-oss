@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 import { push } from 'react-router-redux';
 
 import { API_URL_V2 } from 'constants/Api';
@@ -28,7 +28,7 @@ function fetchLoadProvisioning(provisionType, viewId) {
   const meta = {provisionType, viewId};
   const typeQuery = provisionType ? `?type=${provisionType}` : '';
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: LOAD_PROVISIONING_START, meta},
         {type: LOAD_PROVISIONING_SUCCESS, meta: {...meta, entityClears: ['provision']}},
@@ -53,7 +53,7 @@ export const UPDATE_WORKERS_SIZE_FAILURE = 'UPDATE_WORKERS_SIZE_FAILURE';
 function fetchUpdateWorkersSize(form, provisionId, viewId) {
   const meta = {viewId};
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: UPDATE_WORKERS_SIZE_START, meta},
         schemaUtils.getSuccessActionTypeWithSchema(UPDATE_WORKERS_SIZE_SUCCESS, provisionSchema, meta),
@@ -80,7 +80,7 @@ export const REMOVE_PROVISION_FAILURE = 'REMOVE_PROVISION_FAILURE';
 function fetchRemoveProvision(provisionId, viewId) {
   const meta = {provisionId, viewId};
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: REMOVE_PROVISION_START, meta},
         {type: REMOVE_PROVISION_SUCCESS, meta},
@@ -106,7 +106,7 @@ export const CREATE_PROVISION_FAILURE = 'CREATE_PROVISION_FAILURE';
 function fetchCreateProvision(form, viewId) {
   const meta = {viewId};
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: CREATE_PROVISION_START, meta},
         schemaUtils.getSuccessActionTypeWithSchema(CREATE_PROVISION_SUCCESS, provisionSchema, meta),
@@ -133,7 +133,7 @@ export const EDIT_PROVISION_FAILURE = 'EDIT_PROVISION_FAILURE';
 function fetchEditProvision(data, viewId) {
   const meta = {viewId};
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: EDIT_PROVISION_START, meta},
         schemaUtils.getSuccessActionTypeWithSchema(EDIT_PROVISION_SUCCESS, provisionSchema, meta),

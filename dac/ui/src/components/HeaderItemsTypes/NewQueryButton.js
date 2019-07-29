@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,7 +64,7 @@ export class NewQueryButton extends Component {
 
   handleClick = (e) => {
     const { location, currentSql, intl } = this.props;
-    if (e.metaKey) { // DX-10607 pass to default link behaviour, when cmd is pressed on click
+    if (e.metaKey || e.ctrlKey) { // DX-10607, DX-11299 pass to default link behaviour, when cmd/ctrl is pressed on click
       return;
     }
     if (location.pathname === '/new_query') {

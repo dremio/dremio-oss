@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,24 +24,19 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.parquet.hadoop.util.HadoopStreams;
-import org.apache.parquet.io.SeekableInputStream;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.EmptyRecordReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.ScanFilter;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.HiveUtilities;
-import com.dremio.exec.store.parquet.BulkInputStream;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
-import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
@@ -50,7 +45,6 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
@@ -69,7 +63,7 @@ class ScanWithDremioReader {
       final FragmentExecutionContext fragmentExecContext,
       final OperatorContext context,
       final HiveSubScan config,
-      final HiveTableXattr tableAttr,
+      final HiveTableXattr tableXattr,
       final CompositeReaderConfig compositeReader,
       final UserGroupInformation readerUGI) {
     final JobConf jobConf = new JobConf(hiveConf);
@@ -88,7 +82,7 @@ class ScanWithDremioReader {
       final UserGroupInformation currentUGI = UserGroupInformation.getCurrentUser();
       final List<HiveParquetSplit> sortedSplits = Lists.newArrayList();
 
-      for (SplitInfo split : config.getSplits()) {
+      for (SplitAndPartitionInfo split : config.getSplits()) {
         sortedSplits.add(new HiveParquetSplit(split));
       }
       Collections.sort(sortedSplits);
@@ -104,11 +98,23 @@ class ScanWithDremioReader {
       readers = FluentIterable.from(sortedSplits).transform(new Function<HiveParquetSplit, RecordReader>(){
 
         @Override
-        public RecordReader apply(final HiveParquetSplit split) {
+        public RecordReader apply(final HiveParquetSplit hiveParquetSplit) {
           return currentUGI.doAs(new PrivilegedAction<RecordReader>() {
             @Override
             public RecordReader run() {
-              for (Prop prop : HiveReaderProtoUtil.getPartitionProperties(tableAttr, split.getPartitionId())) {
+
+              final List<Prop> partitionProperties;
+              // If Partition Properties are stored in DatasetMetadata (Pre 3.2.0)
+              if (HiveReaderProtoUtil.isPreDremioVersion3dot2dot0LegacyFormat(tableXattr)) {
+                logger.debug("Reading partition properties from DatasetMetadata");
+                partitionProperties = HiveReaderProtoUtil.getPartitionProperties(tableXattr, hiveParquetSplit.getPartitionId());
+              } else {
+                logger.debug("Reading partition properties from PartitionChunk");
+                partitionProperties = HiveReaderProtoUtil.getPartitionProperties(tableXattr,
+                  HiveReaderProtoUtil.getPartitionXattr(hiveParquetSplit.getDatasetSplit()));
+              }
+
+              for (Prop prop: partitionProperties) {
                 jobConf.set(prop.getKey(), prop.getValue());
               }
 
@@ -118,14 +124,14 @@ class ScanWithDremioReader {
                   config.getFullSchema(),
                   compositeReader.getInnerColumns(),
                   conditions,
-                  split.getFileSplit(),
+                  hiveParquetSplit.getFileSplit(),
                   jobConf,
                   config.getReferencedTables(),
                   vectorize,
                   config.getFullSchema(),
                   enableDetailedTracing
               );
-              return compositeReader.wrapIfNecessary(context.getAllocator(), innerReader, split.getDatasetSplit());
+              return compositeReader.wrapIfNecessary(context.getAllocator(), innerReader, hiveParquetSplit.getDatasetSplit());
             }
           });
 
@@ -142,20 +148,20 @@ class ScanWithDremioReader {
   }
 
   private static class HiveParquetSplit implements Comparable {
-    private final SplitInfo datasetSplit;
+    private final SplitAndPartitionInfo datasetSplit;
     private final FileSplit fileSplit;
     private final int partitionId;
 
-    HiveParquetSplit(SplitInfo datasetSplit) {
-      this.datasetSplit = datasetSplit;
+    HiveParquetSplit(SplitAndPartitionInfo splitAndPartitionInfo) {
+      this.datasetSplit = splitAndPartitionInfo;
       try {
-        final HiveSplitXattr splitAttr = HiveSplitXattr.parseFrom(datasetSplit.getSplitExtendedProperty());
+        final HiveSplitXattr splitAttr = HiveSplitXattr.parseFrom(datasetSplit.getDatasetSplitInfo().getExtendedProperty());
         final FileSplit fullFileSplit = (FileSplit) HiveUtilities.deserializeInputSplit(splitAttr.getInputSplit());
         // make a copy of file split, we only need file path, start and length, throw away hosts
         this.fileSplit = new FileSplit(fullFileSplit.getPath(), fullFileSplit.getStart(), fullFileSplit.getLength(), (String[])null);
         this.partitionId = splitAttr.getPartitionId();
       } catch (IOException | ReflectiveOperationException e) {
-        throw new RuntimeException("Failed to parse dataset split for " + datasetSplit.getSplitKey(), e);
+        throw new RuntimeException("Failed to parse dataset split for " + datasetSplit.getPartitionInfo().getSplitKey(), e);
       }
     }
 
@@ -163,7 +169,7 @@ class ScanWithDremioReader {
       return partitionId;
     }
 
-    SplitInfo getDatasetSplit() {
+    SplitAndPartitionInfo getDatasetSplit() {
       return datasetSplit;
     }
 

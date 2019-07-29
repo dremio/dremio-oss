@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.physical.config;
 
+import java.util.Collection;
 import java.util.List;
 
+import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.physical.base.AbstractExchange;
 import com.dremio.exec.physical.base.OpProps;
@@ -29,6 +31,7 @@ import com.dremio.exec.planner.fragment.ParallelizationInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 
 public class UnionExchange extends AbstractExchange{
 
@@ -42,11 +45,19 @@ public class UnionExchange extends AbstractExchange{
   }
 
   @Override
-  public ParallelizationInfo getReceiverParallelizationInfo(List<NodeEndpoint> senderFragmentEndpoints) {
-    Preconditions.checkArgument(senderFragmentEndpoints != null && senderFragmentEndpoints.size() > 0,
+  public ParallelizationInfo.WidthConstraint getReceiverParallelizationWidthConstraint() {
+    return ParallelizationInfo.WidthConstraint.SINGLE;
+  }
+
+  @Override
+  public Supplier<Collection<EndpointAffinity>> getReceiverEndpointAffinity(Supplier<Collection<NodeEndpoint>> senderFragmentEndpointsSupplier) {
+    return () -> {
+      Collection<NodeEndpoint> senderFragmentEndpoints = senderFragmentEndpointsSupplier.get();
+      Preconditions.checkArgument(senderFragmentEndpoints != null && senderFragmentEndpoints.size() > 0,
         "Sender fragment endpoint list should not be empty");
 
-    return ParallelizationInfo.create(1, 1, getDefaultAffinityMap(senderFragmentEndpoints));
+      return getDefaultAffinityMap(senderFragmentEndpoints);
+    };
   }
 
   @Override

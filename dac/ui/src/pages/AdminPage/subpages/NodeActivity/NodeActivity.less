@@ -1,0 +1,72 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+:global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  #admin-nodeActivity {
+  
+    .name-node{
+      height:20px;
+      width: 20px;
+      border-radius: 100%;
+      margin-right: 180px;
+    
+      .name{
+        padding-left: 30px;
+        color: #0096FF;
+        cursor: pointer;
+      }
+    }
+    
+    .ip{
+      font-weight: bold;
+      margin-right: 120px;
+    }
+  
+
+    .cpu{
+      height: 40px;
+      width: 40px;
+      border-radius: 100%;
+      padding: 10px 0 0 2px;
+      margin-top: 5px;
+    }
+    
+    .memory{
+      height: 40px;
+      width: 40px;
+      border-radius: 100%;
+      padding: 10px 0 0 2px;
+      margin-top: 5px;
+    }  
+      
+    .cpu-value, .memory-value{
+      color: white;
+      padding-left: 5px;
+      font-weight: bold;
+    }
+
+    .red{
+      background-color: #FF4F6C;
+    }
+  
+    .green{
+      background-color: #46AF41; 
+    }
+  
+    .yellow{
+      background-color: #FFC014;  
+    }
+  }
+}

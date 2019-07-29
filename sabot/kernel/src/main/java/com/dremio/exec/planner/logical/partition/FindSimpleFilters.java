@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.type.SqlTypeName;
 
+import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -153,7 +154,7 @@ public class FindSimpleFilters extends RexVisitorImpl<FindSimpleFilters.StateHol
       if(
           ((a.type == Type.LITERAL && b.type == Type.INPUT) ||
           (b.type == Type.LITERAL && a.type == Type.INPUT))
-          && (!sameTypesOnly || a.node.getType().equals(b.node.getType()))
+          && (!sameTypesOnly || MoreRelOptUtil.areDataTypesEqual(a.node.getType(), b.node.getType(), true))
           ){
         // this is a simple condition. Let's return a replacement
         return new StateHolder(Type.CONDITION, null)

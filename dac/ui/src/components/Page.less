@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,12 @@
  * limitations under the License.
  */
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
+  .page {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
 
   .page-content {
     padding: 0;

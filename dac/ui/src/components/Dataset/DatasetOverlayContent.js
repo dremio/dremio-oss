@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -93,7 +93,7 @@ export class DatasetOverlayContent extends Component {
         <div style={{display: 'flex', marginRight: 5}}>
           { /* disabled pending DX-6596 Edit link from DatasetOverlay is broken */ }
           {false && this.renderPencil(summaryDataset)}
-          <Link to={summaryDataset.getIn(['links', 'query'])}><FontIcon type='Query'/></Link>
+          <Link to={summaryDataset.getIn(['links', 'query'])}><FontIcon tooltip={la('Query')} type='Query'/></Link>
         </div>
       </div>
     );

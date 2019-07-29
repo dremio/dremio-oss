@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -97,7 +97,7 @@ public class HandlerToPreparePlan implements CommandRunner<CreatePreparedStateme
       planCache.put(handle, prepared);
 
       // record a partial plan so that we can grab metadata and use it (for example during view creation of via sql).
-      observers.planCompleted(new ExecutionPlan(plan, ImmutableList.of(), new PlanFragmentsIndex.Builder()));
+      observers.planCompleted(new ExecutionPlan(context.getQueryId(), plan, ImmutableList.of(), new PlanFragmentsIndex.Builder()));
       return 1;
     }catch(Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,8 @@ import com.dremio.exec.store.schedule.CompleteWork;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.Affinity;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedDatasetSplitInfo;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
 import com.google.common.collect.FluentIterable;
 
 public class SplitWork implements CompleteWork {
@@ -57,17 +58,25 @@ public class SplitWork implements CompleteWork {
     return partitionChunk.getSize();
   }
 
-  public SplitInfo getSplitInfo() {
-    // some attributes from partitionChunk and some from datasetSplit
-    return SplitInfo.newBuilder()
-        .setSplitKey(partitionChunk.getSplitKey())
-        .setSize(partitionChunk.getSize())
-        .addAllPartitionValues(partitionChunk.getPartitionValues())
-        .setPartitionExtendedProperty(partitionChunk.getPartitionExtendedProperty())
-        .addAllAffinities(datasetSplit.getAffinitiesList())
-        .setSplitExtendedProperty(datasetSplit.getSplitExtendedProperty())
-        .build();
+  public SplitAndPartitionInfo getSplitAndPartitionInfo(boolean withAffinity) {
+    NormalizedPartitionInfo partitionInfo = partitionChunk.getNormalizedPartitionInfo();
+
+    NormalizedDatasetSplitInfo.Builder splitInfo = NormalizedDatasetSplitInfo
+      .newBuilder()
+      .setPartitionId(partitionInfo.getId())
+      .setExtendedProperty(datasetSplit.getSplitExtendedProperty());
+
+    // For most sources, executors don't require the affinities.
+    if (withAffinity) {
+      splitInfo.addAllAffinities(datasetSplit.getAffinitiesList());
+    }
+    return new SplitAndPartitionInfo(partitionInfo, splitInfo.build());
   }
+
+  public SplitAndPartitionInfo getSplitAndPartitionInfo() {
+    return getSplitAndPartitionInfo(false);
+  }
+
   public DatasetSplit getDatasetSplit() {
     return datasetSplit;
   }

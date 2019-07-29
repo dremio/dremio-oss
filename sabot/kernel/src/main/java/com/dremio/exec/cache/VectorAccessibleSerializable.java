@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
@@ -285,7 +287,11 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
     Preconditions.checkNotNull(output);
     final Timer.Context timerContext = metrics.timer(WRITER_TIMER).time();
 
-    final ArrowBuf[] incomingBuffers = batch.getBuffers();
+    ArrowBuf[] buffers = new ArrowBuf[batch.getBuffers().length];
+    final ArrowBuf[] incomingBuffers = Arrays.stream(batch.getBuffers())
+                                             .map(buf -> buf.arrowBuf())
+                                             .collect(Collectors.toList())
+                                             .toArray(buffers);
     final UserBitShared.RecordBatchDef batchDef = batch.getDef();
 
     /* ArrowBuf associated with the selection vector */

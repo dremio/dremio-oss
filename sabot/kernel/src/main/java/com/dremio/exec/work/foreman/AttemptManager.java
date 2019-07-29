@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,6 +61,7 @@ import com.dremio.resource.exception.ResourceUnavailableException;
 import com.dremio.service.Pointer;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.execselector.ExecutorSelectionService;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 
@@ -107,6 +108,7 @@ public class AttemptManager implements Runnable {
   private final Pointer<QueryId> prepareId;
   private final ResourceAllocator queryResourceManager;
   private final CommandPool commandPool;
+  private final ExecutorSelectionService executorSelectionService;
   private CommandRunner<?> command;
 
   /**
@@ -116,17 +118,18 @@ public class AttemptManager implements Runnable {
    * @param queryRequest the query to execute
    */
   public AttemptManager(
-    final SabotContext context,
-    final AttemptId attemptId,
-    final UserRequest queryRequest,
-    final AttemptObserver observer,
-    final OptionProvider options,
-    final CoordToExecTunnelCreator tunnelCreator,
-    final Cache<Long, PreparedPlan> plans,
-    final QueryContext queryContext,
-    final ResourceAllocator queryResourceManager,
-    final CommandPool commandPool
-  ) {
+      final SabotContext context,
+      final AttemptId attemptId,
+      final UserRequest queryRequest,
+      final AttemptObserver observer,
+      final OptionProvider options,
+      final CoordToExecTunnelCreator tunnelCreator,
+      final Cache<Long, PreparedPlan> plans,
+      final QueryContext queryContext,
+      final ResourceAllocator queryResourceManager,
+      final CommandPool commandPool,
+      final ExecutorSelectionService executorSelectionService
+      ) {
     this.attemptId = attemptId;
     this.queryId = attemptId.toQueryId();
     this.queryIdString = QueryIdHelper.getQueryId(queryId);
@@ -135,12 +138,13 @@ public class AttemptManager implements Runnable {
     this.tunnelCreator = tunnelCreator;
     this.queryResourceManager = queryResourceManager;
     this.commandPool = commandPool;
+    this.executorSelectionService = executorSelectionService;
     this.plans = plans;
     this.prepareId = new Pointer<>();
 
     this.queryContext = queryContext;
     this.observers = AttemptObservers.of(observer);
-    this.observers.add(new LeafFragementAttemptObserver());
+    this.observers.add(new FragmentActivateObserver());
 
     final OptionManager optionManager = this.queryContext.getOptions();
     if(options != null){
@@ -154,11 +158,11 @@ public class AttemptManager implements Runnable {
     recordNewState(QueryState.ENQUEUED);
   }
 
-  private class LeafFragementAttemptObserver extends AbstractAttemptObserver {
+  private class FragmentActivateObserver extends AbstractAttemptObserver {
 
     @Override
-    public void startLeafFragmentFailed(Exception ex) {
-      fail(ex);
+    public void activateFragmentFailed(Exception ex) {
+      addToEventQueue(QueryState.FAILED, ex);
     }
   }
 
@@ -399,7 +403,7 @@ public class AttemptManager implements Runnable {
 
   protected CommandCreator newCommandCreator(QueryContext queryContext, AttemptObserver observer, Pointer<QueryId> prepareId) {
     return new CommandCreator(this.sabotContext, queryContext, tunnelCreator, queryRequest,
-      observer, plans, prepareId, attemptId.getAttemptNum(), queryResourceManager);
+      observer, plans, prepareId, attemptId.getAttemptNum(), queryResourceManager, executorSelectionService);
   }
 
   /**
@@ -581,6 +585,8 @@ public class AttemptManager implements Runnable {
 
   /**
    * Tells the foreman to move to a new state.
+   * Do not call it directly from external, all the state changes should go through {@link #addToEventQueue(QueryState, Exception)}
+   * and they will be synchronized as events to prevent unpredictable failure.
    *
    * @param newState the state to move to
    * @param exception if not null, the exception that drove this state transition (usually a failure)
@@ -722,10 +728,6 @@ public class AttemptManager implements Runnable {
 
   void addToEventQueue(final QueryState newState, final Exception exception) {
     stateSwitch.addEvent(newState, exception);
-  }
-
-  public void fail(Exception exception) {
-    moveToState(QueryState.FAILED, exception);
   }
 
   private void recordNewState(final QueryState newState) {

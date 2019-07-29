@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -226,15 +226,10 @@ public class BasicTypeHelper {
     <#assign supported = typeMapping.supported!true>
     <#if supported>
     case ${minor.class?upper_case}:
-      <#if minor.class == "Decimal">
-      Decimal dec = ((Decimal) field.getType());
-      return new DecimalVector(field.getName(), allocator, dec.getPrecision(), dec.getScale());
-      <#else>
       <#if minor.class == "FixedSizeBinary">
       return new ${minor.class}Vector(field.getName(), allocator, WIDTH_ESTIMATE);
       <#else>
-      return new ${minor.class}Vector(field.getName(), allocator);
-      </#if>
+      return new ${minor.class}Vector(field, allocator);
       </#if>
     </#if>
     </#list>
@@ -545,6 +540,11 @@ public class BasicTypeHelper {
     <#list fields as field>
     newHolder.${field.name} = ((${minor.class}Holder) holder).${field.name};
     </#list>
+    <#if minor.typeParams??>
+    <#list minor.typeParams as typeParam>
+    newHolder.${typeParam.name} = ((${minor.class}Holder) holder).${typeParam.name};
+    </#list>
+    </#if>
     return newHolder;
     case OPTIONAL:
       return holder;

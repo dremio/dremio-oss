@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -226,9 +226,7 @@ export class FileFormatForm extends Component {
 }
 
 function mapStateToProps(state, props) {
-  const {file} = props;
-
-  const fileFormat = file && file.get('fileFormat');
+  const { fileFormat } = props;
 
   let fromExisting = {};
   if (fileFormat) {

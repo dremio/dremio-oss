@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import Immutable from 'immutable';
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 import { explorePageLocationChanged } from '@app/actions/explore/dataset/data';
 import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
 
@@ -31,12 +31,12 @@ import {
 } from './utils';
 
 const apiAction = {
-  [CALL_API]:  {
+  [RSAA]:  {
     types: ['START', 'SUCCESS', 'FAILURE']
   }
 };
 const apiActionWithEntity = {
-  [CALL_API]: {
+  [RSAA]: {
     types: [
       'START',
       {type: 'SUCCESS', meta: {entity: 'entity'}},
@@ -232,7 +232,7 @@ describe('saga utils', () => {
 
   describe('getApiActionTypes', () => {
     const action = {
-      [CALL_API]: {
+      [RSAA]: {
         types: [
           'type1',
           {type: 'type2'},
@@ -255,7 +255,7 @@ describe('saga utils', () => {
     let action;
     beforeEach(() => {
       action = {
-        [CALL_API]: {
+        [RSAA]: {
           types: [
             'type1',
             {type: 'type2', meta: {entity: 'entity'}},
@@ -270,13 +270,13 @@ describe('saga utils', () => {
     });
 
     it('should not die if no entity', () => {
-      delete action[CALL_API].types[1].meta.entity;
+      delete action[RSAA].types[1].meta.entity;
       expect(getApiActionEntity(action)).to.be.undefined;
 
-      delete action[CALL_API].types[1].meta;
+      delete action[RSAA].types[1].meta;
       expect(getApiActionEntity(action)).to.be.undefined;
 
-      action[CALL_API].types[1] = 'type2';
+      action[RSAA].types[1] = 'type2';
       expect(getApiActionEntity(action)).to.be.undefined;
     });
   });

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import { getDatasetEntityId } from '@app/selectors/explore';
 import { runDatasetSql, previewDatasetSql } from 'actions/explore/dataset/run';
 import { navigateToExploreDefaultIfNecessary } from 'utils/pathUtils';
 import { getExploreViewState } from '@app/selectors/resources';
+import Reflections from '@app/pages/ExplorePage/subpages/reflections/Reflections';
 
 import ExploreTableController from './../components/ExploreTable/ExploreTableController';
 import JoinTables from './../components/ExploreTable/JoinTables';
@@ -138,6 +139,11 @@ class ExplorePageContentWrapper extends Component {
         isEditAllowed={isWikiEditAllowed}
         className={bottomContent} />;
     }
+    case PageTypes.reflections: {
+      return <Reflections
+        datasetId={entityId}
+      />;
+    }
     case PageTypes.default:
     case PageTypes.details:
       return (<ExploreTableController
@@ -163,6 +169,7 @@ class ExplorePageContentWrapper extends Component {
     switch (pageType) {
     case PageTypes.graph:
     case PageTypes.details:
+    case PageTypes.reflections:
     case PageTypes.wiki:
       return;
     case PageTypes.default:
@@ -194,6 +201,7 @@ class ExplorePageContentWrapper extends Component {
         exploreViewState={props.exploreViewState}
       />;
     case PageTypes.default:
+    case PageTypes.reflections:
     case PageTypes.graph:
     case PageTypes.wiki:
       return (

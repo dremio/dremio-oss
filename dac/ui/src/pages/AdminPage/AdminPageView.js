@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ class AdminPageView extends Component {
             sections={sections}
             location={location}
           />
-          <div className='main-content' style={styles.mainContent}>
+          <div className='main-content'>
             {children}
           </div>
         </div>
@@ -59,10 +59,3 @@ class AdminPageView extends Component {
 
 
 export default AdminPageView;
-
-const styles = {
-  mainContent: {
-    width: '100%',
-    padding: '0 10px'
-  }
-};

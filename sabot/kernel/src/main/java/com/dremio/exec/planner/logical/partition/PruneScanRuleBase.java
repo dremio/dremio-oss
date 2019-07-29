@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -252,13 +252,13 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
     }
 
     final ImmutableList<RexCall> conditions = holder.getConditions();
-    final RelDataType rowType = filterRel.getRowType();
+    final RelDataType incomingRowType = scanRel.getRowType();
     final List<FilterProperties> filters = FluentIterable
       .from(conditions)
       .transform(new Function<RexCall, ParquetFilterCondition.FilterProperties>() {
         @Override
         public ParquetFilterCondition.FilterProperties apply(RexCall input) {
-          return new FilterProperties(input, rowType);
+          return new FilterProperties(input, incomingRowType);
         }
       }).toList();
 

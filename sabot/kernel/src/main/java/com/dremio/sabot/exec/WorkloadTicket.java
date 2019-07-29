@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,6 +85,16 @@ public class WorkloadTicket extends TicketWithChildren {
     }
     queryTicket.reserve();
     queryStarter.buildAndStartQuery(queryTicket);
+  }
+
+  /**
+   * Returns the query ticket corresponding to the queryId. Returns null if not found.
+   *
+   * @param queryId
+   * @return
+   */
+  public QueryTicket getQueryTicket(QueryId queryId) {
+    return queryTickets.get(queryId);
   }
 
   /**

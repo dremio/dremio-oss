@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -212,6 +212,22 @@ public class TestJobService extends BaseTestServer {
 
     jobs = getAllJobs("ds==s.ds3;dsv==v2", null, null);
     assertEquals(0, jobs.size());
+  }
+
+  @Test
+  public void testJobCompleted() throws Exception {
+    populateInitialData();
+    final DatasetPath ds1 = new DatasetPath("s.ds1");
+    final CompletableFuture<Job> jobFuture = jobsService.submitJob(
+      JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 1")).build(),
+      NoOpJobStatusListener.INSTANCE);
+    Job job = JobsServiceUtil.waitForJobCompletion(jobFuture);
+
+    // get the latest version of the job entry
+    job = jobsService.getJob(job.getJobId());
+    // and make sure it's marked as completed
+    assertTrue("job should be marked as 'completed'", job.isCompleted());
   }
 
   private Job createJob(final String id, final List<String> datasetPath, final String version, final String user,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 package com.microsoft.azure.datalake.store;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import org.asynchttpclient.AsyncCompletionHandlerBase;
 import org.asynchttpclient.AsyncHandler;
@@ -32,7 +32,6 @@ import org.asynchttpclient.Response;
 import org.asynchttpclient.netty.LazyResponseBodyPart;
 import org.asynchttpclient.util.HttpConstants;
 
-import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.exec.store.dfs.async.AsyncByteReader;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -81,8 +80,6 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AdlsAsyncFileReader.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
         .configure(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY, true);
-  private static final ExecutorService THREADPOOL =
-    Executors.newCachedThreadPool(new NamedThreadFactory("adls-async-request"));
 
   private final ADLStoreClient client;
   private final AsyncHttpClient asyncHttpClient;
@@ -193,5 +190,10 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
         .whenComplete((response, throwable) -> logger.debug("Request completed for clientRequestId: {}", clientRequestId))
         .thenAccept(response -> {}); // Discard the response, which has already been handled by AdlsResponseProcessor.
     });
+  }
+
+  @Override
+  public List<ReaderStat> getStats() {
+    return new ArrayList<>();
   }
 }

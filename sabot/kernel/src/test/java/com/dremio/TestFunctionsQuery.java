@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -103,7 +103,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
 
     Object[] expected = new Object[values.length];
     for (int i = 0; i < values.length; i++) {
-      expected[i] = Math.abs(Double.parseDouble(values[i]));
+      expected[i] = new BigDecimal(values[i]).abs();
     }
 
     test(query);
@@ -121,7 +121,6 @@ public class TestFunctionsQuery extends BaseTestQuery {
 
 
   @Test
-  @Ignore("decimal")
   public void testCeilDecimalFunction() throws Exception {
     String query = "SELECT " +
         "ceil(cast('1234.4567' as decimal(9, 5))) as DEC9_1, " +
@@ -159,7 +158,6 @@ public class TestFunctionsQuery extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("decimal")
   public void testFloorDecimalFunction() throws Exception {
     String query = "SELECT " +
         "floor(cast('1234.4567' as decimal(9, 5))) as DEC9_1, " +
@@ -274,7 +272,6 @@ public class TestFunctionsQuery extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("decimal")
   public void testRoundDecimalFunction() throws Exception {
     String query = "SELECT " +
         "round(cast('1234.5567' as decimal(9, 5))) as DEC9_1, " +
@@ -520,7 +517,9 @@ public class TestFunctionsQuery extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("T_1", "T_2", "T_3", "T_4", "T_5", "T_6", "T_7", "T_8", "T_9", "T_10")
-        .baselineValues(1234.45D, -1234.45D, 1200.0D, -1200.0D, 1234, -1234, 0, 0, 8124674407369523212L, 81246744073695.3D)
+        .baselineValues(BigDecimal.valueOf(1234.45D), BigDecimal.valueOf(-1234.45D),
+          new BigDecimal("1200"), new BigDecimal("-1200"), 1234, -1234,
+            0, 0, 8124674407369523212L, BigDecimal.valueOf(81246744073695.3D))
         .go();
   }
 
@@ -546,8 +545,10 @@ public class TestFunctionsQuery extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("T_1", "T_2", "T_3", "T_4", "T_5", "T_6", "T_7", "T_8", "T_9", "T_10", "T_11", "T_12")
-        .baselineValues(1234.46D, -1234.46D, 1200.0D, -1200.0D, 1234, -1234, 0, 0, 8124674407369520000L,
-            81246744073695.4D, 6.1D, -6.1D)
+        .baselineValues(BigDecimal.valueOf(1234.46D), BigDecimal.valueOf(-1234.46D),
+          new BigDecimal("1200"), new BigDecimal("-1200"), 1234, -1234,
+            0, 0, 8124674407369520000L, new BigDecimal("81246744073695.4"), BigDecimal.valueOf
+            (6.1D), BigDecimal.valueOf(-6.1D))
         .go();
   }
 
@@ -578,7 +579,8 @@ public class TestFunctionsQuery extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("round_bigint", "round_int", "round_float_1", "round_float_2", "round_double_1", "round_double_2")
-        .baselineValues(8124674407369523212l, 9999999, 23.0f, 24.0f, 8124674407369.0d, 8124674407370.0d)
+        .baselineValues(8124674407369523212l, 9999999, 23.0f, 24.0f, new BigDecimal
+            ("8124674407369"), new BigDecimal("8124674407370"))
         .go();
   }
 
@@ -700,7 +702,7 @@ public class TestFunctionsQuery extends BaseTestQuery {
         .sqlQuery(query)
         .unOrdered()
         .baselineColumns("SIGN_FLOAT", "SIGN_DOUBLE", "SIGN_INT")
-        .baselineValues(1F, -1D, 1)
+        .baselineValues(1F, BigDecimal.valueOf(-1D), 1)
         .go();
   }
 
@@ -1318,4 +1320,50 @@ public class TestFunctionsQuery extends BaseTestQuery {
     String query = "SELECT KVGEN(CONVERT_FROM('{\"1\": 0.123, \"2\": 0.456, \"3\": 0.789}', 'JSON')) FROM (values (1))";
     test(query);
   }
+
+  @Test
+  public void testDX16973() throws Exception {
+    final String query = "select cast(c_float8 as decimal(18,3)) from cp" +
+      ".\"parquet/decimals/castFloatDecimal.parquet\" limit 6";
+    // Test with decimal v2 implementation.
+    testBuilder()
+      .unOrdered()
+      .sqlQuery(query)
+      .baselineColumns("EXPR$0")
+      .baselineValues(BigDecimal.valueOf(10.500))
+      .baselineValues(BigDecimal.valueOf(10.500))
+      .baselineValues(BigDecimal.valueOf(-1.000))
+      .baselineValues(new BigDecimal("123456789012344.992"))
+      .baselineValues(new BigDecimal("999999999999998.976"))
+      .baselineValues(new BigDecimal("-999999999999998.976"))
+      .go();
+  }
+
+  @Test
+  public void testDecimalLiterals() throws Exception {
+    final String query = "select cast('999999999999999999' as decimal(18,0)) + cast('-0.0000000000000000000000000000000000001' as decimal(38,38)) ";
+    // Test with decimal v1 implementation.
+    testBuilder()
+      .unOrdered()
+      .sqlQuery(query)
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("999999999999999999.0000000000000000000"))
+      .go();
+
+  }
+
+  @Test
+  @Ignore("DX-11334")
+  public void testDecimalLiterals11() throws Exception {
+    final String query = "select cast('-999999999' as decimal(9,0)) / cast('0.000000000000000000000000001' as decimal(28,28))";
+
+    testBuilder()
+      .unOrdered()
+      .sqlQuery(query)
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("-999999999000000000000000000000000000"))
+      .go();
+
+  }
+
 }

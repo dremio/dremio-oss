@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,8 +28,8 @@ import com.dremio.options.OptionManager;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 
 /**
  * ReAttempt logic for external queries.<br>
@@ -133,7 +133,7 @@ class ExternalAttemptHandler  extends BaseAttemptHandler {
     // we instantiate a List<ArrowBuf> instead of List<ByteBuf> as we'll be getting an array out of it
     // and other parts of the code (e.g. CloseableBuffers) will fail otherwise when casting the array
     // to AutoCloseable[]
-    List<ArrowBuf> patchedBuffers = Lists.newArrayList();
+    List<NettyArrowBuf> patchedBuffers = Lists.newArrayList();
 
     int bufferIndex = 0;
     for (SerializedField field : fields) {
@@ -145,7 +145,7 @@ class ExternalAttemptHandler  extends BaseAttemptHandler {
         patchedDef.addField(field);
         // copy the field's buffers into newBuffers
         for (int index = 0; index < fieldBuffersLength; index++, bufferIndex++) {
-          patchedBuffers.add(((ArrowBuf) oldBuffers[bufferIndex]));
+          patchedBuffers.add(((NettyArrowBuf) oldBuffers[bufferIndex]));
         }
       } else { // nope
         // skip field and release its buffers
@@ -157,7 +157,7 @@ class ExternalAttemptHandler  extends BaseAttemptHandler {
 
     // copy trailing buffers, they should all be empty
     while (bufferIndex < oldBuffers.length && oldBuffers[bufferIndex].readableBytes() == 0) {
-      patchedBuffers.add(((ArrowBuf) oldBuffers[bufferIndex++]));
+      patchedBuffers.add(((NettyArrowBuf) oldBuffers[bufferIndex++]));
     }
 
     if (bufferIndex != oldBuffers.length) {
@@ -166,7 +166,7 @@ class ExternalAttemptHandler  extends BaseAttemptHandler {
     }
 
     return new QueryWritableBatch(QueryData.newBuilder(result.getHeader()).setDef(patchedDef).build(),
-            patchedBuffers.toArray(new ArrowBuf[0]));
+            patchedBuffers.toArray(new NettyArrowBuf[0]));
   }
 
   /**

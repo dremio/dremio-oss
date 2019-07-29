@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@ import { injectIntl } from 'react-intl';
 
 import HomePage from 'pages/HomePage/HomePage';
 import { loadSourceListData } from 'actions/resources/sources';
-import { getSources } from 'selectors/resources';
+import { getSources } from 'selectors/home';
 
 import AllSourcesView from './AllSourcesView.js';
 

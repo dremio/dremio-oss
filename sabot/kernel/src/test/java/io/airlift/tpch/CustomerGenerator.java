@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,8 +68,9 @@ class CustomerGenerator extends TpchGenerator {
   private final VarCharVector date;
   private final VarCharVector time;
 
-  public CustomerGenerator(BufferAllocator allocator, GenerationDefinition def, int partitionIndex, String...includedColumns) {
-    super(TpchTable.CUSTOMER, allocator, def, partitionIndex, includedColumns);
+  public CustomerGenerator(BufferAllocator allocator, GenerationDefinition def, int
+    partitionIndex, TpchTable table, String...includedColumns) {
+    super(table, allocator, def, partitionIndex, includedColumns);
 
     // setup fields.
     this.customerKey = int8("c_custkey");

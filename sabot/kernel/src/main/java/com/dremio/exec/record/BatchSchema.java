@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -666,7 +666,17 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     for (Field field : newlyObserved) {
       Field matchingField = secondFieldMap.remove(field.getName().toLowerCase());
       if (matchingField != null) {
-        CompleteType mergedType = CompleteType.fromField(field).merge(CompleteType.fromField(matchingField));
+        CompleteType mergedType = null;
+        CompleteType type1 = CompleteType.fromField(field);
+        CompleteType type2 = CompleteType.fromField(matchingField);
+        try {
+          mergedType = type1.merge(type2);
+        } catch (UnsupportedOperationException e) {
+          StringBuilder stringBuilder = new StringBuilder("Mixed types ");
+          stringBuilder.append(type1).append(" , ").append(type2).append(" for field ").append
+            (field.getName()).append(" are not supported.");
+          throw UserException.unsupportedError().message(stringBuilder.toString()).build(logger);
+        }
         mergedList.add(mergedType.toField(field.getName()));
       } else {
         mergedList.add(field);

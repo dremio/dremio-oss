@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import org.apache.arrow.vector.SimpleIntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.collections.CollectionUtils;
@@ -45,10 +46,12 @@ import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.io.ColumnIOFactory;
+import org.apache.parquet.io.InvalidRecordException;
 import org.apache.parquet.io.MessageColumnIO;
 import org.apache.parquet.io.RecordReader;
 import org.apache.parquet.schema.GroupType;
 import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.Type;
 
 import com.dremio.common.arrow.DremioArrowSchema;
@@ -207,6 +210,9 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         arrowSchema = null;
         logger.warn("Invalid Arrow Schema", e);
       }
+
+      verifyDecimalTypesAreSame(output);
+
       MessageType projection;
 
       if (isStarQuery()) {
@@ -290,6 +296,40 @@ public class ParquetRowiseReader extends AbstractParquetReader {
       }
     } catch (Exception e) {
       handleAndRaise("Failure in setting up reader", e);
+    }
+  }
+
+  private void verifyDecimalTypesAreSame(OutputMutator output) {
+    for (ValueVector vector : output.getVectors()) {
+      Field fieldInSchema = vector.getField();
+      if (fieldInSchema.getType().getTypeID() == ArrowType.ArrowTypeID.Decimal) {
+        ArrowType.Decimal typeInTable = (ArrowType.Decimal) fieldInSchema.getType();
+        Type typeInParquet = null;
+        // the field in arrow schema may not be present in hive schema
+        try {
+          typeInParquet  = schema.getType(fieldInSchema.getName());
+        } catch (InvalidRecordException e) {
+        }
+        if (typeInParquet == null) {
+          continue;
+        }
+        boolean schemaMisMatch = true;
+        OriginalType originalType = typeInParquet.getOriginalType();
+        if (originalType.equals(OriginalType.DECIMAL) ) {
+          int precision = typeInParquet
+            .asPrimitiveType().getDecimalMetadata().getPrecision();
+          int scale = typeInParquet.asPrimitiveType().getDecimalMetadata().getScale();
+          ArrowType decimalType = new ArrowType.Decimal(precision, scale);
+          if (decimalType.equals(typeInTable)) {
+            schemaMisMatch = false;
+          }
+        }
+        if (schemaMisMatch) {
+          throw UserException.schemaChangeError().message("Mixed types "+ fieldInSchema.getType()
+            + " , " + typeInParquet + " is not supported.")
+            .build(logger);
+        }
+      }
     }
   }
 

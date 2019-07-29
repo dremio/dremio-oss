@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -187,7 +187,8 @@ public class MaterializationExpander {
         }
 
         // safely ignore when materialized field is DOUBLE instead of DECIMAL
-        if (type1.getSqlTypeName() == SqlTypeName.DOUBLE && type2.getSqlTypeName() == SqlTypeName.DECIMAL) {
+        if (type1.getSqlTypeName() == SqlTypeName.DOUBLE && type2.getSqlTypeName() == SqlTypeName
+          .DECIMAL || isSumAggOutput(type1, type2)) {
           continue;
         }
 
@@ -195,6 +196,15 @@ public class MaterializationExpander {
       }
 
       return true;
+  }
+
+  private static boolean isSumAggOutput(RelDataType type1, RelDataType type2) {
+    if (type1.getSqlTypeName() == SqlTypeName
+      .DECIMAL && type2.getSqlTypeName() == SqlTypeName.DECIMAL) {
+      // output of sum aggregation is always 38,inputScale
+      return type1.getPrecision() == 38 && type1.getScale() == type2.getScale();
+    }
+    return false;
   }
 
   private RelNode expandSchemaPath(final List<String> path) {

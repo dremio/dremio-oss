@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@ export const PageTypes = {
   default: 'default', //TODO switch to empty string, when all components will use PropTypes enum | // we should not add any element into a path.
   graph: 'graph',
   details: 'details', // deTails, do not miss with deFaults. When both these values stands together, at first glance they look like duplicates. Graph was put between them intentionaly.
-  wiki: 'wiki'
+  wiki: 'wiki',
+  reflections: 'reflections'
 };
 
 const values = Object.values(PageTypes);

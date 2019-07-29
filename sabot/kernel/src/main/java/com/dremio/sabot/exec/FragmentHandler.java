@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +15,16 @@
  */
 package com.dremio.sabot.exec;
 
-import java.io.IOException;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicStampedReference;
 
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
 
 import com.dremio.common.utils.protos.QueryIdHelper;
-import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
@@ -56,8 +56,19 @@ public class FragmentHandler implements EventProvider {
   private final FragmentHandle handle;
   private final long evictionDelayMillis;
 
-  private volatile FragmentExecutor executor;
   private volatile boolean fragmentStarted;
+
+  //holds a reference to the executor object
+  private AtomicStampedReference<FragmentExecutor> execReference;
+
+  //stamp state at the beginning, i.e. when FragmentHandler is created & executor is null
+  private static final int defaultExecStamp = 0;
+
+  //stamp value once the proper executor is set inside 'setExecutor'
+  private static final int validExecStamp = 1;
+
+  //stamp value once the executor is set back to null as part of 'invalidate'
+  private static final int invalidExecStamp = 2;
 
   private final AtomicBoolean canceled = new AtomicBoolean();
   private volatile long cancellationTime;
@@ -65,11 +76,20 @@ public class FragmentHandler implements EventProvider {
   private final Queue<FragmentEvent> finishedReceivers = new ConcurrentLinkedQueue<>();
 
   private volatile long expirationTime;
+  private Throwable failedReason;
 
   FragmentHandler(FragmentHandle handle, long evictionDelayMillis) {
     this.handle = handle;
     this.evictionDelayMillis = evictionDelayMillis;
     expirationTime = System.currentTimeMillis() + evictionDelayMillis;
+    execReference = new AtomicStampedReference<FragmentExecutor>(null, defaultExecStamp);
+  }
+
+  public void activate() {
+    final FragmentExecutor executor = execReference.getReference();
+    if (executor != null) {
+      executor.getListener().activate();
+    }
   }
 
   public void cancel() {
@@ -78,11 +98,20 @@ public class FragmentHandler implements EventProvider {
     // the cancelled flag is set will consume the flag so we don't have to worry about informing its cancellation
     if (canceled.compareAndSet(false,true)) {
       cancellationTime = System.currentTimeMillis();
-      final FragmentExecutor executor = this.executor; // this is important, another thread could set this.executor to null
+      final FragmentExecutor executor = execReference.getReference(); // this is important, another thread could set this.executor to null
       if (executor != null) {
         executor.getListener().cancel();
       }
     }
+  }
+
+  void fail(Throwable failedReason) {
+    synchronized (this) {
+      if (this.failedReason == null) {
+        this.failedReason = failedReason;
+      }
+    }
+    cancel();
   }
 
   private String formatError(String identifier, int sendingMajorFragmentId, int sendingMinorFragmentId) {
@@ -91,6 +120,8 @@ public class FragmentHandler implements EventProvider {
   }
 
   public void handle(OutOfBandMessage message) {
+    // A missing executor means it already terminated. We can simply drop this message.
+    final FragmentExecutor executor = execReference.getReference();
     if (executor != null) {
       executor.getListener().handle(message);
     }
@@ -99,19 +130,23 @@ public class FragmentHandler implements EventProvider {
   public void handle(FragmentStreamComplete completion) {
     Preconditions.checkState(fragmentStarted, formatError("stream completion",
       completion.getSendingMajorFragmentId(), completion.getSendingMinorFragmentId()));
+
+    // A missing executor means it already terminated. We can simply drop this message.
+    final FragmentExecutor executor = execReference.getReference();
     if (executor != null) {
       executor.getListener().handle(completion);
     }
-    // A missing executor means it already terminated. We can simply drop this message.
   }
 
-  public void handle(IncomingDataBatch batch) throws FragmentSetupException, IOException {
+  public void handle(IncomingDataBatch batch) {
     Preconditions.checkState(fragmentStarted, formatError("data batch",
       batch.getHeader().getSendingMajorFragmentId(), batch.getHeader().getSendingMinorFragmentId()));
+
+    // A missing executor means it already terminated. We can simply drop this message.
+    final FragmentExecutor executor = execReference.getReference();
     if (executor != null) {
       executor.getListener().handle(batch);
     }
-    // A missing executor means it already terminated. We can simply drop this message.
   }
 
   void receiverFinished(FragmentHandle receiver) {
@@ -124,13 +159,18 @@ public class FragmentHandler implements EventProvider {
   }
 
   @Override
+  public synchronized Optional<Throwable> getFailedReason() {
+    return Optional.ofNullable(failedReason);
+  }
+
+  @Override
   public FragmentHandle pollFinishedReceiver() {
     final FragmentEvent event = finishedReceivers.poll();
     return event != null ? event.handle : null;
   }
 
   boolean isExpired() {
-    return executor == null && System.currentTimeMillis() > expirationTime;
+    return execReference.getReference() == null && System.currentTimeMillis() > expirationTime;
   }
 
   public FragmentHandle getHandle() {
@@ -138,17 +178,18 @@ public class FragmentHandler implements EventProvider {
   }
 
   public void setExecutor(FragmentExecutor executor) {
-    this.executor = Preconditions.checkNotNull(executor, "fragment executor must be provided");
+    Preconditions.checkNotNull(executor);
+    Preconditions.checkState(execReference.getStamp() == defaultExecStamp);
+
+    execReference.set(executor, validExecStamp);
     fragmentStarted = true;
   }
 
   public FragmentExecutor getExecutor() {
-    return executor;
+    return execReference.getReference();
   }
 
-  public boolean isRunning() {
-    return executor != null;
-  }
+  public boolean isRunning() { return execReference.getReference() != null; }
 
   boolean hasStarted() {
     return fragmentStarted;
@@ -177,7 +218,11 @@ public class FragmentHandler implements EventProvider {
 
   void invalidate() {
     expirationTime = System.currentTimeMillis() + evictionDelayMillis;
-    this.executor = null;
+
+    if (execReference.getReference() != null) {
+      Preconditions.checkState(execReference.getStamp() == validExecStamp);
+    }
+    execReference.set(null, invalidExecStamp);
     checkStateAndLogIfNecessary();
   }
 
@@ -186,4 +231,5 @@ public class FragmentHandler implements EventProvider {
   void testExpireNow() {
     expirationTime = System.currentTimeMillis() - 1;
   }
+
 }

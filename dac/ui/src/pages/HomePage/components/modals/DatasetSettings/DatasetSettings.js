@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import Immutable from 'immutable';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
+import { createSelector } from 'reselect';
 import { injectIntl } from 'react-intl';
 import { LINE_NOROW_START_STRETCH } from 'uiTheme/radium/flexStyle';
 
@@ -26,6 +27,7 @@ import { loadDatasetForDatasetType } from 'actions/resources';
 
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import { getViewState, getEntity } from 'selectors/resources';
+import { getHomeEntityOrChild } from '@app/selectors/home';
 
 
 import AccelerationController from 'components/Acceleration/AccelerationController';
@@ -33,6 +35,7 @@ import AccelerationController from 'components/Acceleration/AccelerationControll
 import DatasetSettingsMixin from 'dyn-load/pages/HomePage/components/modals/DatasetSettings/DatasetSettingsMixin';
 
 import { showUnsavedChangesConfirmDialog } from 'actions/confirmation';
+
 import NavPanel from 'components/Nav/NavPanel';
 import FileFormatController from './FileFormatController';
 import AccelerationUpdatesController from './AccelerationUpdates/AccelerationUpdatesController';
@@ -48,10 +51,11 @@ export class DatasetSettings extends Component {
   static contextTypes = {
     router: PropTypes.object,
     location: PropTypes.object
-  }
+  };
 
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map),
+    isHomePage: PropTypes.bool,
     tab: PropTypes.string,
     datasetType: PropTypes.string,
     datasetUrl: PropTypes.string,
@@ -62,7 +66,7 @@ export class DatasetSettings extends Component {
     updateFormDirtyState: PropTypes.func,
     showUnsavedChangesConfirmDialog: PropTypes.func,
     loadDatasetForDatasetType: PropTypes.func.isRequired
-  }
+  };
 
   state = {
     isFormDirty: false
@@ -119,7 +123,7 @@ export class DatasetSettings extends Component {
   updateFormDirtyState = (isFormDirty) => {
     this.setState({isFormDirty});
     this.props.updateFormDirtyState(isFormDirty);
-  }
+  };
 
   handleChangeTab = (tab) => {
     const { location } = this.props;
@@ -128,11 +132,13 @@ export class DatasetSettings extends Component {
       this.updateFormDirtyState(false);
     };
     if (this.state.isFormDirty) {
-      this.props.showUnsavedChangesConfirmDialog({ confirm });
+      this.props.showUnsavedChangesConfirmDialog({confirm});
     } else {
       confirm();
     }
-  }
+  };
+
+  getFullPath = createSelector(fullPathImmutable => fullPathImmutable, path => path ? path.toJS() : null);
 
   renderContent() {
     const { hide, location, entity } = this.props;
@@ -153,7 +159,7 @@ export class DatasetSettings extends Component {
           onDone={hide}
           updateFormDirtyState={this.updateFormDirtyState}
           entityType={entity.get('entityType')}
-          entityId={entity.get('id')}
+          fullPath={entity ? this.getFullPath(entity.get('fullPathList')) : null}
           query={location.state.query}
         />;
       },
@@ -166,12 +172,14 @@ export class DatasetSettings extends Component {
         />;
       },
       accelerationUpdates: () => {
+        // TODO refactor - uses only: id, fullPathList, entityType
         return <AccelerationUpdatesController
           updateFormDirtyState={this.updateFormDirtyState}
           entity={entity}
           {...commonProps} />;
       },
       overview: () => {
+        // TODO refactor - uses only: name, fullPathList, fileType, queryable
         return <DatasetOverviewForm {...commonProps} entity={entity}/>;
       }
     };
@@ -198,13 +206,19 @@ export class DatasetSettings extends Component {
   }
 }
 
-const mapStateToProps = (state) => {
+const mapStateToProps = (state, { isHomePage }) => {
   const location = state.routing.locationBeforeTransitions;
   const { entityType, entityId } = location.state || {};
 
+  // Entity could be stored in different places of redux state, depending on current page
+  // Entity is used to be stored in resources, but now for home page it is stored in separate place.
+  // We need support both options. At this moment an only place where entity is stored in resources
+  // is explore page ExploreSettingsButton
+  const finalEntitySelector = isHomePage ? getHomeEntityOrChild : getEntity;
+
   return {
     location,
-    entity: entityId && getEntity(state, entityId, entityType),
+    entity: entityId && finalEntitySelector(state, entityId, entityType),
     viewState: getViewState(state, DATASET_SETTINGS_VIEW_ID)
   };
 };

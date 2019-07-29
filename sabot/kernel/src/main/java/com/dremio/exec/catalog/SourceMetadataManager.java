@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -325,8 +325,9 @@ class SourceMetadataManager implements AutoCloseable {
   private boolean refreshSourceNames() throws NamespaceException {
     final Set<NamespaceKey> existingDatasets = Sets.newHashSet(systemNamespace.getAllDatasets(sourceKey));
 
-    boolean changed = false;
+    final SyncStatus syncStatus = new SyncStatus(false);
 
+    final Stopwatch stopwatch = Stopwatch.createStarted();
     try {
       final SourceMetadata sourceMetadata = plugin.get();
       if (sourceMetadata instanceof SupportsListingDatasets) {
@@ -342,13 +343,15 @@ class SourceMetadataManager implements AutoCloseable {
 
             // names are only added, removal happens in full sync
             if (existingDatasets.remove(datasetKey)) {
+              syncStatus.incrementShallowUnchanged();
               continue;
             }
 
             final DatasetConfig newConfig = MetadataObjectsUtils.newShallowConfig(handle);
             try {
               systemNamespace.addOrUpdateDataset(datasetKey, newConfig);
-              changed = true;
+              syncStatus.setRefreshed();
+              syncStatus.incrementShallowAdded();
             } catch (ConcurrentModificationException ignored) {
               // race condition
               logger.debug("Dataset '{}' add failed (CME)", datasetKey);
@@ -367,11 +370,13 @@ class SourceMetadataManager implements AutoCloseable {
       srcData.setLastNameRefreshDateMs(System.currentTimeMillis());
       sourceDataStore.put(sourceKey, srcData);
 
+      logger.info("Source '{}' refreshed in {} seconds. Details:\n{}", sourceKey, stopwatch.elapsed(TimeUnit.SECONDS),
+          syncStatus);
     } catch (Exception ex) {
-      logger.warn("Source '{}' names sync failed. Names maybe incomplete", sourceKey, ex);
+      logger.warn("Source '{}' shallow probe failed. Dataset listing maybe incomplete", sourceKey, ex);
     }
 
-    return changed;
+    return syncStatus.isRefreshed();
   }
 
   private boolean refreshFull(MetadataPolicy metadataPolicy) throws NamespaceException {
@@ -392,10 +397,11 @@ class SourceMetadataManager implements AutoCloseable {
       return false;
     }
 
+    final Stopwatch stopwatch = Stopwatch.createStarted();
     final MetadataSynchronizer synchronizeRun = new MetadataSynchronizer(systemNamespace, sourceKey, plugin.get(),
         metadataPolicy, saver, () -> cancelWork, retrievalOptions);
     synchronizeRun.setup();
-    final MetadataSynchronizer.SyncStatus syncStatus = synchronizeRun.go();
+    final SyncStatus syncStatus = synchronizeRun.go();
 
     if (cancelWork) {
       return syncStatus.isRefreshed();
@@ -409,6 +415,9 @@ class SourceMetadataManager implements AutoCloseable {
     srcData.setLastFullRefreshDateMs(lastRefreshTime)
         .setLastNameRefreshDateMs(lastRefreshTime);
     sourceDataStore.put(sourceKey, srcData);
+
+    logger.info("Source '{}' refreshed in {} seconds. Details:\n{}", sourceKey, stopwatch.elapsed(TimeUnit.SECONDS),
+        syncStatus);
 
     return syncStatus.isRefreshed();
   }
@@ -486,18 +495,13 @@ class SourceMetadataManager implements AutoCloseable {
   }
 
   private final class RefreshTask implements Runnable {
-    private final Stopwatch refreshWatch = Stopwatch.createUnstarted();
 
     @Override
     public void run() {
       // hold run lock so we block on replace/shutdown until the metadata refresh is stopped.
       synchronized(runLock) {
-        logger.info("Source '{}' sync run started", sourceKey.getRoot());
-        refreshWatch.reset();
-        refreshWatch.start();
+        logger.debug("Source '{}' scheduled refresh started", sourceKey.getRoot());
         doNextRefresh();
-        refreshWatch.stop();
-        logger.info("Source '{}' sync run ended. Took {} milliseconds", sourceKey.getRoot(), refreshWatch.elapsed(TimeUnit.MILLISECONDS));
       }
     }
 

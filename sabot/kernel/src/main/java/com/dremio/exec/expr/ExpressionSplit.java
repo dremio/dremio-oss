@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,22 +15,31 @@
  */
 package com.dremio.exec.expr;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.util.TransferPair;
 
+import com.dremio.common.expression.BooleanOperator;
+import com.dremio.common.expression.FunctionHolderExpression;
+import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SupportedEngines;
+import com.dremio.common.expression.visitors.AbstractExprVisitor;
 import com.dremio.common.logical.data.NamedExpression;
+import com.dremio.exec.record.TypedFieldId;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 /**
  * Class captures an expression that is split
  */
-public class ExpressionSplit {
+public class ExpressionSplit implements Closeable {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionSplit.class);
+
   // The split. This could be an intermediate root-node or the expression root
   private NamedExpression namedExpression;
 
@@ -68,24 +77,57 @@ public class ExpressionSplit {
   // The iteration in which this split is executed. For testing purposes only
   private int execIteration;
 
+  // The number of extra if expressions created due to this split
+  private int numExtraIfExprs;
+
+  final private TypedFieldId typedFieldId;
+  private String toStr = null;
+
   public SupportedEngines.Engine getExecutionEngine() {
     return executionEngine;
   }
 
   private final SupportedEngines.Engine executionEngine;
 
-  ExpressionSplit(NamedExpression namedExpression, SplitDependencyTracker helper, CodeGenContext
-    readExprContext, ValueVector vvOut, boolean isOriginalExpression, SupportedEngines.Engine
-    executionEngine) {
+  ExpressionSplit(NamedExpression namedExpression, SplitDependencyTracker helper, TypedFieldId fieldId,
+                  CodeGenContext readExprContext, ValueVector vvOut, boolean isOriginalExpression, SupportedEngines.Engine
+    executionEngine, int numExtraIfExprs) {
     LogicalExpression expression = CodeGenerationContextRemover.removeCodeGenContext(namedExpression.getExpr());
     this.namedExpression = new NamedExpression(expression, namedExpression.getRef());
     this.executionEngine = executionEngine;
+    this.typedFieldId = fieldId;
     this.isOriginalExpression = isOriginalExpression;
     this.readExpressionContext = readExprContext;
     this.vvOut = vvOut;
 
     this.dependsOnSplits.addAll(helper.getNamesOfDependencies());
     this.transfersIn.addAll(helper.getTransfersIn());
+    this.numExtraIfExprs = numExtraIfExprs;
+  }
+
+  public String toString() {
+    if (toStr == null) {
+      String dependsOn = "";
+      for (String str : dependsOnSplits) {
+        dependsOn += str + " ";
+      }
+
+      String fieldIdStr = "null";
+      if (typedFieldId != null) {
+        fieldIdStr = typedFieldId.toString();
+      }
+
+      StringBuilder stringBuilder = new StringBuilder();
+      stringBuilder.append("name: " + namedExpression.getRef().toString());
+      stringBuilder.append(", fieldId: " + fieldIdStr);
+      stringBuilder.append(", readers: " + totalReadersOfOutput);
+      stringBuilder.append(", dependencies: " + dependsOn);
+      stringBuilder.append(", expr: " + namedExpression.getExpr().toString());
+
+      toStr = stringBuilder.toString();
+    }
+
+    return toStr;
   }
 
   // All used by test code to verify correctness
@@ -95,6 +137,9 @@ public class ExpressionSplit {
   public int getTotalReadersOfOutput() { return totalReadersOfOutput; }
   public List<String> getDependencies() {
     return Lists.newArrayList(this.dependsOnSplits);
+  }
+  int getOverheadDueToExtraIfs() {
+    return numExtraIfExprs;
   }
 
   CodeGenContext getReadExpressionContext() { return readExpressionContext; }
@@ -128,10 +173,25 @@ public class ExpressionSplit {
     this.numReadersOfOutput = 0;
   }
 
+  // returns a double that quantifies amount of work done by this split
+  double getWork() {
+    LogicalExpression expr = getNamedExpression().getExpr();
+    ExpressionWorkEstimator workEstimator = new ExpressionWorkEstimator();
+    double result = expr.accept(workEstimator, null);
+
+    // Some if expressions can lead to additional work. For e.g. when the then and else
+    // expressions of an if-expression are evaluated in different engines, this leads to
+    // an overhead of evaluating one extra if-expression
+    //
+    // Such work is treated as an overhead and subtracted from the actual work done
+    return result;
+  }
+
   // mark this split's output as being read
   private void markAsRead() {
     this.numReadersOfOutput++;
     if (this.totalReadersOfOutput == this.numReadersOfOutput) {
+      logger.trace("Releasing output buffer for {}, fieldid {}", getOutputName(), typedFieldId != null ? typedFieldId.toString() : "null");
       releaseOutputBuffer();
     }
   }
@@ -145,5 +205,54 @@ public class ExpressionSplit {
 
   void setExecIteration(int iteration) {
     this.execIteration = iteration;
+  }
+
+  @Override
+  public void close() throws IOException {
+    transfersIn.clear();
+  }
+
+  // Estimates the cost of evaluating an expression
+  // Can enhance this later to provide additional weight for specific Gandiva/Java functions
+  // TODO: Improve the definition of work
+  // For now, functions and if-expr contribute 1 to the work
+  class ExpressionWorkEstimator extends AbstractExprVisitor<Double, Void, RuntimeException> {
+    @Override
+    public Double visitFunctionHolderExpression(FunctionHolderExpression holder, Void value) throws RuntimeException {
+      double result = 1.0;
+
+      for(LogicalExpression arg : holder.args) {
+        result += arg.accept(this, null);
+      }
+
+      return result;
+    }
+
+    @Override
+    public Double visitIfExpression(IfExpression ifExpr, Void value) throws RuntimeException {
+      double result = 1.0;
+
+      result += ifExpr.ifCondition.condition.accept(this, null);
+      result += ifExpr.ifCondition.expression.accept(this, null);
+      result += ifExpr.elseExpression.accept(this, null);
+
+      return result;
+    }
+
+    @Override
+    public Double visitBooleanOperator(BooleanOperator op, Void value) throws RuntimeException {
+      double result = 1.0;
+
+      for(LogicalExpression arg : op.args) {
+        result += arg.accept(this, null);
+      }
+
+      return result;
+    }
+
+    @Override
+    public Double visitUnknown(LogicalExpression e, Void value) throws RuntimeException {
+      return 0.0;
+    }
   }
 }

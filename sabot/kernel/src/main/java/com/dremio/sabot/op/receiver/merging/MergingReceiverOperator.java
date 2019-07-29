@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -200,7 +200,7 @@ public class MergingReceiverOperator implements ProducerOperator {
       if (v instanceof FixedWidthVector) {
         AllocationHelper.allocate(v, context.getTargetBatchSize(), 1);
       } else {
-        v.allocateNewSafe();
+        v.allocateNew();
       }
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -90,6 +90,13 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     finalProperties.add(new Property(MAX_THREADS, "24"));
     finalProperties.add(new Property(MULTIPART_SIZE, "67108864")); // 64mb
     finalProperties.add(new Property(MAX_TOTAL_TASKS, "30"));
+
+    // Explicitly disable caching of the FileSystem backing this plugin. Hadoop's caching mechanism is only
+    // keyed by the URI, and not by connection properties, so if credentials are supplied through properties,
+    // Hadoop would return incorrect FileSystems from its cache.
+    // Note that the scheme for the FileSystem this FileSystemPlugin utilizes must match the second part of the
+    // property name.
+    finalProperties.add(new Property("fs.dremioS3.impl.disable.cache", "true"));
 
     if(config.compatibilityMode) {
       finalProperties.add(new Property(S3FileSystem.COMPATIBILITY_MODE, "true"));

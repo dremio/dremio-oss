@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -113,7 +113,7 @@ message SpillJobDetails {
 message JobInfo {
   required JobId jobId = 1;
   required string sql = 2;
-  optional exec.bit.RequestType requestType = 3;
+  optional RequestType requestType = 3;
   optional string client = 4; // client from which job was submitted
   optional string user = 5;
   optional int64 startTime = 6;
@@ -122,7 +122,7 @@ message JobInfo {
   required string datasetVersion = 9;
   optional string space = 10;
   repeated ParentDatasetInfo parents = 11;
-  required QueryType queryType = 12 [DEFAULT = UNKNOWN];
+  required QueryType queryType = 12 [default = UNKNOWN];
   optional string appId = 13;
   optional string failureInfo = 14;
   optional JobFailureInfo detailedFailureInfo = 26;
@@ -243,6 +243,7 @@ message JobStats {
 
 message JobResult {
   repeated JobAttempt attempts = 1;
+  optional bool completed = 2 [default = true]; // because only "old" entries don't have this field, they are already completed
 }
 
 message JobAttempt {

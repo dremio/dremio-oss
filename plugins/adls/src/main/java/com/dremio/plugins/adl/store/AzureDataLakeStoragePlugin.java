@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,7 +53,13 @@ public class AzureDataLakeStoragePlugin extends FileSystemPlugin<AzureDataLakeCo
     // configure hadoop fs implementation
     properties.add(new Property("fs.dremioAdl.impl", DremioAdlFileSystem.class.getName()));
     properties.add(new Property("fs.AbstractFileSystem.dremioAdl.impl", DremioAdl.class.getName()));
-    properties.add(new Property("fs.adl.impl.disable.cache", "true"));
+
+    // Explicitly disable caching of the FileSystem backing this plugin. Hadoop's caching mechanism is only
+    // keyed by the URI, and not by connection properties, so if credentials are supplied through properties,
+    // Hadoop would return incorrect FileSystems from its cache.
+    // Note that the scheme for the FileSystem this FileSystemPlugin utilizes must match the second part of the
+    // property name.
+    properties.add(new Property("fs.dremoiAdl.impl.disable.cache", "true"));
 
     // configure azure properties.
     properties.add(new Property("dfs.adls.oauth2.client.id", config.clientId));

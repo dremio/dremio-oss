@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -153,6 +153,7 @@ export class LeftTree extends PureComponent {
             <FinderNav
               navItems={sources}
               title={intl.formatMessage({ id: 'Source.Sources' })}
+              addTooltip={intl.formatMessage({ id: 'Source.AddSource'})}
               isInProgress={sourcesViewState.get('isInProgress')}
               addHref={this.getAddSourceHref()}
               listHref='/sources/list'

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,9 @@ import java.nio.file.Files;
 import java.util.ConcurrentModificationException;
 import java.util.concurrent.TimeUnit;
 
+import javax.ws.rs.client.Invocation;
+import javax.ws.rs.core.Response;
+
 import org.junit.Before;
 import org.junit.Test;
 
@@ -34,6 +37,8 @@ import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.TestNamespaceService;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Test resource tree.
@@ -431,5 +436,19 @@ public class TestResourceTree extends BaseTestServer {
       .queryParam("showDatasets", true)).buildGet(), ResourceList.class);
 
     assertEquals(2, resourceList.find("src1", ResourceType.SOURCE).getResources().size());
+  }
+
+  @Test
+  public void testResourceTreeRootSourcesShouldHaveStatus() throws Exception {
+    final Invocation invocation = getBuilder(getAPIv2().path("resourcetree").queryParam("showSources", true)).buildGet();
+    final Response response = invocation.submit().get();
+    assertEquals(Response.Status.OK.getStatusCode(), response.getStatusInfo().getStatusCode());
+
+    final ObjectMapper mapper = new ObjectMapper();
+    final String responseAsString = response.readEntity(String.class);
+    final JsonNode jsonNode = mapper.readTree(responseAsString);
+
+    final JsonNode state = jsonNode.get("resources").get(0).get("state");
+    assertEquals("good", state.get("status").asText());
   }
 }

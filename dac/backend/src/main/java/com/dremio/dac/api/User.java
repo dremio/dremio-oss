@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package com.dremio.dac.api;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
@@ -24,14 +25,33 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class User {
   private final String id;
   private final String name;
+  private final String firstName;
+  private final String lastName;
+  private final String email;
+  private final String tag;
+  /**
+   * A password. Used only when we going to update a user. So api consumer could send a password, but could not read it
+   * (A internal getter)
+   */
+  private final String password;
 
   @JsonCreator
   public User(
     @JsonProperty("id") String id,
-    @JsonProperty("name") String name
+    @JsonProperty("name") String name,
+    @JsonProperty("firstName") String firstName,
+    @JsonProperty("lastName") String lastName,
+    @JsonProperty("email") String email,
+    @JsonProperty("tag") String tag,
+    @JsonProperty("password") String password
   ) {
     this.id = id;
     this.name = name;
+    this.firstName = firstName;
+    this.lastName = lastName;
+    this.email = email;
+    this.tag = tag;
+    this.password = password;
   }
 
   public String getId() {
@@ -42,7 +62,30 @@ public class User {
     return name;
   }
 
-  public static User fromUser(com.dremio.service.users.User user) {
-    return new User(user.getUID().getId(), user.getUserName());
+  public String getFirstName() {
+    return firstName;
   }
+
+  public String getLastName() {
+    return lastName;
+  }
+
+  public String getEmail() {
+    return email;
+  }
+
+  public String getTag() {
+    return tag;
+  }
+
+  @JsonIgnore
+  public String getPassword() {
+    return password;
+  }
+
+  public static User fromUser(com.dremio.service.users.User user) {
+    return new User(user.getUID().getId(), user.getUserName(), user.getFirstName(), user.getLastName(),
+      user.getEmail(), user.getVersion(), null); // never send a password to a consumer
+  }
+
 }

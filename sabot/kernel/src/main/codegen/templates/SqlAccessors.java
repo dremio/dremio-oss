@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -108,7 +108,7 @@ public class ${name}Accessor extends AbstractSqlAccessor {
     }
     Nullable${name}Holder h = new Nullable${name}Holder();
     ac.get(index, h);
-    return new ByteBufInputStream(h.buffer.slice(h.start, h.end));
+    return new ByteBufInputStream(h.buffer.slice(h.start, h.end).asNettyBuffer());
   }
 
   @Override

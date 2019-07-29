@@ -219,6 +219,13 @@
    > `<=` void   
 
 
+## Resource defined by class com.dremio.dac.resource.ExportProfilesResource
+
+ - POST /export-profiles   
+   > `=>` [com.dremio.dac.resource.ExportProfilesParams](#class-comdremiodacresourceexportprofilesparams)   
+   > `<=` [com.dremio.dac.resource.ExportProfilesStats](#class-comdremiodacresourceexportprofilesstats)   
+
+
 ## Resource defined by class com.dremio.dac.resource.HomeResource
 
  - GET /home/{homeName}?includeContents={boolean}true   
@@ -325,6 +332,9 @@
    > `=>`   
    > Authorization: {String}   
    > `<=` void   
+
+ - GET /login   
+   > `<=` boolean   
 
  - POST /login   
    > `=>` [com.dremio.dac.model.usergroup.UserLogin](#class-comdremiodacmodelusergroupuserlogin)   
@@ -4415,6 +4425,30 @@ any
   name: "abc",
   port: "abc",
   status: "abc",
+}
+```
+
+## `class com.dremio.dac.resource.ExportProfilesParams`
+- Example:
+```
+{
+  chunkSize: 1,
+  fromDate: 1,
+  outputFilePath: "abc",
+  outputFormatType: "ZIP" | "JSON",
+  toDate: 1,
+  writeMode: "FAIL_IF_EXISTS" | "OVERWRITE" | "SKIP",
+}
+```
+
+## `class com.dremio.dac.resource.ExportProfilesStats`
+- Example:
+```
+{
+  jobsCount: 1,
+  outputPath: "abc",
+  profilesCount: 1,
+  skippedProfilesCount: 1,
 }
 ```
 

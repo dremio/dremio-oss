@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -98,6 +98,18 @@ public class TestPartitionCreation extends BaseTestQuery {
       .go();
   }
 
+
+  @Test
+  public void testPartitionNegativeValue() throws Exception {
+    final String ctas = "create table dfs_test.ctas_with_negative_part partition by (float_val) as select name, -float_val as float_val from sys.options where float_val is not null";
+    runSQL(ctas);
+    testBuilder()
+      .unOrdered()
+      .sqlQuery("SELECT count(*) c FROM dfs_test.\"ctas_with_negative_part\"")
+      .baselineColumns("c")
+      .sqlBaselineQuery("select count(*) c from sys.options where float_val is not null")
+      .go();
+  }
 
   @Test
   public void testPartitionHash() throws Exception {

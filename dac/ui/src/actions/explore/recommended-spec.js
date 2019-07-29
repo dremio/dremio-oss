@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { expect } from 'chai';
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 
 import transformModelMapper from 'utils/mappers/ExplorePage/Transform/transformModelMapper';
 import { API_URL_V2 } from 'constants/Api';
@@ -43,7 +43,7 @@ describe('recommended actions', () => {
         viewId: Actions.LOAD_TRANSFORM_CARDS_VIEW_ID
       };
       const expectedResult = {
-        [CALL_API]: {
+        [RSAA]: {
           types: [
             { type: Actions.RUN_SELECTION_TRANSFORM_START, meta },
             { type: Actions.RUN_SELECTION_TRANSFORM_SUCCESS, meta },
@@ -55,8 +55,8 @@ describe('recommended actions', () => {
           endpoint: `${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/${actionType}`
         }
       };
-      const realResult = Actions.loadTransformCards(data, transform, dataset, actionType)((obj) => obj)[CALL_API];
-      expect(realResult).to.eql(expectedResult[CALL_API]);
+      const realResult = Actions.loadTransformCards(data, transform, dataset, actionType)((obj) => obj)[RSAA];
+      expect(realResult).to.eql(expectedResult[RSAA]);
     });
 
     it('test result of calling of function loadTransformCardPreview', () => {
@@ -82,7 +82,7 @@ describe('recommended actions', () => {
         method: 'default',
         actionType, index };
       const expectedResult = {
-        [CALL_API]: {
+        [RSAA]: {
           types: [
             { type: Actions.TRANSFORM_CARD_PREVIEW_START, meta },
             { type: Actions.TRANSFORM_CARD_PREVIEW_SUCCESS, meta },
@@ -95,8 +95,8 @@ describe('recommended actions', () => {
         }
       };
       const realResult = Actions.loadTransformCardPreview(data, transform, dataset, actionType, index)(
-        (obj) => obj)[CALL_API];
-      expect(realResult).to.eql(expectedResult[CALL_API]);
+        (obj) => obj)[RSAA];
+      expect(realResult).to.eql(expectedResult[RSAA]);
     });
 
     it('test result of calling of function loadTransformValuesPreview', () => {
@@ -122,7 +122,7 @@ describe('recommended actions', () => {
       };
       const url = `${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/${actionType}_values_preview`;
       const expectedResult = {
-        [CALL_API]: {
+        [RSAA]: {
           types: [
             { type: Actions.RUN_SELECTION_TRANSFORM_PREVIEW_VALUES_START, meta },
             { type: Actions.RUN_SELECTION_TRANSFORM_PREVIEW_VALUES_SUCCESS, meta },
@@ -135,8 +135,8 @@ describe('recommended actions', () => {
         }
       };
       const realResult = Actions.loadTransformValuesPreview(data, transform, dataset, actionType)(
-        (obj) => obj)[CALL_API];
-      expect(realResult).to.eql(expectedResult[CALL_API]);
+        (obj) => obj)[RSAA];
+      expect(realResult).to.eql(expectedResult[RSAA]);
     });
   });
 });

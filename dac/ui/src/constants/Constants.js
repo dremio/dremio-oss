@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ export const LEFT_TREE_WIDTH = '220';
 export const SEARCH_BAR_WIDTH = '600';
 export const SEARCH_BAR_HEIGHT = '600';
 export const AUTO_PREVIEW_DELAY = 1000;
+export const MAX_UPLOAD_FILE_SIZE = 500 * 1024 * 1024; // 500MB
 export const EXPLORE_PROGRESS_STATES = ['STARTED', 'NOT STARTED', 'RUNNING']; //TODO put back NOT_SUBMITTED when it's working
 export const CONTAINER_ENTITY_TYPES = new Set(['HOME', 'FOLDER', 'SPACE', 'SOURCE']);
 export const HOME_SPACE_NAME = `@home-${uuid.v4()}`; // better to have Symbol here, but there is several problems with it

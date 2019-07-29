@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -169,6 +169,11 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
+  public void executorsSelected(long millisTaken, int idealNumFragments, int idealNumNodes, int numExecutors, String detailsText) {
+    observer.executorsSelected(millisTaken, idealNumFragments, idealNumNodes, numExecutors, detailsText);
+  }
+
+  @Override
   public void planGenerationTime(long millisTaken) {
     observer.planGenerationTime(millisTaken);
   }
@@ -179,19 +184,15 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void intermediateFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats) {
-    observer.intermediateFragmentScheduling(millisTaken, stats);
+  public void fragmentsStarted(long millisTaken, FragmentRpcSizeStats stats) {
+    observer.fragmentsStarted(millisTaken, stats);
   }
 
   @Override
-  public void leafFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats) {
-    observer.leafFragmentScheduling(millisTaken, stats);
-  }
+  public void fragmentsActivated(long millisTaken) { observer.fragmentsActivated(millisTaken); }
 
   @Override
-  public void startLeafFragmentFailed(Exception ex) {
-    observer.startLeafFragmentFailed(ex);
-  }
+  public void activateFragmentFailed(Exception ex){ observer.activateFragmentFailed(ex); }
 
   @Override
   public void resourcesScheduled(ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {

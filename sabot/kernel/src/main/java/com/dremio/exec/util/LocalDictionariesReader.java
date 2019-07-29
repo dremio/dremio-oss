@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,6 @@ import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.CodecFactory.BytesDecompressor;
 import org.apache.parquet.hadoop.PageHeaderWithOffset;
-import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
@@ -46,6 +45,8 @@ import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 
 import com.dremio.common.VM;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -71,7 +72,9 @@ public class LocalDictionariesReader {
    * @throws IOException
    */
   public static Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> readDictionaries(FileSystem fs, Path filePath, CodecFactory codecFactory) throws IOException {
-    final ParquetMetadata parquetMetadata = ParquetFileReader.readFooter(fs.getConf(), filePath, ParquetMetadataConverter.NO_FILTER);
+    // Passing the max footer length is not required in this case as the parquet reader would already have failed.
+    final ParquetMetadata parquetMetadata = SingletonParquetFooterCache.readFooter(fs, filePath, ParquetMetadataConverter.NO_FILTER,
+      ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getDefault().getNumVal());
     if (parquetMetadata.getBlocks().size() > 1) {
       throw new IOException(
         format("Global dictionaries can only be built on a parquet file with a single row group, found %d row groups for file %s",

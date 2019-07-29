@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,14 +23,9 @@ import Modal from 'components/Modals/Modal';
 
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import { addNewFolderForSpace } from 'actions/resources/spaceDetails';
-import { getHomeContents } from 'selectors/datasets';
-import { getViewState } from 'selectors/resources';
-import { getEntityType } from 'utils/pathUtils';
 
 import AddFolderForm from '../forms/AddFolderForm';
 import './Modal.less';
-
-const VIEW_ID = 'AddFolderModal';
 
 @injectIntl
 export class AddFolderModal extends Component {
@@ -56,9 +51,8 @@ export class AddFolderModal extends Component {
   }
 
   submit(values) {
-    const {parentEntity, parentType} = this.props;
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.addNewFolderForSpace(parentEntity, parentType, values.name)
+      this.props.addNewFolderForSpace(values.name)
     ).then(() => this.props.hide());
   }
 
@@ -76,15 +70,4 @@ export class AddFolderModal extends Component {
   }
 }
 
-function mapStateToProps(state) {
-  const pathname = state.routing.locationBeforeTransitions.pathname;
-  const parentType = getEntityType(pathname);
-
-  return {
-    parentEntity: getHomeContents(state, pathname) || Immutable.Map(),
-    parentType,
-    viewState: getViewState(state, VIEW_ID)
-  };
-}
-
-export default connect(mapStateToProps, {addNewFolderForSpace})(AddFolderModal);
+export default connect(null, { addNewFolderForSpace })(AddFolderModal);

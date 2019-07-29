@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 import Immutable from 'immutable';
+import { get } from 'lodash';
 import uuid from 'uuid';
 
-import { RequestError, ApiError, InternalError } from 'redux-api-middleware';
 import { RESET_VIEW_STATE, UPDATE_VIEW_STATE, DISMISS_VIEW_STATE_ERROR } from 'actions/resources';
 import { CANCEL_TRANSFORM } from 'actions/explore/dataset/transform';
 import { RESET_NEW_QUERY } from 'actions/explore/view';
 import { CLEAR_ENTITIES } from 'actions/resources/entities';
+import { ApiMiddlewareErrors } from '@app/utils/apiUtils/apiUtils';
 
 export const NO_INTERNET_MESSAGE = 'Could not connect to the Dremio server.'; // todo: loc
 
@@ -34,42 +35,38 @@ function isStartAction(action) {
 }
 
 function isAutoPeekError(action) {
-  return action.error && action.meta.submitType === 'autoPeek';
+  return action.error && get(action, 'meta.submitType') === 'autoPeek';
 }
 
 export function getErrorMessage(action) {
+  const error = action.meta && action.meta.errorMessage;
   // allow overriding the error message in action creator.
-  if (action.meta && action.meta.errorMessage) {
-    return { errorMessage: action.meta.errorMessage };
+  if (error) {
+    return typeof error === 'string' ? { errorMessage: error } : error;
   }
 
   const {payload} = action;
-  if (payload) {
-    if (payload instanceof RequestError) {
+  if (payload instanceof Error) {
+    switch (payload.name) {
+    case ApiMiddlewareErrors.RequestError:
       return { errorMessage: NO_INTERNET_MESSAGE };
-    }
-    if (payload instanceof ApiError) {
+    case ApiMiddlewareErrors.ApiError:
       if (payload.response && payload.response.errorMessage) {
         return payload.response;
       }
       return { errorMessage: payload.message };
-    }
-    if (payload instanceof InternalError) {
-      console.error('InternalError', action);
+    case ApiMiddlewareErrors.InternalError:
       return { errorMessage: `${payload.name}: ${payload.message}.` };
+    default:
+      // return unknown error below
     }
   }
   return { errorMessage: 'Unknown error: ' + payload };
 }
 
 export function getErrorDetails(action) {
-  const {payload} = action;
-  if (payload) {
-    if (payload instanceof ApiError) {
-      if (payload.response && payload.response.details) {
-        return payload.response.details;
-      }
-    }
+  if (get(action, 'payload.name') === ApiMiddlewareErrors.ApiError) {
+    return get(action, 'payload.response.details');
   }
 }
 

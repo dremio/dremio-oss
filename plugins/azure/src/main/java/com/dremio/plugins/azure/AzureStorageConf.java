@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,13 +42,21 @@ import io.protostuff.Tag;
 @SourceType(value = "AZURE_STORAGE", label = "Azure Storage")
 public class AzureStorageConf extends FileSystemConf<AzureStorageConf, AzureStoragePlugin> {
 
-  private static final List<String> UNIQUE_CONN_PROPS = ImmutableList.of(
-      AzureStorageFileSystem.ACCOUNT,
-      AzureStorageFileSystem.SECURE,
-      AzureStorageFileSystem.KEY,
-      AzureStorageFileSystem.CONTAINER_LIST
+  public static final List<String> KEY_AUTH_PROPS = ImmutableList.of(
+    AzureStorageFileSystem.ACCOUNT,
+    AzureStorageFileSystem.SECURE,
+    AzureStorageFileSystem.CONTAINER_LIST,
+    AzureStorageFileSystem.KEY
   );
 
+  public static final List<String> AZURE_AD_PROPS = ImmutableList.of(
+    AzureStorageFileSystem.ACCOUNT,
+    AzureStorageFileSystem.SECURE,
+    AzureStorageFileSystem.CONTAINER_LIST,
+    AzureStorageFileSystem.CLIENT_ID,
+    AzureStorageFileSystem.CLIENT_SECRET,
+    AzureStorageFileSystem.TOKEN_ENDPOINT
+  );
 
   /**
    * Type of Storage
@@ -113,6 +121,22 @@ public class AzureStorageConf extends FileSystemConf<AzureStorageConf, AzureStor
   @DisplayMetadata(label = "Enable asynchronous access when possible")
   public boolean enableAsync = true;
 
+  @Tag(10)
+  @DisplayMetadata(label = "Application ID")
+  public String clientId;
+
+  @Tag(11)
+  @DisplayMetadata(label = "OAuth 2.0 Token Endpoint")
+  public String tokenEndpoint;
+
+  @Tag(12)
+  @Secret
+  @DisplayMetadata(label = "Client Secret")
+  public String clientSecret;
+
+  @Tag(13)
+  public AzureAuthenticationType credentialsType = AzureAuthenticationType.ACCESS_KEY;
+
   @Override
   public AzureStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     Preconditions.checkNotNull(accountName, "Account name must be provided.");
@@ -146,7 +170,7 @@ public class AzureStorageConf extends FileSystemConf<AzureStorageConf, AzureStor
 
   @Override
   public List<String> getConnectionUniqueProperties() {
-    return UNIQUE_CONN_PROPS;
+    return credentialsType.getUniqueProperties();
   }
 
   @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcHeader;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
 import com.google.protobuf.CodedInputStream;
@@ -156,10 +157,10 @@ public class MessageDecoder extends ByteToMessageDecoder {
 
 
       try {
-        dBody = allocator.buffer(dBodyLength);
+        dBody = allocator.buffer(dBodyLength).asNettyBuffer();
         // need to make buffer copy, otherwise netty will try to refill this buffer if we move the readerIndex forward...
         // TODO: Can we avoid this copy?
-        dBody.writeBytes(frame, frame.readerIndex(), dBodyLength);
+        dBody.writeBytes(frame.nioBuffer(frame.readerIndex(), dBodyLength));
 
       } catch (OutOfMemoryException e) {
         sendOutOfMemory(e, ctx, header.getCoordinationId());
@@ -184,6 +185,7 @@ public class MessageDecoder extends ByteToMessageDecoder {
   private void sendOutOfMemory(OutOfMemoryException e, final ChannelHandlerContext ctx, int coordinationId){
     final UserException uex = UserException.memoryError(e)
         .message("Out of memory while receiving data.")
+        .addContext(MemoryDebugInfo.getDetailsOnAllocationFailure(e, allocator))
         .build(logger);
 
     final OutboundRpcMessage outMessage = new OutboundRpcMessage(

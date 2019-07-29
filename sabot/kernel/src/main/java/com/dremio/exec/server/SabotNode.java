@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@ package com.dremio.exec.server;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.inject.Provider;
 
 import org.apache.zookeeper.Environment;
 
@@ -46,6 +48,7 @@ import com.dremio.exec.work.WorkStats;
 import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.exec.work.user.LocalQueryExecutor;
+import com.dremio.options.OptionManager;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.resource.basic.BasicResourceAllocator;
 import com.dremio.sabot.exec.FragmentWorkManager;
@@ -65,6 +68,11 @@ import com.dremio.service.SingletonRegistry;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.commandpool.CommandPoolFactory;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.execselector.ExecutorSelectionService;
+import com.dremio.service.execselector.ExecutorSelectionServiceImpl;
+import com.dremio.service.execselector.ExecutorSelectorFactory;
+import com.dremio.service.execselector.ExecutorSelectorFactoryImpl;
+import com.dremio.service.execselector.ExecutorSelectorProvider;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.listing.DatasetListingServiceImpl;
 import com.dremio.service.namespace.NamespaceService;
@@ -130,6 +138,8 @@ public class SabotNode implements AutoCloseable {
 
     // eagerly created.
     final BootStrapContext bootstrap = registry.bindSelf(new BootStrapContext(dremioConfig, classpathScan));
+
+    final Provider<OptionManager> optionsProvider = () -> registry.provider(SabotContext.class).get().getOptionManager();
 
     registry.bind(ConnectionReader.class, ConnectionReader.of(bootstrap.getClasspathScan(), config));
     // bind default providers.
@@ -228,6 +238,17 @@ public class SabotNode implements AutoCloseable {
 
     registry.bind(ResourceAllocator.class,
       new BasicResourceAllocator(registry.provider(ClusterCoordinator.class)));
+    registry.bind(ExecutorSelectorFactory.class, new ExecutorSelectorFactoryImpl());
+    ExecutorSelectorProvider executorSelectorProvider = new ExecutorSelectorProvider();
+    registry.bind(ExecutorSelectorProvider.class, executorSelectorProvider);
+    registry.bind(ExecutorSelectionService.class,
+        new ExecutorSelectionServiceImpl(
+            registry.provider(ClusterCoordinator.class),
+            optionsProvider,
+            registry.provider(ExecutorSelectorFactory.class),
+            executorSelectorProvider
+        )
+    );
 
     registry.bindSelf(new ContextInformationFactory());
     registry.bindSelf(new TaskPoolInitializer(registry.provider(SabotContext.class), registry.getBindingCreator()));
@@ -254,6 +275,7 @@ public class SabotNode implements AutoCloseable {
             registry.provider(SabotContext.class),
             registry.provider(ResourceAllocator.class),
             registry.provider(CommandPool.class),
+            registry.provider(ExecutorSelectionService.class),
             registry.getBindingCreator()
             )
         );

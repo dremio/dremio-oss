@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright (C) 2017-2018 Dremio Corporation
+    Copyright (C) 2017-2019 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>3.2.8-201907180222520740-08f2b54</version>
+    <version>3.3.1-201907291852280797-df23756</version>
   </parent>
 
   <groupId>com.dremio.services</groupId>
@@ -46,5 +46,6 @@
     <module>users</module>
     <module>configuration</module>
     <module>command-pool</module>
+    <module>exec-selector</module>
   </modules>
 </project>

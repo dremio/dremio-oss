@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,37 +33,53 @@ import io.reactivex.Single;
  * Client to wrap generated swagger/autorest code.
  */
 class DataLakeG2Client {
+  private static final String HTTP = "http";
+  private static final String HTTPS = "https";
+  private static final String XMS_VERSION = "2018-11-09";
 
-  private final GeneratedDataLakeStorageClient client;
-  public DataLakeG2Client(ICredentials credentials, String account, boolean secure, String azureEndpoint) {
-    this.client = new GeneratedDataLakeStorageClient(StorageURL.createPipeline(credentials, new PipelineOptions()))
-        .withAccountName(account)
-        .withScheme(secure ? "https" : "http")
-        .withDnsSuffix(azureEndpoint)
-        .withXMsVersion("2018-11-09");
+  private GeneratedDataLakeStorageClient client;
+  private final String account;
+  private final boolean secure;
+  private final String azureEndpoint;
+
+  protected DataLakeG2Client(ICredentials credentials, String account, boolean secure, String azureEndpoint) {
+    this.account = account;
+    this.secure = secure;
+    this.azureEndpoint = azureEndpoint;
+    generateAndSetDataLakeStorageClient(credentials);
   }
 
   public DataLakeG2Client(String account, String key, boolean secure, String azureEndpoint) throws InvalidKeyException {
     this(new SharedKeyCredentials(account, key), account, secure, azureEndpoint);
   }
 
+  protected void generateAndSetDataLakeStorageClient(ICredentials credentials) {
+    this.client = new GeneratedDataLakeStorageClient(StorageURL.createPipeline(credentials, new PipelineOptions()))
+      .withAccountName(account)
+      .withScheme(secure ? HTTPS : HTTP)
+      .withDnsSuffix(azureEndpoint)
+      .withXMsVersion(XMS_VERSION);
+  }
+
+  protected GeneratedDataLakeStorageClient getClient() {
+    return this.client;
+  }
+
   public Single<FilesystemListResponse> listFilesystems(
       String prefix,
-      String continuation) {
+      String continuation) throws Exception {
     return Utility.addErrorWrappingToSingle(
         client.generatedFilesystems().listWithRestResponseAsync(Context.NONE, prefix, continuation, 5000, null,
             null, null));
-
   }
 
   public Single<PathReadResponse> read(
       String filesystem,
       String path,
       long startInclusive,
-      long endExclusive) {
+      long endExclusive) throws Exception {
     String range = String.format("bytes=%d-%d", startInclusive, endExclusive - 1);
     return Utility.addErrorWrappingToSingle(
         client.generatedPaths().readWithRestResponseAsync(Context.NONE, filesystem, path, range, null, null, null, null, null, null, null, null));
   }
-
 }

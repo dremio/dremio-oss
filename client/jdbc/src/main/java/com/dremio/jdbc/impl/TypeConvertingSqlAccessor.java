@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -299,7 +299,10 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
         result = getByteValueOrThrow( innerAccessor.getDouble( rowOffset ),
                                       "Java double / SQL DOUBLE PRECISION" );
         break;
-
+      case DECIMAL:
+        result = getByteValueOrThrow( innerAccessor.getBigDecimal( rowOffset ).doubleValue(),
+          "Java decimal / SQL DECIMAL PRECISION" );
+        break;
       // 3. Not-yet-converted and unconvertible types:
       default:
         result = innerAccessor.getByte( rowOffset );
@@ -363,7 +366,10 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
         result = getShortValueOrThrow( innerAccessor.getDouble( rowOffset ),
                                        "Java double / SQL DOUBLE PRECISION" );
         break;
-
+      case DECIMAL:
+        result = getShortValueOrThrow( innerAccessor.getBigDecimal( rowOffset ).doubleValue(),
+          "Java decimal / SQL DECIMAL PRECISION" );
+        break;
       // 3. Not-yet-converted and unconvertible types:
       default:
         result = innerAccessor.getByte( rowOffset );
@@ -426,7 +432,10 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
         result = getIntValueOrThrow( innerAccessor.getDouble( rowOffset ),
                                      "Java double / SQL DOUBLE PRECISION" );
         break;
-
+      case DECIMAL:
+        result = getIntValueOrThrow( innerAccessor.getBigDecimal( rowOffset ).doubleValue(),
+          "Java decimal / SQL DECIMAL PRECISION" );
+        break;
       // 3. Not-yet-converted and unconvertible types:
       default:
         result = innerAccessor.getInt( rowOffset );
@@ -479,7 +488,10 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
         result = getLongValueOrThrow( innerAccessor.getDouble( rowOffset ),
                                       "Java double / SQL DOUBLE PRECISION" );
         break;
-
+      case DECIMAL:
+        result = getLongValueOrThrow( innerAccessor.getBigDecimal( rowOffset ).doubleValue(),
+          "Java decimal / SQL DECIMAL PRECISION" );
+        break;
       // 3. Not-yet-converted and unconvertible types:
       default:
         result = innerAccessor.getLong( rowOffset );
@@ -523,7 +535,17 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
                                       value );
         }
         break;
-
+      case DECIMAL:
+        final BigDecimal decimalValue = innerAccessor.getBigDecimal( rowOffset );
+        final float tempFloat = decimalValue.floatValue();
+        if ( Float.NEGATIVE_INFINITY == tempFloat || Float.POSITIVE_INFINITY == tempFloat) {
+          throw newOverflowException( "getFloat(...)",
+            "Java decimal / SQL DECIMAL PRECISION",
+            tempFloat );
+        } else {
+          result = tempFloat;
+        }
+        break;
       // 3. Not-yet-converted and unconvertible types:
       default:
         result = innerAccessor.getInt( rowOffset );
@@ -559,7 +581,9 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
       case FLOAT4:
         result = innerAccessor.getFloat( rowOffset );
         break;
-
+      case DECIMAL:
+        result = innerAccessor.getBigDecimal( rowOffset ).doubleValue();
+        break;
       // 3. Not-yet-converted and unconvertible types:
       default:
         result = innerAccessor.getLong( rowOffset );

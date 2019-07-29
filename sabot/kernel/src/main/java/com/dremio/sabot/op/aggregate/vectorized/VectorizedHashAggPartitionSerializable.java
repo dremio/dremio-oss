@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import org.apache.arrow.vector.FieldVector;
 
 import com.dremio.exec.cache.AbstractStreamSerializable;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggPartitionWritableBatch.HashAggPartitionBatchDefinition;
 import com.dremio.sabot.op.common.ht2.LBlockHashTable;
 import com.google.common.annotations.VisibleForTesting;
@@ -65,6 +66,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
   private long spilledDataSize;
   private ByteBuffer intBuffer = ByteBuffer.allocate(Integer.SIZE / Byte.SIZE); //byte array of 4 bytes
   private HashAggPartitionWritableBatch inProgressWritableBatch;
+  private final OperatorStats operatorStats;
   /**
    * Used to serialize a HashAggPartition to disk. Caller should use
    * this constructor when they decide a particular partition
@@ -76,9 +78,10 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    * instantiating VectorizedHashAggPartitionSerializable to serialize the
    * partition to disk.
    */
-  public VectorizedHashAggPartitionSerializable(final VectorizedHashAggPartition hashAggPartition) {
+  public VectorizedHashAggPartitionSerializable(final VectorizedHashAggPartition hashAggPartition, final OperatorStats stats) {
     this.hashAggPartition = hashAggPartition;
     this.partitionToLoadSpilledData = null;
+    this.operatorStats = stats;
     initLocalStats();
   }
 
@@ -91,10 +94,11 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    * the caller is expected to invoke readFromStream(input stream) method after
    * instantiating this object to read back a spilled partition.
    */
-  public VectorizedHashAggPartitionSerializable(final PartitionToLoadSpilledData partitionToLoadSpilledData) {
+  public VectorizedHashAggPartitionSerializable(final PartitionToLoadSpilledData partitionToLoadSpilledData, final OperatorStats stats) {
     Preconditions.checkArgument(partitionToLoadSpilledData != null, "ERROR: Need a valid handle for loading partition for reading spilled batches");
     this.hashAggPartition = null;
     this.partitionToLoadSpilledData = partitionToLoadSpilledData;
+    this.operatorStats = stats;
     initLocalStats();
   }
 
@@ -119,7 +123,11 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     /* STEP 1: read chunk header */
     int numBytesToRead = HashAggPartitionWritableBatch.BATCH_HEADER_LENGTH;
     while (numBytesToRead > 0) {
-      final int numBytesRead = input.read(ioBuffer, HashAggPartitionWritableBatch.BATCH_HEADER_LENGTH - numBytesToRead, numBytesToRead);
+      int numBytesRead;
+      //track io time as wait time
+      try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        numBytesRead = input.read(ioBuffer, HashAggPartitionWritableBatch.BATCH_HEADER_LENGTH - numBytesToRead, numBytesToRead);
+      }
       if (numBytesRead == -1) {
         /* indicate detection of unexpected end of stream */
         partitionToLoadSpilledData.setRecordsInBatch(-1);
@@ -139,7 +147,11 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
       "ERROR: read incorrect length of accumulator types");
 
     /* STEP 4: read metadata for accumulator vectors */
-    final UserBitShared.RecordBatchDef accumulatorBatchDef = UserBitShared.RecordBatchDef.parseDelimitedFrom(input);
+    final UserBitShared.RecordBatchDef accumulatorBatchDef;
+    //track io time as wait time
+    try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+      accumulatorBatchDef = UserBitShared.RecordBatchDef.parseDelimitedFrom(input);
+    }
     final int numRecordsInBatch = accumulatorBatchDef.getRecordCount();
     Preconditions.checkArgument(numRecordsInBatch <= partitionToLoadSpilledData.getPreallocatedBatchSize(),
       "Error: incorrect preallocated batch size for reading spilled batch");
@@ -218,7 +230,11 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     int numBytesToRead = bufferLength;
     while (numBytesToRead > 0) {
       final int lenghtToRead = Math.min(ioBuffer.length, numBytesToRead);
-      final int numBytesRead = input.read(ioBuffer, 0, lenghtToRead);
+      final int numBytesRead;
+      //track io time as wait time
+      try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        numBytesRead = input.read(ioBuffer, 0, lenghtToRead);
+      }
       if (numBytesRead == -1 && numBytesToRead > 0) {
         throw new EOFException("ERROR: Unexpected end of stream while reading chunk data");
       }
@@ -365,7 +381,10 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     for (int writePos = 0; writePos < bufferLength; writePos += ioBuffer.length) {
       final int lengthToWrite = Math.min(ioBuffer.length, bufferLength - writePos);
       buffer.getBytes(writePos, ioBuffer, 0, lengthToWrite);
-      output.write(ioBuffer, 0, lengthToWrite);
+      //track io time as wait time
+      try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        output.write(ioBuffer, 0, lengthToWrite);
+      }
     }
   }
 
@@ -379,11 +398,13 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    */
   private void writeBatchDefinition(final HashAggPartitionBatchDefinition batchDefinition,
                                     final OutputStream output) throws IOException {
-    output.write(getByteArrayFromInt(batchDefinition.fixedBufferLength));
-    output.write(getByteArrayFromInt(batchDefinition.variableBufferLength));
-    output.write(batchDefinition.numAccumulators);
-    output.write(batchDefinition.accumulatorTypes);
-    batchDefinition.accumulatorBatchDef.writeDelimitedTo(output);
+    try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+      output.write(getByteArrayFromInt(batchDefinition.fixedBufferLength));
+      output.write(getByteArrayFromInt(batchDefinition.variableBufferLength));
+      output.write(batchDefinition.numAccumulators);
+      output.write(batchDefinition.accumulatorTypes);
+      batchDefinition.accumulatorBatchDef.writeDelimitedTo(output);
+    }
   }
 
   /**

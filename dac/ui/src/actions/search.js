@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 import { API_URL_V2 } from 'constants/Api';
 import searchSchema from 'schemas/dataset';
 import { arrayOf } from 'normalizr';
@@ -30,7 +30,7 @@ export const NEW_SEARCH_REQUEST_CLEANUP = 'NEW_SEARCH_REQUEST_CLEANUP'; // will 
 function fetchSearchData(text) {
   const meta = {viewId: 'searchDatasets'};
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: SEARCH_STARTED, meta },
         schemaUtils.getSuccessActionTypeWithSchema(SEARCH_SUCCESS, {datasets: arrayOf(searchSchema)}, meta),

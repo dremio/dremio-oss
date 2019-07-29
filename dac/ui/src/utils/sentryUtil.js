@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 import Raven from 'raven-js';
 import uuid from 'uuid';
-import { getVersionWithEdition } from 'dyn-load/utils/versionUtils';
+import { getVersion } from '@root/scripts/versionUtils';
 import config from './config';
 
 /*
@@ -32,9 +32,9 @@ class SentryUtil {
   sessionUUID = uuid.v4();
 
   install() {
-    if (config.isReleaseBuild && !config.outsideCommunicationDisabled) {
+    if (config.logErrorsToSentry && !config.outsideCommunicationDisabled) {
       Raven.config('https://2592b22bfefa49b3b5b1e72393f84194@sentry.io/66750', {
-        release: getVersionWithEdition(),
+        release: getVersion(),
         serverName: config.clusterId,
         // extra info that could be used to search an error.
         // example: sessionUUID:"1ac6a0bb-6582-4532-81c3-5b2ac479dcab"
@@ -47,7 +47,7 @@ class SentryUtil {
   }
 
   logException(ex, context) {
-    if (config.isReleaseBuild && !config.outsideCommunicationDisabled) {
+    if (config.logErrorsToSentry && !config.outsideCommunicationDisabled) {
       Raven.captureException(ex, {
         extra: context
       });

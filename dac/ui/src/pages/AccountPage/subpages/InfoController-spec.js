@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,10 +27,6 @@ const commonFormValues = {
   password: {value: 'password'}
 };
 
-const reduceFormFields = (form) => {
-  return Object.keys(form).reduce((fields, fieldName) => ({...fields, [fieldName]: form[fieldName].value }), {});
-};
-
 describe('InfoController', () => {
   let minimalProps;
   let commonProps;
@@ -55,11 +51,6 @@ describe('InfoController', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should load current user', () => {
-    shallow(<InfoController {...minimalProps}/>, {context});
-    expect(minimalProps.loadUser).to.be.calledWith({userName: context.username});
-  });
-
   describe('#submit', () => {
     let wrapper;
     let instance;
@@ -75,12 +66,6 @@ describe('InfoController', () => {
     afterEach(() => {
       ApiUtils.attachFormSubmitHandlers.restore();
       clock.restore();
-    });
-
-    it('should call editAccount from props with appropriate value on submit', () => {
-      const expectedBody = {...reduceFormFields(commonFormValues), createdAt: fakeNow};
-      instance.submit(commonFormValues);
-      expect(commonProps.editAccount).to.be.calledWith(expectedBody, 'admin');
     });
 
     it('should reset form dirty state after submit', () => {

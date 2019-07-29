@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@ public class Views {
           );
       fields.add(fieldType);
     }
-    return new View(name, sql, fields, context);
+    return new View(name, sql, fields, null, context);
   }
 
   private static String name(Enum<?> e) {

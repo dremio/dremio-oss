@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,7 +57,9 @@ describe('StatefulTableViewer', () => {
       getPlatformStub.restore();
     });
     it('should render VirtualizedTableViewer only if virtualized is true', () => {
-      const wrapper = shallow(<StatefulTableViewer virtualized {...commonProps}/>);
+      // add data item to avoid empty message
+      const props = {...commonProps, tableData: Immutable.List([{data: []}])};
+      const wrapper = shallow(<StatefulTableViewer virtualized {...props}/>);
       expect(wrapper.find('VirtualizedTableViewer')).to.have.length(1);
       wrapper.setProps({
         virtualized: false
@@ -113,8 +115,7 @@ describe('StatefulTableViewer', () => {
         tableData: Immutable.fromJS([])
       };
       const wrapper = shallow(<StatefulTableViewer {...props}/>, { context });
-      expect(wrapper.find('TableViewer')).to.have.length(1);
-      expect(wrapper.find('div.empty-message')).to.have.length(1);
+      expect(wrapper.find('EmptyTableMessage')).to.have.length(1);
     });
 
     it('should render errors w/ ViewStateWrapper on top', () => {

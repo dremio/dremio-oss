@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 package com.dremio.exec.work.user;
+
+import java.nio.ByteBuffer;
 
 import org.apache.arrow.memory.BufferAllocator;
 
@@ -54,7 +56,10 @@ public class LocalUserUtil {
         }
         out = allocator.buffer(length);
         for(int i =0; i < buffers.length; i++){
-          out.writeBytes(buffers[i]);
+          ByteBuffer src = buffers[i].nioBuffer();
+          int srcLength = src.remaining();
+          out.setBytes(out.writerIndex(), src);
+          out.writerIndex(srcLength + out.writerIndex());
         }
       }else{
         out = allocator.buffer(0);

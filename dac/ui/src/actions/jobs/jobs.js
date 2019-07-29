@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 import { replace, push } from 'react-router-redux';
 import Immutable from 'immutable';
 import { normalize } from 'normalizr';
@@ -58,7 +58,7 @@ function filterJobsAction(queryState, viewId) {
   const href = `/jobs/?${query}`;
 
   return {
-    [CALL_API]:{
+    [RSAA]:{
       types: [
         {type: FILTER_JOBS_REQUEST, meta},
         {type: FILTER_JOBS_SUCCESS, meta},
@@ -82,7 +82,7 @@ export const LOAD_NEXT_JOBS_FAILURE = 'LOAD_NEXT_JOBS_FAILURE';
 
 function fetchNextJobs(href) {
   return {
-    [CALL_API]:{
+    [RSAA]:{
       types: [
         LOAD_NEXT_JOBS_REQUEST,
         LOAD_NEXT_JOBS_SUCCESS,
@@ -110,7 +110,7 @@ function fetchItemsForFilter(tag, filter = '', limit = '') {
     params = param({filter, limit});
   }
   return {
-    [CALL_API]:{
+    [RSAA]:{
       types: [
         ITEMS_FOR_FILTER_JOBS_REQUEST,
         {
@@ -138,7 +138,7 @@ export const JOB_DETAILS_FAILURE = 'JOB_DETAILS_FAILURE';
 function fetchJobDetails(jobId, viewId) {
   const meta = { jobId, viewId };
   return {
-    [CALL_API]:{
+    [RSAA]:{
       types: [
         {type: JOB_DETAILS_REQUEST, meta},
         schemaUtils.getSuccessActionTypeWithSchema(JOB_DETAILS_SUCCESS, jobDetailsSchema, meta),
@@ -161,7 +161,7 @@ export const CANCEL_JOB_SUCCESS = 'CANCEL_JOB_SUCCESS';
 export const CANCEL_JOB_FAILURE = 'CANCEL_JOB_FAILURE';
 
 const cancelJob = (jobId) => ({
-  [CALL_API]: {
+  [RSAA]: {
     types: [
       CANCEL_JOB_REQUEST,
       CANCEL_JOB_SUCCESS,
@@ -185,7 +185,7 @@ export const ASK_GNARLY_FAILURE = 'ASK_GNARLY_FAILURE';
 function fetchAskGnarly(jobId) {
   const href = '/support/' + jobId;
   return {
-    [CALL_API]:{
+    [RSAA]:{
       types: [
         {
           type: ASK_GNARLY_STARTED,

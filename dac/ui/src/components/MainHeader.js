@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { PureComponent } from 'react';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import Radium from 'radium';
@@ -37,7 +37,7 @@ import './MainHeader.less';
 
 @injectIntl
 @Radium
-export class MainHeader extends Component {
+export class MainHeader extends PureComponent {
 
   static propTypes = {
     user: PropTypes.instanceOf(Immutable.Map),

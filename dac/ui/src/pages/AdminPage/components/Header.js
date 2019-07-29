@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ import { Component } from 'react';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Radium from 'radium';
+import { createSelector } from 'reselect';
 
 // todo: discuss: could just be CSS - no need for per-tab `import`?
 
@@ -27,15 +28,20 @@ class Header extends Component {
   static propTypes = {
     title: PropTypes.string,
     children: PropTypes.node,
-    endChildren: PropTypes.node
+    endChildren: PropTypes.node,
+    style: PropTypes.object
   }
 
+  getStyle = createSelector(style => style, style => ({ ...styles.adminHeader, ...style }));
+
   render() {
+    const { title, children, endChildren, style } = this.props;
+
     return (
-      <header style={styles.adminHeader}>
-        <h3>{this.props.title || this.props.children}</h3>
+      <header style={this.getStyle(style)}>
+        <h3>{title || children}</h3>
         <div>
-          {this.props.endChildren}
+          {endChildren}
         </div>
       </header>
     );

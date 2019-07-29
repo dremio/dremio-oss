@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ public class HashAggregate extends AbstractSingle {
   private final boolean vectorize;
   private final boolean useSpill;
   private final float cardinality;
+  private final int hashTableBatchSize;
 
   /* testing related parameters */
   private VectorizedHashAggSpillStats spillStats;
@@ -49,7 +50,8 @@ public class HashAggregate extends AbstractSingle {
       @JsonProperty("aggrExprs") List<NamedExpression> aggrExprs,
       @JsonProperty("vectorize") boolean vectorize,
       @JsonProperty("useSpill") boolean useSpill,
-      @JsonProperty("cardinality") float cardinality
+      @JsonProperty("cardinality") float cardinality,
+      @JsonProperty("hashTableBatchSize") int hashTableBatchSize
       ) {
     super(props, child);
     this.groupByExprs = groupByExprs;
@@ -57,8 +59,20 @@ public class HashAggregate extends AbstractSingle {
     this.vectorize = vectorize;
     this.useSpill = useSpill;
     this.cardinality = cardinality;
+    this.hashTableBatchSize = hashTableBatchSize;
   }
 
+  // for testing only
+  public HashAggregate(
+    OpProps props,
+    PhysicalOperator child,
+    List<NamedExpression> groupByExprs,
+    List<NamedExpression> aggrExprs,
+    boolean vectorize,
+    boolean useSpill,
+    float cardinality) {
+    this(props, child, groupByExprs, aggrExprs, vectorize, useSpill, cardinality, 3968);
+  }
 
   public boolean isVectorize(){
     return vectorize;
@@ -93,6 +107,10 @@ public class HashAggregate extends AbstractSingle {
   @Override
   public int getOperatorType() {
     return CoreOperatorType.HASH_AGGREGATE_VALUE;
+  }
+
+  public int getHashTableBatchSize() {
+    return hashTableBatchSize;
   }
 
   @VisibleForTesting

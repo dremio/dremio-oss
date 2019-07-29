@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@
       }
 
       // ----------------------------------------------------------
-      
+
       &:hover {
         background: @OVERLAY_BORDER;
         .actions-wrap {
@@ -73,13 +73,16 @@
         }
       }
     }
-      
+
     .actions-wrap {
       opacity: 0;
-      a, button {
-        cursor: pointer;
-        margin-left: 15px;
+
+      > a, button {
+        &:not(:last-child) {
+          margin-right: 5px;
+        }
       }
+
     }
   }
 }

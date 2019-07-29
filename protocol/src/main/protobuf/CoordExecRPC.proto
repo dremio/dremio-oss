@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,12 +31,13 @@ enum RpcType {
 
   // coordinator > exec
   REQ_START_FRAGMENTS = 2;
-  REQ_CANCEL_FRAGMENTS = 3;
+  REQ_ACTIVATE_FRAGMENTS = 3;
+  REQ_CANCEL_FRAGMENTS = 4;
 
   // exec > coordinator
-  REQ_FRAGMENT_STATUS = 4;
-  REQ_QUERY_DATA = 5;
-  REQ_NODE_QUERY_STATUS = 6;
+  REQ_FRAGMENT_STATUS = 5;
+  REQ_QUERY_DATA = 6;
+  REQ_NODE_QUERY_STATUS = 7;
   
 }
 
@@ -59,6 +60,9 @@ message PlanFragmentSet {
   repeated NodeEndpoint endpoints_index = 1;
   repeated PlanFragmentMajor major = 2;
   repeated PlanFragmentMinor minor = 3;
+
+  // attributes shared across all majors/minors.
+  repeated MinorAttr attr = 4;
 }
 
 message SchedulingInfo {
@@ -67,8 +71,12 @@ message SchedulingInfo {
   optional bytes additional_info = 3;
 }
 
+message ActivateFragments {
+  optional exec.shared.QueryId query_id = 1;
+}
+
 message CancelFragments {
-  repeated exec.bit.FragmentHandle fragment = 1;
+  optional exec.shared.QueryId query_id = 2;
 }
 
 enum FragmentCodec {
@@ -102,11 +110,11 @@ message PlanFragmentMinor {
   optional NodeEndpoint assignment = 3;
   optional int64 mem_max = 4 [default = 2000000000]; // 20 gigs
   repeated Collector collector = 5;
-  repeated MinorSpecificAttr attrs = 6;
+  repeated MinorAttr attrs = 6;
 }
 
-// Key-value pairs for all the minor-specific attributes (saved for each minor seperately).
-message MinorSpecificAttr {
+// Key-value pairs for minor-specific attributes (saved at the minor level or at the rpc level).
+message MinorAttr {
   optional int32 operator_id = 1;
   optional string name = 2;
   optional bytes value = 3;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,9 +25,9 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.dremio.service.namespace.file.proto.FileType;
 
 /**
@@ -44,10 +44,10 @@ public class EasyGroupScan extends AbstractGroupScan {
 
   @Override
   public SubScan getSpecificScan(List<SplitWork> work) throws ExecutionSetupException {
-    final List<SplitInfo> splits = new ArrayList<>(work.size());
+    final List<SplitAndPartitionInfo> splits = new ArrayList<>(work.size());
     final BatchSchema fullSchema = getDataset().getSchema();
     for(SplitWork split : work){
-      splits.add(split.getSplitInfo());
+      splits.add(split.getSplitAndPartitionInfo());
     }
 
     return new EasySubScan(

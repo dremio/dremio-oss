@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import PropTypes from 'prop-types';
 
 import MainHeader from 'components/MainHeader';
 import UserNavigation from 'components/UserNavigation';
-
+import { accountSection } from 'dyn-load/pages/AccountPage/AccountPageConstants';
 import './AccountPage.less';
 
 @pureRender
@@ -32,12 +32,7 @@ export default class AccountPage extends Component {
 
   constructor(props) {
     super(props);
-    this.sections = [ {
-      title: la('Account Settings'),
-      items: [
-        {name: la('General Information'), url: '/account/info'}
-      ]
-    }];
+    this.sections = [accountSection];
   }
 
   render() {

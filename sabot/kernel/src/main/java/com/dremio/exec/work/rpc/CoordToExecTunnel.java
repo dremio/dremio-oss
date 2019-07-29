@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,17 @@
  */
 package com.dremio.exec.work.rpc;
 
+import com.dremio.exec.proto.CoordExecRPC.ActivateFragments;
+import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.ListeningCommand;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricCommandRunner;
+import com.google.protobuf.MessageLite;
 
 /**
  * Send messages from coordinator to executor.
@@ -38,44 +40,51 @@ public class CoordToExecTunnel {
     this.endpoint = endpoint;
   }
 
-  public void sendFragments(RpcOutcomeListener<Ack> outcomeListener, InitializeFragments fragments){
-    SendFragment b = new SendFragment(outcomeListener, fragments);
+  public void startFragments(RpcOutcomeListener<Ack> outcomeListener, InitializeFragments fragments){
+    SendFragment b = new SendFragment(outcomeListener, RpcType.REQ_START_FRAGMENTS, fragments);
     manager.runCommand(b);
   }
 
-  public void cancelFragment(RpcOutcomeListener<Ack> outcomeListener, FragmentHandle handle){
-    final SignalFragment b = new SignalFragment(outcomeListener, handle, RpcType.REQ_CANCEL_FRAGMENTS);
+  public void activateFragments(RpcOutcomeListener<Ack> outcomeListener, ActivateFragments fragments){
+    SendFragment b = new SendFragment(outcomeListener, RpcType.REQ_ACTIVATE_FRAGMENTS, fragments);
+    manager.runCommand(b);
+  }
+
+  public void cancelFragments(RpcOutcomeListener<Ack> outcomeListener, CancelFragments fragments){
+    final SignalFragment b = new SignalFragment(outcomeListener, RpcType.REQ_CANCEL_FRAGMENTS, fragments);
     manager.runCommand(b);
   }
 
   private static class SignalFragment extends ListeningCommand<Ack, ProxyConnection> {
-    final FragmentHandle handle;
     final RpcType type;
+    final MessageLite message;
 
-    public SignalFragment(RpcOutcomeListener<Ack> listener, FragmentHandle handle, RpcType type) {
+    public SignalFragment(RpcOutcomeListener<Ack> listener, RpcType type, MessageLite message) {
       super(listener);
-      this.handle = handle;
       this.type = type;
+      this.message = message;
     }
 
     @Override
     public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-      connection.sendUnsafe(outcomeListener, type, handle, Ack.class);
+      connection.sendUnsafe(outcomeListener, type, message, Ack.class);
     }
 
   }
 
   private static class SendFragment extends ListeningCommand<Ack, ProxyConnection> {
-    final InitializeFragments fragments;
+    final RpcType type;
+    final MessageLite message;
 
-    public SendFragment(RpcOutcomeListener<Ack> listener, InitializeFragments fragments) {
+    public SendFragment(RpcOutcomeListener<Ack> listener, RpcType type, MessageLite message) {
       super(listener);
-      this.fragments = fragments;
+      this.type = type;
+      this.message = message;
     }
 
     @Override
     public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-      connection.send(outcomeListener, RpcType.REQ_START_FRAGMENTS, fragments, Ack.class);
+      connection.send(outcomeListener, type, message, Ack.class);
     }
 
   }

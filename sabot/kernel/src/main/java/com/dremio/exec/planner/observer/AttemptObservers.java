@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -222,6 +222,13 @@ public class AttemptObservers implements AttemptObserver {
   }
 
   @Override
+  public void executorsSelected(long millisTaken, int idealNumFragments, int idealNumNodes, int numExecutors, String detailsText) {
+    for (final AttemptObserver observer : observers) {
+      observer.executorsSelected(millisTaken, idealNumFragments, idealNumNodes, numExecutors, detailsText);
+    }
+  }
+
+  @Override
   public void planGenerationTime(long millisTaken) {
     for (final AttemptObserver observer : observers) {
       observer.planGenerationTime(millisTaken);
@@ -236,23 +243,23 @@ public class AttemptObservers implements AttemptObserver {
   }
 
   @Override
-  public void intermediateFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats) {
+  public void fragmentsStarted(long millisTaken, FragmentRpcSizeStats stats) {
     for (final AttemptObserver observer : observers) {
-      observer.intermediateFragmentScheduling(millisTaken, stats);
+      observer.fragmentsStarted(millisTaken, stats);
     }
   }
 
   @Override
-  public void leafFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats) {
+  public void fragmentsActivated(long millisTaken) {
     for (final AttemptObserver observer : observers) {
-      observer.leafFragmentScheduling(millisTaken, stats);
+      observer.fragmentsActivated(millisTaken);
     }
   }
 
   @Override
-  public void startLeafFragmentFailed(Exception ex) {
+  public void activateFragmentFailed(Exception ex) {
     for (final AttemptObserver observer : observers) {
-      observer.startLeafFragmentFailed(ex);
+      observer.activateFragmentFailed(ex);
     }
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -144,7 +144,7 @@ public class TestCatalogServiceHelper {
     sourceConfig.setId(new EntityId("source-id"));
     when(sourceService.getSources()).thenReturn(Arrays.asList(sourceConfig));
 
-    List<CatalogItem> topLevelCatalogItems = catalogServiceHelper.getTopLevelCatalogItems();
+    List<CatalogItem> topLevelCatalogItems = catalogServiceHelper.getTopLevelCatalogItems(Collections.EMPTY_LIST);
     assertEquals(topLevelCatalogItems.size(), 3);
 
     int homeCount = 0;

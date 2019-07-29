@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,15 +18,14 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import Immutable from 'immutable';
 
-import { loadHomeEntities } from 'actions/resources';
-import { getHomeContents } from 'selectors/datasets';
+import { getUserName } from '@app/selectors/account';
+import { getHomeContents, getNormalizedEntityPathByUrl } from '@app/selectors/home';
+import { loadHomeContent } from '@app/actions/home';
 import { getViewState } from 'selectors/resources';
 import { getEntityType } from 'utils/pathUtils';
 import { ENTITY_TYPES } from 'constants/Constants';
 
 import { updateRightTreeVisibility } from 'actions/ui/ui';
-
-import * as schemas from 'schemas';
 
 import MainInfo from '../components/MainInfo';
 
@@ -38,7 +37,8 @@ class HomeContents extends Component {
     location: PropTypes.object,
 
     //connected
-    loadHomeEntities: PropTypes.func.isRequired,
+    getContentUrl: PropTypes.string.isRequired,
+    loadHomeContent: PropTypes.func.isRequired,
     updateRightTreeVisibility: PropTypes.func.isRequired,
     rightTreeVisible: PropTypes.bool,
     entity: PropTypes.instanceOf(Immutable.Map),
@@ -50,16 +50,24 @@ class HomeContents extends Component {
     username: PropTypes.string.isRequired
   };
 
-  componentWillMount() {
-    const {location, entityType} = this.props;
-    this.props.loadHomeEntities(location.pathname, this.context.username, schemas[entityType], VIEW_ID);
+  componentDidMount() {
+    this.load();
   }
 
-  componentWillReceiveProps(nextProps) {
-    if (nextProps.location.pathname !== this.props.location.pathname || nextProps.viewState.get('invalidated')) {
-      nextProps.loadHomeEntities(
-        nextProps.location.pathname, this.context.username, schemas[nextProps.entityType], VIEW_ID);
+  componentDidUpdate(prevProps) {
+    if (prevProps.location.pathname !== this.props.location.pathname || this.props.viewState.get('invalidated')) {
+      this.load();
     }
+  }
+
+  load() {
+    const {
+      getContentUrl,
+      entityType,
+      loadHomeContent: loadData
+    } = this.props;
+
+    loadData(getContentUrl, entityType, VIEW_ID);
   }
 
   shouldComponentUpdate(nextProps) {
@@ -106,13 +114,16 @@ function mapStateToProps(state, props) {
 
   return {
     rightTreeVisible: state.ui.get('rightTreeVisible'),
-    entity: getHomeContents(state, location.pathname),
+    entity: getHomeContents(state),
     entityType,
+    // do not use getNormalizedEntityPath from selectors/home here until DX-16200 would be resolved
+    // we must use router location value, as redux location could be out of sync
+    getContentUrl: getNormalizedEntityPathByUrl(location.pathname, getUserName(state)),
     viewState: getViewState(state, VIEW_ID)
   };
 }
 
 export default connect(mapStateToProps, {
-  loadHomeEntities,
+  loadHomeContent,
   updateRightTreeVisibility
 })(HomeContents);

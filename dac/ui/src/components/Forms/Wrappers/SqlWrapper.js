@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ export default class SqlWrapper extends Component {
 
   render() {
     const {elementConfig, field, disabled} = this.props;
-    const value = field && field.value;
+    const initialValue = field && field.initialValue;
     return (
       <div className={flexContainer}>
         <FieldWithError {...field}
@@ -56,7 +56,7 @@ export default class SqlWrapper extends Component {
             <SQLEditor
               height={elementConfig.getConfig().height}
               ref={(ref) => this.sqlEditor = ref}
-              defaultValue={value}
+              defaultValue={initialValue}
               onChange={this.handleChange}
               readOnly={disabled}
               errors={this.errors}

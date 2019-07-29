@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.logical;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -26,6 +27,7 @@ import java.util.List;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.BitHolder;
 import org.apache.arrow.vector.holders.DateMilliHolder;
+import org.apache.arrow.vector.holders.DecimalHolder;
 import org.apache.arrow.vector.holders.Float4Holder;
 import org.apache.arrow.vector.holders.Float8Holder;
 import org.apache.arrow.vector.holders.IntHolder;
@@ -34,6 +36,7 @@ import org.apache.arrow.vector.holders.IntervalYearHolder;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableBitHolder;
 import org.apache.arrow.vector.holders.NullableDateMilliHolder;
+import org.apache.arrow.vector.holders.NullableDecimalHolder;
 import org.apache.arrow.vector.holders.NullableFloat4Holder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
@@ -47,6 +50,7 @@ import org.apache.arrow.vector.holders.TimeStampMilliHolder;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 import org.apache.arrow.vector.util.DateUtility;
+import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.adapter.java.JavaTypeFactory;
 import org.apache.calcite.avatica.util.TimeUnit;
@@ -89,27 +93,27 @@ public class ConstExecutor implements RexExecutor {
   // This is a list of all types that cannot be folded at planning time for various reasons, most of the types are
   // currently not supported at all. The reasons for the others can be found in the evaluation code in the reduce method
   public static final List<Object> NON_REDUCIBLE_TYPES = ImmutableList.builder().add(
-      // cannot represent this as a literal according to calcite
-      MinorType.INTERVAL,
+    // cannot represent this as a literal according to calcite
+    MinorType.INTERVAL,
 
-      // TODO - map and list are used in Dremio but currently not expressible as literals, these can however be
-      // outputs of functions that take literals as inputs (such as a convert_fromJSON with a literal string
-      // as input), so we need to identify functions with these return types as non-foldable until we have a
-      // literal representation for them
-      MinorType.STRUCT, MinorType.LIST,
+    // TODO - map and list are used in Dremio but currently not expressible as literals, these can however be
+    // outputs of functions that take literals as inputs (such as a convert_fromJSON with a literal string
+    // as input), so we need to identify functions with these return types as non-foldable until we have a
+    // literal representation for them
+    MinorType.STRUCT, MinorType.LIST,
 
-      // TODO - DRILL-2551 - Varbinary is used in execution, but it is missing a literal definition
-      // in the logical expression representation and subsequently is not supported in
-      // RexToExpr and the logical expression visitors
-      MinorType.VARBINARY,
+    // TODO - DRILL-2551 - Varbinary is used in execution, but it is missing a literal definition
+    // in the logical expression representation and subsequently is not supported in
+    // RexToExpr and the logical expression visitors
+    MinorType.VARBINARY,
 
-      MinorType.TIMESTAMPTZ, MinorType.TIMETZ, MinorType.LATE,
-      MinorType.TINYINT, MinorType.SMALLINT, MinorType.GENERIC_OBJECT, MinorType.NULL,
-      MinorType.DECIMAL28DENSE, MinorType.DECIMAL38DENSE, MinorType.MONEY,
-      MinorType.FIXEDSIZEBINARY, MinorType.FIXEDCHAR, MinorType.FIXED16CHAR,
-      MinorType.VAR16CHAR, MinorType.UINT1, MinorType.UINT2, MinorType.UINT4,
-      MinorType.UINT8)
-      .build();
+    MinorType.TIMESTAMPTZ, MinorType.TIMETZ, MinorType.LATE,
+    MinorType.TINYINT, MinorType.SMALLINT, MinorType.GENERIC_OBJECT, MinorType.NULL,
+    MinorType.DECIMAL28DENSE, MinorType.DECIMAL38DENSE, MinorType.MONEY,
+    MinorType.FIXEDSIZEBINARY, MinorType.FIXEDCHAR, MinorType.FIXED16CHAR,
+    MinorType.VAR16CHAR, MinorType.UINT1, MinorType.UINT2, MinorType.UINT4,
+    MinorType.UINT8)
+    .build();
 
   final FunctionImplementationRegistry funcImplReg;
   final FunctionContext udfUtilities;
@@ -136,13 +140,17 @@ public class ConstExecutor implements RexExecutor {
       logger.debug("Failed to reduce expressions using calcite executor, " + e.getMessage());
       reducedValuesByCalcite.clear();
     }
+
+    // initialize the list. we will first update with dremio
+    // reductions, if not possible we will fallback to calcite
+    // reduction results.
+    for (RexNode newCall : constExps) {
+      reducedValues.add(null);
+    }
+
     int index = -1;
     for (RexNode newCall : constExps) {
       index++;
-      if (!reducedValuesByCalcite.isEmpty() && !reducedValuesByCalcite.get(index).equals(newCall)) {
-        reducedValues.add(reducedValuesByCalcite.get(index));
-        continue;
-      }
 
       // If we fail to reduce anything, catch the exception and return the same expression.
       try {
@@ -151,9 +159,9 @@ public class ConstExecutor implements RexExecutor {
 
         if (NON_REDUCIBLE_TYPES.contains(materializedExpr.getCompleteType().toMinorType())) {
           logger.debug("Constant expression not folded due to return type {}, complete expression: {}",
-              materializedExpr.getCompleteType(),
-              ExpressionStringBuilder.toString(materializedExpr));
-          reducedValues.add(newCall);
+            materializedExpr.getCompleteType(),
+            ExpressionStringBuilder.toString(materializedExpr));
+          reducedValues.set(index, newCall);
           continue;
         }
 
@@ -196,7 +204,7 @@ public class ConstExecutor implements RexExecutor {
               nullLiteral = rexBuilder.makeNullLiteral(sqlTypeName);
               break;
           }
-          reducedValues.add(nullLiteral);
+          reducedValues.set(index, nullLiteral);
           continue;
         }
 
@@ -208,7 +216,7 @@ public class ConstExecutor implements RexExecutor {
             } else {
               outputInt = ((NullableIntHolder) output).value;
             }
-            reducedValues.add(rexBuilder.makeLiteral(
+            reducedValues.set(index, rexBuilder.makeLiteral(
               BigDecimal.valueOf(outputInt),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.INTEGER, false, null),
               false));
@@ -220,7 +228,7 @@ public class ConstExecutor implements RexExecutor {
             } else {
               outputBigint = ((NullableBigIntHolder) output).value;
             }
-            reducedValues.add(rexBuilder.makeLiteral(
+            reducedValues.set(index, rexBuilder.makeLiteral(
               BigDecimal.valueOf(outputBigint),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.BIGINT, false, null),
               false));
@@ -232,8 +240,9 @@ public class ConstExecutor implements RexExecutor {
             } else {
               outputFloat = ((NullableFloat4Holder) output).value;
             }
-            reducedValues.add(rexBuilder.makeLiteral(
-              BigDecimal.valueOf(outputFloat),
+            reducedValues.set(index, rexBuilder.makeLiteral(
+              new BigDecimal(((Number)outputFloat).doubleValue(), MathContext.DECIMAL32)
+                .stripTrailingZeros(),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.FLOAT, false, null),
               false));
             break;
@@ -244,8 +253,8 @@ public class ConstExecutor implements RexExecutor {
             } else {
               outputFloat8 = ((NullableFloat8Holder) output).value;
             }
-            reducedValues.add(rexBuilder.makeLiteral(
-              BigDecimal.valueOf(outputFloat8),
+            reducedValues.set(index, rexBuilder.makeLiteral(
+              new BigDecimal(((Number)outputFloat8).doubleValue(), MathContext.DECIMAL64).stripTrailingZeros(),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.DOUBLE, false, null),
               false));
             break;
@@ -258,7 +267,8 @@ public class ConstExecutor implements RexExecutor {
               NullableVarCharHolder nullableVarCharHolder = (NullableVarCharHolder) output;
               outputString = StringFunctionHelpers.toStringFromUTF8(nullableVarCharHolder.start, nullableVarCharHolder.end, nullableVarCharHolder.buffer);
             }
-            reducedValues.add(rexBuilder.makeVarCharLiteral(new NlsString(outputString, null, null)));
+            reducedValues.set(index, rexBuilder.makeVarCharLiteral(new NlsString(outputString,
+              null,null)));
             break;
           case BIT:
             int bitValue;
@@ -267,7 +277,7 @@ public class ConstExecutor implements RexExecutor {
             } else {
               bitValue = ((NullableBitHolder) output).value;
             }
-            reducedValues.add(rexBuilder.makeLiteral(
+            reducedValues.set(index, rexBuilder.makeLiteral(
               bitValue == 1,
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.BOOLEAN, false, null),
               false));
@@ -279,7 +289,7 @@ public class ConstExecutor implements RexExecutor {
             } else {
               dateValue = ((NullableDateMilliHolder) output).value;
             }
-            reducedValues.add(rexBuilder.makeLiteral(toDateString(dateValue),
+            reducedValues.set(index, rexBuilder.makeLiteral(toDateString(dateValue),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.DATE, false, null),
               false));
             break;
@@ -290,7 +300,7 @@ public class ConstExecutor implements RexExecutor {
             } else {
               timeValue = ((NullableTimeMilliHolder) output).value;
             }
-            reducedValues.add(rexBuilder.makeLiteral(toTimeString(timeValue),
+            reducedValues.set(index, rexBuilder.makeLiteral(toTimeString(timeValue),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.TIME, false, null),
               false));
             break;
@@ -302,7 +312,8 @@ public class ConstExecutor implements RexExecutor {
               timestampValue = ((NullableTimeStampMilliHolder) output).value;
             }
             // Should not ignore the TIMESTAMP precision here
-            reducedValues.add(rexBuilder.makeTimestampLiteral(toTimestampString(timestampValue), newCall.getType().getPrecision()));
+            reducedValues.set(index, rexBuilder.makeTimestampLiteral(toTimestampString
+              (timestampValue), newCall.getType().getPrecision()));
             break;
           case INTERVALYEAR:
             int yearValue;
@@ -311,8 +322,8 @@ public class ConstExecutor implements RexExecutor {
             } else {
               yearValue = ((NullableIntervalYearHolder) output).value;
             }
-            reducedValues.add(rexBuilder.makeLiteral(
-              new BigDecimal(yearValue),
+            reducedValues.set(index, rexBuilder.makeLiteral(
+              new BigDecimal(yearValue).longValue(),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.INTERVAL_YEAR_MONTH, false, null),
               false));
             break;
@@ -325,9 +336,29 @@ public class ConstExecutor implements RexExecutor {
               NullableIntervalDayHolder intervalDayOut = (NullableIntervalDayHolder) output;
               dayValue = ((double) intervalDayOut.days) * ((double) DateUtility.daysToStandardMillis) + (intervalDayOut.milliseconds);
             }
-            reducedValues.add(rexBuilder.makeLiteral(
-              BigDecimal.valueOf(dayValue),
+            reducedValues.set(index, rexBuilder.makeLiteral(
+              BigDecimal.valueOf(dayValue).longValue(),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.INTERVAL_DAY_MINUTE, false, null),
+              false));
+            break;
+          case DECIMAL:
+            BigDecimal outputVal;
+            int scale, precision;
+            if (output instanceof DecimalHolder) {
+              DecimalHolder decimalOutput = (DecimalHolder) output;
+              outputVal = DecimalUtility.getBigDecimalFromArrowBuf(decimalOutput.buffer,0 ,
+                decimalOutput.scale);
+              precision = decimalOutput.precision;
+              scale = decimalOutput.scale;
+            } else {
+              NullableDecimalHolder decimalOutput = (NullableDecimalHolder) output;
+              outputVal = DecimalUtility.getBigDecimalFromArrowBuf(decimalOutput.buffer,0 ,
+                decimalOutput.scale);
+              precision = decimalOutput.precision;
+              scale = decimalOutput.scale;
+            }
+            reducedValues.set(index, rexBuilder.makeLiteral(
+              outputVal, typeFactory.createSqlType(SqlTypeName.DECIMAL, precision, scale),
               false));
             break;
           // The list of known unsupported types is used to trigger this behavior of re-using the input expression
@@ -337,12 +368,23 @@ public class ConstExecutor implements RexExecutor {
             logger.debug("Constant expression not folded due to return type {}, complete expression: {}",
               materializedExpr.getCompleteType(),
               ExpressionStringBuilder.toString(materializedExpr));
-            reducedValues.add(newCall);
+            reducedValues.set(index, newCall);
             break;
         }
       } catch (Exception e) {
         logger.debug("Failed to reduce expression {}", newCall, e);
-        reducedValues.add(newCall);
+        reducedValues.set(index, newCall);
+      }
+    }
+
+    index = -1;
+    // copy over from calcite anything that we were not able to reduce.
+    if (!reducedValuesByCalcite.isEmpty()) {
+      for (RexNode newCall : constExps) {
+        index++;
+        if (reducedValues.get(index).equals(newCall)){
+          reducedValues.set(index, reducedValuesByCalcite.get(index));
+        }
       }
     }
 
@@ -408,14 +450,14 @@ public class ConstExecutor implements RexExecutor {
     public Object get(String name) {
 
       switch(name) {
-      case "user":
-        return info.getQueryUser();
-      case "utcTimestamp":
-      case "currentTimestamp":
-      case "localTimestamp":
-        return info.getQueryStartTime();
-      default:
-        return null;
+        case "user":
+          return info.getQueryUser();
+        case "utcTimestamp":
+        case "currentTimestamp":
+        case "localTimestamp":
+          return info.getQueryStartTime();
+        default:
+          return null;
       }
     }
 

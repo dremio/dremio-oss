@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -51,6 +51,7 @@ import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.ScanFilter;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
@@ -59,7 +60,6 @@ import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
@@ -89,12 +89,12 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
   // partition. If there are no schema changes then this is same as the partitionOI.
   protected StructObjectInspector finalOI;
 
-  private final SplitInfo split;
+  private final SplitAndPartitionInfo split;
   private final HiveTableXattr tableAttr;
   private final Collection<List<String>> referencedTables;
   protected HiveOperatorContextOptions operatorContextOptions;
 
-  public HiveAbstractReader(final HiveTableXattr tableAttr, final SplitInfo split,
+  public HiveAbstractReader(final HiveTableXattr tableAttr, final SplitAndPartitionInfo split,
                             final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
                             final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
                             final StructObjectInspector partitionOI, final ScanFilter filter,
@@ -115,7 +115,7 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
   public void setup(OutputMutator output) {
     final HiveSplitXattr splitAttr;
     try {
-      splitAttr = HiveSplitXattr.parseFrom(split.getSplitExtendedProperty());
+      splitAttr = HiveSplitXattr.parseFrom(split.getDatasetSplitInfo().getExtendedProperty());
     } catch (InvalidProtocolBufferException e) {
       throw createExceptionWithContext("Failure deserializing Hive extended attributes.", e);
     }
@@ -263,14 +263,14 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
     if (t instanceof FileNotFoundException) {
       return UserException.invalidMetadataError(t)
         .message(errorMessage)
-        .addContext("Dataset split key", split.getSplitKey())
+        .addContext("Dataset split key", split.getPartitionInfo().getSplitKey())
         .setAdditionalExceptionContext(new InvalidMetadataErrorContext(ImmutableList.copyOf(referencedTables)))
         .build(logger);
     } else {
       UserException.Builder builder = UserException.dataReadError(t)
         .message(errorMessage)
-        .addContext("Dataset split key", split.getSplitKey());
-      final List<PartitionValue> partitionValues = split.getPartitionValuesList();
+        .addContext("Dataset split key", split.getPartitionInfo().getSplitKey());
+      final List<PartitionValue> partitionValues = split.getPartitionInfo().getValuesList();
       if (partitionValues != null && !partitionValues.isEmpty()) {
         final String partition = Joiner.on(",").join(
           Iterables.transform(partitionValues, new Function<PartitionValue, String>() {

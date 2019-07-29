@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ import org.joda.time.DateTimeConstants;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.types.MinorType;
+import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.connector.metadata.PartitionValue.PartitionValueType;
 import com.dremio.datastore.SearchQueryUtils;
@@ -112,7 +112,7 @@ public class MetadataUtils {
         return PartitionValue.of(name, ((Number)value).longValue(), partitionType);
 
       case DATE:
-        return PartitionValue.of(name, ((Number)value).intValue() * (long) DateTimeConstants.MILLIS_PER_DAY, partitionType);
+        return PartitionValue.of(name, ((Number)value).longValue() * (long) DateTimeConstants.MILLIS_PER_DAY, partitionType);
 
       case BIGINT:
       case INTERVALDAY:
@@ -203,10 +203,10 @@ public class MetadataUtils {
     switch(type.toMinorType()){
     case BIGINT:
     case TIMESTAMP:
+    case DATE:
       return FieldType.LONG;
 
     case INT:
-    case DATE:
     case TIME:
       return FieldType.INTEGER;
 
@@ -227,7 +227,6 @@ public class MetadataUtils {
 
     final FieldType fieldType = getFieldType(ct);
     final String columnKey = PartitionChunkConverter.buildColumnKey(fieldType, field.getName());
-    final SearchQuery partitionColumnNotDefinedQuery = SearchQueryUtils.newDoesNotExistQuery(columnKey);
     final List<SearchQuery> filterQueries = Lists.newArrayList();
 
     for (FilterProperties filter: filters) {
@@ -242,7 +241,6 @@ public class MetadataUtils {
           matchingSplitsQuery = SearchQueryUtils.newRangeLong(columnKey, (Long) rangeQueryInput.min, (Long) rangeQueryInput.max, rangeQueryInput.includeMin, rangeQueryInput.includeMax);
           break;
 
-        case DATE:
         case TIME:
           rangeQueryInput = new RangeQueryInput((int) ((GregorianCalendar) literal.getValue()).getTimeInMillis(), filter.getKind());
           matchingSplitsQuery = SearchQueryUtils.newRangeInt(columnKey, (Integer) rangeQueryInput.min, (Integer) rangeQueryInput.max, rangeQueryInput.includeMin, rangeQueryInput.includeMax);
@@ -271,7 +269,7 @@ public class MetadataUtils {
           rangeQueryInput = new RangeQueryInput(((BigDecimal) literal.getValue()).setScale(0, BigDecimal.ROUND_HALF_UP).intValue(), filter.getKind());
           matchingSplitsQuery = SearchQueryUtils.newRangeInt(columnKey, (Integer) rangeQueryInput.min, (Integer) rangeQueryInput.max, rangeQueryInput.includeMin, rangeQueryInput.includeMax);
           break;
-
+        case DATE:
         case TIMESTAMP:
           rangeQueryInput = new RangeQueryInput(((GregorianCalendar) literal.getValue()).getTimeInMillis(), filter.getKind());
           matchingSplitsQuery = SearchQueryUtils.newRangeLong(columnKey, (Long) rangeQueryInput.min, (Long) rangeQueryInput.max, rangeQueryInput.includeMin, rangeQueryInput.includeMax);
@@ -285,6 +283,6 @@ public class MetadataUtils {
       }
     }
 
-    return SearchQueryUtils.or(SearchQueryUtils.and(filterQueries), partitionColumnNotDefinedQuery);
+    return SearchQueryUtils.and(filterQueries);
   }
 }

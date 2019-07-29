@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@ import { getViewState } from 'selectors/resources';
 import { resetViewState } from 'actions/resources';
 import { accessEntity } from 'actions/resources/lru';
 
-import { updateTableColumns } from 'actions/explore/view';
 import {
   transformHistoryCheck, performTransform
 } from 'actions/explore/dataset/transform';
@@ -80,7 +79,6 @@ export class ExploreTableController extends Component {
     columnFilter: PropTypes.string,
     // Actions
     resetViewState: PropTypes.func,
-    updateTableColumns: PropTypes.func,
     transformHistoryCheck: PropTypes.func,
     performTransform: PropTypes.func,
     confirmTransform: PropTypes.func,
@@ -429,7 +427,6 @@ function mapStateToProps(state, ownProps) {
 
 export default connect(mapStateToProps, {
   resetViewState,
-  updateTableColumns,
   transformHistoryCheck,
   performTransform,
   accessEntity

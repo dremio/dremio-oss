@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import { downloadFile } from 'sagas/downloadFile';
 import { getViewState } from 'selectors/resources';
 
 import jobsUtils from 'utils/jobsUtils';
-import config from 'utils/config';
+import config from 'dyn-load/utils/config';
 
 import HelpSectionMixin from 'dyn-load/pages/JobPage/components/JobDetails/HelpSectionMixin';
 

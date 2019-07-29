@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,35 +44,39 @@ export default class TextWrapper extends Component {
   render() {
     const {elementConfig, field} = this.props;
     const elementConfigJson = elementConfig.getConfig();
-    const numberField = (elementConfig.getType() === 'number') ? {type: 'number'} : null;
-    const passwordField = (elementConfigJson.secure) ? {type: 'password'} : null;
-    const hoverHelpText = (elementConfigJson.tooltip) ? {hoverHelpText: elementConfigJson.tooltip} : null;
-    const isDisabled = (elementConfigJson.disabled ||
+    const {
+      type, secure, tooltip, disabled, scale,
+      label, focus, placeholder, errorPlacement
+    } = elementConfigJson;
+    const numberField = (type === 'number') ? {type: 'number'} : null;
+    const passwordField = (secure) ? {type: 'password'} : null;
+    const hoverHelpText = (tooltip) ? {hoverHelpText: tooltip} : null;
+    const isDisabled = (disabled ||
       this.props.disabled ||
       // special case in source forms: source name can not be changed after initial creation
       elementConfig.getPropName() === 'name' && this.props.editing) ? {disabled: true} : null;
 
     const {value, onChange, onBlur, onUpdate, ...fieldProps} = field;
-    const currentValue = (numberField) ? FormUtils.scaleValue(value, elementConfigJson.scale) : value;
+    const currentValue = (numberField) ? FormUtils.scaleValue(value, scale) : value;
     const onChangeHandler = (numberField) ? this.onChangeHandler : onChange;
 
     return (
       <div className={flexContainer}>
-        <FieldWithError errorPlacement='top'
+        <FieldWithError errorPlacement={errorPlacement || 'top'}
                         {...field}
                         {...hoverHelpText}
-                        label={elementConfigJson.label}
+                        label={label}
                         name={elementConfig.getPropName()}
                         className={fieldWithError}>
           <div className={textFieldWrapper}>
-            <TextField initialFocus={elementConfigJson.focus}
+            <TextField initialFocus={focus}
                        {...fieldProps}
                        {...numberField}
                        {...passwordField}
                        {...isDisabled}
                        value={currentValue}
                        onChange={onChangeHandler}
-                       placeholder={elementConfigJson.placeholder || ''}
+                       placeholder={placeholder || ''}
                        className={textFieldBody}/>
           </div>
         </FieldWithError>

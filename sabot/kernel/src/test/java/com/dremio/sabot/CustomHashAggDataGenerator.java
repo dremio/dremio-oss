@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -328,7 +328,7 @@ public class CustomHashAggDataGenerator implements Generator {
                         bigIntMeasureValues[i], bigIntMeasureValues[i], bigIntMeasureValues[i], 1,
                         floatMeasureValues[i], floatMeasureValues[i], floatMeasureValues[i], 1,
                         doubleMeasureValues[i], doubleMeasureValues[i], doubleMeasureValues[i], 1,
-                        decimalMeasureValues[i].doubleValue(), decimalMeasureValues[i].doubleValue(), decimalMeasureValues[i].doubleValue(), 1);
+                        decimalMeasureValues[i], decimalMeasureValues[i], decimalMeasureValues[i], 1);
           aggregatedResults.put(k, v);
         } else {
           v.sumInt += intMeasureValues[i];
@@ -351,9 +351,11 @@ public class CustomHashAggDataGenerator implements Generator {
           v.maxDouble = (doubleMeasureValues[i] > v.maxDouble) ? doubleMeasureValues[i] : v.maxDouble;
           v.countDouble++;
 
-          v.sumDecimal += decimalMeasureValues[i].doubleValue();
-          v.minDecimal = decimalMeasureValues[i].doubleValue() < v.minDecimal ? decimalMeasureValues[i].doubleValue() : v.minDecimal;
-          v.maxDecimal = decimalMeasureValues[i].doubleValue() > v.maxDecimal ? decimalMeasureValues[i].doubleValue() : v.maxDecimal;
+          v.sumDecimal = v.sumDecimal.add(decimalMeasureValues[i]);
+          v.minDecimal = decimalMeasureValues[i].compareTo(v.minDecimal) < 0 ?
+            decimalMeasureValues[i] : v.minDecimal;
+          v.maxDecimal = decimalMeasureValues[i].compareTo(v.minDecimal) > 0 ?
+            decimalMeasureValues[i] : v.minDecimal;
           v.countDecimal++;
         }
       }
@@ -482,16 +484,17 @@ public class CustomHashAggDataGenerator implements Generator {
     private double maxDouble;
     private long countDouble;
 
-    private double sumDecimal;
-    private double minDecimal;
-    private double maxDecimal;
+    private BigDecimal sumDecimal;
+    private BigDecimal minDecimal;
+    private BigDecimal maxDecimal;
     private long countDecimal;
 
     Value(final long sumInt, final int minInt, final int maxInt, final long countInt,
           final long sumBigInt, final long minBigInt, final long maxBigInt, final long countBigInt,
           final double sumFloat, final float minFloat, final float maxFloat, final long countFloat,
           final double sumDouble, final double minDouble, final double maxDouble, final long countDouble,
-          final double sumDecimal, final double minDecimal, final double maxDecimal, final long countDecimal) {
+          final BigDecimal sumDecimal, final BigDecimal minDecimal, final BigDecimal maxDecimal, final long
+            countDecimal) {
       this.sumInt = sumInt;
       this.maxInt = maxInt;
       this.minInt = minInt;

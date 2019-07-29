@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,8 @@ package com.dremio.exec.planner.sql.handlers.commands;
 
 import java.io.InputStream;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -27,6 +26,7 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.physical.base.Root;
 import com.dremio.exec.planner.PhysicalPlanReader;
+import com.dremio.exec.planner.fragment.ExecutionPlanningResources;
 import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.planner.fragment.MakeFragmentsVisitor;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
@@ -45,6 +45,9 @@ import com.dremio.options.OptionManager;
 import com.dremio.resource.ResourceSet;
 import com.dremio.resource.basic.BasicResourceConstants;
 import com.dremio.resource.basic.QueueType;
+import com.dremio.service.execselector.ExecutorSelectionHandle;
+import com.dremio.service.execselector.ExecutorSelectionHandleImpl;
+import com.dremio.service.execselector.ExecutorSelectionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Stopwatch;
 
@@ -52,26 +55,23 @@ class ExecutionPlanCreator {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExecutionPlanCreator.class);
 
-  public static PlanningSet getParallelizationInfo(
+  public static ExecutionPlanningResources getParallelizationInfo(
     final QueryContext queryContext,
     AttemptObserver observer,
     final PhysicalPlan plan,
-    final Collection<NodeEndpoint> activeEndpoints) throws ExecutionSetupException {
+    ExecutorSelectionService executorSelectionService) throws ExecutionSetupException {
 
-    // step one, check to make sure that there available execution nodes.
-    if(activeEndpoints.isEmpty()){
-      throw UserException.resourceError().message("No executors currently available.").build(logger);
-    }
     final Root rootOperator = plan.getRoot();
     final Fragment rootFragment = rootOperator.accept(MakeFragmentsVisitor.INSTANCE, null);
-    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer, activeEndpoints);
+    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer, executorSelectionService);
 
     observer.planParallelStart();
     final Stopwatch stopwatch = Stopwatch.createStarted();
-    final PlanningSet planningSet = parallelizer.getFragmentsHelper(activeEndpoints, rootFragment);
-    observer.planParallelized(planningSet);
+    final ExecutionPlanningResources resources = parallelizer.getFragmentsHelper(rootFragment);
+    observer.planParallelized(resources.getPlanningSet());
     stopwatch.stop();
-    return planningSet;
+    observer.planAssignmentTime(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    return resources;
   }
 
   public static ExecutionPlan getExecutionPlan(
@@ -80,46 +80,16 @@ class ExecutionPlanCreator {
     AttemptObserver observer,
     final PhysicalPlan plan,
     ResourceSet allocationSet,
-    PlanningSet planningSet
+    PlanningSet planningSet,
+    ExecutorSelectionService executorSelectionService
   ) throws ExecutionSetupException {
 
     final Root rootOperator = plan.getRoot();
     final Fragment rootOperatorFragment = rootOperator.accept(MakeFragmentsVisitor.INSTANCE, null);
 
-    final Collection<NodeEndpoint> currentAllocationEndpoints = ResourceAllocationUtils.convertAllocationsToSet(allocationSet.getResourceAllocations());
-
-    final Collection<NodeEndpoint> currentActiveAllocationEndpoints = intersectEndpoints(currentAllocationEndpoints, queryContext.getActiveEndpoints());
-
-    Collection<NodeEndpoint> reparallelCollection = ResourceAllocationUtils.reParallelizeEndPoints(
-      currentActiveAllocationEndpoints,
-      ResourceAllocationUtils.getEndPointsToSet(planningSet)
-    );
-
-    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer, currentActiveAllocationEndpoints);
-
-    if (!reparallelCollection.isEmpty()) {
-      // to replace missing nodes with ones we have
-      planningSet = getParallelizationInfo(
-        queryContext, observer, plan, reparallelCollection);
-
-      final Map<Integer, Map<NodeEndpoint, Integer>> endpointsPerMajorFragUpdated =
-        ResourceAllocationUtils.getEndPoints(planningSet);
-
-      allocationSet.reassignMajorFragments(endpointsPerMajorFragUpdated);
-    }
-
-    Map<Integer, Map<NodeEndpoint, Long>> majorFragEndPointAllocations =
-      ResourceAllocationUtils.convertAllocations(allocationSet.getResourceAllocations());
-
-    // if we got 100% of what we asked no need to re-parallelize
-    // just assign fragments using received memory
-    // call planningSet.updateWithAllocations();
-    planningSet.updateWithAllocations(majorFragEndPointAllocations);
-
-    // TODO: DX-12930
-    // since we know that allocations are currently simple and thus each fragment gets the same as
-    // the total per node, we can grab one random allocation.
-    final long queryPerNodeFromResourceAllocator =  allocationSet.getResourceAllocations().iterator().next().getMemory();
+    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer, executorSelectionService);
+    final long queryPerNodeFromResourceAllocation =  allocationSet.getPerNodeQueryMemoryLimit();
+    planningSet.setMemoryAllocationPerNode(queryPerNodeFromResourceAllocation);
 
     // set bounded memory for all bounded memory operations
     MemoryAllocationUtilities.setupBoundedMemoryAllocations(
@@ -127,7 +97,7 @@ class ExecutionPlanCreator {
         queryContext.getOptions(),
         queryContext.getClusterResourceInformation(),
         planningSet,
-        queryPerNodeFromResourceAllocator);
+        queryPerNodeFromResourceAllocation);
 
     // pass all query, session and non-default system options to the fragments
     final OptionList fragmentOptions = queryContext.getNonDefaultOptions();
@@ -144,7 +114,7 @@ class ExecutionPlanCreator {
 
     traceFragments(queryContext, planFragments);
 
-    return new ExecutionPlan(plan, planFragments, indexBuilder);
+    return new ExecutionPlan(queryContext.getQueryId(), plan, planFragments, indexBuilder);
   }
 
   /**
@@ -166,14 +136,29 @@ class ExecutionPlanCreator {
     final QueueType queueType) throws ExecutionSetupException {
 
     // step one, check to make sure that there available execution nodes.
-    Collection<NodeEndpoint> endpoints = queryContext.getActiveEndpoints();
-    if(endpoints.isEmpty()){
+    final Collection<NodeEndpoint> endpoints = queryContext.getActiveEndpoints();
+    if (endpoints.isEmpty()){
       throw UserException.resourceError().message("No executors currently available.").build(logger);
     }
 
     final Root rootOperator = plan.getRoot();
     final Fragment rootOperatorFragment = rootOperator.accept(MakeFragmentsVisitor.INSTANCE, null);
-    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer);
+    // Executor selection service whose only purpose is to return 'endpoints'
+    ExecutorSelectionService executorSelectionService = new ExecutorSelectionService() {
+      @Override
+      public ExecutorSelectionHandle getExecutors(int desiredNumExecutors) {
+        return new ExecutorSelectionHandleImpl(endpoints);
+      }
+
+      @Override
+      public void start() throws Exception {
+      }
+
+      @Override
+      public void close() throws Exception {
+      }
+    };
+    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer, executorSelectionService);
     // pass all query, session and non-default system options to the fragments
     final OptionList fragmentOptions = queryContext.getNonDefaultOptions();
 
@@ -198,7 +183,6 @@ class ExecutionPlanCreator {
         fragmentOptions,
         queryContext.getCurrentEndpoint(),
         queryContext.getQueryId(),
-        endpoints,
         reader,
         rootOperatorFragment,
         indexBuilder,
@@ -208,7 +192,7 @@ class ExecutionPlanCreator {
 
     traceFragments(queryContext, planFragments);
 
-    return new ExecutionPlan(plan, planFragments, indexBuilder);
+    return new ExecutionPlan(queryContext.getQueryId(), plan, planFragments, indexBuilder);
   }
 
   private static void traceFragments(QueryContext queryContext, List<PlanFragmentFull> fullPlanFragments) {
@@ -258,12 +242,4 @@ class ExecutionPlanCreator {
     }
   }
 
-  /**
-   * Intersects two sets of node endpoints. Returns the endpoints that are in both sets
-   */
-  private static Collection<NodeEndpoint> intersectEndpoints(Collection<NodeEndpoint> a, Collection<NodeEndpoint> b) {
-    Collection<NodeEndpoint> result = new HashSet<>(a);
-    result.retainAll(b);
-    return result;
-  }
 }

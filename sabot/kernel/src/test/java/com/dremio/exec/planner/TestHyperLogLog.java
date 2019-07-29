@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import org.junit.Test;
 
 import com.dremio.PlanTestBase;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestHyperLogLog extends PlanTestBase {
 
@@ -121,29 +120,13 @@ public class TestHyperLogLog extends PlanTestBase {
 
   @Test
   public void testNdvDecimal() throws Exception {
-    // Tests casting decimal to double and doing estimation
-    try (AutoCloseable decimal = withOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE, true)) {
-      String sql = "SELECT ndv(expr$0) from cp.\"parquet/decimals.parquet\"";
-      testBuilder()
-        .sqlQuery(sql)
-        .ordered()
-        .baselineColumns("EXPR$0")
-        .baselineValues(994l)
-        .go();
-
-    }
-
     // Uses the actual decimal hll function. Gets a better estimate. Actual number of values is 1000
-    try (AutoCloseable decimal = withOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE, true);
-         AutoCloseable decimal_v2 = withSystemOption(PlannerSettings.ENABLE_DECIMAL_V2, true)) {
-      String sql = "SELECT ndv(expr$0) from cp.\"parquet/decimals.parquet\"";
-      testBuilder()
-        .sqlQuery(sql)
-        .ordered()
-        .baselineColumns("EXPR$0")
-        .baselineValues(1004l)
-        .go();
-
-    }
+    String sql = "SELECT ndv(expr$0) from cp.\"parquet/decimals.parquet\"";
+    testBuilder()
+      .sqlQuery(sql)
+      .ordered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(1004l)
+      .go();
   }
 }

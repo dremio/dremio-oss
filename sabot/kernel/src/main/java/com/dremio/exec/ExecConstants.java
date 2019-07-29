@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,8 +76,16 @@ public interface ExecConstants {
 
   // Configuration option for enabling expression split
   // Splits are enabled when this is set to true and QUERY_EXEC_OPTION is set to Gandiva
-  String QUERY_EXEC_SPLIT_ENABLED_KEY = "exec.expression.split.enabled";
-  BooleanValidator SPLIT_ENABLED = new BooleanValidator(QUERY_EXEC_SPLIT_ENABLED_KEY, false);
+  BooleanValidator SPLIT_ENABLED = new BooleanValidator("exec.expression.split.enabled", true);
+
+  PositiveLongValidator MAX_SPLITS_PER_EXPRESSION = new PositiveLongValidator("exec.expression" +
+    ".split.max_splits_per_expression", Long.MAX_VALUE, 10);
+
+  // Configuration option for deciding how much work should be done in Gandiva when there are excessive splits
+  // MAX_SPLITS_PER_EXPRESSION is used to configure excessive splits
+  // 1 unit of work approximately corresponds to 1 function evaluation in Gandiva
+  String WORK_THRESHOLD_FOR_SPLIT_KEY = "exec.expression.split.work_per_split";
+  DoubleValidator WORK_THRESHOLD_FOR_SPLIT = new RangeDoubleValidator(WORK_THRESHOLD_FOR_SPLIT_KEY, 0.0, Long.MAX_VALUE, 3.0);
 
   PositiveLongValidator MAX_FOREMEN_PER_COORDINATOR = new PositiveLongValidator("coordinator.alive_queries.limit", Long.MAX_VALUE, 1000);
 
@@ -88,6 +96,9 @@ public interface ExecConstants {
 
   // Number above which we replace a group of ORs with a set operation.
   PositiveLongValidator FAST_OR_MIN_THRESHOLD = new PositiveLongValidator("exec.operator.orfast.threshold.min", Integer.MAX_VALUE, 5);
+
+  // Number above which we replace a group of ORs with a set operation in gandiva
+  PositiveLongValidator FAST_OR_MIN_THRESHOLD_GANDIVA = new PositiveLongValidator("exec.operator.orfast.gandiva_threshold.min", Integer.MAX_VALUE, 5);
 
   // Number above which we stop replacing a group of ORs with a set operation.
   PositiveLongValidator FAST_OR_MAX_THRESHOLD = new PositiveLongValidator("exec.operator.orfast.threshold.max", Integer.MAX_VALUE, 1500);
@@ -141,6 +152,9 @@ public interface ExecConstants {
   String PARQUET_WRITER_COMPRESSION_TYPE = "store.parquet.compression";
   EnumeratedStringValidator PARQUET_WRITER_COMPRESSION_TYPE_VALIDATOR = new EnumeratedStringValidator(
       PARQUET_WRITER_COMPRESSION_TYPE, "snappy", "snappy", "gzip", "none");
+
+  String PARQUET_MAX_FOOTER_LEN = "store.parquet.max_footer_length";
+  LongValidator PARQUET_MAX_FOOTER_LEN_VALIDATOR = new LongValidator(PARQUET_MAX_FOOTER_LEN, 16*1024*1024);
 
   String PARQUET_MEMORY_THRESHOLD = "store.parquet.memory_threshold";
   LongValidator PARQUET_MEMORY_THRESHOLD_VALIDATOR = new LongValidator(PARQUET_MEMORY_THRESHOLD, 512*1024*1024);
@@ -407,4 +421,7 @@ public interface ExecConstants {
       .toMillis(12));
 
   public static final BooleanValidator ENABLE_VECTORIZED_NOSPILL_VARCHAR_NDV_ACCUMULATOR = new BooleanValidator("exec.operator.vectorized_nospill.varchar_ndv", true);
+
+  BooleanValidator ENABLE_HEAP_MONITORING = new BooleanValidator("exec.heap.monitoring.enable", true);
+  RangeLongValidator HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE = new RangeLongValidator("exec.heap.monitoring.thresh.percentage", 50, 100, 85);
 }

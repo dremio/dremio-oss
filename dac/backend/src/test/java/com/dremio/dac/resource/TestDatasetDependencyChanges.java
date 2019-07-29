@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -77,7 +77,7 @@ public class TestDatasetDependencyChanges extends BaseTestServer {
         "select * from spaceCreateDataset.ds2 ds2",
         "select s.s_name, s_phone from cp.\"tpch/supplier.parquet\" s",
         1,
-        true},
+        false},
       // Increase ds1 field list
       new Object[] {
         "select s.s_name, s_phone, s_suppkey from cp.\"tpch/supplier.parquet\" s",
@@ -101,7 +101,7 @@ public class TestDatasetDependencyChanges extends BaseTestServer {
         "select * from spaceCreateDataset.ds2 ds2",
         "select s.s_name, s_phone, s_suppkey from cp.\"tpch/supplier.parquet\" s",
         1,
-        true},
+        false},
       // Decrease ds1 field list - No * in ds2
       new Object[] {
         "select s.s_name, s_phone, s_suppkey from cp.\"tpch/supplier.parquet\" s",
@@ -141,7 +141,7 @@ public class TestDatasetDependencyChanges extends BaseTestServer {
         "select * from spaceCreateDataset.ds2 ds2",
         "select ds1.s_suppkey from spaceCreateDataset.ds1 ds1",
         2,
-        true},
+        false},
       // Increase ds2 field list
       new Object[] {
         "select s_suppkey, s_name from cp.\"tpch/supplier.parquet\" s",
@@ -165,7 +165,7 @@ public class TestDatasetDependencyChanges extends BaseTestServer {
         "select * from spaceCreateDataset.ds2 ds2",
         "select s_suppkey from spaceCreateDataset.ds1 ds1",
         2,
-        true},
+        false},
       // Decrease ds2 field list - No * in ds1
       new Object[] {
         "select s.s_name, s_phone, s_suppkey from cp.\"tpch/supplier.parquet\" s",
@@ -173,7 +173,7 @@ public class TestDatasetDependencyChanges extends BaseTestServer {
         "select * from spaceCreateDataset.ds2 ds2",
         "select ds1.s_name from spaceCreateDataset.ds1 ds1",
         2,
-        true},
+        false},
       // Increase ds2 field list - No * in ds1
       new Object[] {
         "select s.s_name, s_phone, s_suppkey from cp.\"tpch/supplier.parquet\" s",

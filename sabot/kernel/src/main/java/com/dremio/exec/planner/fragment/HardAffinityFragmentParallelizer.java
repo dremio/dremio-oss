@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -137,6 +137,13 @@ public class HardAffinityFragmentParallelizer implements FragmentParallelizer {
 
     fragmentWrapper.setWidth(width);
     fragmentWrapper.assignEndpoints(parameters, assignedEndpoints);
+  }
+
+  @Override
+  public int getIdealFragmentWidth(final Wrapper fragment, final ParallelizationParameters parameters) {
+    // Ideal fragment width doesn't matter for hard affinity. The node assignment will be done based on the
+    // full set of endpoints available, not based on a best fit subset.
+    return 1;
   }
 
   private static void checkOrThrow(final boolean expr, final Logger logger, final String errMsg, Object... args)

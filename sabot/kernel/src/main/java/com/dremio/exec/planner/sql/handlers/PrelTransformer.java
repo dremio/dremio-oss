@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,6 +86,7 @@ import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.logical.ConstExecutor;
+import com.dremio.exec.planner.logical.InvalidViewRel;
 import com.dremio.exec.planner.logical.PreProcessRel;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.Rel;
@@ -714,6 +715,12 @@ public class PrelTransformer {
     final Stopwatch stopwatch = Stopwatch.createStarted();
     final RelRootPlus convertible = config.getConverter().toConvertibleRelRoot(validatedNode, expand);
     config.getObserver().planConvertedToRel(convertible.rel, stopwatch.elapsed(TimeUnit.MILLISECONDS));
+
+    if(config.getContext().getOptions().getOption(PlannerSettings.VDS_AUTO_FIX)) {
+      // verify that we don't need to refresh any VDS nodes.
+      InvalidViewRel.checkForInvalid(config.getContext().getCatalog(), config.getConverter(), convertible.rel);
+    }
+
     final RelNode reduced = relTransformer.transform(transform(config, PlannerType.HEP, PlannerPhase.REDUCE_EXPRESSIONS, convertible.rel, convertible.rel.getTraitSet(), true));
     config.getObserver().planSerializable(reduced);
     return reduced;

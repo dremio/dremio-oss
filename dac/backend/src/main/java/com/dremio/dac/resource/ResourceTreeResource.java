@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.resourcetree.ResourceList;
 import com.dremio.dac.model.resourcetree.ResourceTreeEntity;
+import com.dremio.dac.model.resourcetree.ResourceTreeSourceEntity;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.service.source.SourceService;
@@ -242,7 +243,7 @@ public class ResourceTreeResource {
   public List<ResourceTreeEntity> getSources() throws NamespaceException, UnsupportedEncodingException  {
     final List<ResourceTreeEntity> resources = Lists.newArrayList();
     for (SourceConfig sourceConfig : sourceService.getSources()) {
-      resources.add(new ResourceTreeEntity(sourceConfig));
+      resources.add(new ResourceTreeSourceEntity(sourceConfig, sourceService.getSourceState(sourceConfig.getName())));
     }
     return resources;
   }

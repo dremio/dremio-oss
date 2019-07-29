@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,27 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 
 function headerMiddleware() {
   return () => next => action => {
+    const apiCall = action[RSAA];
 
-    if (action[CALL_API]) {
-      let headers;
-      if (action[CALL_API].headers) {
-        headers = action[CALL_API].headers = {...action[CALL_API].headers}; // avoid mutating original
-      } else {
-        headers = action[CALL_API].headers = {};
-      }
-
-      const method = action[CALL_API].method;
+    if (apiCall) {
+      // create a new action and remove isFileUpload if present
+      const newAction = {
+        [RSAA]: apiCall
+      };
+      const method = apiCall.method;
       const token = localStorageUtils.getAuthToken();
       if (method === 'GET' || method === 'POST' || method === 'PUT' || method === 'DELETE') {
-        headers.Authorization = headers.Authorization || token;
+        const { isFileUpload } = action;
+        const defaultHeaders = {
+          Authorization: token,
+          // for file upload case leave headers empty and let a browser to set a content type
+          ...(isFileUpload ? null : { 'Content-Type': 'application/json' })
+        };
+        apiCall.headers = { // avoid mutating original
+          ...defaultHeaders,
+          ...apiCall.headers
+        };
 
-        return next(action);
+        return next(newAction);
       }
     }
 

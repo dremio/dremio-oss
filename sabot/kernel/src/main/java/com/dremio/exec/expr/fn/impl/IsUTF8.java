@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ public class IsUTF8 implements SimpleFunction {
 
   @Override
   public void eval() {
-    out.value = (com.dremio.exec.expr.fn.impl.GuavaUtf8.isUtf8(in.buffer, in.start, in.end) ? 1 : 0);
+    out.value = (com.dremio.exec.expr.fn.impl.GuavaUtf8.isUtf8(in.buffer.asNettyBuffer(), in.start, in.end) ? 1
+      : 0);
   }
 }

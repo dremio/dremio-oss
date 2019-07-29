@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,10 @@
  */
 package com.dremio.service.namespace;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.Affinity;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionChunk;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
 import com.google.protobuf.ByteString;
@@ -24,10 +27,23 @@ import com.google.protobuf.ByteString;
  * Provides access to the members of a partition chunk proto
  */
 public abstract class AbstractPartitionChunkMetadata implements PartitionChunkMetadata {
+  private static final AtomicLong idGenerator = new AtomicLong(0L);
   private final PartitionChunk partitionChunk;
+  private final NormalizedPartitionInfo normalizedPartitionInfo;
 
   AbstractPartitionChunkMetadata(PartitionChunk partitionChunk) {
     this.partitionChunk = partitionChunk;
+
+    // we need a unique key per partition (atleast at the operator level), which is used as a
+    // reference key in the normalized splits. This works fine, but is a bit hacky.
+    this.normalizedPartitionInfo = NormalizedPartitionInfo
+      .newBuilder()
+      .setId(String.valueOf(idGenerator.incrementAndGet()))
+      .setSplitKey(partitionChunk.getSplitKey())
+      .setSize(partitionChunk.getSize())
+      .setExtendedProperty(partitionChunk.getPartitionExtendedProperty())
+      .addAllValues(partitionChunk.getPartitionValuesList())
+      .build();
   }
 
   protected PartitionChunk getPartitionChunk() {
@@ -68,6 +84,11 @@ public abstract class AbstractPartitionChunkMetadata implements PartitionChunkMe
   @Deprecated
   public Iterable<Affinity> getAffinities() {
     return partitionChunk.getAffinitiesList();
+  }
+
+  @Override
+  public NormalizedPartitionInfo getNormalizedPartitionInfo() {
+    return normalizedPartitionInfo;
   }
 
 }

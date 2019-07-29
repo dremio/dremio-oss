@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,6 +52,8 @@ import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
 import org.apache.hadoop.hive.ql.metadata.HiveUtils;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
+import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.HiveDecimalUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
@@ -80,11 +82,18 @@ import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
 import com.dremio.exec.store.dfs.implicit.DecimalTools;
 import com.dremio.exec.store.hive.HiveClient;
 import com.dremio.exec.store.hive.HiveSchemaConverter;
 import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.hive.proto.HiveReaderProto;
+import com.dremio.hive.proto.HiveReaderProto.ColumnInfo;
+import com.dremio.hive.proto.HiveReaderProto.HivePrimitiveType;
+import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
+import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
+import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
+import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 import com.google.common.collect.FluentIterable;
@@ -165,13 +174,14 @@ public class HiveMetadataUtils {
     return BatchSchema.newBuilder().addFields(fields).build();
   }
 
-  private static void populateFieldsAndPartitionColumns(final Table table,
-                                                        final List<Field> fields,
-                                                        final List<String> partitionColumns,
-                                                        InputFormat<?, ?> format) {
+  private static void populateFieldsAndPartitionColumns(
+    final Table table,
+    final List<Field> fields,
+    final List<String> partitionColumns,
+    InputFormat<?, ?> format) {
     for (FieldSchema hiveField : table.getSd().getCols()) {
-      Field f = HiveSchemaConverter.getArrowFieldFromHiveType(hiveField.getName(),
-        TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType()), format);
+      final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType());
+      Field f = HiveSchemaConverter.getArrowFieldFromHiveType(hiveField.getName(), typeInfo, format);
       if (f != null) {
         fields.add(f);
       }
@@ -184,6 +194,131 @@ public class HiveMetadataUtils {
         partitionColumns.add(field.getName());
       }
     }
+  }
+
+  private static List<ColumnInfo> buildColumnInfo(final Table table) {
+    final List<ColumnInfo> columnInfos  = new ArrayList<>();
+    for (FieldSchema hiveField : table.getSd().getCols()) {
+      final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType());
+      if (typeInfo.getCategory() == Category.PRIMITIVE) {
+        final PrimitiveTypeInfo primitiveTypeInfo = (PrimitiveTypeInfo) typeInfo;
+        switch (primitiveTypeInfo.getPrimitiveCategory()) {
+          case BOOLEAN:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.BOOLEAN)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case BYTE:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.BYTE)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case SHORT:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.SHORT)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case INT:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.INT)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case LONG:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.LONG)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case FLOAT:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.FLOAT)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case DOUBLE:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.DOUBLE)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case DATE:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.DATE)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case TIMESTAMP:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.TIMESTAMP)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case BINARY:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.BINARY)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case DECIMAL:
+            final DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) primitiveTypeInfo;
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.DECIMAL)
+              .setPrecision(decimalTypeInfo.getPrecision())
+              .setScale(decimalTypeInfo.getScale())
+              .build());
+            break;
+
+          case STRING:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.STRING)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case VARCHAR:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.VARCHAR)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case CHAR:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.CHAR)
+              .setPrecision(((CharTypeInfo) typeInfo).getLength())
+              .setScale(0)
+              .build());
+            break;
+        }
+      }
+    }
+    return columnInfos;
   }
 
   public static TableMetadata getTableMetadata(final HiveClient client,
@@ -213,12 +348,15 @@ public class HiveMetadataUtils {
       HiveMetadataUtils.checkLeafFieldCounter(fields.size(), maxMetadataLeafColumns, schemaComponents.getTableName());
       final BatchSchema batchSchema = BatchSchema.newBuilder().addFields(fields).build();
 
+      final List<ColumnInfo> columnInfos = buildColumnInfo(table);
+
       final TableMetadata tableMetadata = TableMetadata.newBuilder()
         .table(table)
         .tableProperties(tableProperties)
         .batchSchema(batchSchema)
         .fields(fields)
         .partitionColumns(partitionColumns)
+        .columnInfos(columnInfos)
         .build();
 
       HiveMetadataUtils.injectOrcIncludeFileIdInSplitsConf(tableMetadata.getTableStorageCapabilities(), tableProperties);
@@ -314,8 +452,8 @@ public class HiveMetadataUtils {
     }
   }
 
-  public static HiveReaderProto.HiveSplitXattr buildHiveSplitXAttr(int partitionId, InputSplit inputSplit) {
-    final HiveReaderProto.HiveSplitXattr.Builder splitAttr = HiveReaderProto.HiveSplitXattr.newBuilder();
+  public static HiveSplitXattr buildHiveSplitXAttr(int partitionId, InputSplit inputSplit) {
+    final HiveSplitXattr.Builder splitAttr = HiveSplitXattr.newBuilder();
 
     splitAttr.setPartitionId(partitionId);
     splitAttr.setInputSplit(serialize(inputSplit));
@@ -594,13 +732,14 @@ public class HiveMetadataUtils {
     final Table table = tableMetadata.getTable();
     final Properties tableProperties = tableMetadata.getTableProperties();
     final JobConf job = new JobConf(hiveConf);
+    final PartitionXattr partitionXattr;
 
     List<InputSplit> inputSplits = Collections.emptyList();
     HiveDatasetStats metastoreStats = null;
     InputFormat<?, ?> format = null;
 
     if (null == partition) {
-
+      partitionXattr = getPartitionXattr(table, fromProperties(tableMetadata.getTableProperties()));
 
       final HiveStorageCapabilities tableStorageCapabilities = tableMetadata.getTableStorageCapabilities();
 
@@ -630,7 +769,6 @@ public class HiveMetadataUtils {
       metastoreStats = getStatsFromProps(tableProperties);
     } else {
       final Properties partitionProperties = buildPartitionProperties(partition, table);
-
       final HiveStorageCapabilities partitionStorageCapabilities = getHiveStorageCapabilities(partition.getSd());
 
       final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, partition);
@@ -657,7 +795,7 @@ public class HiveMetadataUtils {
 
       metadataAccumulator.accumulateReaderType(inputFormatClazz);
       metadataAccumulator.accumulatePartitionHash(partition);
-      metadataAccumulator.accumulatePartitionProps(partition, fromProperties(partitionProperties));
+      partitionXattr = metadataAccumulator.buildPartitionXattrDictionaries(partition, fromProperties(partitionProperties));
 
       metastoreStats = getStatsFromProps(partitionProperties);
     }
@@ -681,6 +819,7 @@ public class HiveMetadataUtils {
           .metastoreStats(metastoreStats)
           .format(format)
           .build())
+      .partitionXattr(partitionXattr)
       .build();
   }
 
@@ -744,20 +883,38 @@ public class HiveMetadataUtils {
     return Math.max(estimatedRowCount, metastoreRowCount);
   }
 
-  public static HiveReaderProto.PartitionProp getTablePartitionProperty(HiveReaderProto.HiveTableXattr.Builder tableExtended) {
+  public static PartitionXattr getTablePartitionProperty(HiveTableXattr.Builder tableExtended) {
     // set a single partition for a table
-    final HiveReaderProto.PartitionProp.Builder partitionPropBuilder = HiveReaderProto.PartitionProp.newBuilder();
+    final PartitionXattr.Builder partitionXattrBuilder = PartitionXattr.newBuilder();
     if (tableExtended.hasTableInputFormatSubscript()) {
-      partitionPropBuilder.setInputFormatSubscript(tableExtended.getTableInputFormatSubscript());
+      partitionXattrBuilder.setInputFormatSubscript(tableExtended.getTableInputFormatSubscript());
     }
     if (tableExtended.hasTableStorageHandlerSubscript()) {
-      partitionPropBuilder.setStorageHandlerSubscript(tableExtended.getTableStorageHandlerSubscript());
+      partitionXattrBuilder.setStorageHandlerSubscript(tableExtended.getTableStorageHandlerSubscript());
     }
     if (tableExtended.hasTableSerializationLibSubscript()) {
-      partitionPropBuilder.setSerializationLibSubscript(tableExtended.getTableSerializationLibSubscript());
+      partitionXattrBuilder.setSerializationLibSubscript(tableExtended.getTableSerializationLibSubscript());
     }
-    partitionPropBuilder.addAllPropertySubscript(tableExtended.getTablePropertySubscriptList());
-    return partitionPropBuilder.build();
+    partitionXattrBuilder.addAllPropertySubscript(tableExtended.getTablePropertySubscriptList());
+    return partitionXattrBuilder.build();
+  }
+
+  public static PartitionXattr getPartitionXattr(Table table, List<Prop> props) {
+    final PartitionXattr.Builder partitionXattrBuilder = PartitionXattr.newBuilder();
+    if (table.getSd().getInputFormat() != null) {
+      partitionXattrBuilder.setInputFormat(table.getSd().getInputFormat());
+    }
+
+    final String storageHandler = table.getParameters().get(META_TABLE_STORAGE);
+    if (storageHandler != null) {
+      partitionXattrBuilder.setStorageHandler(storageHandler);
+    }
+
+    if (table.getSd().getSerdeInfo().getSerializationLib() != null) {
+      partitionXattrBuilder.setSerializationLib(table.getSd().getSerdeInfo().getSerializationLib());
+    }
+    partitionXattrBuilder.addAllPartitionProperty(props);
+    return partitionXattrBuilder.build();
   }
 
   public static HiveReaderProto.FileSystemPartitionUpdateKey getFSBasedUpdateKey(String partitionDir, JobConf job,
@@ -767,7 +924,7 @@ public class HiveMetadataUtils {
     final Path rootLocation = new Path(partitionDir);
     try {
       // TODO: DX-16001 - make async configurable for Hive.
-      final FileSystemWrapper fs = FileSystemWrapper.get(rootLocation, job, null);
+      final FileSystemWrapper fs = FileSystemWrapperCreator.get(rootLocation, job, null);
 
       if (fs.exists(rootLocation)) {
         final FileStatus rootStatus = fs.getFileStatus(rootLocation);
@@ -819,7 +976,7 @@ public class HiveMetadataUtils {
     final Path path = new Path(sd.getLocation());
     try {
       // TODO: DX-16001 - make async configurable for Hive.
-      final FileSystem fs = FileSystemWrapper.get(path, job, null);
+      final FileSystem fs = FileSystemWrapperCreator.get(path, job, null);
       return fs.exists(path);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -832,11 +989,11 @@ public class HiveMetadataUtils {
   }
 
   @SuppressWarnings("unchecked")
-  public static List<HiveReaderProto.Prop> fromProperties(Properties props) {
-    final List<HiveReaderProto.Prop> output = new ArrayList<>();
+  public static List<Prop> fromProperties(Properties props) {
+    final List<Prop> output = new ArrayList<>();
     for (Map.Entry<Object, Object> eo : props.entrySet()) {
       Map.Entry<String, String> e = (Map.Entry<String, String>) (Object) eo;
-      output.add(HiveReaderProto.Prop.newBuilder().setKey(e.getKey()).setValue(e.getValue()).build());
+      output.add(Prop.newBuilder().setKey(e.getKey()).setValue(e.getValue()).build());
     }
     return output;
   }

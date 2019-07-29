@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.PlanTestBase;
+import com.dremio.exec.ExecConstants;
 import com.google.common.io.Resources;
 
 public class TestParquetScan extends BaseTestQuery {
@@ -200,6 +201,31 @@ public class TestParquetScan extends BaseTestQuery {
   }
 
   @Test
+  public void testMaxFooterSizeLimit() throws Exception {
+    boolean failed = false;
+    final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/datapage_v2.snappy.parquet\"";
+    test("ALTER SYSTEM SET \"" + ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getOptionName() + "\" = 32");
+
+    try {
+      testBuilder()
+        .sqlQuery(sql)
+        .unOrdered()
+        .baselineColumns("cnt")
+        .baselineValues(5L)
+        .build()
+        .run();
+    } catch (Exception e) {
+      failed = true;
+      System.out.println("Encountered footer size exception");
+    } finally {
+      test("ALTER SYSTEM RESET \"" + ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getOptionName() + "\"");
+    }
+    if (!failed) {
+      assert (false);
+    }
+  }
+
+  @Test
   public void testDX15475() throws Exception {
     final String sql = "select count(*) as cnt from dfs.\"${WORKING_PATH}/src/test/resources/datapage_v2.snappy.parquet\"";
 
@@ -219,4 +245,6 @@ public class TestParquetScan extends BaseTestQuery {
     PlanTestBase.testPhysicalPlan(sql, "Empty");
     PlanTestBase.testPlanMatchingPatterns(sql, new String[]{"Empty"}, "ParquetGroupScan");
   }
+
+
 }

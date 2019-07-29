@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 import Immutable from 'immutable';
 import { Component, Fragment } from 'react';
+import { compose } from 'redux';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { MuiThemeProvider, createMuiTheme } from '@material-ui/core/styles';
@@ -22,7 +23,6 @@ import { replace } from 'react-router-redux';
 import DocumentTitle from 'react-document-title';
 import urlParse from 'url-parse';
 import { showAppError } from 'actions/prodError';
-import { boot } from 'actions/app';
 import { DnDContextDecorator } from '@app/components/DragComponents/DnDContextDecorator';
 import { ErrorBoundary } from '@app/components/ErrorBoundary';
 
@@ -30,7 +30,7 @@ import socket from 'utils/socket';
 import sentryUtil from 'utils/sentryUtil';
 
 import { SERVER_STATUS_OK } from 'constants/serverStatus';
-import config from 'utils/config';
+import config from 'dyn-load/utils/config';
 import enableFatalPropTypes from 'enableFatalPropTypes';
 
 import ModalsContainer from 'components/Modals/ModalsContainer';
@@ -40,6 +40,7 @@ import ConfirmationContainer from 'containers/Confirmation';
 import ProdErrorContainer from 'containers/ProdError';
 import DevErrorContainer from 'containers/DevError';
 import { LocationProvider } from 'containers/dremioLocation';
+import { withHookProvider } from '@app/containers/RouteLeave';
 import { formatMessage } from '../utils/locale';
 
 DocumentTitle.join = (tokens) => {
@@ -64,12 +65,13 @@ const theme = createMuiTheme({
 export class App extends Component {
 
   static propTypes = {
-    user: PropTypes.object,
     location: PropTypes.object,
     params: PropTypes.object,
-    dispatch: PropTypes.func,
+    //connected
+    user: PropTypes.object,
     serverStatus: PropTypes.instanceOf(Immutable.Map),
-    shouldEnableRSOD: PropTypes.bool
+    shouldEnableRSOD: PropTypes.bool,
+    dispatch: PropTypes.func.isRequired
   };
 
   static childContextTypes = {
@@ -91,10 +93,6 @@ export class App extends Component {
   constructor(props) {
     super(props);
 
-    socket.dispatch = props.dispatch;
-
-    props.dispatch(boot());
-
     // use window.onerror here instead of addEventListener('error') because ErrorEvent.error is
     // experimental according to mdn. Can get both file url and error from either.
     window.onerror = this.handleGlobalError.bind(this, window.onerror);
@@ -112,6 +110,10 @@ export class App extends Component {
       username: this.props.user.userName,
       loggedInUser: this.props.user
     };
+  }
+
+  componentDidMount() {
+    socket.dispatch = this.props.dispatch;
   }
 
   componentWillReceiveProps(props) {
@@ -189,7 +191,7 @@ export class App extends Component {
               </MuiThemeProvider>
               <NotificationContainer/>
               <ConfirmationContainer/>
-              <ModalsContainer modals={{AboutModal}} style={{height: 0}}/>
+              <ModalsContainer modals={{AboutModal}} />
             </div>
           </LocationProvider>
         </ErrorBoundary>
@@ -221,5 +223,8 @@ function mapStateToProps(state) {
   };
 }
 
-// don't add mapDispatchToProps, because we require to have dispatch in component props
-export default connect(mapStateToProps)(DnDContextDecorator(App));
+export default compose(
+  withHookProvider,
+  connect(mapStateToProps),
+  DnDContextDecorator
+)(App);

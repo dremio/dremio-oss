@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,8 @@ public class StringFunctionUtil {
 
   /* Decode the input bytebuf using UTF-8, and return the number of characters
    */
-  public static int getUTF8CharLength(ByteBuf buffer, int start, int end, final FunctionErrorContext errCtx) {
+  public static int getUTF8CharLength(ByteBuf buffer, int start, int end, final FunctionErrorContext
+    errCtx) {
     int charCount = 0;
 
     for (int idx = start, charLen = 0; idx < end; idx += charLen) {
@@ -44,7 +45,8 @@ public class StringFunctionUtil {
    * the position of the first byte of next char after we see "charLength" chars.
    *
    */
-  public static int getUTF8CharPosition(ByteBuf buffer, int start, int end, int charLength, final FunctionErrorContext errCtx) {
+  public static int getUTF8CharPosition(ByteBuf buffer, int start, int end, int charLength, final
+  FunctionErrorContext errCtx) {
     int charCount = 0;
 
     if (start >= end) {
@@ -84,12 +86,12 @@ public class StringFunctionUtil {
   }
 
   public static int stringLeftMatchUTF8(ByteBuf str, int strStart, int strEnd,
-  ByteBuf substr, int subStart, int subEnd) {
+                                        ByteBuf substr, int subStart, int subEnd) {
     return stringLeftMatchUTF8(str, strStart, strEnd, substr, subStart, subEnd, 0);
   }
 
   public static int stringLeftMatchUTF8(ByteBuf str, int strStart, int strEnd,
-                                    ByteBuf substr, int subStart, int subEnd, int offset) {
+                                        ByteBuf substr, int subStart, int subEnd, int offset) {
     for (int i = strStart + offset; i <= strEnd - (subEnd - subStart); i++) {
       int j = subStart;
       for (; j< subEnd; j++) {
@@ -106,7 +108,8 @@ public class StringFunctionUtil {
     return -1;
   }
 
-  public static int parseBinaryStringNoFormat(ByteBuf str, int strStart, int strEnd, ByteBuf out, FunctionErrorContext errCtx) {
+  public static int parseBinaryStringNoFormat(ByteBuf str, int strStart, int strEnd, ByteBuf out,
+                                              FunctionErrorContext errCtx) {
     int dstEnd = 0;
 
     if(((strStart - strEnd) % 2) != 0){
@@ -182,7 +185,8 @@ public class StringFunctionUtil {
         continue;
       }
       int seqLen = utf8CharLenNoThrow(in, start + i);
-      if (seqLen == 0 || (start + i + seqLen) > end || !GuavaUtf8.isUtf8(in, start + i, start + i + seqLen)) {
+      if (seqLen == 0 || (start + i + seqLen) > end || !GuavaUtf8.isUtf8(in, start + i, start +
+        i + seqLen)) {
         errBytes++;
         i++; // skip the error character
       } else {
@@ -205,7 +209,8 @@ public class StringFunctionUtil {
    * @param replacement replacement value for non-UTF8 symbols in 'in'
    * @return the number of bytes in 'out' that were populated
    */
-  public static int copyReplaceUtf8(ByteBuf in, final int start, final int end, ArrowBuf out, byte replacement) {
+  public static int copyReplaceUtf8(ByteBuf in, final int start, final int end, ByteBuf out, byte
+    replacement) {
     int i = 0;
     while (start + i < end) {
       // Optimize for long runs of ASCII sequences
@@ -216,7 +221,8 @@ public class StringFunctionUtil {
         continue;
       }
       int seqLen = utf8CharLenNoThrow(in, start + i);
-      if (seqLen == 0 || (start + i + seqLen) > end || !GuavaUtf8.isUtf8(in, start + i, start + i + seqLen)) {
+      if (seqLen == 0 || (start + i + seqLen) > end || !GuavaUtf8.isUtf8(in, start + i, start +
+        i + seqLen)) {
         // Replace the non-UTF-8 character with the replacement character
         out.setByte(i, replacement);
         i++;

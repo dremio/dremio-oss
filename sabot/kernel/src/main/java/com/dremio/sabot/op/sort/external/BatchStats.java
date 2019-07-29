@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,19 +18,19 @@ package com.dremio.sabot.op.sort.external;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
+import org.apache.arrow.memory.ReferenceManager;
 import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
 
 import io.netty.buffer.ArrowBuf;
-import io.netty.buffer.UnsafeDirectLittleEndian;
 
 class BatchStats {
 
   enum SizeType {ACCOUNTED, WORSE_CASE}
 
-  private Map<UnsafeDirectLittleEndian,Void> accountedBuffers = new IdentityHashMap<>();
+  private Map<ReferenceManager,Void> accountedBuffers = new IdentityHashMap<>();
 
   public long getSize(VectorAccessible va, SizeType type){
     long size = 0;
@@ -56,13 +56,13 @@ class BatchStats {
         size += b.getActualMemoryConsumed();
         break;
       case WORSE_CASE:
-        UnsafeDirectLittleEndian udle = (UnsafeDirectLittleEndian) b.unwrap();
+        ReferenceManager referenceManager = b.getReferenceManager();
         // avoid counting the same underlying buffer multiple times
-        if (accountedBuffers.containsKey(udle)) {
+        if (accountedBuffers.containsKey(referenceManager)) {
           continue;
         }
         size += b.getPossibleMemoryConsumed();
-        accountedBuffers.put(udle, null);
+        accountedBuffers.put(referenceManager, null);
         break;
       default:
         throw new UnsupportedOperationException("Invalid case: " + type.name());

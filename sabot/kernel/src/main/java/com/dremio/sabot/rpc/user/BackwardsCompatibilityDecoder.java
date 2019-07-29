@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -72,7 +72,7 @@ class BackwardsCompatibilityDecoder extends MessageToMessageDecoder<InboundRpcMe
 
   private ByteBuf consolidateBuffers(ByteBuf... buffers) {
     if (buffers.length == 0) {
-      return allocator.buffer(0);
+      return allocator.buffer(0).asNettyBuffer();
     }
 
     if (buffers.length == 1){
@@ -85,7 +85,7 @@ class BackwardsCompatibilityDecoder extends MessageToMessageDecoder<InboundRpcMe
     }
 
     try {
-      ByteBuf newBuffer = allocator.buffer(readableBytes);
+      ByteBuf newBuffer = allocator.buffer(readableBytes).asNettyBuffer();
       for(ByteBuf buffer: buffers) {
         newBuffer.writeBytes(buffer);
       }

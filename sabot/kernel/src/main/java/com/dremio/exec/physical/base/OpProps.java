@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -135,11 +135,6 @@ public class OpProps {
     return schemaHashCode;
   }
 
-  @JsonIgnore
-  public int getMajorFragmentId() {
-    return operatorId >> 16;
-  }
-
   public boolean isSingleStream() {
     return singleStream;
   }
@@ -158,12 +153,21 @@ public class OpProps {
   }
 
   @JsonIgnore
-  public int getLocalOperatorId() {
-    return Short.MAX_VALUE & getOperatorId();
-  }
+  public int getMajorFragmentId() { return getMajorFragmentId(operatorId); }
+
+  @JsonIgnore
+  public int getLocalOperatorId() { return getLocalOperatorId(operatorId); }
 
   public static int buildOperatorId(int majorFragmentId, int localOperatorId) {
     return majorFragmentId << 16 + localOperatorId;
+  }
+
+  public static int getMajorFragmentId(int operatorId) {
+    return operatorId >> 16;
+  }
+
+  public static int getLocalOperatorId(int operatorId) {
+    return Short.MAX_VALUE & operatorId;
   }
 
   /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,11 +88,11 @@ public class UnorderedReceiver extends AbstractReceiver implements OpWithMinorSp
 
   @Override
   public void collectMinorSpecificAttrs(MinorDataWriter writer) {
-    writer.writeMinorFragmentIndexEndpoints(this, SENDERS_ATTRIBUTE_KEY, senders);
+    writer.writeMinorFragmentIndexEndpoints(getProps(), SENDERS_ATTRIBUTE_KEY, senders);
   }
 
   @Override
   public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
-    this.senders = reader.readMinorFragmentIndexEndpoints(this, SENDERS_ATTRIBUTE_KEY);
+    this.senders = reader.readMinorFragmentIndexEndpoints(getProps(), SENDERS_ATTRIBUTE_KEY);
   }
 }

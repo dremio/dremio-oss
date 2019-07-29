@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,4 +61,9 @@ public interface HivePluginOptions {
   String HIVE_MAX_INPUTSPLITS_PER_PARTITION_KEY = "store.hive.max_inputsplits_per_partition";
   RangeLongValidator HIVE_MAX_INPUTSPLITS_PER_PARTITION_VALIDATOR =
     new RangeLongValidator(HIVE_MAX_INPUTSPLITS_PER_PARTITION_KEY, 1, Integer.MAX_VALUE, 500);
+
+  /**
+   * Option to use bytebuffers using direct memory while reading ORC files
+   */
+  BooleanValidator HIVE_ORC_READER_USE_DIRECT_MEMORY = new BooleanValidator("store.hive.orc.use_direct_memory", true);
 }

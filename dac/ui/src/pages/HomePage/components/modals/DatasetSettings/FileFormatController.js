@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import {
 } from 'actions/modals/addFileModal';
 
 import FileFormatForm from 'pages/HomePage/components/forms/FileFormatForm';
+import { getSaveFormatUrl, getFormatPreviewUrl, getCurrentFormatUrl, getQueryUrl } from '@app/selectors/home';
 
 export const VIEW_ID = 'FileFormatModal';
 const PREVIEW_VIEW_ID = 'FileFormatModalPreview';
@@ -41,9 +42,16 @@ export class FileFormatController extends Component {
   };
 
   static propTypes = {
+    // a root entity must be source or home space
+    fullPath: PropTypes.arrayOf(PropTypes.string.isRequired),
+    // current entity is folder or file
+    isFolder: PropTypes.bool,
+
+    //connected
+    formatUrl: PropTypes.string,
+
     onDone: PropTypes.func,
     query: PropTypes.object,
-    entity: PropTypes.instanceOf(Immutable.Map),
     fileFormat: PropTypes.instanceOf(Immutable.Map),
     viewState: PropTypes.instanceOf(Immutable.Map),
     previewViewState: PropTypes.instanceOf(Immutable.Map),
@@ -60,39 +68,28 @@ export class FileFormatController extends Component {
   }
 
   componentWillReceiveProps(nextProps) {
-    if (!this.props.entity) {
+    if (!this.props.formatUrl) {
       this.loadFormat(nextProps);
     }
   }
 
   loadFormat(props) {
-    if (props.entity) {
+    const { formatUrl } = props;
+    if (formatUrl) {
       props.resetViewState(VIEW_ID);
       props.resetViewState(PREVIEW_VIEW_ID);
       props.resetFileFormatPreview();
-      props.loadFileFormat(props.entity, VIEW_ID);
+      props.loadFileFormat(formatUrl, VIEW_ID);
     }
   }
 
-  getFileFormatForSubmit = (entity) => {
-    let fileFormat = entity.get('fileFormat');
-    if (!fileFormat) {
-      // replace /file/ in 'id' with /file_format/ to make self link
-      const selfLink = entity.get('id').replace('/file/', '/file_format/');
-      fileFormat = Immutable.fromJS({links: {self: selfLink}});
-    }
-    return fileFormat;
-  };
-
   onSubmitFormat = (values) => {
-    const {entity} = this.props;
-    const queryUrl = entity.getIn(['links', 'query']);
-    // saveFileFormat needs link url in 1st argument. If entity.fileFormat is not ready, make it up with entityId
+    const { fullPath, isFolder } = this.props;
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.saveFileFormat(this.getFileFormatForSubmit(entity), values)
+      this.props.saveFileFormat(getSaveFormatUrl(fullPath, isFolder), values)
     ).then(() => {
       if (this.props.query && this.props.query.then === 'query') {
-        this.context.router.replace(queryUrl);
+        this.context.router.replace(getQueryUrl(fullPath));
       } else {
         this.props.onDone(null, true);
       }
@@ -100,16 +97,16 @@ export class FileFormatController extends Component {
   }
 
   onPreview = (values) => {
-    const {entity} = this.props;
-    this.props.loadFilePreview(entity, values, PREVIEW_VIEW_ID);
+    const { fullPath, isFolder } = this.props;
+    this.props.loadFilePreview(getFormatPreviewUrl(fullPath, isFolder), values, PREVIEW_VIEW_ID);
   }
 
   render() {
-    const { entity, viewState, previewViewState, updateFormDirtyState } = this.props;
+    const { viewState, previewViewState, updateFormDirtyState, fileFormat } = this.props;
     return (
       <FileFormatForm
         updateFormDirtyState={updateFormDirtyState}
-        file={entity}
+        fileFormat={fileFormat}
         onFormSubmit={this.onSubmitFormat}
         onPreview={this.onPreview}
         onCancel={this.props.onDone}
@@ -121,15 +118,19 @@ export class FileFormatController extends Component {
 }
 
 function mapStateToProps(state, props) {
-  const { entityType, entityId } = props;
+  const { fullPath, entityType } = props;
   invariant(!entityType || ['file', 'folder'].indexOf(entityType) !== -1, // todo: DRY this up - all other checks like this moved to DatasetSettings
     'FileFormatController can only work on file or folder entities. Got ' + entityType);
 
-  const entity = getEntity(state, entityId, entityType);
-  const fileFormat = entity ? getEntity(state, entity.getIn(['links', 'format']), 'fileFormat') : undefined;
+  const isFolder = entityType === 'folder';
+  const formatUrl = fullPath ? getCurrentFormatUrl(fullPath, isFolder) : null;
+
+  const fileFormat = getEntity(state, formatUrl, 'fileFormat');
 
   return {
-    entity: entity ? entity.set('fileFormat', fileFormat) : undefined,
+    fileFormat,
+    isFolder,
+    formatUrl,
     viewState: getViewState(state, VIEW_ID),
     previewViewState: getViewState(state, PREVIEW_VIEW_ID)
   };

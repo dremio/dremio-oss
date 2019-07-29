@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 import invariant from 'invariant';
 import { debounce } from 'lodash/function';
 
@@ -32,7 +32,7 @@ function fetchRunDataset(dataset, viewId) {
 
   const meta = { dataset, viewId };
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: RUN_DATASET_START, meta },
         schemaUtils.getSuccessActionTypeWithSchema(RUN_DATASET_SUCCESS, datasetWithoutData, meta),
@@ -65,7 +65,7 @@ function fetchTransformAndRun(dataset, transformData, viewId) {
 
   const meta = { viewId, entity: dataset};
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: TRANSFORM_AND_RUN_DATASET_START, meta },
         schemaUtils.getSuccessActionTypeWithSchema(TRANSFORM_AND_RUN_DATASET_SUCCESS, datasetWithoutData, meta),

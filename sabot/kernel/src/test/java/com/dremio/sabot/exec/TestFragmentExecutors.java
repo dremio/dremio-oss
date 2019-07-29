@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -273,7 +273,11 @@ public class TestFragmentExecutors {
     return new TestState(fe, initializeFragments, runningTasks, new Runnable() {
       @Override
       public void run() {
-        fe.startQueryFragment(initializeFragments, mockFragmentExecutorBuilder, mock(ResponseSender.class), nodeEndpoint);
+        fe.startFragments(initializeFragments, mockFragmentExecutorBuilder, mock(ResponseSender.class), nodeEndpoint);
+        for (int i = 0; i < initializeFragments.getFragmentSet().getMinorCount(); ++i) {
+          FragmentHandle handle = getHandleForMinorFragment(initializeFragments, i);
+          fe.activateFragment(handle);
+        }
       }
     });
   }
@@ -359,7 +363,7 @@ public class TestFragmentExecutors {
 
     final CoordExecRPC.InitializeFragments initializeFragments = testState.getInitializeFragments();
     final FragmentHandle fragment0Handle = getHandleForMinorFragment(initializeFragments, 0);
-    fe.cancel(fragment0Handle);
+    fe.cancelFragment(fragment0Handle);
     for (final AsyncTaskWrapper frag : testState.getRunningTasks()) {
       final TestAsyncTask underlyingTask = (TestAsyncTask)frag.getAsyncTask();
       if (underlyingTask.isCancelRequested()) {
@@ -392,7 +396,7 @@ public class TestFragmentExecutors {
     final CoordExecRPC.InitializeFragments initializeFragments = testState.getInitializeFragments();
     for (int i = 0; i < numFragments; i++) {
       final ExecProtos.FragmentHandle fragmentHandle = getHandleForMinorFragment(initializeFragments, i);
-      fe.cancel(fragmentHandle);
+      fe.cancelFragment(fragmentHandle);
     }
     for (final AsyncTaskWrapper frag : testState.getRunningTasks()) {
       final TestAsyncTask underlyingTask = (TestAsyncTask)frag.getAsyncTask();
@@ -432,7 +436,7 @@ public class TestFragmentExecutors {
 
     final CoordExecRPC.InitializeFragments initializeFragments = testState.getInitializeFragments();
     final FragmentHandle fragment0Handle = getHandleForMinorFragment(initializeFragments, 0);
-    fe.cancel(fragment0Handle);
+    fe.cancelFragment(fragment0Handle);
     assertEquals(0, fe.size());
     assertEquals(1, fe.getNumHandlers());
 
@@ -458,7 +462,7 @@ public class TestFragmentExecutors {
     // Cancel before start
     final CoordExecRPC.InitializeFragments initializeFragments = testState.getInitializeFragments();
     final FragmentHandle fragment0Handle = getHandleForMinorFragment(initializeFragments, 0);
-    fe.cancel(fragment0Handle);
+    fe.cancelFragment(fragment0Handle);
 
     // Cancellation entered in the frag handlers
     assertEquals(0, fe.size());

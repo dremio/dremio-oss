@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkState;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 
+import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.Describer;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
@@ -128,7 +129,11 @@ abstract class SmartOp<T extends Operator> implements Wrapped<T> {
       .addContext("SqlOperatorImpl", operatorName)
       .addContext("Location",
         String.format("%d:%d:%d", h.getMajorFragmentId(), h.getMinorFragmentId(), operatorId));
-    if (e instanceof OutOfMemoryException || e instanceof OutOfDirectMemoryError || e instanceof OutOfMemoryError) {
+
+    OutOfMemoryException oom = ErrorHelper.findWrappedCause(e, OutOfMemoryException.class);
+    if (oom != null) {
+      context.getNodeDebugContextProvider().addMemoryContext(builder, oom);
+    } else if (ErrorHelper.findWrappedCause(e, OutOfDirectMemoryError.class) != null) {
       context.getNodeDebugContextProvider().addMemoryContext(builder);
     }
 

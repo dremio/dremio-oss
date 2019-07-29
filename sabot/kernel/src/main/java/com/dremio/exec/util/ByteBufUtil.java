@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ public class ByteBufUtil {
           .message("Input buffer segment is of invalid length")
           .addContext("Expected length %d", requiredLen)
           .addContext("Given %d(%d-%d)", actualLen, end, start)
-          .addContext("Buffer %s", DremioStringUtils.toBinaryString(buffer, start, end))
+          .addContext("Buffer %s", DremioStringUtils.toBinaryString(buffer.asNettyBuffer(), start, end))
           .build();
     }
   }
@@ -85,7 +85,7 @@ public class ByteBufUtil {
         throw context.error()
             .message("Invalid number of bytes in input buffer")
             .addContext("Expected %s", getVIntSize(i))
-            .addContext("Buffer %s", DremioStringUtils.toBinaryString(buffer, start, end))
+            .addContext("Buffer %s", DremioStringUtils.toBinaryString(buffer.asNettyBuffer(), start, end))
             .addContext("Available bytes %s", availableBytes)
             .build();
       }
@@ -151,7 +151,7 @@ public class ByteBufUtil {
         throw errorContext.error()
             .message("Invalid number of bytes in input buffer")
             .addContext("Expected %s", len)
-            .addContext("Buffer %s", DremioStringUtils.toBinaryString(buffer, start, end))
+            .addContext("Buffer %s", DremioStringUtils.toBinaryString(buffer.asNettyBuffer(), start, end))
             .addContext("Available bytes %s", availableBytes)
             .build();
       }

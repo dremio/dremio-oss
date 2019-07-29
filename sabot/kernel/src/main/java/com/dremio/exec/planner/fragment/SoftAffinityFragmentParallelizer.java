@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
@@ -50,33 +51,39 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
         }
       });
 
-  @Override
-  public void parallelizeFragment(final Wrapper fragmentWrapper, final ParallelizationParameters parameters,
-      final Collection<NodeEndpoint> activeEndpoints) throws PhysicalOperatorSetupException {
-    final Fragment fragment = fragmentWrapper.getNode();
-
-    // Find the parallelization width of fragment
-    final Stats stats = fragmentWrapper.getStats();
-    final ParallelizationInfo parallelizationInfo = stats.getParallelizationInfo();
-
+  private int getWidth(final Stats stats, final int minWidth, final int maxWidth,
+                       final ParallelizationParameters parameters, int numEndpoints) {
     // 1. Find the parallelization based on cost. Use max cost of all operators in this fragment; this is consistent
     //    with the calculation that ExcessiveExchangeRemover uses.
     int width = (int) Math.ceil(stats.getMaxCost() / parameters.getSliceTarget());
 
     // 2. Cap the parallelization width by fragment level width limit and system level per query width limit
-    width = Math.min(width, Math.min(parallelizationInfo.getMaxWidth(), parameters.getMaxGlobalWidth()));
+    width = Math.min(width, Math.min(maxWidth, parameters.getMaxGlobalWidth()));
 
     // 3. Cap the parallelization width by system level per node width limit
-    width = Math.min(width, parameters.getMaxWidthPerNode() * activeEndpoints.size());
+    width = Math.min(width, parameters.getMaxWidthPerNode() * numEndpoints);
 
     // 4. Make sure width is at least the min width enforced by operators
-    width = Math.max(parallelizationInfo.getMinWidth(), width);
+    width = Math.max(minWidth, width);
 
     // 4. Make sure width is at most the max width enforced by operators
-    width = Math.min(parallelizationInfo.getMaxWidth(), width);
+    width = Math.min(maxWidth, width);
 
     // 5 Finally make sure the width is at least one
     width = Math.max(1, width);
+
+    return width;
+  }
+
+  @Override
+  public void parallelizeFragment(final Wrapper fragmentWrapper, final ParallelizationParameters parameters,
+      final Collection<NodeEndpoint> activeEndpoints) throws PhysicalOperatorSetupException {
+    // Find the parallelization width of fragment
+    final Stats stats = fragmentWrapper.getStats();
+    final ParallelizationInfo parallelizationInfo = stats.getParallelizationInfo();
+
+    final int width = getWidth(stats, parallelizationInfo.getMinWidth(), parallelizationInfo.getMaxWidth(),
+      parameters, activeEndpoints.size());
 
     fragmentWrapper.setWidth(width);
 
@@ -84,6 +91,13 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
         parallelizationInfo.getEndpointAffinityMap(), fragmentWrapper.getWidth(), parameters);
 
     fragmentWrapper.assignEndpoints(parameters, assignedEndpoints);
+  }
+
+  @Override
+  public int getIdealFragmentWidth(final Wrapper fragment, final ParallelizationParameters parameters) {
+    // Find the parallelization width of fragment
+    final Stats stats = fragment.getStats();
+    return getWidth(stats, stats.getMinWidth(), stats.getMaxWidth(), parameters, Integer.MAX_VALUE);
   }
 
   // Assign endpoints based on the given endpoint list, affinity map and width.
@@ -96,14 +110,14 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
     final List<NodeEndpoint> endpoints = Lists.newArrayList();
 
     if (endpointAffinityMap.size() > 0) {
-      // try to sort by affinity and it belongs to active endpoints, versus just by affinity
-      // this way we may get better layout of the nodes for resource allocations
-      List<EndpointAffinity> sortedAffinityList = endpointAffinityMap.values().stream().collect(Collectors.toList());
-      Collections.sort(sortedAffinityList, Comparator.comparing(EndpointAffinity::getAffinity).thenComparing(
-        (EndpointAffinity v1, EndpointAffinity v2) ->
-          Boolean.compare(activeEndpoints.contains(v1.getEndpoint()), activeEndpoints.contains(v2.getEndpoint()))
-      ).reversed());
-
+      // Pick endpoints from the list of active endpoints, sorted by affinity (descending, i.e., largest affinity first)
+      // In other words: find the active endpoints which have the highest affinity
+      final Set<NodeEndpoint> activeEndpointsSet = ImmutableSet.copyOf(activeEndpoints);
+      List<EndpointAffinity> sortedAffinityList = endpointAffinityMap.values()
+          .stream()
+          .filter((endpointAffinity) -> activeEndpointsSet.contains(endpointAffinity.getEndpoint()))
+          .sorted(Comparator.comparing(EndpointAffinity::getAffinity).reversed())
+          .collect(Collectors.toList());
       sortedAffinityList = Collections.unmodifiableList(sortedAffinityList);
 
       // Find the number of mandatory nodes (nodes with +infinity affinity).

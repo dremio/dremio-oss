@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 import AccelerationController from 'components/Acceleration/AccelerationController';
+import { getEntity } from 'selectors/resources';
+import { getHomeEntityOrChild } from '@app/selectors/home';
 
 import FileFormatController from './FileFormatController';
 import AccelerationUpdatesController from './AccelerationUpdates/AccelerationUpdatesController';
@@ -208,5 +210,14 @@ describe('DatasetSettings', () => {
       expect(context.router.push).to.not.be.called;
       expect(minimalProps.showUnsavedChangesConfirmDialog).to.be.calledOnce;
     });
+  });
+
+  it('home.js getHomeEntityOrChild and resource.js getEntity must have the same signature', () => {
+    // you could find following line in DataSetting.js
+    // const finalEntitySelector = isHomePage ? getHomeEntityOrChild : getEntity;
+    // That line would fine only if it has the same signature
+    // Lets check a number of arguments for those methods as weak signature check
+    expect(getEntity.length).to.be.equal(getHomeEntityOrChild.length,
+      'getHomeEntityOrChild must have the same signature as getEntity');
   });
 });

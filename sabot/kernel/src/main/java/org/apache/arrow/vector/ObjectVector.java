@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import com.dremio.common.util.ObjectType;
 import io.netty.buffer.ArrowBuf;
 
 public class ObjectVector extends BaseValueVector implements FieldVector {
+  private final String name;
   private int maxCount = 0;
   private int count = 0;
   private int allocationSize = 4096;
@@ -41,7 +42,13 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
   private List<Object[]> objectArrayList = new ArrayList<>();
 
   public ObjectVector(String name, BufferAllocator allocator) {
-    super(name, allocator);
+    super(allocator);
+    this.name = name;
+  }
+
+  @Override
+  public String getName() {
+    return name;
   }
 
   public void addNewArray() {

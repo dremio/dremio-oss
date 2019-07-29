@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import Immutable from 'immutable';
 
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import TableViewer from 'components/TableViewer';
+import EmptyTableMessage from 'components/EmptyTableMessage';
 import VirtualizedTableViewer from 'components/VirtualizedTableViewer';
 import browserUtils from 'utils/browserUtils';
 
@@ -51,13 +52,9 @@ export default class StatefulTableViewer extends Component {
     if (!(viewState && viewState.get('isInProgress')) && tableData.size === 0) {
       // here we skip showing empty virtualized table header because of IE11 issues with flex box
       // in this particular case grid for react-virtualized computed with wrong offsetWidth
+      const emptyTableViewer = (browserUtils.getPlatform().name === 'IE' && virtualized) ? null : tableViewer;
       return (
-        <div className='empty-table' style={styles.emptyTable}>
-          {browserUtils.getPlatform().name === 'IE' && virtualized ? null : tableViewer}
-          <div className='empty-message'>
-            <span>{noDataText}</span>
-          </div>
-        </div>
+        <EmptyTableMessage noDataText={noDataText} tableViewer={emptyTableViewer} />
       );
     }
     return tableViewer;

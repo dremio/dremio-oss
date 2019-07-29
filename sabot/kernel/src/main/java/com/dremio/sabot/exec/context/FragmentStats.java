@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import java.util.Map;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.BlockedResourceDuration;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
@@ -42,6 +43,7 @@ public class FragmentStats {
   private long firstRun;
   private final NodeEndpoint endpoint;
   private final BufferAllocator allocator;
+  private final FragmentHandle handle;
 
   private long sleepingDuration;
   private long blockedOnUpstreamDuration;
@@ -57,8 +59,9 @@ public class FragmentStats {
 
   private boolean notStartedYet = true;
 
-  public FragmentStats(BufferAllocator allocator, NodeEndpoint endpoint) {
+  public FragmentStats(BufferAllocator allocator, FragmentHandle handle, NodeEndpoint endpoint) {
     this.startTime = System.currentTimeMillis();
+    this.handle = handle;
     this.endpoint = endpoint;
     this.allocator = allocator;
     this.perResourceBlockedDurations = Collections.synchronizedMap(new EnumMap<SharedResourceType, Long>(SharedResourceType.class));
@@ -70,8 +73,9 @@ public class FragmentStats {
     prfB.setMaxMemoryUsed(allocator.getPeakMemoryAllocation());
     prfB.setEndTime(System.currentTimeMillis());
     prfB.setEndpoint(endpoint);
-    for(OperatorStats o : operators){
-      prfB.addOperatorProfile(o.getProfile());
+    for (OperatorStats o : operators) {
+      // send details in the operator profile only for the 0th minor fragment of every phase.
+      prfB.addOperatorProfile(o.getProfile(handle.getMinorFragmentId() == 0));
     }
     prfB.setSleepingDuration(sleepingDuration);
     prfB.setBlockedDuration(blockedOnUpstreamDuration + blockedOnDownstreamDuration + blockedOnSharedResourceDuration);

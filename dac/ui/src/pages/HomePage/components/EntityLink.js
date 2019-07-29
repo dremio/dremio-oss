@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@ import { PureComponent, Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
-import { getEntityLinkUrl } from '@app/selectors/resources';
+import { getRootEntityLinkUrl } from '@app/selectors/home';
 import { link } from 'uiTheme/radium/allSpacesAndAllSources';
 
 const mapStateToProps = (state, { entityId }) => {
 
   return {
-    linkTo: getEntityLinkUrl(state, entityId)
+    linkTo: getRootEntityLinkUrl(state, entityId)
   };
 
 };

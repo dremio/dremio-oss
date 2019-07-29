@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -112,5 +112,153 @@ public class TestORCFilterPushDown extends HiveTestBase {
         .baselineValues(2L, "ASIA", "ges. thinly even pin")
         .baselineValues(4L, "MIDDLE EAST", "uickly special accou")
         .go();
+  }
+
+  @Test
+  public void testFixedWidthCharSingleSelect() throws Exception {
+    String query = "SELECT * from hive.orc_strings where country_char25='INDIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key", "country_char25", "country_string", "country_varchar", "continent_char25")
+      .baselineValues(1, "INDIA", "CHINA", "NEPAL", "ASIA")
+      .go();
+    query = "SELECT * from hive.orc_strings where country_char25='INDONESIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key", "country_char25", "country_string", "country_varchar", "continent_char25")
+      .baselineValues(2, "INDONESIA", "THAILAND", "SINGAPORE", "ASIA")
+      .go();
+  }
+
+  @Test
+  public void testFixedWidthCharMultiSelect() throws Exception {
+    final String query = "SELECT * from hive.orc_strings where continent_char25='ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key", "country_char25", "country_string", "country_varchar", "continent_char25")
+      .baselineValues(1, "INDIA", "CHINA", "NEPAL", "ASIA")
+      .baselineValues(2, "INDONESIA", "THAILAND", "SINGAPORE", "ASIA")
+      .go();
+  }
+
+  @Test
+  public void testFixedWidthCharMultiPredicate() throws Exception {
+    String query = "SELECT * from hive.orc_strings where country_char25='INDIA' and continent_char25='ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key", "country_char25", "country_string", "country_varchar", "continent_char25")
+      .baselineValues(1, "INDIA", "CHINA", "NEPAL", "ASIA")
+      .go();
+    query = "SELECT * from hive.orc_strings where country_char25='INDONESIA' and continent_char25='ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key", "country_char25", "country_string", "country_varchar", "continent_char25")
+      .baselineValues(2, "INDONESIA", "THAILAND", "SINGAPORE", "ASIA")
+      .go();
+  }
+
+  @Test
+  public void testFixedWidthCharMixedPredicateTypes() throws Exception {
+    final String query = "SELECT * from hive.orc_strings where country_char25='INDIA' " +
+      "and country_string='CHINA' and continent_char25='ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key", "country_char25", "country_string", "country_varchar", "continent_char25")
+      .baselineValues(1, "INDIA", "CHINA", "NEPAL", "ASIA")
+      .go();
+  }
+
+  @Test
+  public void testFixedWidthCharDifferentPredicateOperators() throws Exception {
+    String query = "SELECT * from hive.orc_strings where continent_char25 != 'EUROPE'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key", "country_char25", "country_string", "country_varchar", "continent_char25")
+      .baselineValues(1, "INDIA", "CHINA", "NEPAL", "ASIA")
+      .baselineValues(2, "INDONESIA", "THAILAND", "SINGAPORE", "ASIA")
+      .go();
+    query = "SELECT * from hive.orc_strings where continent_char25 < 'EUROPE'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key", "country_char25", "country_string", "country_varchar", "continent_char25")
+      .baselineValues(1, "INDIA", "CHINA", "NEPAL", "ASIA")
+      .baselineValues(2, "INDONESIA", "THAILAND", "SINGAPORE", "ASIA")
+      .go();
+    query = "SELECT * from hive.orc_strings where continent_char25 > 'ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key", "country_char25", "country_string", "country_varchar", "continent_char25")
+      .baselineValues(3, "FRANCE", "ITALY", "ROMANIA", "EUROPE")
+      .go();
+    query = "SELECT * from hive.orc_strings where continent_char25 >= 'ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key", "country_char25", "country_string", "country_varchar", "continent_char25")
+      .baselineValues(1, "INDIA", "CHINA", "NEPAL", "ASIA")
+      .baselineValues(2, "INDONESIA", "THAILAND", "SINGAPORE", "ASIA")
+      .baselineValues(3, "FRANCE", "ITALY", "ROMANIA", "EUROPE")
+      .go();
+    query = "SELECT * from hive.orc_strings where continent_char25 <= 'EUROPE'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key", "country_char25", "country_string", "country_varchar", "continent_char25")
+      .baselineValues(1, "INDIA", "CHINA", "NEPAL", "ASIA")
+      .baselineValues(2, "INDONESIA", "THAILAND", "SINGAPORE", "ASIA")
+      .baselineValues(3, "FRANCE", "ITALY", "ROMANIA", "EUROPE")
+      .go();
+    query = "SELECT * from hive.orc_strings where continent_char25 <= 'ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key", "country_char25", "country_string", "country_varchar", "continent_char25")
+      .baselineValues(1, "INDIA", "CHINA", "NEPAL", "ASIA")
+      .baselineValues(2, "INDONESIA", "THAILAND", "SINGAPORE", "ASIA")
+      .go();
+  }
+
+  @Test
+  public void testString() throws Exception {
+    final String query = "SELECT * from hive.orc_strings where country_string='CHINA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key", "country_char25", "country_string", "country_varchar", "continent_char25")
+      .baselineValues(1, "INDIA", "CHINA", "NEPAL", "ASIA")
+      .go();
+  }
+
+  @Test
+  public void testVarchar() throws Exception {
+    final String query = "SELECT * from hive.orc_strings where country_varchar='NEPAL'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key", "country_char25", "country_string", "country_varchar", "continent_char25")
+      .baselineValues(1, "INDIA", "CHINA", "NEPAL", "ASIA")
+      .go();
+  }
+
+  @Test
+  public void testDoubleLiterals() throws Exception {
+    final String query = "SELECT col1 from hive.orcdecimalcompare where col1 < 0.1";
+    testPlanMatchingPatterns(query, new String[] {quote("[leaf-0 = (LESS_THAN col1 0.1), expr = leaf-0]") });
+
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("col1")
+      .baselineValues(new Float("-0.1"))
+      .go();
   }
 }

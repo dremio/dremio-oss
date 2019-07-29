@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import java.util.List;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
-import com.dremio.exec.expr.fn.BaseFunctionHolder;
+import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.dremio.exec.util.AssertionUtil;
 import com.google.common.collect.Lists;
 
@@ -31,20 +31,19 @@ public class DefaultFunctionResolver implements FunctionResolver {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DefaultFunctionResolver.class);
 
   @Override
-  public BaseFunctionHolder getBestMatch(List<BaseFunctionHolder> methods, FunctionCall call,
-                                         boolean isDecimalV2Enabled) {
+  public AbstractFunctionHolder getBestMatch(List<AbstractFunctionHolder> methods, FunctionCall call) {
 
     int bestcost = Integer.MAX_VALUE;
     int currcost = Integer.MAX_VALUE;
-    BaseFunctionHolder bestmatch = null;
-    final List<BaseFunctionHolder> bestMatchAlternatives = new LinkedList<>();
+    AbstractFunctionHolder bestmatch = null;
+    final List<AbstractFunctionHolder> bestMatchAlternatives = new LinkedList<>();
 
-    for (BaseFunctionHolder h : methods) {
+    for (AbstractFunctionHolder h : methods) {
       final List<CompleteType> argumentTypes = Lists.newArrayList();
       for (LogicalExpression expression : call.args) {
         argumentTypes.add(expression.getCompleteType());
       }
-      currcost = TypeCastRules.getCost(argumentTypes, h, isDecimalV2Enabled);
+      currcost = TypeCastRules.getCost(argumentTypes, h);
 
       // if cost is lower than 0, func implementation is not matched, either w/ or w/o implicit casts
       if (currcost  < 0 ) {
@@ -75,7 +74,7 @@ public class DefaultFunctionResolver implements FunctionResolver {
 
         // printing the possible matches
         logger.warn("Printing all the possible functions that could have matched: ");
-        for (BaseFunctionHolder holder: bestMatchAlternatives) {
+        for (AbstractFunctionHolder holder: bestMatchAlternatives) {
           logger.warn(holder.toString());
         }
 
@@ -85,4 +84,5 @@ public class DefaultFunctionResolver implements FunctionResolver {
       return bestmatch;
     }
   }
+
 }

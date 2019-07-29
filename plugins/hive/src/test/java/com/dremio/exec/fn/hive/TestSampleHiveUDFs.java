@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -190,5 +190,36 @@ public class TestSampleHiveUDFs extends HiveTestBase {
             longVal2, longVal2.getBytes(Charsets.UTF_8))
         .baselineValues(null, null, null)
         .go();
+  }
+
+  @Test
+  public void testDecimalPow() throws Exception {
+    try {
+      setSystemOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE, "true");
+      final String query = "select pow(c,2) from cp" +
+        ".\"powHiveFunction.parquet\"";
+      test(query);
+    } finally {
+      setSystemOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE, PlannerSettings
+        .ENABLE_DECIMAL_DATA_TYPE.getDefault().getBoolVal().toString());
+    }
+  }
+
+  @Test
+  public void testDX17216() throws Exception {
+    try {
+      setSystemOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE, "true");
+      setSystemOption(PlannerSettings.ENABLE_DECIMAL_V2, "true");
+
+      final String query = "SELECT " +
+        "pow(1 + CAST(c AS NUMERIC(12,2)),2.0) from cp" +
+        ".\"powHiveFunction.parquet\"";
+      test(query);
+    } finally {
+      setSystemOption(PlannerSettings.ENABLE_DECIMAL_DATA_TYPE, PlannerSettings
+        .ENABLE_DECIMAL_DATA_TYPE.getDefault().getBoolVal().toString());
+      setSystemOption(PlannerSettings.ENABLE_DECIMAL_V2, PlannerSettings
+        .ENABLE_DECIMAL_V2.getDefault().getBoolVal().toString());
+    }
   }
 }

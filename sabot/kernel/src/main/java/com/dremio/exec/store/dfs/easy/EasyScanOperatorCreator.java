@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
@@ -43,7 +44,6 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
@@ -74,24 +74,26 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
   };
 
   private static class SplitAndExtended {
-    private final SplitInfo split;
+    private final SplitAndPartitionInfo split;
     private final EasyDatasetSplitXAttr extended;
-    public SplitAndExtended(SplitInfo split) {
+    public SplitAndExtended(SplitAndPartitionInfo split) {
       super();
       this.split = split;
       try {
-        this.extended = LegacyProtobufSerializer.parseFrom(EasyDatasetSplitXAttr.PARSER, split.getSplitExtendedProperty());
+        this.extended = LegacyProtobufSerializer.parseFrom(EasyDatasetSplitXAttr.PARSER,
+          split.getDatasetSplitInfo().getExtendedProperty());
       } catch (InvalidProtocolBufferException e) {
         throw new RuntimeException("Could not deserialize split info", e);
       }
     }
-    public SplitInfo getSplit() {
+
+    public SplitAndPartitionInfo getSplit() {
       return split;
     }
+
     public EasyDatasetSplitXAttr getExtended() {
       return extended;
     }
-
   }
 
   @Override
@@ -103,9 +105,9 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
     final EasyFormatPlugin<?> formatPlugin = (EasyFormatPlugin<?>) plugin.getFormatPlugin(formatConfig);
 
     FluentIterable<SplitAndExtended> unorderedWork = FluentIterable.from(config.getSplits())
-      .transform(new Function<SplitInfo, SplitAndExtended>() {
+      .transform(new Function<SplitAndPartitionInfo, SplitAndExtended>() {
         @Override
-        public SplitAndExtended apply(SplitInfo split) {
+        public SplitAndExtended apply(SplitAndPartitionInfo split) {
           return new SplitAndExtended(split);
         }
       });
@@ -124,7 +126,7 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
                   public RecordReader apply(SplitAndExtended input) {
                     try {
                       // If a file source scheme has changed, then trigger a refresh to update the metadata.
-                      if (!fs.isValidFS(input.getExtended().getPath())) {
+                      if (!fs.supportsPath(input.getExtended().getPath())) {
                         throw UserException.invalidMetadataError()
                           .addContext(String.format("%s: Invalid FS for file '%s'", fs.getScheme(), input.getExtended().getPath()))
                           .addContext("File", input.getExtended().getPath())

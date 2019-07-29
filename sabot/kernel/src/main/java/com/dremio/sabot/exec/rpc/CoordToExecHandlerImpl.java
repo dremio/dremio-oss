@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,10 @@
  */
 package com.dremio.sabot.exec.rpc;
 
+import com.dremio.exec.proto.CoordExecRPC.ActivateFragments;
+import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.sabot.exec.FragmentExecutors;
@@ -44,13 +45,16 @@ public class CoordToExecHandlerImpl implements CoordToExecHandler {
 
   @Override
   public void startFragments(InitializeFragments fragments, ResponseSender sender) throws UserRpcException {
-    fragmentExecutors.startQueryFragment(fragments, builder, sender, identity);
+    fragmentExecutors.startFragments(fragments, builder, sender, identity);
   }
 
-  /* (non-Javadoc)
-   * @see com.dremio.exec.work.batch.BitComHandler#cancelFragment(com.dremio.exec.proto.ExecProtos.FragmentHandle)
-   */
-  public void cancelFragment(final FragmentHandle handle) {
-    fragmentExecutors.cancel(handle);
+  @Override
+  public void activateFragments(ActivateFragments fragments) {
+    fragmentExecutors.activateFragments(fragments.getQueryId(), builder.getClerk());
+  }
+
+  @Override
+  public void cancelFragments(CancelFragments fragments) {
+    fragmentExecutors.cancelFragments(fragments.getQueryId(), builder.getClerk());
   }
 }

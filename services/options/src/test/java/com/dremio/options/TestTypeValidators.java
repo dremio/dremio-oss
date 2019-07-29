@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,10 @@ public class TestTypeValidators {
 
   protected static OptionValue newStringValue(String value) {
     return OptionValue.createString(OptionValue.OptionType.SYSTEM, "test-option", value);
+  }
+
+  protected static OptionValue newBooleanValue(boolean value) {
+    return OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, "test-option", value);
   }
 
   /**
@@ -251,6 +255,27 @@ public class TestTypeValidators {
     }
   }
 
+  /**
+   * Tests for {@code TypeValidators.AdminBooleanValidator}
+   */
+  public static class TestAdminBooleanValidator {
+    protected TypeValidator newValidator(boolean def) {
+      return new TypeValidators.AdminBooleanValidator("test-option", def);
+    }
+
+    @Test
+    public void ok() {
+      TypeValidator validator = newValidator(true);
+      // check no fail...
+      validator.validate(newBooleanValue(false));
+    }
+
+    @Test(expected = UserException.class)
+    public void invalidOption() {
+      TypeValidator validator = newValidator(true);
+      validator.validate(OptionValue.createBoolean(OptionValue.OptionType.QUERY, "test-option", false));
+    }
+  }
   /**
    * Tests for {@code TypeValidators.QueryLevelOptionValidation}
    */

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -108,6 +108,11 @@ import com.dremio.service.commandpool.CommandPoolFactory;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
+import com.dremio.service.execselector.ExecutorSelectionService;
+import com.dremio.service.execselector.ExecutorSelectionServiceImpl;
+import com.dremio.service.execselector.ExecutorSelectorFactory;
+import com.dremio.service.execselector.ExecutorSelectorFactoryImpl;
+import com.dremio.service.execselector.ExecutorSelectorProvider;
 import com.dremio.service.jobs.JobResultToLogEntryConverter;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.LocalJobsService;
@@ -202,7 +207,7 @@ public class DACDaemonModule implements DACModule {
 
   @Override
   public void build(final SingletonRegistry bootstrapRegistry, final SingletonRegistry registry, ScanResult scanResult,
-      DACConfig dacConfig, boolean isMaster) {
+      DACConfig dacConfig, boolean isMaster){
     final DremioConfig config = dacConfig.getConfig();
     final SabotConfig sabotConfig = config.getSabotConfig();
     final BootStrapContext bootstrap = bootstrapRegistry.lookup(BootStrapContext.class);
@@ -313,7 +318,6 @@ public class DACDaemonModule implements DACModule {
         registry.provider(SabotContext.class).get().getServiceLeader(SearchServiceImpl.LOCAL_TASK_LEADER_NAME);
       return serviceEndPoint.orElse(null);
     };
-
 
     // this is the delegate service for localListing (calls start/close internally)
     registry.bind(DatasetListingService.class,
@@ -444,6 +448,20 @@ public class DACDaemonModule implements DACModule {
     registry.bind(ResourceAllocator.class, new BasicResourceAllocator(registry.provider(ClusterCoordinator
       .class)));
     if(isCoordinator){
+      final Provider<SabotContext> sabotContextProvider = registry.provider(SabotContext.class);
+      final Provider<OptionManager> optionsProvider = () -> sabotContextProvider.get().getOptionManager();
+
+      registry.bind(ExecutorSelectorFactory.class, new ExecutorSelectorFactoryImpl());
+      ExecutorSelectorProvider executorSelectorProvider = new ExecutorSelectorProvider();
+      registry.bind(ExecutorSelectorProvider.class, executorSelectorProvider);
+      registry.bind(ExecutorSelectionService.class,
+          new ExecutorSelectionServiceImpl(
+              registry.provider(ClusterCoordinator.class),
+              optionsProvider,
+              registry.provider(ExecutorSelectorFactory.class),
+              executorSelectorProvider
+              )
+          );
       registry.bindSelf(
           new ForemenWorkManager(
               registry.provider(ClusterCoordinator.class),
@@ -451,6 +469,7 @@ public class DACDaemonModule implements DACModule {
               registry.provider(SabotContext.class),
               registry.provider(ResourceAllocator.class),
               registry.provider(CommandPool.class),
+              registry.provider(ExecutorSelectionService.class),
               registry.getBindingCreator()
               )
           );
@@ -595,8 +614,7 @@ public class DACDaemonModule implements DACModule {
       final Provider<SabotContext> sabotContextProvider = registry.provider(SabotContext.class);
       final Provider<OptionManager> optionsProvider = () -> sabotContextProvider.get().getOptionManager();
 
-      registry.bind(DremioServlet.class, new DremioServlet(
-        dacConfig,
+      registry.bind(DremioServlet.class, new DremioServlet(dacConfig.getConfig(),
         registry.provider(ServerHealthMonitor.class),
         optionsProvider,
         registry.provider(SupportService.class)
@@ -640,7 +658,7 @@ public class DACDaemonModule implements DACModule {
       final SingletonRegistry registry,
       final DremioConfig config,
       final Provider<SabotContext> sabotContext
-  ) {
+  ){
     final String authType = config.getString(WEB_AUTH_TYPE);
 
     if ("internal".equals(authType)) {

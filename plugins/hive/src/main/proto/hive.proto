@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,29 @@ enum PropertyCollectionType {
   DICTIONARY = 1;
 }
 
+enum HivePrimitiveType {
+  BOOLEAN = 0;
+  BYTE = 1;
+  SHORT = 2;
+  INT = 3;
+  LONG = 4;
+  FLOAT = 5;
+  DOUBLE = 6;
+  DATE = 7;
+  TIMESTAMP = 8;
+  BINARY = 9;
+  DECIMAL = 10;
+  STRING = 11;
+  VARCHAR = 12;
+  CHAR = 13;
+}
+
+message ColumnInfo {
+  optional HivePrimitiveType primitive_type = 1;
+  optional int32 precision = 2;
+  optional int32 scale = 3;
+}
+
 message HiveTableXattr {
   repeated Prop table_property = 1;
   optional string input_format = 2;
@@ -40,9 +63,9 @@ message HiveTableXattr {
   optional string serialization_lib = 4;
 
   optional ReaderType reader_type = 5;
-  repeated PartitionProp partition_properties = 6; // cached properties for all partitions of this table to avoid duplication
+  repeated PartitionXattr partitionXattrs = 6 [deprecated=true]; // Deprecated as of v3.2: cached properties for all partitions of this table to avoid duplication
   optional int32 table_hash = 7; // used to check if table definition has changed
-  optional int32 partition_hash = 8; // used to check if paritions have changed (added/deleted/modified)
+  optional int32 partition_hash = 8; // used to check if partitions have changed (added/deleted/modified)
 
   optional PropertyCollectionType property_collection_type = 9 [default = LIST];
 
@@ -55,6 +78,7 @@ message HiveTableXattr {
   optional int32 table_input_format_subscript = 15; // lookup this value in input_format_dictionary
   optional int32 table_storage_handler_subscript = 16; // lookup this value in storage_handler_dictionary
   optional int32 table_serialization_lib_subscript = 17; // lookup this value in serialization_lib_dictionary
+  repeated ColumnInfo column_info = 18;
 }
 
 message HiveSplitXattr {
@@ -71,7 +95,7 @@ message SerializedInputSplit {
   optional bytes input_split = 2;
 }
 
-message PartitionProp {   // Per partition properties which are common for all splits in a partition
+message PartitionXattr { // Per partition properties which are common for all splits in a partition
   repeated Prop partition_property = 1;
   optional string input_format = 2;
   optional string storage_handler = 3;
@@ -93,7 +117,7 @@ enum HiveReadSignatureType {
 }
 
 message FileSystemCachedEntity {
-  optional string path = 1; // relative path of the entitiy
+  optional string path = 1; // relative path of the entity
   optional int64 lastModificationTime = 2;
   optional bool isDir = 3; // is this a directory or a file
 }

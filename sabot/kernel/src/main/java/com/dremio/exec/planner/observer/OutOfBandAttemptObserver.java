@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -209,6 +209,11 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
+  public void executorsSelected(long millisTaken, int idealNumFragments, int idealNumNodes, int numExecutors, String detailsText) {
+    execute(() -> innerObserver.executorsSelected(millisTaken, idealNumFragments, idealNumNodes, numExecutors, detailsText));
+  }
+
+  @Override
   public void planGenerationTime(final long millisTaken) {
     execute(() -> innerObserver.planGenerationTime(millisTaken));
   }
@@ -219,18 +224,18 @@ public class OutOfBandAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void intermediateFragmentScheduling(final long millisTaken, FragmentRpcSizeStats stats) {
-    execute(() -> innerObserver.intermediateFragmentScheduling(millisTaken, stats));
+  public void fragmentsStarted(final long millisTaken, FragmentRpcSizeStats stats) {
+    execute(() -> innerObserver.fragmentsStarted(millisTaken, stats));
   }
 
   @Override
-  public void leafFragmentScheduling(final long millisTaken, FragmentRpcSizeStats stats) {
-    execute(() -> innerObserver.leafFragmentScheduling(millisTaken, stats));
+  public void fragmentsActivated(final long millisTaken) {
+    execute(() -> innerObserver.fragmentsActivated(millisTaken));
   }
 
   @Override
-  public void startLeafFragmentFailed(Exception ex) {
-    execute(() -> innerObserver.startLeafFragmentFailed(ex));
+  public void activateFragmentFailed(Exception ex) {
+    execute(() -> innerObserver.activateFragmentFailed(ex));
   }
 
   @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package com.dremio.service.namespace;
 
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
 import com.google.protobuf.ByteString;
 
 /**
@@ -42,4 +43,5 @@ public interface PartitionChunkMetadata {
   @Deprecated
   Iterable<PartitionProtobuf.Affinity> getAffinities();
 
+  NormalizedPartitionInfo getNormalizedPartitionInfo();
 }

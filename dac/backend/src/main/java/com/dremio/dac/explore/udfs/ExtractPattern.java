@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -135,8 +135,10 @@ public class ExtractPattern {
         out.isSet = 0;
       } else {
         out.buffer = in.buffer;
-        out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(in.buffer, in.start, in.end, result.start(), errCtx);
-        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(in.buffer, in.start, in.end, result.end(), errCtx);
+        out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(in.buffer
+          .asNettyBuffer(), in.start, in.end, result.start(), errCtx);
+        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(in.buffer.asNettyBuffer(),
+          in.start, in.end, result.end(), errCtx);
         out.isSet = 1;
       }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,11 @@
 package com.dremio.resource.basic;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
 import javax.inject.Provider;
 
-import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.options.OptionManager;
@@ -41,7 +38,6 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.DistributedSemaphore;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -91,13 +87,9 @@ public class BasicResourceAllocator implements ResourceAllocator {
       final UserBitShared.QueryId queryId = queryContext.getQueryId();
       final long queryMaxAllocationFinal = queryMaxAllocation;
 
-      Map<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> resourcesPerNodePerMajor =
-        resourceSchedulingProperties.getResourceData();
-
       final ResourceSet resourceSet = new BasicResourceSet(
         queryId,
         lease.value,
-        resourcesPerNodePerMajor,
         queryMaxAllocationFinal,
         queueType.name());
 
@@ -243,66 +235,28 @@ public class BasicResourceAllocator implements ResourceAllocator {
   private class BasicResourceSet implements ResourceSet {
 
     private final UserBitShared.QueryId queryId;
-    private final List<ResourceAllocation> resourceContainers = Lists.newArrayList();
     private volatile DistributedSemaphore.DistributedLease lease; // used to limit the number of concurrent queries
     private final long memoryLimit;
     private final String queueName;
 
     BasicResourceSet(UserBitShared.QueryId queryId,
                      DistributedSemaphore.DistributedLease lease,
-                     Map<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> resourcesPerNodePerMajor,
                      long memoryLimit,
                      String queueName) {
       this.queryId = queryId;
       this.lease = lease;
       this.memoryLimit = memoryLimit;
       this.queueName = queueName;
-      for (Map.Entry<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> majorFragmentEntry : resourcesPerNodePerMajor.entrySet()) {
-        for (Map.Entry<CoordinationProtos.NodeEndpoint, Integer> nodeEndpointEntry : majorFragmentEntry.getValue().entrySet()) {
-          resourceContainers.add(
-            new BasicResourceAllocation(nodeEndpointEntry.getKey(),
-              memoryLimit,
-              majorFragmentEntry.getKey()));
-        }
-      }
     }
 
     @Override
-    public List<ResourceAllocation> getResourceAllocations() {
-      synchronized (this) {
-        return resourceContainers;
-      }
-    }
-
-    @Override
-    public void reassignMajorFragments(Map<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> majorToEndpoinsMap) {
-      final List<ResourceAllocation> resourceContainers = Lists.newArrayList();
-      for (Map.Entry<Integer, Map<CoordinationProtos.NodeEndpoint, Integer>> entry: majorToEndpoinsMap.entrySet()) {
-        for (Map.Entry<CoordinationProtos.NodeEndpoint, Integer> nodeEndpointEntry : entry.getValue().entrySet()) {
-          resourceContainers.add(
-            new BasicResourceAllocation(nodeEndpointEntry.getKey(),
-              memoryLimit,
-              entry.getKey()));
-        }
-      }
-      synchronized (this) {
-        this.resourceContainers.clear();
-        this.resourceContainers.addAll(resourceContainers);
-      }
+    public long getPerNodeQueryMemoryLimit() {
+      return memoryLimit;
     }
 
     @Override
     public void close() throws IOException {
-      try {
-        AutoCloseables.close(resourceContainers);
-      } catch (IOException | RuntimeException e) {
-        throw e;
-      } catch (Exception e) {
-        // should never happen because resourceContainers only throw IOException or unchecked exceptions, but in case...
-        throw new RuntimeException(e);
-      } finally {
-        releaseLease(lease);
-      }
+      releaseLease(lease);
     }
   }
 

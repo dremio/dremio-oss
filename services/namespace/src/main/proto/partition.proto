@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -119,18 +119,22 @@ message MultiSplit {
   optional bytes split_data = 5;        // a serialized sequence of DatasetSplit(s).
 }
 
+message NormalizedPartitionInfo {
+  optional string id = 1;                          // key to use in references from splits.
+  optional string split_key = 2;                   // Provided by the storage plugin. Used in exception messages
+  optional int64 size = 3;                         // size in bytes
+  repeated PartitionValue values = 4;              // partition(s) covered by this request
+  optional bytes extended_property = 5;            // source specific information about the partition chunk this split belong to
+}
+
 // Message sent to the executors when creating operators that need partition and-or split information
-message SplitInfo {
-  optional string split_key = 1;                   // Provided by the storage plugin. Used in exception messages
-  optional int64 size = 2;                         // size in bytes
-  repeated Affinity affinities = 3;                // locality for this split
-  repeated PartitionValue partition_values = 4;    // partition(s) covered by this request
-  optional bytes split_extended_property = 5;      // source specific information about this split
-  optional bytes partition_extended_property = 6;  // source specific information about the partition chunk this split belong to
+message NormalizedDatasetSplitInfo {
+  optional string partition_id = 1;                // reference to normalized partition
+  repeated Affinity affinities = 2;                // locality for this split
+  optional bytes extended_property = 3;            // source specific information about this split
 }
 
-// List of SplitInfos.
-message SplitInfoList {
-  repeated SplitInfo splits = 1;
+// List of NormalizedDatasetSplitInfos.
+message NormalizedDatasetSplitInfoList {
+  repeated NormalizedDatasetSplitInfo splits = 1;
 }
-

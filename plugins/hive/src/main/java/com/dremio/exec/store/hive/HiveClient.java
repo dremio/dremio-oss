@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -311,13 +311,11 @@ public class HiveClient implements AutoCloseable {
     T run(HiveMetaStoreClient client) throws TException;
   }
 
-  private <T> T doCommand(RetryableClientCommand<T> cmd) throws TException{
+  private synchronized <T> T doCommand(RetryableClientCommand<T> cmd) throws TException{
     T value = null;
     try {
       // Hive client can not be used for multiple requests at the same time.
-      synchronized (client) {
-        value = cmd.run(client);
-      }
+      value = cmd.run(client);
     } catch (NoSuchObjectException e) {
       throw e;
     } catch (TException e) {

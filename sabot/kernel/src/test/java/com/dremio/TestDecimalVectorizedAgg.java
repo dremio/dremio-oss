@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -86,6 +86,7 @@ public class TestDecimalVectorizedAgg extends DecimalCompleteTest {
   }
 
   @Test
+  @Ignore("DX-11334")
   public void testDecimalSumAggOverflow_Parquet() throws Exception {
 
     exception.expect(UserException.class);
@@ -114,6 +115,7 @@ public class TestDecimalVectorizedAgg extends DecimalCompleteTest {
   }
 
   @Test
+  @Ignore("DX-11334")
   public void testDecimalSum0AggOverflow_Parquet() throws Exception {
 
     exception.expect(UserException.class);
@@ -157,8 +159,6 @@ public class TestDecimalVectorizedAgg extends DecimalCompleteTest {
       .go();
   }
 
-  // Enable after divide and multiply is supported by Gandiva for decimals.
-  @Ignore
   @Test
   public void testDecimalAvg_Parquet() throws Exception {
 
@@ -168,9 +168,94 @@ public class TestDecimalVectorizedAgg extends DecimalCompleteTest {
     testBuilder().sqlQuery(query)
       .unOrdered()
       .baselineColumns("EXPR$0")
-      .baselineValues(new BigDecimal("62.12345678901234567890"))
+      .baselineValues(11.411818929670781D)
       .baselineValues(null)
-      .baselineValues(new BigDecimal("6.62345678901234567890"))
+      .baselineValues(37.707818929670786D)
+      .baselineValues(2.814228394506173D)
+      .go();
+  }
+
+  /**
+   * Tests when avg returns a decimal of scale larger than input scale.
+   */
+  @Test
+  public void testDecimalAvgScaleUp_Parquet() throws Exception {
+
+    final String query = "select avg(EXPR$0) from cp" +
+      ".\"parquet/decimals/avg-scale-up.parquet\" group by c";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(418.09875D)
+      .baselineValues(306.4714285714286D)
+      .baselineValues(455.7892857142857D)
+      .baselineValues(510.179D)
+      .baselineValues(628.7854545454546D)
+      .go();
+  }
+
+  @Test
+  public void testDecimalVarPop_Parquet() throws Exception {
+
+    final String query = "select var_pop(val) from cp" +
+      ".\"parquet/decimals/simple-decimals-with-nulls.parquet\" group by a";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(214.78624629467512D)
+      .baselineValues(null)
+      .baselineValues(3672.9134108236926)
+      .baselineValues(25.140233461512075)
+      .go();
+  }
+
+  @Test
+  public void testDecimalVariance_Parquet() throws Exception {
+
+    final String query = "select variance(val) from cp" +
+      ".\"parquet/decimals/simple-decimals-with-nulls.parquet\" group by a";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(5509.370116235539D)
+      .baselineValues(null)
+      .baselineValues(33.5203112820161D)
+      .baselineValues(322.17936944201267D)
+      .go();
+  }
+
+  @Test
+  public void testDecimalStddev_Parquet() throws Exception {
+
+    final String query = "select stddev(val) from cp" +
+      ".\"parquet/decimals/simple-decimals-with-nulls.parquet\" group by a";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(74.22513129820344D)
+      .baselineValues(null)
+      .baselineValues(17.94935568319968D)
+      .baselineValues(5.789672813036684D)
+      .go();
+  }
+
+  @Test
+  public void testDecimalStddevPop_Parquet() throws Exception {
+
+    final String query = "select stddev_pop(val) from cp" +
+      ".\"parquet/decimals/simple-decimals-with-nulls.parquet\" group by a";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(60.60456592389465D)
+      .baselineValues(null)
+      .baselineValues(14.655587545188187D)
+      .baselineValues(5.01400373568988D)
       .go();
   }
 

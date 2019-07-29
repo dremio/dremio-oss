@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,6 +71,7 @@ import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.Affinity;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.test.DremioTest;
@@ -148,6 +149,9 @@ public class TestPushLimitToPruneableScan extends DremioTest {
     public Iterable<Affinity> getAffinities() {
       throw new UnsupportedOperationException();
     }
+
+    @Override
+    public NormalizedPartitionInfo getNormalizedPartitionInfo() { throw new UnsupportedOperationException(); }
   }
 
   /**

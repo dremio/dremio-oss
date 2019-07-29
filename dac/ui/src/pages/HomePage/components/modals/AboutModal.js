@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-
 import PropTypes from 'prop-types';
-
+import { get } from 'lodash';
 import { FormattedMessage, injectIntl } from 'react-intl';
 
 import { formDescription } from 'uiTheme/radium/typography';
@@ -25,7 +24,7 @@ import Modal from 'components/Modals/Modal';
 import Art from 'components/Art';
 
 import { getEdition } from 'dyn-load/utils/versionUtils';
-import config from 'utils/config';
+import config from 'dyn-load/utils/config';
 import timeUtils from 'utils/timeUtils';
 
 @injectIntl
@@ -39,7 +38,7 @@ export default class AboutModal extends Component {
 
   renderVersion() {
     const buildTime = timeUtils.formatTime(config.versionInfo.buildTime);
-    const commitTime = timeUtils.formatTime(config.versionInfo.commitTime);
+    const commitTime = timeUtils.formatTime(get(config, 'versionInfo.commit.time'));
 
     return <dl className='largerFontSize'>
       <dt style={styles.dtStyle}><FormattedMessage id='App.Build'/></dt>
@@ -52,7 +51,7 @@ export default class AboutModal extends Component {
       <dd>{buildTime}</dd>
 
       <dt style={styles.dtStyle}><FormattedMessage id='App.ChangeHash'/></dt>
-      <dd>{config.versionInfo.commitHash}</dd>
+      <dd>{get(config, 'versionInfo.commit.hash')}</dd>
 
       <dt style={styles.dtStyle}><FormattedMessage id='App.ChangeTime'/></dt>
       <dd>{commitTime}</dd>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,7 +69,8 @@ export default class ExploreSettingsButton extends Component {
         modal: 'DatasetSettingsModal',
         datasetUrl: dataset.getIn(['apiLinks', 'namespaceEntity']),
         datasetType: dataset.get('datasetType'),
-        query: { then: 'query' }
+        query: { then: 'query' },
+        isHomePage: false
       }
     });
   };
@@ -87,7 +88,7 @@ export default class ExploreSettingsButton extends Component {
           style={styles.button}
           onClick={this.handleOnClick}
           buttonStyle='secondary'>
-          <FontIcon type='Settings' theme={styles.icon}/>
+          <FontIcon type='Settings' tooltip={la('Settings')} theme={styles.icon}/>
         </SimpleButton>
         <Tooltip
           container={document.body}

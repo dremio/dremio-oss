@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
-
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.FilterRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
@@ -31,9 +30,12 @@ import com.dremio.exec.store.hive.HiveRulesFactory.HiveScanDrel;
 import com.dremio.exec.store.hive.ORCScanFilter;
 import com.dremio.exec.store.hive.exec.HiveORCVectorizedReader;
 import com.dremio.exec.store.hive.exec.HiveReaderProtoUtil;
+import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.google.common.base.Optional;
 import com.google.protobuf.InvalidProtocolBufferException;
+
+import java.util.List;
 
 /**
  * Pushes the filter into Hive ORC reader {@link HiveORCVectorizedReader}. We still retain the filter in rel tree as the
@@ -81,7 +83,11 @@ public class ORCFilterPushDownRule extends RelOptRule {
       filterThatCanBePushed =
           ORCFindRelevantFilters.convertBooleanInputRefToFunctionCall(rexBuilder, filterThatCanBePushed);
 
-      final ORCSearchArgumentGenerator sargGenerator = new ORCSearchArgumentGenerator(scan.getRowType().getFieldNames());
+      final HiveTableXattr tableXattr =
+        HiveTableXattr.parseFrom(scan.getTableMetadata().getReadDefinition().getExtendedProperty().toByteArray());
+      final List<HiveReaderProto.ColumnInfo> columnInfos = tableXattr.getColumnInfoList();
+
+      final ORCSearchArgumentGenerator sargGenerator = new ORCSearchArgumentGenerator(scan.getRowType().getFieldNames(), columnInfos);
       filterThatCanBePushed.accept(sargGenerator);
       final SearchArgument sarg = sargGenerator.get();
 

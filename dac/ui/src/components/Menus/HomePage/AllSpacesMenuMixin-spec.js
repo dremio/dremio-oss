@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,9 +30,14 @@ describe('AllSpacesMenuMixin', () => {
 
   const context = {context: {location: {bar: 2, state: {foo: 1}}}};
   beforeEach(() => { // todo: DRY
+    const id = 'simpleSpace';
     minimalProps = {
+      spaceId: id,
+      spaceName: 'spaceName',
+      spaceVersion: '0',
+      showDialog: sinon.stub(),
       item: Immutable.fromJS({
-        id: 'simpleSpace',
+        id,
         links: {
           self: '/asd'
         }

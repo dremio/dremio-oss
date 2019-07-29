@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -118,8 +118,10 @@ public class ParquetGroupScanUtils {
     this.formatPlugin = formatPlugin;
     this.conditions = conditions;
     this.columns = columns;
-    this.fs = ImpersonationUtil.createFileSystem(userName, plugin.getFsConf(), false);
     this.plugin = plugin;
+    this.fs = ImpersonationUtil.createFileSystem(plugin.getContext(), plugin.getId().getName(), plugin.getConfig(), null,
+      ImpersonationUtil.createProxyUgi(userName), plugin.getFsConf(), plugin.getConfig().getConnectionUniqueProperties(),
+      false);
     this.selectionRoot = selectionRoot;
     this.entries = selection.getStatuses();
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,54 +52,54 @@ public class VectorizedProbe implements AutoCloseable {
 
   public static final int SKIP = -1;
 
-  private final BufferAllocator allocator;
-  private final ArrowBuf[] links;
-  private final ArrowBuf[] starts;
+  private BufferAllocator allocator;
+  private ArrowBuf[] links;
+  private ArrowBuf[] starts;
   // Array of bitvectors. Keeps track of keys on the build side that matched any key on the probe side
-  private final MatchBitSet[] keyMatches;
+  private MatchBitSet[] keyMatches;
   // The index of last key in last StartIndices batch in hash table
-  private final int maxOffsetForLastBatch;
+  private int maxOffsetForLastBatch;
   private ArrowBuf projectProbeSv2;
   /* Maintain all the offsets of the non matched records in output
    * Used to set keys's validity of those records to 0 after copying keys from probe side to build side in output
    */
   private ArrowBuf projectNullKeyOffset;
   // The memory address of arrow buffer in projectNullKeyOffset
-  private final long projectNullKeyOffsetAddr;
+  private long projectNullKeyOffsetAddr;
   private ArrowBuf projectBuildOffsetBuf;
-  private final long projectBuildOffsetAddr;
+  private long projectBuildOffsetAddr;
   private ArrowBuf projectBuildKeyOffsetBuf;
-  private final long projectBuildKeyOffsetAddr;
-  private final long probeSv2Addr;
+  private long projectBuildKeyOffsetAddr;
+  private long probeSv2Addr;
 
   private VectorizedHashJoinOperator.Mode mode = VectorizedHashJoinOperator.Mode.UNKNOWN;
 
-  private final JoinTable table;
-  private final List<FieldVector> buildOutputs;
-  private final List<FieldBufferCopier> buildCopiers;
-  private final List<FieldBufferCopier> probeCopiers;
+  private JoinTable table;
+  private List<FieldVector> buildOutputs;
+  private List<FieldBufferCopier> buildCopiers;
+  private List<FieldBufferCopier> probeCopiers;
   /* Used to copy the key vectors from probe side to build side in output.
    * For non matched records in probe side, the keys in build side will be indicated as SKIP and will be set to null.
    * It's only for VECTORIZED_GENERIC.
    * For VECTORIZED_BIGINT, we only have one eight byte key, and we keep it in the hyper container,
    * so it's not needed to copy the key vector from probe side to build side in output.
    */
-  private final List<FieldBufferCopier> keysCopiers;
-  private final int targetRecordsPerBatch;
-  private final boolean projectUnmatchedProbe;
-  private final boolean projectUnmatchedBuild;
+  private List<FieldBufferCopier> keysCopiers;
+  private int targetRecordsPerBatch;
+  private boolean projectUnmatchedProbe;
+  private boolean projectUnmatchedBuild;
   private final Stopwatch probeFind2Watch = Stopwatch.createUnstarted();
   private final Stopwatch buildCopyWatch = Stopwatch.createUnstarted();
   private final Stopwatch probeCopyWatch = Stopwatch.createUnstarted();
   private final Stopwatch projectBuildNonMatchesWatch = Stopwatch.createUnstarted();
-  private final NullComparator nullMask;
+  private NullComparator nullMask;
 
   private ArrowBuf probed;
-  private final PivotDef pivot;
+  private PivotDef pivot;
   /* Used to unpivot keys to output for non matched records in build side
    * Only for VECTORIZED_GENERIC
    */
-  private final PivotDef buildUnpivot;
+  private PivotDef buildUnpivot;
   /* The batch index of StartIndices in previous projectBuildNonMatches call
    * It will be used to continue for next probe batch
    */
@@ -120,7 +120,10 @@ public class VectorizedProbe implements AutoCloseable {
   private long unmatchedProbeCount = 0;
   private long maxHashTableIndex = 0;
 
-  public VectorizedProbe(
+  public VectorizedProbe() {
+  }
+
+  public void setup(
       BufferAllocator allocator,
       final ExpandableHyperContainer buildBatch,
       final VectorAccessible probeBatch,

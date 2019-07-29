@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,9 +44,8 @@ public class ConvertFromImpalaTimestamp {
     public void eval() {
       com.dremio.exec.util.ByteBufUtil.checkBufferLength(errorContext, in.buffer, in.start, in.end, 12);
 
-      in.buffer.readerIndex(in.start);
-      long nanosOfDay = in.buffer.readLong();
-      int julianDay = in.buffer.readInt();
+      long nanosOfDay = in.buffer.getLong(in.start);
+      int julianDay = in.buffer.getInt(in.start + 8);
       long dateTime = (julianDay - com.dremio.exec.store.parquet.ParquetReaderUtility.JULIAN_DAY_NUMBER_FOR_UNIX_EPOCH) *
           org.joda.time.DateTimeConstants.MILLIS_PER_DAY + (nanosOfDay / com.dremio.exec.store.parquet.ParquetReaderUtility.NanoTimeUtils.NANOS_PER_MILLISECOND);
       out.value = com.dremio.common.util.DateTimes.toMillis(new org.joda.time.LocalDateTime(dateTime, org.joda.time.chrono.JulianChronology.getInstance()));
@@ -67,9 +66,8 @@ public class ConvertFromImpalaTimestamp {
     public void eval() {
       com.dremio.exec.util.ByteBufUtil.checkBufferLength(errorContext, in.buffer, in.start, in.end, 12);
 
-      in.buffer.readerIndex(in.start);
-      long nanosOfDay = in.buffer.readLong();
-      int julianDay = in.buffer.readInt();
+      long nanosOfDay = in.buffer.getLong(in.start);
+      int julianDay = in.buffer.getInt(in.start + 8);
       out.value = (julianDay - com.dremio.exec.store.parquet.ParquetReaderUtility.JULIAN_DAY_NUMBER_FOR_UNIX_EPOCH) *
           org.joda.time.DateTimeConstants.MILLIS_PER_DAY + (nanosOfDay / com.dremio.exec.store.parquet.ParquetReaderUtility.NanoTimeUtils.NANOS_PER_MILLISECOND);
     }

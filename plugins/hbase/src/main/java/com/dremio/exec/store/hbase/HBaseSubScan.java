@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -111,12 +111,12 @@ public class HBaseSubScan extends SubScanWithProjection {
       .addAllScans(scans)
       .build();
 
-    writer.writeProtoEntry(this, SCANS_ATTRIBUTE_KEY, list);
+    writer.writeProtoEntry(getProps(), SCANS_ATTRIBUTE_KEY, list);
   }
 
   @Override
   public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
-    ByteString buffer = reader.readProtoEntry(this, SCANS_ATTRIBUTE_KEY);
+    ByteString buffer = reader.readProtoEntry(getProps(), SCANS_ATTRIBUTE_KEY);
     this.scans = HBaseSubScanSpecList.parseFrom(buffer).getScansList();
   }
 }

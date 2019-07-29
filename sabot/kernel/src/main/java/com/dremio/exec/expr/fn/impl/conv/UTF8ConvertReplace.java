@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,9 +53,11 @@ public class UTF8ConvertReplace implements SimpleFunction {
     buffer = buffer.reallocIfNeeded(in.end - in.start);
     out.start = 0;
     if (replace.end == replace.start) {
-      out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.copyUtf8(in.buffer, in.start, in.end, buffer);
+      out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.copyUtf8(in.buffer.asNettyBuffer(), in.start, in
+        .end, buffer);
     } else {
-      out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.copyReplaceUtf8(in.buffer, in.start, in.end, buffer, replace.buffer.getByte(replace.start));
+      out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.copyReplaceUtf8(in.buffer.asNettyBuffer(), in
+        .start, in.end, buffer.asNettyBuffer(), replace.buffer.getByte(replace.start));
     }
     out.buffer = buffer;
   }

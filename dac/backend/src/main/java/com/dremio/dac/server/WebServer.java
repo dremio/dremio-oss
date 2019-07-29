@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,8 +49,6 @@ import com.dremio.service.Service;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.jobs.JobsService;
 import com.google.common.annotations.VisibleForTesting;
-
-import ch.qos.logback.access.jetty.RequestLogImpl;
 
 /**
  * Dremio web server.
@@ -176,7 +174,7 @@ public class WebServer implements Service {
     // root handler with request logging
     final RequestLogHandler rootHandler = new RequestLogHandler();
     embeddedJetty.setHandler(rootHandler);
-    RequestLogImpl requestLogger = new RequestLogImpl();
+    RequestLogImpl_Jetty_Fix requestLogger = new RequestLogImpl_Jetty_Fix();
     requestLogger.setResource("/logback-access.xml");
     rootHandler.setRequestLog(requestLogger);
 

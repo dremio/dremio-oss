@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,9 +49,10 @@ public class Backup {
     @Parameter(names= {"-d", "--backupdir"}, description="backup directory path. for example, /mnt/dremio/backups or hdfs://$namenode:8020/dremio/backups", required=true)
     private String backupDir = null;
 
-    @Parameter(names= {"-u", "--user"}, description="username (admin)", password=true,
-      echoInput=true /* user is prompted when password=true and parameter is required, but passwords are hidden,
-       so enable echoing input */)
+    @Parameter(names= {"-l", "--local-attach"}, description="Attach locally to Dremio JVM to authenticate user. Not compatible with user/password options")
+    private boolean localAttach = false;
+
+    @Parameter(names= {"-u", "--user"}, description="username (admin)")
     private String userName = null;
 
     @Parameter(names= {"-p", "--password"}, description="password", password=true)
@@ -95,9 +96,10 @@ public class Backup {
       System.exit(0);
     }
 
-    if(options.userName != null && options.password == null) {
-      char[] pwd = System.console().readPassword("password: ");
-      options.password = new String(pwd);
+    if (options.localAttach && (options.userName != null || options.password != null)){
+      AdminLogger.log("Do not pass username or password when running in local-attach mode");
+      jc.usage();
+      System.exit(1);
     }
 
     try {
@@ -115,12 +117,29 @@ public class Backup {
 
       URI target = backupDir.toUri();
 
-      if (!validateOnlineOption(options)) {
-        throw new ParameterException("User credential is required.");
+      if (options.localAttach) {
+        String[] backupArgs = {"backup",options.backupDir};
+        try {
+          DremioAttach.main(backupArgs);
+        } catch (NoClassDefFoundError error) {
+          AdminLogger.log("A JDK is required to use local-attach mode. Please make sure JAVA_HOME is correctly configured");
+        }
+      } else {
+        if (options.userName == null)  {
+          options.userName = System.console().readLine("username: ");
+        }
+        if(options.password == null) {
+          char[] pwd = System.console().readPassword("password: ");
+          options.password = new String(pwd);
+        }
+        if (!validateOnlineOption(options)) {
+          throw new ParameterException("User credential is required.");
+        }
+        BackupStats backupStats = createBackup(dacConfig, options.userName, options.password, !options.acceptAll, target);
+        AdminLogger.log("Backup created at {}, dremio tables {}, uploaded files {}",
+          backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
       }
-      BackupStats backupStats = createBackup(dacConfig, options.userName, options.password, !options.acceptAll, target);
-      AdminLogger.log("Backup created at {}, dremio tables {}, uploaded files {}",
-        backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
+
 
     } catch (Exception e) {
       AdminLogger.log("Failed to create backup at {}:", options.backupDir, e);

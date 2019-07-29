@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 import { put, call } from 'redux-saga/effects';
 import { delay } from 'redux-saga';
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 
 import { SHOW_CONFIRMATION_DIALOG } from 'actions/confirmation';
 import { cancelTransform } from 'actions/explore/dataset/transform';
@@ -38,7 +38,7 @@ describe('transformWatcher saga', () => {
   let gen;
   let next;
   const apiAction = {
-    [CALL_API]: {
+    [RSAA]: {
       types: ['START', 'SUCCESS', 'FAILURE']
     }
   };

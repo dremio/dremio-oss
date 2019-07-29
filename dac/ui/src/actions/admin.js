@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import { API_URL_V2 } from 'constants/Api';
@@ -33,7 +33,7 @@ export const SOURCE_NODES_FAILURE = 'SOURCE_NODES_FAILURE';
 function fetchNodeCredentials(viewId) {
   const meta = {viewId};
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: SOURCE_NODES_START, meta},
         {type: SOURCE_NODES_SUCCESS, meta},
@@ -65,7 +65,7 @@ function fetchFilteredUsers(value = '') {
   const encodedValue = encodeURIComponent(value);
   const meta = {viewId: USERS_VIEW_ID}; // todo: see need ability to list users from anywhere
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: LOAD_FILTERED_USER_START, meta},
         schemaUtils.getSuccessActionTypeWithSchema(LOAD_FILTERED_USER_SUCCESS, { users: arrayOf(userSchema) }, meta),
@@ -84,85 +84,34 @@ export function searchUsers(value) {
 }
 
 
-export const ADD_NEW_USER_START = 'ADD_NEW_USER_START';
-export const ADD_NEW_USER_SUCCESS = 'ADD_NEW_USER_SUCCESS';
-export const ADD_NEW_USER_FAILURE = 'ADD_NEW_USER_FAILURE';
+export const CREATE_FIRST_USER_START = 'CREATE_FIRST_USER_START';
+export const CREATE_FIRST_USER_SUCCESS = 'CREATE_FIRST_USER_SUCCESS';
+export const CREATE_FIRST_USER_FAILURE = 'CREATE_FIRST_USER_FAILURE';
 
-function putUser(form, meta) {
-  const { isFirstUser, viewId } = meta || {};
+export function createFirstUser(form, meta) {
+  const { viewId } = meta || {};
   const metaSuccess = {
     invalidateViewIds: [USERS_VIEW_ID],
     notification: {
       message: la('Successfully created.'),
       level: 'success'
     },
-    isFirstUser,
     form
   };
-  const endpoint = !isFirstUser
-    ? `${API_URL_V2}/user/${encodeURIComponent(form.userName)}`
-    : `${API_URL_V2}/bootstrap/firstuser`;
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
-        { type: ADD_NEW_USER_START, meta: {isFirstUser, form} },
-        { type: ADD_NEW_USER_SUCCESS, meta: metaSuccess },
-        { type: ADD_NEW_USER_FAILURE, meta: {viewId} }
+        { type: CREATE_FIRST_USER_START },
+        { type: CREATE_FIRST_USER_SUCCESS, meta: metaSuccess },
+        { type: CREATE_FIRST_USER_FAILURE, meta: {viewId} }
       ],
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(form),
-      endpoint
+      endpoint: `${API_URL_V2}/bootstrap/firstuser`
     }
   };
 }
-
-export function createNewUser(values) {
-  return (dispatch) => {
-    return dispatch(putUser(values));
-  };
-}
-
-export function createFirstUser(values, meta) {
-  return (dispatch) => {
-    return dispatch(putUser(values, {...meta, isFirstUser: true }));
-  };
-}
-
-
-export const EDIT_USER_START = 'EDIT_USER_START';
-export const EDIT_USER_SUCCESS = 'EDIT_USER_SUCCESS';
-export const EDIT_USER_FAILURE = 'EDIT_USER_FAILURE';
-
-function postEditUser(values, oldName) {
-  const meta = {
-    invalidateViewIds: [USERS_VIEW_ID],
-    notification: {
-      message: la('Successfully updated.'),
-      level: 'success'
-    }
-  };
-  return {
-    [CALL_API]: {
-      types: [
-        EDIT_USER_START,
-        { type: EDIT_USER_SUCCESS, meta },
-        EDIT_USER_FAILURE
-      ],
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(values),
-      endpoint: `${API_URL_V2}/user/${oldName}`
-    }
-  };
-}
-
-export function editUser(values, oldName) {
-  return (dispatch) => {
-    return dispatch(postEditUser(values, oldName));
-  };
-}
-
 
 export const REMOVE_USER_START = 'REMOVE_USER_START';
 export const REMOVE_USER_SUCCESS = 'REMOVE_USER_SUCCESS';
@@ -177,7 +126,7 @@ function deleteUser(user) {
     }
   };
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         REMOVE_USER_START,
         { type: REMOVE_USER_SUCCESS, meta },

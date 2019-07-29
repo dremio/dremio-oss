@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package com.dremio.exec.record;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -100,7 +101,8 @@ public class FragmentWritableBatch{
       final int receiveMajorFragmentId,
       ArrowRecordBatch recordBatch,
       final int... receiveMinorFragmentId){
-    this.buffers = recordBatch.getBuffers().toArray(new ByteBuf[0]);
+    this.buffers = recordBatch.getBuffers().stream().map(buf -> buf.asNettyBuffer()).collect
+      (Collectors.toList()).toArray(new ByteBuf[0]);
     this.recordCount = recordBatch.getLength();
     FlatBufferBuilder fbbuilder = new FlatBufferBuilder();
     fbbuilder.finish(recordBatch.writeTo(fbbuilder));

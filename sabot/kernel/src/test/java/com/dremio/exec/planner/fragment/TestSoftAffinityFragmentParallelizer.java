@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -116,8 +116,9 @@ public class TestSoftAffinityFragmentParallelizer {
         newParameters(3, 5,
           10, 0.3D));
 
+    // Regardless of affinity, the result must be one of the endpoints in the activeEndpoints list
     assertNotNull(endpoints);
     assertEquals(1, endpoints.size());
-    assertEquals(N1_EP1, endpoints.get(0));
+    assertEquals(N2_EP1, endpoints.get(0));
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
 import org.rocksdb.FlushOptions;
@@ -61,6 +62,7 @@ import com.dremio.datastore.rocks.Rocks.BlobPointer.Codec;
 import com.dremio.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.UnsignedBytes;
 
@@ -85,6 +87,8 @@ import com.google.common.primitives.UnsignedBytes;
  */
 class RocksDBStore implements ByteStore {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RocksDBStore.class);
+
+  private static final boolean ITERATOR_METRICS = Boolean.getBoolean("dremio.kvstore.iterator_metrics");
 
   private static final String BLOB_SYS_PROP = "dremio.rocksdb.blob_filter_bytes";
   static final long BLOB_FILTER_DEFAULT = 1024*1024;
@@ -584,12 +588,18 @@ class RocksDBStore implements ByteStore {
     }
   }
 
-  private static class FindByRangeIterator implements Iterator<Map.Entry<byte[], byte[]>> {
+  private class FindByRangeIterator implements Iterator<Map.Entry<byte[], byte[]>> {
 
     private final RocksIterator iter;
     private final byte[] end;
     private final boolean endInclusive;
     private final BlobManager blob;
+
+    private final DescriptiveStatistics durations;
+    private final DescriptiveStatistics valueSizes;
+    private final Stopwatch stopwatch;
+    private long cursorSetup;
+    private boolean logged = false;
 
     private byte[] nextKey;
     private byte[] nextValue;
@@ -600,18 +610,38 @@ class RocksDBStore implements ByteStore {
       this.endInclusive = range == null ? false : range.isEndInclusive();
       this.blob = blob;
 
+      durations = ITERATOR_METRICS ? new DescriptiveStatistics() : null;
+      valueSizes = ITERATOR_METRICS ? new DescriptiveStatistics() : null;
+      stopwatch = ITERATOR_METRICS ? Stopwatch.createStarted() : null;
+
       // position at beginning of cursor.
       if (range != null && range.getStart() != null) {
         iter.seek(range.getStart());
         if (iter.isValid() && !range.isStartInclusive() && Arrays.equals(iter.key(), range.getStart())) {
-          iter.next();
+          seekNext();
         }
       } else {
         iter.seekToFirst();
       }
+      if (ITERATOR_METRICS) {
+        cursorSetup = stopwatch.elapsed(TimeUnit.MICROSECONDS);
+      }
 
       populateNext();
 
+    }
+
+    private void seekNext() {
+      if (ITERATOR_METRICS) {
+        stopwatch.reset();
+        stopwatch.start();
+      }
+
+      iter.next();
+
+      if (ITERATOR_METRICS) {
+        durations.addValue(stopwatch.elapsed(TimeUnit.MICROSECONDS));
+      }
     }
 
     private void populateNext() {
@@ -638,7 +668,33 @@ class RocksDBStore implements ByteStore {
 
     @Override
     public boolean hasNext() {
-      return nextKey != null;
+      final boolean hasNext = nextKey != null;
+
+      if (ITERATOR_METRICS && !logged && !hasNext && durations.getN() > 0) {
+
+        final double totalDuration = durations.getSum();
+        logger.info("Duration statistics (in microseconds) while iterating over '{}':" +
+                "\n{}\n95th: {}\n99th: {}\n99.5th: {}\n99.9th: {}\n99.99th: {}\ntotal: {} (or {} ms)\nsetup: {}",
+            name, durations, durations.getPercentile(95), durations.getPercentile(99), durations.getPercentile(99.5),
+            durations.getPercentile(99.9), durations.getPercentile(99.99), totalDuration,
+            TimeUnit.MICROSECONDS.toMillis((long) totalDuration), cursorSetup);
+        if (logger.isDebugEnabled()) {
+          logger.debug("All durations: {}", durations.getValues());
+        }
+
+        logger.info("Size statistics (in bytes) while iterating over '{}':" +
+                "\n{}\n95th: {}\n99th: {}\n99.5th: {}\n99.9th: {}\n99.99th: {}\ntotal: {}",
+            name, valueSizes, valueSizes.getPercentile(95), valueSizes.getPercentile(99),
+            valueSizes.getPercentile(99.5), valueSizes.getPercentile(99.9), valueSizes.getPercentile(99.99),
+            valueSizes.getSum());
+        if (logger.isDebugEnabled()) {
+          logger.debug("All sizes: {}", valueSizes.getValues());
+        }
+
+        logged = true;
+      }
+
+      return hasNext;
     }
 
     @Override
@@ -652,7 +708,11 @@ class RocksDBStore implements ByteStore {
       } catch (BlobNotFoundException e) {
         throw new RuntimeException(e);
       }
-      iter.next();
+
+      if (ITERATOR_METRICS) {
+        valueSizes.addValue(entry.getValue().length);
+      }
+      seekNext();
       populateNext();
       return entry;
     }

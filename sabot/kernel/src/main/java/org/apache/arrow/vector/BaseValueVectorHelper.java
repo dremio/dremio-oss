@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,9 +32,8 @@ public class BaseValueVectorHelper {
 
   public SerializedField.Builder getMetadataBuilder() {
 //    return SerializedFieldHelper.getAsBuilder(vector.getField())
-    return SerializedField.newBuilder().setNamePart(NamePart.newBuilder().setName(vector.name).build())
-        .setValueCount(vector.getValueCount())
-        .setBufferLength(vector.getBufferSize());
+    return SerializedField.newBuilder().setNamePart(NamePart.newBuilder().setName(vector.getName())
+      .build()).setValueCount(vector.getValueCount()).setBufferLength(vector.getBufferSize());
   }
 
   /* number of bytes for the validity buffer for the given valueCount */

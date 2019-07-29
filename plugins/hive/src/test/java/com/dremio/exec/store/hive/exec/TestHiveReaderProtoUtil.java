@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -32,7 +33,7 @@ import com.dremio.common.util.RepeatTestRule;
 import com.dremio.common.util.TestTools;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
-import com.dremio.hive.proto.HiveReaderProto.PartitionProp;
+import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.google.common.collect.Lists;
 
@@ -70,8 +71,8 @@ public class TestHiveReaderProtoUtil {
     return props;
   }
 
-  private static PartitionProp randomPartitionProp() {
-    final PartitionProp.Builder builder = PartitionProp.newBuilder();
+  private static PartitionXattr randomPartitionXattr() {
+    final PartitionXattr.Builder builder = PartitionXattr.newBuilder();
     if (random.nextBoolean()) {
       builder.addAllPartitionProperty(randomListOfProps());
     }
@@ -87,13 +88,13 @@ public class TestHiveReaderProtoUtil {
     return builder.build();
   }
 
-  private static List<PartitionProp> randomListOfPartitionProps() {
+  private static List<PartitionXattr> randomListOfPartitionXattrs() {
     final int length = random.nextInt(stringLength);
-    final List<PartitionProp> props = Lists.newArrayList();
+    final List<PartitionXattr> partitionXattrs = Lists.newArrayList();
     for (int i = 0; i < length; i++) {
-      props.add(randomPartitionProp());
+      partitionXattrs.add(randomPartitionXattr());
     }
-    return props;
+    return partitionXattrs;
   }
 
   @Test
@@ -113,7 +114,7 @@ public class TestHiveReaderProtoUtil {
       builder.setSerializationLib(randomString(stringLength));
     }
     if (random.nextBoolean()) {
-      builder.addAllPartitionProperties(randomListOfPartitionProps());
+      builder.addAllPartitionXattrs(randomListOfPartitionXattrs());
     }
 
     final HiveTableXattr original = builder.build();
@@ -166,50 +167,50 @@ public class TestHiveReaderProtoUtil {
               .equals(original.getStorageHandler()));
     }
 
-    for (int i = 0; i < original.getPartitionPropertiesList().size(); i++) {
-      final PartitionProp originalProp = original.getPartitionProperties(i);
-      final PartitionProp convertedProp = converted.getPartitionProperties(i);
+    for (int i = 0; i < original.getPartitionXattrsList().size(); i++) {
+      final PartitionXattr originalPartitionXattr = original.getPartitionXattrs(i);
+      final PartitionXattr convertePartitionXattr = converted.getPartitionXattrs(i);
 
-      if (!originalProp.getPartitionPropertyList().isEmpty()) {
+      if (!originalPartitionXattr.getPartitionPropertyList().isEmpty()) {
         assertTrue(getMessage(original, converted),
-            convertedProp.getPartitionPropertyList().isEmpty());
+            convertePartitionXattr.getPartitionPropertyList().isEmpty());
         assertTrue(getMessage(original, converted),
-            convertedProp.getPropertySubscriptList().size() == originalProp.getPartitionPropertyList().size());
+            convertePartitionXattr.getPropertySubscriptList().size() == originalPartitionXattr.getPartitionPropertyList().size());
 
         final List<Prop> convertedPartitionProperties = HiveReaderProtoUtil.getPartitionProperties(converted, i);
         assertTrue(getMessage(original, converted),
-            originalProp.getPartitionPropertyList().size() == convertedPartitionProperties.size());
+            originalPartitionXattr.getPartitionPropertyList().size() == convertedPartitionProperties.size());
 
-        for (int p = 0; p < originalProp.getPartitionPropertyList().size(); p++) {
+        for (int p = 0; p < originalPartitionXattr.getPartitionPropertyList().size(); p++) {
           assertTrue(getMessage(original, converted),
-              convertedPartitionProperties.contains(originalProp.getPartitionProperty(p)));
+              convertedPartitionProperties.contains(originalPartitionXattr.getPartitionProperty(p)));
         }
 
         for (int p = 0; p < convertedPartitionProperties.size(); p++) {
           assertTrue(getMessage(original, converted),
-              originalProp.getPartitionPropertyList().contains(convertedPartitionProperties.get(p)));
+              originalPartitionXattr.getPartitionPropertyList().contains(convertedPartitionProperties.get(p)));
         }
       }
 
-      if (originalProp.hasInputFormat()) {
-        assertTrue(getMessage(original, converted), !convertedProp.hasInputFormat());
-        assertTrue(getMessage(original, converted), convertedProp.hasInputFormatSubscript());
+      if (originalPartitionXattr.hasInputFormat()) {
+        assertTrue(getMessage(original, converted), !convertePartitionXattr.hasInputFormat());
+        assertTrue(getMessage(original, converted), convertePartitionXattr.hasInputFormatSubscript());
         HiveReaderProtoUtil.getPartitionInputFormat(converted, i).get()
-            .equals(originalProp.getInputFormat());
+            .equals(originalPartitionXattr.getInputFormat());
       }
 
-      if (originalProp.hasStorageHandler()) {
-        assertTrue(getMessage(original, converted), !convertedProp.hasStorageHandler());
-        assertTrue(getMessage(original, converted), convertedProp.hasStorageHandlerSubscript());
+      if (originalPartitionXattr.hasStorageHandler()) {
+        assertTrue(getMessage(original, converted), !convertePartitionXattr.hasStorageHandler());
+        assertTrue(getMessage(original, converted), convertePartitionXattr.hasStorageHandlerSubscript());
         HiveReaderProtoUtil.getPartitionStorageHandler(converted, i).get()
-            .equals(originalProp.getStorageHandler());
+            .equals(originalPartitionXattr.getStorageHandler());
       }
 
-      if (originalProp.hasSerializationLib()) {
-        assertTrue(getMessage(original, converted), !convertedProp.hasSerializationLib());
-        assertTrue(getMessage(original, converted), convertedProp.hasSerializationLibSubscript());
+      if (originalPartitionXattr.hasSerializationLib()) {
+        assertTrue(getMessage(original, converted), !convertePartitionXattr.hasSerializationLib());
+        assertTrue(getMessage(original, converted), convertePartitionXattr.hasSerializationLibSubscript());
         HiveReaderProtoUtil.getPartitionSerializationLib(converted, i).get()
-            .equals(originalProp.getSerializationLib());
+            .equals(originalPartitionXattr.getSerializationLib());
       }
     }
   }
@@ -219,8 +220,8 @@ public class TestHiveReaderProtoUtil {
         + "converted: " + converted.toString();
   }
 
-  private static PartitionProp newPartitionPropWithInputFormat(String format) {
-    return PartitionProp.newBuilder()
+  private static PartitionXattr newPartitionXattrWithInputFormat(String format) {
+    return PartitionXattr.newBuilder()
         .setInputFormat(format)
         .build();
   }
@@ -234,11 +235,11 @@ public class TestHiveReaderProtoUtil {
 
     {
       HiveTableXattr xattr = HiveTableXattr.newBuilder()
-          .addAllPartitionProperties(
+          .addAllPartitionXattrs(
               Lists.newArrayList(
-                  newPartitionPropWithInputFormat("a"),
-                  newPartitionPropWithInputFormat("a"),
-                  newPartitionPropWithInputFormat("b")))
+                  newPartitionXattrWithInputFormat("a"),
+                  newPartitionXattrWithInputFormat("a"),
+                  newPartitionXattrWithInputFormat("b")))
           .build();
       Map<String, Integer> result = HiveReaderProtoUtil.buildInputFormatLookup(xattr);
       assertTrue(result.size() == 2);
@@ -248,10 +249,10 @@ public class TestHiveReaderProtoUtil {
 
     {
       HiveTableXattr xattr = HiveTableXattr.newBuilder()
-          .addAllPartitionProperties(
+          .addAllPartitionXattrs(
               Lists.newArrayList(
-                  newPartitionPropWithInputFormat("a"),
-                  newPartitionPropWithInputFormat("b")))
+                  newPartitionXattrWithInputFormat("a"),
+                  newPartitionXattrWithInputFormat("b")))
           .setInputFormat("c")
           .build();
       Map<String, Integer> result = HiveReaderProtoUtil.buildInputFormatLookup(xattr);
@@ -263,10 +264,10 @@ public class TestHiveReaderProtoUtil {
 
     {
       HiveTableXattr xattr = HiveTableXattr.newBuilder()
-          .addAllPartitionProperties(
+          .addAllPartitionXattrs(
               Lists.newArrayList(
-                  newPartitionPropWithInputFormat("a"),
-                  newPartitionPropWithInputFormat("b")))
+                  newPartitionXattrWithInputFormat("a"),
+                  newPartitionXattrWithInputFormat("b")))
           .setInputFormat("a")
           .build();
       Map<String, Integer> result = HiveReaderProtoUtil.buildInputFormatLookup(xattr);
@@ -300,18 +301,17 @@ public class TestHiveReaderProtoUtil {
 
     {
       HiveTableXattr.Builder xattr = HiveTableXattr.newBuilder()
-          .addAllPartitionProperties(
+          .addAllPartitionXattrs(
               Lists.newArrayList(
-                  newPartitionPropWithInputFormat("a"),
-                  newPartitionPropWithInputFormat("a"),
-                  newPartitionPropWithInputFormat("b")));
+                  newPartitionXattrWithInputFormat("a"),
+                  newPartitionXattrWithInputFormat("a"),
+                  newPartitionXattrWithInputFormat("b")));
       HiveTableXattr original = xattr.build();
       assertTrue(!HiveReaderProtoUtil.getTableInputFormat(original).isPresent());
       assertTrue(HiveReaderProtoUtil.getPartitionInputFormat(original, 0).get().equals("a"));
       assertTrue(HiveReaderProtoUtil.getPartitionInputFormat(original, 1).get().equals("a"));
       assertTrue(HiveReaderProtoUtil.getPartitionInputFormat(original, 2).get().equals("b"));
 
-      HiveReaderProtoUtil.encodePropertiesAsDictionary(xattr);
       HiveTableXattr converted = xattr.build();
       assertTrue(!HiveReaderProtoUtil.getTableInputFormat(converted).isPresent());
       assertTrue(HiveReaderProtoUtil.getPartitionInputFormat(converted, 0).get().equals("a"));
@@ -321,10 +321,10 @@ public class TestHiveReaderProtoUtil {
 
     {
       HiveTableXattr.Builder xattr = HiveTableXattr.newBuilder()
-          .addAllPartitionProperties(
+          .addAllPartitionXattrs(
               Lists.newArrayList(
-                  newPartitionPropWithInputFormat("a"),
-                  newPartitionPropWithInputFormat("b")))
+                  newPartitionXattrWithInputFormat("a"),
+                  newPartitionXattrWithInputFormat("b")))
           .setInputFormat("c");
 
       HiveTableXattr original = xattr.build();
@@ -341,10 +341,10 @@ public class TestHiveReaderProtoUtil {
 
     {
       HiveTableXattr.Builder xattr = HiveTableXattr.newBuilder()
-          .addAllPartitionProperties(
+          .addAllPartitionXattrs(
               Lists.newArrayList(
-                  newPartitionPropWithInputFormat("a"),
-                  newPartitionPropWithInputFormat("b")))
+                  newPartitionXattrWithInputFormat("a"),
+                  newPartitionXattrWithInputFormat("b")))
           .setInputFormat("a");
 
       HiveTableXattr original = xattr.build();
@@ -367,8 +367,8 @@ public class TestHiveReaderProtoUtil {
         .build();
   }
 
-  private static PartitionProp newPartitionPropWithProps(Prop... props) {
-    return PartitionProp.newBuilder()
+  private static PartitionXattr newPartitionXattrWithProps(Prop... props) {
+    return PartitionXattr.newBuilder()
         .addAllPartitionProperty(Arrays.asList(props))
         .build();
   }
@@ -381,10 +381,10 @@ public class TestHiveReaderProtoUtil {
 
     {
       HiveTableXattr.Builder xattr = HiveTableXattr.newBuilder()
-          .addAllPartitionProperties(
+          .addAllPartitionXattrs(
               Lists.newArrayList(
-                  newPartitionPropWithProps(newProp("a", "b")),
-                  newPartitionPropWithProps(newProp("c", "d"), newProp("a", "b"))));
+                  newPartitionXattrWithProps(newProp("a", "b")),
+                  newPartitionXattrWithProps(newProp("c", "d"), newProp("a", "b"))));
 
       Map<Prop, Integer> lookup = HiveReaderProtoUtil.buildPropLookup(xattr);
       assertTrue(lookup.size() == 2);
@@ -394,9 +394,9 @@ public class TestHiveReaderProtoUtil {
 
     {
       HiveTableXattr.Builder xattr = HiveTableXattr.newBuilder()
-          .addAllPartitionProperties(
+          .addAllPartitionXattrs(
               Lists.newArrayList(
-                  newPartitionPropWithProps(newProp("a", "b"), newProp("c", "d"))))
+                  newPartitionXattrWithProps(newProp("a", "b"), newProp("c", "d"))))
           .addAllTableProperty(
               Lists.newArrayList(
                   newProp("a", "c")));
@@ -410,14 +410,14 @@ public class TestHiveReaderProtoUtil {
 
     {
       HiveTableXattr.Builder xattr = HiveTableXattr.newBuilder()
-          .addAllPartitionProperties(
+          .addAllPartitionXattrs(
               Lists.newArrayList(
-                  newPartitionPropWithProps(newProp("a", "b"), newProp("c", "d")),
-                  newPartitionPropWithProps(newProp("c", "d"), newProp("c", "d")),
-                  newPartitionPropWithProps(newProp("c", "d"), newProp("c", "e")),
-                  newPartitionPropWithProps(newProp("c", "d")),
-                  newPartitionPropWithProps(newProp("c", "d")),
-                  newPartitionPropWithProps(newProp("c", "d"))))
+                  newPartitionXattrWithProps(newProp("a", "b"), newProp("c", "d")),
+                  newPartitionXattrWithProps(newProp("c", "d"), newProp("c", "d")),
+                  newPartitionXattrWithProps(newProp("c", "d"), newProp("c", "e")),
+                  newPartitionXattrWithProps(newProp("c", "d")),
+                  newPartitionXattrWithProps(newProp("c", "d")),
+                  newPartitionXattrWithProps(newProp("c", "d"))))
           .addAllTableProperty(
               Lists.newArrayList(
                   newProp("a", "b"),
@@ -459,10 +459,10 @@ public class TestHiveReaderProtoUtil {
 
     {
       HiveTableXattr.Builder xattr = HiveTableXattr.newBuilder()
-          .addAllPartitionProperties(
+          .addAllPartitionXattrs(
               Lists.newArrayList(
-                  newPartitionPropWithProps(newProp("a", "b"), newProp("a", "b")),
-                  newPartitionPropWithProps(newProp("c", "d"), newProp("a", "b"))));
+                  newPartitionXattrWithProps(newProp("a", "b"), newProp("a", "b")),
+                  newPartitionXattrWithProps(newProp("c", "d"), newProp("a", "b"))));
 
       HiveTableXattr original = xattr.build();
       assertTrue(HiveReaderProtoUtil.getTableProperties(original).size() == 0);
@@ -503,9 +503,9 @@ public class TestHiveReaderProtoUtil {
 
     {
       HiveTableXattr.Builder xattr = HiveTableXattr.newBuilder()
-          .addAllPartitionProperties(
+          .addAllPartitionXattrs(
               Lists.newArrayList(
-                  newPartitionPropWithProps(newProp("a", "b"), newProp("c", "d"))))
+                  newPartitionXattrWithProps(newProp("a", "b"), newProp("c", "d"))))
           .addAllTableProperty(
               Lists.newArrayList(
                   newProp("a", "c")));
@@ -527,14 +527,14 @@ public class TestHiveReaderProtoUtil {
 
     {
       HiveTableXattr.Builder xattr = HiveTableXattr.newBuilder()
-          .addAllPartitionProperties(
+          .addAllPartitionXattrs(
               Lists.newArrayList(
-                  newPartitionPropWithProps(newProp("a", "b"), newProp("c", "d")),
-                  newPartitionPropWithProps(newProp("c", "d"), newProp("c", "d")),
-                  newPartitionPropWithProps(newProp("c", "d"), newProp("c", "e")),
-                  newPartitionPropWithProps(newProp("c", "d")),
-                  newPartitionPropWithProps(newProp("c", "d")),
-                  newPartitionPropWithProps(newProp("c", "d"))))
+                  newPartitionXattrWithProps(newProp("a", "b"), newProp("c", "d")),
+                  newPartitionXattrWithProps(newProp("c", "d"), newProp("c", "d")),
+                  newPartitionXattrWithProps(newProp("c", "d"), newProp("c", "e")),
+                  newPartitionXattrWithProps(newProp("c", "d")),
+                  newPartitionXattrWithProps(newProp("c", "d")),
+                  newPartitionXattrWithProps(newProp("c", "d"))))
           .addAllTableProperty(
               Lists.newArrayList(
                   newProp("a", "b"),
@@ -587,6 +587,52 @@ public class TestHiveReaderProtoUtil {
           .equals(Lists.newArrayList(newProp("c", "d"))));
       assertTrue(HiveReaderProtoUtil.getPartitionProperties(original, 5)
           .equals(Lists.newArrayList(newProp("c", "d"))));
+    }
+  }
+
+  @Test
+  public void isLegacyFormat() {
+    {
+      assertTrue(HiveReaderProtoUtil.getTableProperties(HiveTableXattr.newBuilder().build()).size() == 0);
+      try {
+        HiveReaderProtoUtil.getPartitionProperties(HiveTableXattr.newBuilder().build(), 0);
+        fail();
+      } catch (IllegalArgumentException ignored) {
+      }
+
+      assertTrue(HiveReaderProtoUtil.getTableProperties(HiveTableXattr.newBuilder()
+        .setPropertyCollectionType(HiveReaderProto.PropertyCollectionType.DICTIONARY)
+        .build()).size() == 0);
+      try {
+        HiveReaderProtoUtil.getPartitionProperties(HiveTableXattr.newBuilder()
+          .setPropertyCollectionType(HiveReaderProto.PropertyCollectionType.DICTIONARY)
+          .build(), 0);
+        fail();
+      } catch (IllegalArgumentException ignored) {
+      }
+
+      {
+        HiveTableXattr tableXattr = HiveTableXattr.newBuilder()
+          .addAllPartitionXattrs(
+            Lists.newArrayList(
+              newPartitionXattrWithProps(newProp("a", "b")),
+              newPartitionXattrWithProps(newProp("c", "d"), newProp("a", "b")))).build();
+
+        assertTrue(HiveReaderProtoUtil.isPreDremioVersion3dot2dot0LegacyFormat(tableXattr));
+      }
+
+      {
+        HiveTableXattr tableXattr = HiveTableXattr.newBuilder()
+          .addAllTableProperty(
+            Lists.newArrayList(
+              newProp("a", "b"),
+              newProp("a", "b"),
+              newProp("a", "b"),
+              newProp("a", "b"),
+              newProp("a", "c"))).build();
+
+        assertFalse(HiveReaderProtoUtil.isPreDremioVersion3dot2dot0LegacyFormat(tableXattr));
+      }
     }
   }
 }

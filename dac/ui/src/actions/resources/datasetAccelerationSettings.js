@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 
 import { API_URL_V2 } from 'constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
@@ -29,7 +29,7 @@ export function loadDatasetAccelerationSettings(fullPathList, viewId) {
   const meta = { viewId };
   // TODO: this is a workaround for accelerationSettings not having its own id
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: LOAD_DATASET_ACCELERATION_SETTINGS_START, meta},
         schemaUtils.getSuccessActionTypeWithSchema(LOAD_DATASET_ACCELERATION_SETTINGS_SUCCESS,
@@ -51,7 +51,7 @@ export const UPDATE_DATASET_ACCELERATION_SETTINGS_FAILURE = 'UPDATE_DATASET_ACCE
 export function updateDatasetAccelerationSettings(fullPathList, form) {
   const datasetPath = constructFullPathAndEncode(fullPathList);
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         UPDATE_DATASET_ACCELERATION_SETTINGS_START,
         UPDATE_DATASET_ACCELERATION_SETTINGS_SUCCESS,

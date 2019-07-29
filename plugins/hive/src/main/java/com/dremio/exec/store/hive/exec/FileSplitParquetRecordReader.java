@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
@@ -109,8 +109,9 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
   private InputStreamProvider getInputStreamProvider(boolean useSingleStream, Path path,
                                                      FileSystem fs, long fileLength, boolean readFullFile) {
-    return (useSingleStream || readFullFile) ? new SingleStreamProvider(fs, path, fileLength, oContext.getAllocator(), readFullFile) :
-            new StreamPerColumnProvider(fs, path, fileLength);
+    final long maxFooterLen = oContext.getOptions().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
+    return (useSingleStream || readFullFile) ? new SingleStreamProvider(fs, path, fileLength, maxFooterLen, readFullFile, oContext) :
+            new StreamPerColumnProvider(fs, path, fileLength,  maxFooterLen, oContext.getStats());
   }
 
   @Override
@@ -134,7 +135,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
       try {
         // TODO: DX-16001 - make async configurable for Hive.
-        fs = FileSystemWrapper.get(finalPath, jobConf, oContext.getStats());
+        fs = FileSystemWrapperCreator.get(finalPath, jobConf, oContext.getStats());
         fileLength = fs.getFileStatus(finalPath).getLen();
         readFullFile = fileLength < oContext.getOptions().getOption(ExecConstants.PARQUET_FULL_FILE_READ_THRESHOLD) &&
                 ((float)columnsToRead.size()) / outputSchema.getFieldCount() > oContext.getOptions().getOption(ExecConstants.PARQUET_FULL_FILE_READ_COLUMN_RATIO);

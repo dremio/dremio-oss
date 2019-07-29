@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,6 +84,7 @@ import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.service.Pointer;
+import com.dremio.service.execselector.ExecutorSelectionService;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -98,6 +99,7 @@ public class CommandCreator {
   private final QueryContext context;
   private final CoordToExecTunnelCreator tunnelCreator;
   private final ResourceAllocator queryResourceManager;
+  private final ExecutorSelectionService executorSelectionService;
   private final UserRequest request;
   private final AttemptObserver observer;
   private final SabotContext dbContext;
@@ -106,15 +108,16 @@ public class CommandCreator {
   private final Pointer<QueryId> prepareId;
 
   public CommandCreator(
-    SabotContext dbContext,
-    QueryContext context,
-    CoordToExecTunnelCreator tunnelCreator,
-    UserRequest request,
-    AttemptObserver observer,
-    Cache<Long, PreparedPlan> plans,
-    Pointer<QueryId> prepareId,
-    int attemptNumber,
-    ResourceAllocator queryResourceManager) {
+      SabotContext dbContext,
+      QueryContext context,
+      CoordToExecTunnelCreator tunnelCreator,
+      UserRequest request,
+      AttemptObserver observer,
+      Cache<Long, PreparedPlan> plans,
+      Pointer<QueryId> prepareId,
+      int attemptNumber,
+      ResourceAllocator queryResourceManager,
+      ExecutorSelectionService executorSelectionService) {
     this.context = context;
     this.tunnelCreator = tunnelCreator;
     this.request = request;
@@ -124,6 +127,7 @@ public class CommandCreator {
     this.prepareId = prepareId;
     this.attemptNumber = attemptNumber;
     this.queryResourceManager = queryResourceManager;
+    this.executorSelectionService = executorSelectionService;
   }
 
   public CommandRunner<?> toCommand() throws ForemanException {
@@ -188,7 +192,7 @@ public class CommandCreator {
                             .getUserName()));
                 }
                 return new PrepareToExecution(plan, context, observer, dbContext.getPlanReader(), tunnelCreator,
-                  queryResourceManager);
+                    queryResourceManager, executorSelectionService);
               }
             }
 
@@ -205,8 +209,8 @@ public class CommandCreator {
           return getSqlCommand(query.getPlan(), false);
 
         case PHYSICAL: // should be deprecated once tests are removed.
-          return new PhysicalPlanCommand(tunnelCreator, context, dbContext.getPlanReader(), observer, query
-            .getPlanBytes(), queryResourceManager);
+          return new PhysicalPlanCommand(tunnelCreator, context, dbContext.getPlanReader(), observer,
+              query.getPlanBytes(), queryResourceManager, executorSelectionService);
 
         default:
           throw new IllegalArgumentException(
@@ -374,7 +378,7 @@ public class CommandCreator {
         return new HandlerToPreparePlan(context, sqlNode, handler, plans, sql, observer, config);
       }
       return new HandlerToExec(tunnelCreator, context, dbContext.getPlanReader(), observer, sql, sqlNode,
-        handler, config, queryResourceManager);
+          handler, config, queryResourceManager, executorSelectionService);
     }
   }
 

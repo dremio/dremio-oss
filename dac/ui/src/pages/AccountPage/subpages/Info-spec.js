@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,8 @@
  */
 import { shallow } from 'enzyme';
 import { minimalFormProps } from 'testUtil';
-import config from 'utils/config';
+import config from 'dyn-load/utils/config';
+import EditUserForm from '@app/pages/AdminPage/components/forms/EditUserForm';
 import { Info } from './Info';
 
 describe('Info', () => {
@@ -28,7 +29,8 @@ describe('Info', () => {
       onFormSubmit: sinon.spy(),
       handleSubmit: sinon.stub().returns(() => {}),
       cancel: sinon.spy(),
-      fields: {}
+      fields: {},
+      updateFormDirtyState: () => {}
     };
     commonProps = {
       ...minimalProps
@@ -51,20 +53,19 @@ describe('Info', () => {
 
   it('should render FormInfo with common props', () => {
     const wrapper = shallow(<Info {...commonProps} />);
-    expect(wrapper.find('FormInfo')).to.have.length(1);
+    expect(wrapper.find(EditUserForm)).to.have.length(1);
   });
 
   it('should render UserForm with common props', () => {
     const wrapper = shallow(<Info {...commonProps} />);
-    expect(wrapper.find('UserForm')).to.have.length(1);
-    expect(wrapper.find('UserForm').props().isReadMode).to.be.false;
+    expect(wrapper.find(EditUserForm)).to.have.length(1);
+    expect(wrapper.find(EditUserForm).props().isReadMode).to.be.false;
   });
 
   it('should respect showUserAndUserProperties', () => {
     config.showUserAndUserProperties = false;
     const wrapper = shallow(<Info {...commonProps} />);
-    expect(wrapper.find('UserForm')).to.have.length(1);
-    expect(wrapper.find('UserForm').props().isReadMode).to.be.true;
-    expect(wrapper.find('FormInfo')).to.have.length(0);
+    expect(wrapper.find(EditUserForm)).to.have.length(1);
+    expect(wrapper.find(EditUserForm).props().isReadMode).to.be.true;
   });
 });

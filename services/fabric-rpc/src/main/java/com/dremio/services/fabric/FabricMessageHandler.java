@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,9 +19,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.memory.AllocatorUtil;
+import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcBus;
@@ -36,6 +39,7 @@ import com.google.common.base.Stopwatch;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 
 /**
  * Handles messages associated with RPC fabric.
@@ -51,26 +55,27 @@ class FabricMessageHandler {
     final int protocolId = message.getProtocolId();
     FabricProtocol protocol = getProtocol(protocolId);
 
+    if (dBody != null) {
+      final ArrowBuf buf = ((NettyArrowBuf) dBody).arrowBuf();
+      BufferAllocator allocator = protocol.getAllocator();
+      try {
+        AllocatorUtil.ensureHeadroom(allocator, buf.getPossibleMemoryConsumed());
+      } catch (OutOfMemoryException e) {
+        String msg = String.format(
+            "Message of length %d arrived at node %s:%d, send from %s:%d. Unfortunately, local memory for protocol %d is insufficient for this message. Message rejected.\n%s\n",
+            buf.getPossibleMemoryConsumed(),
+            remoteIdentity.getAddress(),
+            remoteIdentity.getPort(),
+            localIdentity.getAddress(),
+            localIdentity.getPort(),
+            protocolId,
+            MemoryDebugInfo.getDetailsOnAllocationFailure(e, allocator));
+        throw new RpcException(msg, e);
+      }
 
-        if(dBody != null){
-          final ArrowBuf buf = (ArrowBuf) dBody;
-          BufferAllocator allocator = protocol.getAllocator();
-          if(allocator.getHeadroom() < buf.getPossibleMemoryConsumed()){
-            throw new RpcException(String.format("Message of length %d arrived at node %s:%d, send from %s:%d. Unfortunately, local memory for protocol %d is %d which is too close to the limit of %d. Message rejected.",
-                buf.getPossibleMemoryConsumed(),
-                remoteIdentity.getAddress(),
-                remoteIdentity.getPort(),
-                localIdentity.getAddress(),
-                localIdentity.getPort(),
-                protocolId,
-                allocator.getAllocatedMemory(),
-                allocator.getLimit()
-                ));
-          }
-
-          // Transfer data to protocol allocator. Disabled until we get shutdown ordering correct.
-          // buf.transferOwnership(allocator);
-        }
+      // Transfer data to protocol allocator. Disabled until we get shutdown ordering correct.
+      // buf.transferOwnership(allocator);
+    }
 
     final Stopwatch stopwatch = Stopwatch.createStarted();
     try {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -84,6 +84,13 @@ export function getIconByEntityType(type) {
   }
 }
 
+export function getIconTypeByEntityTypeAndStatus(entityType, sourceStatus) {
+  const iconType = sourceStatus === null ?
+    getIconByEntityType(entityType) :
+    getIconStatusDatabase(sourceStatus);
+  return iconType;
+}
+
 export function getFormatMessageIdByEntityIconType(iconType) {
   switch (iconType) {
   case 'VirtualDataset':
@@ -107,9 +114,13 @@ export function getFormatMessageIdByEntityIconType(iconType) {
   }
 }
 
+export function getIconAltTextByEntityIconType(iconType) {
+  return formatMessage(getFormatMessageIdByEntityIconType(iconType));
+}
+
 export function getArtPropsByEntityIconType(iconType) {
   return {
     src: `${iconType}.svg`,
-    alt: formatMessage(getFormatMessageIdByEntityIconType(iconType))
+    alt: getIconAltTextByEntityIconType(iconType)
   };
 }

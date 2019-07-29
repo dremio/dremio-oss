@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,9 +34,9 @@ import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.UserProtos.CreatePreparedStatementResp;
 import com.dremio.exec.proto.UserProtos.GetCatalogsResp;
 import com.dremio.exec.proto.UserProtos.LikeFilter;
-import com.dremio.exec.proto.beans.RequestType;
 import com.dremio.exec.rpc.ConnectionThrottle;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.proto.model.attempts.RequestType;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
 import com.dremio.service.Pointer;

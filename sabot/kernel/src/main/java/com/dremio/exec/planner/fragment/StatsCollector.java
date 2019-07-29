@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -26,6 +27,7 @@ import com.dremio.exec.planner.AbstractOpWrapperVisitor;
 import com.dremio.exec.planner.fragment.Fragment.ExchangeFragmentPair;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.schedule.CompleteWork;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -47,17 +49,21 @@ public class StatsCollector extends AbstractOpWrapperVisitor<Void, RuntimeExcept
   @Override
   public Void visitSendingExchange(Exchange exchange, Wrapper wrapper) throws RuntimeException {
     // Handle the sending side exchange
-    Wrapper receivingFragment = planningSet.get(wrapper.getNode().getSendingExchangePair().getNode());
+    final Wrapper receivingFragment = planningSet.get(wrapper.getNode().getSendingExchangePair().getNode());
 
-    // List to contain the endpoints where the fragment that receive data to this fragment are running.
-    List<NodeEndpoint> receiverEndpoints;
-    if (receivingFragment.isEndpointsAssignmentDone()) {
-      receiverEndpoints = receivingFragment.getAssignedEndpoints();
-    } else {
-      receiverEndpoints = Collections.emptyList();
-    }
+    Supplier<Collection<NodeEndpoint>> receiverEndpointsSupplier = () -> {
+      // List to contain the endpoints where the fragment that receive data to this fragment are running.
+      List<NodeEndpoint> receiverEndpoints;
+      if (receivingFragment.isEndpointsAssignmentDone()) {
+        receiverEndpoints = receivingFragment.getAssignedEndpoints();
+      } else {
+        receiverEndpoints = Collections.emptyList();
+      }
+      return receiverEndpoints;
+    };
 
-    wrapper.getStats().addParallelizationInfo(exchange.getSenderParallelizationInfo(receiverEndpoints));
+    wrapper.getStats().addWidthConstraint(exchange.getSenderParallelizationWidthConstraint());
+    wrapper.getStats().addEndpointAffinity(exchange.getSenderEndpointffinity(receiverEndpointsSupplier));
     return visitOp(exchange, wrapper);
   }
 
@@ -67,19 +73,23 @@ public class StatsCollector extends AbstractOpWrapperVisitor<Void, RuntimeExcept
 
     final List<ExchangeFragmentPair> receivingExchangePairs = wrapper.getNode().getReceivingExchangePairs();
 
-    // List to contain the endpoints where the fragment that send dat to this fragment are running.
-    final List<NodeEndpoint> sendingEndpoints = Lists.newArrayList();
+    Supplier<Collection<NodeEndpoint>> supplierEndpointsSupplier = () -> {
+      // List to contain the endpoints where the fragment that send dat to this fragment are running.
+      final List<NodeEndpoint> sendingEndpoints = Lists.newArrayList();
 
-    for(ExchangeFragmentPair pair : receivingExchangePairs) {
-      if (pair.getExchange() == exchange) {
-        Wrapper sendingFragment = planningSet.get(pair.getNode());
-        if (sendingFragment.isEndpointsAssignmentDone()) {
-          sendingEndpoints.addAll(sendingFragment.getAssignedEndpoints());
+      for (ExchangeFragmentPair pair : receivingExchangePairs) {
+        if (pair.getExchange() == exchange) {
+          Wrapper sendingFragment = planningSet.get(pair.getNode());
+          if (sendingFragment.isEndpointsAssignmentDone()) {
+            sendingEndpoints.addAll(sendingFragment.getAssignedEndpoints());
+          }
         }
       }
-    }
+      return sendingEndpoints;
+    };
 
-    wrapper.getStats().addParallelizationInfo(exchange.getReceiverParallelizationInfo(sendingEndpoints));
+    wrapper.getStats().addWidthConstraint(exchange.getReceiverParallelizationWidthConstraint());
+    wrapper.getStats().addEndpointAffinity(exchange.getReceiverEndpointAffinity(supplierEndpointsSupplier));
     // no traversal since it would cross current fragment boundary.
     return null;
   }

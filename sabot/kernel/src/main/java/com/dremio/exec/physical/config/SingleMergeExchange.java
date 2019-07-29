@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,11 @@
 
 package com.dremio.exec.physical.config;
 
+import java.util.Collection;
 import java.util.List;
 
 import com.dremio.common.logical.data.Order.Ordering;
+import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.physical.base.AbstractExchange;
 import com.dremio.exec.physical.base.OpProps;
@@ -32,6 +34,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 
 public class SingleMergeExchange extends AbstractExchange {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SingleMergeExchange.class);
@@ -50,11 +53,18 @@ public class SingleMergeExchange extends AbstractExchange {
   }
 
   @Override
-  public ParallelizationInfo getReceiverParallelizationInfo(List<NodeEndpoint> senderFragmentEndpoints) {
-    Preconditions.checkArgument(senderFragmentEndpoints != null && senderFragmentEndpoints.size() > 0,
-        "Sender fragment endpoint list should not be empty");
+  public ParallelizationInfo.WidthConstraint getReceiverParallelizationWidthConstraint() {
+    return ParallelizationInfo.WidthConstraint.SINGLE;
+  }
 
-    return ParallelizationInfo.create(1, 1, getDefaultAffinityMap(senderFragmentEndpoints));
+  @Override
+  public Supplier<Collection<EndpointAffinity>> getReceiverEndpointAffinity(Supplier<Collection<NodeEndpoint>> senderFragmentEndpointsSupplier) {
+    return () -> {
+      Collection<NodeEndpoint> senderFragmentEndpoints = senderFragmentEndpointsSupplier.get();
+      Preconditions.checkArgument(senderFragmentEndpoints != null && senderFragmentEndpoints.size() > 0,
+        "Sender fragment endpoint list should not be empty");
+      return getDefaultAffinityMap(senderFragmentEndpoints);
+    };
   }
 
   @Override

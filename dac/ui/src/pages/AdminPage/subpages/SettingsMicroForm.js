@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -127,10 +127,12 @@ export class SettingsMicroForm extends PureComponent {
           {this.renderField()}
         </label>
         {/* todo: by default buttons and textfields and toggles don't align. need to (carefully) fix */}
-        <SimpleButton buttonStyle='secondary' style={saveButtonStyle}>
+        <SimpleButton data-qa='save-support-key' buttonStyle='secondary' style={saveButtonStyle}>
           {la('Save')}
         </SimpleButton>
-        { this.props.resetSetting && <SimpleButton onClick={this.remove} buttonStyle='secondary' style={buttonStyle}>
+        { this.props.resetSetting && <SimpleButton data-qa='reset-support-key'
+          onClick={this.remove} buttonStyle='secondary' style={buttonStyle}
+        >
           {la('Reset')}
         </SimpleButton>}
       </div>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,8 +45,8 @@ import com.dremio.services.fabric.api.PhysicalConnection;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 
 /**
  * Protocol between executors
@@ -126,7 +126,8 @@ public class ExecProtocol implements FabricProtocol {
 
     try {
 
-      final IncomingDataBatch batch = new IncomingDataBatch(fragmentBatch, (ArrowBuf) body, ack);
+      final IncomingDataBatch batch = new IncomingDataBatch(fragmentBatch, ((NettyArrowBuf) body)
+        .arrowBuf(), ack);
       final int targetCount = fragmentBatch.getReceivingMinorFragmentIdCount();
 
       // randomize who gets first transfer (and thus ownership) so memory usage

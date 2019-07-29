@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -58,8 +58,7 @@ public class DremioConfig extends NestedConfig {
   public static final String EMBEDDED_MASTER_ZK_ENABLED_PORT_INT = "services.coordinator.master.embedded-zookeeper.port";
   public static final String EMBEDDED_MASTER_ZK_ENABLED_PATH_STRING = "services.coordinator.master.embedded-zookeeper.path";
   public static final String WEB_ENABLED_BOOL = "services.coordinator.web.enabled";
-  public static final String WEB_AUTH_TYPE = "services.coordinator.web.auth.type"; // Possible values are "internal", "ldap"
-  public static final String WEB_AUTH_LDAP_CONFIG_FILE = "services.coordinator.web.auth.ldap_config";
+  public static final String WEB_AUTH_TYPE = "services.coordinator.web.auth.type";
   public static final String WEB_PORT_INT = "services.coordinator.web.port";
   public static final String WEB_TOKEN_CACHE_SIZE = "services.coordinator.web.tokens.cache.size";
   public static final String SCHEDULER_SERVICE_THREAD_COUNT = "services.coordinator.scheduler.threads";

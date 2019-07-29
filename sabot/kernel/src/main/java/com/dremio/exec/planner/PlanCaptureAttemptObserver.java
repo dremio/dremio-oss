@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -385,9 +385,23 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   }
 
   @Override
+  public void executorsSelected(long millisTaken, int idealNumFragments, int idealNumNodes, int numExecutors, String detailsText) {
+    StringBuilder sb = new StringBuilder()
+        .append("idealNumFragments: ").append(idealNumFragments).append("\n")
+        .append("idealNumNodes    : ").append(idealNumNodes).append("\n")
+        .append("numExecutors     : ").append(numExecutors).append("\n")
+        .append("details          : ").append(detailsText);
+    planPhases.add(PlanPhaseProfile.newBuilder()
+        .setPhaseName("Execution Plan: Executor Selection")
+        .setDurationMillis(millisTaken)
+        .setPlan(sb.toString())
+        .build());
+  }
+
+  @Override
   public void planGenerationTime(long millisTaken) {
     planPhases.add(PlanPhaseProfile.newBuilder()
-      .setPhaseName("Plan Generation")
+      .setPhaseName("Execution Plan: Plan Generation")
       .setDurationMillis(millisTaken)
       .setPlan("")
       .build());
@@ -396,27 +410,26 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   @Override
   public void planAssignmentTime(long millisTaken) {
     planPhases.add(PlanPhaseProfile.newBuilder()
-      .setPhaseName("Fragment Assignment")
+      .setPhaseName("Execution Plan: Fragment Assignment")
       .setDurationMillis(millisTaken)
       .setPlan("")
       .build());
   }
 
   @Override
-  public void intermediateFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats) {
+  public void fragmentsStarted(long millisTaken, FragmentRpcSizeStats stats) {
     planPhases.add(PlanPhaseProfile.newBuilder()
-      .setPhaseName("Intermediate Fragments Scheduling")
+      .setPhaseName("Fragment Start RPCs")
       .setDurationMillis(millisTaken)
       .setSizeStats(stats)
       .build());
   }
 
   @Override
-  public void leafFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats) {
+  public void fragmentsActivated(long millisTaken) {
     planPhases.add(PlanPhaseProfile.newBuilder()
-      .setPhaseName("Leaf Fragments Scheduling")
+      .setPhaseName("Fragment Activate RPCs")
       .setDurationMillis(millisTaken)
-      .setSizeStats(stats)
       .build());
   }
 

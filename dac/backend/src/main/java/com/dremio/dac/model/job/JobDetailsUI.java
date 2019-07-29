@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import org.apache.calcite.util.Util;
 
 import com.dremio.dac.model.job.acceleration.AccelerationDetailsUI;
 import com.dremio.dac.resource.JobResource;
-import com.dremio.exec.proto.beans.RequestType;
+import com.dremio.proto.model.attempts.RequestType;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
 import com.dremio.service.accelerator.proto.SubstitutionState;

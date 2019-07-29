@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,18 +18,18 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
 
-import { getSortedSources } from 'selectors/resources';
+import { getSortedSources } from 'selectors/home';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 import { sourceTypesIncludeS3 } from 'utils/sourceUtils';
-
 import { loadSourceListData } from 'actions/resources/sources';
+
 import { getViewState } from 'selectors/resources';
 import { page } from 'uiTheme/radium/general';
 
 import QlikStateModal from '../ExplorePage/components/modals/QlikStateModal';
 import MainHeader from './../../components/MainHeader';
 import RecentDatasets from './subpages/RecentDatasets/RecentDatasets';
-import LeftTree   from './components/LeftTree';
+import LeftTree from './components/LeftTree';
 import './HomePage.less';
 
 class HomePage extends Component {
@@ -46,7 +46,6 @@ class HomePage extends Component {
     routeParams: PropTypes.object,
     location: PropTypes.object.isRequired,
     loadSourceListData: PropTypes.func,
-    push: PropTypes.func,
     children: PropTypes.node,
     style: PropTypes.object
   }

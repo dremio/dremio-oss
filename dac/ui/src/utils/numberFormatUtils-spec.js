@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,13 @@ describe('NumberFormatUtils', () => {
     expect(NumberFormatUtils.makeMemoryValueString(1.53 * 1024 * 1024)).to.equal('1.53 MB'); //short decimal
     expect(NumberFormatUtils.makeMemoryValueString(1.5209874 * 1024 * 1024)).to.equal('1.52 MB'); //long decimal
     expect(NumberFormatUtils.makeMemoryValueString(1520.9874 * 1024 * 1024)).to.equal('1.49 GB'); //long decimal
+  });
+
+  it('should format memory value into MBs', () => {
+    expect(NumberFormatUtils.formatMemoryInMB(1024 * 1024)).to.equal('1.00 MB');
+    expect(NumberFormatUtils.formatMemoryInMB(2048 * 1024)).to.equal('2.00 MB');
+    expect(NumberFormatUtils.formatMemoryInMB(100.25 * 1024 * 1024)).to.equal('100.25 MB');
+    expect(NumberFormatUtils.formatMemoryInMB(1000000)).to.equal('0.95 MB');
   });
 
 });

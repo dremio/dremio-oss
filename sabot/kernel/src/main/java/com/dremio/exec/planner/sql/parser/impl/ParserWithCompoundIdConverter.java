@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,10 @@
 package com.dremio.exec.planner.sql.parser.impl;
 
 import java.io.Reader;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.parser.SqlAbstractParserImpl;
 import org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.calcite.sql.util.SqlVisitor;
@@ -58,5 +60,14 @@ public class ParserWithCompoundIdConverter extends ParserImpl {
   public SqlNode parseSqlStmtEof() throws Exception {
     SqlNode originalSqlNode = super.parseSqlStmtEof();
     return originalSqlNode.accept(createConverter());
+  }
+
+  @Override
+  public SqlNodeList parseSqlStmtList() throws Exception {
+    SqlNodeList list = super.parseSqlStmtList();
+    return new SqlNodeList(
+      list.getList().stream().map(n->n.accept(createConverter())).collect(Collectors.toList()),
+      list.getParserPosition()
+    );
   }
 }

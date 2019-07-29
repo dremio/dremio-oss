@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -87,4 +87,33 @@ public class TestFixedLenDecimal extends BaseTestQuery {
       .build()
       .run();
   }
+
+  @Test
+  public void testHash32FunctionWithSeed() throws Exception {
+    try (AutoCloseable option = withOption(PlannerSettings.ENABLE_REDUCE_PROJECT, false)) {
+      String query = String.format("select hash32(department_id, hash32(employee_id)) hash1, hash32(employee_id) hash2 from %s where department_id is null", DATAFILE);
+      testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("hash1", "hash2")
+        .baselineValues(1216062191, 1216062191)
+        .go();
+    }
+
+  }
+
+  @Test
+  public void testHash64FunctionWithSeed() throws Exception {
+    try (AutoCloseable option = withOption(PlannerSettings.ENABLE_REDUCE_PROJECT, false)) {
+      String query = String.format("select hash64(department_id, hash64(employee_id)) hash1, hash64(employee_id) hash2 from %s where department_id is null", DATAFILE);
+      testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("hash1", "hash2")
+        .baselineValues(6356026919477319845L, 6356026919477319845L)
+        .go();
+    }
+
+  }
+
 }

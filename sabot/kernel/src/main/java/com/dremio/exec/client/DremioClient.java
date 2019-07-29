@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -99,7 +99,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.AbstractCheckedFuture;
 import com.google.common.util.concurrent.SettableFuture;
 
-import io.netty.buffer.ArrowBuf;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 
 /**
@@ -836,7 +836,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     }
 
     @Override
-    public ArrowBuf getBuffer() {
+    public ByteBuf getBuffer() {
       return null;
     }
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 import { API_URL_V2 } from 'constants/Api';
 
 import * as Actions from './run';
@@ -30,8 +30,8 @@ const dataset = Immutable.fromJS({
 
 describe('dataset/run', () => {
   describe('runDataset', () => {
-    it('should return CALL_API', () => {
-      const result = Actions.runDataset(dataset, viewId)(obj => obj)[CALL_API];
+    it('should return RSAA', () => {
+      const result = Actions.runDataset(dataset, viewId)(obj => obj)[RSAA];
       expect(result.types[0].meta).to.eql({dataset, viewId});
       expect(result.method).to.eql('GET');
       expect(result.endpoint).to.eql(`${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/run?tipVersion=tip123`);
@@ -40,10 +40,10 @@ describe('dataset/run', () => {
   });
 
   describe('transformAndRunDataset', () => {
-    it('should return CALL_API', () => {
+    it('should return RSAA', () => {
       const sql = 'select * from foo';
       const transformData = {type: 'updateSQL', sql};
-      const result = Actions.transformAndRunDataset(dataset, transformData, viewId)(obj => obj)[CALL_API];
+      const result = Actions.transformAndRunDataset(dataset, transformData, viewId)(obj => obj)[RSAA];
       expect(result.types[0].meta).to.eql({entity: dataset, viewId});
       expect(result.method).to.eql('POST');
       expect(result.body).to.eql(JSON.stringify(transformData));

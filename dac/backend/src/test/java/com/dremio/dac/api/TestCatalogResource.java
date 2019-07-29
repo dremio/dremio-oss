@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.ws.rs.client.Entity;
@@ -109,7 +110,8 @@ public class TestCatalogResource extends BaseTestServer {
     // home space always exists
     int topLevelCount = newSourceService().getSources().size() + newNamespaceService().getSpaces().size() + 1;
 
-    ResponseList<CatalogItem> items = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildGet(), new GenericType<ResponseList<CatalogItem>>() {});
+    ResponseList<CatalogItem> items = getRootEntities(null);
+
     assertEquals(items.getData().size(), topLevelCount);
 
     int homeCount = 0;
@@ -171,8 +173,8 @@ public class TestCatalogResource extends BaseTestServer {
     assertNull(space.getChildren());
 
     // add a folder
-    Folder newFolder = new Folder(null, Arrays.asList(space.getName(), "myFolder"), null, null);
-    Folder folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)), new GenericType<Folder>() {});
+    Folder newFolder = getFolderConfig(Arrays.asList(space.getName(), "myFolder"));
+    Folder folder = createFolder(newFolder);
     assertEquals(newFolder.getPath(), folder.getPath());
 
     // make sure folder shows up under space
@@ -194,17 +196,72 @@ public class TestCatalogResource extends BaseTestServer {
   }
 
   @Test
+  public void testDatasetCount() throws Exception {
+    Space space = createSpace("dataset count test");
+
+    createVDS(Arrays.asList(space.getName(), "vds1"), "select * from sys.version");
+    createVDS(Arrays.asList(space.getName(), "vds2"), "select * from sys.version");
+
+    ResponseList<CatalogItem> items = getRootEntities(null);
+
+    for (CatalogItem item : items.getData()) {
+      assertNull("CatalogItemStats should be empty if datasetCount parameter is not provided", item.getStats());
+    }
+
+    checkSpaceDatasetCount(space.getId(), 2);
+
+    Folder folder = createFolder(Arrays.asList(space.getName(), "test folder"));
+    List<String> vdsPath = new ArrayList<>(folder.getPath());
+    vdsPath.add("vds1");
+
+    createVDS(vdsPath, "select * from sys.version");
+
+    checkSpaceDatasetCount(space.getId(), 3);
+
+    newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
+  }
+
+  private void checkSpaceDatasetCount(String spaceId, int expectedDatasetCount) {
+    ResponseList<CatalogItem> items = getRootEntities(Arrays.asList(CatalogServiceHelper.DetailType.datasetCount));
+
+    Optional<CatalogItem> space = items.getData().stream()
+      .filter(item -> item.getId().equals(spaceId))
+      .findFirst();
+
+    assertTrue("created space must be returned", space.isPresent());
+    CatalogItemStats stats = space.get().getStats();
+    assertNotNull(stats);
+    assertEquals(expectedDatasetCount, stats.getDatasetCount());
+  }
+
+  private ResponseList<CatalogItem> getRootEntities(final List<CatalogServiceHelper.DetailType> detailsToInclude) {
+    WebTarget api = getPublicAPI(3).path(CATALOG_PATH);
+
+    if (detailsToInclude != null) {
+      for (CatalogServiceHelper.DetailType detail : detailsToInclude) {
+        api = api.queryParam("include", detail.name());
+      }
+    }
+
+    return expectSuccess(getBuilder(api).buildGet(), new GenericType<ResponseList<CatalogItem>>() {});
+  }
+
+  private Space createSpace(final String spaceName) {
+    Space newSpace = new Space(null, spaceName, null, null, null);
+    return expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)), new GenericType<Space>() {});
+  }
+
+  @Test
   public void testVDSInSpace() throws Exception {
     // create a new space
-    Space newSpace = new Space(null, "final frontier", null, null, null);
-    Space space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)), new GenericType<Space>() {});
+    Space space = createSpace("final frontier");
 
     // add a folder
     Folder newFolder = new Folder(null, Arrays.asList(space.getName(), "myFolder"), null, null);
     Folder folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newFolder)), new GenericType<Folder>() {});
 
     // create a VDS in the space
-    Dataset newVDS = createVDS(Arrays.asList(space.getName(), "myFolder", "myVDS"),"select * from sys.version");
+    Dataset newVDS = getVDSConfig(Arrays.asList(space.getName(), "myFolder", "myVDS"),"select * from sys.version");
     Dataset vds = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {});
 
     // make sure that trying to create the vds again fails
@@ -339,8 +396,7 @@ public class TestCatalogResource extends BaseTestServer {
 
   @Test
   public void testVDSConcurrency() throws Exception {
-    Space newSpace = new Space(null, "concurrency", null, null, null);
-    Space space = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)), new GenericType<Space>() {});
+    Space space = createSpace("concurrency");
 
     int max = 5;
 
@@ -366,8 +422,7 @@ public class TestCatalogResource extends BaseTestServer {
 
   private Thread createVDSInSpace(String name, String spaceName, String sql) {
     return new Thread(() -> {
-      Dataset newVDS = createVDS(Arrays.asList(spaceName, name), sql);
-      expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newVDS)));
+      createVDS(Arrays.asList(spaceName, name), sql);
     });
   }
 
@@ -733,7 +788,7 @@ public class TestCatalogResource extends BaseTestServer {
 
   @Test
   public void testHome() throws Exception {
-    ResponseList<CatalogItem> items = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildGet(), new GenericType<ResponseList<CatalogItem>>() {});
+    ResponseList<CatalogItem> items = getRootEntities(null);
 
     String homeId = null;
 
@@ -765,7 +820,7 @@ public class TestCatalogResource extends BaseTestServer {
     folder = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(folder.getId())).buildGet(), new GenericType<Folder>() {});
 
     // store a VDS in the folder
-    Dataset vds = createVDS(Arrays.asList(home.getName(), "myFolder", "myVDS"), "select * from sys.version");
+    Dataset vds = getVDSConfig(Arrays.asList(home.getName(), "myFolder", "myVDS"), "select * from sys.version");
 
     Dataset newVDS = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(vds)), new GenericType<Dataset>() {});
 
@@ -891,7 +946,7 @@ public class TestCatalogResource extends BaseTestServer {
     );
   }
 
-  private Dataset createVDS(List<String> path, String sql) {
+  private Dataset getVDSConfig(List<String> path, String sql) {
     return new Dataset(
       null,
       Dataset.DatasetType.VIRTUAL_DATASET,
@@ -905,5 +960,22 @@ public class TestCatalogResource extends BaseTestServer {
       null,
       null
     );
+  }
+
+  private Dataset createVDS(List<String> path, String sql) {
+    Dataset vds = getVDSConfig(path, sql);
+    return expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(vds)), new GenericType<Dataset>() {});
+  }
+
+  private Folder getFolderConfig(List<String> path) {
+    return new Folder(null, path, null, null);
+  }
+
+  private Folder createFolder(List<String> path) {
+    return createFolder(getFolderConfig(path));
+  }
+
+  private Folder createFolder(Folder folder) {
+    return expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(folder)), new GenericType<Folder>() {});
   }
 }

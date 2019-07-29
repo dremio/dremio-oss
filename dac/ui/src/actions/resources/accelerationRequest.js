@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 
 import { API_URL_V2 } from 'constants/Api';
 import { datasetAccelerationSchema } from 'schemas/acceleration';
@@ -25,7 +25,7 @@ export const GET_DATASET_ACCELERATION_SUCCESS = 'GET_DATASET_ACCELERATION_SUCCES
 export const GET_DATASET_ACCELERATION_FAILURE = 'GET_DATASET_ACCELERATION_FAILURE';
 
 export const getDatasetAccelerationRequest = (fullPath) => ({
-  [CALL_API]: {
+  [RSAA]: {
     types: [
       GET_DATASET_ACCELERATION_START,
       schemaUtils.getSuccessActionTypeWithSchema(

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -57,7 +57,7 @@ class LocalStatefulOutputStream extends OutputStream {
   private long lastUpdate;
 
   public LocalStatefulOutputStream(String path, FabricCommandRunner runner, BufferAllocator alloc, int size) {
-    this.buf = alloc.buffer(size);
+    this.buf = alloc.buffer(size).asNettyBuffer();
     this.runner = runner;
     this.path = path;
   }

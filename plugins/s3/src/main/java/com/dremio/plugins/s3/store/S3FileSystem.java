@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -295,10 +295,13 @@ public class S3FileSystem extends ContainerFileSystem implements AsyncByteReader
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(Path path) throws IOException {
+  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey) throws IOException {
+    final Path path = fileKey.getPath();
     final String bucket = ContainerFileSystem.getContainerName(path);
-    //return new S3AsyncByteReader(getAsyncClient(bucket), bucket, ContainerFileSystem.pathWithoutContainer(path).toString());
-    return new S3AsyncByteReaderUsingSyncClient(getSyncClient(bucket), bucket, ContainerFileSystem.pathWithoutContainer(path).toString());
+    //return new S3AsyncByteReader(getAsyncClient(bucket), bucket,
+    //  ContainerFileSystem.pathWithoutContainer(path).toString());
+    return new S3AsyncByteReaderUsingSyncClient(getSyncClient(bucket), bucket,
+      ContainerFileSystem.pathWithoutContainer(path).toString());
   }
 
   private S3Client getSyncClient(String bucket) throws IOException {

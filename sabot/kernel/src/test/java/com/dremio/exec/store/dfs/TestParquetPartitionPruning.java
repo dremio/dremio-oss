@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.dremio.exec.store.dfs;
 
 import java.math.BigDecimal;
 
+import org.joda.time.LocalDateTime;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
@@ -24,6 +25,9 @@ import com.dremio.common.util.JodaDateUtility;
 import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestParquetPartitionPruning extends PlanTestBase {
+
+  private static final String DATE_PARTITION_TABLE =
+          "[WORKING_PATH]/src/test/resources/parquet/parquet_datepartition";
 
   @Test
   public void testPartitionPruningOnTimestamp() throws Exception {
@@ -117,7 +121,8 @@ public class TestParquetPartitionPruning extends PlanTestBase {
           "SELECT * FROM cp.\"parquet/parquet_with_decimals.parquet\"");
 
       final String q1 = "SELECT a, b FROM dfs_test.decimalPartitions WHERE b != 7564.23423";
-      testPlanMatchingPatterns(q1, new String[]{"columns=\\[`a`, `b`\\]", "splits=\\[1\\]"}, "Filter");
+      testPlanMatchingPatterns(q1, new String[]{"columns=\\[`a`, `b`\\]", "splits=\\[1\\]"},
+        "Filter");
       testBuilder()
           .sqlQuery(q1)
           .unOrdered()
@@ -148,5 +153,39 @@ public class TestParquetPartitionPruning extends PlanTestBase {
           .baselineValues(new BigDecimal("9823.634000000000000"), new BigDecimal("7564.234230000000000"))
           .go();
     }
+  }
+
+  @Test
+  public void testPartitionPruningOnDate() throws Exception {
+    String q1 = "select date_col from dfs.\"" + DATE_PARTITION_TABLE + "\" where date_col = '1996-02-28'";
+    testPlanMatchingPatterns(q1, new String[]{"splits=\\[1"}, "Filter");
+    testBuilder()
+            .sqlQuery(q1)
+            .unOrdered()
+            .baselineColumns("date_col")
+            .baselineValues(new LocalDateTime(1996, 2, 28, 0, 0))
+            .go();
+
+    String q2 = "select date_col from dfs.\"" + DATE_PARTITION_TABLE + "\" where date_col > '1996-01-29'";
+    testPlanMatchingPatterns(q2, new String[]{"splits=\\[2"}, "Filter");
+    testBuilder()
+            .sqlQuery(q2)
+            .unOrdered()
+            .baselineColumns("date_col")
+            .baselineValues(new LocalDateTime(1996, 2, 28, 0, 0))
+            .baselineValues(new LocalDateTime(1996, 3, 1, 0, 0))
+            .go();
+
+    String q3 = "select date_col from dfs.\"" + DATE_PARTITION_TABLE + "\" where date_col < '1996-03-01'";
+    testPlanMatchingPatterns(q3, new String[]{"splits=\\[4"}, "Filter");
+    testBuilder()
+            .sqlQuery(q3)
+            .unOrdered()
+            .baselineColumns("date_col")
+            .baselineValues(new LocalDateTime(1957, 4, 9, 0, 0))
+            .baselineValues(new LocalDateTime(1957, 6, 13, 0, 0))
+            .baselineValues(new LocalDateTime(1996, 1, 29, 0, 0))
+            .baselineValues(new LocalDateTime(1996, 2, 28, 0, 0))
+            .go();
   }
 }

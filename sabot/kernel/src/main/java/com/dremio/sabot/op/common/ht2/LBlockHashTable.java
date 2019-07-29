@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -159,6 +159,12 @@ public final class LBlockHashTable implements AutoCloseable {
 
   public int getVariableBlockMaxLength() {
     return variableBlockMaxLength;
+  }
+
+  // Compute the direct memory required for one pivoted variable block.
+  public static int computeVariableBlockMaxLength(final int hashTableBatchSize, final int numVarColumns,
+    final int defaultVariableLengthSize) {
+    return (numVarColumns == 0) ? 0 : (hashTableBatchSize * (((defaultVariableLengthSize + VAR_OFFSET_SIZE) * numVarColumns) + VAR_LENGTH_SIZE));
   }
 
   /**
@@ -962,6 +968,18 @@ public final class LBlockHashTable implements AutoCloseable {
     } finally {
       initTimer.stop();
     }
+  }
+
+  // Compute the direct memory required for the one control block.
+  public static int computePreAllocationForControlBlock(final int initialCapacity, final int hashTableBatchSize) {
+    final HashConfigWrapper config = new HashConfigWrapper(HashConfig.getDefault());
+    int capacity = LHashCapacities.capacity(config, initialCapacity, false);
+    Preconditions.checkArgument((capacity & (capacity - 1)) == 0, "hashtable capacity should be a power of 2");
+
+    int maxValuesPerBatch = Numbers.nextPowerOfTwo(hashTableBatchSize);
+    capacity = Math.max(maxValuesPerBatch, capacity);
+    final int blocks = (int) Math.ceil(capacity / (maxValuesPerBatch * 1.0d));
+    return (LBlockHashTable.CONTROL_WIDTH * maxValuesPerBatch * blocks);
   }
 
   public void unpivot(int batchIndex, int count){

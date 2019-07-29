@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ package org.apache.arrow.vector;
 
 import org.apache.arrow.memory.BaseAllocator;
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.util.OversizedAllocationException;
 
 import com.google.common.base.Preconditions;
@@ -64,21 +63,8 @@ public abstract class AbstractVector implements AutoCloseable {
   }
 
   public void allocateNew() {
-    if(!this.allocateNewSafe()) {
-      throw new OutOfMemoryException("Failure while allocating buffer.");
-    }
-  }
-
-  private boolean allocateNewSafe() {
     clear();
-    long curAllocationSize = (long)allocationSizeInBytes;
-    try {
-      this.allocateBytes(curAllocationSize);
-    } catch (RuntimeException re) {
-      clear();
-      return false;
-    }
-    return true;
+    this.allocateBytes((long)allocationSizeInBytes);
   }
 
   public void allocateNew(int valueCount) {
@@ -154,7 +140,8 @@ public abstract class AbstractVector implements AutoCloseable {
 
   public void transferTo(SimpleIntVector target) {
     target.clear();
-    target.dataBuffer = this.dataBuffer.transferOwnership(target.allocator).buffer;
+    target.dataBuffer = this.dataBuffer.getReferenceManager().transferOwnership(this.dataBuffer,
+      target.allocator).getTransferredBuffer();
     target.dataBuffer.writerIndex(this.dataBuffer.writerIndex());
     this.clear();
   }

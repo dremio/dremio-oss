@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,12 @@ package com.dremio.exec.planner.sql;
 
 import static org.junit.Assert.assertEquals;
 
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.junit.Test;
+
+import com.dremio.common.exceptions.UserException;
 
 public class TestSQLConverter {
 
@@ -45,5 +49,19 @@ public class TestSQLConverter {
     validateFormattedIs(sql, new SqlParserPos(-11, -10), sql);
     validateFormattedIs(sql, new SqlParserPos(0, 10), sql);
     validateFormattedIs(sql, new SqlParserPos(100, 10), sql);
+  }
+
+  @Test(expected = UserException.class)
+  public void testFailMultipleQueries() {
+    ParserConfig config = new ParserConfig(ParserConfig.QUOTING, 100);
+    SqlConverter.parseSingleStatementImpl("select * from t1; select * from t2", config, false);
+  }
+
+  @Test
+  public void testPassSemicolon() {
+    ParserConfig config = new ParserConfig(ParserConfig.QUOTING, 100);
+    SqlNode node = SqlConverter.parseSingleStatementImpl("select * from t1;", config, false);
+    assertEquals("SELECT *\n" +
+      "FROM \"t1\"", node.toSqlString(CalciteSqlDialect.DEFAULT).getSql());
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,9 @@ import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.HOME;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SOURCE;
 import static com.dremio.service.namespace.proto.NameSpaceContainer.Type.SPACE;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -41,86 +43,91 @@ public final class NamespaceUtils {
   }
 
   static boolean isPhysicalDataset(DatasetType datasetType) {
-   return (datasetType == DatasetType.PHYSICAL_DATASET
-     || datasetType == DatasetType.PHYSICAL_DATASET_SOURCE_FILE
-     || datasetType == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER);
+    return (datasetType == DatasetType.PHYSICAL_DATASET
+        || datasetType == DatasetType.PHYSICAL_DATASET_SOURCE_FILE
+        || datasetType == DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER);
   }
 
   static boolean isRootEntity(Type type) {
     return type == HOME || type == SOURCE || type == SPACE;
   }
 
-  /** helper method that returns the id of the entity in given container */
+  /**
+   * helper method that returns the id of the entity in given container
+   */
   public static String getId(NameSpaceContainer container) {
     EntityId entityId;
     switch (container.getType()) {
-      case SOURCE:
-        entityId = container.getSource().getId();
-        break;
-      case SPACE:
-        entityId = container.getSpace().getId();
-        break;
-      case HOME:
-        entityId = container.getHome().getId();
-        break;
-      case FOLDER:
-        entityId = container.getFolder().getId();
-        break;
-      case DATASET:
-        entityId = container.getDataset().getId();
-        break;
-      default:
-        throw new RuntimeException("Invalid container type");
+    case SOURCE:
+      entityId = container.getSource().getId();
+      break;
+    case SPACE:
+      entityId = container.getSpace().getId();
+      break;
+    case HOME:
+      entityId = container.getHome().getId();
+      break;
+    case FOLDER:
+      entityId = container.getFolder().getId();
+      break;
+    case DATASET:
+      entityId = container.getDataset().getId();
+      break;
+    default:
+      throw new RuntimeException("Invalid container type");
     }
 
     return entityId != null ? entityId.getId() : null;
   }
 
-  /** helper method that sets the given id in given container */
+  /**
+   * helper method that sets the given id in given container
+   */
   static void setId(NameSpaceContainer container, String id) {
     switch (container.getType()) {
-      case SOURCE:
-        container.getSource().setId(new EntityId(id));
-        return;
-      case SPACE:
-        container.getSpace().setId(new EntityId(id));
-        return;
-      case HOME:
-        container.getHome().setId(new EntityId(id));
-        return;
-      case FOLDER:
-        container.getFolder().setId(new EntityId(id));
-        return;
-      case DATASET:
-        container.getDataset().setId(new EntityId(id));
-        return;
-      default:
-        throw new RuntimeException("Invalid container type");
+    case SOURCE:
+      container.getSource().setId(new EntityId(id));
+      return;
+    case SPACE:
+      container.getSpace().setId(new EntityId(id));
+      return;
+    case HOME:
+      container.getHome().setId(new EntityId(id));
+      return;
+    case FOLDER:
+      container.getFolder().setId(new EntityId(id));
+      return;
+    case DATASET:
+      container.getDataset().setId(new EntityId(id));
+      return;
+    default:
+      throw new RuntimeException("Invalid container type");
     }
   }
 
-  static<T> List<T> skipLast(List<T> entitiesOnPath) {
+  static <T> List<T> skipLast(List<T> entitiesOnPath) {
     Preconditions.checkArgument(entitiesOnPath.size() >= 1);
     return entitiesOnPath.subList(0, entitiesOnPath.size() - 1);
   }
 
-  static<T> T lastElement(List<T> entitiesOnPath) {
+  static <T> T lastElement(List<T> entitiesOnPath) {
     Preconditions.checkArgument(entitiesOnPath.size() >= 1);
     return entitiesOnPath.get(entitiesOnPath.size() - 1);
   }
 
-  static<T> T firstElement(List<T> entitiesOnPath) {
+  static <T> T firstElement(List<T> entitiesOnPath) {
     Preconditions.checkArgument(entitiesOnPath.size() >= 1);
     return entitiesOnPath.get(0);
   }
 
   /**
    * Carry over few properties from old dataset config to new one
+   *
    * @param oldConfig old dataset config from namespace
    * @param newConfig new dataset config thats about to be saved in namespace
    */
   public static void copyFromOldConfig(DatasetConfig oldConfig, DatasetConfig newConfig) {
-    if(oldConfig == null) {
+    if (oldConfig == null) {
       return;
     }
     newConfig.setId(oldConfig.getId());
@@ -142,18 +149,40 @@ public final class NamespaceUtils {
     NameSpaceContainer container = namespaceService.getEntities(Arrays.asList(namespaceKey)).get(0);
 
     switch (container.getType()) {
-      case SOURCE:
-        return container.getSource().getTag();
-      case SPACE:
-        return container.getSpace().getTag();
-      case HOME:
-        return container.getHome().getTag();
-      case FOLDER:
-        return container.getFolder().getTag();
-      case DATASET:
-        return container.getDataset().getTag();
-      default:
-        throw new RuntimeException("Invalid container type");
+    case SOURCE:
+      return container.getSource().getTag();
+    case SPACE:
+      return container.getSpace().getTag();
+    case HOME:
+      return container.getHome().getTag();
+    case FOLDER:
+      return container.getFolder().getTag();
+    case DATASET:
+      return container.getDataset().getTag();
+    default:
+      throw new RuntimeException("Invalid container type");
     }
+  }
+
+  /**
+   * Get the given list if not null, or else, create a new array list.
+   *
+   * @param list list
+   * @param <T>  entity type
+   * @return given list if not null, or else, a new array list
+   */
+  public static <T> List<T> getOrCreateList(List<T> list) {
+    return list == null ? new ArrayList<>() : list;
+  }
+
+  /**
+   * Get the given list if not null, or else, an immutable empty list.
+   *
+   * @param list list
+   * @param <T>  entity type
+   * @return given list if not null, or else, an immutable empty list
+   */
+  public static <T> List<T> getOrEmptyList(List<T> list) {
+    return list == null ? Collections.emptyList() : list;
   }
 }

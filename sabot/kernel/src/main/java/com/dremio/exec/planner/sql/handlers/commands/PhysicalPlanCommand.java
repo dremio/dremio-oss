@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.resource.ResourceAllocator;
+import com.dremio.service.execselector.ExecutorSelectionService;
 import com.google.protobuf.ByteString;
 
 // should be deprecated once tests are removed.
@@ -33,13 +34,14 @@ public class PhysicalPlanCommand extends AsyncCommand {
   private PhysicalPlan physicalPlan;
 
   public PhysicalPlanCommand(
-    CoordToExecTunnelCreator tunnelCreator,
-    QueryContext context,
-    PhysicalPlanReader reader,
-    AttemptObserver observer,
-    ByteString plan,
-    ResourceAllocator queryResourceManager) {
-    super(context, queryResourceManager, observer, reader, tunnelCreator);
+      CoordToExecTunnelCreator tunnelCreator,
+      QueryContext context,
+      PhysicalPlanReader reader,
+      AttemptObserver observer,
+      ByteString plan,
+      ResourceAllocator queryResourceManager,
+      ExecutorSelectionService executorSelectionService) {
+    super(context, queryResourceManager, executorSelectionService, observer, reader, tunnelCreator);
     this.reader = reader;
     this.observer = observer;
     this.plan = plan;

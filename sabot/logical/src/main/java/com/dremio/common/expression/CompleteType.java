@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -109,6 +109,7 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.arrow.vector.types.pojo.Field;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.MajorTypeHelper;
@@ -158,8 +159,10 @@ public class CompleteType {
   public static final CompleteType FIXEDSIZEBINARY = new CompleteType(new ArrowType.FixedSizeBinary(128));
   public static final CompleteType DECIMAL = new CompleteType(new ArrowType.Decimal(38,
     38));
+  public static final int MAX_DECIMAL_PRECISION = 38;
 
   private static final String LIST_DATA_NAME = ListVector.DATA_VECTOR_NAME;
+  public static final boolean REJECT_MIXED_DECIMALS = false;
   private final ArrowType type;
   private final ImmutableList<Field> children;
 
@@ -171,6 +174,13 @@ public class CompleteType {
 
   public CompleteType(ArrowType type, Field... children) {
     this(type, Arrays.asList(children));
+  }
+
+  public static CompleteType fromMajorType(TypeProtos.MajorType type) {
+    if (type.getMinorType().equals(MinorType.DECIMAL)) {
+      return CompleteType.fromDecimalPrecisionScale(type.getPrecision(), type.getScale());
+    }
+    return fromMinorType(type.getMinorType());
   }
 
   public Field toField(String name) {
@@ -237,7 +247,19 @@ public class CompleteType {
   }
 
   public static CompleteType fromDecimalPrecisionScale(int precision, int scale){
+    // TODO: lots of ARP failures with this check.
+    //Preconditions.checkArgument(scale >= 0, "invalid scale " + scale +
+    //  "must be >= 0");
+    //Preconditions.checkArgument(precision > 0 && precision >= scale,
+    //  "invalid precision " + precision + ", must be > 0 and >= scale " + scale);
     return new CompleteType(new ArrowType.Decimal(precision, scale));
+  }
+
+  public static CompleteType fromRelAndMinorType(RelDataType type, MinorType minorType) {
+    if (type.getSqlTypeName().equals(SqlTypeName.DECIMAL)) {
+      return CompleteType.fromDecimalPrecisionScale(type.getPrecision(), type.getScale());
+    }
+    return fromMinorType(minorType);
   }
 
   public static CompleteType fromMinorType(MinorType type){
@@ -573,6 +595,16 @@ public class CompleteType {
         return ComplexHolder.class;
       }
 
+      @Override
+      public Class<? extends ValueHolder> visit(ArrowType.Duration type) {
+        throw new UnsupportedOperationException("Dremio does not support duration yet.");
+      }
+
+      @Override
+      public Class<? extends ValueHolder> visit(ArrowType.Map type) {
+        throw new UnsupportedOperationException("Dremio does not support map yet.");
+      }
+
     });
 
   }
@@ -615,9 +647,9 @@ public class CompleteType {
       } else if (holderClass.equals(NullableIntervalDayHolder.class)) {
         return CompleteType.INTERVAL_DAY_SECONDS;
       } else if (holderClass.equals(DecimalHolder.class)) {
-        return CompleteType.fromDecimalPrecisionScale(38, 0);
+        return CompleteType.fromDecimalPrecisionScale(0, 0);
       } else if (holderClass.equals(NullableDecimalHolder.class)) {
-        return CompleteType.fromDecimalPrecisionScale(38, 0);
+        return CompleteType.fromDecimalPrecisionScale(0, 0);
       } else if (holderClass.equals(VarBinaryHolder.class)) {
         return CompleteType.VARBINARY;
       } else if (holderClass.equals(NullableVarBinaryHolder.class)) {
@@ -663,6 +695,10 @@ public class CompleteType {
   }
 
   public CompleteType merge(CompleteType type2) {
+    return merge(type2, REJECT_MIXED_DECIMALS);
+  }
+
+  public CompleteType merge(CompleteType type2, boolean allowMixedDecimals) {
     CompleteType type1 = this;
 
     // both fields are unions.
@@ -697,6 +733,20 @@ public class CompleteType {
       return type1;
     }
 
+    if (type1.getType().getTypeID() == ArrowTypeID.Decimal || type2.getType().getTypeID() ==
+      ArrowTypeID.Decimal) {
+      // Currently decimal is allowed to be mixed with other types only as differing type in
+      // then-else block of if.
+      // All other cases are rejected.
+      // a. Mixed decimals in scan b. Decimal with any other type in all cases including then-else.
+      if (!allowMixedDecimals) {
+           throw new UnsupportedOperationException("Cannot have mixed types for a decimal field. " +
+             "Found " + "types" + " : " + type1.getType() + " , " + type2.getType());
+      } else {
+          return coerceDecimalTypes(type1, type2);
+      }
+    }
+
     final List<Field> fields1 = type1.isUnion() ? type1.getChildren() : Collections.singletonList(type1.toInternalField());
     final List<Field> fields2 = type2.isUnion() ? type2.getChildren() : Collections.singletonList(type2.toInternalField());
 
@@ -705,6 +755,45 @@ public class CompleteType {
     return new CompleteType(new Union(UnionMode.Sparse, typeIds), mergedFields);
 
   }
+
+  // TODO : Move following to Output Derivation as part of DX-16966
+  private CompleteType coerceDecimalTypes(CompleteType type1, CompleteType type2) {
+    if (type1.isDecimal() && type2.isDecimal()) {
+      return getDecimalUnion(type1, type2);
+    } else {
+      CompleteType decimalType, nonDecimalType;
+      if (type1.isDecimal()) {
+        decimalType = type1;
+        nonDecimalType = type2;
+      } else {
+        decimalType = type2;
+        nonDecimalType = type1;
+      }
+      if (nonDecimalType.equals(CompleteType.BIGINT)) {
+        return getDecimalUnion(decimalType, CompleteType.fromDecimalPrecisionScale(19,0));
+      } else if (nonDecimalType.equals(CompleteType.INT)) {
+        return getDecimalUnion(decimalType, CompleteType.fromDecimalPrecisionScale(10,0));
+      } else {
+        throw new UnsupportedOperationException("Cannot have mixed types for a decimal field. " +
+          "Found " + "types" + " : " + type1.getType() + " , " + type2.getType());
+      }
+    }
+  }
+
+  private CompleteType getDecimalUnion(CompleteType type1, CompleteType type2) {
+    int outputScale = Math.max(type1.getScale(), type2.getScale());
+    int outputPrecision = Math.max(type1.getPrecision() - type1.getScale(), type2.getPrecision()
+      - type2.getScale()) + outputScale;
+
+    if (outputPrecision > 38) {
+      throw new UnsupportedOperationException("Incompatible precision and scale(common precision " +
+        "is greater than 38 digits. Please consider downcasting the values " +
+        "Found " + "types" + " : " + type1.getType() + " , " + type2.getType());
+    }
+
+    return CompleteType.fromDecimalPrecisionScale(outputPrecision ,outputScale);
+  }
+
 
   public static int[] getTypeIds(List<Field> subTypes) {
     int[] typeIds = new int[subTypes.size()];

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,10 @@ export class Socket {
 
   get isOpen() {
     return !!this._socket && this._socket.readyState === WebSocket.OPEN;
+  }
+
+  get exists() {
+    return !!this._socket;
   }
 
   open() {
@@ -193,7 +197,7 @@ export class Socket {
   }
 
   _sendMessage(message) {
-    if (this._socket.readyState === WebSocket.OPEN) {
+    if (this.isOpen) {
       this._socket.send(JSON.stringify(message));
     }
   }

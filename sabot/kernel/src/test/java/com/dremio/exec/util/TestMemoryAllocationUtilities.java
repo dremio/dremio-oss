@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,13 +41,11 @@ import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.planner.fragment.Wrapper;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.options.TypeValidators;
 import com.dremio.service.DirectProvider;
-import com.dremio.test.UserExceptionMatcher;
 import com.google.common.collect.ImmutableMap;
 
 public class TestMemoryAllocationUtilities extends ExecTest {
@@ -157,20 +155,6 @@ public class TestMemoryAllocationUtilities extends ExecTest {
     MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, w1, f2, w2), 10);
     assertEquals(3l, es1.getProps().getMemLimit());
     assertEquals(3l, es2.getProps().getMemLimit());
-  }
-
-  @Test
-  public void initialMemoryTooHigh() {
-    ConfigurableOperator cnb = new ConfigurableOperator(OpProps.prototype(2_000_000l, Long.MAX_VALUE).cloneWithMemoryExpensive(true).cloneWithBound(false).cloneWithMemoryFactor(2.0d), ARBTRIARY_LEAF);
-    ConfigurableOperator cb = new ConfigurableOperator(OpProps.prototype(3_000_000l, Long.MAX_VALUE).cloneWithMemoryExpensive(true).cloneWithBound(true).cloneWithMemoryFactor(1.0d), cnb);
-    Fragment f1 = new Fragment();
-    f1.addOperator(cb);
-    Wrapper w1 = new Wrapper(f1, 0);
-    w1.overrideEndpoints(Collections.singletonList(N1));
-    w1.setMaxAllocation(4_000_000l); // Too low to fit the two operators
-    thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.RESOURCE,
-      "Query was cancelled because the initial memory requirement (5MB) is greater than the job memory limit set by the administrator (4MB)"));
-    MemoryAllocationUtilities.setMemory(options, ImmutableMap.of(f1, w1), 10_000_000l);
   }
 
   private static class ConfigurableOperator extends AbstractSingle {

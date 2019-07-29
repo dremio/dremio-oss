@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,4 +27,15 @@ enum AttemptReason {
   SCHEMA_CHANGE = 3;
   INVALID_DATASET_METADATA = 4;
   JSON_FIELD_CHANGE = 5;
+}
+
+enum RequestType {
+  GET_CATALOGS = 1;
+  GET_COLUMNS = 2;
+  GET_SCHEMAS = 3;
+  GET_TABLES = 4;
+  CREATE_PREPARE = 5;
+  EXECUTE_PREPARE = 6;
+  RUN_SQL = 7;
+  GET_SERVER_META = 8;
 }

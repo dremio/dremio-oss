@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,12 +15,16 @@
  */
 package com.dremio.dac.server.admin.profile;
 
+import java.io.IOException;
+
 import com.dremio.exec.proto.UserBitShared.NodeQueryProfile;
 
 /**
  * Wrapper class for per-node information in the query profile
  */
 public class NodeWrapper {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NodeWrapper.class);
+
   private final NodeQueryProfile nodeQueryProfile;
 
   public NodeWrapper(final NodeQueryProfile nodeQueryProfile, boolean includeDebugColumns) {
@@ -30,9 +34,13 @@ public class NodeWrapper {
   public static final String[] NODE_OVERVIEW_COLUMNS = {"Host Name", "Resource Waiting Time", "Peak Memory"};
 
   public void addSummary(TableBuilder tb) {
-    tb.appendCell(nodeQueryProfile.getEndpoint().getAddress(), null);
-    tb.appendMillis(nodeQueryProfile.getTimeEnqueuedBeforeSubmitMs());
-    tb.appendBytes(nodeQueryProfile.getMaxMemoryUsed(), null);
+    try {
+      tb.appendCell(nodeQueryProfile.getEndpoint().getAddress());
+      tb.appendMillis(nodeQueryProfile.getTimeEnqueuedBeforeSubmitMs());
+      tb.appendBytes(nodeQueryProfile.getMaxMemoryUsed());
+    } catch (IOException e) {
+      logger.debug("Failed to add summary", e);
+    }
   }
 
 }

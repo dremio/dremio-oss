@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,7 @@ import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
@@ -148,7 +149,7 @@ public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemSto
   }
 
   public FileSystemWrapper getFilesystemAndCreatePaths(String hostname) throws IOException {
-    FileSystemWrapper fs = FileSystemWrapper.get(uri.get(), new Configuration(), enableAsync);
+    FileSystemWrapper fs = FileSystemWrapperCreator.get(uri.get(), new Configuration(), enableAsync);
     fs.mkdirs(getPath(), HomeFileSystemStoragePlugin.DEFAULT_PERMISSIONS);
     fs.mkdirs(getInnerUploads(), HomeFileSystemStoragePlugin.DEFAULT_PERMISSIONS);
 

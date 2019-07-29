@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2017-2018 Dremio Corporation
+# Copyright (C) 2017-2019 Dremio Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -169,6 +169,12 @@ EOF
     exit 1
   fi
 fi
+
+#Add tools.jar to support local-attach mode
+if [ -f "$JAVA_HOME/lib/tools.jar" ]; then
+  DREMIO_CLASSPATH="$DREMIO_CLASSPATH:$JAVA_HOME/lib/tools.jar"
+fi
+
 # Now, verify that 'java' binary exists and is suitable for Dremio.
 if $is_cygwin; then
   JAVA_BIN="java.exe"

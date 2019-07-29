@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -173,6 +173,25 @@ public class TypeValidators {
    */
   public static class AdminOptionValidator extends StringValidator {
     public AdminOptionValidator(String name, String def) {
+      super(name, def);
+    }
+
+    @Override
+    public void validate(OptionValue v) {
+      if (v.getType() != OptionType.SYSTEM) {
+        throw UserException.validationError()
+          .message("Admin related settings can only be set at SYSTEM level scope. Given scope '%s'.", v.getType())
+          .build(logger);
+      }
+      super.validate(v);
+    }
+  }
+
+  /**
+   * Boolean validator which can only be set at the SYSTEM level scope
+   */
+  public static class AdminBooleanValidator extends BooleanValidator {
+    public AdminBooleanValidator(String name, boolean def) {
       super(name, def);
     }
 

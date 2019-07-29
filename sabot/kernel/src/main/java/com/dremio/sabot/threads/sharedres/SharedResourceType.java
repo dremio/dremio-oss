@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ public enum SharedResourceType {
   NWAY_RECV_MEM_BUFFER(SharedResourceCategory.UPSTREAM),
   NWAY_RECV_SPOOL_BUFFER(SharedResourceCategory.UPSTREAM),
   OUTGOING_MSG_ACK(SharedResourceCategory.DOWNSTREAM),
+  FRAGMENT_ACTIVATE_SIGNAL(SharedResourceCategory.OTHER),
   TEST(SharedResourceCategory.OTHER);
 
   SharedResourceType(SharedResourceCategory category) {

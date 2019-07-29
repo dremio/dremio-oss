@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -123,8 +123,7 @@ public final class MoreRelOptUtil {
       RelDataType rowType1,
       RelDataType rowType2,
       boolean compareNames,
-      boolean allowSubstring,
-      boolean isDecimalV2Enabled) {
+      boolean allowSubstring) {
     if (rowType1 == rowType2) {
       return true;
     }
@@ -157,7 +156,7 @@ public final class MoreRelOptUtil {
         List<TypeProtos.MinorType> types = Lists.newArrayListWithCapacity(2);
         types.add(Types.getMinorTypeFromName(type1.getSqlTypeName().getName()));
         types.add(Types.getMinorTypeFromName(type2.getSqlTypeName().getName()));
-        if(TypeCastRules.getLeastRestrictiveType(types, isDecimalV2Enabled) != null) {
+        if(TypeCastRules.getLeastRestrictiveType(types) != null) {
           return true;
         }
 
@@ -172,10 +171,12 @@ public final class MoreRelOptUtil {
    * Does not compare nullability.
    * Differs from RelOptUtil implementation by not defining types as equal if one is of type ANY.
    *
-   * @param rowType1        row type for comparison
-   * @param rowType2        row type for comparison
+   * @param rowType1           row type for comparison
+   * @param rowType2           row type for comparison
+   * @param compareNames       boolean for name match
+   * @param compareNullability boolean for nullability match
    *
-   * @return boolean indicating that rel data types are equivalent
+   * @return boolean indicating that row types are equivalent
    */
   public static boolean areRowTypesEqual(
     RelDataType rowType1,
@@ -189,21 +190,15 @@ public final class MoreRelOptUtil {
     if (rowType2.getFieldCount() != rowType1.getFieldCount()) {
       return false;
     }
+
     final List<RelDataTypeField> f1 = rowType1.getFieldList();
     final List<RelDataTypeField> f2 = rowType2.getFieldList();
     for (Pair<RelDataTypeField, RelDataTypeField> pair : Pair.zip(f1, f2)) {
       final RelDataType type1 = pair.left.getType();
       final RelDataType type2 = pair.right.getType();
 
-      if (compareNullability) {
-        if (!type1.equals(type2)) {
-          return false;
-        }
-      } else {
-        // Compare row type names.
-        if (!type1.getSqlTypeName().equals(type2.getSqlTypeName())) {
-          return false;
-        }
+      if (!areDataTypesEqual(type1, type2, !compareNullability)) {
+        return false;
       }
 
       if (compareNames) {
@@ -213,6 +208,25 @@ public final class MoreRelOptUtil {
       }
     }
     return true;
+  }
+
+
+  /**
+   * Verifies that two data types match.
+   * @param dataType1          data type for comparison
+   * @param dataType2          data type for comparison
+   * @param sqlTypeNameOnly    boolean for only SqlTypeName match
+   *
+   * @return boolean indicating that data types are equivalent
+   */
+  public static boolean areDataTypesEqual(
+    RelDataType dataType1,
+    RelDataType dataType2,
+    boolean sqlTypeNameOnly) {
+    if (sqlTypeNameOnly) {
+      return dataType1.getSqlTypeName().equals(dataType2.getSqlTypeName());
+    }
+    return dataType1.equals(dataType2);
   }
 
   /**

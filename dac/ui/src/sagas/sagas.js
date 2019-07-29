@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 import { all, fork } from 'redux-saga/effects';
 
+import { afterLogin, afterLogout, afterAppStop } from '@app/sagas/loginLogout';
+import { afterAppInit } from 'dyn-load/sagas/appBoot';
 import wsEvents from './wsEvents';
 import qlik from './qlik';
 import serverStatus from './serverStatus';
@@ -36,6 +38,10 @@ export default function* rootSaga() {
     fork(downloadDataset),
     fork(downloadFile),
     fork(signupUser),
+    fork(afterLogin),
+    fork(afterLogout),
+    fork(afterAppInit),
+    fork(afterAppStop),
     fork(performTransform),
     fork(performLoadDataset),
     fork(transformHistoryCheck),

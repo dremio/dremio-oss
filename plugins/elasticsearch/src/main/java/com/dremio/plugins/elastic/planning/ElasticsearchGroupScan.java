@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,22 +16,20 @@
 package com.dremio.plugins.elastic.planning;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.physical.base.AbstractGroupScan;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
-import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Iterables;
 
 /**
@@ -61,11 +59,11 @@ public class ElasticsearchGroupScan extends AbstractGroupScan {
 
   @Override
   public SubScan getSpecificScan(List<SplitWork> work) throws ExecutionSetupException {
-    List<SplitInfo> splitWork = FluentIterable.from(work).transform(new Function<SplitWork, SplitInfo>(){
-      @Override
-      public SplitInfo apply(SplitWork input) {
-        return input.getSplitInfo();
-      }}).toList();
+    List<SplitAndPartitionInfo> splitWork = work
+      .stream()
+      .map(input -> input.getSplitAndPartitionInfo(true))
+      .collect(Collectors.toList());
+
     return new ElasticsearchSubScan(
         getProps(),
         getDataset().getStoragePluginId(),

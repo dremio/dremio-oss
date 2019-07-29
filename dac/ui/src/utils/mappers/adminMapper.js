@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,10 +22,14 @@ class AdminMapper {
         id: uuid.v4(),
         name: node.name,
         ip: node.ip,
+        host: node.host,
         cpu: node.cpu,
         memory: node.memory,
         port: node.port,
-        status: node.status
+        status: node.status,
+        isCoordinator: node.isCoordinator,
+        isExecutor: node.isExecutor,
+        isBlacklisted: node.isBlacklisted
       };
     });
   }

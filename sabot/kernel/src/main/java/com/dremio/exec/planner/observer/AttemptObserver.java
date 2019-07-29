@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -218,6 +218,10 @@ public interface AttemptObserver {
    */
   void attemptCompletion(UserResult result);
 
+  /**
+   * Executor nodes were selected for the query
+   */
+  void executorsSelected(long millisTaken, int idealNumFragments, int idealNumNodes, int numExecutors, String detailsText);
 
   /**
    * Time taken to generate fragments.
@@ -232,22 +236,22 @@ public interface AttemptObserver {
   void planAssignmentTime(long millisTaken);
 
   /**
-   * Time taken for sending intermediate fragments to all nodes.
+   * Time taken for sending start fragment rpcs to all nodes.
    * @param millisTaken
    */
-  void intermediateFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats);
+  void fragmentsStarted(long millisTaken, FragmentRpcSizeStats stats);
 
   /**
-   * Time taken for sending leaf fragments to all nodes.
+   * Time taken for sending activate fragment rpcs to all nodes.
    * @param millisTaken
    */
-  void leafFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats);
+  void fragmentsActivated(long millisTaken);
 
   /**
-   * Failed to start leaf fragment.
+   * Failed to activate fragment.
    * @param ex
    */
-  void startLeafFragmentFailed(Exception ex);
+  void activateFragmentFailed(Exception ex);
 
   /**
    * ResourceScheduling related information

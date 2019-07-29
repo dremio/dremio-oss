@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ import { combineReducers } from 'redux';
 import { wikiActions, WIKI_SAVED } from '@app/actions/home';
 import { isLoading, isLoaded, errorMessageReducer, errorMessageId } from '@app/reducers/reducerFactories';
 
-const enitityIdReducer = (state = null, { type, entityId }) => {
+const entityIdReducer = (state = null, { type, entityId }) => {
   switch (type) {
   case wikiActions.start:
   case wikiActions.success:
@@ -46,7 +46,7 @@ const wikiValue = (state = {
 };
 
 export default combineReducers({
-  enitityId: enitityIdReducer,
+  entityId: entityIdReducer,
   isLoading: isLoading(wikiActions),
   isLoaded: isLoaded(wikiActions),
   wikiValue,
@@ -54,11 +54,11 @@ export default combineReducers({
   errorId: errorMessageId(wikiActions)
 });
 
-export const isWikiLoaded = (state, entityId) => state.enitityId === entityId && state.isLoaded;
-export const isWikiLoading = (state, entityId) => state.enitityId === entityId && state.isLoading;
+export const isWikiLoaded = (state, entityId) => state.entityId === entityId && state.isLoaded;
+export const isWikiLoading = (state, entityId) => state.entityId === entityId && state.isLoading;
 export const getWiki = (state, entityId) => isWikiLoaded(state, entityId) ? state.wikiValue.text : null;
 export const getWikiVersion = (state, entityId) => isWikiLoaded(state, entityId) ? state.wikiValue.version : null;
-export const getErrorInfo = (state, enitityId) => state.errorMessage ? ({
+export const getErrorInfo = (state, entityId) => state.errorMessage ? ({
   message: state.errorMessage,
   id: state.errorMessageId
 }) : null;

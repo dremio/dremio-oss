@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -188,7 +188,9 @@ public abstract class TpchGenerator implements Generator {
     GenerationDefinition def = new GenerationDefinition(scale, Long.MAX_VALUE);
     switch(table){
     case CUSTOMER:
-      return new CustomerGenerator(allocator, def, 1, includedColumns);
+      return new CustomerGenerator(allocator, def, 1, TpchTable.CUSTOMER, includedColumns);
+    case CUSTOMER_LIMITED:
+      return new CustomerGenerator(allocator, def, 1, TpchTable.CUSTOMER_LIMITED, includedColumns);
     case REGION:
       return new RegionGenerator(allocator, def, includedColumns);
     case NATION:

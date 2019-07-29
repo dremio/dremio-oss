@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -163,7 +163,7 @@ public class ExpressionSplitterTest extends BaseTestFunction {
         OptionValue.OptionType.SYSTEM, ExecConstants.SPLIT_ENABLED.getOptionName(), true));
       ExpressionEvaluationOptions options = new ExpressionEvaluationOptions(optionManager);
       options.setCodeGenOption(SupportedEngines.CodeGenOption.Gandiva.toString());
-      splitter = new ExpressionSplitter(context, vectorContainer, options, annotator, "_xxx");
+      splitter = new ExpressionSplitter(context, vectorContainer, options, annotator, "_xxx", true);
       NamedExpression namedExpression = new NamedExpression(expr, new FieldReference("out"));
       // split the expression and set the splits up for execution
       dataOut = context.createOutputVectorContainer();
@@ -647,9 +647,9 @@ public class ExpressionSplitterTest extends BaseTestFunction {
 
     GandivaAnnotator annotator = new GandivaAnnotator("booleanAnd", "less_than", "mod");
     Split[] splits = {
-      new Split(false, "_xxx0", "greater_than(c0, 10i)", 1, 2),
+      new Split(false, "_xxx0", "greater_than(c0, 10i)", 1, 3),
       new Split(true, "_xxx1", "(if (_xxx0) then (less_than(c0, 24i)) else (cast((__$internal_null$__) as bit)) end)", 2, 2, "_xxx0"),
-      new Split(false, "_xxx2", "(if (_xxx1) then (equal(c1, 0i)) else (cast((__$internal_null$__) as bit)) end)", 3, 1, "_xxx1"),
+      new Split(false, "_xxx2", "(if (_xxx0) then ((if (_xxx1) then (equal(c1, 0i)) else (cast((__$internal_null$__) as bit)) end)) else (cast((__$internal_null$__) as bit)) end)", 3, 1, "_xxx0", "_xxx1"),
       new Split(true, "_xxx3", "(if (_xxx0) then ((if (_xxx1) then ((if (_xxx2) then (less_than(c2, 4i)) else (false) end)) else (false) end)) else (false) end)", 4, 0, "_xxx0", "_xxx1", "_xxx2")
     };
 
@@ -681,13 +681,65 @@ public class ExpressionSplitterTest extends BaseTestFunction {
 
     GandivaAnnotator annotator = new GandivaAnnotator("booleanAnd", "greater_than", "equal");
     Split[] splits = {
-      new Split(true, "_xxx0", "greater_than(c0, 10i)", 1, 2),
+      new Split(true, "_xxx0", "greater_than(c0, 10i)", 1, 3),
       new Split(false, "_xxx1", "(if (_xxx0) then (less_than(c0, 24i)) else (cast((__$internal_null$__) as bit)) end)", 2, 2, "_xxx0"),
-      new Split(true, "_xxx2", "(if (_xxx1) then (equal(c1, 0i)) else (cast((__$internal_null$__) as bit)) end)", 3, 1, "_xxx1"),
+      new Split(true, "_xxx2", "(if (_xxx0) then ((if (_xxx1) then (equal(c1, 0i)) else (cast((__$internal_null$__) as bit)) end)) else (cast((__$internal_null$__) as bit)) end)", 3, 1, "_xxx0", "_xxx1"),
       new Split(false, "_xxx3", "(if (_xxx0) then ((if (_xxx1) then ((if (_xxx2) then (less_than(c2, 4i)) else (false) end)) else (false) end)) else (false) end)", 4, 0, "_xxx0", "_xxx1", "_xxx2")
     };
 
     splitAndVerify(query, input, output, splits, annotator);
+  }
+
+  @Test
+  public void testNestedIfConditions() throws Exception {
+    String query = "case when c0 = 0 then c0 + c1 else (case when c1 = 0 then c1 + c0 else 1/c0 end) end";
+    Fixtures.Table input = Fixtures.split(
+      th("c0", "c1"),
+      2,
+      tr(0, 11)
+    );
+
+    Fixtures.Table output = t(
+      th("out"),
+      tr(11)
+    );
+
+    GandivaAnnotator annotator = new GandivaAnnotator("divide");
+
+    Split[] expSplits = new Split[]{
+      new Split(false, "_xxx0", "equal(c0, 0i)", 1, 3),
+      new Split(false, "_xxx1", "(if (_xxx0) then (cast((__$internal_null$__) as bit)) else(equal(c1, 0i)) end)", 2, 2, "_xxx0"),
+      new Split(true, "_xxx2", "(if (_xxx0) then (cast((__$internal_null$__) as int)) else ((if (_xxx1) then (cast((__$internal_null$__) as int)) else (divide(1i, c0)) end)) end)", 3, 1, "_xxx0", "_xxx1"),
+      new Split(false, "_xxx3", "(if (_xxx0) then (add(c0, c1)) else ((if (_xxx1) then (add(c1, c0)) else (_xxx2) end)) end)", 4, 0, "_xxx0", "_xxx1", "_xxx2")
+    };
+
+    splitAndVerify(query, input, output, expSplits, annotator);
+  }
+
+  @Test
+  public void testSplitElseInNestedIfCondition() throws Exception {
+    String query = "case when c0 = 0 then c0 + c1 else (case when c1 = 0 then c1 + c0 else c1 + 1/c0 end) end";
+    Fixtures.Table input = Fixtures.split(
+      th("c0", "c1"),
+      2,
+      tr(0, 11)
+    );
+
+    Fixtures.Table output = t(
+      th("out"),
+      tr(11)
+    );
+
+    GandivaAnnotator annotator = new GandivaAnnotator("divide");
+
+    Split[] expSplits = new Split[]{
+      new Split(false, "_xxx0", "equal(c0, 0i)", 1, 3),
+      new Split(false, "_xxx1", "(if (_xxx0) then (cast((__$internal_null$__) as bit)) else(equal(c1, 0i)) end)", 2, 2, "_xxx0"),
+      new Split(true, "_xxx2", "(if (_xxx0) then (cast((__$internal_null$__) as int)) else ((if (_xxx1) then (cast((__$internal_null$__) as int)) else (divide(1i, c0)) end)) end)", 3, 1, "_xxx0", "_xxx1"),
+      new Split(false, "_xxx3", "(if (_xxx0) then (add(c0, c1)) else ((if (_xxx1) then (add(c1, c0)) else (add(c1, _xxx2)) end)) end)", 4, 0, "_xxx0", "_xxx1", "_xxx2")
+    };
+
+    splitAndVerify(query, input, output, expSplits, annotator);
   }
 
   @Test
@@ -849,9 +901,9 @@ public class ExpressionSplitterTest extends BaseTestFunction {
 
     GandivaAnnotator annotator = new GandivaAnnotator("booleanOr", "less_than", "equal");
     Split[] splits = {
-      new Split(false, "_xxx0", "greater_than(c0, 24i)", 1, 2),
+      new Split(false, "_xxx0", "greater_than(c0, 24i)", 1, 3),
       new Split(true, "_xxx1", "(if (_xxx0) then (cast((__$internal_null$__) as bit)) else (less_than(c0, 10i)) end)", 2, 2, "_xxx0"),
-      new Split(true, "_xxx2", "(if (_xxx1) then (cast((__$internal_null$__) as bit)) else (equal(c1, 0i)) end)", 3, 1, "_xxx1"),
+      new Split(true, "_xxx2", "(if (_xxx0) then (cast((__$internal_null$__) as bit)) else ((if (_xxx1) then (cast((__$internal_null$__) as bit)) else (equal(c1, 0i)) end)) end)", 3, 1, "_xxx0", "_xxx1"),
       new Split(false, "_xxx3", "(if (_xxx0) then (true) else ((if (_xxx1) then (true) else ((if (_xxx2) then (true) else (greater_than(c2, 4i)) end)) end)) end)", 4, 0, "_xxx0", "_xxx1", "_xxx2")
     };
 
@@ -883,9 +935,9 @@ public class ExpressionSplitterTest extends BaseTestFunction {
 
     GandivaAnnotator annotator = new GandivaAnnotator("booleanOr", "greater_than");
     Split[] splits = {
-      new Split(true, "_xxx0", "greater_than(c0, 24i)", 1, 2),
+      new Split(true, "_xxx0", "greater_than(c0, 24i)", 1, 3),
       new Split(false, "_xxx1", "(if (_xxx0) then (cast((__$internal_null$__) as bit)) else (less_than(c0, 10i)) end)", 2, 2, "_xxx0"),
-      new Split(false, "_xxx2", "(if (_xxx1) then (cast((__$internal_null$__) as bit)) else (equal(c1, 0i)) end)", 3, 1, "_xxx1"),
+      new Split(false, "_xxx2", "(if (_xxx0) then (cast((__$internal_null$__) as bit)) else ((if (_xxx1) then (cast((__$internal_null$__) as bit)) else (equal(c1, 0i)) end)) end)", 3, 1, "_xxx0", "_xxx1"),
       new Split(true, "_xxx3", "(if (_xxx0) then (true) else ((if (_xxx1) then (true) else ((if (_xxx2) then (true) else (greater_than(c2, 4i)) end)) end)) end)", 4, 0, "_xxx0", "_xxx1", "_xxx2")
     };
 

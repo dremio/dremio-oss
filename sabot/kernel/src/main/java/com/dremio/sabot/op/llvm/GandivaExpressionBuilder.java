@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -64,8 +64,8 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
   private final Set<LogicalExpression> constantSet;
   private final FunctionContext functionContext;
   private final boolean enableOrOptimization;
-  private static final List<CompleteType> supportedInTypesInGandiva = Lists.newArrayList(
-    CompleteType.BIGINT, CompleteType.INT, CompleteType.VARCHAR);
+  private final int minConversionSize;
+  private static final List<CompleteType> supportedInTypesInGandiva = Lists.newArrayList(CompleteType.VARCHAR);
   private static final List<Class<? extends LogicalExpression>> supportedExpressionTypes = Lists
     .newArrayList(ValueVectorReadExpression.class);
 
@@ -77,6 +77,7 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
     this.constantSet = constantSet;
     this.functionContext = functionContext;
     this.enableOrOptimization = functionContext.getCompilationOptions().enableOrOptimization();
+    this.minConversionSize = functionContext.getCompilationOptions().getOrOptimizationThresholdForGandiva();
   }
 
   /**
@@ -126,6 +127,22 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
       .map(this::acceptExpression)
       .collect(Collectors.toList());
 
+    if (holder.getName().equals("castDECIMAL")) {
+      // remove the dummy args added for precision/scale. They are implicitly specified in the
+      // return type.
+      int size = children.size();
+
+      Preconditions.checkState(size >= 3,
+        "expected atleast three args for castDECIMAL");
+
+      Preconditions.checkState(holder.args.get(size - 1) instanceof LongExpression,
+        "expected long type for precision");
+      Preconditions.checkState(holder.args.get(size - 2) instanceof LongExpression,
+        "expected long type for scale");
+      children.remove(size - 1);
+      children.remove(size - 2);
+    }
+
     return TreeBuilder.makeFunction(holder.getName(), children, definition.getReturnType(holder.args).getType());
   }
 
@@ -144,7 +161,7 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
 
     if(enableOrOptimization && "booleanOr".equals(operator.getName())) {
       expressions = OrInConverter.optimizeMultiOrs(expressions,
-        constantSet, 2, supportedInTypesInGandiva, supportedExpressionTypes);
+        constantSet, minConversionSize, supportedInTypesInGandiva, supportedExpressionTypes);
       if (expressions.size() == 1) {
         return visitUnknown(expressions.get(0), null);
       }

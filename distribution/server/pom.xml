@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright (C) 2017-2018 Dremio Corporation
+    Copyright (C) 2017-2019 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>3.2.8-201907180222520740-08f2b54</version>
+    <version>3.3.1-201907291852280797-df23756</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -331,7 +331,6 @@
                     </mapping>
                     <mapping>
                       <directory>/opt/dremio/jars</directory>
-                      <directoryIncluded>false</directoryIncluded>
                       <sources>
                         <source>
                           <location>${dremio.distribution.directory}/jars</location>
@@ -340,7 +339,6 @@
                     </mapping>
                     <mapping>
                       <directory>/opt/dremio/lib</directory>
-                      <directoryIncluded>false</directoryIncluded>
                       <sources>
                         <source>
                           <location>${dremio.distribution.directory}/lib</location>
@@ -349,7 +347,6 @@
                     </mapping>
                     <mapping>
                       <directory>/opt/dremio/licenses/dremio-${dremio.rpm.version}</directory>
-                      <directoryIncluded>false</directoryIncluded>
                       <sources>
                         <source>
                           <location>${dremio.distribution.directory}/licenses</location>
@@ -358,7 +355,6 @@
                     </mapping>
                     <mapping>
                       <directory>/opt/dremio/share/dremio</directory>
-                      <directoryIncluded>false</directoryIncluded>
                       <sources>
                         <source>
                           <location>${dremio.distribution.directory}/share</location>
@@ -367,7 +363,6 @@
                     </mapping>
                     <mapping>
                       <directory>/etc/dremio</directory>
-                      <directoryIncluded>false</directoryIncluded>
                       <sources>
                         <source>
                           <location>${dremio.distribution.directory}/conf/logback.xml</location>
@@ -402,41 +397,41 @@
                       <directory>/var/lib/dremio</directory>
                       <username>dremio</username>
                       <groupname>dremio</groupname>
-                      <filemode>755</filemode>
+                      <dirmode>755</dirmode>
                     </mapping>
                     <mapping>
                       <directory>/var/run/dremio</directory>
                       <username>dremio</username>
                       <groupname>dremio</groupname>
-                      <filemode>755</filemode>
+                      <dirmode>755</dirmode>
                     </mapping>
                     <mapping>
                       <directory>/var/log/dremio</directory>
                       <username>dremio</username>
                       <groupname>dremio</groupname>
-                      <filemode>755</filemode>
+                      <dirmode>755</dirmode>
                     </mapping>
                     <mapping>
                       <directory>/etc/init.d</directory>
-                      <filemode>555</filemode>
+                      <directoryIncluded>false</directoryIncluded>
+                      <filemode>755</filemode>
                       <sources>
                         <source>
                           <location>${dremio.distribution.resources.directory}/share/dremio.rc</location>
                           <destination>dremio</destination>
                         </source>
                       </sources>
-                      <directoryIncluded>false</directoryIncluded>
                     </mapping>
                     <mapping>
                       <directory>%{_tmpfilesdir}</directory>
-                      <filemode>555</filemode>
+                      <directoryIncluded>false</directoryIncluded>
+                      <filemode>644</filemode>
                       <sources>
                         <source>
                           <location>${dremio.distribution.resources.directory}/rpm/misc/dremio.tmpfiles.conf</location>
                           <destination>dremio.conf</destination>
                         </source>
                       </sources>
-                      <directoryIncluded>false</directoryIncluded>
                     </mapping>
                   </mappings>
                   <preinstallScriptlet>

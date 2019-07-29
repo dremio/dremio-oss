@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
@@ -33,15 +34,17 @@ import com.dremio.sabot.exec.context.OperatorContext;
  */
 public interface InputStreamProviderFactory {
 
-  public InputStreamProvider create(FileSystemPlugin plugin, FileSystemWrapper fs, OperatorContext context,
-                                    Path path, long fileLength, long splitSize, boolean readFullFile, List<SchemaPath> fields,
-                                    ParquetMetadata footerIfKnown, int rowGroupIndex) throws IOException;
+  String KEY = "dremio.plugins.parquet.input_stream_factory";
 
-  public static final InputStreamProviderFactory DEFAULT = new InputStreamProviderFactory() {
+  InputStreamProvider create(FileSystemPlugin plugin, FileSystemWrapper fs, OperatorContext context,
+                                    Path path, long fileLength, long splitSize, List<SchemaPath> fields,
+                                    ParquetMetadata footerIfKnown, int rowGroupIndex, BiConsumer<Path, ParquetMetadata> depletionListener, boolean readFullFile, List<String> dataset) throws IOException;
+
+  InputStreamProviderFactory DEFAULT = new InputStreamProviderFactory() {
     @Override
     public InputStreamProvider create(FileSystemPlugin plugin, FileSystemWrapper fs, OperatorContext context,
-                                      Path path, long fileLength, long splitSize, boolean readFullFile, List<SchemaPath> fields,
-                                      ParquetMetadata footerIfKnown, int rowGroupIndex) {
+                                      Path path, long fileLength, long splitSize, List<SchemaPath> fields,
+                                      ParquetMetadata footerIfKnown, int rowGroupIndex, BiConsumer<Path, ParquetMetadata> depletionListener, boolean readFullFile, List<String> dataset) {
       OptionManager options = context.getOptions();
       boolean useSingleStream =
         // option is set for single stream
@@ -54,9 +57,11 @@ public interface InputStreamProviderFactory {
                 // if full file is read, it should be a single stream
               readFullFile;
 
+      final long maxFooterLen = context.getOptions().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
       return useSingleStream
-        ? new SingleStreamProvider(fs, path, fileLength, context.getAllocator(), readFullFile)
-        : new StreamPerColumnProvider(fs, path, fileLength);
+        ? new SingleStreamProvider(fs, path, fileLength, maxFooterLen, readFullFile, context)
+        : new StreamPerColumnProvider(fs, path, fileLength, maxFooterLen, context.getStats());
     }
   };
+
 }

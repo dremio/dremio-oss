@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -587,9 +587,12 @@ public class TestHashAgg extends BaseTestOperator {
 
     final Table expected = t(
       th("dec_x", "sum_y", "cnt", "sum0", "min", "max"),
-      tr(BigDecimal.valueOf(10.0), 9.0d, 2L, 9.0d, 2.0d, 7.0d),
-      tr(BigDecimal.valueOf(20.0), 14.0d, 3L, 14.0d, 3.0d, 6.0d),
-      tr(BigDecimal.valueOf(30.0), 4.0d, 1L, 4.0d, 4.0d,4.0d))
+      tr(BigDecimal.valueOf(10.0), BigDecimal.valueOf(9.0d), 2L, BigDecimal.valueOf(9.0d),
+        BigDecimal.valueOf(2.0d), BigDecimal.valueOf(7.0d)),
+      tr(BigDecimal.valueOf(20.0), BigDecimal.valueOf(14.0d), 3L, BigDecimal.valueOf(14.0d),
+        BigDecimal.valueOf(3.0d), BigDecimal.valueOf(6.0d)),
+      tr(BigDecimal.valueOf(30.0), BigDecimal.valueOf(4.0d), 1L, BigDecimal.valueOf(4.0d),
+        BigDecimal.valueOf(4.0d),BigDecimal.valueOf(4.0d)))
       .orderInsensitive();
 
     final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, true, true,1f);
@@ -616,9 +619,9 @@ public class TestHashAgg extends BaseTestOperator {
 
     final Table expected = t(
       th("dec_x", "sum_y", "sum0"),
-      tr(BigDecimal.valueOf(10.0), Fixtures.NULL_DOUBLE, 0.0d),
-      tr(BigDecimal.valueOf(20.0), 7.0d, 7.0d),
-      tr(BigDecimal.valueOf(30.0), Fixtures.NULL_DOUBLE, 0.0d))
+      tr(BigDecimal.valueOf(10.0), Fixtures.NULL_DECIMAL, BigDecimal.valueOf(0)),
+      tr(BigDecimal.valueOf(20.0), BigDecimal.valueOf(7), BigDecimal.valueOf(7)),
+      tr(BigDecimal.valueOf(30.0), Fixtures.NULL_DECIMAL, BigDecimal.valueOf(0)))
       .orderInsensitive();
 
     final HashAggregate conf = new HashAggregate(OpProps.prototype(), null, dim, measure, true, true,1f);

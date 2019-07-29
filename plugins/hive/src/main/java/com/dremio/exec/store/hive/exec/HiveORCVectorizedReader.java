@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.store.hive.HiveUtilities;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.commons.lang3.ArrayUtils;
@@ -57,18 +59,20 @@ import org.apache.hadoop.hive.serde2.objectinspector.UnionObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.orc.OrcConf;
 import org.apache.orc.OrcProto;
+import org.apache.orc.impl.DataReaderProperties;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.ScanFilter;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
 import com.dremio.exec.store.hive.ORCScanFilter;
 import com.dremio.exec.store.hive.exec.HiveORCCopiers.ORCCopier;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.scan.ScanOperator.Metric;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 
 /**
  * Use vectorized reader provided by the Hive to read ORC files. We copy one column completely at a time,
@@ -82,6 +86,7 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
   static final int TRANS_ROW_COLUMN_INDEX = 5;
   private org.apache.hadoop.hive.ql.io.orc.RecordReader hiveOrcReader;
   private ORCCopier[] copiers;
+  private DremioORCRecordUtils.DefaultDataReader dataReader;
 
   /**
    * Hive vectorized ORC reader reads into this batch. It is a heap based structure and reused until the reader exhaust
@@ -92,7 +97,7 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
   // non-zero value indicates partially read batch in previous iteration.
   private int offset;
 
-  public HiveORCVectorizedReader(final HiveTableXattr tableAttr, final SplitInfo split,
+  public HiveORCVectorizedReader(final HiveTableXattr tableAttr, final SplitAndPartitionInfo split,
       final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
       final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
       final StructObjectInspector partitionOI, final ScanFilter filter, final Collection<List<String>> referencedTables) {
@@ -289,7 +294,7 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     final OrcFile.ReaderOptions opts = OrcFile.readerOptions(jobConf);
 
     // TODO: DX-16001 make enabling async configurable.
-    final FileSystem fs = FileSystemWrapper.get(path, jobConf, this.context.getStats());
+    final FileSystem fs = FileSystemWrapperCreator.get(path, jobConf, this.context.getStats());
     opts.filesystem(fs);
     final Reader hiveReader = OrcFile.createReader(path, opts);
 
@@ -309,7 +314,17 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     include[0] = true; // always include root. reader always includes, but setting it explicitly here.
 
     options.include(include);
-    options.zeroCopyPoolShim(new HiveORCZeroCopyShim(context.getAllocator()));
+    Boolean zeroCopy = OrcConf.USE_ZEROCOPY.getBoolean(jobConf);
+    Boolean useDirectMemory = context.getOptions().getOption(HivePluginOptions.HIVE_ORC_READER_USE_DIRECT_MEMORY);
+    dataReader = DremioORCRecordUtils.createDefaultDataReader(context.getAllocator(), DataReaderProperties.builder()
+      .withBufferSize(hiveReader.getCompressionSize())
+      .withCompression(hiveReader.getCompressionKind())
+      .withFileSystem(fs)
+      .withPath(path)
+      .withTypeCount(types.size())
+      .withZeroCopy(zeroCopy)
+      .build(), useDirectMemory);
+    options.dataReader(dataReader);
 
     String[] selectedColNames = getColumns().stream().map(x -> x.getAsUnescapedPath().toLowerCase()).toArray(String[]::new);
 
@@ -526,6 +541,15 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     if (hiveOrcReader != null) {
       hiveOrcReader.close();
       hiveOrcReader = null;
+    }
+
+    if (dataReader != null) {
+      if (dataReader.isRemoteRead()) {
+        context.getStats().addLongStat(ScanOperator.Metric.NUM_REMOTE_READERS, 1);
+      } else {
+        context.getStats().addLongStat(ScanOperator.Metric.NUM_REMOTE_READERS, 0);
+      }
+      dataReader = null;
     }
 
     super.close();

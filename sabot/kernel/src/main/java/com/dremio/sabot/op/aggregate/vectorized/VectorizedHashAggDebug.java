@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Queue;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.physical.HashAggMemoryEstimator;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Joiner;
 
@@ -40,6 +41,7 @@ class VectorizedHashAggDebug {
   private int numPartitions;
   private int minHashTableSizePerPartition;
   private long allocatedMemoryBeforeInit;
+  private HashAggMemoryEstimator preAllocEstimator;
 
   /* information collected after doing setup() in operator */
   private long preallocatedMemoryForPartitions;
@@ -147,15 +149,30 @@ class VectorizedHashAggDebug {
     this.allocatedMemoryBeforeInit = amount;
   }
 
+  void setPreAllocEstimator(final HashAggMemoryEstimator estimator) {
+    this.preAllocEstimator = estimator;
+  }
+
   void setPreallocatedMemoryForPartitions(final long amount) {
+    int estimated = preAllocEstimator.getMemHashTable() +
+      preAllocEstimator.getMemAccumulators() +
+      preAllocEstimator.getMemOrdinals();
+    assert amount <= estimated :
+      "mismatch in mem for hashTable: estimated " + estimated + ", actual " + amount;
     this.preallocatedMemoryForPartitions = amount;
   }
 
   void setPreallocatedMemoryForReadingSpilledData(final long amount) {
+    int estimated = preAllocEstimator.getMemLoadingPartition();
+    assert amount <= estimated :
+      "mismatch in mem for reading spill data: estimated " + estimated + ", actual " + amount;
     this.preallocatedMemoryForReadingSpilledData = amount;
   }
 
   void setPreallocatedMemoryForAuxStructures(final long amount) {
+    int estimated = preAllocEstimator.getMemAuxStructures();
+    assert amount <= estimated :
+      "mismatch in mem for aux structures: estimated " + estimated + ", actual " + amount;
     this.preallocatedMemoryForAuxStructures = amount;
   }
 
@@ -164,6 +181,10 @@ class VectorizedHashAggDebug {
                         final BatchSchema outgoing) {
     this.hashTableBatchSize = hashTableBatchSize;
     this.totalPreallocatedMemory = totalPreallocatedMemory;
+    assert totalPreallocatedMemory <= preAllocEstimator.getMemTotal() :
+      "mismatch in total mem : estimated " + preAllocEstimator.getMemTotal() +
+      ", actual " + totalPreallocatedMemory;
+
     /* BatchSchema.toString() is an expensive operation so don't do it by default */
     this.aggSchema = (detailedEventTracing ? outgoing.toString() : "enable tracing to record schema");
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ public class TestFragmentChecker extends PopUnitTestBase{
     }
 
     final QueryContextInformation queryContextInfo = Utilities.createQueryContextInfo("dummySchemaName");
-    List<PlanFragmentFull> qwu = par.getFragments(new OptionList(), localBit, QueryId.getDefaultInstance(), endpoints, ppr, fragmentRoot,
+    List<PlanFragmentFull> qwu = par.getFragments(new OptionList(), localBit, QueryId.getDefaultInstance(), ppr, fragmentRoot,
         new PlanFragmentsIndex.Builder(),
         UserSession.Builder.newBuilder().withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build()).build(),
         queryContextInfo,

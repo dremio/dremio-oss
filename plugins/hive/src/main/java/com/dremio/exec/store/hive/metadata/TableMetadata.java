@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import org.apache.hadoop.hive.metastore.api.Table;
 
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.hive.HiveStoragePlugin;
+import com.dremio.hive.proto.HiveReaderProto.ColumnInfo;
 
 /**
  * Helper class to hold table metadata details used in {@link HiveStoragePlugin#getDatasetMetadata}
@@ -37,16 +38,19 @@ public class TableMetadata {
   private final BatchSchema batchSchema;
   private final List<Field> fields;
   private final List<String> partitionColumns;
+  private final List<ColumnInfo> columnInfos;
 
   private final HiveStorageCapabilities tableStorageCapabilities;
 
   private TableMetadata(final Table table, final Properties tableProperties, final BatchSchema batchSchema,
-                        final List<Field> fields, final List<String> partitionColumns) {
+                        final List<Field> fields, final List<String> partitionColumns,
+                        final List<ColumnInfo> columnInfos) {
     this.table = table;
     this.tableProperties = tableProperties;
     this.batchSchema = batchSchema;
     this.fields = fields;
     this.partitionColumns = partitionColumns;
+    this.columnInfos = columnInfos;
 
     this.tableStorageCapabilities = HiveMetadataUtils.getHiveStorageCapabilities(table.getSd());
   }
@@ -71,6 +75,10 @@ public class TableMetadata {
     return partitionColumns;
   }
 
+  public List<ColumnInfo> getColumnInfos() {
+    return columnInfos;
+  }
+
   public HiveStorageCapabilities getTableStorageCapabilities() {
     return tableStorageCapabilities;
   }
@@ -85,6 +93,7 @@ public class TableMetadata {
     private BatchSchema batchSchema;
     private List<Field> fields;
     private List<String> partitionColumns;
+    private List<ColumnInfo> columnInfos;
 
     private Builder() {
     }
@@ -114,6 +123,11 @@ public class TableMetadata {
       return this;
     }
 
+    public Builder columnInfos(List<ColumnInfo> columnInfos) {
+      this.columnInfos = columnInfos;
+      return this;
+    }
+
     public TableMetadata build() {
 
       Objects.requireNonNull(table, "table is required");
@@ -121,8 +135,9 @@ public class TableMetadata {
       Objects.requireNonNull(batchSchema, "batch schema is required");
       Objects.requireNonNull(fields, "fields is required");
       Objects.requireNonNull(partitionColumns, "partition columns is required");
+      Objects.requireNonNull(columnInfos, "column infos is required");
 
-      return new TableMetadata(table, tableProperties, batchSchema, fields, partitionColumns);
+      return new TableMetadata(table, tableProperties, batchSchema, fields, partitionColumns, columnInfos);
     }
   }
 }

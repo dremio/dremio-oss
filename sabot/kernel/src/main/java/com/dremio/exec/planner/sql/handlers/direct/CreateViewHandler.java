@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,7 +65,7 @@ public class CreateViewHandler extends SimpleDirectHandler {
       final DremioTable existingTable = config.getContext().getCatalog().getTableNoResolve(viewPath);
       List<String> viewContext = defaultSchema == null ? null : defaultSchema.getPathComponents();
 
-      final View view = new View(newViewName, viewSql, newViewRelNode.getRowType(), viewContext);
+      final View view = new View(newViewName, viewSql, newViewRelNode.getRowType(), createView.getFieldNames(), viewContext);
 
       boolean replaced = false;
 

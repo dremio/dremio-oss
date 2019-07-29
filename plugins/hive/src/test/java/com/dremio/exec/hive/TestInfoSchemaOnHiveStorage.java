@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -154,12 +154,15 @@ public class TestInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "field_size_limit_test")
         .baselineValues("hive.default", "field_size_limit_test_orc")
         .baselineValues("hive.default", "parqschematest_table")
+        .baselineValues("hive.default", "orc_strings")
         .baselineValues("hive.default", "timestamptostring")
         .baselineValues("hive.default", "timestamptostring_orc")
         .baselineValues("hive.default", "timestamptostring_orc_ext")
         .baselineValues("hive.default", "doubletostring")
         .baselineValues("hive.default", "doubletostring_orc")
         .baselineValues("hive.default", "doubletostring_orc_ext")
+        .baselineValues("hive.default", "parqdecunion_table")
+        .baselineValues("hive.default", "orcdecimalcompare")
         .go();
 
     testBuilder()

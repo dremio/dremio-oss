@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ import com.google.common.collect.Lists;
 /**
  * Catalog Item
  */
-public final class CatalogItem {
+public class CatalogItem {
   /**
    * Catalog Item Type
    */
@@ -57,16 +57,18 @@ public final class CatalogItem {
   private final DatasetSubType datasetType;
   private final ContainerSubType containerType;
   private final CollaborationTag tags;
+  private final CatalogItemStats stats;
 
   @JsonCreator
-  private CatalogItem(
+  protected CatalogItem(
     @JsonProperty("id") String id,
     @JsonProperty("path") List<String> path,
     @JsonProperty("tag") String tag,
     @JsonProperty("type") CatalogItemType type,
     @JsonProperty("datasetType") DatasetSubType datasetType,
     @JsonProperty("containerType") ContainerSubType containerType,
-    @JsonProperty("tags") CollaborationTag tags) {
+    @JsonProperty("tags") CollaborationTag tags,
+    @JsonProperty("stats") CatalogItemStats stats) {
     this.id = id;
     this.path = path;
     this.type = type;
@@ -74,6 +76,7 @@ public final class CatalogItem {
     this.datasetType = datasetType;
     this.containerType = containerType;
     this.tags = tags;
+    this.stats = stats;
   }
 
   private static CatalogItem fromSourceConfig(SourceConfig sourceConfig, CollaborationTag tags) {
@@ -173,6 +176,10 @@ public final class CatalogItem {
     return tags;
   }
 
+  public CatalogItemStats getStats() {
+    return stats;
+  }
+
   public static Optional<CatalogItem> fromNamespaceContainer(NameSpaceContainer container) {
     return fromNamespaceContainer(container, null);
   }
@@ -236,6 +243,30 @@ public final class CatalogItem {
     private CatalogItem.DatasetSubType datasetType;
     private CatalogItem.ContainerSubType containerType;
     private CollaborationTag tags;
+    private Integer datasetCount;
+    private boolean datasetCountBounded;
+
+    public Builder() {
+
+    }
+
+    public Builder(final CatalogItem item) {
+      final CatalogItemStats stats = item.getStats();
+      this
+        .setId(item.getId())
+        .setPath(item.getPath())
+        .setTag(item.getTag())
+        .setType(item.getType())
+        .setDatasetType(item.getDatasetType())
+        .setContainerType(item.getContainerType())
+        .setTags(item.getTags());
+
+      if (stats != null) {
+        this
+          .setDatasetCount(stats.getDatasetCount())
+          .setDatasetCountBounded(stats.isDatasetCountBounded());
+      }
+    }
 
     public Builder setId(String id) {
       this.id = id;
@@ -272,8 +303,54 @@ public final class CatalogItem {
       return this;
     }
 
+    public Builder setDatasetCount(int datasetCount) {
+      this.datasetCount = datasetCount;
+      return this;
+    }
+
+    public Builder setDatasetCountBounded(boolean datasetCountBounded) {
+      this.datasetCountBounded = datasetCountBounded;
+      return this;
+    }
+
     public CatalogItem build() {
-      return new CatalogItem(id, path, tag, type, datasetType, containerType, tags);
+      return new CatalogItem(id, path, tag, type, datasetType, containerType, tags,
+        getStats());
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    public List<String> getPath() {
+      return path;
+    }
+
+    public String getTag() {
+      return tag;
+    }
+
+    public CatalogItemType getType() {
+      return type;
+    }
+
+    public DatasetSubType getDatasetType() {
+      return datasetType;
+    }
+
+    public ContainerSubType getContainerType() {
+      return containerType;
+    }
+
+    public CollaborationTag getTags() {
+      return tags;
+    }
+
+    public CatalogItemStats getStats() {
+      if (datasetCount == null) {
+        return null;
+      }
+      return new CatalogItemStats(datasetCount, datasetCountBounded);
     }
   }
 }

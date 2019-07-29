@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,6 +63,12 @@ export class LocalStorageUtils {
     const token = this.getUserData() && this.getUserData().token;
 
     return token ? `_dremio${token}` : null;
+  }
+
+  getUserId() {
+    const user = this.getUserData();
+
+    return user ? user.userId : null;
   }
 
   getApp() {

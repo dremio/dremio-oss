@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 
 public class IfExpression extends LogicalExpressionBase {
   static final Logger logger = LoggerFactory.getLogger(IfExpression.class);
+  public static final boolean ALLOW_MIXED_DECIMALS = true;
 
   public final IfCondition ifCondition;
   public final LogicalExpression elseExpression;
@@ -89,7 +90,7 @@ public class IfExpression extends LogicalExpressionBase {
       return outputType;
     }
 
-    return ifCondition.expression.getCompleteType().merge(elseExpression.getCompleteType());
+    return ifCondition.expression.getCompleteType().merge(elseExpression.getCompleteType(), ALLOW_MIXED_DECIMALS);
   }
 
   public static Builder newBuilder() {

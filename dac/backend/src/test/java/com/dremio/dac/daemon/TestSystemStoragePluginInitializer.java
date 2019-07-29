@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
@@ -86,6 +87,7 @@ public class TestSystemStoragePluginInitializer {
   private CloseableThreadPool pool;
   private FabricService fabricService;
   private CatalogService catalogService;
+  private FileSystemWrapperCreator fileSystemWrapperCreator;
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();
@@ -148,6 +150,10 @@ public class TestSystemStoragePluginInitializer {
       .thenReturn(Sets.newHashSet(ClusterCoordinator.Role.MASTER, ClusterCoordinator.Role.COORDINATOR));
     when(sabotContext.isCoordinator())
       .thenReturn(true);
+
+    fileSystemWrapperCreator = FileSystemWrapperCreator.DEFAULT_INSTANCE;
+    when(sabotContext.getFileSystemWrapperCreator())
+      .thenReturn(fileSystemWrapperCreator);
 
     pool = new CloseableThreadPool("catalog-test");
     fabricService = new FabricServiceImpl(HOSTNAME, 45678, true, THREAD_COUNT, allocator, RESERVATION,

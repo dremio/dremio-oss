@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,9 @@
 
 package com.dremio.common.expression;
 
-import java.util.List;
+import java.util.Set;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 /**
  * Class to capture the supported execution engines
@@ -35,7 +35,7 @@ public class SupportedEngines {
     // prefer Gandiva to generate code
     Gandiva;
 
-    public static final CodeGenOption DEFAULT = Java;
+    public static final CodeGenOption DEFAULT = Gandiva;
 
     // Converts optionName to an enum
     public static CodeGenOption getCodeGenOption(String optionName) {
@@ -60,10 +60,10 @@ public class SupportedEngines {
     GANDIVA;
   }
 
-  private List<Engine> supportedEngines;
+  public Set<Engine> supportedEngines;
 
   public SupportedEngines() {
-    this.supportedEngines = Lists.newArrayList();
+    this.supportedEngines = Sets.newHashSet();
   }
 
   /**
@@ -89,5 +89,12 @@ public class SupportedEngines {
    */
   public void remove(Engine engine) {
     supportedEngines.remove(engine);
+  }
+
+  /**
+   * Clears all supported engines.
+   */
+  public void clear() {
+    supportedEngines.clear();
   }
 }

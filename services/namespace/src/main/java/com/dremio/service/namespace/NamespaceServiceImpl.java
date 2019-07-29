@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -316,6 +316,10 @@ public class NamespaceServiceImpl implements NamespaceService {
     return elementCount;
   }
 
+  protected IndexedStore<byte[], NameSpaceContainer> getStore() {
+    return namespace;
+  }
+
   /**
    * Helper method which creates a new entity or update the existing entity with given entity
    *
@@ -342,7 +346,7 @@ public class NamespaceServiceImpl implements NamespaceService {
    *
    * @param newOrUpdatedEntity
    * @param existingContainer
-   * @return true if there was a side effect where existingContainer was deleted
+   * @return false if there was a side effect where existingContainer was deleted
    * @throws NamespaceException
    */
   // TODO: Remove this operation and move to kvstore
@@ -742,7 +746,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public void canSourceConfigBeSaved(SourceConfig newConfig, SourceConfig existingConfig, NamespaceAttribute... attributes) throws ConcurrentModificationException {
+  public void canSourceConfigBeSaved(SourceConfig newConfig, SourceConfig existingConfig, NamespaceAttribute... attributes) throws ConcurrentModificationException, NamespaceException {
     if (!Objects.equals(newConfig.getTag(), existingConfig.getTag())) {
       throw new ConcurrentModificationException(
         String.format("Source [%s] has been updated, and the given configuration is out of date (current tag: %s, given: %s)",
@@ -1215,11 +1219,10 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   public DatasetConfig renameDataset(NamespaceKey oldDatasetPath, NamespaceKey newDatasetPath) throws NamespaceException {
-    return doRenameDataset(oldDatasetPath, newDatasetPath, getEntitiesOnPath(oldDatasetPath.getParent()), getEntitiesOnPath(newDatasetPath.getParent()));
+    return doRenameDataset(oldDatasetPath, newDatasetPath);
   }
 
-  protected DatasetConfig doRenameDataset(NamespaceKey oldDatasetPath, NamespaceKey newDatasetPath,
-                                          List<NameSpaceContainer> oldDatasetParentEntitiesOnPath, List<NameSpaceContainer> newDatasetParentEntitiesOnPath) throws NamespaceException {
+  protected DatasetConfig doRenameDataset(NamespaceKey oldDatasetPath, NamespaceKey newDatasetPath) throws NamespaceException {
     final String newDatasetName = newDatasetPath.getName();
     final NamespaceInternalKey oldKey = new NamespaceInternalKey(oldDatasetPath, keyNormalization);
 
@@ -1240,7 +1243,7 @@ public class NamespaceServiceImpl implements NamespaceService {
     }
     datasetConfig.setName(newDatasetName);
     datasetConfig.setFullPathList(newDatasetPath.getPathComponents());
-    datasetConfig.setCreatedAt(System.currentTimeMillis());
+    datasetConfig.setLastModified(System.currentTimeMillis());
     NamespaceEntity newValue = NamespaceEntity.toEntity(DATASET, newDatasetPath, datasetConfig, keyNormalization);
 
     // in case of upgrade we may have a version here from previous versions, so clear out

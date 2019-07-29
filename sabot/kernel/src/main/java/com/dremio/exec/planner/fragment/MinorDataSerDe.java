@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,14 +16,11 @@
 package com.dremio.exec.planner.fragment;
 
 import java.io.IOException;
-import java.util.List;
 
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.proto.CoordExecRPC.FragmentCodec;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpointList;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfoList;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -41,10 +38,6 @@ public class MinorDataSerDe {
 
   public ByteString serialize(MessageLite msg) {
     return msg.toByteString();
-  }
-
-  public List<SplitInfo> deserializeSplits(ByteString buffer) throws InvalidProtocolBufferException {
-    return SplitInfoList.parseFrom(buffer).getSplitsList();
   }
 
   public MinorFragmentIndexEndpoint deserializeMinorFragmentIndexEndpoint(ByteString buffer) throws InvalidProtocolBufferException {

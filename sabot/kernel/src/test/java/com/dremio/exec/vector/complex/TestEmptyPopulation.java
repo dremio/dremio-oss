@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ public class TestEmptyPopulation extends BaseTestQuery {
   @Before
   public void initialize() {
     offsets = new UInt4Vector("offsets", allocator);
-    offsets.allocateNewSafe();
+    offsets.allocateNew();
     offsets.set(0, 0);
     offsets.setValueCount(1);
     Assert.assertTrue("offsets must have one value", offsets.getValueCount() == 1);

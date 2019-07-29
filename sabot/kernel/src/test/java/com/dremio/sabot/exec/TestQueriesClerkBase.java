@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 import org.apache.arrow.memory.AllocationListener;
@@ -175,6 +176,17 @@ public class TestQueriesClerkBase {
     public long getHeadroom() {
       throw new UnsupportedOperationException();
     }
+
+    @Override
+    public BufferAllocator getParentAllocator() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Collection<BufferAllocator> getChildAllocators() {
+      throw new UnsupportedOperationException();
+    }
+
     public AllocationReservation newReservation() {
       throw new UnsupportedOperationException();
     }

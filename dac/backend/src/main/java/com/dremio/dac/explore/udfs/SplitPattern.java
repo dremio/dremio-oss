@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -172,7 +172,8 @@ public class SplitPattern {
         return;
       }
 
-      final int length = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(in.buffer, in.start, in.end, errCtx);
+      final int length = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(in
+        .buffer.asNettyBuffer(), in.start, in.end, errCtx);
       final String v = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end, in.buffer);
 
       java.util.List<Match> matches = com.dremio.dac.explore.udfs.SplitPattern.splitRegex(matcher, v);

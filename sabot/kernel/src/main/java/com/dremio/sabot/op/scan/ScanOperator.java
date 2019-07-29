@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.SchemaChangeCallBack;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -96,7 +97,11 @@ public class ScanOperator implements ProducerOperator {
     NUM_ASYNC_READS,    // Total number of async read requests made
     NUM_ASYNC_BYTES_READ, // Total number of bytes read
     NUM_EXTENDING_READS, // Total number of extending chunks
-    EXTENDING_READ_BYTES // Size of the extending chunks.
+    EXTENDING_READ_BYTES, // Size of the extending chunks.
+    TOTAL_BYTES_READ,     // Total bytes read
+    LOCAL_BYTES_READ,     // Total number of local bytes read using local I/O
+    SHORT_CIRCUIT_BYTES_READ, // Total number of bytes read using short circuit reads
+    PRELOADED_BYTES           // Number of bytes pre-loaded
     ;
 
     @Override
@@ -316,7 +321,7 @@ public class ScanOperator implements ProducerOperator {
                                               Class<T> clazz) throws SchemaChangeException {
       // Check if the field exists.
       final ValueVector v = fieldVectorMap.get(field.getName().toLowerCase());
-      if (v == null || !clazz.isAssignableFrom(v.getClass())) {
+      if (v == null || !clazz.isAssignableFrom(v.getClass()) || checkIfDecimalsTypesAreDifferent(v, field)) {
         // Field does not exist--add it to the map and the output container.
         ValueVector newVector = TypeHelper.getNewVector(field, context.getAllocator(), callBack);
         if (!clazz.isAssignableFrom(newVector.getClass())) {
@@ -338,6 +343,13 @@ public class ScanOperator implements ProducerOperator {
       }
 
       return clazz.cast(v);
+    }
+
+    private <T extends ValueVector> boolean checkIfDecimalsTypesAreDifferent(ValueVector v, Field field) {
+      if (field.getType().getTypeID() != ArrowType.ArrowTypeID.Decimal) {
+        return false;
+      }
+      return !v.getField().getType().equals(field.getType());
     }
 
     @Override
@@ -375,7 +387,7 @@ public class ScanOperator implements ProducerOperator {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(outgoing, currentReader, globalDictionaries);
+    AutoCloseables.close(outgoing, currentReader, globalDictionaries, readers instanceof AutoCloseable ? (AutoCloseable) readers : null);
   }
 
 }

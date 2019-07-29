@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!--
 
-    Copyright (C) 2017-2018 Dremio Corporation
+    Copyright (C) 2017-2019 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>3.2.8-201907180222520740-08f2b54</version>
+  <version>3.3.1-201907291852280797-df23756</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,9 +38,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.14.0-20190624074115-f5338c7280-dremio</arrow.version>
+    <arrow.version>0.14.0-20190718172626-fa1a62d422-dremio</arrow.version>
     <avatica.version>1.11.0</avatica.version>
-    <calcite.version>1.16.0-201907122249240410-8eb4baa</calcite.version>
+    <calcite.version>1.16.0-201907170631120000-06c1d66</calcite.version>
     <db2jcc.version>4.23.42</db2jcc.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
@@ -50,11 +50,11 @@
     <!-- Currently Hive storage plugin only supports Apache Hive 1.2 or vendor
       specific variants of the Apache Hive 1.2. If the version is changed, make
       sure the jars and their dependencies are updated. -->
-    <hive.version>2.1.1-dremio-201906031830070148-45443ea</hive.version>
+    <hive.version>2.1.1-dremio-201907191201410736-68f8006</hive.version>
     <hbase.version>1.1.3</hbase.version>
     <hadoop.version>2.8.3</hadoop.version>
     <hsqldb.version>2.3.1</hsqldb.version>
-    <jackson.version>2.9.8</jackson.version>
+    <jackson.version>2.9.9</jackson.version>
     <jersey.version>2.25.1</jersey.version>
     <jetty.version>9.4.15.v20190215</jetty.version>
     <javax.ws.rs-api.version>2.0.1</javax.ws.rs-api.version>
@@ -80,6 +80,7 @@
     <aws-sdk.version>1.11.156</aws-sdk.version>
     <openhft-affinity.version>3.1.7</openhft-affinity.version>
     <fbs.version>1.9.0</fbs.version>
+    <rocksdb.version>5.14.2</rocksdb.version>
 
     <!-- Use ES 5.5 instead of 5.6. The 5.6 client sends "source" instead of "inline" which isn't supported with older ES5 servers. -->
     <elasticsearch.version>5.5.3</elasticsearch.version>
@@ -97,8 +98,18 @@
     <!-- Default intercom app id -->
     <dremio.ui.intercom.appid>z8apq4co</dremio.ui.intercom.appid>
     <npm.registry.url>https://registry.npmjs.org</npm.registry.url>
+    <nvd.cvebase.url>https://nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-%d.json.gz</nvd.cvebase.url>
+    <nvd.cvemodified.url>https://nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-modified.json.gz</nvd.cvemodified.url>
     <dremio.mapr.distribution>nonmapr</dremio.mapr.distribution>
     <dremio.release>false</dremio.release>
+    <!--
+      We could not use empty property here due to a bug https://github.com/eirslett/frontend-maven-plugin/issues/771
+      If the token would not be overwritten from outside, we would try to access sentry with
+      'NO_TOKEN', which causes compilation failure.
+      Set project.sentry.skip=true if you by any reason want to skip sentry step
+    -->
+    <project.sentry.token>NO_TOKEN</project.sentry.token>
+    <project.sentry.skip>true</project.sentry.skip>
   </properties>
 
   <profiles>
@@ -125,13 +136,17 @@
         </property>
       </activation>
       <properties>
-        <hive.version>2.1.1-mapr-1803-201906031833490014-aaf93e2</hive.version>
+        <hive.version>2.1.1-mapr-1803-201907191218120687-4b7de39</hive.version>
         <hbase.version>1.1.8-mapr-1710</hbase.version>
         <hadoop.version>2.7.0-mapr-1803</hadoop.version>
+        <!-- hadoop-yarn-common jar is updated in MapR patch 6.0.1 repository, it is updated to be
+        compatible with maprfs jar from the same patch. This jar is taken from client package folder
+        from MapR's patch fix repository, v6.0.1/rpm, mapr-patch-6.0.1.20180404222005.GA-20190625140628.x86_64.rpm-->
+        <yarn.common.version>2.7.0-mapr-1803-dremio-20190717</yarn.common.version>
         <!-- This maprfs jar is taken from MapR 6.0.1 client package directly.
-          The 6.0.1 maprfs jars from MapR's maven repo have issues with native libraries versioning.
-          The jar is originally from here http://package.mapr.com/releases/v6.0.1/redhat/mapr-client-6.0.1.20180404222005.GA-1.x86_64.rpm -->
-        <maprfs.version>6.0.1-mapr-client-dremio</maprfs.version>
+          This jar is taken from client package folder from MapR's patch fix repository,
+          v6.0.1/rpm, mapr-patch-6.0.1.20180404222005.GA-20190625140628.x86_64.rpm -->
+        <maprfs.version>6.0.1-mapr-client-dremio-20190717</maprfs.version>
         <!-- This jar is a dependency of com.mapr.hadoop:maprfs jar.
              For some reason it is not packaged by the assembly plugin. Include it explicitly. -->
         <org.json.version>20080701</org.json.version>
@@ -151,7 +166,7 @@
       <repositories>
         <repository>
           <id>mapr-releases</id>
-          <url>http://repository.mapr.com/maven/</url>
+          <url>https://repository.mapr.com/maven/</url>
         </repository>
       </repositories>
       <dependencyManagement>
@@ -160,6 +175,17 @@
             <groupId>com.mapr.hadoop</groupId>
             <artifactId>maprfs</artifactId>
             <version>${maprfs.version}</version>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-yarn-common</artifactId>
+            <version>${yarn.common.version}</version>
+            <exclusions>
+              <exclusion>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-annotations</artifactId>
+              </exclusion>
+            </exclusions>
           </dependency>
         </dependencies>
       </dependencyManagement>
@@ -175,7 +201,7 @@
       <repositories>
         <repository>
           <id>dremio-free</id>
-          <url>http://maven.dremio.com/free/</url>
+          <url>https://maven.dremio.com/free/</url>
         </repository>
       </repositories>
       <dependencyManagement>
@@ -192,6 +218,8 @@
       <id>release</id>
       <properties>
         <dremio.release>true</dremio.release>
+        <!-- we should upload source maps for any release build -->
+        <project.sentry.skip>false</project.sentry.skip>
       </properties>
     </profile>
   </profiles>
@@ -433,7 +461,7 @@ limitations under the License.
             <owner>Dremio Corporation</owner>
           </properties>
           <project>
-            <inceptionYear>2017-2018</inceptionYear>
+            <inceptionYear>2017-2019</inceptionYear>
           </project>
           <failIfUnknown>true</failIfUnknown>
           <useDefaultExcludes>false</useDefaultExcludes>
@@ -568,6 +596,7 @@ limitations under the License.
             <exclude>**/.eslintcache</exclude>
             <exclude>**/.eslintignore</exclude>
             <exclude>**/.eslintrc</exclude>
+            <exclude>**/.sentryclirc</exclude>
             <exclude>**/git.properties</exclude>
             <exclude>**/pom.xml.versionsBackup</exclude>
             <exclude>**/scheduler-core-default.xml</exclude>
@@ -575,6 +604,8 @@ limitations under the License.
             <exclude>mvnw</exclude>
             <exclude>mvnw.cmd</exclude>
             <exclude>**/*.no_license</exclude>
+            <exclude>**/rpm/conf/dremio-env</exclude>
+            <exclude>**/rpm/conf/dremio.conf</exclude>
 
             <!-- by directory name -->
             <exclude>**/node_modules/**</exclude>
@@ -748,7 +779,7 @@ limitations under the License.
         <plugin>
           <groupId>org.owasp</groupId>
           <artifactId>dependency-check-maven</artifactId>
-          <version>4.0.2</version>
+          <version>5.0.0</version>
           <dependencies>
             <dependency>
               <groupId>com.dremio.tools</groupId>
@@ -757,10 +788,13 @@ limitations under the License.
             </dependency>
           </dependencies>
           <configuration>
+            <cveUrlBase>${nvd.cvebase.url}</cveUrlBase>
+            <cveUrlModified>${nvd.cvemodified.url}</cveUrlModified>
             <skipSystemScope>true</skipSystemScope>
             <suppressionFiles>
               <suppressionFile>dremio-owasp/suppressions.xml</suppressionFile>
             </suppressionFiles>
+            <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
           </configuration>
         </plugin>
         <plugin>
@@ -873,7 +907,7 @@ limitations under the License.
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>rpm-maven-plugin</artifactId>
-          <version>2.1.5</version>
+          <version>2.2.0</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
@@ -1091,6 +1125,16 @@ limitations under the License.
         </exclusions>
       </dependency>
       <dependency>
+        <groupId>com.dremio.provision</groupId>
+        <artifactId>dremio-twill-shaded</artifactId>
+        <exclusions>
+          <exclusion>
+            <groupId>*</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
         <groupId>com.dremio</groupId>
         <artifactId>dremio-common</artifactId>
         <version>${project.version}</version>
@@ -1150,6 +1194,11 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>com.dremio.services</groupId>
+        <artifactId>dremio-services-execselector</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.services</groupId>
         <artifactId>dremio-services-fabric-rpc</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1177,6 +1226,11 @@ limitations under the License.
       <dependency>
         <groupId>com.dremio.services</groupId>
         <artifactId>dremio-services-scheduler</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.services</groupId>
+        <artifactId>dremio-services-spill</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
@@ -1367,39 +1421,10 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>io.netty</groupId>
-        <artifactId>netty-buffer</artifactId>
+        <artifactId>netty-bom</artifactId>
         <version>${netty.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-codec</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-codec-http</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-common</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-handler</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-transport</artifactId>
-        <version>${netty.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.netty</groupId>
-        <artifactId>netty-transport-native-epoll</artifactId>
-        <classifier>linux-x86_64</classifier>
-        <version>${netty.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>io.netty</groupId>
@@ -1971,6 +1996,16 @@ limitations under the License.
             <artifactId>netty-all</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>com.microsoft.azure</groupId>
+        <artifactId>adal4j</artifactId>
+        <version>1.6.4</version>
+      </dependency>
+      <dependency>
+        <groupId>net.minidev</groupId>
+        <artifactId>json-smart</artifactId>
+        <version>1.3.1</version>
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
@@ -2581,7 +2616,7 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-azure</artifactId>
-        <version>2.8.5-dremio-r2</version>
+        <version>2.8.5-dremio-r2-35405b2aea7702ff65f91e7ae173c008e1f939ae</version>
         <exclusions>
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
@@ -2689,7 +2724,7 @@ limitations under the License.
   <repositories>
     <repository>
       <id>dremio-public</id>
-      <url>http://maven.dremio.com/public/</url>
+      <url>https://maven.dremio.com/public/</url>
     </repository>
   </repositories>
 </project>

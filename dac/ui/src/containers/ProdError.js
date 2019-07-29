@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import { connect } from 'react-redux';
 
 import { hideAppError } from 'actions/prodError';
 import ProdErrorModal from 'components/Modals/ProdErrorModal';
-import config from 'utils/config';
+import config from 'dyn-load/utils/config';
 import { getAppError, getAppErrorId } from '@app/reducers';
 
 export const SHOW_GO_HOME_AFTER_PERIOD = 5000;

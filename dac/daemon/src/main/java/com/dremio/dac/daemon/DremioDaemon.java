@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -74,8 +74,10 @@ public class DremioDaemon {
       // If not, and if not allowed by config, fail.
       // Needed to be able to run multiple versions of Dremio on single version of KVStore
       if (getDACConfig().allowNewerKVStore) {
-        logger.warn(String.format(
-          "This Dremio version %s is older then KVStore version %s", VERSION.getVersion(), storeVersion.getVersion()));
+        if (UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) > 0) {
+          logger.warn(String.format(
+            "This Dremio version %s is older then KVStore version %s", VERSION.getVersion(), storeVersion.getVersion()));
+        }
       } else {
         Preconditions.checkState(
           UPGRADE_VERSION_ORDERING.compare(storeVersion, VERSION) <= 0,

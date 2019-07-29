@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.common.expression;
 
+import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.IntervalUnit;
@@ -281,6 +282,17 @@ public class Describer {
     public String visit(FixedSizeBinary type) {
       return String.format("binary(%d)", type.getByteWidth());
     }
+
+    @Override
+    public String visit(ArrowType.Duration type) {
+      throw new UnsupportedOperationException("Dremio does not support duration yet.");
+    }
+
+    @Override
+    public String visit(ArrowType.Map type) {
+      throw new UnsupportedOperationException("Dremio does not support map yet.");
+    }
+
   }
 
 }

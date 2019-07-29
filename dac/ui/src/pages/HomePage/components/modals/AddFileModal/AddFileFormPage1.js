@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,6 +37,7 @@ export class AddFileFormPage1 extends Component {
   static propTypes = {
     onFormSubmit: PropTypes.func.isRequired,
     onCancel: PropTypes.func.isRequired,
+    onChange: PropTypes.func,
     fields: PropTypes.object,
     handleSubmit: PropTypes.func.isRequired,
     intl: PropTypes.object.isRequired
@@ -47,7 +48,7 @@ export class AddFileFormPage1 extends Component {
   };
 
   onFileChange = (file, isUploading) => {
-    const { fields } = this.props;
+    const { fields, onChange } = this.props;
 
     const filename = file.name;
     const extName = path.extname(filename);
@@ -57,6 +58,7 @@ export class AddFileFormPage1 extends Component {
     this.setState({
       isUploading
     });
+    onChange && onChange(file);
   };
 
   render() {

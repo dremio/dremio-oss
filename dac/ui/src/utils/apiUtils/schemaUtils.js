@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,9 +38,8 @@ class SchemaUtils {
             const hash = {
               fullDataset: mapDataset
             };
-            return applyDecorators(
-              Immutable.fromJS(normalize(hash[schema._key] && hash[schema._key](pureJson, key) || pureJson, schema))
-            );
+            const payload = Immutable.fromJS(normalize(hash[schema._key] && hash[schema._key](pureJson, key) || pureJson, schema));
+            return payload.set('entities', applyDecorators(payload.get('entities')));
           });
         }
       }

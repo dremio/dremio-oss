@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 
 import { API_URL, API_URL_V2} from 'constants/Api';
 
 import intercomUtils from 'utils/intercomUtils';
 import { addNotification } from 'actions/notification';
+import { makeUncachebleURL } from '@app/ie11';
 
 export const SOURCE_CREDENTIAL_START = 'SOURCE_CREDENTIAL_START';
 export const SOURCE_CREDENTIAL_SUCCESS = 'SOURCE_CREDENTIAL_SUCCESS';
@@ -26,7 +27,7 @@ export const SOURCE_CREDENTIAL_FAILURE = 'SOURCE_CREDENTIAL_FAILURE';
 
 function fetchSourceCredentials() {
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [SOURCE_CREDENTIAL_START, SOURCE_CREDENTIAL_SUCCESS, SOURCE_CREDENTIAL_FAILURE],
       method: 'GET',
       endpoint: API_URL + '/user/datastore'
@@ -64,7 +65,7 @@ export const GET_API_KEY_FAILURE = 'GET_API_KEY_FAILURE';
 
 function fetchApiKey() {
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [GET_API_KEY_START, GET_API_KEY_SUCCESS, GET_API_KEY_FAILURE],
       method: 'GET',
       endpoint: API_URL + '/user/apikey'
@@ -84,7 +85,7 @@ export const CONNECT_BI_TOOL_FAILURE = 'CONNECT_BI_TOOL_FAILURE';
 
 function fetchSetConnectionBiTool(value) {
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [CONNECT_BI_TOOL_START, CONNECT_BI_TOOL_SUCCESS, CONNECT_BI_TOOL_FAILURE],
       method: 'GET',
       endpoint: `${API_URL}/user/BiTool/${value}`
@@ -102,17 +103,37 @@ export const LOGIN_USER_START = 'LOGIN_USER_START';
 export const LOGIN_USER_SUCCESS = 'LOGIN_USER_SUCCESS';
 export const LOGIN_USER_FAILURE = 'LOGIN_USER_FAILURE';
 
-export function fetchLoginUser(form, viewId) {
-  const meta = {
-    form,
-    viewId
-  };
+/**
+ * A user session details. Should corresponds to UserLoginSession.java class
+ * see https://github.com/dremio/dremio/blob/master/oss/dac/backend/src/main/java/com/dremio/dac/model/usergroup/UserLoginSession.java#L24
+ * @typedef {Object} UserSessionInfo
+ * @property {string} token - a use authentication token
+ * @property {string} userName
+ */
+
+export const LOGIN_VIEW_ID = 'LoginForm';
+
+const getLoginMeta = userName => ({
+  userName,
+  viewId: LOGIN_VIEW_ID
+});
+
+/**
+ * @param {*} form
+ * @param {string} form.userName
+ * @param {string} form.password
+ */
+export function loginUser(form) {
+  const { userName } = form;
+  const meta = getLoginMeta(userName);
+
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: LOGIN_USER_START, meta },
+        // should have a payload of {@see UserSessionInfo} form
         { type: LOGIN_USER_SUCCESS, meta },
-        { type: LOGIN_USER_FAILURE, meta: {...meta, errorMessage: la('Authentication failed.')}}
+        getLogInFailedBaseDescriptor(userName)
       ],
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -122,19 +143,45 @@ export function fetchLoginUser(form, viewId) {
   };
 }
 
-export function loginUser(value, viewId) {
-  return (dispatch) => {
-    return dispatch(fetchLoginUser(value, viewId));
-  };
-}
+// must be consistent with loginUser's success action
+// could not reuse this action creator in loginUser, as it contains payload field. If we payload is
+// provided api middleware would not override it with server response payload
+/**
+ * @param {UserSessionInfo} userInfo
+ */
+export const userLoggedIn = userInfo => ({
+  type: LOGIN_USER_SUCCESS,
+  payload: userInfo,
+  meta: getLoginMeta(userInfo.userName)
+});
+
+const getLogInFailedBaseDescriptor = userName => ({
+  type: LOGIN_USER_FAILURE,
+  meta: {
+    ...getLoginMeta(userName),
+    errorMessage: la('Authentication failed.')
+  }
+});
+
+//must be consistent with loginUser's failure action
+/**
+ * @param {UserSessionInfo} userInfo
+ */
+export const userLogInFailed = (userName, errorMsg = null) => {
+  const base = getLogInFailedBaseDescriptor(userName);
+  base.meta.errorMessage = errorMsg || base.meta.errorMessage;
+  base.error = true; // need to force view reducer treat the action as failure
+
+  return base;
+};
 
 export const LOGOUT_USER_START = 'LOGOUT_USER_START';
 export const LOGOUT_USER_SUCCESS = 'LOGOUT_USER_SUCCESS';
 export const LOGOUT_USER_FAILURE = 'LOGOUT_USER_FAILURE';
 
-export function fetchLogoutUser() {
+export function logoutUser() {
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: LOGOUT_USER_START },
         { type: LOGOUT_USER_SUCCESS },
@@ -143,12 +190,6 @@ export function fetchLogoutUser() {
       method: 'DELETE',
       endpoint: `${API_URL_V2}/login`
     }
-  };
-}
-
-export function logoutUser() {
-  return (dispatch) => {
-    return dispatch(fetchLogoutUser());
   };
 }
 
@@ -179,7 +220,7 @@ export const EDIT_ACCOUNT_FAILURE = 'EDIT_ACCOUNT_FAILURE';
 const fetchEditAccount = (accountData, oldName) => {
   const meta = { notification: { message: 'Changes were successfully saved', level: 'success' } };
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         EDIT_ACCOUNT_START,
         { type: EDIT_ACCOUNT_SUCCESS, meta },
@@ -193,34 +234,41 @@ const fetchEditAccount = (accountData, oldName) => {
   };
 };
 
-// always fulfills ("success")
-export const callIfChatAllowedOrWarn = (action = () => {}) => (dispatch) => {
-  return intercomUtils.ifChatAllowed().then(action, (error) => {
-    console.warn(error);
-    return dispatch(addNotification(la('Sorry, chat is not currently available.'), 'warning'));
-  });
+const intercomMissingHandler = dispatch => error => {
+  console.warn(error);
+  return dispatch(addNotification(la('Sorry, chat is not currently available.'), 'warning'));
 };
 
-export const CHECK_FOR_FIRST_USER_START = 'CHECK_FOR_FIRST_USER_START';
-export const CHECK_FOR_FIRST_USER_SUCCESS = 'CHECK_FOR_FIRST_USER_SUCCESS';
-export const CHECK_FOR_FIRST_USER_FAILURE = 'CHECK_FOR_FIRST_USER_FAILURE';
+// always fulfills ("success")
+export const callIfChatAllowedOrWarn = (action = () => {}) => (dispatch) => {
+  if (intercomUtils.ifChatAllowed(intercomMissingHandler(dispatch))) {
+    action();
+  }
+};
 
-const fetchCheckForFirstUser = () => {
+export const CHECK_USER_START = 'CHECK_USER_START';
+export const CHECK_USER_SUCCESS = 'CHECK_USER_SUCCESS';
+export const CHECK_USER_FAILURE = 'CHECK_USER_FAILURE';
+
+/**
+ * Checks if any user exists in Dremio and wether or not current user token is valid
+ *
+ * Server returns:
+ * a) 'No User Available' error in case if there is no any user in Dremio
+ *    see https://github.com/dremio/dremio/blob/64ada2028fb042e6b3a035b9ef64814218095e30/oss/dac/backend/src/main/java/com/dremio/dac/server/NoUserFilter.java#L63
+ *    This error would be handled by authMiddleware
+ * b) Status = 401 if user is not authorized
+ */
+export const checkUser = () => {
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
-        CHECK_FOR_FIRST_USER_START,
-        CHECK_FOR_FIRST_USER_SUCCESS,
-        CHECK_FOR_FIRST_USER_FAILURE
+        CHECK_USER_START,
+        CHECK_USER_SUCCESS,
+        CHECK_USER_FAILURE
       ],
-      method: 'POST',
-      endpoint: `${API_URL_V2}/login`
+      method: 'GET',
+      endpoint: makeUncachebleURL(`${API_URL_V2}/login`)
     }
   };
 };
-
-export function checkForFirstUser() {
-  return (dispatch) => {
-    return dispatch(fetchCheckForFirstUser());
-  };
-}

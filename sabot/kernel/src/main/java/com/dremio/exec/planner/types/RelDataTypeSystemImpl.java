@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,10 +16,13 @@
 
 package com.dremio.exec.planner.types;
 
+import org.apache.arrow.gandiva.evaluator.DecimalTypeUtil;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.sql.type.SqlTypeUtil;
 
 import com.dremio.common.expression.CompleteType;
 
@@ -87,6 +90,9 @@ public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTy
       case FLOAT:
       case DOUBLE:
         return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName.DOUBLE), argumentType.isNullable());
+      case DECIMAL:
+        return typeFactory.createTypeWithNullability(typeFactory.createSqlType(SqlTypeName
+            .DECIMAL, MAX_NUMERIC_PRECISION, argumentType.getScale()), argumentType.isNullable());
     }
     return argumentType;
   }
@@ -112,9 +118,49 @@ public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTy
   }
 
   @Override
+  public RelDataType deriveDecimalMultiplyType(RelDataTypeFactory typeFactory, RelDataType type1,
+                                               RelDataType type2) {
+    return getDecimalReturnType(typeFactory, type1, type2, DecimalTypeUtil
+      .OperationType.MULTIPLY);
+  }
+
+  @Override
+  public RelDataType deriveDecimalDivideType(RelDataTypeFactory typeFactory, RelDataType type1, RelDataType type2) {
+    return getDecimalReturnType(typeFactory, type1, type2, DecimalTypeUtil
+      .OperationType.DIVIDE);
+  }
+
+  @Override
+  public RelDataType deriveDecimalPlusType(RelDataTypeFactory typeFactory, RelDataType type1,
+                                        RelDataType type2) {
+    return getDecimalReturnType(typeFactory, type1, type2, DecimalTypeUtil
+      .OperationType.ADD);
+  }
+
+  @Override
+  public RelDataType deriveDecimalModType(RelDataTypeFactory typeFactory, RelDataType type1,
+                                          RelDataType type2) {
+    return getDecimalReturnType(typeFactory, type1, type2, DecimalTypeUtil
+      .OperationType.MOD);
+  }
+
+  private RelDataType getDecimalReturnType(RelDataTypeFactory typeFactory, RelDataType type1, RelDataType type2, DecimalTypeUtil
+    .OperationType operationType) {
+    if (!SqlTypeUtil.isExactNumeric(type1) || !SqlTypeUtil.isExactNumeric(type2) || (!SqlTypeUtil
+      .isDecimal(type1) && !SqlTypeUtil.isDecimal(type2))) {
+      return null;
+    } else {
+      ArrowType.Decimal operand1 = new ArrowType.Decimal(type1.getPrecision(), type1.getScale());
+      ArrowType.Decimal operand2 = new ArrowType.Decimal(type2.getPrecision(), type2.getScale());
+      ArrowType.Decimal output = DecimalTypeUtil.getResultTypeForOperation(operationType, operand1,
+        operand2);
+      return typeFactory.createSqlType(SqlTypeName.DECIMAL, output.getPrecision(), output.getScale());
+    }
+  }
+
+  @Override
   public boolean isSchemaCaseSensitive() {
     // Dremio uses case-insensitive and case-preserve policy
     return false;
   }
-
 }

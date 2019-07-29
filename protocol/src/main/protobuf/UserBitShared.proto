@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -473,6 +473,19 @@ message MinorFragmentProfile {
   repeated BlockedResourceDuration per_resource_blocked_duration = 1011;
 }
 
+// Information about expression splits (in project/filter)
+message ExpressionSplitInfo {
+  optional string named_expression = 1;
+  optional bool in_gandiva = 2;
+  optional string output_name = 3;
+  repeated string depends_on = 4;
+}
+
+// Non-metric Operator level details that show up in the profile
+message OperatorProfileDetails {
+  repeated ExpressionSplitInfo split_infos = 1;
+}
+
 message OperatorProfile {
   repeated StreamProfile input_profile = 1;
   optional int32 operator_id = 3;
@@ -482,6 +495,7 @@ message OperatorProfile {
   optional int64 peak_local_memory_allocated = 7;
   repeated MetricValue metric = 8;
   optional int64 wait_nanos = 9;
+  optional OperatorProfileDetails details = 10;
 }
 
 message StreamProfile {
@@ -593,6 +607,7 @@ message FragmentRpcSizeStats {
   optional int32 size_per_node = 1;
   repeated FragmentRpcSizeByMajor fragments = 2;
   repeated FragmentRpcSizeByAttr minor_specific_attrs = 3;
+  repeated FragmentRpcSizeByAttr shared_attrs = 4;
 }
 
 message FragmentRpcSizeByMajor {

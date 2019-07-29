@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -91,6 +91,7 @@ public final class Fixtures {
   public static final Cell NULL_INTERVAL_DAY_SECOND = new IntervalDaySecond(null);
   public static final Cell NULL_INTERVAL_YEAR_MONTH = new IntervalYearMonth(null);
   public static final Cell NULL_DECIMAL = new Decimal(null);
+
 
   private Fixtures(){}
 
@@ -1016,7 +1017,7 @@ public final class Fixtures {
 
     @Override
     ArrowType getType() {
-      return new ArrowType.Decimal(38 , obj == null ? 0 : obj.scale());
+      return new ArrowType.Decimal(38, obj == null ? 0 : obj.scale());
     }
 
     @Override

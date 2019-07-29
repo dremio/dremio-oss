@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 import { API_URL_V2 } from 'constants/Api';
 import { VIEW_ID as HOME_CONTENTS_VIEW_ID } from 'pages/HomePage/subpages/HomeContents';
 
@@ -27,7 +27,7 @@ export const CREATE_DATASET_FAILURE = 'CREATE_DATASET_FAILURE';
 
 function putDataset(cpath, dataset) {
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [CREATE_DATASET_START, CREATE_DATASET_SUCCESS, CREATE_DATASET_FAILURE],
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -53,7 +53,7 @@ function putDatasetFromExisting(fullPathFrom, fullPathTo, datasetConfig) {
   const encodedPathTo = constructFullPathAndEncode(fullPathTo);
 
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: CREATE_DATASET_FROM_EXISTING_START, meta},
         {type: CREATE_DATASET_FROM_EXISTING_SUCCESS, meta},
@@ -81,7 +81,7 @@ function fetchDataSetMove(fullPathFrom, fullPathTo) {
   const encodedPathFrom = constructFullPathAndEncode(fullPathFrom);
   const encodedPathTo = constructFullPathAndEncode(fullPathTo);
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: MOVE_DATASET_START, meta },
         { type: MOVE_DATASET_SUCCESS, meta },

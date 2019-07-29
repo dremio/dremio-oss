@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ import com.dremio.common.expression.FunctionCallFactory;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.expr.fn.BaseFunctionHolder;
+import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.dremio.exec.resolver.FunctionResolver;
 import com.dremio.exec.resolver.FunctionResolverFactory;
 import com.esotericsoftware.kryo.serializers.FieldSerializer;
@@ -105,13 +105,7 @@ public class TypeInferenceUtils {
       // SqlTypeName.CHAR is the type for Literals in Calcite, Dremio treats Literals as VARCHAR also
       .put(SqlTypeName.CHAR, TypeProtos.MinorType.VARCHAR)
 
-      // The following types are not added due to a variety of reasons:
-      // (1) Disabling decimal type
-      //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL9)
-      //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL18)
-      //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL28SPARSE)
-      //.put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL38SPARSE)
-      // We will alias DECIMALs as DOUBLEs since Calcite can still return DECIMALs through literals.
+      // TODO Needs fixing : DX-15875
       .put(SqlTypeName.DECIMAL, TypeProtos.MinorType.FLOAT8)
 
       // (2) These 2 types are defined in the Dremio type system but have been turned off for now
@@ -173,7 +167,7 @@ public class TypeInferenceUtils {
    */
   public static SqlReturnTypeInference getSqlReturnTypeInference(
     final String name,
-    final List<BaseFunctionHolder> functions,
+    final List<AbstractFunctionHolder> functions,
     final boolean isDecimalV2Enabled) {
 
     final String nameCap = name.toUpperCase();
@@ -185,12 +179,12 @@ public class TypeInferenceUtils {
   }
 
   private static class DefaultSqlReturnTypeInference implements SqlReturnTypeInference {
-    private final List<BaseFunctionHolder> functions;
+    private final List<AbstractFunctionHolder> functions;
     @FieldSerializer.Optional("ignored")
     private final boolean isDecimalV2Enabled;
 
     // This is created per query, so safe to use decimal setting as a variable.
-    public DefaultSqlReturnTypeInference(List<BaseFunctionHolder> functions, boolean isDecimalV2Enabled) {
+    public DefaultSqlReturnTypeInference(List<AbstractFunctionHolder> functions, boolean isDecimalV2Enabled) {
       this.functions = functions;
       this.isDecimalV2Enabled = isDecimalV2Enabled;
     }
@@ -213,7 +207,7 @@ public class TypeInferenceUtils {
           // In summary, if we have a boolean output function in the WHERE-CLAUSE,
           // this logic can validate and execute user queries seamlessly
           boolean allBooleanOutput = true;
-          for (BaseFunctionHolder function : functions) {
+          for (AbstractFunctionHolder function : functions) {
             if (!function.isReturnTypeIndependent() || function.getReturnType(null).toMinorType() != TypeProtos.MinorType.BIT) {
               allBooleanOutput = false;
               break;
@@ -231,14 +225,14 @@ public class TypeInferenceUtils {
         }
       }
 
-      final BaseFunctionHolder func = resolveFunctionHolder(opBinding, functions, isDecimalV2Enabled);
+      final AbstractFunctionHolder func = resolveFunctionHolder(opBinding, functions, isDecimalV2Enabled);
       final RelDataType returnType = getReturnType(opBinding, func);
       return returnType.getSqlTypeName() == SqlTypeName.VARBINARY
           ? createCalciteTypeWithNullability(factory, SqlTypeName.ANY, returnType.isNullable(), null)
               : returnType;
     }
 
-    private static RelDataType getReturnType(final SqlOperatorBinding opBinding, final BaseFunctionHolder func) {
+    private static RelDataType getReturnType(final SqlOperatorBinding opBinding, final AbstractFunctionHolder func) {
       final RelDataTypeFactory factory = opBinding.getTypeFactory();
 
       // least restrictive type (nullable ANY type)
@@ -460,12 +454,12 @@ public class TypeInferenceUtils {
     }
   }
 
-  private static BaseFunctionHolder resolveFunctionHolder(final SqlOperatorBinding opBinding,
-                                                          final List<BaseFunctionHolder>  functions,
+  private static AbstractFunctionHolder resolveFunctionHolder(final SqlOperatorBinding opBinding,
+                                                          final List<AbstractFunctionHolder>  functions,
                                                           boolean isDecimalV2On) {
     final FunctionCall functionCall = convertSqlOperatorBindingToFunctionCall(opBinding);
     final FunctionResolver functionResolver = FunctionResolverFactory.getResolver(functionCall);
-    final BaseFunctionHolder func = functionResolver.getBestMatch(functions, functionCall, isDecimalV2On);
+    final AbstractFunctionHolder func = functionResolver.getBestMatch(functions, functionCall);
 
     // Throw an exception
     // if no BaseFunctionHolder matched for the given list of operand types

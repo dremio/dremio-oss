@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -149,6 +149,10 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
   }
 
   @Override
+  public void executorsSelected(long millisTaken, int idealNumFragments, int idealNumNodes, int numExecutors, String detailsText) {
+  }
+
+  @Override
   public void planGenerationTime(long millisTaken) {
   }
 
@@ -157,15 +161,15 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void intermediateFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats) {
+  public void fragmentsStarted(long millisTaken, FragmentRpcSizeStats stats) {
   }
 
   @Override
-  public void leafFragmentScheduling(long millisTaken, FragmentRpcSizeStats stats) {
+  public void fragmentsActivated(long millisTaken) {
   }
 
   @Override
-  public void startLeafFragmentFailed(Exception ex) {
+  public void activateFragmentFailed(Exception ex) {
 
   }
 

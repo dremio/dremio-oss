@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 import { arrayOf } from 'normalizr';
 
 import { API_URL_V2 } from 'constants/Api';
@@ -34,7 +34,7 @@ export const CREATE_ACCELERATION_FAILURE = 'CREATE_ACCELERATION_FAILURE';
 const fetchEmptyAcceleration = (dataset, viewId) => {
   const meta = { viewId, dataset };
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: CREATE_ACCELERATION_START, meta},
         schemaUtils.getSuccessActionTypeWithSchema(CREATE_ACCELERATION_SUCCESS, accelerationSchema, meta),
@@ -59,7 +59,7 @@ export const UPDATE_ACCELERATION_SUCCESS = 'UPDATE_ACCELERATION_SUCCESS';
 export const UPDATE_ACCELERATION_FAILURE = 'UPDATE_ACCELERATION_FAILURE';
 
 const fetchUpdateAcceleration = (form, accelerationId) => ({
-  [CALL_API]: {
+  [RSAA]: {
     types: [
       UPDATE_ACCELERATION_START,
       schemaUtils.getSuccessActionTypeWithSchema(UPDATE_ACCELERATION_SUCCESS, accelerationSchema),
@@ -95,7 +95,7 @@ const fetchAccelerations = (/*config,*/ viewId) => {
   //const { filter = '', order = '', sort = '', offset = '', limit = '' } = config;
   const meta = {viewId};
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: LOAD_ACCELERATIONS_START, meta},
         schemaUtils.getSuccessActionTypeWithSchema(LOAD_ACCELERATIONS_SUCCESS,
@@ -117,7 +117,7 @@ export const LOAD_ACCELERATION_BY_ID_FAILURE = 'LOAD_ACCELERATION_BY_ID_FAILURE'
 function fetchLoadAccelerationById(accelerationId, viewId) {
   const meta = { viewId };
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: LOAD_ACCELERATION_START, meta},
         schemaUtils.getSuccessActionTypeWithSchema(LOAD_ACCELERATION_SUCCESS, accelerationSchema, meta),
@@ -143,7 +143,7 @@ function fetchDeleteAcceleration(accelerationId, viewId) {
   const meta = { viewId, accelerationId };
   const entityRemovePaths = [['acceleration', accelerationId], ['datasetAcceleration', accelerationId]];
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: DELETE_ACCELERATION_START, meta },
         { type: DELETE_ACCELERATION_SUCCESS, meta: { ...meta, success: true, entityRemovePaths } },

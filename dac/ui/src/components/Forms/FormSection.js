@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,11 +54,18 @@ export default class FormSection extends Component {
         <div className={groupStyleClass}>
           {
             sectionConfig.getDirectElements().map((elementConfig, index) => {
-              const fieldClass = (elementConfig.getConfig().size === 'half')
-                ? classNames(elementLayoutHalf, isLayoutRow && elementLayoutRow)
-                : classNames(elementLayoutFull, isLayoutRow && elementLayoutRow);
+              const { size } = elementConfig.getConfig();
+              const isFixedSize = typeof size === 'number' && size > 0;
+              const isHalfWidth = size === 'half';
+              const style = isFixedSize ? { width: size } : null;
+
+              const fieldClass = classNames({
+                [elementLayoutRow]: isLayoutRow,
+                [elementLayoutHalf]: !isFixedSize && isHalfWidth,
+                [elementLayoutFull]: !isFixedSize && !isHalfWidth // full width by default
+              });
               return (
-                <div key={index} className={fieldClass}>
+                <div key={index} className={fieldClass} style={style}>
                   <FormElement key={index} fields={fields} disabled={this.props.disabled} elementConfig={elementConfig}/>
                 </div>
               );

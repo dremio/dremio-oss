@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,9 @@
  */
 package com.dremio.exec.dotfile;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.rel.type.RelDataType;
@@ -40,11 +42,16 @@ import com.google.common.collect.Lists;
 public class View {
 
   private final String name;
-  private String sql;
-  private List<FieldType> fields;
+  private final String sql;
+
+  // Expresses the validated row type
+  private final List<FieldType> fields;
+
+  // Declared field names in view definition
+  private final List<String> fieldNames;
 
   /* Current schema when view is created (not the schema to which view belongs to) */
-  private List<String> workspaceSchemaPath;
+  private final List<String> workspaceSchemaPath;
 
   @JsonInclude(Include.NON_NULL)
   public static class FieldType {
@@ -55,7 +62,6 @@ public class View {
     private final Integer scale;
     private SqlIntervalQualifier intervalQualifier;
     private final Boolean isNullable;
-
 
     @JsonCreator
     public FieldType(
@@ -204,14 +210,16 @@ public class View {
 
   }
 
-
-  public View(String name, String sql, RelDataType rowType, List<String> workspaceSchemaPath) {
+  public View(String name, String sql, RelDataType validatedRowType, List<String> fieldNames, List<String> workspaceSchemaPath) {
     this.name = name;
     this.sql = sql;
     fields = Lists.newArrayList();
-    for (RelDataTypeField f : rowType.getFieldList()) {
+    List<String> validatedFieldNames = new ArrayList<>();
+    for (RelDataTypeField f : validatedRowType.getFieldList()) {
+      validatedFieldNames.add(f.getName());
       fields.add(new FieldType(f.getName(), f.getType()));
     }
+    this.fieldNames = fieldNames;
     this.workspaceSchemaPath =
         workspaceSchemaPath == null ? ImmutableList.<String>of() : ImmutableList.copyOf(workspaceSchemaPath);
   }
@@ -220,9 +228,11 @@ public class View {
   public View(@JsonProperty("name") String name,
               @JsonProperty("sql") String sql,
               @JsonProperty("fields") List<FieldType> fields,
+              @JsonProperty("fieldNames") List<String> fieldNames,
               @JsonProperty("workspaceSchemaPath") List<String> workspaceSchemaPath){
     this.name = name;
     this.sql = sql;
+    this.fieldNames = fieldNames;
     this.fields = fields;
     this.workspaceSchemaPath =
         workspaceSchemaPath == null ? ImmutableList.<String>of() : ImmutableList.copyOf(workspaceSchemaPath);
@@ -277,10 +287,6 @@ public class View {
     return sql;
   }
 
-  public void setSql(String sql) {
-    this.sql = sql;
-  }
-
   public String getName() {
     return name;
   }
@@ -291,6 +297,43 @@ public class View {
 
   public List<String> getWorkspaceSchemaPath() {
     return workspaceSchemaPath;
+  }
+
+  public List<String> getFieldNames() {
+    return fieldNames;
+  }
+
+  public boolean hasDeclaredFieldNames() {
+    return fieldNames != null && !fieldNames.isEmpty();
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(Objects.hash(fields), Objects.hash(fieldNames), name, sql, workspaceSchemaPath);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (obj == null) {
+      return false;
+    }
+    if (getClass() != obj.getClass()) {
+      return false;
+    }
+    View other = (View) obj;
+
+    return Objects.deepEquals(fields,  other.fields)
+        && Objects.deepEquals(name, other.name)
+        && Objects.deepEquals(sql, other.sql)
+        && Objects.deepEquals(fieldNames, other.fieldNames)
+        && Objects.deepEquals(workspaceSchemaPath, other.workspaceSchemaPath);
+  }
+
+  public View withRowType(RelDataType rowType) {
+    return new View(name, sql, rowType, fieldNames, workspaceSchemaPath);
   }
 
 }

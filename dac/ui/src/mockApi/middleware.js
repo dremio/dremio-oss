@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -75,7 +75,7 @@ function validateMockRSAA(action) {
  */
 export default function mockApiMiddleware({ dispatch, getState }) {
   return (next) => async (action) => {
-    // Do not process actions without a [CALL_API] property
+    // Do not process actions without a [RSAA] property
     if (!isMockRSAA(action)) {
       return next(action);
     }
@@ -101,32 +101,32 @@ export default function mockApiMiddleware({ dispatch, getState }) {
     } catch (e) {
       return next({
         ...requestType,
-        payload: new RequestError('[CALL_API].bailout function failed'),
+        payload: new RequestError('[RSAA].bailout function failed'),
         error: true
       });
     }
 
-    // Process [CALL_API].endpoint function
+    // Process [RSAA].endpoint function
     if (typeof endpoint === 'function') {
       try {
         endpoint = endpoint(getState());
       } catch (e) {
         return next({
           ...requestType,
-          payload: new RequestError('[CALL_API].endpoint function failed'),
+          payload: new RequestError('[RSAA].endpoint function failed'),
           error: true
         });
       }
     }
 
-    // Process [CALL_API].headers function
+    // Process [RSAA].headers function
     if (typeof headers === 'function') {
       try {
         headers = headers(getState());
       } catch (e) {
         return next({
           ...requestType,
-          payload: new RequestError('[CALL_API].headers function failed'),
+          payload: new RequestError('[RSAA].headers function failed'),
           error: true
         });
       }

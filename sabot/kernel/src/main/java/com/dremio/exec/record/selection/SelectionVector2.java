@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
 package com.dremio.exec.record.selection;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.OutOfMemoryException;
 
 import com.dremio.exec.record.DeadBuf;
 
@@ -88,15 +87,6 @@ public class SelectionVector2 implements AutoCloseable {
 
   public void setIndex(int index, int value) {
     buffer.setChar(index, value);
-  }
-
-  public boolean allocateNewSafe(int size) {
-    try {
-      allocateNew(size);
-    } catch (OutOfMemoryException e) {
-      return false;
-    }
-    return true;
   }
 
   public void allocateNew(int size) {

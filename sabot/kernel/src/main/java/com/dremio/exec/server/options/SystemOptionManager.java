@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.lang.reflect.Field;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -127,7 +128,7 @@ public class SystemOptionManager extends BaseOptionManager implements AutoClosea
         options.delete(name);
         logger.warn("Deleting deprecated option `{}`", name);
       } else {
-        final String canonicalName = validator.getOptionName().toLowerCase();
+        final String canonicalName = validator.getOptionName().toLowerCase(Locale.ROOT);
         if (!name.equals(canonicalName)) {
           // for backwards compatibility <= 1.1, rename to lower case.
           logger.warn("Changing option name to lower case `{}`", name);
@@ -197,7 +198,7 @@ public class SystemOptionManager extends BaseOptionManager implements AutoClosea
   @Override
   public OptionValue getOption(final String name) {
     // check local space (persistent store)
-    final OptionValue value = options.get(name);
+    final OptionValue value = options.get(name.toLowerCase(Locale.ROOT));
     if (value != null) {
       return value;
     }
@@ -210,7 +211,7 @@ public class SystemOptionManager extends BaseOptionManager implements AutoClosea
   @Override
   public void setOption(final OptionValue value) {
     checkArgument(value.getType() == OptionType.SYSTEM, "OptionType must be SYSTEM.");
-    final String name = value.getName().toLowerCase();
+    final String name = value.getName().toLowerCase(Locale.ROOT);
     final OptionValidator validator = getValidator(name);
 
     validator.validate(value); // validate the option
@@ -226,7 +227,7 @@ public class SystemOptionManager extends BaseOptionManager implements AutoClosea
     checkArgument(type == OptionType.SYSTEM, "OptionType must be SYSTEM.");
 
     getValidator(name); // ensure option exists
-    options.delete(name.toLowerCase());
+    options.delete(name.toLowerCase(Locale.ROOT));
   }
 
   @Override
@@ -237,7 +238,7 @@ public class SystemOptionManager extends BaseOptionManager implements AutoClosea
       names.add(entry.getKey());
     }
     for (final String name : names) {
-      options.delete(name); // should be lowercase
+      options.delete(name.toLowerCase(Locale.ROOT)); // should be lowercase
     }
   }
 
@@ -276,7 +277,7 @@ public class SystemOptionManager extends BaseOptionManager implements AutoClosea
 
       final String optionName = key.substring(SYSTEM_OPTION_PREFIX.length());
 
-      OptionValidator validator = validators.get(optionName.toLowerCase());
+      OptionValidator validator = validators.get(optionName.toLowerCase(Locale.ROOT));
       if(validator == null){
         logger.warn("Failure resolving system property of {}. No property with this name found.", optionName);
         continue;

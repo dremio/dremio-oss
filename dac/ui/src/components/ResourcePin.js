@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,6 +66,7 @@ export class ResourcePin extends PureComponent {
           style={[styles.pin, isPinned ? styles.activePin : null]}>
           <FontIcon
             type='Pin'
+            tooltip={la('Pin')}
             theme={styles.iconStyle}/>
         </span>
       </span>

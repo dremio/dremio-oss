@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ import { InnerComplexForm, connectComplexForm } from 'components/Forms/connectCo
 import { divider, formRow } from 'uiTheme/radium/forms';
 import { Link } from 'react-router';
 
-import UserForm, { userFormFields, userFormValidate } from 'components/Forms/UserForm';
+import UserForm from 'components/Forms/UserForm';
 
 import SignupTitle from './SignupTitle';
 
@@ -129,7 +129,5 @@ function mapToFormState(state) {
 }
 
 export default connectComplexForm({
-  form: 'signup',
-  fields: userFormFields,
-  validate: userFormValidate
-}, [], mapToFormState, { createFirstUser, noUsersError })(SignupForm);
+  form: 'signup'
+}, [UserForm], mapToFormState, { createFirstUser, noUsersError })(SignupForm);

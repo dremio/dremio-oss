@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ option java_outer_classname = "JobProtobuf";
 message JobInfoUI {
   required JobId jobId = 1;
   required string sql = 2;
-  optional exec.bit.RequestType requestType = 3;
+  optional RequestType requestType = 3;
   optional string client = 4; // client from which job was submitted
   optional string user = 5;
   optional int64 startTime = 6;

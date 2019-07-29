@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -755,9 +755,11 @@ public class RexToExpr {
       case DECIMAL:
         if (context.getPlannerSettings().getOptions().getOption(PlannerSettings.ENABLE_DECIMAL_V2)) {
           if (isLiteralNull(literal)) {
-            return createNullExpr(MinorType.DECIMAL);
+            return new TypedNullConstant(CompleteType.fromDecimalPrecisionScale(literal.getType()
+              .getPrecision(), literal.getType().getScale()));
           }
-          return ValueExpressions.getDecimal((BigDecimal)literal.getValue());
+          BigDecimal literalValue = (BigDecimal)literal.getValue();
+          return ValueExpressions.getDecimal(literalValue, literal.getType().getPrecision(), literal.getType().getScale());
         } else {
           if (isLiteralNull(literal)) {
             return createNullExpr(MinorType.FLOAT8);

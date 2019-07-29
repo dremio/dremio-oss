@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import com.dremio.common.expression.Describer;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader.Populator;
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators.BigIntNameValuePair;
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators.BitNameValuePair;
@@ -43,7 +44,6 @@ import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators.TimeStampMill
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators.VarBinaryNameValuePair;
 import com.dremio.exec.store.dfs.implicit.ConstantColumnPopulators.VarCharNameValuePair;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -63,12 +63,12 @@ public class CompositeReaderConfig {
     return innerColumns;
   }
 
-  public RecordReader wrapIfNecessary(BufferAllocator allocator, RecordReader innerReader, SplitInfo split){
+  public RecordReader wrapIfNecessary(BufferAllocator allocator, RecordReader innerReader, SplitAndPartitionInfo split){
     if(partitionFieldMap.isEmpty()){
       return innerReader;
     } else {
       Populator[] populators = new Populator[partitionFieldMap.size()];
-      List<PartitionValue> values = split.getPartitionValuesList();
+      List<PartitionValue> values = split.getPartitionInfo().getValuesList();
       int i = 0;
       for(PartitionValue v : values) {
         FieldValuePair p = partitionFieldMap.get(v.getColumn());

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,7 @@ import com.dremio.exec.planner.fragment.ParallelizationInfo.ParallelizationInfoC
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.store.schedule.CompleteWork;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 
 public class Stats {
@@ -35,10 +37,6 @@ public class Stats {
   private double maxCost = 0.0;
   private DistributionAffinity distributionAffinity = DistributionAffinity.NONE;
   private final IdentityHashMap<GroupScan, List<CompleteWork>> splitMap = new IdentityHashMap<>();
-
-  public void addParallelizationInfo(ParallelizationInfo parallelizationInfo) {
-    collector.add(parallelizationInfo);
-  }
 
   public void addCost(double cost){
     maxCost = Math.max(maxCost, cost);
@@ -50,6 +48,14 @@ public class Stats {
 
   public void addMinWidth(int minWidth) {
     collector.addMinWidth(minWidth);
+  }
+
+  public void addWidthConstraint(ParallelizationInfo.WidthConstraint widthConstraint) {
+    collector.addWidthConstraint(widthConstraint);
+  }
+
+  public void addEndpointAffinity(Supplier<Collection<EndpointAffinity>> endpointAffinitySupplier) {
+    collector.addEndpointAffinity(endpointAffinitySupplier);
   }
 
   private void setDistributionAffinity(final DistributionAffinity distributionAffinity) {
@@ -86,10 +92,10 @@ public class Stats {
         affinityList.add(new EndpointAffinity(entry.key, affinityPerNode.get(entry.key), true, entry.value));
       }
 
-      collector.addEndpointAffinities(affinityList);
+      collector.addSplitAffinities(affinityList);
     } else {
       for(CompleteWork split : splits) {
-        collector.addEndpointAffinities(split.getAffinity());
+        collector.addSplitAffinities(split.getAffinity());
       }
     }
 
@@ -102,6 +108,20 @@ public class Stats {
 
   public ParallelizationInfo getParallelizationInfo() {
     return collector.get();
+  }
+
+  /**
+   * Return the minimum parallelization width without forcing the collector to materialize its endpoint affinities
+   */
+  public int getMinWidth() {
+    return collector.getMinWidth();
+  }
+
+  /**
+   * Return the maximum parallelization width without forcing the collector to materialize its endpoint affinities
+   */
+  public int getMaxWidth() {
+    return collector.getMaxWidth();
   }
 
   @Override

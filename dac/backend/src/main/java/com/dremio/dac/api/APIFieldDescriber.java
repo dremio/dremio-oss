@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -293,6 +293,16 @@ public class APIFieldDescriber {
     @Override
     public Void visit(ArrowType.Interval interval) {
       return writeString(sqlTypeNameVisitor.visit(interval));
+    }
+
+    @Override
+    public Void visit(ArrowType.Duration interval) {
+      throw new UnsupportedOperationException("Duration is not supported");
+    }
+
+    @Override
+    public Void visit(ArrowType.Map interval) {
+      throw new UnsupportedOperationException("Map arrow type is not supported");
     }
   }
 }

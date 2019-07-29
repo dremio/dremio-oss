@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.server.admin.profile;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -39,6 +41,8 @@ import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.service.accelerator.AccelerationDetailsUtils;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
+import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 
@@ -129,13 +133,13 @@ public class ProfileWrapper {
   }
 
   /**
-   * @return
+   * @return command pool wait time or "None" if not available.
    */
   @SuppressWarnings("unused")
   public String getCommandPoolWaitMillis() {
     final QueryProfile profile = getProfile();
     if (!profile.hasCommandPoolWaitMillis()) {
-      return "";
+      return "None";
     }
     return NUMBER_FORMAT.format(profile.getCommandPoolWaitMillis()) + "ms";
   }
@@ -332,6 +336,41 @@ public class ProfileWrapper {
     }
 
     return map;
+  }
+
+  @SuppressWarnings("unused")
+  public String getFragmentsJSON() throws IOException {
+    final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(outputStream);
+
+    jsonGenerator.writeStartObject();
+
+    for (FragmentWrapper fragmentWrapper : getFragmentProfiles()) {
+      fragmentWrapper.addFragment(jsonGenerator);
+    }
+
+    jsonGenerator.writeEndObject();
+
+    jsonGenerator.flush();
+    return outputStream.toString();
+  }
+
+
+  @SuppressWarnings("unused")
+  public String getOperatorProfilesJSON() throws IOException {
+    final ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    final JsonGenerator jsonGenerator = new JsonFactory().createGenerator(outputStream);
+
+    jsonGenerator.writeStartObject();
+
+    for (OperatorWrapper operatorWrapper : getOperatorProfiles()) {
+      operatorWrapper.addOperator(jsonGenerator);
+    }
+
+    jsonGenerator.writeEndObject();
+
+    jsonGenerator.flush();
+    return outputStream.toString();
   }
 
   public String getPerdiodFromStart(Long datetime) {

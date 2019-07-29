@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,8 @@ class ConfigurableSourceForm extends Component {
     navTabs: PropTypes.instanceOf(Immutable.OrderedMap),
     editing: PropTypes.bool,
     fields: PropTypes.object,
-    sourceFormConfig: PropTypes.object
+    sourceFormConfig: PropTypes.object,
+    footerChildren: PropTypes.node
   };
 
   getChildContext() {
@@ -47,12 +48,18 @@ class ConfigurableSourceForm extends Component {
   }
 
   render() {
-    const {fields, handleSubmit, onFormSubmit, sourceFormConfig, handleChangeTab, navTabs, selectedTabName} = this.props;
+    const {
+      fields, handleSubmit, onFormSubmit, sourceFormConfig,
+      handleChangeTab, navTabs, selectedTabName, footerChildren
+    } = this.props;
     const tabConfig = sourceFormConfig.form.findTabByName(selectedTabName)
       || sourceFormConfig.form.getDefaultTab();
 
     return (
-      <ModalForm {...modalFormProps(this.props)} onSubmit={handleSubmit(onFormSubmit)}>
+      <ModalForm {...modalFormProps(this.props)}
+        onSubmit={handleSubmit(onFormSubmit)}
+        footerChildren={footerChildren}
+      >
         <div className={sourceFormWrapper} data-qa='configurable-source-form'>
           {sourceFormConfig.form.getTabs().length > 1 &&
           <NavPanel

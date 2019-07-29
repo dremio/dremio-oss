@@ -1,7 +1,7 @@
 {
   "App.AboutHeading": "About Dremio",
   "App.Admin": "Admin",
-  "App.Copyright": "Copyright © 2017-2018 Dremio Corporation",
+  "App.Copyright": "Copyright © 2017-2019 Dremio Corporation",
   "App.Build": "Build",
   "App.Edition": "Edition",
   "App.BuildTime": "Build Time",
@@ -10,6 +10,7 @@
   "App.Dremio": "Dremio",
   "App.Help": "Help",
   "App.NarwhalLogo": "Dremio Narwhal Logo",
+  "Date.Format": "MM/DD/YYYY",
   "HeaderMenu.Documentation": "Documentation",
   "HeaderMenu.CommunitySite": "Community Site",
   "HeaderMenu.InternalBuild": "Internal Build",

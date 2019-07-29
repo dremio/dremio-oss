@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,10 +25,7 @@ import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions;
-import com.dremio.common.expression.fn.FunctionHolder;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
-import com.dremio.exec.expr.fn.BaseFunctionHolder;
-import com.dremio.exec.expr.fn.GandivaFunctionHolder;
 import com.google.common.collect.Lists;
 
 /* Splits one expression into sub-expressions such that each sub-expression can be evaluated
@@ -41,6 +38,7 @@ import com.google.common.collect.Lists;
  */
 public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
   Tuple<CodeGenContext, SplitDependencyTracker>, Exception> {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PreferenceBasedSplitter.class);
 
   final ExpressionSplitter splitter;
   final SupportedEngines.Engine preferredEngine;
@@ -72,21 +70,7 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
     this.nonPreferredEngine = nonPreferredEngine;
   }
 
-  boolean isHiveFunction(FunctionHolderExpression functionHolder) {
-    FunctionHolder holder = functionHolder.getHolder();
-
-    if (holder instanceof BaseFunctionHolder) {
-      return false;
-    }
-
-    if (holder instanceof GandivaFunctionHolder) {
-      return false;
-    }
-
-    return true;
-  }
-
-  public CodeGenContext visitCodeGenContext(CodeGenContext context, SplitDependencyTracker
+  CodeGenContext visitCodeGenContext(CodeGenContext context, SplitDependencyTracker
     myTracker) throws Exception{
 
     return context.getChild().accept(this,Tuple.<CodeGenContext, SplitDependencyTracker>of(context,
@@ -98,13 +82,13 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
     Tuple<CodeGenContext, SplitDependencyTracker> value) throws Exception {
     CodeGenContext context = value.first;
     SplitDependencyTracker myTracker = value.second;
-    if (holder.getHolder() == null || isHiveFunction(holder)) {
-      // ignore hive functions
+    if (holder.getHolder() == null) {
       return context;
     }
 
     if (context.isSubExpressionExecutableInEngine(this.preferredEngine)) {
       // entire expression can be done by the preferred codegen option
+      logger.trace("Function evaluated in preferred {}", context);
       return context;
     }
 
@@ -126,12 +110,13 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
 
     int i = 0;
     // reset this to false, in case we find something that cannot be done in preferred codegenerator
-    boolean canExecuteTreeInPreferredCodeGen = (fnExecType == this.preferredEngine);
+    boolean canExecuteTreeInSingleCodeGen = (fnExecType == this.preferredEngine);
+    logger.trace("Visiting function {}, fnExecType {}", holder, fnExecType);
     // iterate over the arguments and visit them
     for(LogicalExpression arg : holder.args) {
       // Traverse down the tree to see if the expression changes.
       // When there is a split, the expression changes as the operator is replaced by the newly created split
-      SplitDependencyTracker argTracker = new SplitDependencyTracker(executionEngine, myTracker.getCondSplit(), myTracker.isPartOfThenExpr());
+      SplitDependencyTracker argTracker = new SplitDependencyTracker(executionEngine, myTracker.getIfExprBranches());
       CodeGenContext newArg = visitCodeGenContext((CodeGenContext)arg, argTracker);
       boolean mustSplitAtArg = true;
       if (holder.argConstantOnly(i++)) {
@@ -161,19 +146,19 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
         }
       }
 
+      if (!newArg.isSubExpressionExecutableInEngine(fnExecType)) {
+        canExecuteTreeInSingleCodeGen = false;
+      }
+
       if (!mustSplitAtArg) {
         // cannot split here since the function expects a constant argument here
         myTracker.addAllDependencies(argTracker);
         newArgs.add(newArg);
-
-        // not splitting here. Let's check if this can be done entirely in preferred codegenerator
-        if (!newArg.isSubExpressionExecutableInEngine(fnExecType)) {
-          canExecuteTreeInPreferredCodeGen = false;
-        }
         continue;
       }
 
       // this is a split point
+      logger.trace("Splitting at arg {} of function {}, expression {}", i, holder.getName(), newArg);
       ExpressionSplit split = splitter.splitAndGenerateVectorReadExpression(newArg, myTracker, argTracker);
       CodeGenContext readExpressionContext = split.getReadExpressionContext();
       newArgs.add(readExpressionContext);
@@ -182,8 +167,10 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
     LogicalExpression result = holder.copy(newArgs);
     CodeGenContext outputTree = new CodeGenContext(result);
     outputTree.addSupportedExecutionEngineForExpression(fnExecType);
-    if (canExecuteTreeInPreferredCodeGen) {
+    if (canExecuteTreeInSingleCodeGen) {
       outputTree.addSupportedExecutionEngineForSubExpression(fnExecType);
+    } else {
+      outputTree.markSubExprIsMixed();
     }
     return outputTree;
   }
@@ -205,17 +192,11 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
     SplitDependencyTracker myTracker = value.second;
     if (context.isSubExpressionExecutableInEngine(this.preferredEngine)) {
       // entire if can be done in preferred. No need to split
+      logger.trace("Can evaluate if expression {} in preferred", context);
       return context;
     }
 
-    if (!((CodeGenContext)ifExpr.ifCondition.condition).isExpressionExecutableInEngine(this.preferredEngine) &&
-        !((CodeGenContext)ifExpr.ifCondition.expression).isExpressionExecutableInEngine(this.preferredEngine) &&
-        !((CodeGenContext)ifExpr.elseExpression).isExpressionExecutableInEngine(preferredEngine)) {
-      // the condition, then expression and else expression cannot be evaluated by preferred code
-      // generator. cannot split this further
-      return context;
-    }
-
+    logger.trace("Visiting if expr {}", ifExpr);
     SupportedEngines parentEvalType = myTracker.getExecutionEngine();
     SupportedEngines ifEvalType = splitter.getEffectiveNodeEvaluationType(parentEvalType, context);
 
@@ -231,19 +212,25 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
     // The splits in either path (then or else) are done later. Pass the condition and context in the tracker
     // and use this later in (splitAndGenerateVectorReadExpression) to modify the split as above
 
-    SplitDependencyTracker condTracker = new SplitDependencyTracker(ifEvalType, myTracker.getCondSplit(), myTracker.isPartOfThenExpr());
+    List<IfExprBranch> myPath = myTracker.getIfExprBranches();
+    SplitDependencyTracker condTracker = new SplitDependencyTracker(ifEvalType, myPath);
     CodeGenContext condExprContext = visitCodeGenContext((CodeGenContext)ifExpr.ifCondition.condition, condTracker);
 
     // Split the condition and remember the ValueVectorReadExpression for the condition
     ExpressionSplit condSplit = splitter.splitAndGenerateVectorReadExpression(condExprContext, myTracker, condTracker);
+    logger.trace("Split at condition {}", condSplit);
     CodeGenContext conditionValueVec = condSplit.getReadExpressionContext();
 
     // visit the then expression
-    SplitDependencyTracker thenTracker = new SplitDependencyTracker(ifEvalType, condSplit, true);
+    SplitDependencyTracker thenTracker = new SplitDependencyTracker(ifEvalType, myPath);
+    thenTracker.addIfBranch(condSplit, true);
+    logger.trace("Visiting then expr of if {}", ifExpr.ifCondition.expression);
     LogicalExpression thenExpr = visitCodeGenContext((CodeGenContext)ifExpr.ifCondition.expression, thenTracker);
 
     // visit the else expression
-    SplitDependencyTracker elseTracker = new SplitDependencyTracker(ifEvalType, condSplit, false);
+    SplitDependencyTracker elseTracker = new SplitDependencyTracker(ifEvalType, myPath);
+    elseTracker.addIfBranch(condSplit, false);
+    logger.trace("Visiting else expr of if {}", ifExpr.elseExpression);
     LogicalExpression elseExpr = visitCodeGenContext((CodeGenContext)ifExpr.elseExpression, elseTracker);
 
     if (!ifEvalType.contains(this.preferredEngine)) {
@@ -260,10 +247,9 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
       return new CodeGenContext(newIfExpr);
     }
 
-    boolean condInPreferred = conditionValueVec.isSubExpressionExecutableInEngine(this.preferredEngine);
-
-    boolean thenInPreferred = ((CodeGenContext)thenExpr).isSubExpressionExecutableInEngine(this.preferredEngine);
-    boolean elseInPreferred = ((CodeGenContext)elseExpr).isSubExpressionExecutableInEngine(this.preferredEngine);
+    boolean condInPreferred = conditionValueVec.isExpressionExecutableInEngine(this.preferredEngine);
+    boolean thenInPreferred = ((CodeGenContext)thenExpr).isExpressionExecutableInEngine(this.preferredEngine);
+    boolean elseInPreferred = ((CodeGenContext)elseExpr).isExpressionExecutableInEngine(this.preferredEngine);
 
     if (((condInPreferred == thenInPreferred) && (condInPreferred == elseInPreferred)) ||
       (condInPreferred && (thenInPreferred || canExecuteInAllCodeGenerators(thenExpr)) && (elseInPreferred || canExecuteInAllCodeGenerators(elseExpr)))) {
@@ -284,6 +270,7 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
 
       myTracker.addAllDependencies(thenTracker);
       myTracker.addAllDependencies(elseTracker);
+      logger.trace("Evaluating then {} and else {} in one engine", thenExpr, elseExpr);
       return result;
     }
 
@@ -325,10 +312,12 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
         .setElse(elseExpr);
 
       // last split involves both the then and else expressions
-      lastSplitInPreferredCodeGenerator = ((CodeGenContext)elseExpr).isSubExpressionExecutableInEngine(preferredEngine) &&
-        ((CodeGenContext)thenExpr).isSubExpressionExecutableInEngine(preferredEngine);
+      lastSplitInPreferredCodeGenerator = ((CodeGenContext)elseExpr).isExpressionExecutableInEngine(preferredEngine) &&
+        ((CodeGenContext)thenExpr).isExpressionExecutableInEngine(preferredEngine);
+      // can execute in all code generators.
       myTracker.addAllDependencies(thenTracker);
       myTracker.addAllDependencies(elseTracker);
+      logger.trace("Evaluating then {} and else {} in one engine", thenExpr, elseExpr);
     } else if (condInPreferred == thenInPreferred) {
       // case 1
       // splits in case 1
@@ -342,18 +331,22 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
         .setElse(nullExprContext)
         .setOutputType(ifExpr.getCompleteType())
         .build();
-      SplitDependencyTracker splitTracker = new SplitDependencyTracker(ifEvalType, null, false);
+      SplitDependencyTracker splitTracker = new SplitDependencyTracker(ifEvalType, myPath);
       // 2nd split depends ont he condition and everything that then expression depends on
       // add these dependencies
       splitTracker.addAllDependencies(thenTracker);
       splitTracker.addDependency(condSplit);
 
-      CodeGenContext evalThenContextNode = new CodeGenContext(evalThen);
+      CodeGenContext evalThenContextNode = CodeGenContext.buildWithNoDefaultSupport(evalThen);
       if (thenInPreferred && splitter.canSplitAt(thenExpr, this.preferredEngine)) {
         evalThenContextNode.addSupportedExecutionEngineForSubExpression(this.preferredEngine);
         evalThenContextNode.addSupportedExecutionEngineForExpression(this.preferredEngine);
+      } else {
+        evalThenContextNode.addSupportedExecutionEngineForSubExpression(this.nonPreferredEngine);
+        evalThenContextNode.addSupportedExecutionEngineForExpression(this.nonPreferredEngine);
       }
 
+      logger.trace("Evaluating cond {} and then {} in one engine", condSplit, thenExpr);
       ExpressionSplit thenSplit = splitter.splitAndGenerateVectorReadExpression(evalThenContextNode, myTracker, splitTracker);
       CodeGenContext thenValueVec = thenSplit.getReadExpressionContext();
 
@@ -364,7 +357,7 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
       myTracker.addAllDependencies(elseTracker);
 
       // last split is the else expression
-      lastSplitInPreferredCodeGenerator = ((CodeGenContext)elseExpr).isSubExpressionExecutableInEngine(preferredEngine);
+      lastSplitInPreferredCodeGenerator = ((CodeGenContext)elseExpr).isExpressionExecutableInEngine(preferredEngine);
     } else {
       // case 2
       // splits in case 2
@@ -378,9 +371,9 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
         .setElse(elseExpr)
         .setOutputType(ifExpr.getCompleteType())
         .build();
-      CodeGenContext evalElseContext = new CodeGenContext(evalElse);
+      CodeGenContext evalElseContext = CodeGenContext.buildWithNoDefaultSupport(evalElse);
 
-      SplitDependencyTracker splitTracker = new SplitDependencyTracker(ifEvalType, null, false);
+      SplitDependencyTracker splitTracker = new SplitDependencyTracker(ifEvalType, myPath);
       // 2nd split depends ont he condition and everything that else expression depends on
       // add these dependencies
       splitTracker.addAllDependencies(elseTracker);
@@ -389,8 +382,12 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
       if (elseInPreferred && splitter.canSplitAt(elseExpr, this.preferredEngine)) {
         evalElseContext.addSupportedExecutionEngineForSubExpression(this.preferredEngine);
         evalElseContext.addSupportedExecutionEngineForExpression(this.preferredEngine);
+      } else {
+        evalElseContext.addSupportedExecutionEngineForSubExpression(this.nonPreferredEngine);
+        evalElseContext.addSupportedExecutionEngineForExpression(this.nonPreferredEngine);
       }
 
+      logger.trace("Evaluating cond {} and else {} in one engine", condSplit, elseExpr);
       ExpressionSplit elseSplit = splitter.splitAndGenerateVectorReadExpression(evalElseContext, myTracker, splitTracker);
       CodeGenContext elseValueVec = elseSplit.getReadExpressionContext();
 
@@ -401,16 +398,18 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
       myTracker.addAllDependencies(thenTracker);
 
       // last split is the then expression
-      lastSplitInPreferredCodeGenerator = ((CodeGenContext)thenExpr).isSubExpressionExecutableInEngine(preferredEngine);
+      lastSplitInPreferredCodeGenerator = ((CodeGenContext)thenExpr).isExpressionExecutableInEngine(preferredEngine);
     }
 
     LogicalExpression newIfExpr = finalSplit.build();
-    CodeGenContext newIfExprContext = new CodeGenContext(newIfExpr);
+    CodeGenContext newIfExprContext = CodeGenContext.buildWithNoDefaultSupport(newIfExpr);
     if (lastSplitInPreferredCodeGenerator) {
       newIfExprContext.addSupportedExecutionEngineForSubExpression(this.preferredEngine);
       newIfExprContext.addSupportedExecutionEngineForExpression(this.preferredEngine);
+    } else {
+      newIfExprContext.addSupportedExecutionEngineForSubExpression(this.nonPreferredEngine);
+      newIfExprContext.addSupportedExecutionEngineForExpression(this.nonPreferredEngine);
     }
-
     return newIfExprContext;
   }
 
@@ -429,6 +428,8 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
     if (((CodeGenContext)exprA).isSubExpressionExecutableInEngine(this.preferredEngine) &&
       ((CodeGenContext)exprB).isSubExpressionExecutableInEngine(this.preferredEngine)) {
       ifExprContext.addSupportedExecutionEngineForSubExpression(this.preferredEngine);
+    } else {
+      ifExprContext.markSubExprIsMixed();
     }
 
     return ifExprContext;
@@ -449,6 +450,8 @@ public class PreferenceBasedSplitter extends AbstractExprVisitor<CodeGenContext,
     if (((CodeGenContext)exprA).isSubExpressionExecutableInEngine(this.preferredEngine) &&
       ((CodeGenContext)exprB).isSubExpressionExecutableInEngine(this.preferredEngine)) {
       ifExprContext.addSupportedExecutionEngineForSubExpression(this.preferredEngine);
+    } else {
+      ifExprContext.markSubExprIsMixed();
     }
 
     return ifExprContext;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,9 +42,7 @@ public class DateEpochBEConvertFrom implements SimpleFunction {
   @Override
   public void eval() {
     com.dremio.exec.util.ByteBufUtil.checkBufferLength(errorContext, in.buffer, in.start, in.end, 8);
-
-    in.buffer.readerIndex(in.start);
-    long epochMillis = Long.reverseBytes(in.buffer.readLong());
+    long epochMillis = Long.reverseBytes(in.buffer.getLong(in.start));
     long millsOfDay = epochMillis % (24*3600*1000);
     out.value = epochMillis - millsOfDay;
   }

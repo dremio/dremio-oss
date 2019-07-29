@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.sort.external.SpillManager;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
 import com.dremio.service.spill.SpillService;
@@ -109,6 +110,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
   private final boolean minimizeSpilledPartitions;
   private static final int THRESHOLD_BLOCKS = 2;
   private VectorizedHashAggPartitionSerializable inProgressSpill;
+  private final OperatorStats operatorStats;
 
   public VectorizedHashAggPartitionSpillHandler(
     final VectorizedHashAggPartition[] hashAggPartitions,
@@ -118,7 +120,8 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
     final int operatorId,
     final PartitionToLoadSpilledData loadingPartition,
     final SpillService spillService,
-    final boolean minimizeSpilledPartitions) {
+    final boolean minimizeSpilledPartitions,
+    final OperatorStats stats) {
 
     this.activePartitions = hashAggPartitions;
     this.spilledPartitions = new LinkedList<>();
@@ -142,6 +145,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
     this.spills = 0;
     this.minimizeSpilledPartitions = minimizeSpilledPartitions;
     this.inProgressSpill = null;
+    this.operatorStats = stats;
   }
 
   /**
@@ -407,7 +411,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
     final SpillFile partitionSpillFile = spillFileHandle.partitionSpillFile;
     final FSDataOutputStream partitionSpillFileStream = spillFileHandle.partitionSpillFileStream;
 
-    final VectorizedHashAggPartitionSerializable partitionSerializable = new VectorizedHashAggPartitionSerializable(victimPartition);
+    final VectorizedHashAggPartitionSerializable partitionSerializable = new VectorizedHashAggPartitionSerializable(victimPartition, this.operatorStats);
     /* spill the partition -- done in 1 or more batches/chunks */
     partitionSerializable.writeToStream(partitionSpillFileStream);
     /* track number of spills */
@@ -530,7 +534,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
     final FSDataOutputStream partitionSpillFileStream = spillFileHandle.partitionSpillFileStream;
 
     if (inProgressSpill == null) {
-      inProgressSpill = new VectorizedHashAggPartitionSerializable(victimPartition);
+      inProgressSpill = new VectorizedHashAggPartitionSerializable(victimPartition, this.operatorStats);
     }
 
     /* spill a single batch from victim partition */
@@ -759,7 +763,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
       "Error: Nothing to process from disk. Not allowed to get disk iterator");
     if (spilledPartitionIterator == null) {
       logger.debug("Starting to process spilled partition from FIFO queue, spill queue size:{}", spilledPartitions.size());
-      this.spilledPartitionIterator = new SpilledPartitionIterator(spilledPartitions.remove());
+      this.spilledPartitionIterator = new SpilledPartitionIterator(spilledPartitions.remove(), this.operatorStats);
     } else{
       Preconditions.checkArgument(spilledPartitionIterator.getCurrentBatchIndex() > 0,
         "Error: At least one batch should have already been read by an open disk iterator");
@@ -802,7 +806,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
        */
       final VectorizedHashAggPartition inmemoryPartition = partitionToSpill.getInmemoryPartitionBackPointer();
       final SpillFile partitionSpillFile = partitionToSpill.getSpillFile();
-      final VectorizedHashAggPartitionSerializable partitionSerializable = new VectorizedHashAggPartitionSerializable(inmemoryPartition);
+      final VectorizedHashAggPartitionSerializable partitionSerializable = new VectorizedHashAggPartitionSerializable(inmemoryPartition, this.operatorStats);
       FSDataOutputStream outputStream = partitionToSpill.getSpillStream();
       /* write the partition to disk */
       partitionSerializable.writeToStream(outputStream);
@@ -838,8 +842,9 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
     private final FSDataInputStream inputStream;
     private final VectorizedHashAggDiskPartition diskPartition;
     private int currentBatchIndex;
+    private final OperatorStats operatorStats;
 
-    SpilledPartitionIterator(final VectorizedHashAggDiskPartition spilledPartition) throws Exception {
+    SpilledPartitionIterator(final VectorizedHashAggDiskPartition spilledPartition, final OperatorStats stats) throws Exception {
       Preconditions.checkArgument(spilledPartition != null, "Error: need a valid partition handle to create a disk iterator");
       Preconditions.checkArgument(spilledPartition.getNumberOfBatches() > 0,
         "Error: Partition does not have any batches spilled to disk. Not allowed to create a disk iterator");
@@ -848,6 +853,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
       this.inputStream = partitionSpillFile.open();
       this.diskPartition = spilledPartition;
       this.currentBatchIndex = 0;
+      this.operatorStats = stats;
       logger.debug("Created disk iterator for spilled partition: {}, batches to read: {}, spill file: {}", diskPartition.getIdentifier(), batchCount, partitionSpillFile.getPath());
     }
 
@@ -864,7 +870,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
         return 0;
       }
       logger.debug("Reading spilled batch:{} for partitions:{}", currentBatchIndex, diskPartition.getIdentifier());
-      final VectorizedHashAggPartitionSerializable partitionSerializable = new VectorizedHashAggPartitionSerializable(loadingPartition);
+      final VectorizedHashAggPartitionSerializable partitionSerializable = new VectorizedHashAggPartitionSerializable(loadingPartition, this.operatorStats);
       partitionSerializable.readFromStream(inputStream);
       currentBatchIndex++;
       return loadingPartition.getRecordsInBatch();
@@ -953,6 +959,6 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
   public SpilledPartitionIterator getActiveSpilledPartition() throws Exception {
     Preconditions.checkArgument(activeSpilledPartitions.size() == 1,
       "Error: allowed to use this method only when there is one active spilled partition");
-    return new SpilledPartitionIterator(activeSpilledPartitions.get(0));
+    return new SpilledPartitionIterator(activeSpilledPartitions.get(0), this.operatorStats);
   }
 }

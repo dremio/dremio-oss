@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@ package com.dremio.plugins.azure;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.azure.NativeAzureFileSystem;
 import org.apache.hadoop.fs.azurebfs.AzureBlobFileSystem;
 import org.apache.hadoop.fs.azurebfs.SecureAzureBlobFileSystem;
@@ -88,17 +87,34 @@ class Prototype {
     return endpointSuffix;
   }
 
-  public void setImpl(Configuration conf, String account, String container, String key, String azureEndpoint) {
+  public String getLocation(String account, String container, String azureEndpoint) {
+    return String.format("%s://%s@%s.%s/", scheme, container, account, azureEndpoint);
+  }
+
+  public void setImpl(Configuration conf, String account, String key, String azureEndpoint) {
     conf.set(String.format("fs.%s.impl", scheme), fsImpl.getName());
-    if(legacyMode) {
+    if (legacyMode) {
       conf.set(String.format("fs.azure.account.key.%s.%s", account, azureEndpoint), key);
-      final String location = String.format("%s://%s@%s.%s/", scheme, container, account, azureEndpoint);
-      FileSystem.setDefaultUri(conf, new Path(location).toUri());
     } else {
       conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_KEY_PROPERTY_NAME, key);
-      final String location = String.format("%s://%s@%s.%s/", scheme, container, account, azureEndpoint);
-      FileSystem.setDefaultUri(conf, new Path(location).toUri());
     }
   }
 
+  public void setImpl(Configuration conf, String account, String clientId, String endpoint,
+                      String clientSecret, String azureEndpoint) {
+    conf.set(String.format("fs.%s.impl", scheme), fsImpl.getName());
+    if (legacyMode) {
+      conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME, "OAUTH");
+      conf.set(String.format("fs.azure.account.oauth2.client.id.%s.%s", account, azureEndpoint), clientId);
+      conf.set(String.format("fs.azure.account.oauth2.client.endpoint.%s.%s", account, azureEndpoint), endpoint);
+      conf.set(String.format("fs.azure.account.oauth2.client.secret.%s.%s", account, azureEndpoint), clientSecret);
+    } else {
+      conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_AUTH_TYPE_PROPERTY_NAME, "OAuth");
+      conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_TOKEN_PROVIDER_TYPE_PROPERTY_NAME,
+        "org.apache.hadoop.fs.azurebfs.oauth2.ClientCredsTokenProvider");
+      conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_OAUTH_CLIENT_ID, clientId);
+      conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_OAUTH_CLIENT_ENDPOINT, endpoint);
+      conf.set(ConfigurationKeys.FS_AZURE_ACCOUNT_OAUTH_CLIENT_SECRET, clientSecret);
+    }
+  }
 }

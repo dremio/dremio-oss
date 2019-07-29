@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,7 +53,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
 import io.netty.buffer.ArrowBuf;
-import io.netty.buffer.ByteBuf;
 
 // class to keep track of the read position of variable length columns
 public class PageReader {
@@ -103,7 +102,7 @@ public class PageReader {
   private SeekableInputStream inputStream;
 
   // These need to be held throughout reading of the entire column chunk
-  List<ByteBuf> allocatedDictionaryBuffers;
+  List<ArrowBuf> allocatedDictionaryBuffers;
 
   private final CodecFactory codecFactory;
 
@@ -111,7 +110,7 @@ public class PageReader {
 
   PageReader(ColumnReader<?> parentStatus, SeekableInputStream inputStream, Path path, ColumnChunkMetaData columnChunkMetaData) throws ExecutionSetupException {
     this.parentColumnReader = parentStatus;
-    allocatedDictionaryBuffers = new ArrayList<ByteBuf>();
+    allocatedDictionaryBuffers = new ArrayList<ArrowBuf>();
     codecFactory = parentColumnReader.parentReader.getCodecFactory();
     this.stats = parentColumnReader.parentReader.parquetReaderStats;
     long start = columnChunkMetaData.getFirstDataPageOffset();
@@ -385,7 +384,7 @@ public class PageReader {
   }
 
   public void clearDictionaryBuffers() {
-    for (ByteBuf b : allocatedDictionaryBuffers) {
+    for (ArrowBuf b : allocatedDictionaryBuffers) {
       b.release();
     }
     allocatedDictionaryBuffers.clear();

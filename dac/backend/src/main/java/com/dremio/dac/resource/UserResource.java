@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.SecurityContext;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.homefiles.HomeFileTool;
@@ -100,9 +99,11 @@ public class UserResource {
   @POST
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
+  @Deprecated
   public UserUI updateUser(UserForm userForm, @PathParam("userName") UserName userName)
     throws IOException, IllegalArgumentException, NamespaceException, UserNotFoundException, DACUnauthorizedException {
     checkUser(userName, "update");
+
     User userConfig = userForm.getUserConfig();
     if (userConfig != null && userConfig.getUserName() != null && !userConfig.getUserName().equals(userName.getName())) {
       final UserName newUserName = new UserName(userForm.getUserConfig().getUserName());
@@ -123,26 +124,13 @@ public class UserResource {
   @PUT
   @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
+  @Deprecated
   public UserUI createUser(UserForm userForm, @PathParam("userName") UserName userName)
     throws IOException, IllegalArgumentException, NamespaceException, DACUnauthorizedException {
     checkUser(userName, "create");
-    User newUser = SimpleUser.newBuilder(userForm.getUserConfig()).setCreatedAt(System.currentTimeMillis()).build();
-    newUser = userService.createUser(newUser, userForm.getPassword());
-    try {
-      namespaceService.addOrUpdateHome(new HomePath(HomeName.getUserHomePath(userName.getName())).toNamespaceKey(),
-        new HomeConfig().setCtime(System.currentTimeMillis()).setOwner(userName.getName()));
-    } catch (Exception e) {
-      try {
-        userService.deleteUser(newUser.getUserName(), newUser.getVersion());
-      } catch (UserNotFoundException e1) {
-        logger.warn("Could not delete a user {} after failing to create corresponding home space", userName.getName());
-      } finally {
-        throw UserException.unsupportedError()
-          .message("Unable to create user '%s'.There may already be a user with the same name but different casing", newUser.getUserName())
-          .addContext("Cause", e.getMessage())
-          .build();
-      }
-    }
+    User newUser = com.dremio.dac.api.UserResource.addUser(userForm.getUserConfig(), userForm.getPassword(),
+      userService, namespaceService);
+
     return new UserUI(new UserResourcePath(userName), userName, newUser);
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,7 +66,8 @@ class FixedByteAlignedReader<V extends ValueVector> extends ColumnReader<V> {
   }
 
   protected void writeData() {
-    vectorData.writeBytes(bytebuf, (int) readStartInBytes, (int) readLength);
+    vectorData.setBytes(vectorData.writerIndex(), bytebuf, (int) readStartInBytes, (int)
+      readLength);
   }
 
   public static class FixedBinaryReader extends FixedByteAlignedReader<VariableWidthVector> {

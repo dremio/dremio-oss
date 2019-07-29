@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
-import com.dremio.exec.proto.CoordExecRPC.MinorSpecificAttr;
+import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMinor;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentSet;
@@ -35,13 +35,15 @@ public class PlanFragmentStats {
   private Map<Integer, IntSummaryStatistics> sizeByMajorSpecific;
   private Map<Integer, IntSummaryStatistics> sizeByMinorSpecific;
 
-  private Map<String, Integer> sizeByAttr;
+  private Map<String, Integer> sizeByMinorAttr;
+  private Map<String, Integer> sizeBySharedAttr;
   private boolean updatedAttrSizes = false;
 
   public PlanFragmentStats() {
     sizeByMajorSpecific = new HashMap<>();
     sizeByMinorSpecific = new HashMap<>();
-    sizeByAttr = new HashMap<>();
+    sizeByMinorAttr = new HashMap<>();
+    sizeBySharedAttr = new HashMap<>();
     combinedSize = new IntSummaryStatistics();
   }
 
@@ -79,13 +81,18 @@ public class PlanFragmentStats {
     // update attribute sizes, group-by key. Do this only once.
     if (!updatedAttrSizes) {
       for (PlanFragmentMinor minor : set.getMinorList()) {
-        for (MinorSpecificAttr attr : minor.getAttrsList()) {
+        for (MinorAttr attr : minor.getAttrsList()) {
           int attrSize = attr.getSerializedSize();
 
           // update hash table (indexed by attr name).
-          int curSize = sizeByAttr.getOrDefault(attr.getName(), 0);
-          sizeByAttr.put(attr.getName(), curSize + attrSize);
+          int curSize = sizeByMinorAttr.getOrDefault(attr.getName(), 0);
+          sizeByMinorAttr.put(attr.getName(), curSize + attrSize);
         }
+      }
+
+      // shared attributes.
+      for (MinorAttr attr : set.getAttrList()) {
+        sizeBySharedAttr.put(attr.getName(), attr.getSerializedSize());
       }
       updatedAttrSizes = true;
     }
@@ -108,12 +115,19 @@ public class PlanFragmentStats {
         .build());
     }
 
-    for (Entry<String, Integer> entry : sizeByAttr.entrySet()) {
+    for (Entry<String, Integer> entry : sizeByMinorAttr.entrySet()) {
       stats.addMinorSpecificAttrs(FragmentRpcSizeByAttr
         .newBuilder()
         .setName(entry.getKey())
         .setSize(entry.getValue())
         .build());
+    }
+    for (Entry<String, Integer> entry : sizeBySharedAttr.entrySet()) {
+      stats.addSharedAttrs(
+          FragmentRpcSizeByAttr.newBuilder()
+              .setName(entry.getKey())
+              .setSize(entry.getValue())
+              .build());
     }
     return stats.build();
   }

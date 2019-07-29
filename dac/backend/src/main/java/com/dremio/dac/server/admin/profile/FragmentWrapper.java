@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.dremio.dac.server.admin.profile;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -28,6 +29,7 @@ import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.NodePhaseProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Collections2;
 
@@ -35,7 +37,7 @@ import com.google.common.collect.Collections2;
  * Wrapper class for a major fragment profile.
  */
 public class FragmentWrapper {
-
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentWrapper.class);
 
   private interface FieldAccessor {
     long getValue(MinorFragmentProfile object);
@@ -98,65 +100,73 @@ public class FragmentWrapper {
   public static final int NUM_NULLABLE_OVERVIEW_COLUMNS = FRAGMENT_OVERVIEW_COLUMNS.length - 2;
 
   public void addSummary(TableBuilder tb) {
-    // Use only minor fragments that have complete profiles
-    // Complete iff the fragment profile has at least one operator profile, and start and end times.
-    final List<MinorFragmentProfile> complete = new ArrayList<>(
-      Collections2.filter(major.getMinorFragmentProfileList(), Filters.hasOperatorsAndTimes));
+    try {
+      // Use only minor fragments that have complete profiles
+      // Complete iff the fragment profile has at least one operator profile, and start and end times.
+      final List<MinorFragmentProfile> complete = new ArrayList<>(
+        Collections2.filter(major.getMinorFragmentProfileList(), Filters.hasOperatorsAndTimes));
 
-    tb.appendCell(new OperatorPathBuilder().setMajor(major).build(), null); // Phase
-    tb.appendCell(complete.size() + " / " + major.getMinorFragmentProfileCount(), null); // Thread Reporting
+      tb.appendCell(new OperatorPathBuilder().setMajor(major).build()); // Phase
+      tb.appendCell(complete.size() + " / " + major.getMinorFragmentProfileCount()); // Thread Reporting
 
-    // If there are no stats to aggregate, create an empty row
-    if (complete.size() < 1) {
-      tb.appendRepeated("", null, NUM_NULLABLE_OVERVIEW_COLUMNS);
-      return;
+      // If there are no stats to aggregate, create an empty row
+      if (complete.size() < 1) {
+        tb.appendRepeated("", NUM_NULLABLE_OVERVIEW_COLUMNS);
+        return;
+      }
+
+      final MinorFragmentProfile firstStart = Collections.min(complete, Comparators.startTime);
+      final MinorFragmentProfile lastStart = Collections.max(complete, Comparators.startTime);
+      tb.appendMillis(firstStart.getStartTime() - start); // First Start
+      tb.appendMillis(lastStart.getStartTime() - start); // Last Start
+
+      final MinorFragmentProfile firstEnd = Collections.min(complete, Comparators.endTime);
+      final MinorFragmentProfile lastEnd = Collections.max(complete, Comparators.endTime);
+      tb.appendMillis(firstEnd.getEndTime() - start); // First End
+      tb.appendMillis(lastEnd.getEndTime() - start); // Last End
+
+      addFieldStats(tb, complete, firstRunAccessor); // Min, Avg and Max First-run
+      addFieldStats(tb, complete, wallClockAccessor); // Min, Avg  and Max Wall-clock
+      addFieldStats(tb, complete, sleepAccessor); // Min, Avg and Max Sleep
+      addFieldStats(tb, complete, blockedAccessor); // Min, Avg and Max Blocked
+
+      final MinorFragmentProfile lastUpdate = Collections.max(complete, Comparators.lastUpdate);
+      tb.appendTime(lastUpdate.getLastUpdate()); // Last Update
+
+      final MinorFragmentProfile lastProgress = Collections.max(complete, Comparators.lastProgress);
+      tb.appendTime(lastProgress.getLastProgress()); // Last Progress
+
+      // TODO(DRILL-3494): Names (maxMem, getMaxMemoryUsed) are misleading; the value is peak memory allocated to fragment
+      final MinorFragmentProfile maxMem = Collections.max(complete, Comparators.fragmentPeakMemory);
+      tb.appendBytes(maxMem.getMaxMemoryUsed()); // Max Peak Memory
+    } catch (IOException e) {
+      logger.debug("Failed to add summary", e);
     }
-
-    final MinorFragmentProfile firstStart = Collections.min(complete, Comparators.startTime);
-    final MinorFragmentProfile lastStart = Collections.max(complete, Comparators.startTime);
-    tb.appendMillis(firstStart.getStartTime() - start); // First Start
-    tb.appendMillis(lastStart.getStartTime() - start); // Last Start
-
-    final MinorFragmentProfile firstEnd = Collections.min(complete, Comparators.endTime);
-    final MinorFragmentProfile lastEnd = Collections.max(complete, Comparators.endTime);
-    tb.appendMillis(firstEnd.getEndTime() - start); // First End
-    tb.appendMillis(lastEnd.getEndTime() - start); // Last End
-
-    addFieldStats(tb, complete, firstRunAccessor); // Min, Avg and Max First-run
-    addFieldStats(tb, complete, wallClockAccessor); // Min, Avg  and Max Wall-clock
-    addFieldStats(tb, complete, sleepAccessor); // Min, Avg and Max Sleep
-    addFieldStats(tb, complete, blockedAccessor); // Min, Avg and Max Blocked
-
-    final MinorFragmentProfile lastUpdate = Collections.max(complete, Comparators.lastUpdate);
-    tb.appendTime(lastUpdate.getLastUpdate(), null); // Last Update
-
-    final MinorFragmentProfile lastProgress = Collections.max(complete, Comparators.lastProgress);
-    tb.appendTime(lastProgress.getLastProgress(), null); // Last Progress
-
-    // TODO(DRILL-3494): Names (maxMem, getMaxMemoryUsed) are misleading; the value is peak memory allocated to fragment
-    final MinorFragmentProfile maxMem = Collections.max(complete, Comparators.fragmentPeakMemory);
-    tb.appendBytes(maxMem.getMaxMemoryUsed(), null); // Max Peak Memory
   }
 
   private void addFieldStats(final TableBuilder tb, final Collection<MinorFragmentProfile> fragments,
                              final FieldAccessor accessor) {
-    long total = 0;
-    long minValue = Long.MAX_VALUE;
-    long maxValue = Long.MIN_VALUE;
-    for (final MinorFragmentProfile p : fragments) {
-      long value = accessor.getValue(p);
-      total += value;
-      if (value < minValue) {
-        minValue = value;
+    try {
+      long total = 0;
+      long minValue = Long.MAX_VALUE;
+      long maxValue = Long.MIN_VALUE;
+      for (final MinorFragmentProfile p : fragments) {
+        long value = accessor.getValue(p);
+        total += value;
+        if (value < minValue) {
+          minValue = value;
+        }
+        if (value > maxValue) {
+          maxValue = value;
+        }
       }
-      if (value > maxValue) {
-        maxValue = value;
-      }
-    }
 
-    tb.appendMillis(minValue); // Min
-    tb.appendMillis(total / fragments.size()); // Avg
-    tb.appendMillis(maxValue); // Max
+      tb.appendMillis(minValue); // Min
+      tb.appendMillis(total / fragments.size()); // Avg
+      tb.appendMillis(maxValue); // Max
+    } catch (IOException e) {
+      logger.debug("Failed to add field stats", e);
+    }
   }
 
   /* Pre 2.0.2 : no splits in "Blocked"  */
@@ -180,7 +190,21 @@ public class FragmentWrapper {
     "Blocked On Downstream", "Blocked On Upstream", "Blocked On other",
     "Diff w OPs", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "State"};
 
-  public String getContent() {
+  public static final String[] PHASE_METRICS_COLUMNS = {"Host Name", "Peak Memory"};
+
+  public void addFragment(JsonGenerator generator) throws IOException {
+    generator.writeFieldName(getId());
+    generator.writeStartObject();
+
+    addFragmentInfo(generator);
+    addMetrics(generator);
+
+    generator.writeEndObject();
+  }
+
+  private void addFragmentInfo(JsonGenerator generator) throws IOException {
+    generator.writeFieldName("info");
+
     boolean withBlockedSplits = false;
 
     // Use only minor fragments that have complete profiles
@@ -201,10 +225,12 @@ public class FragmentWrapper {
       columnHeaders = withBlockedSplits ? FRAGMENT_COLUMNS : FRAGMENT_COLUMNS_NO_BLOCKED_SPLITS;
     }
 
-    final TableBuilder builder = new TableBuilder(columnHeaders);
-    for (final MinorFragmentProfile minor : complete) {
-      final ArrayList<OperatorProfile> ops = new ArrayList<>(minor.getOperatorProfileList());
+    final JsonBuilder builder = new JsonBuilder(generator, columnHeaders);
 
+    for (final MinorFragmentProfile minor : complete) {
+      builder.startEntry();
+
+      final ArrayList<OperatorProfile> ops = new ArrayList<>(minor.getOperatorProfileList());
       long biggestIncomingRecords = 0;
       long biggestBatches = 0;
       for (final OperatorProfile op : ops) {
@@ -221,8 +247,8 @@ public class FragmentWrapper {
       final long wallClockTime = minor.getEndTime() - minor.getStartTime();
       final long waitDuration = minor.getSleepingDuration();
       final long blockedDuration = minor.getBlockedDuration();
-      builder.appendCell(new OperatorPathBuilder().setMajor(major).setMinor(minor).build(), null); // Thread ID
-      builder.appendCell(minor.getEndpoint().getAddress(), null); // Host name
+      builder.appendString(new OperatorPathBuilder().setMajor(major).setMinor(minor).build()); // Thread ID
+      builder.appendString(minor.getEndpoint().getAddress()); // Host name
       builder.appendMillis(minor.getStartTime() - start); // Start
       builder.appendMillis(minor.getEndTime() - start); // End
       builder.appendMillis(wallClockTime); // Wall-clock time
@@ -239,6 +265,7 @@ public class FragmentWrapper {
         builder.appendMillis(runtime); // Runtime
         builder.appendMillis(0); // Finish
       }
+
       builder.appendMillis(waitDuration); // Waiting
 
       if (withBlockedSplits) {
@@ -276,45 +303,60 @@ public class FragmentWrapper {
           totalNanos += op.getWaitNanos();
         }
 
-        builder.appendInteger(runtime - NANOSECONDS.toMillis(totalNanos), null); // Diff w OPs
+        builder.appendInteger(runtime - NANOSECONDS.toMillis(totalNanos)); // Diff w OPs
       }
 
-      builder.appendFormattedInteger(minor.hasNumRuns() ? minor.getNumRuns() : -1, null); // Num-runs
-      builder.appendFormattedInteger(biggestIncomingRecords, null); // Max Records
-      builder.appendFormattedInteger(biggestBatches, null); // Max Batches
+      builder.appendFormattedInteger((minor.hasNumRuns() ? minor.getNumRuns() : -1)); // Num-runs
+      builder.appendFormattedInteger(biggestIncomingRecords); // Max Records
+      builder.appendFormattedInteger(biggestBatches); // Max Batches
 
-      builder.appendTime(minor.getLastUpdate(), null); // Last Update
-      builder.appendTime(minor.getLastProgress(), null); // Last Progress
+      builder.appendTime(minor.getLastUpdate()); // Last Update
+      builder.appendTime(minor.getLastProgress()); // Last Progress
 
-      builder.appendBytes(minor.getMaxMemoryUsed(), null); // Peak Memory
-      builder.appendCell(minor.getState().name(), null); // State
+      builder.appendBytes(minor.getMaxMemoryUsed()); // Peak Memory
+      builder.appendString(minor.getState().name()); // State
+
+      builder.endEntry();
     }
 
     for (final MinorFragmentProfile m : incomplete) {
-      builder.appendCell(major.getMajorFragmentId() + "-" + m.getMinorFragmentId(), null); // Thread ID
-      builder.appendCell(m.getEndpoint().getAddress(), null); // Host name
-      builder.appendRepeated(m.getState().toString(), null, columnHeaders.length - 2);
+      builder.startEntry();
+
+      builder.appendString(major.getMajorFragmentId() + "-" + m.getMinorFragmentId()); // Thread ID
+      builder.appendString(m.getEndpoint().getAddress()); // Host name
+
+      // fill in empty columns with the state
+      for (int i = 0; i < columnHeaders.length - 2; i++) {
+        builder.appendString(m.getState().toString());
+      }
+
+      builder.endEntry();
     }
-    return builder.build();
+
+    builder.end();
   }
 
-  public static final String[] PHASE_METRICS_COLUMNS = {"Host Name", "Peak Memory"};
-
-  public String getMetricsTable() {
+  private void addMetrics(JsonGenerator generator) throws IOException {
     if (major.getNodePhaseProfileList() == null || major.getNodePhaseProfileList().isEmpty()) {
-      return "";
+      return;
     }
 
-    final TableBuilder builder = new TableBuilder(PHASE_METRICS_COLUMNS);
     final List<NodePhaseProfile> nodePhaseProfiles = new ArrayList<>(major.getNodePhaseProfileList());
 
     Collections.sort(nodePhaseProfiles, Comparators.nodeAddress);
+    generator.writeFieldName("metrics");
+
+    final JsonBuilder builder = new JsonBuilder(generator, PHASE_METRICS_COLUMNS);
 
     for (NodePhaseProfile nodePhaseProfile : nodePhaseProfiles) {
-      builder.appendCell(nodePhaseProfile.getEndpoint().getAddress(), null); // Host name
-      builder.appendBytes(nodePhaseProfile.getMaxMemoryUsed(), null); // Peak Memory
+      builder.startEntry();
+
+      builder.appendString(nodePhaseProfile.getEndpoint().getAddress()); // Host name
+      builder.appendBytes(nodePhaseProfile.getMaxMemoryUsed()); // Peak Memory
+
+      builder.endEntry();
     }
 
-    return builder.build();
+    builder.end();
   }
 }

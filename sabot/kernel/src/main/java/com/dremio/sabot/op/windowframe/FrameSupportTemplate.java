@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,7 +41,7 @@ import io.netty.buffer.ArrowBuf;
 public abstract class FrameSupportTemplate implements WindowFramer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NoFrameSupportTemplate.class);
 
-  private FunctionContext context;
+  protected FunctionContext context;
   private VectorAccessible container;
   private VectorContainer internal;
   private List<VectorContainer> batches;

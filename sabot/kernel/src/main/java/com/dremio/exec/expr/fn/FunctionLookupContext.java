@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,21 +16,32 @@
 package com.dremio.exec.expr.fn;
 
 import com.dremio.common.expression.FunctionCall;
-import com.dremio.exec.resolver.FunctionResolver;
 import com.dremio.options.OptionManager;
 
 public interface FunctionLookupContext {
 
   /**
    * Method returns the materialized Dremio function corresponding to the function call that
-   * is passed in
+   * is passed in. Returns only if the function matches the call exactly.
    *
-   * @param functionResolver - Type of resolver to use.
-   *                           Specifies if the arguments should match exactly or can use implicit cast
    * @param functionCall - Specifies function name and type of arguments
-   * @return BaseFunctionHolder
+   * @param allowGandivaFunctions - If we should use gandiva functions in this materialization.
+   * @return AbstractFunctionHolder
    */
-  public BaseFunctionHolder findFunction(FunctionResolver functionResolver, FunctionCall functionCall);
+  public AbstractFunctionHolder findExactFunction(FunctionCall functionCall, boolean
+    allowGandivaFunctions);
+
+  /**
+   * Method returns the materialized Dremio function corresponding to the function call that
+   * is passed in. Returns the function that best matches the input.
+   *
+   * @param functionCall - Specifies function name and type of arguments
+   * @param allowGandivaFunctions - If we should use gandiva functions in this materialization.
+   * @return AbstractFunctionHolder
+   */
+  public AbstractFunctionHolder findFunctionWithCast(FunctionCall functionCall, boolean
+    allowGandivaFunctions);
+
 
   /**
    * Find function implementation for given <code>functionCall</code> in non-Dremio function registries such as Hive UDF
@@ -47,4 +58,5 @@ public interface FunctionLookupContext {
   public OptionManager getOptionManager();
 
   public boolean isDecimalV2Enabled();
+
 }

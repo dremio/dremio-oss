@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -721,10 +721,15 @@ public class TestNamespaceService {
       assertTrue(items.containsKey("s1.b.ds2"));
       */
 
-      ns.renameDataset(new NamespaceKey(PathUtils.parseFullPath("s.b.ds2")), new NamespaceKey(PathUtils.parseFullPath("s.b.ds22")));
+      final NamespaceKey namespaceKey = new NamespaceKey(PathUtils.parseFullPath("s.b.ds2"));
+
+      final DatasetConfig oldConfig = ns.getDataset(namespaceKey);
+      final DatasetConfig newConfig = ns.renameDataset(namespaceKey, new NamespaceKey(PathUtils.parseFullPath("s.b.ds22")));
       items = listFolder(ns, "s.b");
       assertEquals(1, items.size());
       assertTrue(items.containsKey("s.b.ds22"));
+      assertTrue(newConfig.getLastModified() > oldConfig.getLastModified());
+      assertEquals(newConfig.getCreatedAt(), oldConfig.getCreatedAt());
 
       ns.renameDataset(new NamespaceKey(PathUtils.parseFullPath("s.a.c.ds3")), new NamespaceKey(PathUtils.parseFullPath("s.a.c.ds33")));
       items = listFolder(ns, "s.a.c");

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ import com.dremio.elastic.proto.ElasticReaderProto.ElasticSplitXattr;
 import com.dremio.elastic.proto.ElasticReaderProto.ElasticTableXattr;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.store.AbstractRecordReader;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.easy.json.JsonProcessor;
 import com.dremio.exec.vector.complex.fn.JsonWriter;
 import com.dremio.plugins.elastic.ElasticActions.DeleteScroll;
@@ -56,9 +57,6 @@ import com.dremio.plugins.elastic.planning.ElasticsearchScanSpec;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.scan.OutputMutator;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
@@ -113,7 +111,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       OperatorContext context,
       ElasticsearchScanSpec spec,
       boolean useElasticProjection,
-      SplitInfo split,
+      SplitAndPartitionInfo split,
       ElasticConnection connection,
       List<SchemaPath> columns,
       FieldReadDefinition readDefinition,
@@ -130,7 +128,7 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
     this.query = query != null && query.length() > 0 ? query : MATCH_ALL_REQUEST;
     this.usingElasticProjection = useElasticProjection;
     this.config = config;
-    this.splitAttributes = split == null ? null : ElasticSplitXattr.parseFrom(split.getSplitExtendedProperty());
+    this.splitAttributes = split == null ? null : ElasticSplitXattr.parseFrom(split.getDatasetSplitInfo().getExtendedProperty());
     this.resource = split == null ? spec.getResource() : splitAttributes.getResource();
     this.metaUIDSelected = getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.UID)) || isStarQuery();
     this.metaIDSelected = config.isShowIdColumn() && (getColumns().contains(SchemaPath.getSimplePath(ElasticsearchConstants.ID)) || isStarQuery());

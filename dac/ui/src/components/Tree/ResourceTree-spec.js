@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,7 +69,7 @@ describe('ResourceTree', () => {
     });
     it('should render expand arrow only if node is expandable', () => {
       let renderedNode = shallow(instance.renderNode(homeNode));
-      expect(renderedNode.find('Art')).to.have.length(2);
+      expect(renderedNode.find('Art')).to.have.length(1);
 
       const node = homeNode.set('type', 'VIRTUAL_DATASET');
       renderedNode = shallow(instance.renderNode(node));
@@ -87,7 +87,7 @@ describe('ResourceTree', () => {
 
       renderedNode = shallow(instance.renderNode(homeNode));
       expect(renderedNode.find('DatasetItemLabel')).to.have.length(0);
-      expect(renderedNode.find('Art')).to.have.length(2);
+      expect(renderedNode.find('Art')).to.have.length(1);
     });
     it('should render node with .active-node class only if it is selected', () => {
       const node = Immutable.fromJS({

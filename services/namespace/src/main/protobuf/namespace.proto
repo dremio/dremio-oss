@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ option java_package = "com.dremio.service.namespace.proto";
 option optimize_for = SPEED;
 option java_outer_classname = "NamespaceProtobuf";
 
+import "../../../../../protocol/src/main/protobuf/any.proto";
 import "dataset.proto";
 import "source.proto";
 import "space.proto";
@@ -40,9 +41,10 @@ message NameSpaceContainer {
   optional com.dremio.service.namespace.space.proto.FolderConfig folder = 5;
   optional com.dremio.service.namespace.dataset.proto.DatasetConfig dataset = 6;
   optional com.dremio.service.namespace.space.proto.HomeConfig home = 7;
+
+  repeated common.Any attributes = 8;
 }
 
 message NameSpaceContainers {
   repeated NameSpaceContainer containers = 1;
 }
-

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ const VIEW_ID = 'AccelerationModal';
 
 export class AccelerationController extends Component {
   static propTypes = {
+    isModal: PropTypes.bool,
     datasetId: PropTypes.string, // populated except during teardown
     dataset: PropTypes.instanceOf(Immutable.Map),
     reflections: PropTypes.instanceOf(Immutable.Map),
@@ -47,25 +48,38 @@ export class AccelerationController extends Component {
 
   state = {
     getComplete: false // need to track ourselves because viewState initial state looks the same as loaded-success
+  };
+
+  componentDidMount() {
+    this.loadReflections();
   }
 
-  componentWillMount() {
-    return this.props.getReflections(
+  componentDidUpdate(prevProps) {
+    if (prevProps.datasetId !== this.props.datasetId) {
+      this.loadReflections();
+    }
+  }
+
+  loadReflections = () => {
+    const { getReflections, datasetId, getDataset } = this.props;
+    if (!datasetId) return;
+
+    return getReflections(
       {viewId: VIEW_ID},
-      { path: `dataset/${encodeURIComponent(this.props.datasetId)}/reflection` }
+      { path: `dataset/${encodeURIComponent(datasetId)}/reflection` }
     ).then((response) => {
       if (response.payload instanceof Error) return;
-      return this.props.getDataset(this.props.datasetId, VIEW_ID);
+      return getDataset(datasetId, VIEW_ID);
     }).then(() => this.setState({getComplete: true}));
-  }
+  };
 
   handleSubmitSuccess = (values) => {
     this.props.onDone(null, true);
     // future: stay open with refresh (is that even needed?), OR close (user option)
-  }
+  };
 
   renderContent() {
-    const { viewState, reflections, dataset } = this.props;
+    const { viewState, reflections, dataset, onCancel, isModal = true } = this.props;
 
     if (!this.state.getComplete || viewState.get('isFailed')) {
       return null; // AccelerationForm expects to only be created after data is ready
@@ -74,8 +88,9 @@ export class AccelerationController extends Component {
     if (!dataset || !reflections) return null; // teardown guard
 
     return <AccelerationForm
+      isModal={isModal}
       updateFormDirtyState={this.props.updateFormDirtyState}
-      onCancel={this.props.onCancel}
+      onCancel={onCancel}
       onSubmitSuccess={this.handleSubmitSuccess}
       dataset={dataset}
       reflections={reflections}

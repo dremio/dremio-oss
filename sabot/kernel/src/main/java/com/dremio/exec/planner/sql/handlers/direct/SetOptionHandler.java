@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ import org.apache.calcite.tools.ValidationException;
 import org.apache.calcite.util.NlsString;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionManager;
@@ -107,7 +106,6 @@ public class SetOptionHandler extends SimpleDirectHandler {
                                                final SqlLiteral literal) {
     final Object object = literal.getValue();
     final SqlTypeName typeName = literal.getTypeName();
-    validateOption(name, type);
     switch (typeName) {
     case DECIMAL: {
       final BigDecimal bigDecimal = (BigDecimal) object;
@@ -142,15 +140,4 @@ public class SetOptionHandler extends SimpleDirectHandler {
         .build(logger);
     }
   }
-
-  private static void validateOption(String name, OptionType type) {
-    if (type == OptionType.SESSION || type == OptionType.QUERY) {
-      if (name.equals(PlannerSettings.ENABLE_DECIMAL_V2_KEY)) {
-        throw UserException.validationError()
-          .message("Option %s cannot be set at session (or) query level.", name)
-          .build(logger);
-      }
-    }
-  }
-
 }

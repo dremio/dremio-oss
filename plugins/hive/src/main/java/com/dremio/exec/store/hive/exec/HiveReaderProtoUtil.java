@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,13 +17,15 @@ package com.dremio.exec.store.hive.exec;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattrOrBuilder;
-import com.dremio.hive.proto.HiveReaderProto.PartitionProp;
+import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.hive.proto.HiveReaderProto.PropertyCollectionType;
 import com.google.common.base.Function;
@@ -32,6 +34,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Defines utility methods for classes in {@link com.dremio.hive.proto.HiveReaderProto}.
@@ -39,6 +42,8 @@ import com.google.common.collect.Maps;
 public final class HiveReaderProtoUtil {
 
   /**
+   * This method is marked as deprecated as the partitionChunks now have all partition properties and other
+   * previously-dictionary-enabled properties as explicit lists or values.
    * Converts properties in the given {@link HiveTableXattr hive table attribute} from list-style to dictionary-style.
    * The attribute contains fields that correspond to properties of a hive table. These properties are maintained
    * as lists at table-level and partition-level, and most of the values are equal across partitions. This method
@@ -49,6 +54,7 @@ public final class HiveReaderProtoUtil {
    *
    * @param tableXattr hive table extended attribute
    */
+  @Deprecated
   public static void encodePropertiesAsDictionary(HiveTableXattr.Builder tableXattr) {
     // (1) create dictionaries and lookup maps of properties
     final Map<Prop, Integer> propLookup = buildPropLookup(tableXattr);
@@ -64,9 +70,9 @@ public final class HiveReaderProtoUtil {
     tableXattr.addAllSerializationLibDictionary(lookupToList(String.class, libLookup));
 
     // (2) rewrite partitions to use the above dictionaries
-    final List<PartitionProp> newPartitionProps = Lists.newArrayList();
-    for (final PartitionProp partitionProp : tableXattr.getPartitionPropertiesList()) {
-      final PartitionProp.Builder builder = partitionProp.toBuilder();
+    final List<PartitionXattr> partitionXattrs = Lists.newArrayList();
+    for (final PartitionXattr partitionXattr : tableXattr.getPartitionXattrsList()) {
+      final PartitionXattr.Builder builder = partitionXattr.toBuilder();
 
       final List<Integer> propertySubscripts = Lists.newArrayList();
       for (final Prop prop : builder.getPartitionPropertyList()) {
@@ -90,10 +96,10 @@ public final class HiveReaderProtoUtil {
         builder.clearSerializationLib();
       }
 
-      newPartitionProps.add(builder.build());
+      partitionXattrs.add(builder.build());
     }
-    tableXattr.clearPartitionProperties(); // clear and then add!
-    tableXattr.addAllPartitionProperties(newPartitionProps);
+    tableXattr.clearPartitionXattrs(); // clear and then add!
+    tableXattr.addAllPartitionXattrs(partitionXattrs);
 
     // (3) rewrite table level properties to use the above dictionaries
     final List<Integer> tableSubscripts = Lists.newArrayList();
@@ -122,11 +128,16 @@ public final class HiveReaderProtoUtil {
     tableXattr.setPropertyCollectionType(PropertyCollectionType.DICTIONARY);
   }
 
+  /**
+   * This method is marked as deprecated as the partitionChunks now have all partition properties and other
+   * previously-dictionary-enabled properties as explicit lists or values.
+   */
+  @Deprecated
   static Map<Prop, Integer> buildPropLookup(HiveTableXattrOrBuilder tableXattr) {
     int i = 0;
     final Map<Prop, Integer> lookup = Maps.newHashMap();
-    for (final PartitionProp partitionProp : tableXattr.getPartitionPropertiesList()) {
-      for (final Prop prop : partitionProp.getPartitionPropertyList()) {
+    for (final PartitionXattr partitionXattr : tableXattr.getPartitionXattrsList()) {
+      for (final Prop prop : partitionXattr.getPartitionPropertyList()) {
         if (!lookup.containsKey(prop)) {
           lookup.put(prop, i++);
         }
@@ -141,13 +152,18 @@ public final class HiveReaderProtoUtil {
     return lookup;
   }
 
+  /**
+   * This method is marked as deprecated as the partitionChunks now have all partition properties and other
+   * previously-dictionary-enabled properties as explicit lists or values.
+   */
+  @Deprecated
   static Map<String, Integer> buildInputFormatLookup(HiveTableXattrOrBuilder tableXattr) {
     int i = 0;
     final Map<String, Integer> lookup = Maps.newHashMap();
-    for (final PartitionProp partitionProp : tableXattr.getPartitionPropertiesList()) {
-      if (partitionProp.hasInputFormat() &&
-          !lookup.containsKey(partitionProp.getInputFormat())) {
-        lookup.put(partitionProp.getInputFormat(), i++);
+    for (final PartitionXattr partitionXattr : tableXattr.getPartitionXattrsList()) {
+      if (partitionXattr.hasInputFormat() &&
+        !lookup.containsKey(partitionXattr.getInputFormat())) {
+        lookup.put(partitionXattr.getInputFormat(), i++);
       }
     }
     if (tableXattr.hasInputFormat()
@@ -158,13 +174,18 @@ public final class HiveReaderProtoUtil {
     return lookup;
   }
 
+  /**
+   * This method is marked as deprecated as the partitionChunks now have all partition properties and other
+   * previously-dictionary-enabled properties as explicit lists or values.
+   */
+  @Deprecated
   static Map<String, Integer> buildStorageHandlerLookup(HiveTableXattrOrBuilder tableXattr) {
     int i = 0;
     final Map<String, Integer> lookup = Maps.newHashMap();
-    for (final PartitionProp partitionProp : tableXattr.getPartitionPropertiesList()) {
-      if (partitionProp.hasStorageHandler() &&
-          !lookup.containsKey(partitionProp.getStorageHandler())) {
-        lookup.put(partitionProp.getStorageHandler(), i++);
+    for (final PartitionXattr partitionXattr : tableXattr.getPartitionXattrsList()) {
+      if (partitionXattr.hasStorageHandler() &&
+        !lookup.containsKey(partitionXattr.getStorageHandler())) {
+        lookup.put(partitionXattr.getStorageHandler(), i++);
       }
     }
     if (tableXattr.hasStorageHandler()
@@ -175,13 +196,18 @@ public final class HiveReaderProtoUtil {
     return lookup;
   }
 
+  /**
+   * This method is marked as deprecated as the partitionChunks now have all partition properties and other
+   * previously-dictionary-enabled properties as explicit lists or values.
+   */
+  @Deprecated
   static Map<String, Integer> buildSerializationLibLookup(HiveTableXattrOrBuilder tableXattr) {
     int i = 0;
     final Map<String, Integer> lookup = Maps.newHashMap();
-    for (final PartitionProp partitionProp : tableXattr.getPartitionPropertiesList()) {
-      if (partitionProp.hasSerializationLib() &&
-          !lookup.containsKey(partitionProp.getSerializationLib())) {
-        lookup.put(partitionProp.getSerializationLib(), i++);
+    for (final PartitionXattr partitionXattr : tableXattr.getPartitionXattrsList()) {
+      if (partitionXattr.hasSerializationLib() &&
+        !lookup.containsKey(partitionXattr.getSerializationLib())) {
+        lookup.put(partitionXattr.getSerializationLib(), i++);
       }
     }
     if (tableXattr.hasSerializationLib()
@@ -192,6 +218,11 @@ public final class HiveReaderProtoUtil {
     return lookup;
   }
 
+  /**
+   * This method is marked as deprecated as the partitionChunks now have all partition properties and other
+   * previously-dictionary-enabled properties as explicit lists or values.
+   */
+  @Deprecated
   private static <T> List<T> lookupToList(Class<T> clazz, Map<T, Integer> lookup) {
     @SuppressWarnings("unchecked") final T[] array = (T[]) Array.newInstance(clazz, lookup.size());
     for (final Map.Entry<T, Integer> entry : lookup.entrySet()) {
@@ -278,31 +309,36 @@ public final class HiveReaderProtoUtil {
   /**
    * Get the list of properties for the given partition index.
    *
-   * @param tableXattr  hive table extended attribute
+   * @param tableXattr hive table extended attribute
    * @param partitionIndex partition index
    * @return list of properties
    */
   public static List<Prop> getPartitionProperties(final HiveTableXattr tableXattr, int partitionIndex) {
-    Preconditions.checkArgument(partitionIndex >= 0 && partitionIndex < tableXattr.getPartitionPropertiesList().size());
+    Preconditions.checkArgument(partitionIndex >= 0 && partitionIndex < tableXattr.getPartitionXattrsList().size());
 
     if (tableXattr.getPropertyCollectionType() == PropertyCollectionType.LIST) { // backward compatibility
-      return tableXattr.getPartitionProperties(partitionIndex)
-          .getPartitionPropertyList();
+      return tableXattr.getPartitionXattrs(partitionIndex)
+        .getPartitionPropertyList();
     }
 
-    return FluentIterable.from(tableXattr.getPartitionProperties(partitionIndex)
-        .getPropertySubscriptList())
-        .transform(new Function<Integer, Prop>() {
-          @Override
-          public Prop apply(Integer input) {
-            return Prop.newBuilder()
-                .setKey(tableXattr.getPropertyDictionary(input)
-                    .getKey())
-                .setValue(tableXattr.getPropertyDictionary(input)
-                    .getValue())
-                .build();
-          }
-        }).toList();
+    return getPartitionProperties(tableXattr, tableXattr.getPartitionXattrs(partitionIndex));
+  }
+
+
+  /**
+   * Get the list of properties for the given partition.
+   *
+   * @param tableXattr hive table extended attribute
+   * @param partitionXattr hive partition extended attribute
+   * @return list of properties
+   */
+  public static List<Prop> getPartitionProperties(final HiveTableXattr tableXattr, final PartitionXattr partitionXattr) {
+    return partitionXattr.getPropertySubscriptList().stream()
+      .map(input -> Prop.newBuilder()
+        .setKey(tableXattr.getPropertyDictionary(input).getKey())
+        .setValue(tableXattr.getPropertyDictionary(input).getValue())
+        .build())
+      .collect(Collectors.toList());
   }
 
   /**
@@ -313,19 +349,34 @@ public final class HiveReaderProtoUtil {
    * @return input format
    */
   public static Optional<String> getPartitionInputFormat(final HiveTableXattr tableXattr, int partitionId) {
-    Preconditions.checkArgument(partitionId >= 0 && partitionId < tableXattr.getPartitionPropertiesList().size());
+    Preconditions.checkArgument(partitionId >= 0 && partitionId < tableXattr.getPartitionXattrsList().size());
 
     if (tableXattr.getPropertyCollectionType() == PropertyCollectionType.LIST) { // backward compatibility
-      return tableXattr.getPartitionProperties(partitionId).hasInputFormat()
-          ? Optional.of(tableXattr.getPartitionProperties(partitionId).getInputFormat())
+      return tableXattr.getPartitionXattrs(partitionId).hasInputFormat()
+          ? Optional.of(tableXattr.getPartitionXattrs(partitionId).getInputFormat())
           : Optional.<String>absent();
     }
 
-    return tableXattr.getPartitionProperties(partitionId).hasInputFormatSubscript()
+    return tableXattr.getPartitionXattrs(partitionId).hasInputFormatSubscript()
         ? Optional.of(tableXattr.getInputFormatDictionary(
-        tableXattr.getPartitionProperties(partitionId)
+        tableXattr.getPartitionXattrs(partitionId)
             .getInputFormatSubscript()))
         : Optional.<String>absent();
+  }
+
+  /**
+   * Get the input format for the given partition.
+   *
+   * @param tableXattr hive table extended attribute
+   * @param partitionXattr hive partition extended attribute
+   * @return input format
+   */
+  public static Optional<String> getPartitionInputFormat(final HiveTableXattr tableXattr, final PartitionXattr partitionXattr) {
+    if(partitionXattr.hasInputFormatSubscript()) {
+      return Optional.of(tableXattr.getInputFormatDictionary(partitionXattr.getInputFormatSubscript()));
+    } else {
+      return Optional.of(partitionXattr.getInputFormat());
+    }
   }
 
   /**
@@ -336,19 +387,34 @@ public final class HiveReaderProtoUtil {
    * @return storage handler
    */
   public static Optional<String> getPartitionStorageHandler(final HiveTableXattr tableXattr, int partitionId) {
-    Preconditions.checkArgument(partitionId >= 0 && partitionId < tableXattr.getPartitionPropertiesList().size());
+    Preconditions.checkArgument(partitionId >= 0 && partitionId < tableXattr.getPartitionXattrsList().size());
 
     if (tableXattr.getPropertyCollectionType() == PropertyCollectionType.LIST) { // backward compatibility
-      return tableXattr.getPartitionProperties(partitionId).hasStorageHandler()
-          ? Optional.of(tableXattr.getPartitionProperties(partitionId).getStorageHandler())
+      return tableXattr.getPartitionXattrs(partitionId).hasStorageHandler()
+          ? Optional.of(tableXattr.getPartitionXattrs(partitionId).getStorageHandler())
           : Optional.<String>absent();
     }
 
-    return tableXattr.getPartitionProperties(partitionId).hasStorageHandlerSubscript()
+    return tableXattr.getPartitionXattrs(partitionId).hasStorageHandlerSubscript()
         ? Optional.of(tableXattr.getStorageHandlerDictionary(
-        tableXattr.getPartitionProperties(partitionId)
+        tableXattr.getPartitionXattrs(partitionId)
             .getStorageHandlerSubscript()))
         : Optional.<String>absent();
+  }
+
+  /**
+   * Get the storage handler for the given partition.
+   *
+   * @param tableXattr hive table extended attribute
+   * @param partitionXattr hive partition extended attribute
+   * @return storage handler
+   */
+  public static Optional<String> getPartitionStorageHandler(final HiveTableXattr tableXattr, final PartitionXattr partitionXattr) {
+    if(partitionXattr.hasStorageHandlerSubscript()) {
+      return Optional.of(tableXattr.getStorageHandlerDictionary(partitionXattr.getStorageHandlerSubscript()));
+    } else {
+      return Optional.of(partitionXattr.getStorageHandler());
+    }
   }
 
   /**
@@ -359,19 +425,64 @@ public final class HiveReaderProtoUtil {
    * @return serialization lib
    */
   public static Optional<String> getPartitionSerializationLib(final HiveTableXattr tableXattr, int partitionId) {
-    Preconditions.checkArgument(partitionId >= 0 && partitionId < tableXattr.getPartitionPropertiesList().size());
+    Preconditions.checkArgument(partitionId >= 0 && partitionId < tableXattr.getPartitionXattrsList().size());
 
     if (tableXattr.getPropertyCollectionType() == PropertyCollectionType.LIST) { // backward compatibility
-      return tableXattr.getPartitionProperties(partitionId).hasSerializationLib()
-          ? Optional.of(tableXattr.getPartitionProperties(partitionId).getSerializationLib())
+      return tableXattr.getPartitionXattrs(partitionId).hasSerializationLib()
+          ? Optional.of(tableXattr.getPartitionXattrs(partitionId).getSerializationLib())
           : Optional.<String>absent();
     }
 
-    return tableXattr.getPartitionProperties(partitionId).hasSerializationLibSubscript()
+    return tableXattr.getPartitionXattrs(partitionId).hasSerializationLibSubscript()
         ? Optional.of(tableXattr.getSerializationLibDictionary(
-        tableXattr.getPartitionProperties(partitionId)
+        tableXattr.getPartitionXattrs(partitionId)
             .getSerializationLibSubscript()))
         : Optional.<String>absent();
+  }
+
+  /**
+   * Get the serialization lib for the given partition.
+   *
+   * @param tableXattr hive table extended attribute
+   * @param partitionXattr hive partition extended attribute
+   * @return serialization lib
+   */
+  public static String getPartitionSerializationLib(final HiveTableXattr tableXattr, final PartitionXattr partitionXattr) {
+    if(partitionXattr.hasSerializationLibSubscript()) {
+      return tableXattr.getSerializationLibDictionary(partitionXattr.getSerializationLibSubscript());
+    } else {
+      return partitionXattr.getSerializationLib();
+    }
+  }
+
+  /**
+   * Get the partition extended attribute for the given SplitInfo.
+   *
+   * @param splitInfo Dataset splitInfo
+   * @return partition extended attribute
+   */
+  public static PartitionXattr getPartitionXattr(SplitAndPartitionInfo split) {
+    final PartitionXattr partitionXattr;
+    try {
+      partitionXattr = PartitionXattr.parseFrom(split.getPartitionInfo().getExtendedProperty());
+    } catch (InvalidProtocolBufferException e) {
+      throw new RuntimeException(new ExecutionSetupException("Failure parsing partition extended properties.", e));
+    }
+    return partitionXattr;
+  }
+
+
+  /**
+   * Check if the partition properties are stored on DatasetMetadata(Pre 3.2.0)
+   * or PartitionChunk(version 3.2.0 and above). When the partition properties
+   * are stored on PartitionChunk tableXattr.getPartitionXattrsList() is always
+   * empty.
+   *
+   * @param tableXattr hive table extended attribute
+   * @return true if the partition properties are stored on DatasetMetadata
+   */
+  public static boolean isPreDremioVersion3dot2dot0LegacyFormat(final HiveTableXattr tableXattr) {
+    return !tableXattr.getPartitionXattrsList().isEmpty();
   }
 
   private HiveReaderProtoUtil() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ describe('FileFormatController', () => {
       isOpen: false,
       hide: sinon.spy(),
       query: {},
+      fullPath: ['source1', 'file1'],
       fileFormat: Immutable.Map(),
       viewState: Immutable.Map({
         isInProgress: false,
@@ -59,9 +60,9 @@ describe('FileFormatController', () => {
   it('triggers load when opened', () => {
     const wrapper = shallow(<FileFormatController {...commonProps}/>, {context});
     expect(commonProps.loadFileFormat).to.have.been.notCalled;
-    const newEntity = Immutable.Map({foo: 'baz'});
-    wrapper.setProps({entity: newEntity});
-    expect(commonProps.loadFileFormat).to.have.been.calledWith(newEntity, VIEW_ID);
+    const url = 'test/url';
+    wrapper.setProps({ formatUrl: url });
+    expect(commonProps.loadFileFormat).to.have.been.calledWith(url, VIEW_ID);
     expect(commonProps.resetViewState).to.have.been.calledWith(VIEW_ID);
   });
 
@@ -88,20 +89,19 @@ describe('FileFormatController', () => {
     it('should call saveFileFormat from props on submit', () => {
       instance.onSubmitFormat({type: 'JSON', version: 1});
       expect(ApiUtils.attachFormSubmitHandlers).to.be.called;
-      expect(props.saveFileFormat).to.be.calledWith(props.entity.get('fileFormat'), {type: 'JSON', version: 1});
+      expect(props.saveFileFormat).to.be.calledWith('/source/source1/file_format/file1', {type: 'JSON', version: 1});
       expect(props.onDone).to.be.called;
     });
 
     it('should call saveFileFormat with links.self if entity fileFormat is not defined', () => {
-      const id = '/source/s3/file/test.json';
       const fileFormatLink = '/source/s3/file_format/test.json';
       wrapper.setProps({
-        entity: Immutable.fromJS({ id })
+        fullPath: ['s3', 'test.json']
       });
 
       instance.onSubmitFormat({type: 'JSON', version: 1});
       expect(ApiUtils.attachFormSubmitHandlers).to.be.called;
-      expect(props.saveFileFormat).to.be.calledWith(Immutable.fromJS({links: {self: fileFormatLink}}), {type: 'JSON', version: 1});
+      expect(props.saveFileFormat).to.be.calledWith(fileFormatLink, {type: 'JSON', version: 1});
       expect(props.onDone).to.be.called;
     });
 
@@ -112,8 +112,8 @@ describe('FileFormatController', () => {
       const values = {};
       instance.onSubmitFormat(values);
       expect(ApiUtils.attachFormSubmitHandlers).to.be.called;
-      expect(props.saveFileFormat).to.be.calledWith(props.entity.get('fileFormat'), values);
-      expect(context.router.replace).to.be.calledWith('/query/link');
+      expect(props.saveFileFormat).to.be.calledWith('/source/source1/file_format/file1', values);
+      expect(context.router.replace).to.be.calledWith('/source/source1/file1');
       expect(props.onDone).to.be.not.called;
     });
 

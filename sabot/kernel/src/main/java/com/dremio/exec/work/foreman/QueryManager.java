@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,7 @@
 package com.dremio.exec.work.foreman;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +36,7 @@ import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.sql.handlers.commands.ResourceAllocationResultObserver;
+import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodePhaseStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
@@ -241,46 +240,17 @@ class QueryManager {
   }
 
   /**
-   * Stop all fragments with currently *known* active status (active as in SENDING, AWAITING_ALLOCATION, RUNNING).
-   *
-   * For the actual cancel calls for intermediate and leaf fragments, see
-   * {@link com.dremio.sabot.rpc.CoordToExecHandler#cancelFragment}
-   * (1) Root fragment: pending or running, send the cancel signal through a tunnel.
-   * (2) Intermediate fragment: pending or running, send the cancel signal through a tunnel (for local and remote
-   *    fragments). The actual cancel is done by delegating the cancel to the work bus.
-   * (3) Leaf fragment: running, send the cancel signal through a tunnel. The cancel is done directly.
+   * Cancel all fragments. Only one rpc is sent per executor.
    */
   void cancelExecutingFragments() {
-    final FragmentData fragments [] = new FragmentData[fragmentDataMap.values().size()];
-    fragmentDataMap.values().toArray(fragments);
+    CancelFragments fragments = CancelFragments
+      .newBuilder()
+      .setQueryId(queryId)
+      .build();
 
-    //colocate fragments running on same node
-    Arrays.sort(fragments, new Comparator<FragmentData>() {
-      @Override
-      public int compare(final FragmentData o1, final FragmentData o2) {
-        return o1.getEndpoint().getAddress().compareTo(o2.getEndpoint().getAddress());
-      }
-    });
-
-    for(final FragmentData data : fragments) {
-      switch(data.getState()) {
-      case SENDING:
-      case AWAITING_ALLOCATION:
-      case RUNNING:
-        final FragmentHandle handle = data.getHandle();
-        final NodeEndpoint endpoint = data.getEndpoint();
-        // TODO is the CancelListener redundant? Does the FragmentStatusListener get notified of the same?
-        tunnelCreator.getTunnel(endpoint).cancelFragment(new SignalListener(endpoint, handle,
-            SignalListener.Signal.CANCEL), handle);
-        break;
-
-      case FINISHED:
-      case CANCELLATION_REQUESTED:
-      case CANCELLED:
-      case FAILED:
-        // nothing to do
-        break;
-      }
+    for (NodeEndpoint endpoint : nodeMap.keySet()) {
+      tunnelCreator.getTunnel(endpoint).cancelFragments(new SignalListener(endpoint, fragments,
+        SignalListener.Signal.CANCEL), fragments);
     }
   }
 
@@ -289,7 +259,7 @@ class QueryManager {
      * that the target fragment has acknowledged the signal. As a result, this listener doesn't do anything
      * but log messages.
      */
-  private static class SignalListener extends EndpointListener<Ack, FragmentHandle> {
+  private static class SignalListener extends EndpointListener<Ack, CancelFragments> {
     /**
      * An enum of possible signals that {@link SignalListener} listens to.
      */
@@ -297,8 +267,8 @@ class QueryManager {
 
     private final Signal signal;
 
-    public SignalListener(final NodeEndpoint endpoint, final FragmentHandle handle, final Signal signal) {
-      super(endpoint, handle);
+    SignalListener(final NodeEndpoint endpoint, CancelFragments fragments, final Signal signal) {
+      super(endpoint, fragments);
       this.signal = signal;
     }
 
@@ -306,15 +276,15 @@ class QueryManager {
     public void failed(final RpcException ex) {
       final String endpointIdentity = endpoint != null ?
         endpoint.getAddress() + ":" + endpoint.getUserPort() : "<null>";
-      logger.error("Failure while attempting to {} fragment {} on endpoint {} with {}.",
-        signal, QueryIdHelper.getQueryIdentifier(value), endpointIdentity, ex);
+      logger.error("Failure while attempting to {} fragments of query {} on endpoint {} with {}.",
+        signal, QueryIdHelper.getQueryId(value.getQueryId()), endpointIdentity, ex);
     }
 
     @Override
     public void success(final Ack ack, final ByteBuf buf) {
       if (!ack.getOk()) {
-        logger.warn("Remote node {} responded negative on {} request for fragment {} with {}.", endpoint, signal, value,
-          ack);
+        logger.warn("Remote node {} responded negative on {} request {} with {}.",
+          endpoint, signal, QueryIdHelper.getQueryId(value.getQueryId()), ack);
       }
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@ package com.dremio.sabot.op.common.ht2;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.arrow.vector.FieldVector;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
@@ -123,6 +125,94 @@ public class PivotBuilder {
     }
 
     return new PivotDef(blockWidth, variableOffset, bitOffset, shiftedDefs);
+  }
+
+  public static PivotInfo getBlockInfo(Iterable<FieldVector> fieldVectors) {
+    int bitOffset = 0;
+    int fixedOffset = 0;
+    int variableOffset = 0;
+
+    for(FieldVector v : fieldVectors){
+      if (v == null) {
+        // count1
+        continue;
+      }
+      CompleteType type = CompleteType.fromField(v.getField());
+      switch(type.toMinorType()){
+        case BIT:
+          if ((bitOffset % (1 << BITS_TO_FOUR_BYTES)) == ((1 << BITS_TO_FOUR_BYTES) - 1)) {
+            bitOffset++;
+          }
+          bitOffset+= 2;
+          break;
+
+        /* 8 byte */
+        case BIGINT:
+        case DATE:
+        case TIMESTAMP:
+        case FLOAT8:
+        case INTERVALDAY:
+          bitOffset++;
+          fixedOffset += 8;
+          break;
+
+        /* 4 byte */
+        case FLOAT4:
+        case INTERVALYEAR:
+        case TIME:
+        case INT:
+          bitOffset++;
+          fixedOffset += 4;
+          break;
+
+        /* 16 byte */
+        case DECIMAL:
+          bitOffset++;
+          fixedOffset += 16;
+          break;
+
+        /* variable */
+        case VARBINARY:
+        case VARCHAR:
+          bitOffset++;
+          variableOffset++;
+          break;
+
+        default:
+          throw new UnsupportedOperationException("Unable to build table for field: " + Describer.describe(v.getField()));
+      }
+    }
+
+    // calculate rounded up bits width.
+    final int allBitsWidthInBytes = ( (int) Math.ceil(bitOffset/32.0d)) * 4;
+
+    // Fixed data is four bytes (varlength) + allBitsWidth + fixed value width
+    final int blockWidth;
+    if(variableOffset > 0){
+      blockWidth = allBitsWidthInBytes + fixedOffset + LBlockHashTable.VAR_OFFSET_SIZE;
+    } else {
+      blockWidth = allBitsWidthInBytes + fixedOffset;
+    }
+
+    return new PivotInfo(blockWidth, variableOffset);
+  }
+
+  public static class PivotInfo {
+    private final int blockWidth;
+    private final int numVarColumns;
+
+    public PivotInfo(final int blockWidth, final int numVarColumns) {
+      this.blockWidth = blockWidth;
+      this.numVarColumns = numVarColumns;
+    }
+
+    public int getBlockWidth() {
+      return blockWidth;
+    }
+
+    public int getNumVarColumns() {
+      return numVarColumns;
+    }
   }
 
   public static enum FieldType {

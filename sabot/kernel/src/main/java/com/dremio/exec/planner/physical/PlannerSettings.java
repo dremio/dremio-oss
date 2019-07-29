@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ import com.dremio.options.OptionValidator;
 import com.dremio.options.OptionValue;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
+import com.dremio.options.TypeValidators.AdminBooleanValidator;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.DoubleValidator;
 import com.dremio.options.TypeValidators.EnumValidator;
@@ -99,7 +100,8 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator ENABLE_TRANSPOSE_PROJECT_FILTER_LOGICAL = new BooleanValidator("planner.experimental.tpf_logical", false);
   public static final BooleanValidator ENABLE_PROJECT_CLEANUP_LOGICAL = new BooleanValidator("planner.experimental.pclean_logical", false);
   public static final BooleanValidator ENABLE_CROSS_JOIN = new BooleanValidator("planner.experimental.cross_join", false);
-  public static final BooleanValidator ENABLE_DECIMAL_DATA_TYPE = new BooleanValidator(ENABLE_DECIMAL_DATA_TYPE_KEY, false);
+  public static final BooleanValidator ENABLE_DECIMAL_DATA_TYPE = new BooleanValidator
+    (ENABLE_DECIMAL_DATA_TYPE_KEY, true);
   public static final BooleanValidator HEP_OPT = new BooleanValidator("planner.enable_hep_opt", true);
   public static final BooleanValidator ENABLE_PARTITION_PRUNING = new BooleanValidator("planner.enable_partition_pruning", true);
   public static final String UNIONALL_DISTRIBUTE_KEY = "planner.enable_unionall_distribute";
@@ -113,11 +115,14 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator ENABLE_OUTPUT_LIMITS = new BooleanValidator("planner.output_limit_enable", false);
   public static final RangeLongValidator OUTPUT_LIMIT_SIZE  = new RangeLongValidator("planner.output_limit_size", 1, Long.MAX_VALUE, 1_000_000);
 
+  public static final BooleanValidator VDS_AUTO_FIX = new BooleanValidator("validator.enable_vds_autofix", true);
+
   public static final String ENABLE_DECIMAL_V2_KEY = "planner" +
     ".enable_decimal_v2";
   public static final String ENABLE_VECTORIZED_PARQUET_DECIMAL_KEY = "planner" +
     ".enable_vectorized_parquet_decimal";
-  public static final BooleanValidator ENABLE_DECIMAL_V2 = new BooleanValidator(ENABLE_DECIMAL_V2_KEY, false);
+  public static final BooleanValidator ENABLE_DECIMAL_V2 = new AdminBooleanValidator
+    (ENABLE_DECIMAL_V2_KEY, true);
   public static final BooleanValidator ENABLE_VECTORIZED_PARQUET_DECIMAL = new BooleanValidator
     (ENABLE_VECTORIZED_PARQUET_DECIMAL_KEY, true);
 
@@ -180,8 +185,6 @@ public class PlannerSettings implements Context{
 
   public static final BooleanValidator INCLUDE_DATASET_PROFILE = new BooleanValidator("planner.include_dataset_profile", true);
 
-  public static final BooleanValidator USE_LEGACY_DECORRELATOR = new BooleanValidator("planner.experimental.decorrelator.use_legacy", false);
-
   public static final BooleanValidator ENABLE_JOIN_OPTIMIZATION = new BooleanValidator("planner.enable_join_optimization", true);
 
   public static final BooleanValidator ENABLE_EXPERIMENTAL_BUSHY_JOIN_OPTIMIZER = new BooleanValidator("planner.experimental.enable_bushy_join_optimizer", false);
@@ -194,6 +197,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator ENABLE_SCAN_MIN_COST = new BooleanValidator("planner.cost.minimum.enable", true);
   public static final DoubleValidator DEFAULT_SCAN_MIN_COST = new DoubleValidator("planner.default.min_cost_per_split", 0);
   public static final DoubleValidator ADLS_SCAN_MIN_COST = new DoubleValidator("planner.adl.min_cost_per_split", 1E6);
+  public static final DoubleValidator AZURE_STORAGE_SCAN_MIN_COST = new DoubleValidator("planner.azure_storage.min_cost_per_split", 1E6);
   public static final DoubleValidator S3_SCAN_MIN_COST = new DoubleValidator("planner.s3.min_cost_per_split", 1E6);
   public static final DoubleValidator ACCELERATION_SCAN_MIN_COST = new DoubleValidator("planner.acceleration.min_cost_per_split", 0);
   public static final DoubleValidator HOME_SCAN_MIN_COST = new DoubleValidator("planner.home.min_cost_per_split", 0);
@@ -220,7 +224,8 @@ public class PlannerSettings implements Context{
     "pdfs",
     "hdfs",
     "maprfs",
-    "nas"
+    "nas",
+    "azure_storage"
     );
 
   /**
@@ -234,8 +239,8 @@ public class PlannerSettings implements Context{
   /**
    * Options to reject queries which will attempt to process more than this many splits: per dataset, and per query
    */
-  public static final PositiveLongValidator QUERY_MAX_SPLIT_LIMIT = new PositiveLongValidator("planner.query_max_split_limit", Integer.MAX_VALUE, 250_000);
-  public static final PositiveLongValidator DATASET_MAX_SPLIT_LIMIT = new PositiveLongValidator("planner.dataset_max_split_limit", Integer.MAX_VALUE, 50_000);
+  public static final PositiveLongValidator QUERY_MAX_SPLIT_LIMIT = new PositiveLongValidator("planner.query_max_split_limit", Integer.MAX_VALUE, 300_000);
+  public static final PositiveLongValidator DATASET_MAX_SPLIT_LIMIT = new PositiveLongValidator("planner.dataset_max_split_limit", Integer.MAX_VALUE, 300_000);
 
   private final SabotConfig sabotConfig;
   public final OptionManager options;
@@ -471,6 +476,9 @@ public class PlannerSettings implements Context{
 
   public double getMinimumCostPerSplit(SourceType sourceType) {
     if (SOURCES_WITH_MIN_COST.contains(sourceType.value().toLowerCase())) {
+      if (logger.isDebugEnabled()) {
+        logger.debug("planner.cost.minimum.enable is enabled and SourceType {} supports minimum cost per split", sourceType.label());
+      }
       OptionValue value = options.getOption(String.format("planner.%s.min_cost_per_split", sourceType.value().toLowerCase()));
       if (value != null) {
         return value.getFloatVal();

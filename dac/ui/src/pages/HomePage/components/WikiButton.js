@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,24 +17,18 @@ import { PureComponent, Component } from 'react';
 import classNames from 'classnames';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
-import { withRouter } from 'react-router';
 import Art from '@app/components/Art';
 import SimpleButton from '@app/components/Buttons/SimpleButton';
 import { isWikiPresent } from '@app/selectors/home';
-import { getHomeContents } from 'selectors/datasets';
 import {
   notificationIcon,
   wikiButton as wikiButtonCls,
   wikiButtonSelected
 } from './WikiButton.less';
 
-const maspStatToProps = (state, {
-  location
-}) => {
-  const currentEntity = getHomeContents(state, location.pathname);
-  const entityId = currentEntity ? currentEntity.get('id') : null;
+const mapStateToProps = (state) => {
   return {
-    hasWiki: isWikiPresent(state, entityId)
+    hasWiki: isWikiPresent(state)
   };
 };
 
@@ -67,13 +61,11 @@ export class WikiButtonView extends PureComponent {
   }
 }
 
-@withRouter
-@connect(maspStatToProps)
+@connect(mapStateToProps)
 export class WikiButton extends Component {
   static propTypes = {
     isSelected: PropTypes.bool, // toggle state
     onClick: PropTypes.func,
-    location: PropTypes.object, // provided by withRouter
     hasWiki: PropTypes.bool,
     className: PropTypes.string
   };

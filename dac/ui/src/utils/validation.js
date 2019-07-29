@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import invariant from 'invariant';
 import { merge, get, set, result } from 'lodash/object';
 import { capitalize } from 'lodash';
 import Immutable from 'immutable';
@@ -116,6 +117,32 @@ export function isInteger(key, label = key) {
     }
   };
 }
+
+export const isIntegerWithLimits = (key, label = key, lowLimit = null, topLimit = null) => {
+  const isIntegerChecker = isInteger(key, label);
+  if (lowLimit === null && topLimit === null) return isIntegerChecker;
+  invariant(lowLimit === null || topLimit === null || lowLimit <= topLimit,
+    'lowLimit must be <= topLimit');
+  let limitMessage;
+  if (topLimit !== null && lowLimit !== null) {
+    limitMessage = `${label} must be an integer between ${lowLimit} and ${topLimit}.`;
+  } else if (topLimit !== null) {
+    limitMessage = `${label} must be an integer less than or equal ${topLimit}.`;
+  } else {
+    limitMessage = `${label} must be an integer greater than or equal to ${lowLimit}.`;
+  }
+  return values => {
+    const isIntCheckResult = isIntegerChecker(values);
+    if (get(isIntCheckResult, key)) {
+      return isIntCheckResult;
+    }
+    const value = result(values, key);
+    if (!isEmptyValue(value) && (lowLimit !== null && value < lowLimit) ||
+      (topLimit !== null && value > topLimit)) {
+      return set({}, key, limitMessage);
+    }
+  };
+};
 
 export function isPositiveInteger(key, label = key) {
   return function(values) {

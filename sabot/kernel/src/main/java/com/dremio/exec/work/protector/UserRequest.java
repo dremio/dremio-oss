@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ import com.dremio.exec.proto.UserProtos.GetTablesReq;
 import com.dremio.exec.proto.UserProtos.QueryPriority;
 import com.dremio.exec.proto.UserProtos.RpcType;
 import com.dremio.exec.proto.UserProtos.RunQuery;
-import com.dremio.exec.proto.beans.RequestType;
+import com.dremio.proto.model.attempts.RequestType;
 import com.google.common.base.Preconditions;
 
 /**
@@ -179,17 +179,23 @@ public class UserRequest {
     }
   }
 
-  public RequestType getRequestType(){
-    switch(type){
-    case CREATE_PREPARED_STATEMENT: return RequestType.CREATE_PREPARE;
-    case GET_CATALOGS: return RequestType.GET_CATALOGS;
-    case GET_COLUMNS: return RequestType.GET_COLUMNS;
-    case GET_SCHEMAS: return RequestType.GET_SCHEMAS;
-    case GET_TABLES: return RequestType.GET_TABLES;
-    case GET_SERVER_META: return RequestType.GET_SERVER_META;
+  public RequestType getRequestType() {
+    switch (type) {
+    case CREATE_PREPARED_STATEMENT:
+      return RequestType.CREATE_PREPARE;
+    case GET_CATALOGS:
+      return RequestType.GET_CATALOGS;
+    case GET_COLUMNS:
+      return RequestType.GET_COLUMNS;
+    case GET_SCHEMAS:
+      return RequestType.GET_SCHEMAS;
+    case GET_TABLES:
+      return RequestType.GET_TABLES;
+    case GET_SERVER_META:
+      return RequestType.GET_SERVER_META;
     case RUN_QUERY:
       RunQuery q = unwrap(RunQuery.class);
-      if(q.getType() == QueryType.PREPARED_STATEMENT){
+      if (q.getType() == QueryType.PREPARED_STATEMENT) {
         return RequestType.EXECUTE_PREPARE;
       } else {
         return RequestType.RUN_SQL;

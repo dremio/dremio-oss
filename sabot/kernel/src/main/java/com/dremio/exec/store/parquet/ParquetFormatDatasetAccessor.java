@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -33,7 +34,6 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.parquet.arrow.schema.SchemaConverter;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
-import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.carrotsearch.hppc.cursors.ObjectLongCursor;
@@ -41,8 +41,8 @@ import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.common.types.MinorType;
 import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetMetadata;
@@ -163,7 +163,8 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
     }
 
     final FileStatus firstFile = firstFileO.get();
-    final ParquetMetadata footer = ParquetFileReader.readFooter(fsPlugin.getFsConf(), firstFile, ParquetMetadataConverter.NO_FILTER);
+    final ParquetMetadata footer = SingletonParquetFooterCache.readFooter(fsPlugin.getSystemUserFS(), firstFile, ParquetMetadataConverter.NO_FILTER,
+      context.getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR));
 
     Schema arrowSchema;
     try {
@@ -192,7 +193,7 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
         }
       }
     } else {
-      fields = arrowSchema.getFields();
+      fields = arrowSchema.getFields().stream().collect(Collectors.toList());
     }
     if (fields.size() > maxLeafColumns) {
       throw new ColumnCountTooLargeException(maxLeafColumns);
@@ -239,7 +240,8 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
         SampleMutator mutator = new SampleMutator(sampleAllocator)
     ) {
       for (FileStatus firstFile : selection.getFileStatuses()) {
-        ParquetMetadata footer = ParquetFileReader.readFooter(fsPlugin.getFsConf(), firstFile, ParquetMetadataConverter.NO_FILTER);
+        ParquetMetadata footer = SingletonParquetFooterCache.readFooter(fsPlugin.getSystemUserFS(), firstFile, ParquetMetadataConverter.NO_FILTER,
+          context.getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR));
 
         if (footer.getBlocks().size() == 0) {
           continue;
@@ -258,7 +260,8 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
 
         final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS, isAccelerator);
 
-        try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, firstFile.getPath(), firstFile.getLen(), null, false);
+        final long maxFooterLen = context.getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
+        try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, firstFile.getPath(), firstFile.getLen(), maxFooterLen, false, null);
              RecordReader reader = new AdditionalColumnsRecordReader(new ParquetRowiseReader(operatorContext, footer, 0,
                  firstFile.getPath().toString(), GroupScan.ALL_COLUMNS, fs, schemaHelper, streamProvider), finder.getImplicitFieldsForSample(selection))) {
 

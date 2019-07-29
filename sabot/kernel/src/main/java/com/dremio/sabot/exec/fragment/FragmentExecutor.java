@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,9 @@ package com.dremio.sabot.exec.fragment;
 import static com.dremio.sabot.exec.fragment.FragmentExecutorBuilder.PIPELINE_RES_GRP;
 import static com.dremio.sabot.exec.fragment.FragmentExecutorBuilder.WORK_QUEUE_RES_GRP;
 
-import java.io.IOException;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedExceptionAction;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -32,7 +32,6 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.exception.FragmentSetupException;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.CachedFragmentReader;
@@ -55,7 +54,7 @@ import com.dremio.sabot.driver.Pipeline;
 import com.dremio.sabot.driver.PipelineCreator;
 import com.dremio.sabot.driver.UserDelegatingOperatorCreator;
 import com.dremio.sabot.exec.EventProvider;
-import com.dremio.sabot.exec.QueriesClerk.FragmentTicket;
+import com.dremio.sabot.exec.FragmentTicket;
 import com.dremio.sabot.exec.StateTransitionException;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.sabot.exec.context.FragmentStats;
@@ -68,6 +67,7 @@ import com.dremio.sabot.task.SchedulingGroup;
 import com.dremio.sabot.task.Task.State;
 import com.dremio.sabot.task.TaskDescriptor;
 import com.dremio.sabot.threads.AvailabilityCallback;
+import com.dremio.sabot.threads.sharedres.ActivableResource;
 import com.dremio.sabot.threads.sharedres.SharedResourceManager;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.dremio.sabot.threads.sharedres.SharedResourcesContextImpl;
@@ -142,6 +142,11 @@ public class FragmentExecutor {
 
   private final SettableFuture<Boolean> cancelled;
 
+  // The fragment will not be activated until it gets :
+  // a. a activate/cancel from the foreman (or)
+  // b. an incoming data/oob/finished msg from any upstream fragment.
+  private final ActivableResource activateResource;
+
   public FragmentExecutor(
       FragmentStatusReporter statusReporter,
       SabotConfig config,
@@ -186,6 +191,8 @@ public class FragmentExecutor {
     this.ticket = ticket;
     this.deferredException = exception;
     this.sources = sources;
+    this.activateResource = new ActivableResource(sharedResources.getGroup(PIPELINE_RES_GRP).createResource(
+      "activate-signal-" + this.name, SharedResourceType.FRAGMENT_ACTIVATE_SIGNAL));
     this.workQueue = new FragmentWorkQueue(sharedResources.getGroup(WORK_QUEUE_RES_GRP));
     this.buffers = new IncomingBuffers(
       deferredException, sharedResources.getGroup(PIPELINE_RES_GRP), workQueue, tunnelProvider,
@@ -200,6 +207,13 @@ public class FragmentExecutor {
   private void run(){
     assert taskState != State.DONE : "Attempted to run a task with state of DONE.";
     assert eventProvider != null : "Attempted to run without an eventProvider";
+
+    if (!activateResource.isActivated()) {
+      // All tasks are expected to begin in a runnable state. So, switch to the BLOCKED state on the
+      // first call.
+      taskState = State.BLOCKED_ON_SHARED_RESOURCE;
+      return;
+    }
     stats.runStarted();
 
     // update thread name.
@@ -224,6 +238,13 @@ public class FragmentExecutor {
 
       // if cancellation is requested, that is always the top priority.
       if (eventProvider.isCancelled()) {
+        Optional<Throwable> failedReason = eventProvider.getFailedReason();
+        if (failedReason.isPresent()) {
+          // check if it was failed due to an external reason (eg. by heap monitor).
+          transitionToFailed(failedReason.get());
+          return;
+        }
+
         transitionToCancelled();
         taskState = State.DONE;
         return;
@@ -385,6 +406,13 @@ public class FragmentExecutor {
       Thread.currentThread().setName(originalThreadName);
       stats.finishEnded();
     }
+  }
+
+  /**
+   * Entered by something other than the execution thread. Makes this fragment's pipeline runnable.
+   */
+  private void requestActivate(String trigger) {
+    this.activateResource.activate(trigger);
   }
 
   /**
@@ -579,15 +607,18 @@ public class FragmentExecutor {
    */
   public class FragmentExecutorListener {
 
-    public void handle(final IncomingDataBatch batch) throws FragmentSetupException, IOException {
+    public void handle(final IncomingDataBatch batch) {
+      requestActivate("incoming data batch");
       buffers.batchArrived(batch);
     }
 
     public void handle(FragmentStreamComplete completion) {
+      requestActivate("stream completion");
       buffers.completionArrived(completion);
     }
 
     public void handle(OutOfBandMessage message) {
+      requestActivate("out of band message");
       workQueue.put(() -> {
         queryUserUgi.doAs((PrivilegedAction<Void>) () -> {
           try {
@@ -615,7 +646,12 @@ public class FragmentExecutor {
       });
     }
 
+    public void activate() {
+      requestActivate("activate message from foreman");
+    }
+
     public void cancel() {
+      requestActivate("cancel message from foreman");
       requestCancellation();
     }
 

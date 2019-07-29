@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -183,6 +183,7 @@ public class ${entry.type}${entry.hiveOI} {
     <#else>
       final DecimalHolder h = (DecimalHolder) o;
     </#if>
+      h.start = (h.start / org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH);
       return HiveDecimal.create(DecimalUtility.getBigDecimalFromArrowBuf(h.buffer, h.start, h.scale));
     }
 
@@ -196,6 +197,7 @@ public class ${entry.type}${entry.hiveOI} {
     <#else>
       final DecimalHolder h = (DecimalHolder) o;
     </#if>
+      h.start = (h.start / org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH);
       return new HiveDecimalWritable(
           HiveDecimal.create(DecimalUtility.getBigDecimalFromArrowBuf(h.buffer, h.start, h.scale)));
     }

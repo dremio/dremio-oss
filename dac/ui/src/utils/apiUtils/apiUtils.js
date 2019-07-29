@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +15,30 @@
  */
 import uuid from 'uuid';
 import Immutable from 'immutable';
+
 import { API_URL_V2, API_URL_V3 } from 'constants/Api';
-import { InvalidRSAA, InternalError, RequestError, ApiError } from 'redux-api-middleware/lib/errors';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+
+/**
+ * Error names from api middleware.
+ * see {@link https://github.com/agraboso/redux-api-middleware}
+ * {@code instanceof} does not work in babel environment for errors, so we have to use names
+ */
+export const ApiMiddlewareErrors = {
+  InvalidRSAA: 'InvalidRSAA',
+  InternalError: 'InternalError',
+  RequestError: 'RequestError',
+  ApiError: 'ApiError'
+};
 
 class ApiUtils {
   isApiError(error) {
-    return error instanceof InvalidRSAA ||
-      error instanceof InternalError ||
-      error instanceof RequestError ||
-      error instanceof ApiError;
+    return error instanceof Error &&
+      (error.name === ApiMiddlewareErrors.InvalidRSAA
+        || error.name === ApiMiddlewareErrors.InternalError
+        || error.name === ApiMiddlewareErrors.RequestError
+        || error.name === ApiMiddlewareErrors.ApiError
+      );
   }
 
   getEntityFromResponse(entityType, response) {
@@ -101,7 +115,12 @@ class ApiUtils {
       throw error.meta.validationError;
     }
     if (error.statusText) { // chris asks: how would this be possible? (fetch API rejects with TypeError)
-      throw {_error: 'Request Error: ' + error.statusText}; // todo: loc
+      throw {
+        _error: {
+          message: 'Request Error: ' + error.statusText,
+          id: uuid.v4()
+        }
+      }; // todo: loc
     }
     throw error;
   };
@@ -111,8 +130,8 @@ class ApiUtils {
 
     const headers = new Headers({
       'Content-Type': 'application/json',
-      ...options.headers,
-      'Authorization': localStorageUtils.getAuthToken()
+      'Authorization': localStorageUtils.getAuthToken(),
+      ...options.headers
     }); // protect against older chrome browsers
 
     return fetch(`${apiVersion}/${endpoint}`, { ...options, headers }).then(response => response.ok ? response : Promise.reject(response));

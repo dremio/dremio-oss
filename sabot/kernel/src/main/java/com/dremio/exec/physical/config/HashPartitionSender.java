@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -91,11 +91,11 @@ public class HashPartitionSender extends AbstractSender implements OpWithMinorSp
 
   @Override
   public void collectMinorSpecificAttrs(MinorDataWriter writer) {
-    writer.writeMinorFragmentIndexEndpoints(this, DESTINATIONS_ATTRIBUTE_KEY, destinations);
+    writer.writeMinorFragmentIndexEndpoints(getProps(), DESTINATIONS_ATTRIBUTE_KEY, destinations);
   }
 
   @Override
   public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
-    this.destinations = reader.readMinorFragmentIndexEndpoints(this, DESTINATIONS_ATTRIBUTE_KEY);
+    this.destinations = reader.readMinorFragmentIndexEndpoints(getProps(), DESTINATIONS_ATTRIBUTE_KEY);
   }
 }

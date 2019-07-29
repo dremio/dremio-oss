@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -137,7 +137,7 @@ public class SupportService implements Service {
   public static final int TIMEOUT_IN_SECONDS = 5 * 60;
   public static final String DREMIO_LOG_PATH_PROPERTY = "dremio.log.path";
 
-  public static final BooleanValidator USERS_CHAT = new BooleanValidator("support.users.chat", true);
+  public static final BooleanValidator USERS_CHAT = new BooleanValidator("support.users.chat", false);
   public static final BooleanValidator USERS_UPLOAD = new BooleanValidator("support.users.upload", true);
   public static final BooleanValidator USERS_DOWNLOAD = new BooleanValidator("support.users.download", true);
   public static final BooleanValidator USERS_EMAIL = new BooleanValidator("support.users.email", true);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,9 @@ package com.dremio.exec.record;
 
 import static com.dremio.sabot.op.sort.external.DiskRunManager.nextPowerOfTwo;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.ValueVector;
@@ -30,6 +32,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 import io.netty.buffer.ArrowBuf;
+import io.netty.buffer.NettyArrowBuf;
 
 /**
  * A specialized version of record batch that can moves out buffers and preps them for writing.
@@ -56,7 +59,7 @@ public class WritableBatch implements AutoCloseable {
     List<ArrowBuf> newBuffers = Lists.newArrayList();
     for (ArrowBuf buf : buffers) {
       int writerIndex = buf.writerIndex();
-      ArrowBuf newBuf = buf.transferOwnership(allocator).buffer;
+      ArrowBuf newBuf = buf.getReferenceManager().transferOwnership(buf, allocator).getTransferredBuffer();
       newBuf.writerIndex(writerIndex);
       newBuffers.add(newBuf);
     }
@@ -68,8 +71,10 @@ public class WritableBatch implements AutoCloseable {
     return def;
   }
 
-  public ArrowBuf[] getBuffers() {
-    return buffers;
+  public NettyArrowBuf[] getBuffers() {
+    NettyArrowBuf [] nettyBuffers = new NettyArrowBuf[buffers.length];
+    return Arrays.stream(buffers).map(buf -> buf
+      .asNettyBuffer()).collect(Collectors.toList()).toArray(nettyBuffers);
   }
 
   /**

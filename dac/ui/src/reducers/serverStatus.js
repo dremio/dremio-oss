@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ import moment from 'moment';
 import * as ActionTypes from 'actions/serverStatus';
 import socket, {WS_CONNECTION_OPEN, WS_CONNECTION_CLOSE} from 'utils/socket';
 
-import config from 'utils/config';
+import config from 'dyn-load/utils/config';
 
 const initialState = Immutable.Map({
   status: config.serverStatus,

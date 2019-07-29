@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -404,15 +404,6 @@ public class VectorContainer implements Iterable<VectorWrapper<?>>, VectorAccess
     }
     setRecordCount(records);
     return records;
-  }
-
-  public boolean allocateNewSafe() {
-    for (VectorWrapper<?> w : wrappers) {
-      if (!w.getValueVector().allocateNewSafe()) {
-        return false;
-      }
-    }
-    return true;
   }
 
   public static List<FieldVector[]> getHyperFieldVectors(VectorAccessible a){

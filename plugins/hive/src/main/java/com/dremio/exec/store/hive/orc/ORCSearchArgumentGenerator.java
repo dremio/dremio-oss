@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,14 +36,17 @@ import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.DateString;
 import org.apache.calcite.util.NlsString;
+import org.apache.hadoop.hive.common.type.HiveBaseChar;
+import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf.Type;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgumentFactory;
-import org.apache.hadoop.hive.serde2.io.DateWritable;
+import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import org.apache.orc.ColumnStatistics;
 
 import com.dremio.common.collections.Tuple;
 import com.dremio.exec.planner.logical.RexToExpr;
+import com.dremio.hive.proto.HiveReaderProto;
 import com.google.common.base.Preconditions;
 
 /**
@@ -54,10 +57,12 @@ import com.google.common.base.Preconditions;
 class ORCSearchArgumentGenerator extends RexVisitorImpl<Object> {
   private final SearchArgument.Builder sargBuilder;
   private final List<String> columnNames;
+  private final List<HiveReaderProto.ColumnInfo> columnInfos;
 
-  ORCSearchArgumentGenerator(final List<String> columnNames) {
+  ORCSearchArgumentGenerator(final List<String> columnNames, List<HiveReaderProto.ColumnInfo> columnInfos) {
     super(true);
     this.columnNames = columnNames;
+    this.columnInfos = columnInfos;
     sargBuilder = SearchArgumentFactory.newBuilder();
     sargBuilder.startAnd();
   }
@@ -99,6 +104,8 @@ class ORCSearchArgumentGenerator extends RexVisitorImpl<Object> {
         return  Tuple.of(getDouble(literal), Type.FLOAT);
       case DOUBLE:
         return  Tuple.of(getDouble(literal), Type.FLOAT);
+      case DECIMAL:
+        return  Tuple.of(getDecimal(literal), Type.DECIMAL);
       case DATE:
         // In ORC filter evaluation values are read from file as long and converted to Date in similar way,
         // so the timezone shouldn't be a problem as the input to both here and in ORC reader
@@ -124,6 +131,10 @@ class ORCSearchArgumentGenerator extends RexVisitorImpl<Object> {
 
   private static double getDouble(RexLiteral literal) {
     return ((BigDecimal) literal.getValue()).doubleValue();
+  }
+
+  private static HiveDecimalWritable getDecimal(RexLiteral literal) {
+    return new HiveDecimalWritable(HiveDecimal.create((BigDecimal) literal.getValue()));
   }
 
   @Override
@@ -153,15 +164,64 @@ class ORCSearchArgumentGenerator extends RexVisitorImpl<Object> {
             !(child1 instanceof RexLiteral && child2 instanceof RexInputRef)) {
           throw new IllegalArgumentException("this shouldn't be part of the input expression: " + call);
         }
+        int colIndex = -1;
         final String col;
-        final Tuple<Object, Type> literalPair;
+        Tuple<Object, Type> literalPair;
         if (child1 instanceof RexInputRef) {
+          colIndex = ((RexInputRef) child1).getIndex();
           col = (String) child1.accept(this);
           literalPair = (Tuple<Object, Type>) child2.accept(this);
         } else {
           reversed = true;
+          colIndex = ((RexInputRef) child2).getIndex();
           col = (String) child1.accept(this);
           literalPair = (Tuple<Object, Type>) child1.accept(this);
+        }
+
+        if (literalPair.second == Type.STRING && !columnInfos.isEmpty()) {
+          final HiveReaderProto.ColumnInfo columnInfo = columnInfos.get(colIndex);
+          if (columnInfo.getPrimitiveType() == HiveReaderProto.HivePrimitiveType.CHAR) {
+            final int fixedCharLength = columnInfo.getPrecision();
+            final String paddedPredicate = HiveBaseChar.getPaddedValue((String)literalPair.first, fixedCharLength);
+            literalPair = Tuple.<Object, Type>of(paddedPredicate, Type.STRING);
+          }
+        }
+
+        // DX-17230: Hive converts min max from ORC statistics metadata to predicate type and then compares
+        // So, if predicate type is LONG, and min is -0.1, min gets converted to 0
+        // Hence, setting predicate type correctly based on column type
+        if (!columnInfos.isEmpty()) {
+          final HiveReaderProto.ColumnInfo columnInfo = columnInfos.get(colIndex);
+          Type literalType = literalPair.second;
+          Object literalValue = literalPair.first;
+          if (literalValue.getClass() == Long.class && columnInfo.getPrimitiveType() != null) {
+            switch (columnInfo.getPrimitiveType().getNumber()) {
+              case HiveReaderProto.HivePrimitiveType.DECIMAL_VALUE:
+                literalType = Type.DECIMAL;
+                literalValue = new HiveDecimalWritable(HiveDecimal.create((Long)literalValue));
+                break;
+              case HiveReaderProto.HivePrimitiveType.DOUBLE_VALUE:
+              case HiveReaderProto.HivePrimitiveType.FLOAT_VALUE:
+                literalType = Type.FLOAT;
+                literalValue = new Double((Long)literalValue);
+                break;
+              default:
+                break;
+            }
+            literalPair = Tuple.<Object, Type>of(literalValue, literalType);
+          }
+          else if (literalValue.getClass() == HiveDecimalWritable.class && columnInfo.getPrimitiveType() != null) {
+            switch (columnInfo.getPrimitiveType().getNumber()) {
+              case HiveReaderProto.HivePrimitiveType.DOUBLE_VALUE:
+              case HiveReaderProto.HivePrimitiveType.FLOAT_VALUE:
+                literalType = Type.FLOAT;
+                literalValue = ((HiveDecimalWritable)literalValue).getHiveDecimal().doubleValue();
+                literalPair = Tuple.<Object, Type>of(literalValue, literalType);
+                break;
+              default:
+                break;
+            }
+          }
         }
 
         switch (call.getKind()) {

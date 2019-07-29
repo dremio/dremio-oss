@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package com.dremio.exec.physical.base;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +26,7 @@ import com.dremio.exec.planner.fragment.ParallelizationInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
@@ -49,27 +51,40 @@ public abstract class AbstractExchange extends AbstractSingle implements Exchang
   }
 
   /**
-   * Default sender parallelization width range is [1, Integer.MAX_VALUE] and no endpoint affinity
-   * @param receiverFragmentEndpoints Endpoints assigned to receiver fragment if available, otherwise an empty list.
-   * @return
+   * Default sender parallelization width range is unlimited
    */
   @Override
-  public ParallelizationInfo getSenderParallelizationInfo(List<NodeEndpoint> receiverFragmentEndpoints) {
-    return ParallelizationInfo.UNLIMITED_WIDTH_NO_ENDPOINT_AFFINITY;
+  public ParallelizationInfo.WidthConstraint getSenderParallelizationWidthConstraint() {
+    return ParallelizationInfo.WidthConstraint.UNLIMITED;
   }
 
   /**
-   * Default receiver parallelization width range is [1, Integer.MAX_VALUE] and affinity to nodes where sender
-   * fragments are running.
-   * @param senderFragmentEndpoints Endpoints assigned to receiver fragment if available, otherwise an empty list.
-   * @return
+   * Default sender parallelization affinity is no endpoint affinity
    */
   @Override
-  public ParallelizationInfo getReceiverParallelizationInfo(List<NodeEndpoint> senderFragmentEndpoints) {
-    Preconditions.checkArgument(senderFragmentEndpoints != null && senderFragmentEndpoints.size() > 0,
-        "Sender fragment endpoint list should not be empty");
+  public Supplier<Collection<EndpointAffinity>> getSenderEndpointffinity(Supplier<Collection<NodeEndpoint>> receiverFragmentEndpointsSupplier) {
+    return () -> ImmutableList.of();
+  }
 
-    return ParallelizationInfo.create(1, Integer.MAX_VALUE, getDefaultAffinityMap(senderFragmentEndpoints));
+  /**
+   * Default receiver parallelization width range is unlimited
+   */
+  @Override
+  public ParallelizationInfo.WidthConstraint getReceiverParallelizationWidthConstraint() {
+    return ParallelizationInfo.WidthConstraint.UNLIMITED;
+  }
+
+  /**
+   * Default receiver parallelization is affinity to nodes where sender fragments are running.
+   */
+  @Override
+  public Supplier<Collection<EndpointAffinity>> getReceiverEndpointAffinity(Supplier<Collection<NodeEndpoint>> senderFragmentEndpointsSupplier) {
+    return () -> {
+      Collection<NodeEndpoint> senderFragmentEndpoints = senderFragmentEndpointsSupplier.get();
+      Preconditions.checkArgument(senderFragmentEndpoints != null && senderFragmentEndpoints.size() > 0,
+        "Sender fragment endpoint list should not be empty");
+      return getDefaultAffinityMap(senderFragmentEndpoints);
+    };
   }
 
   /**
@@ -79,7 +94,7 @@ public abstract class AbstractExchange extends AbstractSingle implements Exchang
    * @param fragmentEndpoints SabotNode endpoint assignments of fragments.
    * @return List of EndpointAffinity objects for each SabotNode endpoint given <i>fragmentEndpoints</i>.
    */
-  protected static List<EndpointAffinity> getDefaultAffinityMap(List<NodeEndpoint> fragmentEndpoints) {
+  protected static List<EndpointAffinity> getDefaultAffinityMap(Collection<NodeEndpoint> fragmentEndpoints) {
     Map<NodeEndpoint, EndpointAffinity> affinityMap = Maps.newHashMap();
     final double affinityPerOccurrence = 1.0d / fragmentEndpoints.size();
     for(NodeEndpoint sender : fragmentEndpoints) {

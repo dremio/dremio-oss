@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.resource.ResourceAllocator;
+import com.dremio.service.execselector.ExecutorSelectionService;
 
 /**
  * Go from prepare to execution.
@@ -32,8 +33,9 @@ public class PrepareToExecution extends AsyncCommand {
 
   public PrepareToExecution(PreparedPlan plan, QueryContext context, AttemptObserver observer,
                             PhysicalPlanReader reader,
-                            CoordToExecTunnelCreator tunnelCreator, ResourceAllocator queryResourceManager) {
-    super(context, queryResourceManager, observer, reader, tunnelCreator);
+                            CoordToExecTunnelCreator tunnelCreator, ResourceAllocator queryResourceManager,
+                            ExecutorSelectionService executorSelectionService) {
+    super(context, queryResourceManager, executorSelectionService, observer, reader, tunnelCreator);
     this.plan = plan;
     this.observer = observer;
   }

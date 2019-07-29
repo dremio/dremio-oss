@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,6 +32,7 @@ import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.proto.UserBitShared.MetricValue;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile.Builder;
+import com.dremio.exec.proto.UserBitShared.OperatorProfileDetails;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
 
 import de.vandermeer.asciitable.v2.V2_AsciiTable;
@@ -68,6 +69,9 @@ public class OperatorStats {
   private long[] stateMark = new long[State.Size];
 
   private int inputCount;
+
+  // misc operator details that are saved in the profile.
+  private OperatorProfileDetails profileDetails;
 
   // Need this wrapper so that the caller don't have to handle exception from close().
   public interface WaitRecorder extends AutoCloseable {
@@ -236,6 +240,10 @@ public class OperatorStats {
   }
 
   public OperatorProfile getProfile() {
+    return getProfile(false);
+  }
+
+  public OperatorProfile getProfile(boolean withDetails) {
     final OperatorProfile.Builder b = OperatorProfile //
         .newBuilder() //
         .setOperatorType(operatorType) //
@@ -244,14 +252,13 @@ public class OperatorStats {
         .setProcessNanos(getProcessingNanos())
         .setWaitNanos(getWaitNanos());
 
-    if(allocator != null){
+    if (allocator != null) {
       b.setPeakLocalMemoryAllocated(allocator.getPeakMemoryAllocation());
     }
-
-
-
+    if (withDetails && (profileDetails != null)) {
+      b.setDetails(profileDetails);
+    }
     addAllMetrics(b);
-
     return b.build();
   }
 
@@ -356,6 +363,10 @@ public class OperatorStats {
    */
   public void adjustWaitNanos(long waitNanosOffset) {
     this.stateNanos[State.WAIT.ordinal()] += waitNanosOffset;
+  }
+
+  public void setProfileDetails(OperatorProfileDetails details) {
+    this.profileDetails = details;
   }
 
   @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,13 +22,13 @@ import FormProgressWrapper from 'components/FormProgressWrapper';
 
 import { modalForm, modalFormBody, modalFormWrapper } from 'uiTheme/radium/forms';
 import Keys from 'constants/Keys.json';
+import { FLEX_WRAP_COL_START } from '@app/uiTheme/radium/flexStyle';
 
 export function modalFormProps(props) {
   return {
     onCancel: props.onCancel,
     error: props.error,
     submitting: props.submitting,
-    footerChildren: props.footerChildren,
     done: props.done
   };
 }
@@ -49,14 +49,17 @@ export default class ModalForm extends Component {
     wrapperStyle: PropTypes.object,
     footerChildren: PropTypes.node,
     formBodyStyle: PropTypes.object,
-    isNestedForm: PropTypes.bool.isRequired // <form> not allowed in <form> in html
+    isNestedForm: PropTypes.bool.isRequired, // <form> not allowed in <form> in html
+    // styling
+    isModal: PropTypes.bool
   };
 
   static defaultProps = { // todo: loc
     canSubmit: true,
     confirmText: 'Save',
     cancelText: 'Cancel',
-    isNestedForm: false
+    isNestedForm: false,
+    isModal: true
   };
 
   state = {
@@ -87,7 +90,7 @@ export default class ModalForm extends Component {
   render() {
     const {
       confirmText, cancelText, onCancel, error, submitting, canSubmit, style, wrapperStyle, children,
-      footerChildren, isNestedForm
+      footerChildren, isNestedForm, isModal
     } = this.props;
 
     const internalChildren = [
@@ -108,6 +111,7 @@ export default class ModalForm extends Component {
         </FormProgressWrapper>
       </div>,
       <ConfirmCancelFooter
+        modalFooter={isModal}
         style={this.props.confirmStyle}
         footerChildren={footerChildren}
         confirmText={confirmText}
@@ -119,8 +123,10 @@ export default class ModalForm extends Component {
       />
     ];
 
+    const formStyle = isModal ? modalForm : styles.nonModalForm;
+
     const sharedProps = {
-      style: {...modalForm, ...style},
+      style: {...formStyle, ...style},
       children: internalChildren
     };
 
@@ -139,5 +145,10 @@ const styles = {
     flexShrink: 0,
     minHeight: 0,
     position: 'absolute'
+  },
+  nonModalForm: {
+    ...FLEX_WRAP_COL_START,
+    width: 640,
+    position: 'relative' // to not allow error message overflow a form
   }
 };

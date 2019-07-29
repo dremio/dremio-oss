@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { injectIntl } from 'react-intl';
 
-import config from 'utils/config';
+import config from 'dyn-load/utils/config';
 import Art from 'components/Art';
 import { ENTITY_TYPES } from 'constants/Constants';
 
@@ -82,7 +82,8 @@ export class HeaderButtons extends Component {
           tab: 'format',
           entityType: entity.get('entityType'),
           entityId: entity.get('id'),
-          query: {then: 'query'}
+          query: {then: 'query'},
+          isHomePage: true
         }},
         isAdd: false
       });

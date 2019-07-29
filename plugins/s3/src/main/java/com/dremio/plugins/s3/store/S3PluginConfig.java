@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -77,6 +77,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   public String accessSecret = "";
 
   @Tag(3)
+  @NotMetadataImpacting
   @DisplayMetadata(label = "Encrypt connection")
   public boolean secure;
 

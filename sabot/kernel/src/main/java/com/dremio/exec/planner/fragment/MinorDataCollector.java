@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,8 @@ import java.util.List;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
 import com.dremio.exec.physical.base.OpWithMinorSpecificAttrs;
 import com.dremio.exec.physical.base.PhysicalOperator;
-import com.dremio.exec.proto.CoordExecRPC.MinorSpecificAttr;
+import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 
@@ -33,21 +34,22 @@ public class MinorDataCollector
 
   public MinorDataCollector() {}
 
-  public static List<MinorSpecificAttr> collect(
+  public static List<MinorAttr> collect(
     FragmentHandle handle,
+    NodeEndpoint endpoint,
     PhysicalOperator root,
     MinorDataSerDe serDe,
     PlanFragmentsIndex.Builder indexBuilder)
       throws ForemanSetupException {
 
     // Create an instance of the writer for serializing the attributes.
-    MinorDataWriter writer = new MinorDataWriter(handle, serDe, indexBuilder);
+    MinorDataWriter writer = new MinorDataWriter(handle, endpoint, serDe, indexBuilder);
 
     // walk the tree and collect attributes.
     root.accept(INSTANCE, writer);
 
     // return the collected attributes.
-    return writer.getAttrList();
+    return writer.getAllAttrs();
   }
 
   @Override

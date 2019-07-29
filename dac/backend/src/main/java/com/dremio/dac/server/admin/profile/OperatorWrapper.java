@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.server.admin.profile;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -26,17 +27,20 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import com.dremio.exec.ops.OperatorMetricRegistry;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorTypeMetricsMap;
+import com.dremio.exec.proto.UserBitShared.ExpressionSplitInfo;
 import com.dremio.exec.proto.UserBitShared.MetricDef;
 import com.dremio.exec.proto.UserBitShared.MetricValue;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.base.Preconditions;
 
 /**
  * Wrapper class for profiles of ALL operator instances of the same operator type within a major fragment.
  */
 public class OperatorWrapper {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(OperatorWrapper.class);
 
   private final int major;
   private final List<ImmutablePair<OperatorProfile, Integer>> ops; // operator profile --> minor fragment number
@@ -69,15 +73,96 @@ public class OperatorWrapper {
   public static final String[] OPERATOR_COLUMNS = {"Thread", "Setup Time", "Process Time", "Wait Time",
     "Max Batches", "Max Records", "Peak Memory"};
 
-  public String getContent() {
-    TableBuilder builder = new TableBuilder(OPERATOR_COLUMNS);
+  public static final String[] OPERATORS_OVERVIEW_COLUMNS = {"SqlOperatorImpl ID", "Type", "Min Setup Time", "Avg Setup Time",
+    "Max Setup Time", "Min Process Time", "Avg Process Time", "Max Process Time", "Min Wait Time", "Avg Wait Time",
+    "Max Wait Time", "Avg Peak Memory", "Max Peak Memory"};
+
+  public static final String[] OPERATOR_DETAIL_COLUMNS = { "Split Output Name", "Split Evaluated in Gandiva",
+    "Split Depends On", "Split Expression" };
+
+  public void addSummary(TableBuilder tb) {
+    try {
+      String path = new OperatorPathBuilder().setMajor(major).setOperator(firstProfile).build();
+      tb.appendCell(path);
+      tb.appendCell(operatorName);
+
+      double setupSum = 0.0;
+      double processSum = 0.0;
+      double waitSum = 0.0;
+      double memSum = 0.0;
+      for (ImmutablePair<OperatorProfile, Integer> ip : ops) {
+        OperatorProfile profile = ip.getLeft();
+        setupSum += profile.getSetupNanos();
+        processSum += profile.getProcessNanos();
+        waitSum += profile.getWaitNanos();
+        memSum += profile.getPeakLocalMemoryAllocated();
+      }
+
+      final ImmutablePair<OperatorProfile, Integer> shortSetup = Collections.min(ops, Comparators.setupTime);
+      final ImmutablePair<OperatorProfile, Integer> longSetup = Collections.max(ops, Comparators.setupTime);
+      tb.appendNanos(shortSetup.getLeft().getSetupNanos());
+      tb.appendNanos(Math.round(setupSum / size));
+      tb.appendNanos(longSetup.getLeft().getSetupNanos());
+
+      final ImmutablePair<OperatorProfile, Integer> shortProcess = Collections.min(ops, Comparators.processTime);
+      final ImmutablePair<OperatorProfile, Integer> longProcess = Collections.max(ops, Comparators.processTime);
+      tb.appendNanos(shortProcess.getLeft().getProcessNanos());
+      tb.appendNanos(Math.round(processSum / size));
+      tb.appendNanos(longProcess.getLeft().getProcessNanos());
+
+      final ImmutablePair<OperatorProfile, Integer> shortWait = Collections.min(ops, Comparators.waitTime);
+      final ImmutablePair<OperatorProfile, Integer> longWait = Collections.max(ops, Comparators.waitTime);
+      tb.appendNanos(shortWait.getLeft().getWaitNanos());
+      tb.appendNanos(Math.round(waitSum / size));
+      tb.appendNanos(longWait.getLeft().getWaitNanos());
+
+      final ImmutablePair<OperatorProfile, Integer> peakMem = Collections.max(ops, Comparators.operatorPeakMemory);
+      tb.appendBytes(Math.round(memSum / size));
+      tb.appendBytes(peakMem.getLeft().getPeakLocalMemoryAllocated());
+    } catch (IOException e) {
+      logger.debug("Failed to add summary", e);
+    }
+  }
+
+  private boolean renderingOldProfiles(OperatorProfile op) {
+    final List<MetricValue> metricValues = op.getMetricList();
+    for (MetricValue metric : metricValues) {
+      final int metricId = metric.getMetricId();
+      if (metricId == HashAggStats.SKIP_METRIC_START) {
+        /* if the ordinal (metric id) to skip is indeed present
+         * in the serialized profile that we are trying to render
+         * then we are definitely working with new profiles
+         */
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public void addOperator(JsonGenerator generator) throws IOException {
+    generator.writeFieldName(getId());
+    generator.writeStartObject();
+
+    addInfo(generator);
+    addMetrics(generator);
+    addDetails(generator);
+
+    generator.writeEndObject();
+  }
+
+  public void addInfo(JsonGenerator generator) throws IOException {
+    generator.writeFieldName("info");
+
+    JsonBuilder builder = new JsonBuilder(generator, OPERATOR_COLUMNS);
 
     for (ImmutablePair<OperatorProfile, Integer> ip : ops) {
+      builder.startEntry();
+
       int minor = ip.getRight();
       OperatorProfile op = ip.getLeft();
 
       String path = new OperatorPathBuilder().setMajor(major).setMinor(minor).setOperator(op).build();
-      builder.appendCell(path, null);
+      builder.appendString(path);
       builder.appendNanos(op.getSetupNanos());
       builder.appendNanos(op.getProcessNanos());
       builder.appendNanos(op.getWaitNanos());
@@ -89,68 +174,28 @@ public class OperatorWrapper {
         maxRecords = Math.max(sp.getRecords(), maxRecords);
       }
 
-      builder.appendFormattedInteger(maxBatches, null);
-      builder.appendFormattedInteger(maxRecords, null);
-      builder.appendBytes(op.getPeakLocalMemoryAllocated(), null);
-    }
-    return builder.build();
-  }
+      builder.appendFormattedInteger(maxBatches);
+      builder.appendFormattedInteger(maxRecords);
+      builder.appendBytes(op.getPeakLocalMemoryAllocated());
 
-  public static final String[] OPERATORS_OVERVIEW_COLUMNS = {"SqlOperatorImpl ID", "Type", "Min Setup Time", "Avg Setup Time",
-    "Max Setup Time", "Min Process Time", "Avg Process Time", "Max Process Time", "Min Wait Time", "Avg Wait Time",
-    "Max Wait Time", "Avg Peak Memory", "Max Peak Memory"};
-
-  public void addSummary(TableBuilder tb) {
-
-    String path = new OperatorPathBuilder().setMajor(major).setOperator(firstProfile).build();
-    tb.appendCell(path, null);
-    tb.appendCell(operatorName, null);
-
-    double setupSum = 0.0;
-    double processSum = 0.0;
-    double waitSum = 0.0;
-    double memSum = 0.0;
-    for (ImmutablePair<OperatorProfile, Integer> ip : ops) {
-      OperatorProfile profile = ip.getLeft();
-      setupSum += profile.getSetupNanos();
-      processSum += profile.getProcessNanos();
-      waitSum += profile.getWaitNanos();
-      memSum += profile.getPeakLocalMemoryAllocated();
+      builder.endEntry();
     }
 
-    final ImmutablePair<OperatorProfile, Integer> shortSetup = Collections.min(ops, Comparators.setupTime);
-    final ImmutablePair<OperatorProfile, Integer> longSetup = Collections.max(ops, Comparators.setupTime);
-    tb.appendNanos(shortSetup.getLeft().getSetupNanos());
-    tb.appendNanos(Math.round(setupSum / size));
-    tb.appendNanos(longSetup.getLeft().getSetupNanos());
-
-    final ImmutablePair<OperatorProfile, Integer> shortProcess = Collections.min(ops, Comparators.processTime);
-    final ImmutablePair<OperatorProfile, Integer> longProcess = Collections.max(ops, Comparators.processTime);
-    tb.appendNanos(shortProcess.getLeft().getProcessNanos());
-    tb.appendNanos(Math.round(processSum / size));
-    tb.appendNanos(longProcess.getLeft().getProcessNanos());
-
-    final ImmutablePair<OperatorProfile, Integer> shortWait = Collections.min(ops, Comparators.waitTime);
-    final ImmutablePair<OperatorProfile, Integer> longWait = Collections.max(ops, Comparators.waitTime);
-    tb.appendNanos(shortWait.getLeft().getWaitNanos());
-    tb.appendNanos(Math.round(waitSum / size));
-    tb.appendNanos(longWait.getLeft().getWaitNanos());
-
-    final ImmutablePair<OperatorProfile, Integer> peakMem = Collections.max(ops, Comparators.operatorPeakMemory);
-    tb.appendBytes(Math.round(memSum / size), null);
-    tb.appendBytes(peakMem.getLeft().getPeakLocalMemoryAllocated(), null);
+    builder.end();
   }
 
-  public String getMetricsTable() {
+  public void addMetrics(JsonGenerator generator) throws IOException {
     if (operatorType == null) {
-      return "";
+      return;
     }
 
     final Integer[] metricIds = OperatorMetricRegistry.getMetricIds(coreOperatorTypeMetricsMap, operatorType.getNumber());
 
     if (metricIds.length == 0) {
-      return "";
+      return;
     }
+
+    generator.writeFieldName("metrics");
 
     final String[] metricsTableColumnNames = new String[metricIds.length + 1];
     metricsTableColumnNames[0] = "Thread";
@@ -162,18 +207,20 @@ public class OperatorWrapper {
       metricIdToMetricTableColumnIndex.put(metricId, i - 1);
       metricsTableColumnNames[i++] = metric.get().getName();
     }
-    final TableBuilder builder = new TableBuilder(metricsTableColumnNames);
+
+    final JsonBuilder builder = new JsonBuilder(generator, metricsTableColumnNames);
+
     for (final ImmutablePair<OperatorProfile, Integer> ip : ops) {
+      builder.startEntry();
+
       final OperatorProfile op = ip.getLeft();
 
-      builder.appendCell(
+      builder.appendString(
         new OperatorPathBuilder()
           .setMajor(major)
           .setMinor(ip.getRight())
           .setOperator(op)
-          .build(),
-        null);
-
+          .build());
 
       final boolean isHashAgg = operatorType.getNumber() == CoreOperatorType.HASH_AGGREGATE_VALUE;
       final boolean toSkip = isHashAgg && renderingOldProfiles(op);
@@ -210,30 +257,55 @@ public class OperatorWrapper {
             /* format elapsed time related metrics correctly as string (using hrs, mins, secs, us, ns as applicable) */
             builder.appendNanosWithUnit(value.longValue());
           } else {
-            builder.appendFormattedNumber(value, null);
+            builder.appendFormattedNumber(value);
           }
         } else {
-          builder.appendCell("", null);
+          builder.appendString("");
         }
 
         count++;
       }
+
+      builder.endEntry();
     }
-    return builder.build();
+
+    builder.end();
   }
 
-  private boolean renderingOldProfiles(OperatorProfile op) {
-    final List<MetricValue> metricValues = op.getMetricList();
-    for (MetricValue metric : metricValues) {
-      final int metricId = metric.getMetricId();
-      if (metricId == HashAggStats.SKIP_METRIC_START) {
-        /* if the ordinal (metric id) to skip is indeed present
-         * in the serialized profile that we are trying to render
-         * then we are definitely working with new profiles
-         */
-        return false;
+  public void addDetails(JsonGenerator generator) throws IOException {
+    if (operatorType == null) {
+      return;
+    }
+
+    OperatorProfile foundOp = null;
+    for (ImmutablePair<OperatorProfile, Integer> ip : ops) {
+      int minor = ip.getRight();
+      OperatorProfile op = ip.getLeft();
+
+      // pick details only from the 0th minor fragment.
+      if (minor == 0 && op.hasDetails()) {
+        foundOp = op;
+        break;
       }
     }
-    return true;
+    if (foundOp == null) {
+      return;
+    }
+
+    generator.writeFieldName("details");
+    JsonBuilder builder = new JsonBuilder(generator, OPERATOR_DETAIL_COLUMNS);
+    for (ExpressionSplitInfo splitInfo : foundOp.getDetails().getSplitInfosList()) {
+      builder.startEntry();
+      builder.appendString(splitInfo.getOutputName());
+      builder.appendString(splitInfo.getInGandiva() ? "true" : "false");
+      if (splitInfo.getDependsOnList().size() == 0) {
+        builder.appendString("-");
+      } else {
+        builder.appendString(String.join(",", splitInfo.getDependsOnList()));
+      }
+      builder.appendString(splitInfo.getNamedExpression().toString());
+      builder.endEntry();
+    }
+    builder.end();
   }
 }

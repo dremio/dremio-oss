@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
-import com.dremio.hive.proto.HiveReaderProto;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.AbstractIterator;
 
@@ -158,7 +157,8 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
       Preconditions.checkArgument(currentPartitionMetadata.getInputSplitBatchIterator().hasNext(), "no value exists in hive input split batch iterator.");
 
       List<DatasetSplit> datasetSplits = HiveMetadataUtils.getDatasetSplits(tableMetadata, metadataAccumulator, currentPartitionMetadata, statsParams);
-      return PartitionChunk.of(currentPartitionMetadata.getPartitionValues(), datasetSplits);
+      return PartitionChunk.of(currentPartitionMetadata.getPartitionValues(), datasetSplits,
+          os -> os.write(currentPartitionMetadata.getPartitionXattr().toByteArray()));
     }
   }
 
@@ -168,14 +168,6 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
 
   public MetadataAccumulator getMetadataAccumulator() {
     return metadataAccumulator;
-  }
-
-  public List<HiveReaderProto.PartitionProp> getPartitionProperties(final HiveReaderProto.HiveTableXattr.Builder tableExtended) {
-    if (tableMetadata.getPartitionColumns().isEmpty()) {
-      // add a single partition from table properties.
-      return Collections.singletonList(HiveMetadataUtils.getTablePartitionProperty(tableExtended));
-    }
-    return metadataAccumulator.getPartitionProps();
   }
 
   public static Builder newBuilder() {

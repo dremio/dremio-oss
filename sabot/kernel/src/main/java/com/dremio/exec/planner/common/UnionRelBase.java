@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,11 +44,9 @@ public abstract class UnionRelBase extends Union {
   public boolean isCompatible(RelOptCluster cluster, boolean compareNames, boolean allowSubstring) {
     RelDataType unionType = getRowType();
     PlannerSettings plannerSettings = PrelUtil.getPlannerSettings(cluster);
-    boolean isDecimalV2Enabled = plannerSettings.getOptions().getOption(PlannerSettings
-      .ENABLE_DECIMAL_V2);
     for (RelNode input : getInputs()) {
       if (! MoreRelOptUtil.areRowTypesCompatible(
-        input.getRowType(), unionType, compareNames, allowSubstring, isDecimalV2Enabled)) {
+        input.getRowType(), unionType, compareNames, allowSubstring)) {
         return false;
       }
     }

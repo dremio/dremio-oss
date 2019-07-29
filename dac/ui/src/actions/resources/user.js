@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import { API_URL_V2 } from 'constants/Api';
@@ -37,7 +37,7 @@ function fetchUser(value, meta = {}) {
   const urlEnd = value.userName; // todo: update when server API updates
 
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         {type: USER_GET_START, meta},
         schemaUtils.getSuccessActionTypeWithSchema(USER_GET_SUCCESS, userSchema, meta),

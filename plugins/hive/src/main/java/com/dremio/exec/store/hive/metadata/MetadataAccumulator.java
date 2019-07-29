@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@ import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.mapred.InputFormat;
 
 import com.dremio.hive.proto.HiveReaderProto;
+import com.dremio.hive.proto.HiveReaderProto.Prop;
+import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 
@@ -33,12 +35,11 @@ public class MetadataAccumulator {
 
   private final List<HiveReaderProto.FileSystemPartitionUpdateKey> fileSystemPartitionUpdateKeys;
   private final List<Integer> partitionHashes;
-  private final List<HiveReaderProto.PartitionProp> partitionProps;
 
   private final DictionaryBuilder<String> inputFormatDictionary;
   private final DictionaryBuilder<String> serializationLibDictionary;
   private final DictionaryBuilder<String> storageHandlerDictionary;
-  private final DictionaryBuilder<HiveReaderProto.Prop> propertyDictionary;
+  private final DictionaryBuilder<Prop> propertyDictionary;
 
   private boolean allFSBasedPartitions;
   private boolean allowParquetNative;
@@ -47,44 +48,43 @@ public class MetadataAccumulator {
     this.datasetStats = new HiveDatasetStats();
     this.fileSystemPartitionUpdateKeys = new ArrayList<>();
     this.partitionHashes = new ArrayList<>();
-    this.partitionProps = new ArrayList<>();
     this.allFSBasedPartitions = true;
     this.allowParquetNative = true;
 
     inputFormatDictionary = new DictionaryBuilder<>(String.class);
     serializationLibDictionary = new DictionaryBuilder<>(String.class);
     storageHandlerDictionary = new DictionaryBuilder<>(String.class);
-    propertyDictionary = new DictionaryBuilder<>(HiveReaderProto.Prop.class);
+    propertyDictionary = new DictionaryBuilder<>(Prop.class);
   }
 
   public void accumulateFileSystemPartitionUpdateKey(HiveReaderProto.FileSystemPartitionUpdateKey fileSystemPartitionUpdateKey) {
     fileSystemPartitionUpdateKeys.add(fileSystemPartitionUpdateKey);
   }
 
-  public void accumulatePartitionProps(Partition partition, List<HiveReaderProto.Prop> props) {
-    final HiveReaderProto.PartitionProp.Builder partitionPropBuilder = HiveReaderProto.PartitionProp.newBuilder();
+  public PartitionXattr buildPartitionXattrDictionaries(Partition partition, List<Prop> props) {
+    final PartitionXattr.Builder partitionXattrBuilder = PartitionXattr.newBuilder();
 
     if (partition.getSd().getInputFormat() != null) {
-      partitionPropBuilder.setInputFormatSubscript(
+      partitionXattrBuilder.setInputFormatSubscript(
         inputFormatDictionary.getOrCreateSubscript(partition.getSd().getInputFormat()));
     }
 
     String metaTableStorage = partition.getParameters().get(META_TABLE_STORAGE);
     if (metaTableStorage != null) {
-      partitionPropBuilder.setStorageHandlerSubscript(
+      partitionXattrBuilder.setStorageHandlerSubscript(
         storageHandlerDictionary.getOrCreateSubscript(metaTableStorage));
     }
 
     if (partition.getSd().getSerdeInfo().getSerializationLib() != null) {
-      partitionPropBuilder.setSerializationLibSubscript(
+      partitionXattrBuilder.setSerializationLibSubscript(
         serializationLibDictionary.getOrCreateSubscript(partition.getSd().getSerdeInfo().getSerializationLib()));
     }
 
-    for (HiveReaderProto.Prop prop : props) {
-      partitionPropBuilder.addPropertySubscript(propertyDictionary.getOrCreateSubscript(prop));
+    for (Prop prop : props) {
+      partitionXattrBuilder.addPropertySubscript(propertyDictionary.getOrCreateSubscript(prop));
     }
 
-    partitionProps.add(partitionPropBuilder.build());
+    return partitionXattrBuilder.build();
   }
 
   public int getTableInputFormatSubscript(String inputFormat) {
@@ -102,7 +102,7 @@ public class MetadataAccumulator {
     return serializationLibDictionary.getOrCreateSubscript(inputFormat);
   }
 
-  public int getTablePropSubscript(HiveReaderProto.Prop prop) {
+  public int getTablePropSubscript(Prop prop) {
     Preconditions.checkNotNull(prop);
 
     return propertyDictionary.getOrCreateSubscript(prop);
@@ -157,11 +157,6 @@ public class MetadataAccumulator {
     return Objects.hashCode(partitionHashes);
   }
 
-  public List<HiveReaderProto.PartitionProp> getPartitionProps() {
-    return partitionProps;
-  }
-
-
   public Iterable<String> buildInputFormatDictionary() {
     return inputFormatDictionary.build();
   }
@@ -174,7 +169,7 @@ public class MetadataAccumulator {
     return storageHandlerDictionary.build();
   }
 
-  public Iterable<? extends HiveReaderProto.Prop> buildPropertyDictionary() {
+  public Iterable<? extends Prop> buildPropertyDictionary() {
     return propertyDictionary.build();
   }
 }

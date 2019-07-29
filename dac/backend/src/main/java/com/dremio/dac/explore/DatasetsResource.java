@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,6 +67,7 @@ import com.dremio.dac.service.search.SearchContainer;
 import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.file.FilePath;
 import com.dremio.file.SourceFilePath;
 import com.dremio.service.jobs.JobsService;
@@ -248,13 +249,17 @@ public class DatasetsResource {
   @GET
   @Path("/summary/{path: .*}")
   @Produces(MediaType.APPLICATION_JSON)
-  public DatasetSummary getDatasetSummary(@PathParam("path") String path) throws NamespaceException {
+  public DatasetSummary getDatasetSummary(@PathParam("path") String path) throws NamespaceException, DatasetNotFoundException {
     final DatasetPath datasetPath = new DatasetPath(PathUtils.toPathComponents(path));
     return getDatasetSummary(datasetPath);
   }
 
-  private DatasetSummary getDatasetSummary(DatasetPath datasetPath) throws NamespaceException {
-    final DatasetConfig datasetConfig = catalog.getTable(datasetPath.toNamespaceKey()).getDatasetConfig();
+  private DatasetSummary getDatasetSummary(DatasetPath datasetPath) throws NamespaceException, DatasetNotFoundException {
+    final DremioTable table = catalog.getTable(datasetPath.toNamespaceKey());
+    if (table == null) {
+      throw new DatasetNotFoundException(datasetPath);
+    }
+    final DatasetConfig datasetConfig = table.getDatasetConfig();
     return newDatasetSummary(datasetConfig,
       datasetService.getJobsCount(datasetPath.toNamespaceKey()),
       datasetService.getDescendantsCount(datasetPath.toNamespaceKey()));

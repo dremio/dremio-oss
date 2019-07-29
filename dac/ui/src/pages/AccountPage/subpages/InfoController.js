@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,10 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import { connect } from 'react-redux';
 import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
-import { loadUser } from 'actions/resources/user';
-import { editAccount } from 'actions/account';
 import FormUnsavedRouteLeave from 'components/Forms/FormUnsavedRouteLeave';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 
@@ -34,29 +31,12 @@ export class InfoController extends Component {
   };
 
   static propTypes = {
-    loadUser: PropTypes.func,
-    route: PropTypes.object,
-    updateFormDirtyState: PropTypes.func,
-    editAccount: PropTypes.func
+    updateFormDirtyState: PropTypes.func // comes from updateFormDirtyState
   }
 
-  componentWillMount() {
-    this.props.loadUser({userName: this.context.username});
-  }
-
-  submit = (form) => {
-    const {userName, firstName, lastName, email, password, version } = form;
-    const body = {
-      userName: userName.value || userName.defaultValue,
-      firstName: firstName.value || firstName.defaultValue,
-      lastName: lastName.value || lastName.defaultValue,
-      email: email.value || email.defaultValue,
-      createdAt: new Date().getTime(), // todo: why is createdAt getting changed here?
-      version: version.value,
-      password: password.value || password.defaultValue
-    };
+  submit = (submitPromise) => {
     return ApiUtils.attachFormSubmitHandlers(
-      this.props.editAccount(body, this.context.username)
+      submitPromise
     ).then(() => this.props.updateFormDirtyState(false));
   }
 
@@ -74,7 +54,4 @@ export class InfoController extends Component {
   }
 }
 
-export default connect(null, {
-  loadUser,
-  editAccount
-})(FormUnsavedRouteLeave(InfoController));
+export default FormUnsavedRouteLeave(InfoController);

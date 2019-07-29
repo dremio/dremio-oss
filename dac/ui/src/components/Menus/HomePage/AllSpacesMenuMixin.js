@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,12 +21,12 @@ import { EntityLinkProvider } from '@app/pages/HomePage/components/EntityLink';
 export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties
     render() {
-      const { item, closeMenu } = this.props;
+      const { spaceId, closeMenu } = this.props;
       const {location} = this.context;
       return (
         <Menu>
           {
-            <EntityLinkProvider entityId={item.get('id')}>
+            <EntityLinkProvider entityId={spaceId}>
               {(link) => (
                 <MenuItemLink
                   href={link}
@@ -38,7 +38,7 @@ export default function(input) {
           }
           {
             <MenuItemLink
-              href={{...location, state: {modal: 'SpaceModal', entityId: item.get('id')}}}
+              href={{...location, state: { modal: 'SpaceModal', entityId: spaceId }}}
               text={la('Edit Details')}
               closeMenu={closeMenu}/>
           }

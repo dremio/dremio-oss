@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,7 +32,7 @@ const language = 'dremio-sql';
 
 const staticPropTypes = {
   height: PropTypes.number.isRequired, // pass-thru
-  defaultValue: PropTypes.string, // pass-thru
+  defaultValue: PropTypes.string, // pass-thru; do not update it via onChange, otherwise monaco will throw error.
   onChange: PropTypes.func,
   errors: PropTypes.instanceOf(Immutable.List),
   readOnly: PropTypes.bool,

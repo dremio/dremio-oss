@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,8 @@ public class TestHDFSStoragePlugin extends DremioTest {
 
     SabotContext context = mock(SabotContext.class);
     when(context.getClasspathScan()).thenReturn(DremioTest.CLASSPATH_SCAN_RESULT);
+    final FileSystemWrapperCreator fileSystemWrapperCreator = FileSystemWrapperCreator.DEFAULT_INSTANCE;
+    when(context.getFileSystemWrapperCreator()).thenReturn(fileSystemWrapperCreator);
 
     Provider<StoragePluginId> idProvider = () -> { return new StoragePluginId(null, conf, null); };
     try(HDFSStoragePlugin fileSystemPlugin = new HDFSStoragePlugin(conf, context, "test-plugin", idProvider)) {

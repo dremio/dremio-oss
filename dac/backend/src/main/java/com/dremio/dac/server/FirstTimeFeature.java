@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ public class FirstTimeFeature implements Feature {
     // but still register the filer on all nodes
     context.register(BootstrapResource.class);
 
-    // Registering a dynamic feature to only add filter to resources not annotated with
+    // Registering a dynamic feature to only add filter to resources NOT annotated with
     // @Bootstrap
     final Class<? extends ContainerRequestFilter> filter = allowTestApis ? NoUserTestFilter.class : NoUserFilter.class;
     context.register(new DynamicFeature() {

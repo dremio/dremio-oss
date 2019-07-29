@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.apache.parquet.schema.Type;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -51,6 +52,7 @@ public class Metadata {
 
   private final FileSystem fs;
   private final ParquetFormatConfig formatConfig;
+  private final long maxFooterLen;
 
   /**
    * Get the parquet metadata for the parquet files in the given directory, including those in subdirectories
@@ -79,9 +81,11 @@ public class Metadata {
   }
 
   private Metadata(ParquetFormatConfig formatConfig, FileSystemPlugin<?> plugin) {
-    this.fs = ImpersonationUtil.createFileSystem(ImpersonationUtil.getProcessUserName(),
-      plugin.getFsConf(), false);
+    this.fs = ImpersonationUtil.createFileSystem(plugin.getContext(), plugin.getId().getName(), plugin.getConfig(), null,
+      ImpersonationUtil.createProxyUgi(ImpersonationUtil.getProcessUserName()), plugin.getFsConf(), plugin.getConfig().getConnectionUniqueProperties(),
+      false);
     this.formatConfig = formatConfig;
+    this.maxFooterLen = plugin.getContext().getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
   }
 
   /**
@@ -158,7 +162,7 @@ public class Metadata {
   private ParquetFileMetadata getParquetFileMetadata(FileStatus file) throws IOException {
     final ParquetMetadata metadata;
 
-    metadata = SingletonParquetFooterCache.readFooter(fs, file, ParquetMetadataConverter.NO_FILTER);
+    metadata = SingletonParquetFooterCache.readFooter(fs, file, ParquetMetadataConverter.NO_FILTER, maxFooterLen);
 
     MessageType schema = metadata.getFileMetaData().getSchema();
 

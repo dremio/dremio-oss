@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 package com.dremio.plugins.s3.store;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -58,6 +60,11 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
     logger.debug("Submitted request to queue for bucket {}, path {} for {}", bucket, path, S3AsyncByteReader.range(offset, len));
     threadPool.submit(readRequest);
     return future;
+  }
+
+  @Override
+  public List<ReaderStat> getStats() {
+    return new ArrayList<>();
   }
 
   class S3SyncReadObject implements Runnable {

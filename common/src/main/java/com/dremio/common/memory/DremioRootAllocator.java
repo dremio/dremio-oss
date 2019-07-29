@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,20 +60,6 @@ public class DremioRootAllocator extends RootAllocator {
     super(listener, limit);
     children = new ConcurrentHashMap<>();
     this.listener = listener;
-  }
-
-  /**
-   * Add the memory usage of the root allocator and all of its children to an exception
-   */
-  public void addUsageToExceptionContext(UserException.Builder b) {
-    // NB: allocator name already printed in each allocator's toString()
-    b.addContext(toString().trim());
-    // in DEBUG mode, children are already printed as part of the allocator's toString()
-    if (!BaseAllocator.isDebug()) {
-      for (String childAllocatorName : children.keySet()) {
-        b.addContext("  ", children.get(childAllocatorName).toString().trim());
-      }
-    }
   }
 
   @Override

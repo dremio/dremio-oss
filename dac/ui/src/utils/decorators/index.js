@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,10 +44,10 @@ const decorators = {
   history: decorateHistory
 };
 
-export const applyDecorators = (payload) => {
-  return payload.set('entities', payload.get('entities').map((value, key) => {
+export const applyDecorators = (entities) => {
+  return entities.map((value, key) => {
     return decorators[key]
       ? value.map(decorators[key])
       : value;
-  }));
+  });
 };

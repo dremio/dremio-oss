@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Copyright (C) 2017-2018 Dremio Corporation
+# Copyright (C) 2017-2019 Dremio Corporation
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,8 +31,9 @@ function exit_with_usage {
   echo -e "restore: Restores Dremio metadata and user-uploaded files."
   echo -e "set-password: Sets passwords for Dremio users (non-LDAP)."
   echo -e "upgrade: Upgrades KV store version."
+  echo -e "export-profiles: Exports profiles of jobs from Dremio"
   echo -e "Run export DREMIO_ADMIN_LOG_DIR=<path> to set log directory."
-  echo -e "Run export DREMIO_ADMIN_LOG_VERBOSITY=<value> to set verbosity. Default is INFO if DREMIO_ADMIN_LOG_DIR is set."
+  echo -e "Run export DREMIO_ADMIN_LOG_VERBOSITY=<value> to set verbosity. Default is INFO."
   exit $RC
 }
 
@@ -66,6 +67,11 @@ case "$action" in
         Command="Clean"
         ;;
 
+    export-profiles)
+        DREMIO_MAINCLASS=com.dremio.dac.cmd.ExportProfiles
+        Command="ExportProfiles"
+        ;;
+
     restore)
         DREMIO_MAINCLASS=com.dremio.dac.cmd.Restore
         Command="Restore"
@@ -90,13 +96,16 @@ case "$action" in
         ;;
 esac
 
-if [ -n "$DREMIO_ADMIN_LOG_DIR" ]; then
-      DateTime=$(date '+%Y-%m-%d_%H:%M:%S')
-      LOG_PARAM="-Ddremio.admin.log.path=${DREMIO_ADMIN_LOG_DIR}/${Command}_${DateTime}.log"
-      if [ -z "$DREMIO_ADMIN_LOG_VERBOSITY" ]; then
-          DREMIO_ADMIN_LOG_VERBOSITY=INFO
-      fi
+if [ -z "$DREMIO_ADMIN_LOG_DIR" ]; then
+  if [ -w "$DREMIO_LOG_DIR" ]; then
+    DREMIO_ADMIN_LOG_DIR="$DREMIO_LOG_DIR"
+  else
+    DREMIO_ADMIN_LOG_DIR="$HOME/.dremio/"
+  fi
 fi
+
+DateTime=$(date '+%Y-%m-%d_%H:%M:%S')
+LOG_PARAM="-Ddremio.admin.log.path=${DREMIO_ADMIN_LOG_DIR}/admin_${Command}_${DateTime}.log"
 
 if [ -n "$DREMIO_ADMIN_LOG_VERBOSITY" ]; then
       LOG_PARAM="$LOG_PARAM -Ddremio.admin.log.verbosity=${DREMIO_ADMIN_LOG_VERBOSITY}"

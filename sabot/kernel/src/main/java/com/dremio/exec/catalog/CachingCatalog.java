@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,12 @@
  */
 package com.dremio.exec.catalog;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.dremio.exec.dotfile.View;
+import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.collect.ImmutableList;
@@ -58,6 +61,18 @@ public class CachingCatalog extends DelegatingCatalog {
       return putTable(key, super.getTableNoResolve(key));
     }
     return tablesByNamespaceKey.get(key);
+  }
+
+  @Override
+  public void updateView(final NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException {
+    tablesByNamespaceKey.remove(key);
+    super.updateView(key, view, attributes);
+  }
+
+  @Override
+  public void dropView(final NamespaceKey key) throws IOException {
+    tablesByNamespaceKey.remove(key);
+    super.dropView(key);
   }
 
   @Override

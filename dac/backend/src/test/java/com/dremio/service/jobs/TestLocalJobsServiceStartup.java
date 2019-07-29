@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -83,6 +83,7 @@ public class TestLocalJobsServiceStartup {
     assertTrue("all job states must be final, or handled by the above method",
         returns.size() + finalStates.size() == JobState.values().length);
     for (JobResult result : returns) {
+      assertTrue(result.getCompleted());
       assertEquals(result.getAttemptsList().get(0).getState(),
           JobState.FAILED);
       assertTrue(result.getAttemptsList()

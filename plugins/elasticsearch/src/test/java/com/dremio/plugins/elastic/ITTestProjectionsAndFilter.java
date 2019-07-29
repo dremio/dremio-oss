@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1093,7 +1093,9 @@ public class ITTestProjectionsAndFilter extends ElasticBaseTestQuery {
       "  \"query\" : {\n" +
       "    \"script\" : {\n" +
       "      \"script\" : {\n" +
-      "        \"inline\" : \"(def) ((doc[\\\"stars\\\"].empty || doc[\\\"review_count\\\"].empty) ? false : ( ( ( ( ( doc[\\\"stars\\\"].value + 2 ) - ( ( 2 * Math.floor(Math.pow(doc[\\\"stars\\\"].value, 2)) ) / 4 ) ) + ( Math.pow(doc[\\\"stars\\\"].value, 0.5) / 1E0D ) ) - ( doc[\\\"review_count\\\"].value % 3 ) ) == 0.37082869338697066D ))\",\n" +
+      "        \"inline\" : \"(def) ((doc[\\\"stars\\\"].empty || doc[\\\"review_count\\\"]" +
+        ".empty) ? false : ( ( ( ( ( doc[\\\"stars\\\"].value + 2 ) - ( ( 2 * Math.floor(Math.pow" +
+        "(doc[\\\"stars\\\"].value, 2)) ) / 4 ) ) + ( Math.pow(doc[\\\"stars\\\"].value, 0.5) / 1E0D ) ) - ( doc[\\\"review_count\\\"].value % 3 ) ) == 0.37082869338697066D ))\",\n" +
       "        \"lang\" : \"painless\"\n" +
       "      },\n" +
       "      \"boost\" : 1.0\n" +

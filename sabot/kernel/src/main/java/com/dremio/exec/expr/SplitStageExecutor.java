@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -95,22 +95,18 @@ class SplitStageExecutor implements AutoCloseable {
   // the filter function to apply to filter
   TimedFilterFunction filterFunction;
 
-  // counter representing the expression being split. Used in debug log messages
-  final long instanceCounter;
-
   final SupportedEngines.Engine preferredEngine;
 
   // Helper references for adding splits to correct list.
   final List<ExpressionSplit> splitsForPreferredCodeGen;
   final List<ExpressionSplit> splitsForNonPreferredCodeGen;
 
-  SplitStageExecutor(OperatorContext context, VectorAccessible incoming, SupportedEngines.Engine preferredExecType, long instanceCounter) {
+  SplitStageExecutor(OperatorContext context, VectorAccessible incoming, SupportedEngines.Engine preferredExecType) {
     this.context = context;
     this.incoming = incoming;
     this.preferredEngine = preferredExecType;
     this.hasOriginalExpression = false;
     this.nativeFilter = null;
-    this.instanceCounter = instanceCounter;
     this.nativeProjectorBuilder = NativeProjectEvaluator.builder(incoming, context.getFunctionContext());
     this.cg = context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
     this.splitsForPreferredCodeGen = this.preferredEngine ==
@@ -118,10 +114,6 @@ class SplitStageExecutor implements AutoCloseable {
     this.splitsForNonPreferredCodeGen = this.preferredEngine ==
       SupportedEngines.Engine.GANDIVA? javaSplits : gandivaSplits;
     this.intermediateOutputs = context.createOutputVectorContainer();
-  }
-
-  void log(String s, Object... objects) {
-    logger.debug("Expression {}: " + s, instanceCounter, objects);
   }
 
   // Adds a split to be executed as part of this
@@ -156,12 +148,12 @@ class SplitStageExecutor implements AutoCloseable {
     allocationVectors.add(vector);
 
     if (gandivaCodeGen) {
-      log("Setting up split for {} in Gandiva {}", split.getNamedExpression().getRef().getAsUnescapedPath(), expr);
+      logger.trace("Setting up split for {} in Gandiva", split.toString());
       nativeProjectorBuilder.add(expr, vector);
       return outputField;
     }
 
-    log("Setting up split for {} in Java {}", split.getNamedExpression().getRef().getAsUnescapedPath(), expr);
+    logger.trace("Setting up split for {} in Java", split.toString());
     // setup in Java
     TypedFieldId fid = intermediateOutputs.getValueVectorId(SchemaPath.getSimplePath(outputField.getName()));
     boolean useSetSafe = !(vector instanceof FixedWidthVector);
@@ -243,9 +235,8 @@ class SplitStageExecutor implements AutoCloseable {
       finalSplit = gandivaSplits.get(0);
     }
 
-    if (this.preferredEngine == SupportedEngines.Engine.GANDIVA && finalSplit.getExecutionEngine()
-      == this.preferredEngine) {
-      log("Setting up filter for split in Gandiva {}", finalSplit.getNamedExpression().getExpr());
+    if (finalSplit.getExecutionEngine() == SupportedEngines.Engine.GANDIVA) {
+      logger.trace("Setting up filter for split in Gandiva {}", finalSplit.toString());
       gandivaCodeGenWatch.start();
       nativeFilter = NativeFilter.build(finalSplit.getNamedExpression().getExpr(), incoming, outgoing.getSelectionVector2(), context.getFunctionContext());
       gandivaCodeGenWatch.stop();
@@ -253,7 +244,7 @@ class SplitStageExecutor implements AutoCloseable {
       return;
     }
 
-    log("Setting up filter for split in Java {}", finalSplit.getNamedExpression().getExpr());
+    logger.trace("Setting up filter for split in Java {}", finalSplit.toString());
     javaCodeGenWatch.start();
     final ClassGenerator<Filterer> filterClassGen = context.getClassProducer().createGenerator(Filterer.TEMPLATE_DEFINITION2).getRoot();
     filterClassGen.addExpr(new ReturnValueExpression(finalSplit.getNamedExpression().getExpr()), ClassGenerator.BlockCreateMode.MERGE, true);

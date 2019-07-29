@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.resource.ResourceAllocator;
+import com.dremio.service.execselector.ExecutorSelectionService;
 
 /**
  * Take a sql node and run as async command.
@@ -40,16 +41,17 @@ public class HandlerToExec extends AsyncCommand {
   private PhysicalPlan physicalPlan;
 
   public HandlerToExec(
-    CoordToExecTunnelCreator tunnelCreator,
-    QueryContext context,
-    PhysicalPlanReader reader,
-    AttemptObserver observer,
-    String sql,
-    SqlNode sqlNode,
-    SqlToPlanHandler handler,
-    SqlHandlerConfig config,
-    ResourceAllocator queryResourceManager) {
-    super(context, queryResourceManager, observer, reader, tunnelCreator);
+      CoordToExecTunnelCreator tunnelCreator,
+      QueryContext context,
+      PhysicalPlanReader reader,
+      AttemptObserver observer,
+      String sql,
+      SqlNode sqlNode,
+      SqlToPlanHandler handler,
+      SqlHandlerConfig config,
+      ResourceAllocator queryResourceManager,
+      ExecutorSelectionService executorSelectionService) {
+    super(context, queryResourceManager, executorSelectionService, observer, reader, tunnelCreator);
     this.observer = observer;
     this.sqlNode = sqlNode;
     this.sql = sql;

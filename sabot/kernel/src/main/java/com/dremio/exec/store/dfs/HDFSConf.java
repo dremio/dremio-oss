@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,8 @@ package com.dremio.exec.store.dfs;
 import java.util.List;
 
 import javax.inject.Provider;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 
 import org.apache.hadoop.fs.Path;
 import org.hibernate.validator.constraints.NotBlank;
@@ -55,6 +57,8 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   public String hostname;
 
   @Tag(2)
+  @Min(1)
+  @Max(65535)
   @DisplayMetadata(label = "Port")
   public int port = 8020;
 

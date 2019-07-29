@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package com.dremio.exec.server;
 import java.util.concurrent.ExecutorService;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.memory.RootAllocatorFactory;
 
 import com.codahale.metrics.Gauge;
@@ -27,6 +28,7 @@ import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.memory.DremioRootAllocator;
+import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.rpc.CloseableThreadPool;
@@ -131,7 +133,14 @@ public class BootStrapContext implements AutoCloseable {
 
     @Override
     public void addMemoryContext(UserException.Builder exceptionBuilder) {
-      rootAllocator.addUsageToExceptionContext(exceptionBuilder);
+      String detail = MemoryDebugInfo.getSummaryFromRoot(rootAllocator);
+      exceptionBuilder.addContext(detail);
+    }
+
+    @Override
+    public void addMemoryContext(UserException.Builder exceptionBuilder, OutOfMemoryException e) {
+      String detail = MemoryDebugInfo.getDetailsOnAllocationFailure(e, rootAllocator);
+      exceptionBuilder.addContext(detail);
     }
   }
 }

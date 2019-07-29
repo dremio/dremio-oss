@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,8 @@ public class ProjectPrel extends ProjectRelBase implements Prel{
 
   public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.project.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.project.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
+  public static final boolean ALLOW_COMPLEX = true;
+  public static final boolean ALLOW_GANDIVA_FUNCTIONS = true;
 
   protected ProjectPrel(RelOptCluster cluster, RelTraitSet traits, RelNode child, List<RexNode> exps, RelDataType rowType) {
     super(PHYSICAL, cluster, traits, child, exps, rowType);
@@ -72,7 +74,8 @@ public class ProjectPrel extends ProjectRelBase implements Prel{
 
     final BatchSchema childSchema = childPOP.getProps().getSchema();
     List<NamedExpression> exprs = getProjectExpressions(new ParseContext(PrelUtil.getSettings(getCluster())));
-    final BatchSchema schema = ExpressionTreeMaterializer.materializeFields(exprs, childSchema, creator.getFunctionLookupContext(), true)
+    final BatchSchema schema = ExpressionTreeMaterializer.materializeFields(exprs, childSchema,
+      creator.getFunctionLookupContext(), ALLOW_COMPLEX, ALLOW_GANDIVA_FUNCTIONS)
         .setSelectionVectorMode(childSchema.getSelectionVectorMode())
         .build();
 

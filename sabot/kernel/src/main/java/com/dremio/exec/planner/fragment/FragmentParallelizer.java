@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,4 +34,13 @@ public interface FragmentParallelizer {
    */
   void parallelizeFragment(final Wrapper fragment, final ParallelizationParameters parameters,
       final Collection<NodeEndpoint> activeEndpoints) throws PhysicalOperatorSetupException;
+
+  /**
+   * Figure out what is the ideal number of minor fragments that this major fragment should be run on. Assumes
+   * an infinite number of endpoints
+   * @param fragment    The major fragment being parallelized. Its stats must have already been computed
+   * @param parameters
+   * @return
+   */
+  int getIdealFragmentWidth(final Wrapper fragment, final ParallelizationParameters parameters);
 }

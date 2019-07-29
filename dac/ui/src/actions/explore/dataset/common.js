@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 import { push, replace } from 'react-router-redux';
 import urlParse from 'url-parse';
 import { collapseExploreSql } from '@app/actions/explore/ui';
@@ -54,7 +54,7 @@ export function postDatasetOperation({
     }
   } : meta;
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: RUN_TABLE_TRANSFORM_START, meta: {...meta, ...metas[0]} },
         schemaUtils.getSuccessActionTypeWithSchema(RUN_TABLE_TRANSFORM_SUCCESS, schema,
@@ -99,8 +99,8 @@ export function navigateToNextDataset(response, {
     let keepQuery = false;
     let collapseSqlEditor = false;
 
-    //for graph and wiki we have to keep query parameters and redirect to corresponding page
-    for (const pageType of [PageTypes.graph, PageTypes.wiki]) {
+    //for graph, reflections, and wiki we have to keep query parameters and redirect to corresponding page
+    for (const pageType of [PageTypes.graph, PageTypes.wiki, PageTypes.reflections]) {
       const urlPart = getPathPart(pageType);
       //check if url ends with page type
       if (location.pathname.endsWith(urlPart)) {

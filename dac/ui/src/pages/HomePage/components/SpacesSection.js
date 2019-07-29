@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,8 @@ import FinderNav from '@app/components/FinderNav';
 import SpacesLoader from '@app/pages/HomePage/components/SpacesLoader';
 import ViewStateWrapper, { viewStatePropType } from '@app/components/ViewStateWrapper';
 import { ALL_SPACES_VIEW_ID } from '@app/actions/resources/spaces';
-import { getViewState, getSortedSpaces } from '@app/selectors/resources';
+import { getViewState} from '@app/selectors/resources';
+import { getSortedSpaces } from '@app/selectors/home';
 import { FLEX_COL_START } from '@app/uiTheme/radium/flexStyle';
 import { SpacesSectionMixin, mapStateToProps as mixinMapStateToProps } from 'dyn-load/pages/HomePage/components/SpacesSectionMixin';
 
@@ -93,6 +94,7 @@ export class SpacesSection extends PureComponent {
           <FinderNav
             navItems={spaces}
             title={intl.formatMessage({ id: 'Space.Spaces' })}
+            addTooltip={intl.formatMessage({ id: 'Space.AddSpace'})}
             isInProgress={spacesViewState.get('isInProgress')}
             addHref={this.getAddSpaceHref()}
             listHref='/spaces/list'

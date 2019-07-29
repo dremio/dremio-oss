@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -56,6 +56,7 @@ import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.vector.CopyUtil;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.copier.Copier;
 import com.dremio.sabot.op.copier.CopierOperator;
 import com.dremio.sabot.op.sort.external.SpillManager.SpillFile;
@@ -101,6 +102,8 @@ public class DiskRunManager implements AutoCloseable {
   private final ExternalSortTracer tracer;
   private long totalDataSpilled;
 
+  private final OperatorStats operatorStats;
+
   private enum MergeState {
     TRY, // Try to reserve memory to copy all runs
     MERGE, // We were unable to reserve memory for copy, so will attempt to merge some runs
@@ -120,7 +123,8 @@ public class DiskRunManager implements AutoCloseable {
       BatchSchema dataSchema,
       boolean compressSpilledBatch,
       ExternalSortTracer tracer,
-      SpillService spillService
+      SpillService spillService,
+      OperatorStats stats
       ) throws Exception {
     try (RollbackCloseable rollback = new RollbackCloseable()) {
       this.targetRecordCount = targetRecordCount;
@@ -132,6 +136,7 @@ public class DiskRunManager implements AutoCloseable {
       this.compressSpilledBatch = compressSpilledBatch;
       this.tracer = tracer;
       this.totalDataSpilled = 0;
+      this.operatorStats = stats;
       if (compressSpilledBatch) {
         long reserve = VectorAccessibleSerializable.RAW_CHUNK_SIZE_TO_COMPRESS * 2;
         compressSpilledBatchAllocator = this.parentAllocator.newChildAllocator("spill_with_snappy", reserve, Long.MAX_VALUE);
@@ -497,7 +502,11 @@ public class DiskRunManager implements AutoCloseable {
 
       // write length and data to file.
       Stopwatch watch = Stopwatch.createStarted();
-      outputBatch.writeToStream(out);
+
+      //track io time as wait time
+      try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        outputBatch.writeToStream(out);
+      }
 
       logger.debug("Took {} us to spill {} records", watch.elapsed(TimeUnit.MICROSECONDS), records);
       return batchSize;
@@ -698,7 +707,10 @@ public class DiskRunManager implements AutoCloseable {
 
       /* uncompress the data when de-serializing the spilled data into ArrowBufs */
       final VectorAccessibleSerializable serializer = new VectorAccessibleSerializable(allocator, compressSpilledBatch, compressSpilledBatchAllocator);
-      serializer.readFromStream(inputStream);
+      //track io time as wait time
+      try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        serializer.readFromStream(inputStream);
+      }
 
       final VectorContainer incoming = serializer.get();
       Iterator<VectorWrapper<?>> wrapperIterator = incoming.iterator();

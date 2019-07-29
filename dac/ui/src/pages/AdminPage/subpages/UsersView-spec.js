@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 
+import { DeleteButton } from '@app/components/tableRowButtons/DeleteButton';
 import UsersView from './UsersView';
 
 describe('UsersView', () => {
@@ -51,7 +52,7 @@ describe('UsersView', () => {
       context.loggedInUser.userName = 'foo';
       const instance = shallow(<UsersView {...commonProps}/>, {context}).instance();
       const result = instance.getTableData().toJS()[0].data[3].props.children[1].type;
-      expect(result).to.be.eql('button');
+      expect(result).to.be.eql(DeleteButton);
     });
 
     it('should return correct data without delete button when user has current logged in user name', () => {

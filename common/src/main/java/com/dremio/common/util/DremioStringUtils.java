@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -159,7 +159,7 @@ public class DremioStringUtils {
     result.append(String.format("%02X", ch));
   }
 
-  public static String toBinaryStringNoFormat(ArrowBuf buf, int strStart, int strEnd) {
+  public static String toBinaryStringNoFormat(ByteBuf buf, int strStart, int strEnd) {
     StringBuilder result = new StringBuilder();
     for (int i = strStart; i < strEnd ; ++i) {
       appendByteNoFormat(result, buf.getByte(i));

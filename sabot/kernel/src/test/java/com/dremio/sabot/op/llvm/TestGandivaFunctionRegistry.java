@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.op.llvm;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,11 +33,15 @@ import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionCallFactory;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.ValueExpressions;
+import com.dremio.common.types.TypeProtos;
 import com.dremio.exec.ExecTest;
+import com.dremio.exec.expr.fn.AbstractFunctionHolder;
 import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.GandivaFunctionHolder;
 import com.dremio.exec.expr.fn.GandivaFunctionRegistry;
+import com.dremio.exec.resolver.FunctionResolver;
+import com.dremio.exec.resolver.FunctionResolverFactory;
 import com.dremio.options.OptionManager;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Lists;
@@ -51,32 +56,63 @@ public class TestGandivaFunctionRegistry extends ExecTest {
    * Test that function lookups on the gandiva repository works.
    */
   @Test
-  public void testGandivaPluggableRegistry() throws Exception {
-    GandivaFunctionRegistry fnRegistry = new GandivaFunctionRegistry(DEFAULT_SABOT_CONFIG);
+  public void testGandivaRegistry() throws Exception {
+    GandivaFunctionRegistry fnRegistry = new GandivaFunctionRegistry(true);
 
-    FunctionCall fnCall = getAddFn();
-    GandivaFunctionHolder holder = (GandivaFunctionHolder)fnRegistry.getFunction(fnCall, false);
+    FunctionCall fnCall = getGandivaOnlyFn();
+    FunctionResolver resolver = FunctionResolverFactory.getResolver(fnCall);
+    GandivaFunctionHolder holder = (GandivaFunctionHolder)resolver.getBestMatch(fnRegistry
+      .getMethods(fnCall.getName()), fnCall);
     Assert.assertNotNull(holder);
-    ArrowType.Int int32 = new ArrowType.Int(32, true);
-    CompleteType expectedReturnType = new CompleteType(int32);
+    CompleteType expectedReturnType = CompleteType.fromMinorType(TypeProtos.MinorType.BIT);
     Assert.assertEquals(expectedReturnType, holder.getReturnType(fnCall.args));
     Assert.assertNotNull(holder.getExpr(fnCall.getName(), fnCall.args));
   }
 
   /*
-   * Test that dremio repository is integrated with Gandiva as a pluggable repository/
+   * Test that dremio repository is integrated with Gandiva as a primary repository
    */
   @Test
   public void testFunctionImplementationRegistry() {
-    FunctionImplementationRegistry fnRegistry = FUNCTIONS();
-    GandivaFunctionHolder holder = (GandivaFunctionHolder)fnRegistry.findNonFunction(getAddFn());
+    FunctionImplementationRegistry fnRegistry = DECIMAL_FUNCTIONS();
+    GandivaFunctionHolder holder = (GandivaFunctionHolder)fnRegistry.findExactFunction(getDecimalSameFn()
+      , true);
     Assert.assertNotNull(holder);
+
+    // test that gandiva functions are not used where they are not intended.
+    holder = (GandivaFunctionHolder)fnRegistry.findExactFunction(getDecimalSameFn()
+      , false);
+    Assert.assertNull(holder);
+  }
+
+  /*
+   * Test that lookup on non-decimal repository does not return decimal functions.
+   */
+  @Test
+  public void testNonDecimalFunctionRegistry() {
+    FunctionImplementationRegistry fnRegistry = FUNCTIONS();
+    GandivaFunctionHolder holder = (GandivaFunctionHolder)fnRegistry.findExactFunction(getDecimalSameFn()
+      , true);
+    Assert.assertNull(holder);
+  }
+
+  /*
+   * Test that lookup on non-decimal repository does not return decimal functions.
+   */
+  @Test
+  public void testNonDecimalGandivaRegistry() {
+    GandivaFunctionRegistry fnRegistry = new GandivaFunctionRegistry(false);
+    FunctionCall fnCall = getDecimalAddFn();
+    FunctionResolver resolver = FunctionResolverFactory.getExactResolver(fnCall);
+    GandivaFunctionHolder holder = (GandivaFunctionHolder)resolver.getBestMatch(fnRegistry
+      .getMethods(fnCall.getName()), fnCall);
+    Assert.assertNull(holder);
   }
 
   @Test
   public void getUnSupportedFunctions() throws GandivaException {
     FunctionImplementationRegistry fnRegistry = FUNCTIONS();
-    ArrayListMultimap<String, BaseFunctionHolder> functions = fnRegistry.getRegisteredFunctions();
+    ArrayListMultimap<String, AbstractFunctionHolder> functions = fnRegistry.getRegisteredFunctions();
     Set<String> fns = Sets.newHashSet();
     Set<FunctionSignature> supportedFunctions = ExpressionRegistry.getInstance()
       .getSupportedFunctions();
@@ -87,11 +123,11 @@ public class TestGandivaFunctionRegistry extends ExecTest {
       }
       fns.add(fnName);
     }
-    for (Map.Entry<String, BaseFunctionHolder> holders : functions.entries()) {
+    for (Map.Entry<String, AbstractFunctionHolder> holders : functions.entries()) {
       String name = holders.getKey();
-      BaseFunctionHolder holder = holders.getValue();
+      AbstractFunctionHolder holder = holders.getValue();
       totalFuncs++;
-      isFunctionSupported(name, holder, fns);
+      isFunctionSupported(name, (BaseFunctionHolder)holder, fns);
 
     }
     System.out.println("Total : " + totalFuncs + " unSupported : " + unSupportedFn);
@@ -114,9 +150,24 @@ public class TestGandivaFunctionRegistry extends ExecTest {
     return true;
   }
 
-  private FunctionCall getAddFn() {
-    List<LogicalExpression> args = Lists.newArrayList(ValueExpressions.getInt(1), ValueExpressions
-      .getInt(2));
-    return new FunctionCall("add", args);
+  private FunctionCall getGandivaOnlyFn() {
+    List<LogicalExpression> args = Lists.newArrayList(ValueExpressions.getChar("test"),
+      ValueExpressions.getChar("tes"));
+    return new FunctionCall("starts_with", args);
   }
+
+  private FunctionCall getDecimalAddFn() {
+      List<LogicalExpression> args = Lists.newArrayList(
+        ValueExpressions.getDecimal(BigDecimal.valueOf(1), 1, 0),
+        ValueExpressions.getDecimal(BigDecimal.valueOf(2), 1, 0));
+      return new FunctionCall("add", args);
+  }
+
+  private FunctionCall getDecimalSameFn() {
+    List<LogicalExpression> args = Lists.newArrayList(
+      ValueExpressions.getDecimal(BigDecimal.valueOf(1), 1, 0),
+      ValueExpressions.getDecimal(BigDecimal.valueOf(2), 1, 0));
+    return new FunctionCall("same", args);
+  }
+
 }

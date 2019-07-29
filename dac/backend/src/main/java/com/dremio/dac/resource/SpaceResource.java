@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -111,6 +111,7 @@ public class SpaceResource {
 
   @DELETE
   @Produces(MediaType.APPLICATION_JSON)
+  @Deprecated
   public void deleteSpace(@QueryParam("version") String version) throws NamespaceException, SpaceNotFoundException, UserException {
     if (version == null) {
       throw new ClientErrorException("missing version parameter");
@@ -125,6 +126,7 @@ public class SpaceResource {
   @POST
   @Path("/rename")
   @Produces(MediaType.APPLICATION_JSON)
+  @Deprecated // UI does not allow to rename a space
   public Space renameSpace(@QueryParam("renameTo") String renameTo)
     throws NamespaceException, SpaceNotFoundException {
     throw UserException.unsupportedError()

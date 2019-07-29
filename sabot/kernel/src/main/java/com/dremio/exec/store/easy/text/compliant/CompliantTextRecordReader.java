@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -104,7 +104,6 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
         // When no columns are projected try to make the parser do less work by turning off options that have extra cost
         settings.setIgnoreLeadingWhitespaces(false);
         settings.setIgnoreTrailingWhitespaces(false);
-        settings.setParseUnescapedQuotes(false);
         output = new TextCountOutput();
       } else {
         final int sizeLimit = Math.toIntExact(this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));

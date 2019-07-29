@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,6 +40,7 @@ import com.google.protobuf.MessageLite;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 
 /**
  * Builder for creating simplified protocols on top of the fabric infrastructure.
@@ -168,7 +169,8 @@ public final class ProtocolBuilder {
       MessageLite defaultInstance = defaultRequestInstances[rpcType];
       try{
         MessageLite value = defaultInstance.getParserForType().parseFrom(pBody);
-        SentResponseMessage<MessageLite> response = handlers[rpcType].handle(value, (ArrowBuf) dBody);
+        ArrowBuf dBody1 = dBody != null ? ((NettyArrowBuf) dBody).arrowBuf() : null;
+        SentResponseMessage<MessageLite> response = handlers[rpcType].handle(value, dBody1);
         sender.send(new Response(new PseudoEnum(rpcType), response.getBody(), response.getBuffers()));
       } catch(Exception e){
         final String fail = String.format("Failure consuming message for protocol[%d], request[%d] in the %s rpc layer.", getProtocolId(), rpcType, getConfig().getName());

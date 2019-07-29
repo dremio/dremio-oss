@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -296,18 +296,36 @@ public class HashAggPrel extends AggPrelBase implements Prel{
         .setSelectionVectorMode(SelectionVectorMode.NONE)
         .build();
 
+    boolean canVectorize = canVectorize(creator, child);
+    boolean canSpill = canUseSpill(creator, child);
+
+    int hashTableBatchSize = 0;
+    long lowLimit = creator.getOptionManager().getOption(LOW_LIMIT);
+    long reservation = creator.getOptionManager().getOption(RESERVE);
+    if (canVectorize && canSpill) {
+      HashAggMemoryEstimator estimator = HashAggMemoryEstimator.create(keys, aggExprs, schema, childSchema,
+        creator.getFunctionLookupContext(), creator.getOptionManager());
+
+      // reservation limit to allow for at-least one batch (two for caution).
+      reservation = Long.max(reservation, estimator.getMemTotal());
+
+      //safety check in case the lowlimit is set too low
+      lowLimit = Long.max(lowLimit, estimator.getMemTotal() * 2);
+      hashTableBatchSize = estimator.getHashTableBatchSize();
+    }
     return new HashAggregate(
-        creator.props(this, null, schema, RESERVE, LIMIT, LOW_LIMIT)
-          .cloneWithBound(creator.getOptionManager().getOption(BOUNDED))
+        creator.props(this, null, schema, reservation, LIMIT, lowLimit)
+          .cloneWithBound(creator.getOptionManager().getOption(BOUNDED) && canSpill && canVectorize)
           .cloneWithMemoryFactor(creator.getOptionManager().getOption(FACTOR))
           .cloneWithMemoryExpensive(true)
         ,
         child,
         keys,
         aggExprs,
-        canVectorize(creator, child),
-        canUseSpill(creator, child),
-        1.0f);
+        canVectorize,
+        canSpill,
+        1.0f,
+        hashTableBatchSize);
   }
 
 

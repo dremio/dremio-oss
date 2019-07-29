@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,8 @@ import io.netty.util.internal.PlatformDependent;
  * Utilities for the accumulators that operate over decimal values
  */
 public final class DecimalUtils {
+  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DecimalUtils.class);
+
   public static final int DECIMAL_WIDTH = 16;  // Decimals stored as 16-byte values
   public static final int OFFSET_LE_MSB = 15;
   public static final int MAX_PRECISION = 38;
@@ -202,12 +204,12 @@ public final class DecimalUtils {
       // cpu branch prediction.
       if (isNegative1)  {
         if (cmp > 0) {
-          throw new ArithmeticException("Overflow happened for decimal addition. Max precision is " +
+          logger.warn("Overflow happened for decimal addition. Max precision is " +
             "38.");
         }
       } else {
         if (cmp < 0) {
-          throw new ArithmeticException("Overflow happened for decimal addition. Max precision is " +
+          logger.warn("Overflow happened for decimal addition. Max precision is " +
             "38.");
         }
       }
@@ -216,6 +218,19 @@ public final class DecimalUtils {
 
   private static long toUnsigned(long val) {
     return val + Long.MIN_VALUE;
+  }
+
+  /**
+   * Gets the appropriate decimal precision for a literal value.
+   * @param value input value
+   * @return precision to use when representing the value as a decimal.
+   */
+  public static int getPrecisionForValue(long value) {
+    if ((value >= Integer.MIN_VALUE) && (value <= Integer.MAX_VALUE)) {
+      return 10;
+    } else {
+      return 19;
+    }
   }
 
 }

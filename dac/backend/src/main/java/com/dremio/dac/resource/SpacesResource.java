@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ import com.dremio.service.namespace.space.proto.SpaceConfig;
 @Secured
 @RolesAllowed({"admin", "user"})
 @Path("/spaces")
+@Deprecated
 public class SpacesResource {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SpacesResource.class);
 

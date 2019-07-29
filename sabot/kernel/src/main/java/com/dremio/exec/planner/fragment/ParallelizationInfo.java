@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,13 +15,16 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
@@ -30,10 +33,17 @@ import com.google.common.collect.Maps;
  * parallelization and affinity to node endpoints.
  */
 public class ParallelizationInfo {
-
-  /* Default parallelization width is [1, Integer.MAX_VALUE] and no endpoint affinity. */
-  public static final ParallelizationInfo UNLIMITED_WIDTH_NO_ENDPOINT_AFFINITY =
-      ParallelizationInfo.create(1, Integer.MAX_VALUE);
+  /**
+   * Constraints on the width of parallelization.
+   * Constraints listed in strictly decreasing order -- the further the constraint is, the more restrictive it is
+   * In particular, applying one constraint over another results in the higher-ordinal constraint.
+   * For example: applying affinity-limited width to an unlimited constraint results in affinity-limited constraint
+   */
+  public enum WidthConstraint {
+    UNLIMITED,        // Width not limited: minimum: 1, maximum: Integer.MAX_VALUE
+    AFFINITY_LIMITED, // Width strictly equal to the number of affinities
+    SINGLE            // Width equal to 1 (min = 1; max = 1)
+  }
 
   private final Map<NodeEndpoint, EndpointAffinity> affinityMap;
   private final int minWidth;
@@ -45,25 +55,11 @@ public class ParallelizationInfo {
     this.affinityMap = ImmutableMap.copyOf(affinityMap);
   }
 
-  public static ParallelizationInfo create(int minWidth, int maxWidth) {
-    return create(minWidth, maxWidth, ImmutableList.<EndpointAffinity>of());
-  }
-
-  public static ParallelizationInfo create(int minWidth, int maxWidth, List<EndpointAffinity> endpointAffinities) {
-    Map<NodeEndpoint, EndpointAffinity> affinityMap = Maps.newHashMap();
-
-    for(EndpointAffinity epAffinity : endpointAffinities) {
-      affinityMap.put(epAffinity.getEndpoint(), epAffinity);
-    }
-
-    return new ParallelizationInfo(minWidth, maxWidth, affinityMap);
-  }
-
-  public int getMinWidth() {
+  int getMinWidth() {
     return minWidth;
   }
 
-  public int getMaxWidth() {
+  int getMaxWidth() {
     return maxWidth;
   }
 
@@ -86,32 +82,86 @@ public class ParallelizationInfo {
   }
 
   /**
-   * Collects/merges one or more ParallelizationInfo instances.
+   * Return the more restrictive of the two width constraints
+   */
+  private static WidthConstraint moreRestrictive(WidthConstraint constraint1, WidthConstraint constraint2) {
+    // NB: implementation relies on the fact that the widths are defined in strictly decreasing order
+    return WidthConstraint.values()[Math.max(constraint1.ordinal(), constraint2.ordinal())];
+  }
+
+  /**
+   * Collects/merges information that results in a ParallelizationInfo instance
+   * The information collected includes:
+   * - explicit widths (typically supplied by scans, generated from the splits that belong to this scan)
+   * - width constraints (typically supplied by exchanges)
+   * - affinity suppliers
+   * The information is lazily put together when the collector is asked for a ParallelizationInfo instance
+   * (at which point further collection is disallowed):
+   * - The affinity suppliers are materialized, and merged together into a single affinity map
+   * - the width constraints are instantiated (may be based on the affinity map, above), then applied to the
+   *   numeric width limits
    */
   public static class ParallelizationInfoCollector {
     private int minWidth = 1;
     private int maxWidth = Integer.MAX_VALUE;
+    private WidthConstraint widthConstraint = WidthConstraint.UNLIMITED;
     private final Map<NodeEndpoint, EndpointAffinity> affinityMap = Maps.newHashMap();
+    private final List<Supplier<Collection<EndpointAffinity>>> uninstantiatedAffinities = new ArrayList<>();
+    private ParallelizationInfo pInfo = null; // Computed lazily at get()
 
-    public void add(ParallelizationInfo parallelizationInfo) {
-      minWidth = Math.max(minWidth, parallelizationInfo.minWidth);
-      maxWidth = Math.min(maxWidth, parallelizationInfo.maxWidth);
-
-      Map<NodeEndpoint, EndpointAffinity> affinityMap = parallelizationInfo.getEndpointAffinityMap();
-      for(Map.Entry<NodeEndpoint, EndpointAffinity> epAff : affinityMap.entrySet()) {
-        addEndpointAffinity(epAff.getValue());
-      }
-    }
-
-    public void addMaxWidth(int newMaxWidth) {
+    void addMaxWidth(int newMaxWidth) {
+      Preconditions.checkState(pInfo == null, "Invalid use of ParallelizationInfoCollector past get()");
       maxWidth = Math.min(maxWidth, newMaxWidth);
     }
 
-    public void addMinWidth(int newMinWidth) {
+    void addMinWidth(int newMinWidth) {
+      Preconditions.checkState(pInfo == null, "Invalid use of ParallelizationInfoCollector past get()");
       minWidth = Math.max(minWidth, newMinWidth);
     }
 
-    public void addEndpointAffinities(List<EndpointAffinity> endpointAffinities) {
+    void addWidthConstraint(WidthConstraint newWidthConstraint) {
+      Preconditions.checkState(pInfo == null, "Invalid use of ParallelizationInfoCollector past get()");
+      widthConstraint = moreRestrictive(widthConstraint, newWidthConstraint);
+    }
+
+    /**
+     * Get the minimum width so far. Please note that the endpoint affinity width constraints may not be applied unless
+     * the endpoint affinities were materialized
+     */
+    int getMinWidth() {
+      if (pInfo != null) {
+        return pInfo.getMinWidth();
+      }
+      applyWidthConstraint(false);
+      return minWidth;
+    }
+
+    /**
+     * Get the maximum width so far. Please note that the endpoint affinity width constraints may not be applied unless
+     * the endpoint affinities were materialized
+     */
+    int getMaxWidth() {
+      if (pInfo != null) {
+        return pInfo.getMaxWidth();
+      }
+      applyWidthConstraint(false);
+      return maxWidth;
+    }
+
+    /**
+     * Add any affinities coming from endpoints that are going to be running the query
+     * @param endpointAffinity
+     */
+    void addEndpointAffinity(Supplier<Collection<EndpointAffinity>> endpointAffinity) {
+      Preconditions.checkState(pInfo == null, "Invalid use of ParallelizationInfoCollector past get()");
+      uninstantiatedAffinities.add(endpointAffinity);
+    }
+
+    /**
+     * Add any affinities coming from splits
+     */
+    void addSplitAffinities(List<EndpointAffinity> endpointAffinities) {
+      Preconditions.checkState(pInfo == null, "Invalid use of ParallelizationInfoCollector past get()");
       for(EndpointAffinity epAff : endpointAffinities) {
         addEndpointAffinity(epAff);
       }
@@ -135,7 +185,40 @@ public class ParallelizationInfo {
      * Get a ParallelizationInfo instance based on the current state of collected info.
      */
     public ParallelizationInfo get() {
-      return new ParallelizationInfo(minWidth, maxWidth, affinityMap);
+      if (pInfo != null) {
+        return pInfo;
+      }
+      materializeEndpointAffinities();
+      applyWidthConstraint(true);
+      pInfo = new ParallelizationInfo(minWidth, maxWidth, affinityMap);
+      return pInfo;
+    }
+
+    private void materializeEndpointAffinities() {
+      for (Supplier<Collection<EndpointAffinity>> affinitySupplier : uninstantiatedAffinities) {
+        for (EndpointAffinity epAff : affinitySupplier.get()) {
+          addEndpointAffinity(epAff);
+        }
+      }
+    }
+
+    private void applyWidthConstraint(boolean affinitiesMaterialized) {
+      switch (widthConstraint) {
+      case UNLIMITED:
+        break;
+      case AFFINITY_LIMITED:
+        if (affinitiesMaterialized) {
+          addMaxWidth(affinityMap.size());
+          addMinWidth(affinityMap.size());
+        }
+        break;
+      case SINGLE:
+        addMaxWidth(1);
+        addMinWidth(1);
+        break;
+      default:
+        throw new IllegalStateException(String.format("Invalid width constraint %s", widthConstraint));
+      }
     }
 
     @Override

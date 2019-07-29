@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ import com.google.common.collect.Queues;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 
@@ -149,7 +150,7 @@ public class QueryResultHandler {
                             byte[] pBody, ByteBuf dBody ) throws RpcException {
     final QueryData queryData = RpcBus.get( pBody, QueryData.PARSER );
     // Current batch coming in.
-    final ArrowBuf ArrowBuf = (ArrowBuf) dBody;
+    final ArrowBuf ArrowBuf = dBody != null ? ((NettyArrowBuf) dBody).arrowBuf() : null;
     final QueryDataBatch batch = new QueryDataBatch( queryData, ArrowBuf );
 
     final QueryId queryId = queryData.getQueryId();

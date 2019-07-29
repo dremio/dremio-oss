@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,11 +80,6 @@ export function splitFullPath(fullPath, preserveQuoting) {
 export function getEntityNameFromId(spaceId) {
   const splittedEntityId = spaceId.split('/');
   return splittedEntityId[splittedEntityId.length - 1];
-}
-
-export function isHomePage(pathname) {
-  //TODO for some reasons if we open folder in home we will have spaces pathname, so we can't check correctly
-  return pathname === '/home';
 }
 
 export function parseResourceId(pathname, username) {

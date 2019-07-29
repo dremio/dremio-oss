@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,33 +15,52 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 
 /**
  * Use the index to resolve references to repetitive attributes or objects in the plan.
  */
 public class PlanFragmentsIndex {
-  EndpointsIndex endpointsIndex;
+  private final EndpointsIndex endpointsIndex;
+  private final SharedAttrsIndex sharedAttrsIndex;
 
-  public PlanFragmentsIndex(List<NodeEndpoint> endpoints) {
+  public PlanFragmentsIndex(List<NodeEndpoint> endpoints, List<MinorAttr> attrs) {
     endpointsIndex = new EndpointsIndex(endpoints);
+    sharedAttrsIndex = SharedAttrsIndex.create(attrs);
   }
 
   public EndpointsIndex getEndpointsIndex() {
     return endpointsIndex;
   }
 
+  public SharedAttrsIndex getSharedAttrsIndex() {
+    return sharedAttrsIndex;
+  }
+
   public static class Builder {
     EndpointsIndex.Builder endpointsIndexBuilder;
+    Map<NodeEndpoint, SharedAttrsIndex.Builder> sharedAttrsIndexBuilderMap;
 
     public Builder() {
       endpointsIndexBuilder = new EndpointsIndex.Builder();
+      sharedAttrsIndexBuilderMap = new HashMap<>();
     }
 
     public EndpointsIndex.Builder getEndpointsIndexBuilder() {
       return endpointsIndexBuilder;
+    }
+
+    /**
+     * The shared attribute index is built separately for each endpoint.
+     */
+    public SharedAttrsIndex.Builder getSharedAttrsIndexBuilder(NodeEndpoint endpoint) {
+      return sharedAttrsIndexBuilderMap.computeIfAbsent(endpoint,
+        k -> new SharedAttrsIndex.Builder());
     }
   }
 }

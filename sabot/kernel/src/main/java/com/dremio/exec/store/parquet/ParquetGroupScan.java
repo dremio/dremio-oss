@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,11 +28,12 @@ import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitXAttr;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
+import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedDatasetSplitInfo;
 import com.google.common.collect.ImmutableList;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -62,20 +63,22 @@ public class ParquetGroupScan extends AbstractGroupScan {
   public SubScan getSpecificScan(List<SplitWork> work) {
     final BatchSchema schema = cachedRelDataType == null ? getDataset().getSchema():  BatchSchema.fromCalciteRowType(cachedRelDataType);
 
-    List<SplitInfo> splits = work.stream()
-        .map(SplitWork::getSplitInfo)
+    List<SplitAndPartitionInfo> splits = work.stream()
+        .map(SplitWork::getSplitAndPartitionInfo)
         .map(split -> {
           // Create an abridged version of the splits to save network bytes.
           // NOTE: probably not a good idea to reuse an opaque field to store 2 different objects
           final ParquetDatasetSplitXAttr fullXAttr;
           try {
-            fullXAttr = LegacyProtobufSerializer.parseFrom(ParquetDatasetSplitXAttr.PARSER, split.getSplitExtendedProperty());
+            fullXAttr = LegacyProtobufSerializer.parseFrom(ParquetDatasetSplitXAttr.PARSER,
+              split.getDatasetSplitInfo().getExtendedProperty());
           } catch (InvalidProtocolBufferException e) {
             throw new RuntimeException("Could not deserialize Parquet dataset split info", e);
           }
-          return SplitInfo.newBuilder(split)
-              .setSplitExtendedProperty(convertToScanXAttr(fullXAttr).toByteString())
-              .build();
+          return new SplitAndPartitionInfo(split.getPartitionInfo(),
+              NormalizedDatasetSplitInfo.newBuilder(split.getDatasetSplitInfo())
+                .setExtendedProperty(convertToScanXAttr(fullXAttr).toByteString())
+                .build());
         })
         .collect(Collectors.toList());
 

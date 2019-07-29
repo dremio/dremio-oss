@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -332,7 +332,8 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(input.buffer, input.start, input.end, errCtx);
+      out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(input.buffer
+        .asNettyBuffer(), input.start, input.end, errCtx);
     }
   }
 
@@ -347,7 +348,8 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(input.buffer, input.start, input.end, errCtx);
+      out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(input.buffer
+        .asNettyBuffer(), input.start, input.end, errCtx);
     }
   }
 
@@ -397,13 +399,14 @@ public class StringFunctions{
     public void eval() {
       // do string match
       final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(
-          str.buffer, str.start, str.end, substr.buffer, substr.start, substr.end);
+          str.buffer.asNettyBuffer(), str.start, str.end, substr.buffer.asNettyBuffer(), substr.start, substr
+          .end);
       if (pos < 0) {
         out.value = 0; // indicate not found a matched substr
       } else {
         // count the # of characters (one char could have 1-4 bytes)
         out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(
-            str.buffer, str.start, pos, errCtx) + 1;
+            str.buffer.asNettyBuffer(), str.start, pos, errCtx) + 1;
       }
     }
   }
@@ -429,13 +432,15 @@ public class StringFunctions{
       } else {
         // do string match
         final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(
-            str.buffer, str.start, str.end, substr.buffer, substr.start, substr.end, start.value - 1);
+            str.buffer.asNettyBuffer(), str.start, str.end, substr.buffer.asNettyBuffer(), substr.start, substr
+            .end, start.value
+            - 1);
         if (pos < 0) {
           out.value = 0; // indicate not found a matched substr
         } else {
           // count the # of characters (one char could have 1-4 bytes)
           out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(
-              str.buffer, str.start, pos, errCtx) + 1;
+              str.buffer.asNettyBuffer(), str.start, pos, errCtx) + 1;
         }
       }
     }
@@ -468,9 +473,9 @@ public class StringFunctions{
       int splitterLen = (splitter.end - splitter.start);
       for (int i = 1; i < index.value + 1; i++) {
         //Do string match.
-        final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(str.buffer,
-            bufPos, str.end,
-            splitter.buffer, splitter.start, splitter.end, 0);
+        final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(str
+            .buffer.asNettyBuffer(),bufPos, str.end,
+            splitter.buffer.asNettyBuffer(), splitter.start, splitter.end, 0);
         if (pos < 0) {
           // this is the last iteration, it is okay to hit the end of the string
           if (i == index.value) {
@@ -487,7 +492,8 @@ public class StringFunctions{
         } else {
           // Count the # of characters. (one char could have 1-4 bytes)
           // unlike the position function don't add 1, we are not translating the positions into SQL user level 1 based indices
-          bufPos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(str.buffer, str.start, pos, errCtx) + str.start + splitterLen;
+          bufPos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(str.buffer.asNettyBuffer(),
+            str.start, pos, errCtx) + str.start + splitterLen;
           // if this is the second to last iteration, store the position again, as the start and end of the
           // string to be returned need to be available
           if (i == index.value - 1) {
@@ -522,13 +528,14 @@ public class StringFunctions{
     @Override
     public void eval() {
       //Do string match.
-      int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(str.buffer, str.start, str.end,
-                                                                                          substr.buffer, substr.start, substr.end, 0);
+      int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(str.buffer.asNettyBuffer(),
+        str.start, str.end, substr.buffer.asNettyBuffer(), substr.start, substr.end, 0);
       if (pos < 0) {
         out.value = 0; //indicate not found a matched substr.
       } else {
         //Count the # of characters. (one char could have 1-4 bytes)
-        out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(str.buffer, str.start, pos, errCtx) + 1;
+        out.value = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(str.buffer
+          .asNettyBuffer(), str.start, pos, errCtx) + 1;
       }
     }
   }
@@ -624,7 +631,8 @@ public class StringFunctions{
         out.start = out.end = 0;
       } else {
         //Do 1st scan to counter # of character in string.
-        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(string.buffer, string.start, string.end, errCtx);
+        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength
+          (string.buffer.asNettyBuffer(), string.start, string.end, errCtx);
 
         final int fromCharIdx; //the start position of char  (inclusive)
         if (offset.value < 0) {
@@ -638,12 +646,14 @@ public class StringFunctions{
         if (fromCharIdx <= 0 || fromCharIdx > charCount ) { // invalid offset, return empty string.
           out.start = out.end = 0;
         } else {
-          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, string.start, string.end, fromCharIdx-1, errCtx);
+          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string
+            .buffer.asNettyBuffer(), string.start, string.end, fromCharIdx-1, errCtx);
 
           // Bounded length by charCount - fromCharIdx + 1. substring("abc", 1, 5) --> "abc"
           int charLen = Math.min((int)length.value, charCount - fromCharIdx + 1);
 
-          out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, out.start, string.end, charLen, errCtx);
+          out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string
+            .buffer.asNettyBuffer(), out.start, string.end, charLen, errCtx);
         }
       }
     }
@@ -670,7 +680,8 @@ public class StringFunctions{
         out.start = out.end = 0;
       } else {
         //Do 1st scan to counter # of character in string.
-        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(string.buffer, string.start, string.end, errCtx);
+        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength
+          (string.buffer.asNettyBuffer(), string.start, string.end, errCtx);
 
         final int fromCharIdx; //the start position of char  (inclusive)
         if (offset.value < 0) {
@@ -684,7 +695,8 @@ public class StringFunctions{
         if (fromCharIdx <= 0 || fromCharIdx > charCount ) { // invalid offset, return empty string.
           out.start = out.end = 0;
         } else {
-          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, string.start, string.end, fromCharIdx-1, errCtx);
+          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string
+            .buffer.asNettyBuffer(), string.start, string.end, fromCharIdx-1, errCtx);
           out.end = string.end;
         }
       }
@@ -722,8 +734,10 @@ public class StringFunctions{
         if (matcher.find()) {
           out.isSet = 1;
           out.buffer = input.buffer;
-          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(input.buffer, input.start, input.end, matcher.start(), errCtx);
-          out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(input.buffer, input.start, input.end, matcher.end(), errCtx);
+          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(input
+            .buffer.asNettyBuffer(), input.start, input.end, matcher.start(), errCtx);
+          out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(input
+            .buffer.asNettyBuffer(), input.start, input.end, matcher.end(), errCtx);
         } else {
           out.isSet = 0;
         }
@@ -756,7 +770,8 @@ public class StringFunctions{
         out.start = out.end = 0;
       } else {
         //Do 1st scan to counter # of character in string.
-        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(string.buffer, string.start, string.end, errCtx);
+        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength
+          (string.buffer.asNettyBuffer(), string.start, string.end, errCtx);
         final int charLen;
         if (length.value > 0) {
           charLen = Math.min((int)length.value, charCount);  //left('abc', 5) -> 'abc'
@@ -767,7 +782,8 @@ public class StringFunctions{
         }
 
         out.start = string.start; //Starting from the left of input string.
-        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, out.start, string.end, charLen, errCtx);
+        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string
+          .buffer.asNettyBuffer(), out.start, string.end, charLen, errCtx);
       } // end of lenth.value != 0
     }
   }
@@ -794,7 +810,8 @@ public class StringFunctions{
         out.start = out.end = 0;
       } else {
         //Do 1st scan to counter # of character in string.
-        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(string.buffer, string.start, string.end, errCtx);
+        final int charCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength
+          (string.buffer.asNettyBuffer(), string.start, string.end, errCtx);
         final int fromCharIdx; //the start position of char (inclusive)
         final int charLen; // the end position of char (inclusive)
         if (length.value > 0) {
@@ -810,8 +827,10 @@ public class StringFunctions{
           out.start = out.end = 0;
         } else {
           //Do 2nd scan of string. Get bytes corresponding chars in range.
-          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, string.start, string.end, fromCharIdx-1, errCtx);
-          out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string.buffer, out.start, string.end, charLen, errCtx);
+          out.start = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string
+            .buffer.asNettyBuffer(), string.start, string.end, fromCharIdx-1, errCtx);
+          out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(string
+            .buffer.asNettyBuffer(), out.start, string.end, charLen, errCtx);
         }
       }
     }
@@ -925,10 +944,12 @@ public class StringFunctions{
       byte currentByte = 0;
       int id = 0;
       //get the char length of text.
-      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text.buffer, text.start, text.end, errCtx);
+      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text
+        .buffer.asNettyBuffer(), text.start, text.end, errCtx);
 
       //get the char length of fill.
-      int fillCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(fill.buffer, fill.start, fill.end, errCtx);
+      int fillCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(fill
+        .buffer.asNettyBuffer(), fill.start, fill.end, errCtx);
 
       if (theLength <= 0) {
         //case 1: target length is <=0, then return an empty string.
@@ -943,7 +964,8 @@ public class StringFunctions{
         //case 3: truncate text on the right side. It's same as substring(text, 1, length).
         out.buffer = text.buffer;
         out.start = text.start;
-        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer, text.start, text.end, (int) theLength, errCtx);
+        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer
+          .asNettyBuffer(), text.start, text.end, (int) theLength, errCtx);
       } else if (theLength > textCharCount) {
         //case 4: copy "fill" on left. Total # of char to copy : theLength - textCharCount
         int count = 0;
@@ -1000,7 +1022,8 @@ public class StringFunctions{
       final int lengthNeeded = (int) (theLength <= 0 ? 0 : theLength * 2);
       buffer = buffer.reallocIfNeeded(lengthNeeded);
       //get the char length of text.
-      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text.buffer, text.start, text.end, errCtx);
+      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text
+        .buffer.asNettyBuffer(), text.start, text.end, errCtx);
 
       if (theLength <= 0) {
         //case 1: target length is <=0, then return an empty string.
@@ -1015,7 +1038,8 @@ public class StringFunctions{
         //case 3: truncate text on the right side. It's same as substring(text, 1, length).
         out.buffer = text.buffer;
         out.start = text.start;
-        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer, text.start, text.end, (int) theLength, errCtx);
+        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer
+          .asNettyBuffer(), text.start, text.end, (int) theLength, errCtx);
       } else if (theLength > textCharCount) {
         //case 4: copy " " on left. Total # of char to copy : theLength - textCharCount
         int count = 0;
@@ -1062,10 +1086,12 @@ public class StringFunctions{
       byte currentByte = 0;
       int id = 0;
       //get the char length of text.
-      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text.buffer, text.start, text.end, errCtx);
+      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text
+        .buffer.asNettyBuffer(), text.start, text.end, errCtx);
 
       //get the char length of fill.
-      int fillCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(fill.buffer, fill.start, fill.end, errCtx);
+      int fillCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(fill
+        .buffer.asNettyBuffer(), fill.start, fill.end, errCtx);
 
       if (theLength <= 0) {
         //case 1: target length is <=0, then return an empty string.
@@ -1080,7 +1106,8 @@ public class StringFunctions{
         //case 3: truncate text on the right side. It's same as substring(text, 1, length).
         out.buffer = text.buffer;
         out.start = text.start;
-        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer, text.start, text.end, (int) theLength, errCtx);
+        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer
+          .asNettyBuffer(), text.start, text.end, (int) theLength, errCtx);
       } else if (theLength > textCharCount) {
         //case 4: copy "text" into "out", then copy "fill" on the right.
         out.buffer = buffer;
@@ -1140,7 +1167,8 @@ public class StringFunctions{
       buffer = buffer.reallocIfNeeded(lengthNeeded);
 
       //get the char length of text.
-      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text.buffer, text.start, text.end, errCtx);
+      int textCharCount = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(text
+        .buffer.asNettyBuffer(), text.start, text.end, errCtx);
 
       if (theLength <= 0) {
         //case 1: target length is <=0, then return an empty string.
@@ -1155,7 +1183,8 @@ public class StringFunctions{
         //case 3: truncate text on the right side. It's same as substring(text, 1, length).
         out.buffer = text.buffer;
         out.start = text.start;
-        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer, text.start, text.end, (int) theLength, errCtx);
+        out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(text.buffer
+          .asNettyBuffer(), text.start, text.end, (int) theLength, errCtx);
       } else if (theLength > textCharCount) {
         //case 4: copy "text" into "out", then copy " " on the right.
         out.buffer = buffer;
@@ -1200,9 +1229,10 @@ public class StringFunctions{
       int bytePerChar = 0;
       //Scan from left of "text", stop until find a char not in "from"
       for (int id = text.start; id < text.end; id += bytePerChar) {
-        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer, id, errCtx);
-        int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(from.buffer, from.start, from.end,
-                                                                                            text.buffer, id, id + bytePerChar, 0);
+        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer.asNettyBuffer(),
+          id, errCtx);
+        int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(from.buffer
+            .asNettyBuffer(), from.start, from.end, text.buffer.asNettyBuffer(), id, id + bytePerChar, 0);
         if (pos < 0) { // Found the 1st char not in "from", stop
           out.start = id;
           break;
@@ -1267,9 +1297,10 @@ public class StringFunctions{
         while ((text.buffer.getByte(id) & 0xC0) == 0x80 && id >= text.start) {
           id--;
         }
-        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer, id, errCtx);
-        int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(from.buffer, from.start, from.end,
-                                                                                            text.buffer, id, id + bytePerChar, 0);
+        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer.asNettyBuffer(),
+          id, errCtx);
+        int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(from.buffer
+            .asNettyBuffer(), from.start, from.end, text.buffer.asNettyBuffer(), id, id + bytePerChar, 0);
         if (pos < 0) { // Found the 1st char not in "from", stop
           out.end = id+ bytePerChar;
           break;
@@ -1334,9 +1365,10 @@ public class StringFunctions{
 
       //Scan from left of "text", stop until find a char not in "from"
       for (int id = text.start; id < text.end; id += bytePerChar) {
-        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer, id, errCtx);
-        int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(from.buffer, from.start, from.end,
-                                                                                            text.buffer, id, id + bytePerChar, 0);
+        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer.asNettyBuffer(),
+          id, errCtx);
+        int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(from.buffer
+            .asNettyBuffer(), from.start, from.end, text.buffer.asNettyBuffer(), id, id + bytePerChar, 0);
         if (pos < 0) { // Found the 1st char not in "from", stop
           out.start = id;
           break;
@@ -1348,9 +1380,10 @@ public class StringFunctions{
         while ((text.buffer.getByte(id) & 0xC0) == 0x80 && id >= text.start) {
           id--;
         }
-        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer, id, errCtx);
-        final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(from.buffer, from.start, from.end,
-                                                                                            text.buffer, id, id + bytePerChar, 0);
+        bytePerChar = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(text.buffer.asNettyBuffer(),
+          id, errCtx);
+        final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(from
+            .buffer.asNettyBuffer(), from.start, from.end, text.buffer.asNettyBuffer(), id, id + bytePerChar, 0);
         if (pos < 0) { // Found the 1st char not in "from", stop
           out.end = id + bytePerChar;
           break;
@@ -1441,7 +1474,8 @@ public class StringFunctions{
     public void eval() {
       out.buffer = buffer = buffer.reallocIfNeeded(in.end - in.start);
       out.start = out.end = 0;
-      out.end = com.dremio.common.util.DremioStringUtils.parseBinaryString(in.buffer, in.start, in.end, out.buffer);
+      out.end = com.dremio.common.util.DremioStringUtils.parseBinaryString(in.buffer.asNettyBuffer(), in.start,
+        in.end, out.buffer.asNettyBuffer());
       out.buffer.setIndex(out.start, out.end);
     }
   }
@@ -1460,7 +1494,8 @@ public class StringFunctions{
     public void eval() {
       out.buffer = buffer = buffer.reallocIfNeeded(in.end - in.start);
       out.start = out.end = 0;
-      out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.parseBinaryStringNoFormat(in.buffer, in.start, in.end, out.buffer, errCtx);
+      out.end = com.dremio.exec.expr.fn.impl.StringFunctionUtil.parseBinaryStringNoFormat(in
+        .buffer.asNettyBuffer(), in.start, in.end, out.buffer.asNettyBuffer(), errCtx);
       out.buffer.setIndex(out.start, out.end);
     }
   }
@@ -1479,7 +1514,8 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      byte[] buf = com.dremio.common.util.DremioStringUtils.toBinaryStringNoFormat(in.buffer, in.start, in.end).getBytes(charset);
+      byte[] buf = com.dremio.common.util.DremioStringUtils.toBinaryStringNoFormat(in.buffer.asNettyBuffer(), in
+        .start, in.end).getBytes(charset);
       out.buffer = buffer = buffer.reallocIfNeeded(buf.length);
       buffer.setBytes(0, buf);
       buffer.setIndex(0, buf.length);
@@ -1506,7 +1542,8 @@ public class StringFunctions{
 
     @Override
     public void eval() {
-      byte[] buf = com.dremio.common.util.DremioStringUtils.toBinaryString(in.buffer, in.start, in.end).getBytes(charset);
+      byte[] buf = com.dremio.common.util.DremioStringUtils.toBinaryString(in.buffer.asNettyBuffer(), in.start,
+        in.end).getBytes(charset);
       buffer.setBytes(0, buf);
       buffer.setIndex(0, buf.length);
 
@@ -1641,7 +1678,8 @@ public class StringFunctions{
       int innerindex = 0;
 
       for (int id = in.start; id < in.end; id += charlen) {
-        innerindex = charlen = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(in.buffer, id, errCtx);
+        innerindex = charlen = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(in
+          .buffer.asNettyBuffer(), id, errCtx);
 
         while (innerindex > 0) {
           out.buffer.setByte(index - innerindex, in.buffer.getByte(id + (charlen - innerindex)));

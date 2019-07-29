@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -50,7 +50,6 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Queues;
 
 import io.netty.buffer.ArrowBuf;
-import io.netty.buffer.ByteBuf;
 
 /**
  * This implementation of RawBatchBuffer starts writing incoming batches to disk once the buffer size reaches a threshold.
@@ -353,7 +352,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
 
     public void writeToStream(FSDataOutputStream stream) throws IOException {
       Stopwatch watch = Stopwatch.createStarted();
-      ByteBuf buf = null;
+      ArrowBuf buf = null;
       try {
         check = ThreadLocalRandom.current().nextLong();
         start = stream.getPos();

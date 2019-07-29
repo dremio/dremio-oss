@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 import PropTypes from 'prop-types';
 import userUtils from '@app/utils/userUtils';
-import config from '@app/utils/config';
+import config from 'dyn-load/utils/config';
 import { getUser } from '@app/reducers';
 
 export const Capabilities = {

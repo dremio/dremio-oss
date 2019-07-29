@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,6 +71,11 @@ public class VariableBlockVector implements AutoCloseable {
     }
 
     return false;
+  }
+
+  // compute direct memory required for a single variable block.
+  public static int computeSizeForSingleBlock(final int maxVariableBlockLength) {
+    return Numbers.nextPowerOfTwo(maxVariableBlockLength);
   }
 
   private void resizeBuffer(int sizeInBytes) {

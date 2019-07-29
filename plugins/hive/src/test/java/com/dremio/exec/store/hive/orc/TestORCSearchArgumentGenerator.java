@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ import java.sql.Date;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.DateString;
@@ -316,7 +317,7 @@ public class TestORCSearchArgumentGenerator extends RexBuilderTestBase {
   }
 
   private String sarg(RexNode expr) {
-    ORCSearchArgumentGenerator gen = new ORCSearchArgumentGenerator(input.getRowType().getFieldNames());
+    ORCSearchArgumentGenerator gen = new ORCSearchArgumentGenerator(input.getRowType().getFieldNames(), new ArrayList<>());
     expr.accept(gen);
     return gen.get().toString();
   }

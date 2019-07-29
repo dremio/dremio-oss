@@ -1,6 +1,6 @@
 <!--
 
-    Copyright (C) 2017-2018 Dremio Corporation
+    Copyright (C) 2017-2019 Dremio Corporation
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>3.2.8-201907180222520740-08f2b54</version>
+    <version>3.3.1-201907291852280797-df23756</version>
   </parent>
 
   <artifactId>dremio-dac-ui</artifactId>
@@ -113,6 +113,10 @@
             <NPM_CONFIG_REGISTRY>${npm.registry.url}</NPM_CONFIG_REGISTRY>
             <DREMIO_BETA>${dremio.beta}</DREMIO_BETA>
             <DREMIO_RELEASE>${dremio.release}</DREMIO_RELEASE>
+            <DREMIO_VERSION>${project.version}</DREMIO_VERSION>
+            <EDITION_TYPE>ce</EDITION_TYPE>
+            <SENTRY_AUTH_TOKEN>${project.sentry.token}</SENTRY_AUTH_TOKEN>
+            <SKIP_SENTRY_STEP>${project.sentry.skip}</SKIP_SENTRY_STEP>
           </environmentVariables>
         </configuration>
 
@@ -212,6 +216,22 @@
               <excludes combine.children="append">
                 <exclude>**/sourcemaps/**</exclude>
               </excludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
+      <id>mapr</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>com.github.eirslett</groupId>
+            <artifactId>frontend-maven-plugin</artifactId>
+            <configuration>
+              <environmentVariables>
+                <EDITION_TYPE>mapr-ce</EDITION_TYPE>
+              </environmentVariables>
             </configuration>
           </plugin>
         </plugins>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 import { Component } from 'react';
+import { compose } from 'redux';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
-import { Link } from 'react-router';
-import { replace } from 'react-router-redux';
+import { Link, withRouter } from 'react-router';
 import Immutable from 'immutable';
-import urlParse from 'url-parse';
 
-import { loginUser } from 'actions/account';
+import { LOGIN_VIEW_ID, loginUser } from 'actions/account';
 import { applyValidators, isRequired } from 'utils/validation';
 import Spinner from 'components/Spinner';
 
@@ -32,21 +31,22 @@ import FieldWithError from 'components/Fields/FieldWithError.js';
 import TextField from 'components/Fields/TextField.js';
 import { getViewState } from 'selectors/resources';
 import ViewStateWrapper from 'components/ViewStateWrapper';
+import LoginFormMixin from 'dyn-load/pages/AuthenticationPage/components/LoginFormMixin';
 
 import { formLabel, lightLink } from 'uiTheme/radium/typography';
 
 import LoginTitle from './LoginTitle';
 
-const VIEW_ID = 'LoginForm';
-
 @Radium
 export class LoginForm extends Component {
   static propTypes = {
-    user: PropTypes.instanceOf(Immutable.Map),
+    // redux-form
     fields: PropTypes.object,
+    // connected
+    user: PropTypes.instanceOf(Immutable.Map),
     viewState: PropTypes.instanceOf(Immutable.Map),
     loginUser: PropTypes.func.isRequired,
-    replace: PropTypes.func.isRequired,
+    // from withRouter
     location: PropTypes.object.isRequired
   };
 
@@ -55,20 +55,11 @@ export class LoginForm extends Component {
   }
 
   submit = (form) => {
-    return this.props.loginUser(form, this.props.viewState.get('viewId')).then((response) => {
-      if (response && !response.error) {
-        let url = '/';
-        if (typeof window !== 'undefined') {
-          const parsedUrl = urlParse(window.location.href, true);
-          url = (parsedUrl.query && parsedUrl.query.redirect) || url;
-        }
-        this.props.replace(url);
-      }
-    });
+    return this.props.loginUser(form, this.props.viewState.get('viewId'));
   }
 
   render() {
-    const { fields: { userName, password }, viewState, location } = this.props;
+    const { viewState, location } = this.props;
 
     return (
       <div id='login-form' style={[styles.base]}>
@@ -79,49 +70,10 @@ export class LoginForm extends Component {
           style={{paddingTop: 45}}
           hideChildrenWhenFailed={false}
           viewState={viewState}
-          hideSpinner>
-          <InnerComplexForm
-            {...this.props}
-            style={styles.form}
-            onSubmit={this.submit}>
-            <div style={styles.fieldsRow}>
-              <FieldWithError
-                {...userName}
-                errorPlacement='top'
-                label={la('Username')}
-                labelStyle={styles.label}
-                style={{...formLabel, ...styles.field}}>
-                <TextField
-                  {...userName}
-                  initialFocus
-                  style={styles.input}/>
-              </FieldWithError>
-              <FieldWithError
-                {...password}
-                errorPlacement='top'
-                label={la('Password')}
-                labelStyle={styles.label}
-                style={{...formLabel, ...styles.field}}>
-                <TextField
-                  {...password}
-                  type='password'
-                  style={styles.input}/>
-              </FieldWithError>
-            </div>
-            <div style={styles.submitWrapper}>
-              <Button
-                type={ButtonTypes.NEXT}
-                key='details-wizard-next'
-                style={{marginBottom: 0}}
-                text={la('Log In')}/>
-              <Spinner
-                iconStyle={styles.spinnerIcon}
-                style={{display: viewState.get('isInProgress') ? 'block' : 'none', ...styles.spinner}}/>
-              {false && <div style={styles.link}>
-                <Link to='#' >{la('Forgot your password?')}</Link>
-              </div>}
-            </div>
-          </InnerComplexForm>
+          hideSpinner
+          multilineErrorMessage
+        >
+          {this.renderForm()}
         </ViewStateWrapper>
         <div className='largerFontSize' style={{textAlign: 'right'}}>
           <Link to={{ ...location, state: { modal: 'AboutModal' }}}>
@@ -131,22 +83,74 @@ export class LoginForm extends Component {
       </div>
     );
   }
+
+  renderForm() {
+    const { fields: { userName, password }, viewState } = this.props;
+
+    return (
+      <InnerComplexForm
+      {...this.props}
+      style={styles.form}
+      onSubmit={this.submit}>
+        <div style={styles.fieldsRow}>
+          <FieldWithError
+          {...userName}
+          errorPlacement='top'
+          label={la('Username')}
+          labelStyle={styles.label}
+          style={{...formLabel, ...styles.field}}>
+            <TextField
+            {...userName}
+            initialFocus
+            style={styles.input}/>
+          </FieldWithError>
+          <FieldWithError
+          {...password}
+          errorPlacement='top'
+          label={la('Password')}
+          labelStyle={styles.label}
+          style={{...formLabel, ...styles.field}}>
+            <TextField
+            {...password}
+            type='password'
+            style={styles.input}/>
+          </FieldWithError>
+        </div>
+        <div style={styles.submitWrapper}>
+          <Button
+          type={ButtonTypes.NEXT}
+          key='details-wizard-next'
+          style={{marginBottom: 0}}
+          text={la('Log In')}/>
+          <Spinner
+          iconStyle={styles.spinnerIcon}
+          style={{display: viewState.get('isInProgress') ? 'block' : 'none', ...styles.spinner}}/>
+          {false && <div style={styles.link}>
+            <Link to='#'>{la('Forgot your password?')}</Link>
+          </div>}
+        </div>
+      </InnerComplexForm>
+    );
+  }
 }
 
 function mapStateToProps(state) {
   return {
-    viewState: getViewState(state, VIEW_ID)
+    user: state.account.get('user'),
+    viewState: getViewState(state, LOGIN_VIEW_ID)
   };
 }
 
-export default connectComplexForm({
-  form: 'login',
-  validate: LoginForm.validate,
-  fields: ['userName', 'password']
-}, [], mapStateToProps, {
-  loginUser,
-  replace
-})(LoginForm);
+export default compose(
+  connectComplexForm({
+    form: 'login',
+    fields: ['userName', 'password']
+  }, [LoginForm], mapStateToProps, {
+    loginUser
+  }),
+  withRouter,
+  LoginFormMixin,
+)(LoginForm);
 
 const styles = {
   base: {

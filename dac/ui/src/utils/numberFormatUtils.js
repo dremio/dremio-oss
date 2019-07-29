@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,5 +41,11 @@ export default class NumberFormatUtils {
     const i = bytes === 0 ? 0 : Math.floor( Math.log(bytes) / Math.log(1024) );
     return (bytes / Math.pow(1024, i)).toFixed(2).replace(/\.?0+$/, '') + ' ' + ['B', 'kB', 'MB', 'GB', 'TB'][i];
   };
+
+  static formatMemoryInMB = (memoryInBytes) => {
+    const mbs = (memoryInBytes / MEMORY_UNITS.get('MB')).toFixed(2);
+    return `${mbs} MB`;
+  };
+
 
 }

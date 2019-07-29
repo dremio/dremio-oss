@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.physical.config;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -31,7 +32,9 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -73,26 +76,42 @@ public abstract class AbstractDeMuxExchange extends AbstractExchange {
   }
 
   @Override
-  public ParallelizationInfo getSenderParallelizationInfo(List<NodeEndpoint> receiverFragmentEndpoints) {
-    Preconditions.checkArgument(receiverFragmentEndpoints != null && receiverFragmentEndpoints.size() > 0,
+  public ParallelizationInfo.WidthConstraint getSenderParallelizationWidthConstraint() {
+    return ParallelizationInfo.WidthConstraint.AFFINITY_LIMITED;
+  }
+
+  /**
+   * Provide the node affinity for the sender side of the exchange
+   */
+  @Override
+  public Supplier<Collection<EndpointAffinity>> getSenderEndpointffinity(Supplier<Collection<NodeEndpoint>> receiverFragmentEndpointsSupplier) {
+    return () -> {
+      Collection<NodeEndpoint> receiverFragmentEndpoints = receiverFragmentEndpointsSupplier.get();
+      Preconditions.checkArgument(receiverFragmentEndpoints != null && receiverFragmentEndpoints.size() > 0,
         "Receiver fragment endpoint list should not be empty");
 
-    // We want to run one demux sender per SabotNode endpoint.
-    // Identify the number of unique SabotNode endpoints in receiver fragment endpoints.
-    List<NodeEndpoint> nodeEndpoints = ImmutableSet.copyOf(receiverFragmentEndpoints).asList();
+      // We want to run one demux sender per SabotNode endpoint.
+      // Identify the number of unique SabotNode endpoints in receiver fragment endpoints.
+      List<NodeEndpoint> nodeEndpoints = ImmutableSet.copyOf(receiverFragmentEndpoints).asList();
 
-    List<EndpointAffinity> affinities = Lists.newArrayList();
-    for(NodeEndpoint ep : nodeEndpoints) {
-      affinities.add(new EndpointAffinity(ep, Double.POSITIVE_INFINITY));
-    }
-
-    return ParallelizationInfo.create(affinities.size(), affinities.size(), affinities);
+      List<EndpointAffinity> affinities = Lists.newArrayList();
+      for(NodeEndpoint ep : nodeEndpoints) {
+        affinities.add(new EndpointAffinity(ep, Double.POSITIVE_INFINITY));
+      }
+      return affinities;
+    };
   }
 
   @Override
-  public ParallelizationInfo getReceiverParallelizationInfo(List<NodeEndpoint> senderFragmentEndpoints) {
-    return ParallelizationInfo.UNLIMITED_WIDTH_NO_ENDPOINT_AFFINITY;
+  public ParallelizationInfo.WidthConstraint getReceiverParallelizationWidthConstraint() {
+    return ParallelizationInfo.WidthConstraint.UNLIMITED;
   }
+
+  @Override
+  public Supplier<Collection<EndpointAffinity>> getReceiverEndpointAffinity(Supplier<Collection<NodeEndpoint>> senderFragmentEndpointsSupplier) {
+    return () -> ImmutableList.of();
+  }
+
 
   @Override
   public Sender getSender(int minorFragmentId, PhysicalOperator child, EndpointsIndex.Builder indexBuilder) {

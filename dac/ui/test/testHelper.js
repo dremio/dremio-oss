@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -177,12 +177,12 @@ Module.prototype.require = function(module) {
       }
     };
   }
+  module = applyAliases(module); // use webpack aliases for correct module resolving
 
   // since we are not in webpack, make glob-loader
   // work. (this is only tested for use with images/)
-  const globLoadFile = (module.match(/^glob-loader!(.*)/) || [])[1];
-  if (globLoadFile) {
-    const patternFile = require.resolve(globLoadFile);
+  if (/\.pattern$/.test(module)) {
+    const patternFile = require.resolve(module);
     const pattern = require('fs').readFileSync(patternFile, 'utf8'); // eslint-disable-line no-sync
     const relativeTo = patternFile.split('/').slice(0, -1).join('/');
     const files = require('glob').sync(relativeTo + '/' + pattern);
@@ -194,10 +194,7 @@ Module.prototype.require = function(module) {
 
     return fileFakes;
   }
-  module = applyAliases(module); // use webpack aliases for correct module resolving
-  if (module.indexOf('.less?modules') >= 0) { // we load less as css module, when ?module query is added. See webpack.config
-    return originalRequire.call(this, module.replace('?modules', ''));
-  }
+
   return originalRequire.call(this, module);
 };
 

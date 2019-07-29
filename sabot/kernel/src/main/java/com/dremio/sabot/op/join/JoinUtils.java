@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rex.RexNode;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.common.types.TypeProtos.MinorType;
@@ -196,13 +197,19 @@ public class JoinUtils {
         List<MinorType> types = new LinkedList<>();
         types.add(rightType);
         types.add(leftType);
-        MinorType result = TypeCastRules.getLeastRestrictiveType(types, producer
-          .getFunctionLookupContext().isDecimalV2Enabled());
+        MinorType result = TypeCastRules.getLeastRestrictiveType(types);
 
         if (result == null) {
           throw new RuntimeException(String.format("Join conditions cannot be compared failing left " +
                   "expression:" + " %s failing right expression: %s", leftExpression.getCompleteType().toString(),
               rightExpression.getCompleteType().toString()));
+        } else if (result != rightType && result != leftType) {
+          // cast both to common type.
+          CompleteType resultType = CompleteType.fromMinorType(result);
+          LogicalExpression castExpr = producer.addImplicitCast(rightExpression, resultType);
+          rightExpressions[i] = producer.materialize(castExpr, rightBatch);
+          LogicalExpression castExprLeft = producer.addImplicitCast(leftExpression, resultType);
+          leftExpressions[i] = producer.materialize(castExprLeft, leftBatch);
         } else if (result != rightType) {
           // Add a cast expression on top of the right expression
           LogicalExpression castExpr = producer.addImplicitCast(rightExpression, leftExpression.getCompleteType());

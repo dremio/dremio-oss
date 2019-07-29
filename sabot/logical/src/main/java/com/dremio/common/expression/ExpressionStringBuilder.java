@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package com.dremio.common.expression;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 
 import org.joda.time.Period;
 
@@ -33,6 +34,7 @@ import com.dremio.common.expression.ValueExpressions.QuotedString;
 import com.dremio.common.expression.ValueExpressions.TimeExpression;
 import com.dremio.common.expression.ValueExpressions.TimeStampExpression;
 import com.dremio.common.expression.visitors.AbstractExprVisitor;
+import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.Types;
 import com.google.common.collect.ImmutableList;
@@ -187,10 +189,44 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
     return null;
   }
 
+  static String serializeDecimalConstant(DecimalExpression decExpr) {
+    // for decimals, precision and scale also need to be tagged along. The json de-parsing expects a
+    // numeric value that doesn't start with 0.
+    StringBuilder builder = new StringBuilder();
+    BigInteger bi = decExpr.getDecimal().setScale(decExpr.getScale()).unscaledValue();
+    if (!bi.equals(BigInteger.ZERO)) {
+      builder.append(bi.toString());
+    }
+    return builder
+      .append(String.format("%02d", decExpr.getPrecision() + CompleteType.MAX_DECIMAL_PRECISION))
+      .append(String.format("%02d", decExpr.getScale() + CompleteType.MAX_DECIMAL_PRECISION))
+      .toString();
+  }
+
+  static DecimalExpression deserializeDecimalConstant(String numStr) {
+    // extract decimal value
+    int offsetInString = 0;
+    int biLen = numStr.length() - 4;
+    BigInteger bi = BigInteger.ZERO;
+    if (biLen > 0) {
+      bi = new BigInteger(numStr.substring(offsetInString, offsetInString + biLen));
+    }
+
+    // extract precision
+    offsetInString += biLen;
+    int precision = Integer.parseInt(numStr.substring(offsetInString, offsetInString + 2)) -
+      CompleteType.MAX_DECIMAL_PRECISION;
+
+    // extract scale
+    offsetInString += 2;
+    int scale = Integer.parseInt(numStr.substring(offsetInString, offsetInString + 2)) -
+      CompleteType.MAX_DECIMAL_PRECISION;
+    return new DecimalExpression(new BigDecimal(bi, scale), precision, scale);
+  }
+
   @Override
   public Void visitDecimalConstant(DecimalExpression decExpr, StringBuilder sb) throws RuntimeException {
-    BigDecimal value = decExpr.getDecimal();
-    sb.append(value.toString());
+    sb.append(serializeDecimalConstant(decExpr));
     sb.append('m');
     return null;
   }
@@ -252,6 +288,8 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
     case INTERVAL:
     case INTERVALDAY:
     case INTERVALYEAR:
+    case STRUCT:
+    case LIST:
       // do nothing else.
       break;
     case VAR16CHAR:
@@ -299,7 +337,12 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
 
   @Override
   public Void visitNullConstant(TypedNullConstant e, StringBuilder sb) throws RuntimeException {
-    CastExpression cast = new CastExpression(NullExpression.INSTANCE, Types.optional(e.getCompleteType().toMinorType()));
+    MajorType type = Types.optional(e.getCompleteType().toMinorType());
+    if (e.getCompleteType().isDecimal()) {
+      type = MajorType.newBuilder().setMode(TypeProtos.DataMode.OPTIONAL).setMinorType(e.getCompleteType().toMinorType())
+        .setPrecision(e.getCompleteType().getPrecision()).setScale(e.getCompleteType().getScale()).build();
+    }
+    CastExpression cast = new CastExpression(NullExpression.INSTANCE, type);
     cast.accept(this, sb);
     return null;
   }

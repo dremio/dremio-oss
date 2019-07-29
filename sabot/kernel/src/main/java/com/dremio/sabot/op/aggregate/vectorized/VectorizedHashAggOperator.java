@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.dremio.sabot.op.aggregate.vectorized;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -32,12 +33,11 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.NamedExpression;
-import com.dremio.common.util.Numbers;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.physical.config.HashAggregate;
-import com.dremio.exec.planner.physical.PhysicalPlanCreator;
+import com.dremio.exec.planner.physical.HashAggMemoryEstimator;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -63,6 +63,7 @@ import com.dremio.sabot.op.common.ht2.FieldVectorPair;
 import com.dremio.sabot.op.common.ht2.FixedBlockVector;
 import com.dremio.sabot.op.common.ht2.LBlockHashTable;
 import com.dremio.sabot.op.common.ht2.PivotBuilder;
+import com.dremio.sabot.op.common.ht2.PivotBuilder.PivotInfo;
 import com.dremio.sabot.op.common.ht2.PivotDef;
 import com.dremio.sabot.op.common.ht2.VariableBlockVector;
 import com.dremio.sabot.op.spi.SingleInputOperator;
@@ -416,6 +417,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     this.minHashTableSize = (int)options.getOption(ExecConstants.MIN_HASH_TABLE_SIZE);
     this.minHashTableSizePerPartition = (int)Math.ceil((minHashTableSize * 1.0)/numPartitions);
     this.estimatedVariableWidthKeySize = (int)options.getOption(VARIABLE_FIELD_SIZE_ESTIMATE);
+    this.maxHashTableBatchSize = popConfig.getHashTableBatchSize();
     final boolean traceOnException = options.getOption(VECTORIZED_HASHAGG_DEBUG_DETAILED_EXCEPTION);
     this.hashPartitionMask = numPartitions - 1;
     this.statsHolder = new HashTableStatsHolder();
@@ -453,35 +455,8 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     this.resumableInsertState = null;
     this.operatorStateBeforeOOB = null;
     this.forceSpillState = null;
-    logger.debug("partitions:{}, min-hashtable-size:{}, variable-width-key-size:{}",
-      numPartitions, minHashTableSize, estimatedVariableWidthKeySize);
-  }
-
-  /**
-   * Calculate the per-partition hashtable batch size. We calculate the batch size based on the
-   * outgoing record size, and the configured min/max batch sizes.
-   */
-  private int calculateHashTableBatchSize(VectorAccessible outgoing) {
-    final OptionManager options = context.getOptions();
-
-    /*
-     * Estimate the outgoing record size. This is proportional to the sum of the accumulator and
-     * pivot sizes.
-     */
-    final int listSizeEstimate = (int) options.getOption(ExecConstants.BATCH_LIST_SIZE_ESTIMATE);
-    final int estimatedRecordSize = outgoing.getSchema().estimateRecordSize(listSizeEstimate, this.estimatedVariableWidthKeySize);
-
-    /*
-     * Compute the max hashtable batchsize, based on the estimated record size.
-     */
-    final int maxOutgoingBatchSize = (int) options.getOption(VECTORIZED_HASHAGG_MAX_BATCHSIZE_BYTES);
-    int maxOutgoingRecordCount = Numbers.nextPowerOfTwo(maxOutgoingBatchSize / estimatedRecordSize);
-
-    final int configuredTargetRecordCount = (int)context.getOptions().getOption(ExecConstants.TARGET_BATCH_RECORDS_MAX);
-    final int minTargetRecordCount = (int) options.getOption(ExecConstants.TARGET_BATCH_RECORDS_MIN);
-    int batchSize = Math.min(configuredTargetRecordCount, maxOutgoingRecordCount);
-    batchSize = Math.max(batchSize, minTargetRecordCount);
-    return PhysicalPlanCreator.optimizeBatchSizeForAllocs(batchSize);
+    logger.debug("partitions:{}, min-hashtable-size:{}, max-hashtable-batch-size:{} variable-width-key-size:{}",
+      numPartitions, minHashTableSize, maxHashTableBatchSize, estimatedVariableWidthKeySize);
   }
 
   @Override
@@ -499,7 +474,7 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     partitionSpillHandler = new VectorizedHashAggPartitionSpillHandler(hashAggPartitions, context.getFragmentHandle(),
                                                                        context.getOptions(), context.getConfig(),
                                                                        popConfig.getProps().getLocalOperatorId(), partitionToLoadSpilledData,
-                                                                       context.getSpillService(), minimizeSpilledPartitions);
+                                                                       context.getSpillService(), minimizeSpilledPartitions, context.getStats());
     debug.setInfoAfterInit(maxHashTableBatchSize, allocator.getAllocatedMemory(), outgoing.getSchema());
     /* allocator.getAllocatorMemory() at this point represents the minimum reservation
      * (aka preallocation) that operator definitely needs to complete the query.
@@ -571,11 +546,13 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
     }
     outgoing.buildSchema();
 
-    /*
-     * Compute the hash-table batch size, taking into account the outgoing schema.
-     */
-    this.maxHashTableBatchSize = calculateHashTableBatchSize(outgoing);
-    logger.debug("max-hashtable-batch-size:{}", maxHashTableBatchSize);
+    final HashAggMemoryEstimator estimator = HashAggMemoryEstimator.create(
+      new PivotInfo(pivot.getBlockWidth(), pivot.getVariableCount()),
+      materializeAggExpressionsResult,
+      maxHashTableBatchSize,
+      context.getOptions()
+    );
+    debug.setPreAllocEstimator(estimator);
 
     /*
      * STEP 2: Build data structures for each partition.
@@ -681,19 +658,13 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
    * for inserting keys into the hash table. These auxiliary structures are
    * used as follows every time we receive an incoming batch
    *
-   * (1) hashTableOrdinals - array to store partition indices and ordinals as
-   *     the data is inserted into hashtable.
-   *
-   * (2) hashValues - array to store hashvalues since we compute the hash for
-   *     entire batch at once and fill this array with hashvalues.
-   *
-   * (3) fixedBlockVector - fixed block buffer to store the pivoted fixed width
+   * (1) fixedBlockVector - fixed block buffer to store the pivoted fixed width
    *     key column values.
    *
-   * (4) variableBlockVector - variable block buffer to store the pivoted
+   * (2) variableBlockVector - variable block buffer to store the pivoted
    *     variable width key column values.
 
-   * The reason we need (3) and (4) is because we pivot into temporary space
+   * The reason we need (1) and (2) is because we pivot into temporary space
    * and later do memcpy() to hashtable buffers/blocks during insertion. So we
    * don't want to allocate temporary buffers every time upon entry into
    * consumeData().
@@ -2492,9 +2463,12 @@ public class VectorizedHashAggOperator implements SingleInputOperator {
       updateStats();
       try {
         AutoCloseables.close(Iterables.concat(
-            Arrays.asList(partitionToLoadSpilledData, partitionSpillHandler, fixedBlockVector, variableBlockVector),
-            Arrays.asList(hashAggPartitions),
-            outgoing));
+          partitionToLoadSpilledData != null ? Collections.singletonList(partitionToLoadSpilledData) : new ArrayList<>(0),
+          partitionSpillHandler != null ? Collections.singletonList(partitionSpillHandler) : new ArrayList<>(0),
+          fixedBlockVector != null ? Collections.singletonList(fixedBlockVector) : new ArrayList<>(0),
+          variableBlockVector != null ? Collections.singletonList(variableBlockVector) : new ArrayList<>(0),
+          hashAggPartitions != null ? Arrays.asList(hashAggPartitions) : new ArrayList<>(0),
+          outgoing));
       } finally {
         partitionToLoadSpilledData = null;
         partitionSpillHandler = null;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -197,7 +197,7 @@ public class ExternalSortOperator implements SingleInputOperator {
       this.diskRuns = new DiskRunManager(context.getConfig(), context.getOptions(), targetBatchSize, targetBatchSizeInBytes,
                                          context.getFragmentHandle(), config.getProps().getLocalOperatorId(), context.getClassProducer(), allocator,
                                          config.getOrderings(), incoming.getSchema(), compressSpilledBatch, tracer,
-                                         context.getSpillService());
+                                         context.getSpillService(), context.getStats());
       rollback.add(this.diskRuns);
 
       tracer.setTargetBatchSize(targetBatchSize);

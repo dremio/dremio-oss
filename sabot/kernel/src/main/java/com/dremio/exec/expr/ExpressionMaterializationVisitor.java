@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -63,14 +63,11 @@ import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.CoreDecimalUtility;
 import com.dremio.exec.expr.fn.AbstractFunctionHolder;
-import com.dremio.exec.expr.fn.BaseFunctionHolder;
 import com.dremio.exec.expr.fn.ComplexWriterFunctionHolder;
 import com.dremio.exec.expr.fn.ExceptionFunction;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.TypedFieldId;
-import com.dremio.exec.resolver.FunctionResolver;
-import com.dremio.exec.resolver.FunctionResolverFactory;
 import com.dremio.exec.resolver.TypeCastRules;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
@@ -83,16 +80,23 @@ class ExpressionMaterializationVisitor
     extends AbstractExprVisitor<LogicalExpression, FunctionLookupContext, RuntimeException> {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExpressionMaterializationVisitor.class);
+  public static final boolean ALLOW_MIXED_DECIMALS = true;
   private ExpressionValidator validator = new ExpressionValidator();
   private ErrorCollector errorCollector;
   private Deque<ErrorCollector> errorCollectors = new ArrayDeque<>();
   private final BatchSchema schema;
   private final boolean allowComplexWriter;
+  // Only some operators (eg. project and filter) have been modified to use gandiva for code
+  // generation. The others do not have that functionality yet. This flag would indicate if the
+  // calling context supports Gandiva code generation.
+  private final boolean allowGandivaFunctions;
 
-  public ExpressionMaterializationVisitor(BatchSchema schema, ErrorCollector errorCollector, boolean allowComplexWriter) {
+  public ExpressionMaterializationVisitor(BatchSchema schema, ErrorCollector errorCollector,
+                                          boolean allowComplexWriter, boolean allowGandivaFunctions) {
     this.schema = schema;
     this.errorCollector = errorCollector;
     this.allowComplexWriter = allowComplexWriter;
+    this.allowGandivaFunctions = allowGandivaFunctions;
   }
 
   private LogicalExpression validateNewExpr(LogicalExpression newExpr) {
@@ -139,24 +143,20 @@ class ExpressionMaterializationVisitor
     // replace with a new function call, since its argument could be changed.
     call = new FunctionCall(call.getName(), args);
 
-    FunctionResolver resolver = FunctionResolverFactory.getResolver(call);
-
-
-    { // check dremion functions
-      BaseFunctionHolder matchedFuncHolder = functionLookupContext.findFunction(resolver, call);
-      if (matchedFuncHolder instanceof ComplexWriterFunctionHolder && !allowComplexWriter) {
-        errorCollector.addGeneralError("Only Project can use a function with complex output. The complex function output is %s.", call.getName());
-      }
-
-      if (matchedFuncHolder != null) {
-        return getFunctionHolderExpr(call, matchedFuncHolder,
-          functionLookupContext, errorCollector);
-      }
+    FunctionHolderExpression expr = getExactFunctionIfExists(call, functionLookupContext);
+    if (expr != null) {
+      return expr;
     }
 
+    AbstractFunctionHolder matchedFuncHolder = functionLookupContext.findFunctionWithCast(call,
+      allowGandivaFunctions);
 
+    if (matchedFuncHolder != null) {
+      return getFunctionHolderExpr(call, matchedFuncHolder,
+        functionLookupContext, errorCollector);
+    }
 
-    // as no Dremio func is found, search for a non-Dremio function.
+    // as no primary function is found, search for a non-primary function.
     final AbstractFunctionHolder matchedNonFunctionHolder = functionLookupContext.findNonFunction(call);
 
     if (matchedNonFunctionHolder != null) {
@@ -171,7 +171,20 @@ class ExpressionMaterializationVisitor
     return NullExpression.INSTANCE;
   }
 
-  private static FunctionHolderExpression getFunctionHolderExpr(FunctionCall call, AbstractFunctionHolder matchedFuncHolder, FunctionLookupContext functionLookupContext, ErrorCollector errorCollector) {
+  private FunctionHolderExpression getExactFunctionIfExists(FunctionCall call, FunctionLookupContext functionLookupContext) {
+    AbstractFunctionHolder matchedFuncHolder = functionLookupContext.findExactFunction(call, allowGandivaFunctions);
+    if (matchedFuncHolder instanceof ComplexWriterFunctionHolder && !allowComplexWriter) {
+      errorCollector.addGeneralError("Only Project can use a function with complex output. The complex function output is %s.", call.getName());
+    }
+    if (matchedFuncHolder != null) {
+      return getFunctionHolderExpr(call, matchedFuncHolder,
+        functionLookupContext, errorCollector);
+    }
+
+    return null;
+  }
+
+  private FunctionHolderExpression getFunctionHolderExpr(FunctionCall call, AbstractFunctionHolder matchedFuncHolder, FunctionLookupContext functionLookupContext, ErrorCollector errorCollector) {
     // new arg lists, possible with implicit cast inserted.
     final List<LogicalExpression> argsWithCast = Lists.newArrayList();
 
@@ -203,7 +216,7 @@ class ExpressionMaterializationVisitor
         argsWithCast.add(currentArg);
 
       } else {
-        argsWithCast.add(ExpressionTreeMaterializer.addImplicitCastExact(currentArg, parmType, functionLookupContext, errorCollector));
+        argsWithCast.add(ExpressionTreeMaterializer.addImplicitCastExact(currentArg, parmType, functionLookupContext, errorCollector, allowGandivaFunctions));
       }
     }
 
@@ -371,18 +384,25 @@ class ExpressionMaterializationVisitor
     if(!thenType.equals(elseType) && !thenType.isNull() && !elseType.isNull()){
 
       final MinorType leastRestrictive = TypeCastRules.getLeastRestrictiveType((Arrays.asList
-        (thenMinor, elseMinor)), functionLookupContext.isDecimalV2Enabled());
-      if (leastRestrictive != thenMinor) {
+        (thenMinor, elseMinor)));
+      if (leastRestrictive != thenMinor && leastRestrictive != elseMinor && leastRestrictive !=
+        null) {
+        // Implicitly cast then and else to common type
+        CompleteType toType = CompleteType.fromMinorType(leastRestrictive);
+        condition = new IfExpression.IfCondition(newCondition, ExpressionTreeMaterializer
+          .addImplicitCastExact(condition.expression, toType, functionLookupContext, errorCollector, allowGandivaFunctions));
+        newElseExpr = ExpressionTreeMaterializer.addImplicitCastExact(newElseExpr, toType, functionLookupContext, errorCollector, allowGandivaFunctions);
+      }else if (leastRestrictive != thenMinor) {
         // Implicitly cast the then expression
-        condition = new IfExpression.IfCondition(newCondition, ExpressionTreeMaterializer.addImplicitCastExact(condition.expression, newElseExpr.getCompleteType(), functionLookupContext, errorCollector));
+        condition = new IfExpression.IfCondition(newCondition, ExpressionTreeMaterializer.addImplicitCastExact(condition.expression, newElseExpr.getCompleteType(), functionLookupContext, errorCollector, allowGandivaFunctions));
       } else if (leastRestrictive != elseMinor) {
         // Implicitly cast the else expression
-        newElseExpr = ExpressionTreeMaterializer.addImplicitCastExact(newElseExpr, condition.expression.getCompleteType(), functionLookupContext, errorCollector);
-      } else {
+        newElseExpr = ExpressionTreeMaterializer.addImplicitCastExact(newElseExpr, condition.expression.getCompleteType(), functionLookupContext, errorCollector, allowGandivaFunctions);
+      } else{
         // casting didn't work, now we need to merge the types.
-        outputType = thenType.merge(elseType);
-        condition = new IfExpression.IfCondition(newCondition, ExpressionTreeMaterializer.addImplicitCastExact(condition.expression, outputType, functionLookupContext, errorCollector));
-        newElseExpr = ExpressionTreeMaterializer.addImplicitCastExact(newElseExpr, outputType, functionLookupContext, errorCollector);
+        outputType = thenType.merge(elseType, ALLOW_MIXED_DECIMALS);
+        condition = new IfExpression.IfCondition(newCondition, ExpressionTreeMaterializer.addImplicitCastExact(condition.expression, outputType, functionLookupContext, errorCollector, allowGandivaFunctions));
+        newElseExpr = ExpressionTreeMaterializer.addImplicitCastExact(newElseExpr, outputType, functionLookupContext, errorCollector, allowGandivaFunctions);
       }
     }
 

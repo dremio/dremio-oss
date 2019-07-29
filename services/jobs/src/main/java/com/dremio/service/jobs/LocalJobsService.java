@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,8 +65,6 @@ import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.map.annotate.JsonSerialize;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -178,6 +176,8 @@ import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.ScheduleUtils;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -369,7 +369,8 @@ public class LocalJobsService implements JobsService {
             .setCondition(JobsServiceUtil.getApparentlyAbandonedQuery())))
             .toSet();
     for (final Entry<JobId, JobResult> entry : apparentlyAbandoned) {
-      final List<JobAttempt> attempts = entry.getValue().getAttemptsList();
+      final JobResult jobResult = entry.getValue();
+      final List<JobAttempt> attempts = jobResult.getAttemptsList();
       final int numAttempts = attempts.size();
       if (numAttempts > 0) {
         final JobAttempt lastAttempt = attempts.get(numAttempts - 1);
@@ -382,6 +383,7 @@ public class LocalJobsService implements JobsService {
                       "for this job may be missing."));
           attempts.remove(numAttempts - 1);
           attempts.add(newLastAttempt);
+          jobResult.setCompleted(true); // mark the job as completed
           jobStore.put(entry.getKey(), entry.getValue());
         }
       }
@@ -986,6 +988,11 @@ public class LocalJobsService implements JobsService {
     }
 
     @Override
+    public void planParallelized(PlanningSet planningSet) {
+      responseHandler.planParallelized(planningSet);
+    }
+
+    @Override
     public AttemptObserver newAttempt(AttemptId attemptId, AttemptReason reason) {
       // first attempt is already part of the job
       if (attemptId.getAttemptNum() > 0) {
@@ -1025,6 +1032,10 @@ public class LocalJobsService implements JobsService {
       final QueryProfile profile = userResult.getProfile();
       final UserException ex = userResult.getException();
       try {
+        // mark the job as completed
+        job.setCompleted(true);
+        storeJob(job);
+
         if (state == QueryState.COMPLETED) {
           attemptObserver.detailsPopulator.attemptCompleted(userResult.getProfile());
           final JoinAnalysis joinAnalysis;
@@ -1097,8 +1108,8 @@ public class LocalJobsService implements JobsService {
   private void logQuerySummary(Job job) {
     try {
       QUERY_LOGGER.info(MAPPER.writeValueAsString(jobResultToLogEntryConverter.apply(job)));
-    } catch (IOException e) {
-      logger.error("Failure while recording query information to query log.", e);
+    } catch (Exception e) {
+      logger.error("Failure while recording query information for job {} to query log.", job.getJobId().getId(), e);
     }
   }
 
@@ -1216,7 +1227,7 @@ public class LocalJobsService implements JobsService {
 
   @VisibleForTesting
   void storeJob(Job job) {
-    store.put(job.getJobId(), toJobResult(job));
+    store.put(job.getJobId(), job.toJobResult(job));
   }
 
   /**
@@ -1679,11 +1690,6 @@ public class LocalJobsService implements JobsService {
     return DEFAULT_SORTER;
   }
 
-
-  private JobResult toJobResult(Job job) {
-    return new JobResult().setAttemptsList(job.getAttempts());
-  }
-
   /**
    * Result of deleting jobs.
    */
@@ -1845,7 +1851,7 @@ public class LocalJobsService implements JobsService {
     ObjectMapper objectMapper = new ObjectMapper();
 
     // skip NULL fields when serializing - for some reason annotation version doesn't work
-    objectMapper.setSerializationInclusion(JsonSerialize.Inclusion.NON_NULL);
+    objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
 
     return objectMapper;
   }

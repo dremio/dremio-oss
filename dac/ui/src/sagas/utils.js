@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API, isRSAA } from 'redux-api-middleware';
+import { RSAA, isRSAA } from 'redux-api-middleware';
 import invariant from 'invariant';
 import deepEqual from 'deep-equal';
 import { get } from 'lodash/object';
@@ -112,13 +112,13 @@ export function unwrapAction(wrappedAction) {
 export function getApiActionTypes(apiAction) {
   const callApiAction = unwrapAction(apiAction);
   invariant(isRSAA(callApiAction), 'Not a valid api action');
-  return callApiAction[CALL_API].types.map(actionType => typeof actionType === 'string' ? actionType : actionType.type);
+  return callApiAction[RSAA].types.map(actionType => typeof actionType === 'string' ? actionType : actionType.type);
 }
 
 export function getApiActionEntity(apiAction) {
   const callApiAction = unwrapAction(apiAction);
   invariant(isRSAA(callApiAction), 'Not a valid api action');
-  const actionTypes = callApiAction[CALL_API].types;
+  const actionTypes = callApiAction[RSAA].types;
   const successType = actionTypes && actionTypes[1];
   return successType && successType.meta && successType.meta.entity;
 }

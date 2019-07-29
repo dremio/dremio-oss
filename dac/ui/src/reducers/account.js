@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -117,7 +117,7 @@ export default function users(state = getInitialState(), action) {
   case ActionTypes.LOGIN_USER_START: {
     return state.setIn(['user', 'isInProgress'], !action.error)
                 .setIn(['user', 'isFailed'], action.error)
-                .setIn(['user', 'name'], action.meta.form.userName);
+                .setIn(['user', 'name'], action.meta.userName);
   }
 
   case ActionTypes.LOGIN_USER_SUCCESS: {
@@ -127,7 +127,7 @@ export default function users(state = getInitialState(), action) {
   case ActionTypes.LOGIN_USER_FAILURE: {
     return state.setIn(['user', 'isInProgress'], false)
                 .setIn(['user', 'isFailed'], true)
-                .setIn(['user', 'name'], action.meta.form.userName);
+                .setIn(['user', 'name'], action.meta.userName);
   }
   case AccountTypes.EDIT_ACCOUNT_SUCCESS:
     return state.set('user', Immutable.fromJS({

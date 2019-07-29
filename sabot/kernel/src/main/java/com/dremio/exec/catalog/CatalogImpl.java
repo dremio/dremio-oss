@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -193,7 +193,7 @@ public class CatalogImpl implements Catalog {
             SearchQueryUtils.newWildcardQuery(DatasetIndexKeys.UNQUOTED_LC_SCHEMA.getIndexFieldName(), path.asLowerCase().toUnescapedString() + ".*")
           )
         )
-      )))) {;
+      )))) {
         return true;
       }
 
@@ -344,8 +344,11 @@ public class CatalogImpl implements Catalog {
         break;
       case SPACE:
       case HOME:
+        if(view.hasDeclaredFieldNames()) {
+          throw UserException.unsupportedError().message("Dremio doesn't support field aliases defined in view creation.").buildSilently();
+        }
         context.getViewCreator(getUser())
-          .createView(key.getPathComponents(), view.getSql(), Collections.<String>emptyList(), attributes);
+          .createView(key.getPathComponents(), view.getSql(), view.getWorkspaceSchemaPath(), attributes);
         break;
       default:
         throw UserException.unsupportedError()

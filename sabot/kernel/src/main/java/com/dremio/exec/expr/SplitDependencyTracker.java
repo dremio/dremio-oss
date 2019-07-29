@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,7 @@ import com.dremio.common.expression.SupportedEngines;
 import com.google.common.collect.Lists;
 
 // Helper class used while splitting the expression tree
-// Keeps track of state that are required as part of the split
+// Keeps track of state that is required as part of the split
 class SplitDependencyTracker {
   // The effective evaluation type of the parent node
   private final SupportedEngines executionEngine;
@@ -30,18 +30,16 @@ class SplitDependencyTracker {
   // This split depends on the output of each of these splits
   private final List<ExpressionSplit> transfersIn = Lists.newArrayList();
 
-  // This is non-null, if this is part of a nested-if
-  // This represents the split for the immediate outer condition
-  private final ExpressionSplit condSplit;
-  // Valid only when condSplit is non-null
-  // true indicates this is part of the then expression
-  // false indicates this is part of the else expression
-  private final boolean partOfThenExpr;
+  // The branch in nested if-expressions this expression belongs to
+  private final List<IfExprBranch> ifExprBranches = Lists.newArrayList();
 
-  SplitDependencyTracker(SupportedEngines executionEngine, ExpressionSplit condSplit, boolean partOfThenExpr) {
+  SplitDependencyTracker(SupportedEngines executionEngine, List<IfExprBranch> branchList) {
     this.executionEngine = executionEngine;
-    this.condSplit = condSplit;
-    this.partOfThenExpr = partOfThenExpr;
+    this.ifExprBranches.addAll(branchList);
+  }
+
+  void addIfBranch(ExpressionSplit condSplit, boolean partOfThenExpr) {
+    ifExprBranches.add(new IfExprBranch(condSplit, partOfThenExpr));
   }
 
   void addDependency(ExpressionSplit preReq) {
@@ -56,15 +54,7 @@ class SplitDependencyTracker {
   SupportedEngines getExecutionEngine() {
     return executionEngine;
   }
-
-  ExpressionSplit getCondSplit() {
-    return condSplit;
-  }
-
-  boolean isPartOfThenExpr() {
-    return partOfThenExpr;
-  }
-
+  List<IfExprBranch> getIfExprBranches() { return ifExprBranches; }
   List<ExpressionSplit> getTransfersIn() {
     return transfersIn;
   }

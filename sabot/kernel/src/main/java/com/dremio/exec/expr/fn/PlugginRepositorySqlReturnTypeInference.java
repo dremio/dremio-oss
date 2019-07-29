@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -53,7 +53,7 @@ public class PlugginRepositorySqlReturnTypeInference implements SqlReturnTypeInf
     }
 
     final FunctionCall functionCall = TypeInferenceUtils.convertSqlOperatorBindingToFunctionCall(opBinding);
-    final AbstractFunctionHolder funcHolder = registry.getFunction(functionCall, isDecimalV2Enabled);
+    final AbstractFunctionHolder funcHolder = registry.getFunction(functionCall);
     if(funcHolder == null) {
       final StringBuilder operandTypes = new StringBuilder();
       for(int j = 0; j < opBinding.getOperandCount(); ++j) {

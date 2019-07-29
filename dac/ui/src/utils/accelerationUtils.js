@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,8 @@
  */
 import deepEqual from 'deep-equal';
 import uuid from 'uuid';
+import Immutable from 'immutable';
+import { formatMessage } from 'utils/locale';
 import { getUniqueName } from 'utils/pathUtils';
 import { allMeasureTypes, cellTypesWithNoSum } from 'constants/AccelerationConstants';
 import { ANY } from 'constants/DataTypes';
@@ -173,3 +175,78 @@ export const getTypeForField = (dataset, fieldName) => {
     return elm.get('name') === fieldName;
   }).getIn(['type', 'name']);
 };
+
+const getTextWithFailureCount = (status, statusMessage) => {
+  const msgId = (status.get('refresh') === 'MANUAL') ?
+    'Reflection.StatusFailedNoReattempt' : 'Reflection.StatusFailedNonFinal';
+  return formatMessage(msgId, {
+    status: statusMessage,
+    failCount: status.get('failureCount')
+  });
+
+};
+
+export function getReflectionUiStatus(reflection) {
+  if (!reflection) return;
+
+  const status = reflection.get('status');
+
+  let icon = 'WarningSolid';
+  let text = '';
+  let className = '';
+
+  const statusMessage = status && status.get('availability') === 'AVAILABLE' ?
+    formatMessage('Reflection.StatusCanAccelerate') : formatMessage('Reflection.StatusCannotAccelerate');
+
+  if (!reflection.get('enabled')) {
+    icon = 'Disabled';
+    text = formatMessage('Reflection.StatusDisabled');
+  } else if (status.get('config') === 'INVALID') {
+    icon = 'ErrorSolid';
+    text = formatMessage('Reflection.StatusInvalidConfiguration', {status: statusMessage});
+  } else if (status.get('refresh') === 'GIVEN_UP') {
+    icon = 'ErrorSolid';
+    text = formatMessage('Reflection.StatusFailedFinal', {status: statusMessage});
+  } else if (status.get('availability') === 'INCOMPLETE') {
+    icon = 'ErrorSolid';
+    text = formatMessage('Reflection.StatusIncomplete', {status: statusMessage});
+  } else if (status.get('availability') === 'EXPIRED') {
+    icon = 'ErrorSolid';
+    text = formatMessage('Reflection.StatusExpired', {status: statusMessage});
+  } else if (status.get('refresh') === 'RUNNING') {
+    if (status.get('availability') === 'AVAILABLE') {
+      icon = 'OKSolid';
+      text = formatMessage('Reflection.StatusRefreshing', {status: statusMessage});
+    } else {
+      icon = 'Loader';
+      text = formatMessage('Reflection.StatusBuilding', {status: statusMessage});
+      className = 'spinner';
+    }
+  } else if (status.get('availability') === 'AVAILABLE') {
+    if (status.get('failureCount') > 0) {
+      icon = 'WarningSolid';
+      text = getTextWithFailureCount(status, statusMessage);
+    } else if (status.get('refresh') === 'MANUAL') {
+      icon = 'OKSolid';
+      text = formatMessage('Reflection.StatusManual', {status: statusMessage});
+    } else {
+      icon = 'OKSolid';
+      text = formatMessage('Reflection.StatusCanAccelerate');
+    }
+  } else if (status.get('failureCount') > 0) {
+    icon = 'WarningSolid';
+    text = getTextWithFailureCount(status, statusMessage);
+  } else if (status.get('refresh') === 'SCHEDULED') {
+    icon = 'Ellipsis';
+    text = formatMessage('Reflection.StatusBuilding', {status: statusMessage});
+  } else if (status.get('refresh') === 'MANUAL') {
+    icon = 'WarningSolid';
+    text = formatMessage('Reflection.StatusManual', {status: statusMessage});
+  }
+
+  return Immutable.fromJS({
+    icon,
+    text,
+    className
+  });
+}

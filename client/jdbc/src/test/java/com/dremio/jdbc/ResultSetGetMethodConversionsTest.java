@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,8 +79,8 @@ public class ResultSetGetMethodConversionsTest extends JdbcWithServerTestBase {
         //+ "\n  CAST(  5.5 AS REAL             ) AS \"C_REAL_5.5\", "
         + "\n  CAST(  6.6 AS DOUBLE PRECISION ) AS \"C_DOUBLE_PREC._6.6\", "
         + "\n  CAST(  7.7 AS FLOAT            ) AS \"C_FLOAT_7.7\", "
-        + "\n  CAST( 10.10 AS DECIMAL         ) AS \"C_DECIMAL_10.10\", "
-        + "\n  CAST( 10.5  AS DECIMAL         ) AS \"C_DECIMAL_10.5\", "
+        + "\n  CAST( 10.10 AS DECIMAL(4,2)         ) AS \"C_DECIMAL_10.10\", "
+        + "\n  CAST( 10.5  AS DECIMAL(3,1)         ) AS \"C_DECIMAL_10.5\", "
         + "\n  CAST( 11.11 AS DECIMAL(9,2)    ) AS \"C_DECIMAL(9,2)_11.11\", "
         + "\n  CAST( 12.12 AS DECIMAL(18,2)   ) AS \"C_DECIMAL(18,2)_12.12\", "
         + "\n  CAST( 13.13 AS DECIMAL(28,2)   ) AS \"C_DECIMAL(28,2)_13.13\", "
@@ -548,13 +548,13 @@ public class ResultSetGetMethodConversionsTest extends JdbcWithServerTestBase {
 
   @Test
   public void test_getString_handles_DECIMAL() throws SQLException {
-    assertThat( testDataRow.getString( "C_DECIMAL_10.10" ), equalTo( "10.1" ) );
+    assertThat( testDataRow.getString( "C_DECIMAL_10.10" ), equalTo( "10.10" ) );
     assertThat( testDataRowWithNulls.getString( "C_DECIMAL_10.10" ), equalTo( null ) );
   }
 
 
   ////////////////////////////////////////
-  // - getNString:
+  // - getNString:s
   //   - TINYINT, SMALLINT, INTEGER, BIGINT; REAL, FLOAT, DOUBLE; DECIMAL, NUMERIC;
   //   - BIT, BOOLEAN;
   //   - CHAR, VARCHAR, LONGVARCHAR;

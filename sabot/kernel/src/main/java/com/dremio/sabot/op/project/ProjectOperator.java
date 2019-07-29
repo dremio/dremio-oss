@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ import com.dremio.exec.expr.ValueVectorReadExpression;
 import com.dremio.exec.expr.fn.ComplexWriterFunctionHolder;
 import com.dremio.exec.physical.config.ComplexToJson;
 import com.dremio.exec.physical.config.Project;
+import com.dremio.exec.proto.UserBitShared.OperatorProfileDetails;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.TypedFieldId;
@@ -61,6 +62,7 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorAccessibleComplexWriter;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.project.Projector.ComplexWriterCreator;
 import com.dremio.sabot.op.project.ProjectorStats.Metric;
 import com.dremio.sabot.op.spi.SingleInputOperator;
@@ -107,11 +109,58 @@ public class ProjectOperator implements SingleInputOperator {
     this.allocationVectors = Lists.newArrayList();
     final List<NamedExpression> exprs = getExpressionList();
     final List<TransferPair> transfers = new ArrayList<>();
-    splitter = new ExpressionSplitter(context, incoming, projectorOptions);
 
-    final ClassGenerator<Projector> cg = context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
+    final ClassGenerator<Projector> cg = context.getClassProducer().createGenerator(Projector
+      .TEMPLATE_DEFINITION).getRoot();
 
     final IntHashSet transferFieldIds = new IntHashSet();
+
+    addExprs(incoming, exprs, transfers, cg, transferFieldIds);
+
+    outgoing.buildSchema(SelectionVectorMode.NONE);
+    outgoing.setInitialCapacity(context.getTargetBatchSize());
+    state = State.CAN_CONSUME;
+    initialSchema = outgoing.getSchema();
+    splitter.setupProjector(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
+    javaCodeGenWatch.start();
+    this.projector = cg.getCodeGenerator().getImplementationClass();
+    projector.setup(
+      context.getFunctionContext(),
+      incoming,
+      outgoing,
+      transfers,
+      new ComplexWriterCreator(){
+        @Override
+        public ComplexWriter addComplexWriter(String name) {
+          VectorAccessibleComplexWriter vc = new VectorAccessibleComplexWriter(outgoing);
+          ComplexWriter writer = new ComplexWriterImpl(name, vc);
+          complexWriters.add(writer);
+          return writer;
+        }
+      }
+    );
+    javaCodeGenWatch.stop();
+    OperatorStats stats = context.getStats();
+    stats.addLongStat(Metric.JAVA_BUILD_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    stats.addLongStat(Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    stats.addLongStat(Metric.GANDIVA_EXPRESSIONS, splitter.getNumExprsInGandiva());
+    stats.addLongStat(Metric.JAVA_EXPRESSIONS, splitter.getNumExprsInJava());
+    stats.addLongStat(Metric.MIXED_EXPRESSIONS, splitter.getNumExprsInBoth());
+    stats.addLongStat(Metric.MIXED_SPLITS, splitter.getNumSplitsInBoth());
+    stats.setProfileDetails(OperatorProfileDetails
+      .newBuilder()
+      .addAllSplitInfos(splitter.getSplitInfos())
+      .build()
+    );
+    gandivaCodeGenWatch.reset();
+    javaCodeGenWatch.reset();
+    return outgoing;
+  }
+
+  private void addExprs(VectorAccessible incoming, List<NamedExpression> exprs, List<TransferPair>
+    transfers, ClassGenerator<Projector> cg, IntHashSet transferFieldIds) throws Exception {
+    splitter = new ExpressionSplitter(context, incoming, projectorOptions,
+      context.getClassProducer().getFunctionLookupContext().isDecimalV2Enabled());
 
     for (int i = 0; i < exprs.size(); i++) {
       final NamedExpression namedExpression = exprs.get(i);
@@ -150,40 +199,8 @@ public class ProjectOperator implements SingleInputOperator {
       }
 
     }
-
-    outgoing.buildSchema(SelectionVectorMode.NONE);
-    outgoing.setInitialCapacity(context.getTargetBatchSize());
-    state = State.CAN_CONSUME;
-    initialSchema = outgoing.getSchema();
-    splitter.setupProjector(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
-    javaCodeGenWatch.start();
-    this.projector = cg.getCodeGenerator().getImplementationClass();
-    projector.setup(
-      context.getFunctionContext(),
-      incoming,
-      outgoing,
-      transfers,
-      new ComplexWriterCreator(){
-        @Override
-        public ComplexWriter addComplexWriter(String name) {
-          VectorAccessibleComplexWriter vc = new VectorAccessibleComplexWriter(outgoing);
-          ComplexWriter writer = new ComplexWriterImpl(name, vc);
-          complexWriters.add(writer);
-          return writer;
-        }
-      }
-    );
-    javaCodeGenWatch.stop();
-    context.getStats().addLongStat(Metric.JAVA_BUILD_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
-    context.getStats().addLongStat(Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
-    context.getStats().addLongStat(Metric.GANDIVA_EXPRESSIONS, splitter.getNumExprsInGandiva());
-    context.getStats().addLongStat(Metric.JAVA_EXPRESSIONS, splitter.getNumExprsInJava());
-    context.getStats().addLongStat(Metric.MIXED_EXPRESSIONS, splitter.getNumExprsInBoth());
-    context.getStats().addLongStat(Metric.MIXED_SPLITS, splitter.getNumSplitsInBoth());
-    gandivaCodeGenWatch.reset();
-    javaCodeGenWatch.reset();
-    return outgoing;
   }
+
 
   @Override
   public void consumeData(int records) throws Exception {

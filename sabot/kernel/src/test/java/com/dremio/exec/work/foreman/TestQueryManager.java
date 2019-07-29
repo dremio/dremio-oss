@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -113,7 +113,7 @@ public class TestQueryManager extends DremioTest {
         .setAssignment(endpoint)
         .build());
 
-    ExecutionPlan executionPlan = new ExecutionPlan(new Screen(OpProps.prototype(), null), 0, Collections.singletonList(fragment), null);
+    ExecutionPlan executionPlan = new ExecutionPlan(queryId, new Screen(OpProps.prototype(), null), 0, Collections.singletonList(fragment), null);
     observers.planCompleted(executionPlan);
 
     // Notify node is dead

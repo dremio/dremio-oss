@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,6 +71,11 @@ public class FixedBlockVector implements AutoCloseable {
     if(count > capacity){
       resizeBuffer(count);
     }
+  }
+
+  // Compute the direct memory required for one fixed block.
+  public static int computeSizeForSingleBlock(final int batchSize, final int blockWidth) {
+    return Numbers.nextPowerOfTwo(Numbers.nextPowerOfTwo(batchSize) * blockWidth);
   }
 
   private void resizeBuffer(int newCapacity) {

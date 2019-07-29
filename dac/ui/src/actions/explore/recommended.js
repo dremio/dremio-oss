@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { CALL_API } from 'redux-api-middleware';
+import { RSAA } from 'redux-api-middleware';
 
 import { API_URL_V2 } from 'constants/Api';
 import transformModelMapper from 'utils/mappers/ExplorePage/Transform/transformModelMapper';
@@ -41,7 +41,7 @@ function fetchTransformCards(data, transform, dataset, actionType) {
     viewId: LOAD_TRANSFORM_CARDS_VIEW_ID
   };
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: RUN_SELECTION_TRANSFORM_START, meta },
         { type: RUN_SELECTION_TRANSFORM_SUCCESS, meta },
@@ -73,7 +73,7 @@ function fetchTransformCardPreview(data, transform, dataset, actionType, index) 
     index
   };
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: TRANSFORM_CARD_PREVIEW_START, meta },
         { type: TRANSFORM_CARD_PREVIEW_SUCCESS, meta },
@@ -108,7 +108,7 @@ function fetchTransformValuesPreview(data, transform, dataset, actionType) {
     method: transform.get('method') || 'default'
   };
   return {
-    [CALL_API]: {
+    [RSAA]: {
       types: [
         { type: RUN_SELECTION_TRANSFORM_PREVIEW_VALUES_START, meta },
         { type: RUN_SELECTION_TRANSFORM_PREVIEW_VALUES_SUCCESS, meta },

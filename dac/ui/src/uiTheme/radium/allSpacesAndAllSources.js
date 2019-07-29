@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,8 @@ export const addButton = {
   marginTop: 0,
   marginRight: 0,
   marginBottom: 0,
-  marginLeft: 'auto'
+  marginLeft: 'auto',
+  display: 'inline-block'
 };
 
 export const listContent = {

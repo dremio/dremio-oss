@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,8 +30,7 @@ public class TestDecimalSetting extends BaseTestQuery {
   @Test
   public void testSettingDecimalFlagAtSessionLevelFails() throws Exception {
     exception.expect(UserException.class);
-    exception.expectMessage(String.format("Option %s cannot be set at session (or) query level."
-      , PlannerSettings.ENABLE_DECIMAL_V2_KEY));
+    exception.expectMessage("Admin related settings can only be set at SYSTEM level scope. Given scope 'SESSION'");
     test(String.format("alter session set \"%s\" = true", PlannerSettings
       .ENABLE_DECIMAL_V2_KEY));
   }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,8 +19,6 @@ import "Types.proto";
 
 option java_package = "com.dremio.proto.model";
 option optimize_for = SPEED;
-
-option java_outer_classname = "UpdateIdProtobuf";
 
 message UpdateId {
   optional common.MinorType type = 1;

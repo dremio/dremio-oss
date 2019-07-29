@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import com.codahale.metrics.Gauge;
 import com.codahale.metrics.MetricRegistry;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.exception.FragmentSetupException;
@@ -44,6 +45,7 @@ import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
+import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
@@ -160,8 +162,8 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     return numRunningFragments.get();
   }
 
-  public void startQueryFragment(final InitializeFragments fragments, final FragmentExecutorBuilder builder,
-                                 final ResponseSender sender, final NodeEndpoint identity) {
+  public void startFragments(final InitializeFragments fragments, final FragmentExecutorBuilder builder,
+                             final ResponseSender sender, final NodeEndpoint identity) {
     final SchedulingInfo schedulingInfo = fragments.hasSchedulingInfo() ? fragments.getSchedulingInfo() : null;
     QueryStarterImpl queryStarter = new QueryStarterImpl(fragments, builder, sender, identity, schedulingInfo);
     builder.buildAndStartQuery(queryStarter.getFirstFragment(), schedulingInfo, queryStarter);
@@ -171,8 +173,54 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     return handlers.getUnchecked(handle);
   }
 
-  public void cancel(FragmentHandle handle) {
-    handlers.getUnchecked(handle).cancel();
+  /**
+   * Activate previously initialized fragments for the specified query. The fragments could have
+   * already been activated if they received messages from other fragments.
+   *
+   * @param queryId
+   * @param clerk
+   */
+  public void activateFragments(QueryId queryId, QueriesClerk clerk) {
+    for (FragmentTicket fragmentTicket : clerk.getFragmentTickets(queryId)) {
+      activateFragment(fragmentTicket.getHandle());
+    }
+  }
+
+  @VisibleForTesting
+  void activateFragment(FragmentHandle handle) { handlers.getUnchecked(handle).activate(); }
+
+  /*
+   * Cancel all fragments for the specified query.
+   *
+   * @param queryId
+   * @param clerk
+   */
+  public void cancelFragments(QueryId queryId, QueriesClerk clerk) {
+    for (FragmentTicket fragmentTicket : clerk.getFragmentTickets(queryId)) {
+      cancelFragment(fragmentTicket.getHandle());
+    }
+  }
+
+  /*
+   * Fail all fragments for the specified query.
+   *
+   * @param queryId
+   * @param clerk
+   */
+  public void failFragments(QueryId queryId, QueriesClerk clerk, Throwable throwable) {
+    for (FragmentTicket fragmentTicket : clerk.getFragmentTickets(queryId)) {
+      failFragment(fragmentTicket.getHandle(), throwable);
+    }
+  }
+
+  @VisibleForTesting
+  void cancelFragment(FragmentHandle handle) { handlers.getUnchecked(handle).cancel(); }
+
+  void failFragment(FragmentHandle handle, Throwable throwable) {
+    UserException.Builder builder = UserException
+      .resourceError(throwable)
+      .message(UserException.MEMORY_ERROR_MSG);
+    handlers.getUnchecked(handle).fail(builder.buildSilently());
   }
 
   public void receiverFinished(FragmentHandle sender, FragmentHandle receiver) {
@@ -247,7 +295,8 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
       this.identity = identity;
       this.schedulingInfo = schedulingInfo;
       this.fragmentReader = new CachedFragmentReader(builder.getPlanReader(),
-        new PlanFragmentsIndex(initializeFragments.getFragmentSet().getEndpointsIndexList()));
+        new PlanFragmentsIndex(initializeFragments.getFragmentSet().getEndpointsIndexList(),
+          initializeFragments.getFragmentSet().getAttrList()));
       this.fullFragments = new ArrayList<>();
 
       // Create a map of the major fragments.

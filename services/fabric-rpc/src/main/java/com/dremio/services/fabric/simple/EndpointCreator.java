@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,11 @@
  */
 package com.dremio.services.fabric.simple;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import com.dremio.exec.rpc.FutureBitCommand;
 import com.dremio.exec.rpc.RpcException;
@@ -29,6 +32,7 @@ import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
 
 import io.netty.buffer.ArrowBuf;
+import io.netty.buffer.NettyArrowBuf;
 
 /**
  * Implementation class the provides endpoints using a FabricRunnerFactory,
@@ -86,7 +90,8 @@ class EndpointCreator<REQUEST extends MessageLite, RESPONSE extends MessageLite>
       } else {
         response = future.checkedGet();
       }
-      final ArrowBuf body = (ArrowBuf) future.getBuffer();
+      final ArrowBuf body = future.getBuffer() != null ? ((NettyArrowBuf) future.getBuffer())
+        .arrowBuf() : null;
 
       return new ReceivedResponseMessage<>(response, body);
     }
@@ -96,12 +101,18 @@ class EndpointCreator<REQUEST extends MessageLite, RESPONSE extends MessageLite>
      */
     private class Command extends FutureBitCommand<RESPONSE, ProxyConnection> {
       private final REQUEST req;
-      private final ArrowBuf[] bufs;
+      private final NettyArrowBuf[] bufs;
 
       public Command(REQUEST req, ArrowBuf[] bufs) {
         super();
         this.req = req;
-        this.bufs = bufs;
+        List<NettyArrowBuf> buffers = Arrays.stream(bufs).map(buf -> buf.asNettyBuffer()).collect(Collectors.toList());
+        this.bufs = new NettyArrowBuf[buffers.size()];
+        int i = 0;
+        for (NettyArrowBuf arrowBuf : buffers) {
+          this.bufs[i] = arrowBuf;
+          i++;
+        }
       }
 
       @Override

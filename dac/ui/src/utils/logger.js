@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ if (process.env.NODE_ENV !== 'production') {
         ---
     */
     const stack = new Error().stack;
+    if (!stack) return; // stack is not available in IE.
     let caller = stack.split('\n')[2].trim(); // at {actual caller}$ (webpack-internal:///1429:287:26)
     if (caller) {
       const prefix = 'at ';

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -95,13 +95,6 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
     @Override
     public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
       return new ThreadsIterator(sContext, context);
-    }
-  },
-
-  QUERIES("queries", true, QueryIterator.QueryInfo.class) {
-    @Override
-    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return new QueryIterator(sContext, context);
     }
   },
 

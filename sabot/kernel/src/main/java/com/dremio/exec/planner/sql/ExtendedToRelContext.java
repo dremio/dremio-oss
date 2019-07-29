@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.Describer;
 import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.planner.logical.InvalidViewRel;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.DremioSqlToRelConverter.NoOpExpander;
@@ -77,8 +78,17 @@ public class ExtendedToRelContext extends NoOpExpander implements ToRelContext {
           .build(logger);
     }
 
-    checkRowTypeConsistency(root.validatedRowType, view.getView().getRowType(sqlConverter.getCluster().getTypeFactory()),
-      view.getPath().getSchemaPath());
+    if (getPlannerSettings().getOptions().getOption(PlannerSettings.VDS_AUTO_FIX)  && !view.getView().hasDeclaredFieldNames()) {
+      // this functionality only works for views that without externally defined field names. This is consistent with how VDSs are defined. (only legacy views support this)
+
+      if(!InvalidViewRel.equalsRowTypeDeep(root.validatedRowType, view.getView().getRowType(sqlConverter.getCluster().getTypeFactory()))) {
+        return InvalidViewRel.adjustInvalidRowType(root, view);
+      }
+    } else {
+      checkRowTypeConsistency(root.validatedRowType, view.getView().getRowType(sqlConverter.getCluster().getTypeFactory()),
+          view.getPath().getSchemaPath());
+    }
+
     return root;
   }
 

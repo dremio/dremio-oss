@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,9 @@
  */
 package com.dremio.sabot.rpc;
 
+import com.dremio.exec.proto.CoordExecRPC.ActivateFragments;
+import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
 import com.dremio.exec.proto.CoordExecRPC.InitializeFragments;
-import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
 
@@ -30,5 +31,13 @@ public interface CoordToExecHandler {
    */
   void startFragments(InitializeFragments fragments, ResponseSender sender) throws RpcException;
 
-  void cancelFragment(FragmentHandle fragments) throws RpcException;
+  /**
+   * Activate previously initialized fragments.
+   */
+  void activateFragments(ActivateFragments fragments) throws RpcException;
+
+  /**
+   * Cancel the fragments.
+   */
+  void cancelFragments(CancelFragments fragments) throws RpcException;
 }

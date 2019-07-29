@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,10 +26,10 @@ import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.ScanFilter;
+import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.hive.exec.HiveSubScan;
-import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.SplitInfo;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 
 public class HiveGroupScan extends AbstractGroupScan {
@@ -47,10 +47,10 @@ public class HiveGroupScan extends AbstractGroupScan {
 
   @Override
   public SubScan getSpecificScan(List<SplitWork> work) {
-    List<SplitInfo> splits = new ArrayList<>(work.size());
+    List<SplitAndPartitionInfo> splits = new ArrayList<>(work.size());
     BatchSchema schema = getDataset().getSchema();
     for(SplitWork split : work){
-      splits.add(split.getSplitInfo());
+      splits.add(split.getSplitAndPartitionInfo());
     }
     final ReadDefinition readDefinition = dataset.getReadDefinition();
     return new HiveSubScan(props, splits, schema, dataset.getName().getPathComponents(), filter, dataset.getStoragePluginId(), columns,

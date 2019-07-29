@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,32 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { put, take, select, takeEvery } from 'redux-saga/effects';
-import { replace } from 'react-router-redux';
-
-import { ADD_NEW_USER_SUCCESS } from 'actions/admin';
-import {
-  LOGIN_USER_SUCCESS,
-  fetchLoginUser
-} from 'actions/account';
-
-const getLocation = state => state.routing.locationBeforeTransitions;
+import { put, takeEvery } from 'redux-saga/effects';
+import { CREATE_FIRST_USER_SUCCESS } from 'actions/admin';
+import { loginUser } from 'actions/account';
 
 export default function* signup() {
-  yield takeEvery(ADD_NEW_USER_SUCCESS, handleSignup);
+  yield takeEvery(CREATE_FIRST_USER_SUCCESS, handleSignup);
 }
 
 export function* handleSignup({ meta }) {
-  const { form, isFirstUser } = meta;
-  const { userName, password } = form;
-  if (!isFirstUser) {
-    return;
-  }
-  const location = yield select(getLocation);
-  yield put(fetchLoginUser({userName, password}));
-  yield take(LOGIN_USER_SUCCESS);
-  yield put(replace({
-    ...location,
-    pathname: '/'
-  }));
+  const {
+    form: {
+      userName, password
+    }
+  } = meta;
+  yield put(loginUser({userName, password}));
 }

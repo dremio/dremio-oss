@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -93,11 +93,11 @@ public class SingleSender extends AbstractSender implements OpWithMinorSpecificA
 
   @Override
   public void collectMinorSpecificAttrs(MinorDataWriter writer) {
-    writer.writeMinorFragmentIndexEndpoint(this, DESTINATION_ATTRIBUTE_KEY, destination);
+    writer.writeMinorFragmentIndexEndpoint(getProps(), DESTINATION_ATTRIBUTE_KEY, destination);
   }
 
   @Override
   public void populateMinorSpecificAttrs(MinorDataReader reader) throws Exception {
-    this.destination = reader.readMinorFragmentIndexEndpoint(this, DESTINATION_ATTRIBUTE_KEY);
+    this.destination = reader.readMinorFragmentIndexEndpoint(getProps(), DESTINATION_ATTRIBUTE_KEY);
   }
 }

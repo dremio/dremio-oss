@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import java.util.HashMap;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.parquet.bytes.ByteBufferAllocator;
 
+import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -34,7 +35,7 @@ public class ParquetDirectByteBufferAllocator implements ByteBufferAllocator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetDirectByteBufferAllocator.class);
 
   private final BufferAllocator allocator;
-  private final HashMap<Key, ByteBuf> allocatedBuffers = new HashMap<>();
+  private final HashMap<Key, ArrowBuf> allocatedBuffers = new HashMap<>();
 
 
   public ParquetDirectByteBufferAllocator(BufferAllocator allocator) {
@@ -43,7 +44,7 @@ public class ParquetDirectByteBufferAllocator implements ByteBufferAllocator {
 
   @Override
   public ByteBuffer allocate(int sz) {
-    ByteBuf bb = allocator.buffer(sz);
+    ArrowBuf bb = allocator.buffer(sz);
     ByteBuffer b = bb.nioBuffer(0, sz);
     final Key key = new Key(b);
     allocatedBuffers.put(key, bb);
@@ -54,7 +55,7 @@ public class ParquetDirectByteBufferAllocator implements ByteBufferAllocator {
   @Override
   public void release(ByteBuffer b) {
     final Key key = new Key(b);
-    final ByteBuf bb = allocatedBuffers.get(key);
+    final ArrowBuf bb = allocatedBuffers.get(key);
     // The ByteBuffer passed in may already have been freed or not allocated by this allocator.
     // If it is not found in the allocated buffers, do nothing
     if(bb != null) {

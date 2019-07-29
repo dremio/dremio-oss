@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -178,7 +178,8 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       this.context = context;
       this.fs = fs;
       this.status = status;
-      this.streamProvider = new SingleStreamProvider(fs, status.getPath(), status.getLen(), null, false);
+      final long maxFooterLen = context.getOptions().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
+      this.streamProvider = new SingleStreamProvider(fs, status.getPath(), status.getLen(), maxFooterLen, false, null);
       this.footer = this.streamProvider.getFooter();
       boolean autoCorrectCorruptDates = context.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR) &&
         getConfig().autoCorrectCorruptDates;

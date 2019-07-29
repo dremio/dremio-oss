@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,12 +24,12 @@ import java.util.concurrent.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.resolver.FunctionResolver;
+import com.dremio.exec.resolver.FunctionResolverFactory;
 import com.dremio.options.OptionManager;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ArrayListMultimap;
@@ -38,13 +38,14 @@ import com.google.common.collect.Sets;
 
 /**
  * This class offers the registry for functions. Notably, in addition to Dremio its functions
- * (in {@link FunctionRegistry}), other PluggableFunctionRegistry (e.g., {@link com.dremio.exec.expr.fn.HiveFunctionRegistry})
+ * (in {@link FunctionRegistry}), other PluggableFunctionRegistry (e.g., {com.dremio.exec.expr.fn.HiveFunctionRegistry})
  * is also registered in this class
  */
 public class FunctionImplementationRegistry implements FunctionLookupContext {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FunctionImplementationRegistry.class);
 
-  private FunctionRegistry functionRegistry;
+  protected List<PrimaryFunctionRegistry> primaryFunctionRegistries = Lists.newArrayList();
+  protected FunctionRegistry functionRegistry;
   private List<PluggableFunctionRegistry> pluggableFuncRegistries = Lists.newArrayList();
   private OptionManager optionManager = null;
   private static final Set<String> aggrFunctionNames = Sets.newHashSet("sum", "$sum0", "min",
@@ -56,25 +57,25 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
 
     logger.debug("Generating function registry.");
     functionRegistry = new FunctionRegistry(classpathScan);
-
+    initializePrimaryRegistries();
     Set<Class<? extends PluggableFunctionRegistry>> registryClasses =
         classpathScan.getImplementations(PluggableFunctionRegistry.class);
 
     for (Class<? extends PluggableFunctionRegistry> clazz : registryClasses) {
-      // We want to add Gandiva after all the other repositories so as to not
-      // accidentally override a function from another repository.
-      // If a function is supported in Gandiva it can take precedence later using
-      // the preferred code generator.
-      if (clazz.getName().equals(GandivaFunctionRegistry.class.getName())) {
-        continue;
-      }
       instantiateAndAddRepo(config, clazz);
     }
-    // All others are added should be safe to add Gandiva now.
-    instantiateAndAddRepo(config, GandivaFunctionRegistry.class);
+
+    logger.info("Function registry loaded. Functions loaded in {} ms.", w.elapsed(TimeUnit
+      .MILLISECONDS));
+  }
+
+  protected void initializePrimaryRegistries() {
     // this is the registry used, when decimal v2 is turned off.
     isDecimalV2Enabled = false;
-    logger.info("Function registry loaded.  {} functions loaded in {} ms.", functionRegistry.size(), w.elapsed(TimeUnit.MILLISECONDS));
+    // order is important, first lookup java functions and then gandiva functions
+    // if gandiva is preferred code generator, the function would be replaced later.
+    primaryFunctionRegistries.add(functionRegistry);
+    primaryFunctionRegistries.add(new GandivaFunctionRegistry(isDecimalV2Enabled));
   }
 
   private void instantiateAndAddRepo(SabotConfig config, Class<? extends PluggableFunctionRegistry> clazz) {
@@ -94,7 +95,6 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
         logger.warn("Unable to instantiate PluggableFunctionRegistry class '{}'. Skipping it.", clazz, e);
       }
 
-      break;
     }
   }
 
@@ -103,7 +103,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
     this.optionManager = optionManager;
   }
 
-  public ArrayListMultimap<String, BaseFunctionHolder> getRegisteredFunctions() {
+  public ArrayListMultimap<String, AbstractFunctionHolder> getRegisteredFunctions() {
     return functionRegistry.getRegisteredFunctions();
   }
 
@@ -113,7 +113,9 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
    */
   public void register(OperatorTable operatorTable) {
     // Register Dremio functions first and move to pluggable function registries.
-    functionRegistry.register(operatorTable, isDecimalV2Enabled);
+    for (PrimaryFunctionRegistry registry : primaryFunctionRegistries) {
+      registry.register(operatorTable, isDecimalV2Enabled);
+    }
 
     for(PluggableFunctionRegistry registry : pluggableFuncRegistries) {
       registry.register(operatorTable, isDecimalV2Enabled);
@@ -124,15 +126,43 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
    * Using the given <code>functionResolver</code> find Dremio function implementation for given
    * <code>functionCall</code>
    *
-   * @param functionResolver
    * @param functionCall
+   * @param allowGandivaFunctions
    * @return
    */
   @Override
-  public BaseFunctionHolder findFunction(FunctionResolver functionResolver, FunctionCall functionCall) {
-    FunctionCall functionCallToResolve = functionCall;
+  public AbstractFunctionHolder findExactFunction(FunctionCall functionCall, boolean
+    allowGandivaFunctions) {
+    FunctionResolver functionResolver = FunctionResolverFactory.getExactResolver(functionCall);
+    return getMatchingFunctionHolder(functionCall, functionResolver, allowGandivaFunctions);
+  }
+
+  @Override
+  public AbstractFunctionHolder findFunctionWithCast(FunctionCall functionCall, boolean
+    allowGandivaFunctions) {
+    FunctionResolver functionResolver = FunctionResolverFactory.getResolver(functionCall);
+    return getMatchingFunctionHolder(functionCall, functionResolver, allowGandivaFunctions);
+  }
+
+  private AbstractFunctionHolder getMatchingFunctionHolder(FunctionCall functionCall,
+                                                           FunctionResolver functionResolver,
+                                                           boolean allowGandivaFunctions) {
+    FunctionCall functionCallToResolve = getDecimalV2NamesIfEnabled(functionCall);
+    List<AbstractFunctionHolder> primaryFunctions = Lists.newArrayList();
+    for (PrimaryFunctionRegistry registry : primaryFunctionRegistries) {
+      if (registry instanceof GandivaFunctionRegistry && !allowGandivaFunctions) {
+        continue;
+      }
+      List<AbstractFunctionHolder> methods = registry.getMethods(functionCallToResolve.getName());
+      primaryFunctions.addAll(methods);
+    }
+    return functionResolver.getBestMatch(primaryFunctions, functionCallToResolve);
+  }
+
+  private FunctionCall getDecimalV2NamesIfEnabled(FunctionCall functionCall) {
     // If decimal v2 is on, switch to function definitions that return decimal vectors
     // for decimal accumulation.
+    FunctionCall functionCallToResolve = functionCall;
     if (isDecimalV2Enabled) {
       if (aggrFunctionNames.contains(functionCall.getName().toLowerCase())) {
         LogicalExpression aggrColumn = functionCall.args.get(0);
@@ -142,25 +172,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
         }
       }
     }
-    return functionResolver.getBestMatch(functionRegistry.getMethods(functionCallToResolve.getName()),
-      functionCallToResolve, isDecimalV2Enabled);
-  }
-
-  /**
-   * Find the Dremio function implementation that matches the name, arg types and return type.
-   * @param name
-   * @param argTypes
-   * @param returnType
-   * @return
-   */
-  public BaseFunctionHolder findExactMatchingFunction(String name, List<CompleteType> argTypes, CompleteType returnType) {
-    for (BaseFunctionHolder h : functionRegistry.getMethods(name)) {
-      if (h.matches(returnType, argTypes)) {
-        return h;
-      }
-    }
-
-    return null;
+    return functionCallToResolve;
   }
 
   /**
@@ -176,7 +188,7 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
   @Override
   public AbstractFunctionHolder findNonFunction(FunctionCall functionCall) {
     for(PluggableFunctionRegistry registry : pluggableFuncRegistries) {
-      AbstractFunctionHolder h = registry.getFunction(functionCall, isDecimalV2Enabled);
+      AbstractFunctionHolder h = registry.getFunction(functionCall);
       if (h != null) {
         return h;
       }
@@ -192,9 +204,9 @@ public class FunctionImplementationRegistry implements FunctionLookupContext {
 
   // Method to find if the output type of a dremio function if of complex type
   public boolean isFunctionComplexOutput(String name) {
-    List<BaseFunctionHolder> methods = functionRegistry.getMethods(name);
-    for (BaseFunctionHolder holder : methods) {
-      if (holder.getReturnValue().isComplexWriter()) {
+    List<AbstractFunctionHolder> methods = functionRegistry.getMethods(name);
+    for (AbstractFunctionHolder holder : methods) {
+      if (((BaseFunctionHolder)holder).getReturnValue().isComplexWriter()) {
         return true;
       }
     }

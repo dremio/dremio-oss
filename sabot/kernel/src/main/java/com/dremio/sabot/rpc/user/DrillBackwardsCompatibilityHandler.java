@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,8 +39,8 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.NettyArrowBuf;
 
 /**
  * This encoder ensures that the data batches sent to the user are backwards compatible i.e. if necessary, the batches
@@ -91,7 +91,7 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
 
         // patch the bit buffer for compatibility
         SerializedField.Builder bitsField = children.get(bitsIndex);
-        ArrowBuf bitsBuffer = (ArrowBuf) buffers[bufferStart + bitsIndex];
+        NettyArrowBuf bitsBuffer = (NettyArrowBuf) buffers[bufferStart + bitsIndex];
         // the bit vectors need to be converted from nodes to bytes
         if (bitsField.getMajorType().getMinorType() != BIT
             || !"$bits$".equals(bitsField.getNamePart().getName())
@@ -99,7 +99,7 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
           throw new IllegalStateException("bit vector should be called $bits$ and have type REQUIRED BIT." +
               " Found field: " + field.build());
         }
-        ArrowBuf newBuf = convertBitsToBytes(allocator, bitsField, bitsBuffer);
+        NettyArrowBuf newBuf = convertBitsToBytes(allocator, bitsField, bitsBuffer);
         buffers[bufferStart + bitsIndex] = newBuf;
         changed = true;
 
@@ -112,7 +112,7 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
           /* DecimalVector: {validityBuffer, dataBuffer} */
           final int decimalBufferIndex = 1;
           SerializedField.Builder decimalField = children.get(decimalBufferIndex);
-          final ArrowBuf decimalBuffer = (ArrowBuf)buffers[bufferStart + decimalBufferIndex];
+          final NettyArrowBuf decimalBuffer = (NettyArrowBuf)buffers[bufferStart + decimalBufferIndex];
           if (decimalField.getMajorType().getMinorType() != DECIMAL
               || decimalField.getMajorType().getMode() != REQUIRED) {
             throw new IllegalStateException("Found incorrect decimal field: " + field.build());
@@ -126,7 +126,7 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
         // IntervalDay in Drill as an extra unused 4 bytes
         // type width is wrong in ValueVectorTypes.tdd
         // padding each value
-        ArrowBuf newBuf = padValues(allocator, field, buffers[bufferStart], 8, 12);
+        NettyArrowBuf newBuf = padValues(allocator, field, buffers[bufferStart], 8, 12);
         buffers[bufferStart] = newBuf;
       }
     }
@@ -171,15 +171,16 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
     }
   }
 
-  static ArrowBuf convertBitsToBytes(BufferAllocator allocator,
-                                     SerializedField.Builder fieldBuilder, ArrowBuf oldBuf) {
+  static NettyArrowBuf convertBitsToBytes(BufferAllocator allocator,
+                                          SerializedField.Builder fieldBuilder,
+                                          NettyArrowBuf oldBuf) {
     int valueCount = fieldBuilder.getValueCount();
-    ArrowBuf newBuf;
+    NettyArrowBuf newBuf;
     try {
       /**
        * Create a new buffer, loop all the bit value in oldBuf, and then convert to byte value in new buffer
        */
-      newBuf = allocator.buffer(valueCount);
+      newBuf = allocator.buffer(valueCount).asNettyBuffer();
       for (int i = 0; i < valueCount; i++) {
         int byteIndex = i >> 3;
         byte b = oldBuf.getByte(byteIndex);
@@ -197,7 +198,7 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
     return newBuf;
   }
 
-  static ArrowBuf padValues(BufferAllocator allocator, SerializedField.Builder fieldBuilder, ByteBuf oldBuf,
+  static NettyArrowBuf padValues(BufferAllocator allocator, SerializedField.Builder fieldBuilder, ByteBuf oldBuf,
                             int originalTypeByteWidth, int targetTypeByteWidth) {
     if (targetTypeByteWidth <= originalTypeByteWidth) {
       throw new IllegalArgumentException("the target width must be larger than the original one. "
@@ -209,7 +210,7 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
     }
     int valueCount = oldBuf.readableBytes() / originalTypeByteWidth;
     int newBufferLength = targetTypeByteWidth * valueCount;
-    ArrowBuf newBuf = allocator.buffer(newBufferLength);
+    NettyArrowBuf newBuf = allocator.buffer(newBufferLength).asNettyBuffer();
     for (int byteIndex = 0; byteIndex < originalTypeByteWidth; byteIndex++) {
       for (int i = 0; i < valueCount; i++) {
         int oldIndex = i * originalTypeByteWidth + byteIndex;
@@ -228,15 +229,16 @@ class DrillBackwardsCompatibilityHandler extends BaseBackwardsCompatibilityHandl
    * we map our data to 24 byte DECIMAL38SPARSE format in Drill.
    * @param dataBuffer data buffer of decimal vector
    */
-  static ByteBuf patchDecimal(BufferAllocator allocator, final ArrowBuf dataBuffer,
+  static ByteBuf patchDecimal(BufferAllocator allocator, final NettyArrowBuf dataBuffer,
                               final SerializedField.Builder decimalField, final SerializedField.Builder childDecimalField) {
     final int decimalLength = DecimalVector.TYPE_WIDTH;
     final int startPoint = dataBuffer.readerIndex();
     final int valueCount = dataBuffer.readableBytes()/decimalLength;
-    final ByteBuf drillBuffer = allocator.buffer(dataBuffer.readableBytes() + 8*valueCount);
+    final ByteBuf drillBuffer = allocator.buffer(dataBuffer.readableBytes() + 8*valueCount).asNettyBuffer();
     int length = 0;
     for (int i = startPoint; i < startPoint + dataBuffer.readableBytes() - 1; i+=decimalLength) {
-      final BigDecimal arrowDecimal = DecimalUtility.getBigDecimalFromArrowBuf(dataBuffer, i/16, decimalField.getMajorType().getScale());
+      final BigDecimal arrowDecimal = DecimalUtility.getBigDecimalFromArrowBuf(dataBuffer.arrowBuf(), i/16,
+        decimalField.getMajorType().getScale());
       final int startIndex = (i == startPoint) ? i : i + length;
       DecimalHelper.getSparseFromBigDecimal(arrowDecimal, drillBuffer, startIndex, decimalField.getMajorType().getScale(), NUMBER_DECIMAL_DIGITS);
       length += 8;

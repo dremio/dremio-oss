@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.store.hive.exec.HiveFieldConverter;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -286,6 +286,16 @@ public class HiveTestDataGenerator {
       "stored as orc location '" + fileOrc1Of2.getParent() + "'";
     executeQuery(hiveDriver, orcWithTwoFilesTable);
 
+    final String orcStringsTable = "create table orc_strings (key int, country_char25 CHAR(25), " +
+      "country_string string, country_varchar VARCHAR(1000), continent_char25 CHAR(25)) stored as orc";
+    final String insert1 = "insert into orc_strings values (1, 'INDIA', 'CHINA', 'NEPAL', 'ASIA')";
+    final String insert2 = "insert into orc_strings values (2, 'INDONESIA', 'THAILAND', 'SINGAPORE', 'ASIA')";
+    final String insert3 = "insert into orc_strings values (3, 'FRANCE', 'ITALY', 'ROMANIA', 'EUROPE')";
+    executeQuery(hiveDriver, orcStringsTable);
+    executeQuery(hiveDriver, insert1);
+    executeQuery(hiveDriver, insert2);
+    executeQuery(hiveDriver, insert3);
+
     final String[][] typeconversinoTables = {
       {"tinyint", "", "90"},
       {"smallint", "", "90"},
@@ -383,6 +393,7 @@ public class HiveTestDataGenerator {
 
     createComplexParquetExternal(hiveDriver, "parqcomplex");
     createParquetSchemaChangeTestTable(hiveDriver, "parqschematest_table");
+    createParquetDecimalSchemaChangeTestTable(hiveDriver, "parqdecunion_table");
 
     createComplexTypesTextTable(hiveDriver, "orccomplex");
     createComplexTypesTable(hiveDriver, "orc", "orccomplex");
@@ -398,6 +409,8 @@ public class HiveTestDataGenerator {
 
     createMapTypesTextTable(hiveDriver, "orcmap");
     createMapTypesTable(hiveDriver, "orc", "orcmap");
+
+    createORCDecimalCompareTestTable(hiveDriver, "orcdecimalcompare");
 
     // create a table that has all Hive types. This is to test how hive tables metadata is populated in
     // Dremio's INFORMATION_SCHEMA.
@@ -630,6 +643,16 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insertDataCmd);
     executeQuery(hiveDriver, alterTableCmd);
   }
+  private void createParquetDecimalSchemaChangeTestTable(final Driver hiveDriver, final String table)
+    throws Exception {
+    String createParqetTableCmd = "CREATE TABLE " + table + " (col1 decimal(5,2)) STORED AS " +
+      "PARQUET";
+    String insertDataCmd = "INSERT INTO " + table + " VALUES (123.45)";
+    String alterTableCmd = "ALTER TABLE " + table + " CHANGE col1 col1 decimal(3,0)";
+    executeQuery(hiveDriver, createParqetTableCmd);
+    executeQuery(hiveDriver, insertDataCmd);
+    executeQuery(hiveDriver, alterTableCmd);
+  }
   private void createComplexParquetExternal(final Driver hiveDriver, final String table) throws Exception {
     String createParqetTableCmd = "CREATE TABLE " + table + " (col1 int, col2 array<int>) STORED AS PARQUET";
     String createArrayDataTable = "CREATE TABLE " + table + "_array_data" + " (col1 int)";
@@ -732,6 +755,14 @@ public class HiveTestDataGenerator {
         " STORED AS " + format);
     executeQuery(hiveDriver, "INSERT OVERWRITE TABLE " + table + format + " SELECT * FROM " + table);
   }
+
+  private void createORCDecimalCompareTestTable(final Driver hiveDriver, final String table) throws Exception {
+    String createTableCmd = "CREATE TABLE " + table + " (col1 float, col2 double, col3 decimal(1,1)) stored as orc";
+    String insertCmd = "INSERT INTO " + table + " values (0.1, 0.1, 0.1), (-0.1, -0.1, -0.1)";
+    executeQuery(hiveDriver, createTableCmd);
+    executeQuery(hiveDriver, insertCmd);
+  }
+
   private void createStructTypesTextTable(final Driver hiveDriver, final String table) throws Exception {
     String testDataFile = generateStructTypesDataFile();
     executeQuery(hiveDriver,

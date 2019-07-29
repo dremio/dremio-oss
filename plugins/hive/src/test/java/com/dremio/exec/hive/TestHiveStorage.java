@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017-2018 Dremio Corporation
+ * Copyright (C) 2017-2019 Dremio Corporation
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1353,5 +1353,41 @@ public class TestHiveStorage extends HiveTestBase {
         .unOrdered()
         .sqlBaselineQuery("SELECT r_comment, r_regionkey FROM hive.parquet_region")
         .go();
+  }
+
+  @Test
+  public void testParquetDecimalUnion() throws Exception {
+    String exceptionMessage = "Mixed types";
+    exception.expect(java.lang.Exception.class);
+    exception.expectMessage(exceptionMessage);
+    String query = "SELECT col1 FROM hive.parqdecunion_table";
+    test(query);
+  }
+
+  @Test
+  public void testORCDecimalCompareWithIntegerLiteral() throws Exception {
+    // float column
+    testBuilder()
+      .sqlQuery("SELECT col1 from hive.orcdecimalcompare where col1 < 0")
+      .unOrdered()
+      .baselineColumns("col1")
+      .baselineValues(new Float("-0.1"))
+      .go();
+
+    //double column
+    testBuilder()
+      .sqlQuery("SELECT col2 from hive.orcdecimalcompare where col2 < 0")
+      .unOrdered()
+      .baselineColumns("col2")
+      .baselineValues(new Double("-0.1"))
+      .go();
+
+    //decimal column
+    testBuilder()
+      .sqlQuery("SELECT col3 from hive.orcdecimalcompare where col3 < 0")
+      .unOrdered()
+      .baselineColumns("col3")
+      .baselineValues(new BigDecimal("-0.1"))
+      .go();
   }
 }
