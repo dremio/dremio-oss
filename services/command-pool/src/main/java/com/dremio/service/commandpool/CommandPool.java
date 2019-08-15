@@ -60,6 +60,7 @@ public interface CommandPool extends Service {
    * @param priority command priority
    * @param descriptor command descriptor, mainly used for logging
    * @param command {@link Command} submitted to the thread pool
+   * @param runInSameThread command is executed in the calling thread regardless of CommandPool implementation
    */
-  <V> CompletableFuture<V> submit(Priority priority, String descriptor, Command<V> command);
+  <V> CompletableFuture<V> submit(Priority priority, String descriptor, Command<V> command, boolean runInSameThread);
 }

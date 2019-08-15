@@ -16,9 +16,7 @@
 package com.dremio.plugins.adl.store;
 
 import java.io.IOException;
-import java.net.URI;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.adl.AdlFileSystem;
 
 import com.dremio.exec.store.dfs.async.AsyncByteReader;
@@ -31,16 +29,7 @@ import com.microsoft.azure.datalake.store.AdlsAsyncFileReader;
 public class DremioAdlFileSystem extends AdlFileSystem implements AsyncByteReader.MayProvideAsyncStream {
 
   static final String SCHEME = "dremioAdl";
-
-  private AsyncHttpClientManager asyncHttpClientManager;
-
-  @Override
-  public void initialize(URI storeUri, Configuration conf) throws IOException {
-    super.initialize(storeUri, conf);
-
-    final AzureDataLakeConf adlsConf = AzureDataLakeConf.fromConfiguration(storeUri, conf);
-    asyncHttpClientManager = new AsyncHttpClientManager("dist-uri-" + getUri().toASCIIString(), adlsConf);
-  }
+  private volatile AsyncHttpClientManager asyncHttpClientManager;
 
   @Override
   public String getScheme() {
@@ -60,7 +49,16 @@ public class DremioAdlFileSystem extends AdlFileSystem implements AsyncByteReade
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey) {
+  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey) throws IOException {
+    if (asyncHttpClientManager == null) {
+      synchronized (this) {
+        if (asyncHttpClientManager == null) {
+          final AzureDataLakeConf adlsConf = AzureDataLakeConf.fromConfiguration(getUri(), getConf());
+          asyncHttpClientManager = new AsyncHttpClientManager("dist-uri-" + getUri().toASCIIString(), adlsConf);
+        }
+      }
+    }
+
     return new AdlsAsyncFileReader(asyncHttpClientManager.getClient(), asyncHttpClientManager.getAsyncHttpClient(),
       fileKey.getPath().toUri().getPath());
   }

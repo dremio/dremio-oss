@@ -324,7 +324,7 @@ public class MetadataProvider {
           : null,
           req.hasTableNameFilter() ? req.getTableNameFilter() : null);
 
-      final Iterable<Table> records =
+      FluentIterable<Table> records =
           FluentIterable.<Table>from(table.<Table>asIterable(catalogName, username, datasetListing, filter))
               .filter(new Predicate<Table>() {
                 @Override
@@ -332,6 +332,9 @@ public class MetadataProvider {
                   return catalogNamePred.apply(input.TABLE_CATALOG) && tableTypeFilter.apply(input.TABLE_TYPE);
                 }
               });
+      if (session.getMaxMetadataCount() > 0) {
+        records = records.limit(session.getMaxMetadataCount());
+      }
 
       List<TableMetadata> metadata = new ArrayList<>();
       for (Table t : records) {

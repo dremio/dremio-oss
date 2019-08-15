@@ -43,14 +43,14 @@ public class TestBoundCommandPool {
     final CommandPool pool = new BoundCommandPool(1);
 
     final BlockingCommand blocking = new BlockingCommand();
-    pool.submit(CommandPool.Priority.HIGH, "test", blocking);
+    pool.submit(CommandPool.Priority.HIGH, "test", blocking, false);
 
     // submitting multiple suppliers with the same priority should be executed in their submitted order
-    Future<Integer> future1 = pool.submit(CommandPool.Priority.HIGH, "test", (waitInMillis) -> counter.getAndIncrement());
+    Future<Integer> future1 = pool.submit(CommandPool.Priority.HIGH, "test", (waitInMillis) -> counter.getAndIncrement(), false);
     Thread.sleep(5);
-    Future<Integer> future2 = pool.submit(CommandPool.Priority.HIGH, "test", (waitInMillis) -> counter.getAndIncrement());
+    Future<Integer> future2 = pool.submit(CommandPool.Priority.HIGH, "test", (waitInMillis) -> counter.getAndIncrement(), false);
     Thread.sleep(5);
-    Future<Integer> future3 = pool.submit(CommandPool.Priority.HIGH, "test", (waitInMillis) -> counter.getAndIncrement());
+    Future<Integer> future3 = pool.submit(CommandPool.Priority.HIGH, "test", (waitInMillis) -> counter.getAndIncrement(), false);
 
     blocking.unblock();
     Assert.assertEquals(0, (int) Futures.getUnchecked(future1));
@@ -64,12 +64,12 @@ public class TestBoundCommandPool {
     final CommandPool pool = new BoundCommandPool(1);
 
     final BlockingCommand blocking = new BlockingCommand();
-    pool.submit(CommandPool.Priority.HIGH, "test", blocking);
+    pool.submit(CommandPool.Priority.HIGH, "test", blocking, false);
 
     // submitting multiple suppliers with different priorities, to a single thread pool, should be executed according to their priority
-    Future<Integer> future1 = pool.submit(CommandPool.Priority.LOW, "test", (waitInMillis) -> counter.getAndIncrement());
-    Future<Integer> future2 = pool.submit(CommandPool.Priority.MEDIUM, "test", (waitInMillis) -> counter.getAndIncrement());
-    Future<Integer> future3 = pool.submit(CommandPool.Priority.HIGH, "test", (waitInMillis) -> counter.getAndIncrement());
+    Future<Integer> future1 = pool.submit(CommandPool.Priority.LOW, "test", (waitInMillis) -> counter.getAndIncrement(), false);
+    Future<Integer> future2 = pool.submit(CommandPool.Priority.MEDIUM, "test", (waitInMillis) -> counter.getAndIncrement(), false);
+    Future<Integer> future3 = pool.submit(CommandPool.Priority.HIGH, "test", (waitInMillis) -> counter.getAndIncrement(), false);
 
     blocking.unblock();
     Assert.assertEquals(2, (int) Futures.getUnchecked(future1));

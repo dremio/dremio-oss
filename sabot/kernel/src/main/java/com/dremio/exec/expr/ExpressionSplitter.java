@@ -353,8 +353,10 @@ public class ExpressionSplitter implements AutoCloseable {
       if (!isPreferredCodeGenDoingEnoughWork(currentExprSplits)) {
         logger.debug("Flipping preferred execution engine for {}", namedExpression.getExpr());
         // preferred code gen is not doing enough work
+        LogicalExpression originalExpr = CodeGenerationContextRemover.removeCodeGenContext
+          (namedExpression.getExpr());
         final LogicalExpression exprWithChangedCodeGen = context.getClassProducer()
-          .materializeAndAllowComplex(options.flipPreferredCodeGen(), namedExpression.getExpr(), incoming);
+          .materializeAndAllowComplex(options.flipPreferredCodeGen(), originalExpr, incoming);
         ExpressionSplit flippedSplit = flipCodeGenSplitter.splitExpression(new NamedExpression
           (exprWithChangedCodeGen, namedExpression.getRef()));
         if (isFlippedCodeGenBetter(flipCodeGenSplitter.currentExprSplits, currentExprSplits)) {

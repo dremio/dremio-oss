@@ -22,11 +22,12 @@ import com.dremio.common.expression.ErrorCollector;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
+import com.dremio.common.expression.IfExpression.IfCondition;
+import com.dremio.common.expression.InputReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.expression.TypedNullConstant;
-import com.dremio.common.expression.IfExpression.IfCondition;
 import com.dremio.common.expression.ValueExpressions.BooleanExpression;
 import com.dremio.common.expression.ValueExpressions.DateExpression;
 import com.dremio.common.expression.ValueExpressions.DecimalExpression;
@@ -95,6 +96,11 @@ public final class AggregateChecker implements ExprVisitor<Boolean, ErrorCollect
 
   @Override
   public Boolean visitSchemaPath(SchemaPath path, ErrorCollector errors) {
+    return false;
+  }
+
+  @Override
+  public Boolean visitInputReference(InputReference input, ErrorCollector errors) {
     return false;
   }
 

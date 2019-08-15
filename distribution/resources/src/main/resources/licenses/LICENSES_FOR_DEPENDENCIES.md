@@ -199,10 +199,11 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Fast Threads                                         |3.3.1               |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |3.3.1               |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |3.3.1               |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |3.3.1               |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |3.3.2               |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |3.3.2               |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |3.3.2               |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |3.3.2               |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |3.3.2               |Dremio Free Software License 1.0|
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
 |element-closest                                             |2.0.2               |CC0-1.0             |

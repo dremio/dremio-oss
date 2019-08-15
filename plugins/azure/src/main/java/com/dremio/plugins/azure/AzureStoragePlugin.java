@@ -110,13 +110,6 @@ class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
     // configure hadoop fs implementation
     properties.add(new Property("fs.dremioAzureStorage.impl", AzureStorageFileSystem.class.getName()));
 
-    // Explicitly disable caching of the FileSystem backing this plugin. Hadoop's caching mechanism is only
-    // keyed by the URI, and not by connection properties, so if credentials are supplied through properties,
-    // Hadoop would return incorrect FileSystems from its cache.
-    // Note that the scheme for the FileSystem this FileSystemPlugin utilizes must match the second part of the
-    // property name.
-    properties.add(new Property("fs.dremioAzureStorage.impl.disable.cache", "true"));
-
     // configure azure properties.
     properties.add(new Property(AzureStorageFileSystem.ACCOUNT, config.accountName));
     properties.add(new Property(AzureStorageFileSystem.SECURE, Boolean.toString(config.enableSSL)));

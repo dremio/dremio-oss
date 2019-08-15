@@ -455,7 +455,8 @@ public class ForemenWorkManager implements Service, SafeExit {
         QueryObserver observer,
         Object query,
         boolean prepare,
-        LocalExecutionConfig config) {
+        LocalExecutionConfig config,
+        boolean runInSameThread) {
       try{
         // make sure we keep a local observer out of band.
         final QueryObserver oobJobObserver = new OutOfBandQueryObserver(observer, executor);
@@ -473,7 +474,8 @@ public class ForemenWorkManager implements Service, SafeExit {
             .build();
 
         final ReAttemptHandler attemptHandler = newInternalAttemptHandler(options, config.isFailIfNonEmptySent());
-        submit(externalId, oobJobObserver, session, new UserRequest(prepare ? RpcType.CREATE_PREPARED_STATEMENT : RpcType.RUN_QUERY, query), TerminationListenerRegistry.NOOP, config, attemptHandler);
+        final UserRequest userRequest = new UserRequest(prepare ? RpcType.CREATE_PREPARED_STATEMENT : RpcType.RUN_QUERY, query, runInSameThread);
+        submit(externalId, oobJobObserver, session, userRequest, TerminationListenerRegistry.NOOP, config, attemptHandler);
       }catch(Exception ex){
         throw Throwables.propagate(ex);
       }
@@ -518,7 +520,7 @@ public class ForemenWorkManager implements Service, SafeExit {
           final ReAttemptHandler attemptHandler = newExternalAttemptHandler(session.getOptions());
           submit(externalId, oobObserver, session, request, registry, null, attemptHandler);
           return null;
-        });
+        }, false);
     }
 
     @Override

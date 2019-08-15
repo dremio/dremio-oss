@@ -35,6 +35,7 @@ import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.op.join.nlje.NLJEOperator;
 import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.dremio.sabot.op.spi.DualInputOperator;
 import com.google.common.base.Preconditions;
@@ -299,6 +300,10 @@ public class NLJOperator implements DualInputOperator {
   public static class Creator implements DualInputOperator.Creator<NestedLoopJoinPOP> {
     @Override
     public DualInputOperator create(OperatorContext context, NestedLoopJoinPOP config) throws ExecutionSetupException {
+      if(config.isVectorized()) {
+        return new NLJEOperator(context, config);
+      }
+
       return new NLJOperator(context, config);
     }
 

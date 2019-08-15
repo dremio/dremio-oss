@@ -77,6 +77,17 @@ public class ExpressionStringBuilder extends AbstractExprVisitor<Void, StringBui
     return null;
   }
 
+
+  @Override
+  public Void visitInputReference(InputReference sideExpr, StringBuilder sb) throws RuntimeException {
+    sb.append("INPUT_REFERENCE(");
+    sb.append(sideExpr.getInputOrdinal());
+    sb.append(",");
+    sideExpr.getReference().accept(this,  sb);
+    sb.append(")");
+    return null;
+  }
+
   @Override
   public Void visitBooleanOperator(BooleanOperator op, StringBuilder sb) throws RuntimeException {
     return visitFunctionCall(op, sb);

@@ -34,6 +34,7 @@ import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionValue;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.users.SystemUser;
 
 /**
@@ -57,6 +58,8 @@ public class TestSQLAnalyzerFactory {
     when(mockOptions.getOption(PlannerSettings.ENABLE_DECIMAL_V2_KEY)).thenReturn(OptionValue
         .createBoolean(OptionValue.OptionType.SYSTEM, PlannerSettings.ENABLE_DECIMAL_V2_KEY,
           false));
+    when(mockOptions.getOption(UserSession.MAX_METADATA_COUNT.getOptionName())).thenReturn(OptionValue
+        .createLong(OptionValue.OptionType.SYSTEM, UserSession.MAX_METADATA_COUNT.getOptionName(), 0));
 
     // Test that the correct concrete implementation is created.
     SQLAnalyzer sqlAnalyzer = SQLAnalyzerFactory.createSQLAnalyzer(SystemUser.SYSTEM_USERNAME, sabotContext, null, true);

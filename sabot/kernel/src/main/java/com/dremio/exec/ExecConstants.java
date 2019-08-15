@@ -78,8 +78,9 @@ public interface ExecConstants {
   // Splits are enabled when this is set to true and QUERY_EXEC_OPTION is set to Gandiva
   BooleanValidator SPLIT_ENABLED = new BooleanValidator("exec.expression.split.enabled", true);
 
-  PositiveLongValidator MAX_SPLITS_PER_EXPRESSION = new PositiveLongValidator("exec.expression" +
-    ".split.max_splits_per_expression", Long.MAX_VALUE, 10);
+  String MAX_SPLITS_PER_EXPR_KEY = "exec.expression" +
+    ".split.max_splits_per_expression";
+  PositiveLongValidator MAX_SPLITS_PER_EXPRESSION = new PositiveLongValidator(MAX_SPLITS_PER_EXPR_KEY, Long.MAX_VALUE, 10);
 
   // Configuration option for deciding how much work should be done in Gandiva when there are excessive splits
   // MAX_SPLITS_PER_EXPRESSION is used to configure excessive splits

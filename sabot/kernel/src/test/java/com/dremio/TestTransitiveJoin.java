@@ -46,4 +46,53 @@ public class TestTransitiveJoin extends PlanTestBase {
         + "where l_orderkey = 1 limit 1" +
         "", Pattern.quote("Filter(condition=[=($0, 1)]) : rowType = RecordType(INTEGER c_custkey)"));
   }
+
+  @Test
+  public void testTransitiveJoinThroughCast() throws Exception {
+    test("use dfs_test");
+    test("create vds dfs_test.l as select cast(l_orderkey as varchar) as l_orderkey from cp.\"tpch/lineitem.parquet\"");
+    test("create vds dfs_test.r as select cast(o_orderkey as varchar) as o_orderkey from cp.\"tpch/orders.parquet\"");
+
+    final String onVds =
+      "select r.o_orderkey, l.l_orderkey \n" +
+        " from dfs_test.l  l " +
+        " join dfs_test.r r " +
+        " on r.o_orderkey = l.l_orderkey" +
+        " where l.l_orderkey = '2' " +
+        "";
+
+    testPlanMatchingPatterns(onVds,
+      new String[] {
+        Pattern.quote("Filter(condition=[=(CAST($0):VARCHAR(65536) CHARACTER SET \"ISO-8859-1\" COLLATE \"ISO-8859-1$en_US$primary\", '2')]) : rowType = RecordType(INTEGER l_orderkey)"),
+        Pattern.quote("Filter(condition=[=(CAST($0):VARCHAR(65536) CHARACTER SET \"ISO-8859-1\" COLLATE \"ISO-8859-1$en_US$primary\", '2')]) : rowType = RecordType(INTEGER o_orderkey):")
+      });
+
+    test("drop view dfs_test.l");
+    test("drop view dfs_test.r");
+  }
+
+  @Test
+  public void testTransitiveJoinThroughMathExpression() throws Exception {
+    test("use dfs_test");
+    test("create vds dfs_test.l as select l_orderkey + 2 as l_orderkey from cp.\"tpch/lineitem.parquet\"");
+    test("create vds dfs_test.r as select o_orderkey + 2 as o_orderkey from cp.\"tpch/orders.parquet\"");
+
+    final String onVds =
+      "select r.o_orderkey, l.l_orderkey \n" +
+        " from dfs_test.l  l " +
+        " join dfs_test.r r " +
+        " on r.o_orderkey = l.l_orderkey" +
+        " where l.l_orderkey = 2 " +
+        "";
+
+    testPlanMatchingPatterns(onVds,
+      new String[] {
+        Pattern.quote(" Filter(condition=[=(+($0, 2), 2)]) : rowType = RecordType(INTEGER o_orderkey):"),
+        Pattern.quote("Filter(condition=[=(+($0, 2), 2)]) : rowType = RecordType(INTEGER l_orderkey)")
+      });
+
+    test("drop view dfs_test.l");
+    test("drop view dfs_test.r");
+  }
+
 }

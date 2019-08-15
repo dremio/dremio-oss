@@ -30,7 +30,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -279,6 +282,60 @@ class SQLGenerator {
     return extractRecommender.wrapRule(rule).getFunctionExpr(value);
   }
 
+  private static class ColumnConflictResolver {
+
+    // Maps alias to the next possibly available suffix.
+    // It may be taken if the user has an unfriendly naming scheme.
+    // In which case this algorithm devolves into an O(C) time alg, C being the number of columns.
+    private Map<String, Integer> nextAvailableSuffix = new HashMap<>();
+
+    /**
+     *
+     * The column conflict resolver provides an efficient way to find the next available suffix for a column alias.
+     * The caveat: if the user names columns in a way that imitates our suffix pattern, then this algorithm will become
+     * less efficient because the user may have "stolen" the column that our algorithm produces.
+     * We guarantee that the users root alias remains intact. A1994 will not be incremented to A1995. Instead, we will
+     * call the new column A1994_0.
+     *
+     * @param alias the column alias that the user wants to use. It may or not conflict with existing columns.
+     * @return Either alias or alias_#.
+     */
+    public String findConflictFreeAlias(final String alias) {
+      boolean sufferingFromStolenAliases = false;
+      final String rootConflictFinder = alias.toLowerCase(Locale.ROOT);
+      int nextAliasSuffix = nextAvailableSuffix.compute(rootConflictFinder, (k, v) -> (v == null) ? 0: v + 1);
+      if (nextAliasSuffix == 0) {
+        return alias;
+      }
+
+      StringBuilder sb = new StringBuilder(rootConflictFinder.length() + 6);
+      sb.append(rootConflictFinder)
+        .append("_");
+      final int suffixStart = sb.length();
+      sb.append(nextAliasSuffix - 1);
+      String keyAlias = sb.toString();
+
+      while (nextAvailableSuffix.containsKey(keyAlias)) {
+        sb.setLength(suffixStart);
+        sb.append(nextAliasSuffix);
+        keyAlias = sb.toString();
+        ++nextAliasSuffix;
+        sufferingFromStolenAliases = true;
+      }
+
+      // If we suffixed our alias, then we need to put the alias we are using in the map so no one else can use it.
+      nextAvailableSuffix.put(keyAlias, 0);
+
+      // Update our root map entry so we don't have to re-encounter all the stolen aliases.
+      if (sufferingFromStolenAliases) {
+        nextAvailableSuffix.put(rootConflictFinder, nextAliasSuffix);
+      }
+
+      // We recreate the full alias using the user's alias in order to preserve the original casing.
+      return String.format("%s_%s", alias, nextAliasSuffix - 1);
+    }
+  }
+
   private String innerGenerateSQL(VirtualDatasetState state) {
     try (TimedBlock b = time("genSQL")) {
       String tableName = getTableAlias(state.getFrom());
@@ -288,16 +345,18 @@ class SQLGenerator {
         evaledCols.add("*");
         isStar = true;
       } else {
+        ColumnConflictResolver colResolver = new ColumnConflictResolver();
         for (Column column : state.getColumnsList()) {
           String evald = eval(tableName, column.getValue());
-          String formattedCol = quoteIdentifier(column.getName());
-          String formatted;
+          final String conflictless = colResolver.findConflictFreeAlias(column.getName());
+          final String formattedCol = quoteIdentifier(conflictless);
+          final String colSelection;
           if (formattedCol.equals(evald)) {
-            formatted = formattedCol;
+            colSelection = formattedCol;
           } else {
-            formatted = String.format("%s AS %s", evald, formattedCol);
+            colSelection = String.format("%s AS %s", evald, formattedCol);
           }
-          evaledCols.add(formatted);
+          evaledCols.add(colSelection);
         }
         isStar = false;
       }

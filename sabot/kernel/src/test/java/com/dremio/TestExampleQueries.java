@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -75,6 +76,76 @@ public class TestExampleQueries extends PlanTestBase {
       .baselineColumns("A", "B")
       .baselineValues(0, "No")
       .go();
+  }
+
+  // See DX-17817
+  @Test
+  public void testCorrectConstantHandlingInNLJE() throws Exception {
+    try(AutoCloseable c = withOption(PlannerSettings.NLJOIN_FOR_SCALAR, false) ) {
+      testBuilder()
+        .sqlQuery("SELECT l_orderkey "
+            + "FROM "
+            + "cp.\"tpch/lineitem.parquet\" lineitem  left join  cp.\"tpch/orders.parquet\" on  (TO_DATE(o_orderdate, 'yyyy-mm-dd') > (TO_DATE(L_SHIPDATE, 'yyyy-mm-dd'))) "
+            + "limit 5")
+        .unOrdered()
+        .baselineColumns("l_orderkey")
+        .baselineValues(1)
+        .baselineValues(1)
+        .baselineValues(1)
+        .baselineValues(1)
+        .baselineValues(1)
+        .go();
+    }
+  }
+
+  // See DX-17818
+  @Test
+  public void leftJoinInequality() throws Exception {
+    try(AutoCloseable c = withOption(PlannerSettings.NLJOIN_FOR_SCALAR, false);
+        AutoCloseable c2 = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false)) {
+      String q = "SELECT l_orderkey "
+          + "FROM "
+          + "cp.\"tpch/orders.parquet\" left join cp.\"tpch/lineitem.parquet\"  on (L_orderkey = O_orderkey) and TO_DATE(o_orderdate, 'yyyy-mm-dd') between o_orderdate and l_shipdate "
+          + "LIMIT 5";
+      testBuilder()
+      .sqlQuery(q)
+      .unOrdered()
+      .baselineColumns("l_orderkey")
+      .baselineValues(1)
+      .baselineValues(1)
+      .baselineValues(1)
+      .baselineValues(1)
+      .baselineValues(1)
+      .go();
+      // check swaps the declared right to a left.
+      testPlanOneExpectedPattern(q, Pattern.quote("joinType=[left]"));
+    }
+  }
+
+  // See DX-17818
+  @Test
+  public void rightJoinInequality() throws Exception {
+    try(AutoCloseable c = withOption(PlannerSettings.NLJOIN_FOR_SCALAR, false);
+        AutoCloseable c2 = withOption(PlannerSettings.ENABLE_JOIN_OPTIMIZATION, false)) {
+
+      String q = "SELECT l_orderkey "
+          + "FROM "
+          + "cp.\"tpch/orders.parquet\" right join cp.\"tpch/lineitem.parquet\"  on (L_orderkey = O_orderkey) and TO_DATE(o_orderdate, 'yyyy-mm-dd') between o_orderdate and l_shipdate "
+          + "LIMIT 5";
+      testBuilder()
+        .sqlQuery(q)
+        .unOrdered()
+        .baselineColumns("l_orderkey")
+        .baselineValues(1)
+        .baselineValues(1)
+        .baselineValues(1)
+        .baselineValues(1)
+        .baselineValues(1)
+        .go();
+
+      // check swaps the declared right to a left.
+      testPlanOneExpectedPattern(q, Pattern.quote("joinType=[left]"));
+    }
   }
 
   @Test
@@ -1691,5 +1762,63 @@ public class TestExampleQueries extends PlanTestBase {
       .baselineValues(1L)
       .build().
       run();
+  }
+
+  /**
+   * This test case tickled a scenario where we failed to support a join because of an issue where we were failing to
+   * introduce the correct abstract converters. Changes to make it work were done as an ordered enhancement to Prule.
+   *
+   * See DX-17835 for further details
+   */
+  @Test
+  public void ensureThatStackedConversionsWork() throws Exception {
+    try(AutoCloseable c = withOption(PlannerSettings.NLJOIN_FOR_SCALAR, false) ) {
+
+      test(
+        "create table dfs_test.zip as " +
+          "select city, loc, pop, state, CAST(\"_id\" as INT) as \"id\"\n" +
+          "FROM (\n" +
+          "   select * from cp.\"/sample/samples-samples-dremio-com-zips-json.json\" limit 10\n" +
+          ") nested_0");
+
+      test(
+        "create table dfs_test.lookup as " +
+          "select\n" +
+          "   case\n" +
+          "       when A='id' then 0\n" +
+          "       when A='A' then 0\n" +
+          "       else CAST(A as INT)\n" +
+          "   end as id,\n" +
+          "   B, C, D\n" +
+          "FROM (\n" +
+          "   select columns[0] as A, columns[1] as B, columns[2] as C, columns[3] as D from cp.\"/sample/samples-samples-dremio-com-zip_lookup-csv.csv\" limit 10\n" +
+          ") nested_0");
+
+      // test preview query
+      testNoResult("set planner.leaf_limit_enable = true");
+
+      // allow parallelization
+      testNoResult("set planner.width.max_per_node = 10");
+      testNoResult("set planner.width.max_per_query = 10");
+      testNoResult("set planner.slice_target = 1");
+
+      test(
+        "SELECT nested_2.city AS city, nested_2.pop AS pop, nested_2.state AS state, nested_2.Count_Star AS Count_Star, nested_2.Sum_pop AS Sum_pop, nested_2.newID AS newID, join_lookup.id AS id, join_lookup.B AS B, join_lookup.C AS C, join_lookup.D AS D\n" +
+          "FROM (\n" +
+          "SELECT newID, city, pop, state, COUNT(*) AS Count_Star, SUM(pop) AS Sum_pop\n" +
+          "FROM (\n" +
+          "SELECT city, loc, pop, state, \"id\" AS newID\n" +
+          "FROM (\n" +
+          "SELECT city, loc, pop, state, id\n" +
+          "FROM dfs_test.zip\n" +
+          ") nested_0\n" +
+          ") nested_1\n" +
+          "GROUP BY newID, city, pop, state\n" +
+          ") nested_2\n" +
+          "INNER JOIN dfs_test.lookup AS join_lookup ON nested_2.newID < join_lookup.id\n"
+      );
+    }
+
+
   }
 }

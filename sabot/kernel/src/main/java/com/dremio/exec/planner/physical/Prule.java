@@ -30,7 +30,6 @@ public abstract class Prule extends RelOptRule{
     super(operand);
   }
 
-
   public static RelNode convert(RelNode rel, RelTraitSet toTraits){
     toTraits = toTraits.simplify();
 

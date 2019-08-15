@@ -32,10 +32,13 @@ import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
 import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.options.OptionManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.RangeLongValidator;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
+@Options
 public class UserSession {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(UserSession.class);
 
@@ -46,8 +49,20 @@ public class UserSession {
   public static final String QUOTING = PropertySetter.QUOTING.toPropertyName();
   public static final String SUPPORTFULLYQUALIFIEDPROJECTS = PropertySetter.SUPPORTFULLYQUALIFIEDPROJECTS.toPropertyName();
 
+  public static final RangeLongValidator MAX_METADATA_COUNT =
+      new RangeLongValidator("client.max_metadata_count", 0, Integer.MAX_VALUE, 0);
+
   private enum PropertySetter {
     USER, PASSWORD,
+
+    MAXMETADATACOUNT {
+      @Override
+      public void setValue(UserSession session, String value) {
+        final int maxMetadataCount = Integer.parseInt(value);
+        Preconditions.checkArgument(maxMetadataCount >= 0, "MaxMetadataCount must be non-negative");
+        session.maxMetadataCount = maxMetadataCount;
+      }
+    },
 
     QUOTING {
       @Override
@@ -125,6 +140,7 @@ public class UserSession {
   private RecordBatchFormat recordBatchFormat = RecordBatchFormat.DREMIO_1_4;
   private boolean exposeInternalSources = false;
   private SubstitutionSettings substitutionSettings = SubstitutionSettings.of();
+  private int maxMetadataCount = 0;
 
   public static class Builder {
     UserSession userSession;
@@ -140,6 +156,7 @@ public class UserSession {
 
     public Builder withOptionManager(OptionManager systemOptions) {
       userSession.sessionOptions = new SessionOptionManager(systemOptions, userSession);
+      userSession.maxMetadataCount = (int) systemOptions.getOption(MAX_METADATA_COUNT);
       return this;
     }
 
@@ -261,6 +278,10 @@ public class UserSession {
 
   public boolean useLegacyCatalogName() {
     return useLegacyCatalogName;
+  }
+
+  public int getMaxMetadataCount() {
+    return maxMetadataCount;
   }
 
   /**

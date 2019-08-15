@@ -44,11 +44,16 @@ class BoundCommandPool implements CommandPool {
   }
 
   @Override
-  public <V> CompletableFuture<V> submit(Priority priority, String descriptor, Command<V> command) {
+  public <V> CompletableFuture<V> submit(Priority priority, String descriptor, Command<V> command, boolean runInSameThread) {
     final long time = System.currentTimeMillis();
     final CommandWrapper<V> wrapper = new CommandWrapper<>(priority, descriptor, time, command);
     logger.debug("command {} created", descriptor);
-    executorService.execute(wrapper);
+    if (runInSameThread) {
+      logger.debug("running command {} in the same calling thread", descriptor);
+      wrapper.run();
+    } else {
+      executorService.execute(wrapper);
+    }
     return wrapper.getFuture();
   }
 

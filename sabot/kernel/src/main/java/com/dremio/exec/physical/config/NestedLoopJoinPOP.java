@@ -19,6 +19,9 @@ package com.dremio.exec.physical.config;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.calcite.rel.core.JoinRelType;
+
+import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -34,18 +37,26 @@ import com.google.common.collect.Iterators;
 public class NestedLoopJoinPOP extends AbstractBase {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NestedLoopJoinPOP.class);
 
-
-  private final PhysicalOperator left;
-  private final PhysicalOperator right;
+  private final PhysicalOperator build;
+  private final PhysicalOperator probe;
+  private final JoinRelType joinType;
+  private final LogicalExpression condition;
+  private final boolean vectorized;
 
   @JsonCreator
   public NestedLoopJoinPOP(
       @JsonProperty("props") OpProps props,
-      @JsonProperty("left") PhysicalOperator left,
-      @JsonProperty("right") PhysicalOperator right) {
+      @JsonProperty("probe") PhysicalOperator probe,
+      @JsonProperty("build") PhysicalOperator build,
+      @JsonProperty("joinType") JoinRelType joinType,
+      @JsonProperty("condition") LogicalExpression condition,
+      @JsonProperty("vectorized") boolean vectorized) {
     super(props);
-    this.left = left;
-    this.right = right;
+    this.probe = probe;
+    this.build = build;
+    this.joinType = joinType;
+    this.condition = condition;
+    this.vectorized = vectorized;
   }
 
   @Override
@@ -56,20 +67,32 @@ public class NestedLoopJoinPOP extends AbstractBase {
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
     Preconditions.checkArgument(children.size() == 2);
-    return new NestedLoopJoinPOP(props, children.get(0), children.get(1));
+    return new NestedLoopJoinPOP(props, children.get(0), children.get(1), joinType, condition, vectorized);
   }
 
   @Override
   public Iterator<PhysicalOperator> iterator() {
-    return Iterators.forArray(left, right);
+    return Iterators.forArray(probe, build);
   }
 
-  public PhysicalOperator getLeft() {
-    return left;
+  public PhysicalOperator getProbe() {
+    return probe;
   }
 
-  public PhysicalOperator getRight() {
-    return right;
+  public PhysicalOperator getBuild() {
+    return build;
+  }
+
+  public JoinRelType getJoinType() {
+    return joinType;
+  }
+
+  public LogicalExpression getCondition() {
+    return condition;
+  }
+
+  public boolean isVectorized() {
+    return vectorized;
   }
 
   @Override

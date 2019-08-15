@@ -111,7 +111,7 @@ public class TestJoinNullable extends PlanTestBase {
         "cp.\"jsoninput/nullableOrdered3.json\" t3 " +
         "WHERE t1.key = t2.key OR (t1.key IS NULL AND t2.key IS NULL)";
     errorMsgTestHelper(query,
-        "This query cannot be planned possibly due to either a cartesian join or an inequality join");
+        "This query cannot be planned");
   }
 
   @Ignore("DX-11205")

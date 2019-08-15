@@ -50,6 +50,11 @@ public class TreeTest extends DremioTest {
   }
 
   @Test
+  public void testSideReference() throws Exception {
+    testExpressionParsing("INPUT_REFERENCE(3, field1)");
+  }
+
+  @Test
   public void testAdd() throws Exception{
     testExpressionParsing("2+2");
   }

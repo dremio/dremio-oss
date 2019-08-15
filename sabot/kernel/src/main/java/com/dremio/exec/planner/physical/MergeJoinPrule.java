@@ -71,9 +71,9 @@ public class MergeJoinPrule extends JoinPruleBase {
       RelCollation collationRight = getCollation(join.getRightKeys());
 
       if (isDist) {
-        createDistBothPlan(call, join, PhysicalJoinType.MERGE_JOIN, left, right, collationLeft, collationRight, hashSingleKey);
+        createDistBothPlan(call, join, left, right, collationLeft, collationRight, hashSingleKey);
       } else {
-        if (checkBroadcastConditions(call.getPlanner(), join, left, right, PhysicalJoinType.MERGE_JOIN)) {
+        if (checkBroadcastConditions(call.getPlanner(), join, left, right)) {
           createBroadcastPlan(call, join, join.getCondition(), left, right, collationLeft, collationRight);
         }
       }
@@ -109,7 +109,6 @@ public class MergeJoinPrule extends JoinPruleBase {
 
   @Override
   protected void createDistBothPlan(RelOptRuleCall call, JoinRel join,
-                                    PhysicalJoinType physicalJoinType,
                                     RelNode left, RelNode right,
                                     RelCollation collationLeft, RelCollation collationRight,
                                     DistributionTrait hashLeftPartition, DistributionTrait hashRightPartition) throws InvalidRelException {

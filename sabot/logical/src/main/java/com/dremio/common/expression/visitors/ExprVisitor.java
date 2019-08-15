@@ -24,6 +24,7 @@ import com.dremio.common.expression.IfExpression;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.expression.InputReference;
 import com.dremio.common.expression.TypedNullConstant;
 import com.dremio.common.expression.ValueExpressions.BooleanExpression;
 import com.dremio.common.expression.ValueExpressions.DateExpression;
@@ -61,4 +62,5 @@ public interface ExprVisitor<T, VAL, EXCEP extends Exception> {
   public T visitUnknown(LogicalExpression e, VAL value) throws EXCEP;
   public T visitCastExpression(CastExpression e, VAL value) throws EXCEP;
   public T visitConvertExpression(ConvertExpression e, VAL value) throws EXCEP;
+  public T visitInputReference(InputReference e, VAL value) throws EXCEP;
 }

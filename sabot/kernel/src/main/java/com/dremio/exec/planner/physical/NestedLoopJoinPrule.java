@@ -15,19 +15,26 @@
  */
 package com.dremio.exec.planner.physical;
 
+import java.util.function.Consumer;
+
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.plan.RelOptRuleOperand;
+import org.apache.calcite.plan.RelTrait;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
 import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.apache.calcite.rel.rules.JoinCommuteRule;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
+import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.JoinRel;
+import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
 import com.dremio.sabot.op.join.JoinUtils;
@@ -44,17 +51,24 @@ public class NestedLoopJoinPrule extends JoinPruleBase {
   }
 
   @Override
-  protected boolean checkPreconditions(JoinRel join, RelNode left, RelNode right,
-      PlannerSettings settings) {
+  protected boolean checkPreconditions(JoinRel join, RelNode left, RelNode right, PlannerSettings settings) {
     JoinRelType type = join.getJoinType();
-
-    if (! (type == JoinRelType.INNER || type == JoinRelType.LEFT || type == JoinRelType.RIGHT)) {
+    boolean vectorized = settings.getOptions().getOption(NestedLoopJoinPrel.VECTORIZED);
+    switch(type) {
+    case INNER:
+      break;
+    case LEFT:
+    case RIGHT:
+      if(!vectorized) {
+        return false;
+      }
+      break;
+    default:
       return false;
     }
 
     JoinCategory category = join.getJoinCategory();
-    if (category == JoinCategory.EQUALITY
-        && (settings.isHashJoinEnabled() || settings.isMergeJoinEnabled())) {
+    if (category == JoinCategory.EQUALITY && (settings.isHashJoinEnabled() || settings.isMergeJoinEnabled())) {
       return false;
     }
 
@@ -72,54 +86,121 @@ public class NestedLoopJoinPrule extends JoinPruleBase {
 
   @Override
   public void onMatch(RelOptRuleCall call) {
-    PlannerSettings settings = PrelUtil.getPlannerSettings(call.getPlanner());
+    final PlannerSettings settings = PrelUtil.getPlannerSettings(call.getPlanner());
     if (!settings.isNestedLoopJoinEnabled()) {
       return;
     }
 
-    final JoinRel join = (JoinRel) call.rel(0);
-    final RelNode left = join.getLeft();
-    final RelNode right = join.getRight();
-
-    if (!checkPreconditions(join, left, right, settings)) {
+    final JoinRel initialJoin = call.rel(0);
+    if (!checkPreconditions(initialJoin, initialJoin.getLeft(), initialJoin.getRight(), settings)) {
       return;
     }
 
-    try {
+    JoinRel join = initialJoin;
+    Consumer<RelNode> transform = a -> call.transformTo(a);
 
-      if (checkBroadcastConditions(call.getPlanner(), join, left, right, PhysicalJoinType.NESTEDLOOP_JOIN)) {
-        createBroadcastPlan(call, join, join.getCondition(), left, right, null, null);
+    // swap right joins since that is the only way to complete them.
+    if(join.getJoinType() == JoinRelType.RIGHT) {
+      RelNode projectMaybe = JoinCommuteRule.swap(join, true, DremioRelFactories.LOGICAL_BUILDER.create(join.getCluster(), null));
+      if(!(projectMaybe instanceof ProjectRel) ) {
+        tracer.debug("Post swap we don't have a ProjectRel at root of tree.");
+        return;
       }
 
-    } catch (InvalidRelException e) {
-      tracer.warn(e.toString());
+      ProjectRel project = (ProjectRel) projectMaybe;
+
+      if(!(project.getInput() instanceof JoinRel)) {
+        tracer.debug("Post swap we don't have a ProjectRel on top of a JoinRel. Was actually a {}.", project.getInput().getClass().getName());
+        return;
+      }
+
+      transform = input -> {
+        RelTraitSet newTraits = input.getTraitSet().plus(Prel.PHYSICAL).plus(RelCollations.EMPTY); // we use an empty collation here since nlj doesn't maitain ordering.
+        call.transformTo(new ProjectPrel(input.getCluster(), newTraits, input, project.getChildExps(), project.getRowType()));
+      };
+      join = (JoinRel) project.getInput(0);
+    }
+
+    final RelNode left = join.getLeft();
+    final RelNode right = join.getRight();
+    final RexNode joinCondition = join.getCondition();
+
+    JoinRelType joinType = join.getJoinType();
+    RelNode convertedLeft = convert(left, Prel.PHYSICAL);
+
+    // see DX-17835 to understand why we do this kind of chaining (instead of building the traitset all at once)
+    RelNode convertedRight = convert(right, Prel.PHYSICAL, DistributionTrait.BROADCAST);
+
+
+    final NestedLoopJoinPrel newJoin = NestedLoopJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet().plus(RelCollations.EMPTY), convertedLeft, convertedRight, joinType, joinCondition);
+    final boolean vectorized = PrelUtil.getPlannerSettings(call.getPlanner()).getOptions().getOption(NestedLoopJoinPrel.VECTORIZED);
+
+    if (joinCondition.isAlwaysTrue()) {
+      transform.accept(newJoin);
+      return;
+    }
+
+    if (!vectorized) {
+      switch(joinType) {
+      case INNER:
+        // generate a join with a filter on top.
+        transform.accept(new FilterPrel(join.getCluster(), convertedLeft.getTraitSet(), newJoin, joinCondition));
+        return;
+      default:
+        // not supported.
+        return;
+      }
+    }
+
+    switch (joinType) {
+    case INNER:
+    case LEFT:
+      transform.accept(newJoin);
+      break;
+    case RIGHT:
+      break;
+    default:
+      break;
+
     }
   }
 
   @Override
-  protected void createBroadcastPlan(final RelOptRuleCall call,final JoinRel join,
-                                     final RexNode joinCondition,
-                                     final RelNode left, final RelNode right,
-                                     final RelCollation collationLeft, final RelCollation collationRight) throws InvalidRelException {
-    RelTraitSet traitsLeft = left.getTraitSet().plus(Prel.PHYSICAL);
-    RelTraitSet traitsRight = right.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.BROADCAST);
-    RelNode convertedLeft = convert(left, traitsLeft);
-    RelNode convertedRight = convert(right, traitsRight);
-    JoinRelType joinType = join.getJoinType();
-    NestedLoopJoinPrel newJoin = NestedLoopJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet(), convertedLeft, convertedRight, joinType);
-    if (joinCondition.isAlwaysTrue()) {
-      call.transformTo(newJoin);
-    } else if (joinType == JoinRelType.INNER) {
-      call.transformTo(new FilterPrel(join.getCluster(), convertedLeft.getTraitSet(), newJoin, joinCondition));
-    }
+  protected void createBroadcastPlan(
+      final RelOptRuleCall call,
+      final JoinRel join,
+      final RexNode joinCondition,
+      final RelNode incomingLeft,
+      final RelNode incomingRight,
+      final RelCollation collationLeft,
+      final RelCollation collationRight) throws InvalidRelException {
+    throw new UnsupportedOperationException("Not used.");
   }
 
   @Override
   protected void createDistBothPlan(RelOptRuleCall call, JoinRel join,
-                                    PhysicalJoinType physicalJoinType,
                                     RelNode left, RelNode right,
                                     RelCollation collationLeft, RelCollation collationRight,
                                     DistributionTrait hashLeftPartition, DistributionTrait hashRightPartition) throws UnsupportedRelOperatorException {
-    throw new UnsupportedRelOperatorException("Nested loop join does not support creating join plan with both left and right children hash distributed");
+    throw new UnsupportedOperationException("Not used.");
+  }
+
+
+  /**
+   * Convert to a set of new traits based on overriding the existing traits of the provided node
+   *
+   * TODO: evaluate if we should move this to Prule for other uses.
+   *
+   * See DX-17835 for further details of why this was introduced.
+   *
+   * @param rel The rel node to start with (and use as a basis for traits)
+   * @param traits The ordered list of traits to convert to.
+   * @return The converted node that incldues application of all the traits.
+   */
+  private static RelNode convert(RelNode rel, RelTrait... traits) {
+    for (RelTrait t : traits) {
+      rel = convert(rel, rel.getTraitSet().plus(t));
+    }
+    return rel;
   }
 }

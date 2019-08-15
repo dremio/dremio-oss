@@ -194,6 +194,8 @@ public class PlannerSettings implements Context{
   public static final DoubleValidator FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR =
       new RangeDoubleValidator("planner.filter.max_selectivity_estimate_factor", 0.0, 1.0, 1.0d);
 
+  public static final BooleanValidator REMOVE_ROW_ADJUSTMENT = new BooleanValidator("planner.remove_rowcount_adjustment", false);
+
   public static final BooleanValidator ENABLE_SCAN_MIN_COST = new BooleanValidator("planner.cost.minimum.enable", true);
   public static final DoubleValidator DEFAULT_SCAN_MIN_COST = new DoubleValidator("planner.default.min_cost_per_split", 0);
   public static final DoubleValidator ADLS_SCAN_MIN_COST = new DoubleValidator("planner.adl.min_cost_per_split", 1E6);
@@ -317,6 +319,10 @@ public class PlannerSettings implements Context{
 
   public double getNestedLoopJoinFactor(){
     return options.getOption(NESTEDLOOPJOIN_FACTOR.getOptionName()).getFloatVal();
+  }
+
+  public boolean removeRowCountAdjustment() {
+    return options.getOption(REMOVE_ROW_ADJUSTMENT);
   }
 
   public boolean isNlJoinForScalarOnly() {

@@ -50,14 +50,25 @@ public class UserRequest {
 
   private final RpcType type;
   private final Object request;
+  /** if set to true, query is not going to be scheduled on a separate thread */
+  private final boolean runInSameThread;
 
   public UserRequest(RpcType type, Object request) {
+    this(type, request, false);
+  }
+
+  public UserRequest(RpcType type, Object request, boolean runInSameThread) {
     this.type = Preconditions.checkNotNull(type);
     this.request = Preconditions.checkNotNull(request);
+    this.runInSameThread = runInSameThread;
   }
 
   public RpcType getType() {
     return type;
+  }
+
+  public boolean runInSameThread() {
+    return runInSameThread;
   }
 
   public <X> X unwrap(Class<X> clazz) {

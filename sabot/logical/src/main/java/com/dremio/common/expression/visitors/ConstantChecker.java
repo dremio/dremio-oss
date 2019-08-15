@@ -22,6 +22,7 @@ import com.dremio.common.expression.ErrorCollector;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
+import com.dremio.common.expression.InputReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
 import com.dremio.common.expression.SchemaPath;
@@ -118,6 +119,11 @@ final class ConstantChecker implements ExprVisitor<Boolean, ErrorCollector, Runt
   @Override
   public Boolean visitDateConstant(DateExpression intExpr, ErrorCollector errors) {
       return true;
+  }
+
+  @Override
+  public Boolean visitInputReference(InputReference input, ErrorCollector errors) {
+      return input.getReference().accept(this, errors);
   }
 
   @Override

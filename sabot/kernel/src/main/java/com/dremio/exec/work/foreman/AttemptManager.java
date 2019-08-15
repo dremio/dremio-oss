@@ -112,6 +112,11 @@ public class AttemptManager implements Runnable {
   private CommandRunner<?> command;
 
   /**
+   * if set to true, query is not going to be scheduled on a separate thread
+   */
+  private final boolean runInSameThread;
+
+  /**
    * Constructor. Sets up the AttemptManager, but does not initiate any execution.
    *
    * @param attemptId the id for the query
@@ -128,7 +133,8 @@ public class AttemptManager implements Runnable {
       final QueryContext queryContext,
       final ResourceAllocator queryResourceManager,
       final CommandPool commandPool,
-      final ExecutorSelectionService executorSelectionService
+      final ExecutorSelectionService executorSelectionService,
+      final boolean runInSameThread
       ) {
     this.attemptId = attemptId;
     this.queryId = attemptId.toQueryId();
@@ -145,6 +151,7 @@ public class AttemptManager implements Runnable {
     this.queryContext = queryContext;
     this.observers = AttemptObservers.of(observer);
     this.observers.add(new FragmentActivateObserver());
+    this.runInSameThread = runInSameThread;
 
     final OptionManager optionManager = this.queryContext.getOptions();
     if(options != null){
@@ -295,7 +302,7 @@ public class AttemptManager implements Runnable {
           observers.queryStarted(queryRequest, queryContext.getSession().getCredentials().getUserName());
           plan();
           return null;
-        }).get();
+        }, runInSameThread).get();
 
       if (command.getCommandType() == CommandType.ASYNC_QUERY) {
 
@@ -313,7 +320,7 @@ public class AttemptManager implements Runnable {
             observers.commandPoolWait(waitInMillis);
             asyncCommand.planExecution();
             return null;
-          }).get();
+          }, runInSameThread).get();
 
         asyncCommand.startFragments();
       }

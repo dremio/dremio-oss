@@ -547,6 +547,7 @@ public class TestFlatten extends PlanTestBase {
 
 
   @Test // see DRILL-2146
+  @Ignore("DX-17846")
   public void testFlattenWithStar() throws Exception {
     // Push down of filter does not work if pclean is not enabled
     // May be solved later by fixing DX-11163

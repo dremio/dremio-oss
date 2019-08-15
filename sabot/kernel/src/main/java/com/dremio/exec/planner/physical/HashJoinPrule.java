@@ -69,10 +69,10 @@ public class HashJoinPrule extends JoinPruleBase {
     try {
 
       if (isDist) {
-        createDistBothPlan(call, join, PhysicalJoinType.HASH_JOIN,
+        createDistBothPlan(call, join,
             left, right, null /* left collation */, null /* right collation */, hashSingleKey);
       } else {
-        if (checkBroadcastConditions(call.getPlanner(), join, left, right, PhysicalJoinType.HASH_JOIN)) {
+        if (checkBroadcastConditions(call.getPlanner(), join, left, right)) {
           createBroadcastPlan(call, join, join.getCondition(), left, right, null, null);
         }
       }
@@ -97,7 +97,6 @@ public class HashJoinPrule extends JoinPruleBase {
 
   @Override
   protected void createDistBothPlan(RelOptRuleCall call, JoinRel join,
-                                  PhysicalJoinType physicalJoinType,
                                   RelNode left, RelNode right,
                                   RelCollation collationLeft, RelCollation collationRight,
                                   DistributionTrait hashLeftPartition, DistributionTrait hashRightPartition) throws InvalidRelException {

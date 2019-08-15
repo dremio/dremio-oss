@@ -34,6 +34,7 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.calcite.rel.core.JoinRelType;
+import org.junit.Assume;
 import org.junit.Test;
 
 import com.dremio.common.logical.data.JoinCondition;
@@ -65,6 +66,10 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       this.clazz = clazz;
       this.operator = operator;
     }
+  }
+
+  public void runRightAndOuter() {
+    Assume.assumeTrue(true);
   }
 
   protected abstract JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type);
@@ -141,6 +146,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceWithNullsRight() throws Exception{
+    runRightAndOuter();
     JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.RIGHT);
     final Table noNulls = t(
         th("id2", "name2", "id1", "name1"),
@@ -183,6 +189,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceWithNullsRightForString() throws Exception{
+    runRightAndOuter();
     JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.RIGHT);
     final Table noNulls = t(
       th("id2", "name2", "id1", "name1"),
@@ -252,6 +259,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceWithZeroKeyRight() throws Exception{
+    runRightAndOuter();
     JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.RIGHT);
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
@@ -353,6 +361,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceBitKeysRight() throws Exception{
+    runRightAndOuter();
     JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.RIGHT);
     final Table expected = t(
       th("bool2", "name2", "bool1", "name1"),
@@ -426,6 +435,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void nationRegionPartialKeyRight() throws Exception {
+    runRightAndOuter();
     JoinInfo info = getJoinInfo( Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.RIGHT);
 
     final Table expected = t(
@@ -446,6 +456,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void regionNationPartialKeyRight() throws Exception {
+    runRightAndOuter();
 
     JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("r_regionKey"), f("n_nationKey"))), JoinRelType.RIGHT);
 
@@ -528,6 +539,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void nationRegionPartialKeyOuter() throws Exception {
+    runRightAndOuter();
     JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.FULL);
 
     final Table expected = t(
@@ -570,6 +582,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void nationRegionPartialKeyOuterSmall() throws Exception {
+    runRightAndOuter();
     JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.FULL);
 
     final Table expected = t(

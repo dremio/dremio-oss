@@ -376,7 +376,6 @@ public class DatasetTool {
     }
   }
 
-
   /**
    * Create a new untitled dataset, and load preview data.
    *
@@ -389,12 +388,35 @@ public class DatasetTool {
    * @throws NamespaceException
    */
   public InitialPreviewResponse newUntitled(
+    FromBase from,
+    DatasetVersion version,
+    List<String> context,
+    DatasetSummary parentSummary,
+    boolean prepare,
+    Integer limit)
+      throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
+    return newUntitled(from, version, context, parentSummary, prepare, limit, false);
+  }
+  /**
+   * Create a new untitled dataset, and load preview data.
+   *
+   * @param from Source from where the dataset is created (can be a query or other dataset)
+   * @param version Initial version of the new dataset
+   * @param context Dataset context or current schema
+   * @param runInSameThread runs metadata query in same AttemptManager thread
+   * @return
+   * @throws DatasetNotFoundException
+   * @throws DatasetVersionNotFoundException
+   * @throws NamespaceException
+   */
+  public InitialPreviewResponse newUntitled(
       FromBase from,
       DatasetVersion version,
       List<String> context,
       DatasetSummary parentSummary,
       boolean prepare,
-      Integer limit)
+      Integer limit,
+      boolean runInSameThread)
     throws DatasetNotFoundException, DatasetVersionNotFoundException, NamespaceException, NewDatasetQueryException {
 
     final VirtualDatasetUI newDataset = createNewUntitledMetadataOnly(from, version, context);
@@ -402,7 +424,8 @@ public class DatasetTool {
 
     try {
       final MetadataCollectingJobStatusListener listener = new MetadataCollectingJobStatusListener();
-      final JobUI job = executor.runQueryWithListener(query, prepare ? QueryType.PREPARE_INTERNAL : QueryType.UI_PREVIEW, TMP_DATASET_PATH, newDataset.getVersion(), listener);
+      final QueryType queryType = prepare ? QueryType.PREPARE_INTERNAL : QueryType.UI_PREVIEW;
+      final JobUI job = executor.runQueryWithListener(query, queryType, TMP_DATASET_PATH, newDataset.getVersion(), listener, runInSameThread);
 
       final QueryMetadata queryMetadata = listener.getMetadata();
       applyQueryMetaToDatasetAndSave(queryMetadata, newDataset, query, from);

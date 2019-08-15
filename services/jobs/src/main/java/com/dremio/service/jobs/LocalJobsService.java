@@ -489,7 +489,7 @@ public class LocalJobsService implements JobsService {
     // (4) submit the job
     try {
       queryExecutor.get()
-        .submitLocalQuery(externalId, jobObserver, queryRequest, isPrepare, config);
+        .submitLocalQuery(externalId, jobObserver, queryRequest, isPrepare, config, jobRequest.runInSameThread());
     } catch (Exception ex) {
       // Failed to submit the job
       jobAttempt.setState(JobState.FAILED);
@@ -540,7 +540,7 @@ public class LocalJobsService implements JobsService {
           logger.warn("Job submission {} waited too long in the command pool: wait was {}ms", job.getJobId().getId(), waitInMillis);
         }
         return job;
-      });
+      }, jobRequest.runInSameThread());
   }
 
   @Override

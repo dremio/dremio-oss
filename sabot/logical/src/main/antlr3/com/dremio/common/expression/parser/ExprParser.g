@@ -288,9 +288,13 @@ arraySegment returns [PathSegment seg]
   :  OBracket Number CBracket ( (Period s1=pathSegment) | s2=arraySegment)? {$seg = new ArraySegment($Number.text, ($s1.seg == null ? $s2.seg : $s1.seg) ); }
   ;
 
+inputReference returns [InputReference e]
+  :  InputReference OParen Number Comma pathSegment CParen { $e = new InputReference(Integer.parseInt($Number.text), new SchemaPath($pathSegment.seg )); }
+  ;
 
 lookup returns [LogicalExpression e]
-  :  functionCall {$e = $functionCall.e ;}
+  : inputReference {$e = $inputReference.e; } 
+  | functionCall {$e = $functionCall.e ;}
   | convertCall {$e = $convertCall.e; }
   | castCall {$e = $castCall.e; }
   | pathSegment {$e = new SchemaPath($pathSegment.seg ); }

@@ -22,11 +22,11 @@
   <parent>
     <artifactId>dremio-tools-parent</artifactId>
     <groupId>com.dremio.tools</groupId>
-    <version>3.3.1-201907291852280797-df23756</version>
+    <version>3.3.2-201908142136370993-d60145d</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>attach-tool</artifactId>
+  <artifactId>dremio-attach-tool</artifactId>
   <groupId>com.dremio.tools</groupId>
   <packaging>jar</packaging>
   <name>Tools - Attach Tool</name>

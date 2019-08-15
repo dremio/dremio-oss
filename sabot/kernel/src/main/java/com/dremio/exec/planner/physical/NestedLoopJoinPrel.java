@@ -17,6 +17,8 @@ package com.dremio.exec.planner.physical;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.IntFunction;
 
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptCluster;
@@ -30,15 +32,19 @@ import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.NestedLoopJoinPOP;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
+import com.dremio.exec.planner.logical.ParseContext;
+import com.dremio.exec.planner.logical.RexToExpr;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.google.common.collect.Lists;
@@ -48,23 +54,22 @@ public class NestedLoopJoinPrel  extends JoinPrel {
 
   public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.nlj.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.nlj.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
-
+  public static final LongValidator OUTPUT_COUNT = new PositiveLongValidator("planner.op.nlj.output_count", Long.MAX_VALUE, 1048576L);
+  public static final BooleanValidator VECTORIZED = new BooleanValidator("planner.op.nlj.vectorized", true);
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NestedLoopJoinPrel.class);
-  private NestedLoopJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right,
-                      JoinRelType joinType) {
-    super(cluster, traits, left, right, cluster.getRexBuilder().makeLiteral(true), joinType);
+  private NestedLoopJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, JoinRelType joinType, RexNode condition) {
+    super(cluster, traits, left, right, condition, joinType);
   }
 
-  public static NestedLoopJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right,
-      JoinRelType joinType) {
+  public static NestedLoopJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, JoinRelType joinType, RexNode condition) {
     final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
-    return new NestedLoopJoinPrel(cluster, adjustedTraits, left, right, joinType);
+    return new NestedLoopJoinPrel(cluster, adjustedTraits, left, right, joinType, condition);
   }
 
   @Override
   public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
-    return new NestedLoopJoinPrel(this.getCluster(), traitSet, left, right, joinType);
+    return new NestedLoopJoinPrel(this.getCluster(), traitSet, left, right, joinType, conditionExpr);
   }
 
   @Override
@@ -87,34 +92,64 @@ public class NestedLoopJoinPrel  extends JoinPrel {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    final List<String> fields = getRowType().getFieldNames();
-    assert isUnique(fields);
+    assert isUnique(getRowType().getFieldNames());
 
-    final List<String> leftFields = left.getRowType().getFieldNames();
-    final List<String> rightFields = right.getRowType().getFieldNames();
+    final PhysicalOperator probePop = ((Prel)left).getPhysicalOperator(creator);
+    final PhysicalOperator buildPop = ((Prel)right).getPhysicalOperator(creator);
+    final PlannerSettings settings = PrelUtil.getSettings(getCluster());
+    final boolean vectorized = settings.getOptions().getOption(VECTORIZED);
 
-    PhysicalOperator leftPop = ((Prel)left).getPhysicalOperator(creator);
-    PhysicalOperator rightPop = ((Prel)right).getPhysicalOperator(creator);
+    LogicalExpression condition = null;
+    if (!vectorized) {
+      // the non-vectorized operation doesn't support conditions.
+      List<JoinCondition> conditions = Lists.newArrayList();
+      final List<String> leftFields = left.getRowType().getFieldNames();
+      final List<String> rightFields = right.getRowType().getFieldNames();
+      buildJoinConditions(conditions, leftFields, rightFields, leftKeys, rightKeys);
+      if(!conditions.isEmpty()) {
+        throw UserException.unsupportedError().message("NLJ doesn't support conditions yet. Conditions found %s.", conditions).build(logger);
+      }
+    } else {
+      // vectorized supports conditions.
+      final int leftCount = left.getRowType().getFieldCount();
+      final int rightCount = leftCount + right.getRowType().getFieldCount();
 
-    List<JoinCondition> conditions = Lists.newArrayList();
+      // map the fields to the correct input so that RexToExpr can generate appropriate InputReferences
+      IntFunction<Optional<Integer>> fieldIndexToInput = i -> {
+        if(i < leftCount) {
+          return Optional.of(0);
+        } else if (i < rightCount) {
+          return Optional.of(1);
+        } else {
+          throw new IllegalArgumentException("Unable to handle input number: " + i);
+        }
+      };
 
-    buildJoinConditions(conditions, leftFields, rightFields, leftKeys, rightKeys);
-    if(!conditions.isEmpty()) {
-      UserException.unsupportedError().message("NLJ doesn't support conditions yet. Conditions found %s.", conditions).build(logger);
+      condition = RexToExpr.toExpr(
+          new ParseContext(settings),
+          getRowType(),
+          getCluster().getRexBuilder(),
+          getCondition(),
+          true,
+          fieldIndexToInput);
     }
 
-    SchemaBuilder b = BatchSchema.newBuilder();
-    for (Field f : rightPop.getProps().getSchema()) {
+    // generate the schema for execution. Yes, for some reason we put build first then probe (opposite of Calcite)
+    final SchemaBuilder b = BatchSchema.newBuilder();
+    for (Field f : buildPop.getProps().getSchema()) {
       b.addField(f);
     }
-    for (Field f : leftPop.getProps().getSchema()) {
+    for (Field f : probePop.getProps().getSchema()) {
       b.addField(f);
     }
-    BatchSchema schema = b.build();
+    final BatchSchema schema = b.build();
     return new NestedLoopJoinPOP(
         creator.props(this, null, schema, RESERVE, LIMIT),
-        leftPop,
-        rightPop);
+        probePop,
+        buildPop,
+        joinType,
+        condition,
+        vectorized);
   }
 
   @Override

@@ -182,7 +182,12 @@ public class Foreman {
 
     attemptManager = newAttemptManager(context, attemptId, request, attemptObserver, session,
       optionProvider, tunnelCreator, plans, datasetValidityChecker, queryResourceManager, commandPool, executorSelectionService);
-    executor.execute(attemptManager);
+
+    if (request.runInSameThread()) {
+      attemptManager.run();
+    } else {
+      executor.execute(attemptManager);
+    }
   }
 
   protected AttemptManager newAttemptManager(SabotContext context, AttemptId attemptId, UserRequest queryRequest,
@@ -192,7 +197,7 @@ public class Foreman {
     final QueryContext queryContext = new QueryContext(session, context, attemptId.toQueryId(),
         queryRequest.getPriority(), queryRequest.getMaxAllocation(), datasetValidityChecker);
     return new AttemptManager(context, attemptId, queryRequest, observer, options, tunnelCreator, plans,
-      queryContext, resourceAllocator, commandPool, executorSelectionService);
+      queryContext, resourceAllocator, commandPool, executorSelectionService, queryRequest.runInSameThread());
   }
 
   public void updateStatus(FragmentStatus status) {

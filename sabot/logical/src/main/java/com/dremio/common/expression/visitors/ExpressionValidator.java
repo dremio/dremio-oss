@@ -23,6 +23,7 @@ import com.dremio.common.expression.ErrorCollector;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
+import com.dremio.common.expression.InputReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
 import com.dremio.common.expression.SchemaPath;
@@ -77,6 +78,12 @@ public class ExpressionValidator implements ExprVisitor<Void, ErrorCollector, Ru
     }
 
     return null;
+  }
+
+
+  @Override
+  public Void visitInputReference(InputReference e, ErrorCollector value) throws RuntimeException {
+    return e.getReference().accept(this, value);
   }
 
   @Override

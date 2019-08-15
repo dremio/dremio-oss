@@ -118,11 +118,12 @@ public abstract class AsyncCommand implements CommandRunner<Void> {
     resourceSchedulingProperties.setQueryType(Utilities.getHumanReadableWorkloadType(context.getWorkloadType()));
 
     long startTimeMs = System.currentTimeMillis();
-    ResourceSchedulingResult resourceSchedulingResult = queryResourceManager.allocate(context, resourceSchedulingProperties);
-    resourceSchedulingDecisionInfo = resourceSchedulingResult.getResourceSchedulingDecisionInfo();
-    resourceSchedulingDecisionInfo.setResourceSchedulingProperties(resourceSchedulingProperties);
-    resourceSchedulingDecisionInfo.setSchedulingStartTimeMs(startTimeMs);
-    observer.resourcesScheduled(resourceSchedulingDecisionInfo);
+    ResourceSchedulingResult resourceSchedulingResult = queryResourceManager.allocate(context, resourceSchedulingProperties, (x) -> {
+      resourceSchedulingDecisionInfo = x;
+      resourceSchedulingDecisionInfo.setResourceSchedulingProperties(resourceSchedulingProperties);
+      resourceSchedulingDecisionInfo.setSchedulingStartTimeMs(startTimeMs);
+      observer.resourcesScheduled(resourceSchedulingDecisionInfo);
+    });
     // should not put timeout, as we may be waiting for leases if query has to wait because queries concurrency limit
     try {
       resourceSet = resourceSchedulingResult.getResourceSetFuture().get();

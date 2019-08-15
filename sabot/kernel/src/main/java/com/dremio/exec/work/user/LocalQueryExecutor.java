@@ -38,12 +38,14 @@ public interface LocalQueryExecutor {
    * @param query the query definition
    * @param prepare whether this is a prepared statement
    * @param config local execution config
+   * @param runInSameThread if true, query will run in the same thread
    */
   void submitLocalQuery(
       ExternalId externalId,
       QueryObserver observer,
       Object query,
       boolean prepare,
-      LocalExecutionConfig config);
+      LocalExecutionConfig config,
+      boolean runInSameThread);
 
 }

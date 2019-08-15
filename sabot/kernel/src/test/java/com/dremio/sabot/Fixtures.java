@@ -241,7 +241,7 @@ public final class Fixtures {
 
   private static boolean compareTableResultMap(StringBuilder sb, Field[] fields, List<RecordBatchData> actual,
                                                int expectedRecordCount, HashMap<Object, Fixtures.DataRow> resultMap) {
-    final StringBuilder sb1 = new StringBuilder(sb);
+
     int failures  = 0;
     NavigableMap<Integer, RangeHolder<DataHolder>> actualRange = new TreeMap<>();
     {

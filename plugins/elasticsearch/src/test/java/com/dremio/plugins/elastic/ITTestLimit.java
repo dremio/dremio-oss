@@ -519,7 +519,7 @@ public class ITTestLimit extends ElasticBaseTestQuery {
       .build();
 
     ProfileGrabber grabber = new ProfileGrabber();
-    getLocalQueryExecutor().submitLocalQuery(ExternalIdHelper.generateExternalId(), grabber, queryCmd, false, config);
+    getLocalQueryExecutor().submitLocalQuery(ExternalIdHelper.generateExternalId(), grabber, queryCmd, false, config, false);
     QueryProfile profile = grabber.getProfile();
 
     Optional<OperatorProfile> scanProfile = FluentIterable.from(profile.getFragmentProfile(0).getMinorFragmentProfile(0).getOperatorProfileList())

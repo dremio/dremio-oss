@@ -17,6 +17,7 @@ package com.dremio.resource.basic;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 import javax.inject.Provider;
@@ -61,13 +62,15 @@ public class BasicResourceAllocator implements ResourceAllocator {
 
   @Override
   public ResourceSchedulingResult allocate(final ResourceSchedulingContext queryContext,
-                                                final ResourceSchedulingProperties resourceSchedulingProperties) {
+                                           final ResourceSchedulingProperties resourceSchedulingProperties,
+                                           final Consumer<ResourceSchedulingDecisionInfo> schedulingDecisionInfoConsumer) {
 
     final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo = new ResourceSchedulingDecisionInfo();
     final QueueType queueType = getQueueNameFromSchedulingProperties(queryContext, resourceSchedulingProperties);
     resourceSchedulingDecisionInfo.setQueueName(queueType.name());
     resourceSchedulingDecisionInfo.setQueueId(queueType.name());
     resourceSchedulingDecisionInfo.setWorkloadClass(queryContext.getQueryContextInfo().getPriority().getWorkloadClass());
+    schedulingDecisionInfoConsumer.accept(resourceSchedulingDecisionInfo);
 
     final Pointer<DistributedSemaphore.DistributedLease> lease = new Pointer();
     ListenableFuture<ResourceSet> futureAllocation = executorService.submit(() -> {

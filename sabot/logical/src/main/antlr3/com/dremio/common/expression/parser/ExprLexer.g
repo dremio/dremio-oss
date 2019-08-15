@@ -88,6 +88,7 @@ Comma    : ',';
 QMark    : '?';
 Colon    : ':';
 SingleQuote: '\'';
+InputReference : 'INPUT_REFERENCE';
 
 Bool
   :  'true' 

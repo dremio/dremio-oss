@@ -104,7 +104,7 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
       try {
         DatasetVersion version = DatasetVersion.newVersion();
         DatasetPath datasetPath = new DatasetPath(path);
-        InitialPreviewResponse response = tool.newUntitled(new FromSQL(sql), version, sqlContext, null, true, 0);
+        InitialPreviewResponse response = tool.newUntitled(new FromSQL(sql), version, sqlContext, null, true, 0, true);
         DatasetPath tmpPath = new DatasetPath(response.getDataset().getFullPath());
         VirtualDatasetUI vds = datasetService.getVersion(tmpPath, response.getDataset().getDatasetVersion());
         newDatasetVersionResource(securityContext, tool, version, tmpPath).save(vds, datasetPath, null, attributes);

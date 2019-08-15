@@ -27,6 +27,7 @@ import com.dremio.exec.store.parquet.ParquetRecordWriter;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
 import com.dremio.sabot.op.filter.FilterStats;
+import com.dremio.sabot.op.join.nlje.NLJEOperator;
 import com.dremio.sabot.op.join.vhash.HashJoinStats;
 import com.dremio.sabot.op.project.ProjectorStats;
 import com.dremio.sabot.op.receiver.merging.MergingReceiverOperator;
@@ -67,6 +68,7 @@ public class OperatorMetricRegistry {
     register(builder, CoreOperatorType.ARROW_WRITER_VALUE, WriterOperator.Metric.class);
     register(builder, CoreOperatorType.PROJECT_VALUE, ProjectorStats.Metric.class);
     register(builder, CoreOperatorType.FILTER_VALUE, FilterStats.Metric.class);
+    register(builder, CoreOperatorType.NESTED_LOOP_JOIN_VALUE, NLJEOperator.Metric.class);
     CORE_OPERATOR_TYPE_METRICS_MAP = builder.build();
   }
 

@@ -188,33 +188,40 @@ public enum PlannerPhase {
   PRE_LOGICAL("Pre-Logical Filter Pushdown") {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
-      return RuleSets.ofList(
-          ConvertCountDistinctToHll.INSTANCE,
-          RewriteNdvAsHll.INSTANCE,
+      ImmutableList.Builder<RelOptRule> b = ImmutableList.builder();
+      b.add(
+        ConvertCountDistinctToHll.INSTANCE,
+        RewriteNdvAsHll.INSTANCE,
 
-          PushFilterPastProjectRule.CALCITE_NO_CHILD_CHECK,
+        PushFilterPastProjectRule.CALCITE_NO_CHILD_CHECK,
 
-          // Add support for WHERE style joins.
-          FILTER_INTO_JOIN_CALCITE_RULE,
-          JOIN_CONDITION_PUSH_CALCITE_RULE,
-          JOIN_PUSH_EXPRESSIONS_RULE,
-          // End support for WHERE style joins.
+        // Add support for WHERE style joins.
+        FILTER_INTO_JOIN_CALCITE_RULE,
+        JOIN_CONDITION_PUSH_CALCITE_RULE,
+        JOIN_PUSH_EXPRESSIONS_RULE,
+        // End support for WHERE style joins.
 
-          JoinFilterCanonicalizationRule.INSTANCE,
+        JoinFilterCanonicalizationRule.INSTANCE,
 
-          FILTER_SET_OP_TRANSPOSE_CALCITE_RULE,
-          FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE,
-          FILTER_MERGE_CALCITE_RULE,
+        FILTER_SET_OP_TRANSPOSE_CALCITE_RULE,
+        FILTER_AGGREGATE_TRANSPOSE_CALCITE_RULE,
+        FILTER_MERGE_CALCITE_RULE,
 
-          PlannerPhase.PUSH_PROJECT_PAST_JOIN_CALCITE_RULE,
-          ProjectWindowTransposeRule.INSTANCE,
-          ProjectSetOpTransposeRule.INSTANCE,
-          MergeProjectRule.CALCITE_INSTANCE,
-          RemoveEmptyScansRule.INSTANCE
+        PlannerPhase.PUSH_PROJECT_PAST_JOIN_CALCITE_RULE,
+        ProjectWindowTransposeRule.INSTANCE,
+        ProjectSetOpTransposeRule.INSTANCE,
+        MergeProjectRule.CALCITE_INSTANCE,
+        RemoveEmptyScansRule.INSTANCE
 
-          // This can't run here because even though it is heuristic, it causes acceleration matches to fail.
-          // PushProjectIntoScanRule.INSTANCE
-          );
+        // This can't run here because even though it is heuristic, it causes acceleration matches to fail.
+        // PushProjectIntoScanRule.INSTANCE
+      );
+
+      if (context.getPlannerSettings().isTransitiveJoinEnabled()) {
+        b.add(JoinPushTransitivePredicatesRule.INSTANCE);
+      }
+
+      return RuleSets.ofList(b.build());
     }
   },
 
@@ -232,9 +239,6 @@ public enum PlannerPhase {
     @Override
     public RuleSet getRules(OptimizerRulesContext context) {
       // Check if multi-join optimization has been disabled
-      if (!context.getPlannerSettings().isJoinOptimizationEnabled()) {
-        return RuleSets.ofList();
-      }
 
       return RuleSets.ofList(
           MULTIJOIN_BOTH_PROJECTS_TRANSPOSE_RULE,
@@ -260,17 +264,20 @@ public enum PlannerPhase {
       // but HashJoinPrule requires simple references
       ImmutableList.Builder<RelOptRule> builder = ImmutableList.<RelOptRule>builder();
 
+      builder
+        .add(JOIN_PUSH_EXPRESSIONS_LOGICAL_RULE)
+        .add(MergeProjectRule.LOGICAL_INSTANCE);
+
+
       // Check if multi-join optimization has been enabled
       if (context.getPlannerSettings().isJoinOptimizationEnabled()) {
-        builder
-          .add(JOIN_PUSH_EXPRESSIONS_LOGICAL_RULE)
-          .add(MergeProjectRule.LOGICAL_INSTANCE);
-
         if (context.getPlannerSettings().isExperimentalBushyJoinOptimizerEnabled()) {
           builder.add(MULTI_JOIN_OPTIMIZE_BUSHY_RULE);
         } else {
           builder.add(LOPT_OPTIMIZE_JOIN_RULE);
         }
+      } else {
+        builder.add(LOPT_UNOPTIMIZE_JOIN_RULE);
       }
 
       return RuleSets.ofList(builder.add(JoinNormalizationRule.INSTANCE).build());
@@ -289,10 +296,6 @@ public enum PlannerPhase {
     public RuleSet getRules(OptimizerRulesContext context) {
 
       List<RelOptRule> moreRules = new ArrayList<>();
-
-      if(context.getPlannerSettings().isTransitiveJoinEnabled()) {
-        moreRules.add(new JoinPushTransitivePredicatesRule(JoinRel.class, DremioRelFactories.LOGICAL_BUILDER));
-      }
 
       if(context.getPlannerSettings().isTransposeProjectFilterLogicalEnabled()) {
         moreRules.add(PUSH_PROJECT_PAST_FILTER_CALCITE_RULE);
@@ -512,6 +515,7 @@ public enum PlannerPhase {
   private static final RelOptRule PROJECT_MULTIJOIN_MERGE_RULE = new ProjectMultiJoinMergeRule(ProjectRel.class, DremioRelFactories.LOGICAL_BUILDER);
   private static final RelOptRule FILTER_MULTIJOIN_MERGE_RULE = new FilterMultiJoinMergeRule(FilterRel.class, DremioRelFactories.LOGICAL_BUILDER);
   private static final RelOptRule LOPT_OPTIMIZE_JOIN_RULE = new LoptOptimizeJoinRule(DremioRelFactories.LOGICAL_BUILDER, false);
+  private static final RelOptRule LOPT_UNOPTIMIZE_JOIN_RULE = new LoptOptimizeJoinRule(DremioRelFactories.LOGICAL_BUILDER, true);
   private static final MultiJoinOptimizeBushyRule MULTI_JOIN_OPTIMIZE_BUSHY_RULE = new MultiJoinOptimizeBushyRule(DremioRelFactories.LOGICAL_BUILDER);
 
   private static final RelOptRule PUSH_PROJECT_PAST_FILTER_INSTANCE = new ProjectFilterTransposeRule(
@@ -566,14 +570,6 @@ public enum PlannerPhase {
       AggregateRemoveRule.INSTANCE,
       DremioAggregateReduceFunctionsRule.INSTANCE,
       AggregateExpandDistinctAggregatesRule.JOIN,
-
-      /*
-       * Filter push-down related rules.
-       * Do these as part of Drel, not Crel optimization (to avoid interplay with project crel rules).
-       *
-       * Note that these are unlikely to make any changes unless
-       */
-      PushFilterPastProjectRule.CALCITE_NO_CHILD_CHECK,
 
       // Add support for WHERE style joins.
       FILTER_INTO_JOIN_CALCITE_RULE,

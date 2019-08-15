@@ -228,7 +228,7 @@ public class BaseTestOperator extends ExecTest {
         ((AutoCloseable) second).close();
       }
     }
-  };
+  }
 
   /**
    * Create a new operator described by the provided operator class. Test harness will automatically create a test allocator. Test will automatically close operator created using this method.
@@ -694,7 +694,7 @@ public class BaseTestOperator extends ExecTest {
         case DONE:
           break outside;
         default:
-          throw new UnsupportedOperationException();
+          throw new UnsupportedOperationException("State is: " + op.getState());
         }
       }
 

@@ -41,8 +41,6 @@ public abstract class JoinPruleBase extends Prule {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinPruleBase.class);
 
-  protected static enum PhysicalJoinType {HASH_JOIN, MERGE_JOIN, NESTEDLOOP_JOIN};
-
   protected JoinPruleBase(RelOptRuleOperand operand, String description) {
     super(operand, description);
   }
@@ -66,18 +64,11 @@ public abstract class JoinPruleBase extends Prule {
     return distFields.build();
   }
 
-  protected boolean checkBroadcastConditions(RelOptPlanner planner, JoinRel join, RelNode left, RelNode right, PhysicalJoinType physicalJoinType) {
+  protected boolean checkBroadcastConditions(RelOptPlanner planner, JoinRel join, RelNode left, RelNode right) {
     final RelMetadataQuery mq = join.getCluster().getMetadataQuery();
     // Right node is the one that is being considered to be broadcasted..
     double targetRowCount = mq.getRowCount(right);
     double otherRowCount = mq.getRowCount(left);
-
-    // However, if join type is nested loop right join, consider left node to be broadcasted
-    if ((join.getJoinType() == JoinRelType.RIGHT) && (physicalJoinType == PhysicalJoinType.NESTEDLOOP_JOIN)) {
-      double tmp = targetRowCount;
-      targetRowCount = otherRowCount;
-      otherRowCount = tmp;
-    }
 
     if (targetRowCount < PrelUtil.getSettings(join.getCluster()).getBroadcastThreshold()
         && ! left.getTraitSet().getTrait(DistributionTraitDef.INSTANCE).equals(DistributionTrait.SINGLETON)
@@ -116,7 +107,6 @@ public abstract class JoinPruleBase extends Prule {
   }
 
   protected void createDistBothPlan(RelOptRuleCall call, JoinRel join,
-      PhysicalJoinType physicalJoinType,
       RelNode left, RelNode right,
       RelCollation collationLeft, RelCollation collationRight, boolean hashSingleKey) throws InvalidRelException, UnsupportedRelOperatorException {
 
@@ -136,7 +126,7 @@ public abstract class JoinPruleBase extends Prule {
     DistributionTrait hashLeftPartition = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, leftDistributionFields);
     DistributionTrait hashRightPartition = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, rightDistributionFields);
 
-    createDistBothPlan(call, join, physicalJoinType, left, right, collationLeft, collationRight, hashLeftPartition, hashRightPartition);
+    createDistBothPlan(call, join, left, right, collationLeft, collationRight, hashLeftPartition, hashRightPartition);
 
     assert (join.getLeftKeys().size() == join.getRightKeys().size());
 
@@ -150,7 +140,7 @@ public abstract class JoinPruleBase extends Prule {
         hashLeftPartition = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, leftDistributionFields.subList(i, i+1));
         hashRightPartition = new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED, rightDistributionFields.subList(i, i+1));
 
-        createDistBothPlan(call, join, physicalJoinType, left, right, collationLeft, collationRight, hashLeftPartition, hashRightPartition);
+        createDistBothPlan(call, join, left, right, collationLeft, collationRight, hashLeftPartition, hashRightPartition);
       }
     }
   }
@@ -160,7 +150,6 @@ public abstract class JoinPruleBase extends Prule {
   // is MergeJoin, a collation must be provided for both left and right child and the plan will contain
   // sort converter if necessary to provide the collation.
   protected abstract void createDistBothPlan(RelOptRuleCall call, JoinRel join,
-                                  PhysicalJoinType physicalJoinType,
                                   RelNode left, RelNode right,
                                   RelCollation collationLeft, RelCollation collationRight,
                                   DistributionTrait hashLeftPartition, DistributionTrait hashRightPartition) throws InvalidRelException, UnsupportedRelOperatorException;

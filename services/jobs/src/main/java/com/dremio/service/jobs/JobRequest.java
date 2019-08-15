@@ -49,6 +49,8 @@ public final class JobRequest {
 
   private final MaterializationSummary materializationSummary;
   private final SubstitutionSettings substitutionSettings;
+  /** if set to true, query is not going to be scheduled on a separate thread */
+  private final boolean runInSameThread;
 
   private JobRequest(RequestType requestType,
                      SqlQuery sqlQuery,
@@ -59,7 +61,8 @@ public final class JobRequest {
                      String downloadId,
                      String fileName,
                      MaterializationSummary materializationSummary,
-                     SubstitutionSettings substitutionSettings) {
+                     SubstitutionSettings substitutionSettings,
+                     boolean runInSameThread) {
     this.requestType = requestType;
 
     this.sqlQuery = sqlQuery;
@@ -73,6 +76,7 @@ public final class JobRequest {
 
     this.materializationSummary = materializationSummary;
     this.substitutionSettings = substitutionSettings;
+    this.runInSameThread = runInSameThread;
   }
 
   public SqlQuery getSqlQuery() {
@@ -97,6 +101,10 @@ public final class JobRequest {
 
   public SubstitutionSettings getSubstitutionSettings() {
     return substitutionSettings;
+  }
+
+  public boolean runInSameThread() {
+    return runInSameThread;
   }
 
   JobInfo asJobInfo(final JobId jobId, final String inSpace) {
@@ -142,6 +150,7 @@ public final class JobRequest {
 
     private MaterializationSummary materializationSummary;
     private SubstitutionSettings substitutionSettings;
+    private boolean runInSameThread;
 
     private Builder(String downloadId, String fileName) {
       this.requestType = RequestType.DOWNLOAD;
@@ -227,6 +236,15 @@ public final class JobRequest {
     }
 
     /**
+     * Set JobRequest runInSameThread. If true, corresponding AttemptManager(s) will run in the same calling thread
+     * @return this builder
+     */
+    public Builder runInSameThread(boolean enabled) {
+      runInSameThread = enabled;
+      return this;
+    }
+
+    /**
      * Build the job request.
      *
      * @return job request
@@ -265,7 +283,8 @@ public final class JobRequest {
           downloadId,
           fileName,
           materializationSummary,
-          substitutionSettings);
+          substitutionSettings,
+          runInSameThread);
     }
   }
 

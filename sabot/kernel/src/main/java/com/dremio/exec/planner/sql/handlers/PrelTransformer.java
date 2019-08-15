@@ -37,6 +37,7 @@ import org.apache.calcite.plan.hep.HepPlanner;
 import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.plan.hep.HepProgramBuilder;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.TableModify;
 import org.apache.calcite.rel.core.TableScan;
@@ -116,6 +117,7 @@ import com.dremio.exec.planner.sql.SqlConverter.RelRootPlus;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.FindNonJdbcConventionRexSubQuery;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.RelsWithRexSubQueryTransformer;
 import com.dremio.exec.planner.sql.parser.UnsupportedOperatorsVisitor;
+import com.dremio.exec.store.dfs.FilesystemScanDrel;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
@@ -222,11 +224,34 @@ public class PrelTransformer {
       final RelNode preLog = transform(config, PlannerType.HEP_AC, PlannerPhase.PRE_LOGICAL, trimmed, trimmed.getTraitSet(), true);
 
       final RelTraitSet logicalTraits = preLog.getTraitSet().plus(Rel.LOGICAL);
-      final RelNode intermediateNode = transform(config, PlannerType.VOLCANO, PlannerPhase.LOGICAL, preLog, logicalTraits, true);
+      final RelNode adjusted = transform(config, PlannerType.VOLCANO, PlannerPhase.LOGICAL, preLog, logicalTraits, true);
 
       final Catalog catalog = config.getContext().getCatalog();
       if (catalog instanceof CachingCatalog) {
         config.getObserver().tablesCollected(catalog.getAllRequestedTables());
+      }
+
+      final RelNode intermediateNode;
+      if (config.getContext().getPlannerSettings().removeRowCountAdjustment()) {
+        intermediateNode = adjusted.accept(new RelShuttleImpl() {
+            @Override
+            public RelNode visit(TableScan scan) {
+              if (scan instanceof FilesystemScanDrel) {
+                FilesystemScanDrel scanDrel = (FilesystemScanDrel) scan;
+                return new FilesystemScanDrel(
+                  scanDrel.getCluster(),
+                  scanDrel.getTraitSet(),
+                  scanDrel.getTable(),
+                  scanDrel.getPluginId(),
+                  scanDrel.getTableMetadata(),
+                  scanDrel.getProjectedColumns(),
+                  1.0);
+              }
+              return super.visit(scan);
+            }
+          });
+      } else {
+        intermediateNode = adjusted;
       }
 
       // Do Join Planning.
@@ -256,7 +281,7 @@ public class PrelTransformer {
       logger.error(ex.getMessage(), ex);
 
       if(JoinUtils.checkCartesianJoin(relNode, Lists.<Integer>newArrayList(), Lists.<Integer>newArrayList(), Lists.<Boolean>newArrayList())) {
-        throw new UnsupportedRelOperatorException("This query cannot be planned possibly due to either a cartesian join or an inequality join");
+        throw new UnsupportedRelOperatorException("This query cannot be planned\u2014possibly due to use of an unsupported feature.");
       } else {
         throw ex;
       }
@@ -509,7 +534,7 @@ public class PrelTransformer {
       logger.error(ex.getMessage());
 
       if(JoinUtils.checkCartesianJoin(drel, new ArrayList<Integer>(), new ArrayList<Integer>(), Lists.<Boolean>newArrayList())) {
-        throw new UnsupportedRelOperatorException("This query cannot be planned possibly due to either a cartesian join or an inequality join");
+        throw new UnsupportedRelOperatorException("This query cannot be planned\u2014possibly due to use of an unsupported feature.");
       } else {
         throw ex;
       }

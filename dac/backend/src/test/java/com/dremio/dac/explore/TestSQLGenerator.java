@@ -28,6 +28,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 import org.junit.Test;
@@ -903,5 +904,131 @@ public class TestSQLGenerator {
           .setValue(new FilterValue(DataType.DATE).setValuesList(asList((String)null)))).setExclude(false)
         ))
     );
+  }
+
+  public static Column makeColumnSelection(String colName, String colAlias, String table) {
+    Expression a = new ExpColumnReference(colName).setTable(table).wrap();
+    return new Column(colAlias, a);
+  }
+
+  @Test
+  public void testJoinSelectionCollision() {
+    VirtualDatasetState state = new VirtualDatasetState()
+      .setFrom(new FromTable("\"space\".\"t1\"").setAlias("t1").wrap());
+
+    validate(
+      "SELECT t1.id AS id, t2.id AS id0, t1.a AS a, t2.A AS A_0\n" +
+        "FROM space.t1 AS t1\n" +
+        " INNER JOIN \"space\".t2 AS t2 ON t1.id = t2.id",
+      state.setJoinsList(asList(makeJoin(JoinType.Inner, "\"space\".t2", "t2", "id")))
+        .setColumnsList(asList(
+        makeColumnSelection("id", "id", "t1"),
+        makeColumnSelection("id", "id0", "t2"),
+        makeColumnSelection("a", "a", "t1"),
+        makeColumnSelection("A", "A", "t2")
+      ))
+    );
+  }
+
+  private Join makeJoin(JoinType type, String table, String tableAlias, String field) {
+    return new Join(type, table, tableAlias)
+      .setJoinConditionsList(asList(new JoinCondition(field, field)));
+  }
+
+  private static class ColumnSpec {
+    private final String table;
+    private final String colName;
+    private final String desiredColAlias;
+    private final String expectedColAlias;
+
+    public ColumnSpec(String table, String colName, String desiredColAlias, String expectedColAlias) {
+      this.table = table;
+      this.colName = colName;
+      this.desiredColAlias = desiredColAlias;
+      this.expectedColAlias = expectedColAlias;
+    }
+
+    public Column makeColumnSelection() {
+      return TestSQLGenerator.makeColumnSelection(colName, desiredColAlias, table);
+    }
+
+    public String makeSelectionString() {
+      return String.format(", %s.%s AS %s", table, colName, expectedColAlias);
+    }
+  }
+
+  private void validateJoinColumnCollisionTest(String t1, String t2, String t3, List<ColumnSpec> selections) {
+    VirtualDatasetState state = new VirtualDatasetState()
+      .setFrom(new FromTable(String.format("\"space\".\"%s\"", t1)).setAlias(t1).wrap());
+
+    String sColumns = String.format("%s.id AS id, %s.id AS id0, %s.id AS id1", t1, t2, t3);
+
+    List<Column> colSelections = new LinkedList<>(asList(
+      makeColumnSelection("id", "id", t1),
+      makeColumnSelection("id", "id0", t2),
+      makeColumnSelection("id", "id1", t3)
+    ));
+
+    for (ColumnSpec col:
+      selections) {
+      colSelections.add(col.makeColumnSelection());
+      sColumns += col.makeSelectionString();
+    }
+
+    validate(
+      "SELECT " +
+        String.format("%s\n",sColumns) +
+        String.format("FROM space.%s AS %s\n", t1, t1) +
+        String.format(" INNER JOIN \"space\".%s AS %s ON %s.id = %s.id\n", t2, t2, t1, t2) +
+        String.format(" LEFT JOIN \"space\".%s AS %s ON %s.id = %s.id", t3, t3, t1, t3),
+      state.setJoinsList(asList(
+        makeJoin(JoinType.Inner, "\"space\"." + t2, t2, "id"),
+        makeJoin(JoinType.LeftOuter, "\"space\"." + t3, t3, "id")
+      ))
+        .setColumnsList(colSelections)
+    );
+  }
+
+  @Test
+  public void testColumnCollisionDoesntAlterAliasBaseWhenItEndsInNumbers() {
+    validateJoinColumnCollisionTest("t1", "t2", "t3", asList(
+      new ColumnSpec("t1", "A", "a", "a"),
+      new ColumnSpec("t2", "A", "A1993", "A1993"),
+      new ColumnSpec("t3", "A", "a1993", "a1993_0"),
+      new ColumnSpec("t1", "b", "A1993", "A1993_1")
+    ));
+  }
+
+  @Test
+  public void testColumnCollisionOnlyRenamesIfWholeConflicts() {
+    validateJoinColumnCollisionTest("t1", "t2", "t3", asList(
+      new ColumnSpec("t1", "a", "a", "a"),
+      new ColumnSpec("t2", "A", "A1994", "A1994"),
+      new ColumnSpec("t3", "a", "A1993", "A1993")
+    ));
+  }
+
+  @Test
+  public void testColumnCollisionRemembersRenames() {
+    validateJoinColumnCollisionTest("t1", "t2", "t3", asList(
+      new ColumnSpec("t1", "a", "a", "a"),
+      new ColumnSpec("t2", "A", "A1993", "A1993"),
+      new ColumnSpec("t3", "A", "A1993", "A1993_0"),
+      new ColumnSpec("t1", "a_93", "A1993_0", "A1993_0_0"),
+      new ColumnSpec("t2", "a_93", "a1993_0", "a1993_0_1"),
+      new ColumnSpec("t3", "a_93", "A1993_0_0", "A1993_0_0_0")
+    ));
+  }
+
+  @Test
+  public void testColumnCollisionResolvesUnfriendlyNaming() {
+    validateJoinColumnCollisionTest("t1", "t2", "t3", asList(
+      new ColumnSpec("t1", "a", "a", "a"),
+      new ColumnSpec("t2", "A", "A1993", "A1993"),
+      new ColumnSpec("t3", "A", "a1993_0","a1993_0"),
+      new ColumnSpec("t1", "B", "A1993_1", "A1993_1"),
+      new ColumnSpec("t2", "B", "A1993_2", "A1993_2"),
+      new ColumnSpec("t3", "B", "a1993", "a1993_3")
+    ));
   }
 }

@@ -15,6 +15,8 @@
  */
 package com.dremio.resource;
 
+import java.util.function.Consumer;
+
 import com.dremio.resource.common.ResourceSchedulingContext;
 import com.dremio.resource.exception.ResourceAllocationException;
 import com.dremio.service.Service;
@@ -31,8 +33,22 @@ public interface ResourceAllocator extends Service {
    * @return
    * @throws ResourceAllocationException
    */
+  default ResourceSchedulingResult allocate(final ResourceSchedulingContext queryContext,
+                                    final ResourceSchedulingProperties resourceSchedulingProperties) {
+    return allocate(queryContext, resourceSchedulingProperties, (x) -> {/*no-op*/});
+  }
+
+  /**
+   * To allocate resources from ResourceScheduler and report to an optional consumer (used for observers)
+   * @param queryContext
+   * @param resourceSchedulingProperties
+   * @param resourceDecisionConsumer
+   * @return
+   * @throws ResourceAllocationException
+   */
   ResourceSchedulingResult allocate(final ResourceSchedulingContext queryContext,
-                                    final ResourceSchedulingProperties resourceSchedulingProperties);
+                                    final ResourceSchedulingProperties resourceSchedulingProperties,
+                                    final Consumer<ResourceSchedulingDecisionInfo> resourceDecisionConsumer);
 
   ResourceAllocator ResourceAllocatorNOOP = new ResourceAllocator(){
     @Override
@@ -46,7 +62,7 @@ public interface ResourceAllocator extends Service {
     }
 
     @Override
-    public ResourceSchedulingResult allocate(ResourceSchedulingContext queryContext, ResourceSchedulingProperties resourceSchedulingProperties) {
+    public ResourceSchedulingResult allocate(ResourceSchedulingContext queryContext, ResourceSchedulingProperties resourceSchedulingProperties, Consumer<ResourceSchedulingDecisionInfo> resourceDecisionConsumer) {
       throw new UnsupportedOperationException();
     }
   };

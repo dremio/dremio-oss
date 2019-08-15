@@ -96,7 +96,7 @@
       <appender name="tracker" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>${dremio.log.path}/tracker.json</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-          <fileNamePattern>${dremio.log.path}/archive/queries.%d{yyyy-MM-dd}.%i.json.gz</fileNamePattern>
+          <fileNamePattern>${dremio.log.path}/archive/tracker.%d{yyyy-MM-dd}.%i.json.gz</fileNamePattern>
           <maxHistory>30</maxHistory>
           <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
               <maxFileSize>100MB</maxFileSize>

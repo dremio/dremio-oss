@@ -1079,7 +1079,7 @@ public class EvaluationVisitor {
     @Override
     public HoldingContainer visitFunctionHolderExpression(FunctionHolderExpression holder, ClassGenerator<?> generator) throws RuntimeException {
       inc();
-      if (shouldNestMethod()) {
+      if (allowNewMethods && shouldNestMethod()) {
         exprCount.push(0);
         HoldingContainer out = generator.declare(holder.getCompleteType(), false);
         JMethod setupMethod = generator.nestSetupMethod();

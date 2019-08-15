@@ -26,6 +26,7 @@ import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.FunctionCall;
 import com.dremio.common.expression.FunctionHolderExpression;
 import com.dremio.common.expression.IfExpression;
+import com.dremio.common.expression.InputReference;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.NullExpression;
 import com.dremio.common.expression.SchemaPath;
@@ -121,6 +122,11 @@ public class ConstantExpressionIdentifier implements ExprVisitor<Boolean, Identi
   @Override
   public Boolean visitSchemaPath(SchemaPath path, IdentityHashMap<LogicalExpression, Object> value){
     return false;
+  }
+
+  @Override
+  public Boolean visitInputReference(InputReference input, IdentityHashMap<LogicalExpression, Object> value) {
+    return input.getReference().accept(this, value);
   }
 
   @Override
