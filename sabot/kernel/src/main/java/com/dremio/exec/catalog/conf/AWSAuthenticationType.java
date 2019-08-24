@@ -20,9 +20,13 @@ import io.protostuff.Tag;
 /**
  * Authentication type for Amazon Services.
  * ACCESS_KEY uses credentials, EC2_METADATA uses IAM roles in EC2 instance and NONE access S3 as anonymous.
+ * Date : 24-Aug-2019, Author : Sathish Senathi
+ * Added Default Auth Chain option from AWS SDK which allows Credentials to be retreived from Properties, Env Variables,
+ * Default profile in user home directory and Instance Metadata in that order
  */
 public enum AWSAuthenticationType {
   @Tag(1) @DisplayMetadata(label = "AWS Access Key") ACCESS_KEY,
+  @Tag(2) @DisplayMetadata(label = "Default Chain") TEMP_CREDENTIALS,
   @Tag(2) @DisplayMetadata(label = "EC2 Metadata") EC2_METADATA,
   @Tag(3) @DisplayMetadata(label = "No Authentication") NONE;
 }
