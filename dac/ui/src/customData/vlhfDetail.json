@@ -87,6 +87,15 @@
                     }
                   },
                   {
+                    "value": "TEMP_CREDENTIALS",
+                    "container": {
+                      "help": {
+                        "position": "top",
+                        "text": "Uses AWS SDK DefaultCredentials facility which looks for credentials in Properties, Envrionment Variables, ~/.aws/credentials , Instance Metadata Service"
+                      }
+                    }
+                  },
+                  {
                     "value": "EC2_METADATA",
                     "container": {
                       "help": {
