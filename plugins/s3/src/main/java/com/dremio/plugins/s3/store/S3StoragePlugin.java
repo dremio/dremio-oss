@@ -24,6 +24,7 @@ import static org.apache.hadoop.fs.s3a.Constants.MAX_TOTAL_TASKS;
 import static org.apache.hadoop.fs.s3a.Constants.MULTIPART_SIZE;
 import static org.apache.hadoop.fs.s3a.Constants.SECRET_KEY;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
+import static org.apache.hadoop.fs.s3a.Constants.SESSION_TOKEN;
 
 import java.io.IOException;
 import java.net.URI;
@@ -72,6 +73,7 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
   public static final String ACCESS_KEY_PROVIDER = "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider";
   public static final String EC2_METADATA_PROVIDER = "org.apache.hadoop.fs.s3a.SharedInstanceProfileCredentialsProvider";
   public static final String NONE_PROVIDER = "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider";
+  public static final String TEMP_PROVIDER = "org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider";
 
   public S3StoragePlugin(S3PluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
@@ -91,6 +93,13 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     finalProperties.add(new Property(MULTIPART_SIZE, "67108864")); // 64mb
     finalProperties.add(new Property(MAX_TOTAL_TASKS, "30"));
 
+    // Explicitly disable caching of the FileSystem backing this plugin. Hadoop's caching mechanism is only
+    // keyed by the URI, and not by connection properties, so if credentials are supplied through properties,
+    // Hadoop would return incorrect FileSystems from its cache.
+    // Note that the scheme for the FileSystem this FileSystemPlugin utilizes must match the second part of the
+    // property name.
+    finalProperties.add(new Property("fs.dremioS3.impl.disable.cache", "true"));
+
     if(config.compatibilityMode) {
       finalProperties.add(new Property(S3FileSystem.COMPATIBILITY_MODE, "true"));
     }
@@ -104,10 +113,19 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
         }
         finalProperties.add(new Property(ACCESS_KEY, config.accessKey));
         finalProperties.add(new Property(SECRET_KEY, config.accessSecret));
-        finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, ACCESS_KEY_PROVIDER));
+        finalProperties.add(new Property(SESSION_TOKEN, config.accessToken));
+        finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, TEMP_PROVIDER));
         break;
       case EC2_METADATA:
         finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, EC2_METADATA_PROVIDER));
+        break;
+      case TEMP_CREDENTIALS:
+        if (!("".equals(config.accessKey))) {
+          finalProperties.add(new Property(ACCESS_KEY, config.accessKey));
+          finalProperties.add(new Property(SECRET_KEY, config.accessSecret));
+          finalProperties.add(new Property(SESSION_TOKEN, config.accessToken));
+		}
+        finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, TEMP_PROVIDER));
         break;
       case NONE:
         finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, NONE_PROVIDER));

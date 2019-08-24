@@ -18,6 +18,7 @@ package com.dremio.plugins.s3.store;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.NONE_PROVIDER;
+import static com.dremio.plugins.s3.store.S3StoragePlugin.TEMP_PROVIDER;
 import static org.apache.hadoop.fs.s3a.Constants.ENDPOINT;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
 
@@ -70,6 +71,7 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -217,7 +219,8 @@ public class S3FileSystem extends ContainerFileSystem implements AsyncByteReader
             .filter(input -> !Strings.isNullOrEmpty(input));
 
     if (ACCESS_KEY_PROVIDER.equals(getConf().get(Constants.AWS_CREDENTIALS_PROVIDER))
-        || EC2_METADATA_PROVIDER.equals(getConf().get(Constants.AWS_CREDENTIALS_PROVIDER))) {
+        || EC2_METADATA_PROVIDER.equals(getConf().get(Constants.AWS_CREDENTIALS_PROVIDER))
+        || TEMP_PROVIDER.equals(getConf().get(Constants.AWS_CREDENTIALS_PROVIDER))) {
       // if we have authentication to access S3, add in owner buckets.
       buckets = buckets.append(FluentIterable.from(s3.listBuckets()).transform(input -> input.getName()));
     }
@@ -354,8 +357,10 @@ public class S3FileSystem extends ContainerFileSystem implements AsyncByteReader
         return InstanceProfileCredentialsProvider.create();
       case NONE_PROVIDER:
         return AnonymousCredentialsProvider.create();
+      case TEMP_PROVIDER:
+        return DefaultCredentialsProvider.create();
       default:
-        throw new IllegalStateException(config.get(Constants.AWS_CREDENTIALS_PROVIDER));
+        return DefaultCredentialsProvider.create();
     }
   }
 

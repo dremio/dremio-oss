@@ -45,6 +45,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   static final List<String> UNIQUE_CONN_PROPS = ImmutableList.of(
     Constants.ACCESS_KEY,
     Constants.SECRET_KEY,
+    Constants.SESSION_TOKEN,
     Constants.SECURE_CONNECTIONS,
     Constants.ENDPOINT,
     Constants.AWS_CREDENTIALS_PROVIDER,
@@ -75,39 +76,45 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   @Secret
   @DisplayMetadata(label = "AWS Access Secret")
   public String accessSecret = "";
-
+  
   @Tag(3)
+  @DisplayMetadata(label = "AWS  Session Token")
+  public String accessToken = "";
+
+  @Tag(4)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Encrypt connection")
   public boolean secure;
 
-  @Tag(4)
+  @Tag(5)
   @DisplayMetadata(label = "External Buckets")
   public List<String> externalBucketList;
 
-  @Tag(5)
+  @Tag(6)
   public List<Property> propertyList;
 
-  @Tag(6)
+  @Tag(7)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable exports into the source (CTAS and DROP)")
   public boolean allowCreateDrop;
 
-  @Tag(7)
+  @Tag(8)
   @DisplayMetadata(label = "Root Path")
   public String rootPath = "/";
 
-  @Tag(8)
+  @Tag(9)
   public AWSAuthenticationType credentialType = AWSAuthenticationType.ACCESS_KEY;
 
-  @Tag(9)
+  @Tag(10)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable asynchronous access when possible")
   public boolean enableAsync = true;
 
-  @Tag(10)
+  @Tag(11)
   @DisplayMetadata(label = "Enable compatibility mode (experimental)")
   public boolean compatibilityMode = false;
+
+ 
 
   @Override
   public S3StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
