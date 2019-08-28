@@ -161,7 +161,7 @@ public abstract class FrameSupportTemplate implements WindowFramer {
 
   private int processROWS(int row) throws Exception {
     //TODO (DRILL-4413) we only need to call these once per batch
-    setupEvaluatePeer(current, container);
+    setupEvaluatePeer(context, current, container);
     setupReadLastValue(current, container);
 
     while (row < outputCount && !isPartitionDone()) {
@@ -263,7 +263,7 @@ public abstract class FrameSupportTemplate implements WindowFramer {
     // a single frame can include rows from multiple batches
     // start processing first batch and, if necessary, move to next batches
     for (VectorAccessible batch : batches) {
-      setupEvaluatePeer(batch, container);
+      setupEvaluatePeer(context, batch, container);
       final int recordCount = batch.getRecordCount();
 
       // for every remaining row in the partition, count it if it's a peer row
@@ -306,7 +306,7 @@ public abstract class FrameSupportTemplate implements WindowFramer {
    * @param index of row to aggregate
    */
   public abstract void evaluatePeer(@Named("index") int index);
-  public abstract void setupEvaluatePeer(@Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing) throws SchemaChangeException;
+  public abstract void setupEvaluatePeer(@Named("context") FunctionContext context, @Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing) throws SchemaChangeException;
 
   public abstract void setupReadLastValue(@Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing) throws SchemaChangeException;
   public abstract void writeLastValue(@Named("index") int index, @Named("outIndex") int outIndex);
