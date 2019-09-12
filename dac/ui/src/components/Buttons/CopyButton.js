@@ -16,57 +16,36 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
-import { injectIntl } from 'react-intl';
 import CopyToClipboard from 'react-copy-to-clipboard';
 import { addNotification } from 'actions/notification';
-import Art from 'components/Art';
+import CopyButtonIcon from '@app/components/Buttons/CopyButtonIcon';
 
-@injectIntl
 export class CopyButton extends Component {
   static propTypes = {
     text: PropTypes.string.isRequired,
     title: PropTypes.string,
     style: PropTypes.object,
-    addNotification: PropTypes.func.isRequired,
-    intl: PropTypes.object.isRequired
-  }
+    addNotification: PropTypes.func.isRequired
+  };
 
   static defaultProps = {
-    title: 'Copy' // TODO: loc
-  }
+    title: 'Copy Path' // TODO: loc
+  };
 
   handleCopy = () => {
-    // todo: loc
-    const message = <span>Copied <i>{this.props.text}</i>.</span>;
+    const message = <span>Copied <i>{this.props.text}</i>.</span>; // TODO: loc
     this.props.addNotification(message, 'success', 2);
-  }
+  };
 
   render() {
+    const {text, title, style } = this.props;
     return (
-      <CopyToClipboard text={this.props.text} onCopy={this.handleCopy}>
-        <span title={this.props.title} aria-label={this.props.title} style={{...styles.wrap, ...this.props.style}}>
-          <Art
-            src='Clipboard.svg'
-            alt={this.props.intl.formatMessage({ id: 'Common.CopyPath' })}
-            className='copy-button'
-            style={styles.icon} />
-        </span>
+      <CopyToClipboard text={text} onCopy={this.handleCopy}>
+        <CopyButtonIcon title={title} style={style} />
       </CopyToClipboard>
     );
   }
 }
-
-const styles = {
-  icon: {
-    cursor: 'pointer',
-    width: 14,
-    height: 14
-  },
-  wrap: {
-    display: 'inline-block',
-    transform: 'translateY(2px)'
-  }
-};
 
 export default connect(null, {
   addNotification

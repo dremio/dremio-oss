@@ -23,7 +23,7 @@ import classNames  from 'classnames';
 import EllipsedText from 'components/EllipsedText';
 import FontIcon from 'components/Icon/FontIcon';
 import { unavailable } from 'uiTheme/radium/typography';
-import { typeToIconType } from 'constants/DataTypes';
+import { typeToIconType } from '@app/constants/DataTypes';
 import { constructFullPath } from 'utils/pathUtils';
 
 import DragSource from './DragSource';

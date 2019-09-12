@@ -115,7 +115,8 @@ public class ProjectOperator implements SingleInputOperator {
 
     final IntHashSet transferFieldIds = new IntHashSet();
 
-    addExprs(incoming, exprs, transfers, cg, transferFieldIds);
+    splitter = createSplitterWithExpressions(incoming, exprs, transfers, cg, transferFieldIds,
+      context, projectorOptions, outgoing, null);
 
     outgoing.buildSchema(SelectionVectorMode.NONE);
     outgoing.setInitialCapacity(context.getTargetBatchSize());
@@ -155,50 +156,6 @@ public class ProjectOperator implements SingleInputOperator {
     gandivaCodeGenWatch.reset();
     javaCodeGenWatch.reset();
     return outgoing;
-  }
-
-  private void addExprs(VectorAccessible incoming, List<NamedExpression> exprs, List<TransferPair>
-    transfers, ClassGenerator<Projector> cg, IntHashSet transferFieldIds) throws Exception {
-    splitter = new ExpressionSplitter(context, incoming, projectorOptions,
-      context.getClassProducer().getFunctionLookupContext().isDecimalV2Enabled());
-
-    for (int i = 0; i < exprs.size(); i++) {
-      final NamedExpression namedExpression = exprs.get(i);
-      final LogicalExpression expr = context.getClassProducer().materializeAndAllowComplex(projectorOptions, namedExpression.getExpr(), incoming);
-      final LogicalExpression originalExpression = ((CodeGenContext)expr).getChild();
-      switch(getEvalMode(incoming, originalExpression, transferFieldIds)){
-
-        case COMPLEX: {
-          LogicalExpression originalExpr = CodeGenerationContextRemover.removeCodeGenContext(expr);
-          outgoing.addOrGet(originalExpr.getCompleteType().toField(namedExpression.getRef()));
-          // The reference name will be passed to ComplexWriter, used as the name of the output vector from the writer.
-          ((ComplexWriterFunctionHolder) ((FunctionHolderExpr) originalExpr).getHolder()).setReference(namedExpression.getRef());
-          cg.addExpr(originalExpr, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
-          break;
-        }
-
-        case DIRECT: {
-          LogicalExpression originalExpr = CodeGenerationContextRemover.removeCodeGenContext(expr);
-          final ValueVectorReadExpression vectorRead = (ValueVectorReadExpression) originalExpr;
-          final TypedFieldId id = vectorRead.getFieldId();
-          final ValueVector vvIn = incoming.getValueAccessorById(id.getIntermediateClass(), id.getFieldIds()).getValueVector();
-          final FieldReference ref = namedExpression.getRef();
-          final ValueVector vvOut = outgoing.addOrGet(vectorRead.getCompleteType().toField(ref));
-          final TransferPair tp = vvIn.makeTransferPair(vvOut);
-          transfers.add(tp);
-          transferFieldIds.add(vectorRead.getFieldId().getFieldIds()[0]);
-          break;
-        }
-
-        case EVAL: {
-          splitter.addExpr(outgoing, new NamedExpression(expr, namedExpression.getRef()));
-          break;
-        }
-        default:
-          throw new UnsupportedOperationException();
-      }
-
-    }
   }
 
 
@@ -354,5 +311,61 @@ public class ProjectOperator implements SingleInputOperator {
       return new ProjectOperator(context, project);
     }
 
+  }
+
+  public static ExpressionSplitter createSplitterWithExpressions(VectorAccessible incoming,
+                                                                 List<NamedExpression> exprs,
+                                                                 List<TransferPair> transfers, ClassGenerator<Projector> cg,
+                                                                 IntHashSet transferFieldIds, OperatorContext context,
+                                                                 ExpressionEvaluationOptions options, VectorContainer outgoing,
+                                                                 BatchSchema targetSchema) throws Exception {
+    ExpressionSplitter splitter = new ExpressionSplitter(context, incoming,
+            options, context.getClassProducer().getFunctionLookupContext().isDecimalV2Enabled());
+
+    for (int i = 0; i < exprs.size(); i++) {
+      final NamedExpression namedExpression = exprs.get(i);
+      // it is possible that a filter removed all output or the shard has no data, so we don't have any incoming vectors
+      // applies only for coercion readers
+      if (targetSchema != null && incoming.getValueVectorId(SchemaPath.getSimplePath(targetSchema
+              .getFields().get(i).getName())) == null) {
+        continue;
+      }
+      final LogicalExpression expr = context.getClassProducer().materializeAndAllowComplex(options,
+              namedExpression.getExpr(), incoming);
+      final LogicalExpression originalExpression = ((CodeGenContext) expr).getChild();
+      switch (ProjectOperator.getEvalMode(incoming, originalExpression, transferFieldIds)) {
+
+        case COMPLEX: {
+          LogicalExpression originalExpr = CodeGenerationContextRemover.removeCodeGenContext(expr);
+          outgoing.addOrGet(originalExpr.getCompleteType().toField(namedExpression.getRef()));
+          // The reference name will be passed to ComplexWriter, used as the name of the output vector from the writer.
+          ((ComplexWriterFunctionHolder) ((FunctionHolderExpr) originalExpr).getHolder()).setReference(namedExpression.getRef());
+          cg.addExpr(originalExpr, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE, true);
+          break;
+        }
+
+        case DIRECT: {
+          LogicalExpression originalExpr = CodeGenerationContextRemover.removeCodeGenContext(expr);
+          final ValueVectorReadExpression vectorRead = (ValueVectorReadExpression) originalExpr;
+          final TypedFieldId id = vectorRead.getFieldId();
+          final ValueVector vvIn = incoming.getValueAccessorById(id.getIntermediateClass(), id.getFieldIds()).getValueVector();
+          final FieldReference ref = namedExpression.getRef();
+          final ValueVector vvOut = outgoing.addOrGet(vectorRead.getCompleteType().toField(ref));
+          final TransferPair tp = vvIn.makeTransferPair(vvOut);
+          transfers.add(tp);
+          transferFieldIds.add(vectorRead.getFieldId().getFieldIds()[0]);
+          break;
+        }
+
+        case EVAL: {
+          splitter.addExpr(outgoing, new NamedExpression(expr, namedExpression.getRef()));
+          break;
+        }
+        default:
+          throw new UnsupportedOperationException();
+      }
+
+    }
+    return splitter;
   }
 }

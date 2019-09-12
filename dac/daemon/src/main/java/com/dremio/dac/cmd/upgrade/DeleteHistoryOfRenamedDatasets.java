@@ -38,7 +38,7 @@ public class DeleteHistoryOfRenamedDatasets extends UpgradeTask implements  Lega
   static final String taskUUID = "149b8d09-9099-4eba-8902-0edf103a441c";
 
   public DeleteHistoryOfRenamedDatasets() {
-    super("Delete history of renamed datasets", ImmutableList.of(CompressHiveTableAttrs.taskUUID));
+    super("Delete history of renamed datasets", ImmutableList.of(MigrateAccelerationMeasures.taskUUID));
   }
 
   @Override

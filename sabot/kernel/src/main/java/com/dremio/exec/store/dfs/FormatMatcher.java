@@ -17,11 +17,13 @@ package com.dremio.exec.store.dfs;
 
 import java.io.IOException;
 
-import org.apache.hadoop.io.compress.CompressionCodecFactory;
+import com.dremio.io.CompressionCodecFactory;
+import com.dremio.io.file.FileSystem;
+
 
 public abstract class FormatMatcher {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FormatMatcher.class);
 
-  public abstract boolean matches(FileSystemWrapper fs, FileSelection fileSelection, CompressionCodecFactory codecFactory) throws IOException;
+  public abstract boolean matches(FileSystem fs, FileSelection fileSelection, CompressionCodecFactory codecFactory) throws IOException;
   public abstract FormatPlugin getFormatPlugin();
 }

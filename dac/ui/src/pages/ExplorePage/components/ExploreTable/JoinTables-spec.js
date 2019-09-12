@@ -16,7 +16,7 @@
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 
-import { CUSTOM_JOIN, RECOMMENDED_JOIN } from 'constants/explorePage/joinTabs';
+import { CUSTOM_JOIN, RECOMMENDED_JOIN } from '@app/constants/explorePage/joinTabs';
 import ExploreTableController from './ExploreTableController';
 
 import { JoinTables } from './JoinTables';

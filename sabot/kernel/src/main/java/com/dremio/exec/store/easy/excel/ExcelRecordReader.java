@@ -21,7 +21,6 @@ import java.util.HashSet;
 import java.util.List;
 
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -29,11 +28,11 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.AbstractRecordReader;
-import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.easy.excel.ExcelParser.State;
 import com.dremio.exec.store.easy.excel.xls.XlsInputStream;
 import com.dremio.exec.store.easy.excel.xls.XlsRecordProcessor;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 
@@ -47,7 +46,7 @@ public class ExcelRecordReader extends AbstractRecordReader implements XlsInputS
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExcelRecordReader.class);
 
   private final OperatorContext executionContext;
-  private final FileSystemWrapper dfs;
+  private final FileSystem dfs;
   private final Path path;
   private final ExcelFormatPluginConfig pluginConfig;
 
@@ -60,7 +59,7 @@ public class ExcelRecordReader extends AbstractRecordReader implements XlsInputS
 
   private HashSet<String> columnsToProject;
 
-  public ExcelRecordReader(final OperatorContext executionContext, final FileSystemWrapper dfs, final Path path,
+  public ExcelRecordReader(final OperatorContext executionContext, final FileSystem dfs, final Path path,
       final ExcelFormatPluginConfig pluginConfig, final List<SchemaPath> columns) {
     super(executionContext, columns);
     this.executionContext = executionContext;

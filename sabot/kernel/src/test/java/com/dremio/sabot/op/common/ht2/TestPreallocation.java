@@ -21,12 +21,12 @@ import static org.junit.Assert.assertEquals;
 import java.util.Random;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SimpleBigIntVector;
 import org.apache.arrow.vector.VarCharVector;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.exec.record.VectorContainer;
@@ -35,13 +35,18 @@ import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
 import com.dremio.sabot.op.aggregate.vectorized.MaxAccumulators;
 import com.dremio.sabot.op.aggregate.vectorized.SumAccumulators;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 import com.koloboke.collect.hash.HashConfig;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
-public class TestPreallocation {
+public class TestPreallocation extends DremioTest {
   private static int MAX_VALUES_PER_BATCH = 0;
+
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
   public void testInsertIntoPreallocatedHashTable() throws Exception {
@@ -83,8 +88,8 @@ public class TestPreallocation {
     /* Expected ordinals after insertion into hash table */
     final int[] expectedOrdinals = {0, 1, 0, 2, 3, 3, 4, 5, 2, 1, 6, 0};
 
-    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
-         final VectorContainer c = new VectorContainer();) {
+    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-preallocation", 0, Long.MAX_VALUE);
+         final VectorContainer c = new VectorContainer()) {
 
       /* GROUP BY key columns */
       VarCharVector col1 = new VarCharVector("col1", allocator);
@@ -158,7 +163,7 @@ public class TestPreallocation {
   }
 
   private AccumulatorSet createAccumulator(IntVector in1,
-                                              final BufferAllocator allocator) {
+                                           final BufferAllocator allocator) {
     /* SUM Accumulator */
     BigIntVector in1SumOutputVector = new BigIntVector("int-sum", allocator);
     final SumAccumulators.IntSumAccumulator in1SumAccum =

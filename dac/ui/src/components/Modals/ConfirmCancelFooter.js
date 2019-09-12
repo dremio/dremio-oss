@@ -31,6 +31,7 @@ export default class ConfirmCancelFooter extends Component {
     confirmText: 'Save',
     cancelText: 'Cancel',
     canSubmit: true,
+    canCancel: true,
     modalFooter: true
   };
 
@@ -40,6 +41,7 @@ export default class ConfirmCancelFooter extends Component {
     submitForm: PropTypes.bool,
     submitting: PropTypes.bool,
     canSubmit: PropTypes.bool,
+    canCancel: PropTypes.bool,
     hideCancel: PropTypes.bool,
     confirm: PropTypes.func, // optional because you can use type=submit
     cancel: PropTypes.func,
@@ -49,19 +51,21 @@ export default class ConfirmCancelFooter extends Component {
   };
 
   onCancel = (e) => {
-    e.preventDefault();
-    this.props.cancel();
-  }
+    if (this.props.canCancel) {
+      e.preventDefault();
+      this.props.cancel();
+    }
+  };
 
   onConfirm = (e) => {
     if (this.props.confirm) {
       e.preventDefault();
       this.props.confirm();
     }
-  }
+  };
 
   render() {
-    const { confirmText, cancel, cancelText, submitForm, submitting, canSubmit, hideCancel, footerChildren } = this.props;
+    const { confirmText, cancel, cancelText, submitForm, submitting, canSubmit, canCancel, hideCancel, footerChildren } = this.props;
     return (
       <div className='confirm-cancel-footer'
         style={[this.props.modalFooter ? modalFooter : styles.nonModalFooter, styles.base, this.props.style]}>
@@ -72,6 +76,7 @@ export default class ConfirmCancelFooter extends Component {
               data-qa='cancel'
               type='button'
               buttonStyle='secondary'
+              disabled={!canCancel}
               onClick={this.onCancel}>{cancelText}</SimpleButton>
         }
         <SimpleButton

@@ -18,8 +18,6 @@ package com.dremio.exec.store.easy.arrow;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.hadoop.fs.Path;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
@@ -27,9 +25,10 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
 
@@ -70,8 +69,8 @@ public class ArrowFormatPlugin extends EasyFormatPlugin<ArrowFormatPluginConfig>
   }
 
   @Override
-  public RecordReader getRecordReader(final OperatorContext context, final FileSystemWrapper dfs, EasyDatasetSplitXAttr splitAttributes, final List<SchemaPath> columns) throws ExecutionSetupException {
-    final Path path = dfs.makeQualified(new Path(splitAttributes.getPath()));
+  public RecordReader getRecordReader(final OperatorContext context, final FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, final List<SchemaPath> columns) throws ExecutionSetupException {
+    final Path path = dfs.makeQualified(Path.of(splitAttributes.getPath()));
     return new ArrowRecordReader(context, dfs, path, columns);
   }
 

@@ -15,7 +15,7 @@
  */
 import FormUtils from 'utils/FormUtils/FormUtils';
 import FormElementConfig from 'utils/FormUtils/FormElementConfig';
-import Credentials from 'components/Forms/Credentials';
+import Credentials, { AUTHENTICATION_TYPE_FIELD } from 'components/Forms/Credentials';
 import CredentialsWrapper from 'components/Forms/Wrappers/CredentialsWrapper';
 
 export default class CredentialsConfig extends FormElementConfig {
@@ -34,7 +34,7 @@ export default class CredentialsConfig extends FormElementConfig {
   }
 
   addInitValues(initValues) {
-    return FormUtils.addInitValue(initValues, 'config.authenticationType', 'MASTER');
+    return FormUtils.addInitValue(initValues, AUTHENTICATION_TYPE_FIELD, 'MASTER');
   }
 
   addValidators(validations) {

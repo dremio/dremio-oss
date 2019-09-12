@@ -18,13 +18,6 @@ import Immutable  from 'immutable';
 import * as ActionTypes from 'actions/ui/ui';
 
 const initialState = Immutable.fromJS({
-  gridPageSizes: {
-    gridPageWidth: 0,
-    gridPageHeight: 0,
-    gridTableMargin: 0,
-    gridTableHeight: 0,
-    historyLineWidth: 0
-  },
   rightTreeVisible: false,
   resourceTree: {
     path: [],
@@ -34,9 +27,6 @@ const initialState = Immutable.fromJS({
 
 export default function ui(state = initialState, action) {
   switch (action.type) {
-  case ActionTypes.UPDATE_GRID_SIZES:
-    return state.set('gridPageSizes', action.sizes);
-
   case ActionTypes.UPDATE_RIGHT_PANEL_VISIBILITY:
     return state.set('rightTreeVisible', action.visible);
 

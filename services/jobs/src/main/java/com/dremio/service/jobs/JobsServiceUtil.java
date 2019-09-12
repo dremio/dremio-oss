@@ -29,6 +29,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
@@ -47,10 +51,10 @@ import com.dremio.service.job.proto.JobFailureInfo;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobState;
 import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.InvalidProtocolBufferException;
 
@@ -61,29 +65,25 @@ import io.protostuff.ProtobufIOUtil;
  * utility class.
  */
 public final class JobsServiceUtil {
-  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(JobsServiceUtil.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(JobsServiceUtil.class);
 
   private JobsServiceUtil() {
   }
 
-  private static final EnumSet<JobState> nonFinalJobStates =
-      EnumSet.of(JobState.NOT_SUBMITTED,
-          JobState.STARTING,
-          JobState.RUNNING,
-          JobState.CANCELLATION_REQUESTED,
-          JobState.ENQUEUED);
+  public static final ImmutableSet<JobState> finalJobStates =
+    Sets.immutableEnumSet(JobState.CANCELED, JobState.COMPLETED, JobState.FAILED);
+
+  public static final ImmutableSet<JobState> nonFinalJobStates =
+    ImmutableSet.copyOf(Sets.difference(EnumSet.allOf(JobState.class), finalJobStates));
 
   private static final SearchQuery apparentlyAbandonedQuery;
 
   static {
     apparentlyAbandonedQuery = SearchQueryUtils.or(
-        FluentIterable.from(nonFinalJobStates)
-            .transform(new Function<JobState, SearchQuery>() {
-              @Override
-              public SearchQuery apply(JobState input) {
-                return SearchQueryUtils.newTermQuery(JOB_STATE, input.name());
-              }
-            }));
+      nonFinalJobStates.stream()
+        .map(input -> SearchQueryUtils.newTermQuery(JOB_STATE, input.name()))
+        .collect(Collectors.toList())
+      );
   }
 
   /**
@@ -100,7 +100,7 @@ public final class JobsServiceUtil {
   }
 
   static boolean isNonFinalState(JobState jobState) {
-    return jobState == null || nonFinalJobStates.contains(jobState);
+    return jobState == null || !finalJobStates.contains(jobState);
   }
 
   static NodeEndpoint toStuff(CoordinationProtos.NodeEndpoint pb) {

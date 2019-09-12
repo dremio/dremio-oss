@@ -15,9 +15,8 @@
  */
 package com.dremio;
 
+import org.junit.Ignore;
 import org.junit.Test;
-
-import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestFilterPastJoin extends PlanTestBase {
 
@@ -46,15 +45,11 @@ public class TestFilterPastJoin extends PlanTestBase {
   }
 
   @Test
+  @Ignore("DX-16984")
   public void filterInOnClauseTransitive() throws Exception {
-    setSessionOption(PlannerSettings.TRANSITIVE_JOIN, "true");
-    try {
-      String sql = "SELECT count(*)\n" +
-        "FROM cp.\"tpch/lineitem.parquet\" JOIN cp.\"tpch/orders.parquet\"\n" +
-        "ON l_orderkey = o_orderkey AND l_orderkey = 32";
-      testPlanMatchingPatterns(sql, new String[]{"(?s)Join.*Filter.*Filter"}, "(?s)Filter.*Join");
-    } finally {
-      resetSessionOption(PlannerSettings.TRANSITIVE_JOIN);
-    }
+    String sql = "SELECT count(*)\n" +
+      "FROM cp.\"tpch/lineitem.parquet\" JOIN cp.\"tpch/orders.parquet\"\n" +
+      "ON l_orderkey = o_orderkey AND l_orderkey = 32";
+    testPlanMatchingPatterns(sql, new String[]{"(?s)Join.*Filter.*Filter"}, "(?s)Filter.*Join");
   }
 }

@@ -647,7 +647,7 @@ public class TestServerExplore extends BaseTestServer {
         getAPIv2().path(versionedResourcePath(dataset) + "/transformAndPreview")
       ).buildPost(entity(new TransformDrop(null), JSON)),
       ValidationErrorMessage.class);
-    assertEquals(asList("may not be empty"), result.getValidationErrorMessages().getFieldErrorMessages().get("droppedColumnName"));
+    assertEquals(asList("must not be blank"), result.getValidationErrorMessages().getFieldErrorMessages().get("droppedColumnName"));
   }
 
   @Test
@@ -658,7 +658,7 @@ public class TestServerExplore extends BaseTestServer {
             getBuilder(getAPIv2().path(versionedResourcePath(dataset) + "/split"))
                     .buildPost(entity(selection, JSON)),
             ValidationErrorMessage.class);
-    assertEquals(asList("may not be null"), err.getValidationErrorMessages().getFieldErrorMessages().get("colName"));
+    assertEquals(asList("must not be null"), err.getValidationErrorMessages().getFieldErrorMessages().get("colName"));
     assertEquals(asList("must be greater than or equal to 0"), err.getValidationErrorMessages().getFieldErrorMessages().get("offset"));
     assertEquals(asList("must be greater than or equal to 0"), err.getValidationErrorMessages().getFieldErrorMessages().get("length"));
     assertEquals(err.getValidationErrorMessages().getFieldErrorMessages().toString(), 3, err.getValidationErrorMessages().getFieldErrorMessages().size());

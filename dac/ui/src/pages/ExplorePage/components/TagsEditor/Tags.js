@@ -151,8 +151,8 @@ export class TagsView extends Component {
   // this method manages a cursor position inside tags section
   // positionOrOffset - a cursor position that should be set or offset relative to current cursor position
   moveCursorToTags(positionOrOffset, {
-      isRelative = false
-    } = {}) {
+    isRelative = false
+  } = {}) {
     let focusInput = false;
     this.setState((
       /* state */ {
@@ -258,7 +258,7 @@ export class TagsView extends Component {
       // This will keep left padding consistent.
       tagElements.push(<span key={`w_${i}`} className={tagWrapper}>
         <div key={`cursor_${i}`} className={cursorPlaceholder}
-          ></div>
+        ></div>
         <Tag key={`tag_${i}`}
           className={tagElementCls}
           text={t}
@@ -266,7 +266,7 @@ export class TagsView extends Component {
           deleteHandler={this.props.onRemoveTag ? () => this.removeTag(i) : null}
           onClick={() => this.onTagClick(t)}
           isSelected={i === selectedTagIndex}
-          />
+        />
       </span>);
     });
 
@@ -275,14 +275,14 @@ export class TagsView extends Component {
         {tagElements}
         {
           this.showInputField() && <input type='text'
-          tabIndex={0}
-          placeholder={placeholder || la('Add tag')}
-          ref={this.onInputRef}
-          className={inputCls}
-          value={value}
-          onChange={this.handleTextChange}
-          maxLength={128} // restriction according to spec
-          onFocus={this.focusInput} />
+            tabIndex={0}
+            placeholder={placeholder || la('Add tag')}
+            ref={this.onInputRef}
+            className={inputCls}
+            value={value}
+            onChange={this.handleTextChange}
+            maxLength={128} // restriction according to spec
+            onFocus={this.focusInput} />
         }
       </div>
     );

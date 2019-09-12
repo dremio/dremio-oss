@@ -234,7 +234,7 @@ export default class JobsFilters extends Component {
         <div>{React.cloneElement(filter.node, {isCustom})}</div>
         <div style={styles.divider}/>
       </div>
-      )
+    )
     );
   }
 

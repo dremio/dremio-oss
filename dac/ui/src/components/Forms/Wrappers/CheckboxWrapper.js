@@ -38,10 +38,10 @@ export default class CheckboxWrapper extends Component {
     return (
       <div className={flexContainer}>
         <Checkbox className={checkboxStandalone}
-                  {...field}
-                  {...isDisabled}
-                  {...isInverted}
-                  label={elementConfig.getConfig().label}/>
+          {...field}
+          {...isDisabled}
+          {...isInverted}
+          label={elementConfig.getConfig().label}/>
         {tooltip &&
         <HoverHelp content={tooltip} className={tooltipIcon}/>
         }

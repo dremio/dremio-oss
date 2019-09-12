@@ -25,11 +25,13 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 /**
  * A listener that waits until a run has started to return. Used to ensure History includes all items.
+ * Collects {@link JobId} of submitted job.
  *
  * We'll catch failures as well as successes so we always countdown (even if job submitted is skipped).
  */
 public class RunStartedListener extends NoOpJobStatusListener {
   private final CountDownLatch latch = new CountDownLatch(1);
+  private JobId jobId;
 
   public boolean await(long timeout, TimeUnit unit) throws InterruptedException{
     return latch.await(timeout, unit);
@@ -37,6 +39,7 @@ public class RunStartedListener extends NoOpJobStatusListener {
 
   @Override
   public void jobSubmitted(JobId jobId) {
+    this.jobId = jobId;
     latch.countDown();
   }
 
@@ -59,4 +62,7 @@ public class RunStartedListener extends NoOpJobStatusListener {
     latch.countDown();
   }
 
+  public JobId getJobId() {
+    return jobId;
+  }
 }

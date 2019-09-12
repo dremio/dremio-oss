@@ -21,7 +21,7 @@ import ConfirmCancelFooter from 'components/Modals/ConfirmCancelFooter';
 import FormProgressWrapper from 'components/FormProgressWrapper';
 
 import { modalForm, modalFormBody, modalFormWrapper } from 'uiTheme/radium/forms';
-import Keys from 'constants/Keys.json';
+import Keys from '@app/constants/Keys.json';
 import { FLEX_WRAP_COL_START } from '@app/uiTheme/radium/flexStyle';
 
 export function modalFormProps(props) {
@@ -42,6 +42,7 @@ export default class ModalForm extends Component {
     error: PropTypes.object,
     submitting: PropTypes.bool,
     canSubmit: PropTypes.bool,
+    canCancel: PropTypes.bool,
     done: PropTypes.bool,
     children: PropTypes.node,
     style: PropTypes.object,
@@ -56,6 +57,7 @@ export default class ModalForm extends Component {
 
   static defaultProps = { // todo: loc
     canSubmit: true,
+    canCancel: true,
     confirmText: 'Save',
     cancelText: 'Cancel',
     isNestedForm: false,
@@ -64,7 +66,7 @@ export default class ModalForm extends Component {
 
   state = {
     messageDismissed: false
-  }
+  };
 
   componentWillReceiveProps(nextProps) {
     if (nextProps.error !== this.props.error) {
@@ -74,7 +76,7 @@ export default class ModalForm extends Component {
 
   handleDismissMessage = () =>  {
     this.setState({ messageDismissed: true });
-  }
+  };
 
   handleSubmissionEvent = (evt) => {
     if (evt) {
@@ -85,11 +87,11 @@ export default class ModalForm extends Component {
     }
 
     if (this.props.canSubmit) this.props.onSubmit();
-  }
+  };
 
   render() {
     const {
-      confirmText, cancelText, onCancel, error, submitting, canSubmit, style, wrapperStyle, children,
+      confirmText, cancelText, onCancel, error, submitting, canSubmit, canCancel, style, wrapperStyle, children,
       footerChildren, isNestedForm, isModal
     } = this.props;
 
@@ -119,6 +121,7 @@ export default class ModalForm extends Component {
         cancel={onCancel}
         submitting={submitting}
         canSubmit={canSubmit}
+        canCancel={canCancel}
         confirm={this.handleSubmissionEvent}
       />
     ];

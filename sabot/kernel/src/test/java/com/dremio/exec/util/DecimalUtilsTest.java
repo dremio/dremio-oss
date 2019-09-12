@@ -18,23 +18,36 @@ package com.dremio.exec.util;
 import java.math.BigDecimal;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.util.DecimalUtility;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+
+import com.dremio.common.AutoCloseables;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 
 import io.netty.buffer.ArrowBuf;
 
-public class DecimalUtilsTest {
+public class DecimalUtilsTest extends DremioTest {
   public static final String MIN_HALF = "-9999999999999999999";
   public static final String MAX_HALF = "9999999999999999999";
   private BufferAllocator testAllocator;
   private static final long LONG_MASK = Long.MIN_VALUE;//0xFFFFFFFFL;
 
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+
   @Before
   public void setupBeforeTest() {
-    testAllocator = new RootAllocator(Long.MAX_VALUE);
+    testAllocator = allocatorRule.newAllocator("decimal-utils-test", 0, Long.MAX_VALUE);
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    AutoCloseables.close(testAllocator);
   }
 
   @Test

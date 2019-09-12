@@ -38,6 +38,7 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
     private final String status;
     private final Boolean isCoordinator;
     private final Boolean isExecutor;
+    private final String nodeTag;
 
     @JsonCreator
     public NodeInfo(
@@ -49,7 +50,8 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
       @JsonProperty("memory") String memory,
       @JsonProperty("status") String status,
       @JsonProperty("isCoordinator") Boolean isCoordinator,
-      @JsonProperty("isExecutor") Boolean isExecutor
+      @JsonProperty("isExecutor") Boolean isExecutor,
+      @JsonProperty("nodeTag") String nodeTag
     ) {
       this.name = name;
       this.host = host;
@@ -60,6 +62,7 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
       this.status = status;
       this.isCoordinator = isCoordinator;
       this.isExecutor = isExecutor;
+      this.nodeTag = nodeTag;
     }
 
     public String getName() {
@@ -96,6 +99,10 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
 
     public Boolean getIsExecutor() {
       return isExecutor;
+    }
+
+    public String getNodeTag() {
+      return nodeTag;
     }
   }
 }

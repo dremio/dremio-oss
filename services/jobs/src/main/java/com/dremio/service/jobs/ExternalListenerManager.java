@@ -52,4 +52,12 @@ class ExternalListenerManager {
       listener.queryCompleted(job);
     }
   }
+
+  public synchronized void reportRecordCount(Job job, long currentRecordCount) {
+    if (active) {
+      for (ExternalStatusListener listener : statusListeners) {
+        listener.reportRecordCount(job, currentRecordCount);
+      }
+    }
+  }
 }

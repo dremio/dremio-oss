@@ -777,4 +777,26 @@ public class TestNativeFunctions extends BaseTestFunction {
       helper.removeFunctionToHide(substrFn);
     }
   }
+
+  @Test
+  public void testTSToVarchar() throws Exception {
+    testFunctions(new Object[][] {
+      {"castVARCHAR(c0, c1)", ts("2019-06-26T17:20:34"), 23L, "2019-06-26 17:20:34.000"},
+      {"castVARCHAR(c0, c1)", ts("2019-06-26T17:20:34"), 30L, "2019-06-26 17:20:34.000"},
+      {"castVARCHAR(c0, c1)", ts("2019-06-26T17:20:34"), 22L, "2019-06-26 17:20:34.00"},
+      {"castVARCHAR(c0, c1)", ts("2019-06-26T17:20:34"), 0L, ""},
+    });
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testTSToVarcharNegativeLenError() throws Exception {
+    try {
+      testFunctions(new Object[][] {
+        {"castVARCHAR(c0, c1)", ts("2019-06-26T17:20:34"), -2L, ""},
+      });
+    } catch (RuntimeException re) {
+      Assert.assertTrue(re.getCause().getCause().getMessage().contains("Length of output string cannot be negative"));
+      throw re;
+    }
+  }
 }

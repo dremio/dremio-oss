@@ -46,6 +46,7 @@ import org.apache.calcite.sql.type.SqlTypeFamily;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ProjectPrel;
@@ -57,9 +58,6 @@ import com.dremio.exec.vector.complex.fn.JsonReader;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP.ConversionColumn;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonPOP.OriginType;
-import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetField;
 import com.google.common.base.Function;
@@ -130,12 +128,15 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
 
             final RelColumnOrigin origin = origins.iterator().next();
             final RelOptTable originTable = origin.getOriginTable();
+            final DatasetConfig datasetConfig = originTable.unwrap(DremioTable.class).getDatasetConfig();
 
             final List<String> tableSchemaPath = originTable.getQualifiedName();
             final String tableFieldname = originTable.getRowType().getFieldNames().get(origin.getOriginColumnOrdinal());
             // we are using topRel to construct the newBottomProject rowType, make sure ConvertFromJson refers to that
             final String inputFieldname = topRel.getRowType().getFieldNames().get(fieldId);
-            conversions.add(new ConversionColumn(OriginType.RAW, tableSchemaPath, tableFieldname, inputFieldname, getRawSchema(context, tableSchemaPath, tableFieldname)));
+              conversions.add(new ConversionColumn(
+                OriginType.RAW, tableSchemaPath, tableFieldname, inputFieldname, getRawSchema(datasetConfig, tableFieldname)));
+
             bottomExprs.add(inputRef);
             continue;
           } else {
@@ -179,17 +180,8 @@ public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, Runtim
     return UserException.validationError().message("Using CONVERT_FROM(*, 'JSON') is only supported against string literals and direct table references of types VARCHAR and VARBINARY.").build(logger);
   }
 
-  private static CompleteType getRawSchema(QueryContext context, List<String> path, final String fieldname) {
-    final NamespaceKey key = new NamespaceKey(path);
-    List<DatasetField> datasetFields = null;
-    try {
-      DatasetConfig datasetConfig = context.getNamespaceService().getDataset(key);
-      datasetFields = datasetConfig.getDatasetFieldsList();
-    } catch (NamespaceNotFoundException e) {
-      // we will return a dummy type, below
-    } catch (NamespaceException e) {
-      throw new RuntimeException(e);
-    }
+  private static CompleteType getRawSchema(DatasetConfig datasetConfig, final String fieldname) {
+    List<DatasetField> datasetFields = datasetConfig.getDatasetFieldsList();
 
     if (datasetFields != null) {
       // do we have a known schema for the converted field ?

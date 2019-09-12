@@ -18,8 +18,6 @@ package com.dremio.exec.store.dfs.easy;
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.hadoop.fs.FileStatus;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.FormatPluginConfig;
@@ -38,11 +36,12 @@ import com.dremio.exec.store.dfs.CompleteFileWork;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.PreviousDatasetInfo;
 import com.dremio.exec.store.easy.EasyFormatDatasetAccessor;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
 import com.dremio.sabot.op.writer.WriterOperator;
@@ -63,7 +62,7 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
 
   protected EasyFormatPlugin(String name, SabotContext context,
       T formatConfig, boolean readable, boolean writable, boolean blockSplittable,
-      boolean compressible, List<String> extensions, String defaultName, FileSystemPlugin fsPlugin) {
+      boolean compressible, List<String> extensions, String defaultName, FileSystemPlugin<?> fsPlugin) {
     super(context, fsPlugin);
     this.matcher = new BasicFormatMatcher(this, extensions, compressible);
     this.readable = readable;
@@ -106,18 +105,18 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
 
   public abstract RecordReader getRecordReader(
       OperatorContext context,
-      FileSystemWrapper dfs,
+      FileSystem dfs,
       EasyDatasetSplitXAttr splitAttributes,
       List<SchemaPath> columns) throws ExecutionSetupException;
 
 
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper dfs, FileStatus status) throws ExecutionSetupException {
+  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, FileAttributes attributes) throws ExecutionSetupException {
     EasyDatasetSplitXAttr attr = EasyDatasetSplitXAttr.newBuilder()
-        .setPath(status.getPath().toString())
+        .setPath(attributes.getPath().toString())
         .setStart(0L)
-        .setLength(status.getLen())
+        .setLength(attributes.size())
         .build();
 
     return getRecordReader(context, dfs, attr, GroupScan.ALL_COLUMNS);
@@ -137,13 +136,13 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
   }
 
   @Override
-  public AbstractWriter getWriter(PhysicalOperator child, String location, FileSystemPlugin plugin, WriterOptions options, OpProps props) throws IOException{
+  public AbstractWriter getWriter(PhysicalOperator child, String location, FileSystemPlugin<?> plugin, WriterOptions options, OpProps props) throws IOException{
     return new EasyWriter(props, child, props.getUserName(), location, options, plugin, this);
   }
 
   public EasyGroupScanUtils getGroupScan(
     String userName,
-    FileSystemPlugin plugin,
+    FileSystemPlugin<?> plugin,
     FileSelection selection,
     List<SchemaPath> columns) throws IOException {
     return new EasyGroupScanUtils(userName, selection, plugin, this, columns, selection.getSelectionRoot(), false);
@@ -178,7 +177,7 @@ public abstract class EasyFormatPlugin<T extends FormatPluginConfig> extends Bas
   public abstract int getWriterOperatorType();
 
   @Override
-  public FileDatasetHandle getDatasetAccessor(DatasetType type, PreviousDatasetInfo previousInfo, FileSystemWrapper fs,
+  public FileDatasetHandle getDatasetAccessor(DatasetType type, PreviousDatasetInfo previousInfo, FileSystem fs,
       FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, FileUpdateKey updateKey,
       int maxLeafColumns) {
     return new EasyFormatDatasetAccessor(type, fs, fileSelection, fsPlugin, tableSchemaPath, updateKey, this, previousInfo, maxLeafColumns);

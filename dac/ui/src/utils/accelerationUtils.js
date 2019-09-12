@@ -18,8 +18,8 @@ import uuid from 'uuid';
 import Immutable from 'immutable';
 import { formatMessage } from 'utils/locale';
 import { getUniqueName } from 'utils/pathUtils';
-import { allMeasureTypes, cellTypesWithNoSum } from 'constants/AccelerationConstants';
-import { ANY } from 'constants/DataTypes';
+import { allMeasureTypes, cellTypesWithNoSum } from '@app/constants/AccelerationConstants';
+import { ANY } from '@app/constants/DataTypes';
 
 export const createReflectionFormValues = (opts, siblingNames = []) => {
 

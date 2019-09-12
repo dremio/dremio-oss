@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.planner.fragment;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -25,6 +24,7 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
 import com.dremio.options.OptionList;
+import com.google.common.collect.Maps;
 
 /**
  * This reader caches the de-serialized object from json, and avoids repeated de-serializations for
@@ -34,9 +34,9 @@ public class CachedFragmentReader extends AbstractPhysicalVisitor<PhysicalOperat
   final PhysicalPlanReader reader;
   final PlanFragmentsIndex planFragmentsIndex;
   // Cached deserialized fragment_json
-  final Map<Integer, FragmentRoot> majorIdToRootMap = new HashMap<>();
+  final Map<Integer, FragmentRoot> majorIdToRootMap = Maps.newConcurrentMap();
   // Cached deserialized options_json
-  final Map<Integer, OptionList> majorIdToOptionListMap = new HashMap<>();
+  final Map<Integer, OptionList> majorIdToOptionListMap = Maps.newConcurrentMap();
 
   public CachedFragmentReader(PhysicalPlanReader reader, PlanFragmentsIndex planFragmentsIndex) {
     this.reader = reader;
@@ -49,42 +49,36 @@ public class CachedFragmentReader extends AbstractPhysicalVisitor<PhysicalOperat
 
   public OptionList readOptions(PlanFragmentFull planFragment) throws ExecutionSetupException {
     int majorId = planFragment.getMajorFragmentId();
+    final PlanFragmentMajor major = planFragment.getMajor();
 
     // Check if already present in the cache.
-    OptionList list = majorIdToOptionListMap.get(majorId);
-
-    if (list == null) {
-      // deserialize and add to cache.
-      final PlanFragmentMajor major = planFragment.getMajor();
+    return majorIdToOptionListMap.computeIfAbsent(majorId, k -> {
+      OptionList innerList = null;
       if (!major.hasOptionsJson() || major.getOptionsJson().isEmpty()) {
-        list = new OptionList();
+        innerList = new OptionList();
       } else {
         try {
-          list = reader.readOptionList(major.getOptionsJson(), major.getFragmentCodec());
-          majorIdToOptionListMap.put(majorId, list);
+          innerList = reader.readOptionList(major.getOptionsJson(), major.getFragmentCodec());
         } catch (final Exception e) {
-          throw new ExecutionSetupException("Failure while reading plan options.", e);
+          throw new RuntimeException("Failure while reading plan options.", e);
         }
       }
-    }
-    return list;
+      return innerList;
+    });
+
   }
 
   public FragmentRoot readFragment(PlanFragmentFull planFragment) throws ExecutionSetupException {
     int majorId = planFragment.getMajorFragmentId();
-    FragmentRoot root = majorIdToRootMap.get(majorId);
+    final PlanFragmentMajor major = planFragment.getMajor();
 
-    // Check if already present in the cache.
-    if (root == null) {
-      // serialize and Cache the operator tree.
-      final PlanFragmentMajor major = planFragment.getMajor();
+    FragmentRoot root = majorIdToRootMap.computeIfAbsent(majorId, k -> {
       try {
-        root = reader.readFragmentOperator(major.getFragmentJson(), major.getFragmentCodec());
-        majorIdToRootMap.put(majorId, root);
+        return reader.readFragmentOperator(major.getFragmentJson(), major.getFragmentCodec());
       } catch (final Exception e) {
-        throw new ExecutionSetupException("Failure while reading fragment json.", e);
+        throw new RuntimeException(e);
       }
-    }
+    });
 
     // Copy the operator tree. Populate minor-specific attributes in the copy, and return the copy.
     final MinorDataSerDe minorDataSerDe = new MinorDataSerDe(reader,

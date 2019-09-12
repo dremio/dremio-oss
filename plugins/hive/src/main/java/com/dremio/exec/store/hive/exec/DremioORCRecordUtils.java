@@ -20,7 +20,6 @@
  */
 package com.dremio.exec.store.hive.exec;
 
-import com.dremio.sabot.op.scan.ScanOperator;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.netty.buffer.ArrowBuf;

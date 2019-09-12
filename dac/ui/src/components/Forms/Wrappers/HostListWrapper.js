@@ -33,8 +33,8 @@ export default class HostListWrapper extends Component {
     return (
       <FieldWithError {...field}>
         <HostList fields={fields}
-                  elementConfig={elementConfigJson}
-                  defaultPort={defaultPort}
+          elementConfig={elementConfigJson}
+          defaultPort={defaultPort}
         />
       </FieldWithError>
     );

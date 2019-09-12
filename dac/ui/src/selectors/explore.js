@@ -55,6 +55,11 @@ export function getColumnFilter(state) {
   return entities.getIn(['tableData', 'columnFilter']) || '';
 }
 
+export function getJobProgress(state) {
+  const { entities } = state.resources;
+  return entities.getIn(['tableData', 'jobProgress']) || null;
+}
+
 export function getPeekData(state, previewVersion) {
   const { entities } = state.resources;
   return entities.getIn(['previewTable', previewVersion])  || emptyTable;
@@ -66,6 +71,11 @@ export function getPaginationUrl(state, datasetVersion) {
   const { entities } = state.resources;
   const paginationUrl = entities.getIn(['fullDataset', datasetVersion, 'paginationUrl']);
   return paginationUrl || datasetVersion;
+}
+
+export function getPaginationJobId(state, datasetVersion) {
+  const { entities } = state.resources;
+  return entities.getIn(['fullDataset', datasetVersion, 'jobId', 'id']);
 }
 
 export function getApproximate(state, datasetVersion) {
@@ -100,9 +110,9 @@ export const isWikAvailable = (state, location) => {
   const history = getHistoryFromLocation(state, location);
   const lastItemId = history ? history.get('items').last() : null;
   const {
-   query: {
-     version,
-     mode
+    query: {
+      version,
+      mode
     }
   } = location;
 

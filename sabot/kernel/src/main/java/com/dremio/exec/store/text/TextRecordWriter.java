@@ -15,15 +15,13 @@
  */
 package com.dremio.exec.store.text;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
 
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.commons.io.ByteOrderMark;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
@@ -31,9 +29,10 @@ import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
 import com.dremio.exec.store.StringOutputRecordWriter;
 import com.dremio.exec.store.WritePartition;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Joiner;
@@ -41,7 +40,6 @@ import com.google.common.base.Joiner;
 public class TextRecordWriter extends StringOutputRecordWriter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TextRecordWriter.class);
 
-  private final Configuration conf;
   private final OperatorContext context;
   private final String location;
   private final String prefix;
@@ -49,13 +47,14 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   private final String lineDelimiter;
   private final String extension;
   private final FileSystemPlugin<?> plugin;
+  private final String queryUser;
 
   private WritePartition partition;
   private List<String> columnNames;
   private int index;
   private PrintStream stream = null;
-  private FileSystemWrapper fs = null;
-  private FSDataOutputStream fos;
+  private FileSystem fs = null;
+  private DataOutputStream dos;
 
   private Path path;
   private long count;
@@ -68,7 +67,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
     super(context);
 
     final FragmentHandle handle = context.getFragmentHandle();
-    this.conf = new Configuration(config.getFsConf());
+    this.queryUser = config.getProps().getUserName();
     this.context = context;
     this.location = config.getLocation();
     this.prefix = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
@@ -83,7 +82,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   @Override
   public void setup(List<String> columnNames) throws IOException {
     this.columnNames = columnNames;
-    this.fs = plugin.getFileSystem(conf, context);
+    this.fs = plugin.createFS(queryUser, context);
   }
 
   public static final String NEWLINE = "\n";
@@ -125,8 +124,8 @@ public class TextRecordWriter extends StringOutputRecordWriter {
     // open a new file for writing data with new schema
     try {
       this.path = fs.canonicalizePath(partition.qualified(location, prefix + "_" + index + "." + extension));
-      fos = fs.create(path);
-      stream = new PrintStream(fos);
+      dos = new DataOutputStream(fs.create(path));
+      stream = new PrintStream(dos);
       stream.write(ByteOrderMark.UTF_8.getBytes(), 0, ByteOrderMark.UTF_8.length());
       logger.debug("Created file: {}", path);
     } catch (IOException e) {
@@ -205,12 +204,8 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   }
 
   private long getFileSize() {
-    if (fos != null) {
-      try {
-        return fos.getPos();
-      } catch (IOException e) {
-        logger.warn("Couldn't retrieve written file size", e);
-      }
+    if (dos != null) {
+      return dos.size();
     }
 
     return 0;
@@ -220,10 +215,11 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   public void close() {
 
     if (stream != null) {
+      stream.flush();
       listener.recordsWritten(count, getFileSize(), path.toString(), null, partition.getBucketNumber());
       stream.close();
       stream = null;
-      fos = null;
+      dos = null;
       count = 0;
       index = 0;
       logger.debug("closing file");
@@ -234,7 +230,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
   public void abort() throws IOException {
     try {
       close();
-      fs.delete(new Path(location), true);
+      fs.delete(Path.of(location), true);
     } catch (Exception ex) {
       logger.error("Abort failed. There could be leftover output files", ex);
       throw new IOException(ex);

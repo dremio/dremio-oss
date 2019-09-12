@@ -71,12 +71,12 @@ export default class DependantDatasetsWarning extends Component {
     const tooltipDatasets = dependantDatasets.slice(MAX_DATASETS);
     return (
       <Tooltip
-          target={this.getTooltipTarget}
-          id='tooltip'
-          type='status'
-          style={{ zIndex: 1300 }}
-          placement='bottom'
-        >
+        target={this.getTooltipTarget}
+        id='tooltip'
+        type='status'
+        style={{ zIndex: 1300 }}
+        placement='bottom'
+      >
         <div style={styles.tooltipContainer}>
           {tooltipDatasets.map((fullPath, i) => <Dataset key={i} fullPath={fullPath} />)}
         </div>
@@ -113,7 +113,7 @@ export default class DependantDatasetsWarning extends Component {
                 onMouseEnter={this.handleMouseEnter}
                 onMouseLeave={this.handleMouseLeave}
                 style={styles.datasetName}
-                >
+              >
                 <a>{la(`and ${dependantDatasets.length - MAX_DATASETS} more...`)}</a>
               </div>
             </div>

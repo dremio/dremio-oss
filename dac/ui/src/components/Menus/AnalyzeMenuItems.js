@@ -18,8 +18,6 @@ import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
 import MenuItem from 'components/Menus/MenuItem';
-import DividerHr from 'components/Menus/DividerHr';
-import { DREMIO_CONNECTOR } from 'constants/links.json';
 
 export default class AnalyzeMenuItems extends Component {
   static propTypes = {
@@ -34,13 +32,6 @@ export default class AnalyzeMenuItems extends Component {
         <MenuItem onClick={this.props.openTableau}><FormattedMessage id='Dataset.Tableau'/></MenuItem>
         <MenuItem onClick={this.props.openPowerBI}><FormattedMessage id='Dataset.PowerBI'/></MenuItem>
         <MenuItem onClick={this.props.openQlikSense}><FormattedMessage id='Dataset.QlikSense'/></MenuItem>
-        <DividerHr />
-        <MenuItem isInformational> {/* todo: loc safety (string concat) */}
-          <span>
-            {/* todo: loc safety (string concat) */}
-            <a href={DREMIO_CONNECTOR} target='_blank'><FormattedMessage id='Dataset.DremioConnector'/></a> <FormattedMessage id='Dataset.Required'/>
-          </span>
-        </MenuItem>
       </div>
     );
   }

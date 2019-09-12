@@ -59,7 +59,7 @@ public class ForgetTableHandler extends SimpleDirectHandler {
 
     int count = 0;
     while(true) {
-      final DremioTable table = catalog.getTableNoResolve(path);
+      final DremioTable table = catalog.getTableNoColumnCount(path);
       if(table == null || table.getJdbcTableType() != TableType.TABLE) {
         throw UserException.parseError().message("Unable to find table %s.", path).build(logger);
       }

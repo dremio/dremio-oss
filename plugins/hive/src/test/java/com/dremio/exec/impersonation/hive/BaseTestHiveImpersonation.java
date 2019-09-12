@@ -38,7 +38,7 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.DotFileType;
 import com.dremio.exec.impersonation.BaseTestImpersonation;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.hive.HiveStoragePluginConfig;
+import com.dremio.exec.store.hive.Hive2StoragePluginConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 
 public class BaseTestHiveImpersonation extends BaseTestImpersonation {
@@ -92,8 +92,8 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
     MetaStoreUtils.startMetaStore(port, ShimLoader.getHadoopThriftAuthBridge(), hiveConf);
   }
 
-  public static HiveStoragePluginConfig createHiveStoragePlugin(final Map<String, String> hiveConfig) throws Exception {
-    HiveStoragePluginConfig pluginConfig = new HiveStoragePluginConfig();
+  public static Hive2StoragePluginConfig createHiveStoragePlugin(final Map<String, String> hiveConfig) throws Exception {
+    Hive2StoragePluginConfig pluginConfig = new Hive2StoragePluginConfig();
     pluginConfig.hostname = "dummy";
     pluginConfig.propertyList = new ArrayList<>();
     for(Entry<String, String> e : hiveConfig.entrySet()) {
@@ -117,7 +117,7 @@ public class BaseTestHiveImpersonation extends BaseTestImpersonation {
   protected static void addHiveStoragePlugin(final Map<String, String> hiveConfig) throws Exception {
     SourceConfig sc = new SourceConfig();
     sc.setName(hivePluginName);
-    HiveStoragePluginConfig conf = createHiveStoragePlugin(hiveConfig);
+    Hive2StoragePluginConfig conf = createHiveStoragePlugin(hiveConfig);
     sc.setType(conf.getType());
     sc.setConfig(conf.toBytesString());
     sc.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);

@@ -17,6 +17,7 @@ package com.dremio.dac.service;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import org.junit.Test;
 
@@ -26,6 +27,7 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.store.dfs.NASConf;
+import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -67,6 +69,30 @@ public class TestSourcePrivateFields extends BaseTestServer {
     assertEquals("ABC", withPrivateS3Config.password);
     assertEquals("hello", withPrivateS3Config.username);
 
+    namespaceService.deleteSource(nameSpaceKey, config.getTag());
+  }
+
+  @Test
+  public void testEmptySecretsShouldNotBeReplaced() throws NamespaceException {
+    final SourceUI source = new SourceUI();
+    final APrivateSource priv = new APrivateSource();
+    priv.username = "hello";
+    source.setConfig(priv);
+
+    final NamespaceService namespaceService = newNamespaceService();
+    final NamespaceKey nameSpaceKey = new SourcePath("src").toNamespaceKey();
+
+    namespaceService.addOrUpdateSource(nameSpaceKey, source.asSourceConfig());
+
+    final SourceConfig config = namespaceService.getSource(nameSpaceKey);
+    final ConnectionReader connectionReader = ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
+
+    SourceUI mySource = SourceUI.get(config, connectionReader);
+    APrivateSource myS3config = (APrivateSource) mySource.getConfig();
+
+    assertNull(myS3config.password);
+
+    namespaceService.deleteSource(nameSpaceKey, config.getTag());
   }
 
   @Test

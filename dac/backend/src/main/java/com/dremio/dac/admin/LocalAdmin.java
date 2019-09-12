@@ -17,11 +17,7 @@ package com.dremio.dac.admin;
 
 import static java.lang.String.format;
 
-import java.net.URI;
-
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.homefiles.HomeFileTool;
@@ -31,7 +27,10 @@ import com.dremio.dac.server.admin.profile.ProfilesExporter;
 import com.dremio.dac.util.BackupRestoreUtil;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.server.ContextService;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 
 /**
  * Singleton LocalAdmin class
@@ -80,15 +79,14 @@ public final class LocalAdmin {
     if (!isLocalAdmin()) {
       throw new UnsupportedOperationException("This operation is only supported to local admin");
     }
-    Path backupDir = new Path(path);
-    final String scheme = backupDir.toUri().getScheme();
+    Path backupDir = Path.of(path);
+    final String scheme = backupDir.toURI().getScheme();
     if (scheme == null || "file".equals(scheme)) {
-      backupDir = backupDir.makeQualified(URI.create("file:///"), FileSystem.getLocal(new Configuration()).getWorkingDirectory());
+      backupDir = HadoopFileSystem.getLocal(new Configuration()).makeQualified(backupDir);
     }
-    final org.apache.hadoop.fs.Path backupDirPath = new org.apache.hadoop.fs.Path(backupDir.toUri().toString());
-    final FileSystem fs = backupDirPath.getFileSystem(new Configuration());
-    BackupRestoreUtil.checkOrCreateDirectory(fs, backupDirPath);
-    BackupRestoreUtil.BackupStats backupStats = BackupRestoreUtil.createBackup(fs, backupDirPath, (LocalKVStoreProvider) getKVStoreProvider(), LocalAdmin.getInstance().getHomeFileTool().getConf());
+    final FileSystem fs = HadoopFileSystem.get(backupDir, new Configuration());
+    BackupRestoreUtil.checkOrCreateDirectory(fs, backupDir);
+    BackupRestoreUtil.BackupStats backupStats = BackupRestoreUtil.createBackup(fs, backupDir, (LocalKVStoreProvider) getKVStoreProvider(), LocalAdmin.getInstance().getHomeFileTool().getConf());
     System.out.println(format("Backup created at %s, dremio tables %d, uploaded files %d",
     backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles()));
   }

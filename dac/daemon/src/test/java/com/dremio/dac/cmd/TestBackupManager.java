@@ -28,8 +28,6 @@ import java.util.List;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.junit.Assume;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -54,11 +52,15 @@ import com.dremio.dac.util.BackupRestoreUtil;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.SearchJobsRequest;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceUtils;
@@ -121,10 +123,9 @@ public class TestBackupManager extends BaseTestServer {
 
   @Test
   public void testBackup() throws Exception {
-    FileSystem fs = FileSystem.getLocal(new Configuration());
+    FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
     populateInitialData();
-    Path dbDir = new Path(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
-    FileSystem localFS = FileSystem.getLocal(new Configuration());
+    Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
     int httpPort = getCurrentDremioDaemon().getWebServer().getPort();
     dacConfig = dacConfig.httpPort(httpPort);
 
@@ -133,8 +134,8 @@ public class TestBackupManager extends BaseTestServer {
 
     // take backup 1
     CheckPoint cp1 = checkPoint();
-    Path backupDir1 = new Path(BackupRestoreUtil.createBackup(
-      fs, new Path(BaseTestServer.folder1.newFolder().getAbsolutePath()), localKVStoreProvider, homeFileStore).getBackupPath());
+    Path backupDir1 = Path.of(BackupRestoreUtil.createBackup(
+      fs, Path.of(BaseTestServer.folder1.newFolder().getAbsolutePath()), localKVStoreProvider, homeFileStore).getBackupPath());
 
     // add dataset, delete dataset, upload file
     getPopulator().putDS("DG", "dsg11", new FromSQL("select * from DG.dsg9 t1 left join DG.dsg8 t2 on t1.A=t2.age").wrap());
@@ -143,7 +144,7 @@ public class TestBackupManager extends BaseTestServer {
 
     File tmpFile = TEMP_FOLDER.newFile();
     Files.write(FileUtils.getResourceAsString("/datasets/text/comma.txt"), tmpFile, UTF_8);
-    Path textFile = new Path(tmpFile.getAbsolutePath());
+    Path textFile = Path.of(tmpFile.getAbsolutePath());
     TestHomeFiles.uploadFile(homeFileStore, textFile, "comma", "txt", new TextFileConfig().setFieldDelimiter(","), null);
 
     TestHomeFiles.runQuery("comma", 4, 3, null);
@@ -151,7 +152,7 @@ public class TestBackupManager extends BaseTestServer {
 
     // take backup 2 using rest api
     final URI backupPath = BaseTestServer.folder1.newFolder().getAbsoluteFile().toURI();
-    Path backupDir2 = new Path(
+    Path backupDir2 = Path.of(
       Backup.createBackup(dacConfig, DEFAULT_USERNAME, DEFAULT_PASSWORD, false, backupPath)
       .getBackupPath());
 
@@ -160,8 +161,8 @@ public class TestBackupManager extends BaseTestServer {
     localKVStoreProvider.deleteEverything();
     getCurrentDremioDaemon().close();
 
-    localFS.delete(dbDir, true);
-    localFS.mkdirs(dbDir);
+    fs.delete(dbDir, true);
+    fs.mkdirs(dbDir);
 
     // restore
     BackupRestoreUtil.restore(fs, backupDir2, dacConfig);
@@ -190,8 +191,8 @@ public class TestBackupManager extends BaseTestServer {
     getCurrentDremioDaemon().close();
 
     // recreate dirs
-    localFS.delete(dbDir, true);
-    localFS.mkdirs(dbDir);
+    fs.delete(dbDir, true);
+    fs.mkdirs(dbDir);
 
     // restore
     BackupRestoreUtil.restore(fs, backupDir1, dacConfig);
@@ -240,7 +241,12 @@ public class TestBackupManager extends BaseTestServer {
       }
     }
      */
-    checkPoint.jobs = ImmutableList.copyOf(jobsService.getAllJobs(null, null, null, 0, Integer.MAX_VALUE, "tshiran"));
+    final SearchJobsRequest request = SearchJobsRequest.newBuilder()
+        .setFilterString("")
+        .setUsername("tshiran")
+        .build();
+
+    checkPoint.jobs = ImmutableList.copyOf(jobsService.searchJobs(request));
     return checkPoint;
   }
 

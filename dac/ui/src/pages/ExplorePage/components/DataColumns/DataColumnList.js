@@ -55,7 +55,7 @@ export class DataColumnListView extends PureComponent {
         title={`${formatMessage('Dataset.Fields')} ${columns.size}`}
         titleClass={titleClass}
         className={title}
-        />
+      />
       <div className={listCls}>
         {
           // call [toJS] right here, as it is a pure component and column is an only property

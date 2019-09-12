@@ -15,7 +15,7 @@
  */
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
-import { TEXT, MAP, LIST } from 'constants/DataTypes';
+import { TEXT, MAP, LIST } from '@app/constants/DataTypes';
 import TransformView from 'pages/ExplorePage/components/Transform/TransformView';
 
 import { Transform } from './Transform';

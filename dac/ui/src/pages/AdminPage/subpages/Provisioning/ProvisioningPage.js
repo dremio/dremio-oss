@@ -24,7 +24,7 @@ import { loadProvision, removeProvision, openAddProvisionModal, openEditProvisio
 import { showConfirmationDialog } from 'actions/confirmation';
 import { getViewState } from 'selectors/resources';
 import { getAllProvisions } from 'selectors/provision';
-import { PROVISION_MANAGERS } from 'constants/provisioningPage/provisionManagers';
+import { PROVISION_MANAGERS } from '@app/constants/provisioningPage/provisionManagers';
 import Header from 'pages/AdminPage/components/Header';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import Button from 'components/Buttons/Button';

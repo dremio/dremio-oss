@@ -22,14 +22,14 @@ public abstract class BaseFormatPlugin implements FormatPlugin {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseFormatPlugin.class);
 
   private final SabotContext context;
-  private final FileSystemPlugin fsPlugin;
+  private final FileSystemPlugin<?> fsPlugin;
 
-  protected BaseFormatPlugin(SabotContext context, FileSystemPlugin fsPlugin) {
+  protected BaseFormatPlugin(SabotContext context, FileSystemPlugin<?> fsPlugin) {
     this.context = context;
     this.fsPlugin = fsPlugin;
   }
 
-  public FileSystemPlugin getFsPlugin() {
+  public FileSystemPlugin<?> getFsPlugin() {
     return fsPlugin;
   }
 

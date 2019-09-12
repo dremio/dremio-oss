@@ -41,7 +41,6 @@ import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.rules.FilterMultiJoinMergeRule;
 import org.apache.calcite.rel.rules.FilterSetOpTransposeRule;
 import org.apache.calcite.rel.rules.JoinPushExpressionsRule;
-import org.apache.calcite.rel.rules.JoinPushTransitivePredicatesRule;
 import org.apache.calcite.rel.rules.JoinToMultiJoinRule;
 import org.apache.calcite.rel.rules.LoptOptimizeJoinRule;
 import org.apache.calcite.rel.rules.MultiJoin;
@@ -70,6 +69,7 @@ import com.dremio.exec.expr.fn.hll.RewriteNdvAsHll;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.logical.AggregateRel;
 import com.dremio.exec.planner.logical.AggregateRule;
+import com.dremio.exec.planner.logical.CompositeFilterJoinRule;
 import com.dremio.exec.planner.logical.Conditions;
 import com.dremio.exec.planner.logical.DremioAggregateReduceFunctionsRule;
 import com.dremio.exec.planner.logical.DremioRelFactories;
@@ -195,12 +195,6 @@ public enum PlannerPhase {
 
         PushFilterPastProjectRule.CALCITE_NO_CHILD_CHECK,
 
-        // Add support for WHERE style joins.
-        FILTER_INTO_JOIN_CALCITE_RULE,
-        JOIN_CONDITION_PUSH_CALCITE_RULE,
-        JOIN_PUSH_EXPRESSIONS_RULE,
-        // End support for WHERE style joins.
-
         JoinFilterCanonicalizationRule.INSTANCE,
 
         FILTER_SET_OP_TRANSPOSE_CALCITE_RULE,
@@ -217,8 +211,16 @@ public enum PlannerPhase {
         // PushProjectIntoScanRule.INSTANCE
       );
 
-      if (context.getPlannerSettings().isTransitiveJoinEnabled()) {
-        b.add(JoinPushTransitivePredicatesRule.INSTANCE);
+      if (context.getPlannerSettings().isTransitiveFilterPushdownEnabled()) {
+        b.add(CompositeFilterJoinRule.NO_TOP_FILTER,
+          CompositeFilterJoinRule.TOP_FILTER,
+          JOIN_PUSH_EXPRESSIONS_RULE);
+      } else {
+        b.add(
+        // Add support for WHERE style joins.
+        FILTER_INTO_JOIN_CALCITE_RULE,
+          JOIN_CONDITION_PUSH_CALCITE_RULE,
+          JOIN_PUSH_EXPRESSIONS_RULE);
       }
 
       return RuleSets.ofList(b.build());

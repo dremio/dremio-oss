@@ -35,13 +35,13 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.CompleteFileWork;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyGroupScanUtils;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.easy.text.compliant.CompliantTextRecordReader;
 import com.dremio.exec.store.easy.text.compliant.TextParsingSettings;
 import com.dremio.exec.store.text.TextRecordWriter;
+import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -54,24 +54,24 @@ import com.google.common.collect.ImmutableList;
 public class TextFormatPlugin extends EasyFormatPlugin<TextFormatPlugin.TextFormatConfig> {
   private final static String DEFAULT_NAME = "text";
 
-  public TextFormatPlugin(String name, SabotContext context, FileSystemPlugin fsPlugin) {
+  public TextFormatPlugin(String name, SabotContext context, FileSystemPlugin<?> fsPlugin) {
     super(name, context, new TextFormatConfig(), true, false, true, true,
         Collections.<String>emptyList(), DEFAULT_NAME, fsPlugin);
   }
 
-  public TextFormatPlugin(String name, SabotContext context, TextFormatConfig formatPluginConfig, FileSystemPlugin fsPlugin) {
+  public TextFormatPlugin(String name, SabotContext context, TextFormatConfig formatPluginConfig, FileSystemPlugin<?> fsPlugin) {
     super(name, context, formatPluginConfig, true, false, true, true,
         formatPluginConfig.getExtensions(), DEFAULT_NAME, fsPlugin);
   }
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper dfs, EasyDatasetSplitXAttr splitAttributes,
+  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes,
                                       List<SchemaPath> columns) throws ExecutionSetupException {
-    Path path = dfs.makeQualified(new Path(splitAttributes.getPath()));
+    Path path = new Path(dfs.makeQualified(com.dremio.io.file.Path.of(splitAttributes.getPath())).toURI());
     FileSplit split = new FileSplit(path, splitAttributes.getStart(), splitAttributes.getLength(), new String[]{""});
     TextParsingSettings settings = new TextParsingSettings();
     settings.set((TextFormatConfig)formatConfig);
-    return new CompliantTextRecordReader(split, dfs, context, settings, columns);
+    return new CompliantTextRecordReader(split, getFsPlugin().getCompressionCodecFactory(), dfs, context, settings, columns);
   }
 
 

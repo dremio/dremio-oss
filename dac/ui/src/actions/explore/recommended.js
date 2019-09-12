@@ -15,7 +15,7 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 import transformModelMapper from 'utils/mappers/ExplorePage/Transform/transformModelMapper';
 
 

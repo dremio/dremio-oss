@@ -123,7 +123,7 @@ class LeftPanel extends Component {
       onClick={this.props.onChange.bind(this, item.get('type'), item.get('time'))}>
       {item.get('label')}
     </div>
-    )
+  )
   );
 
   render() {

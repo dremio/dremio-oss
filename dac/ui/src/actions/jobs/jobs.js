@@ -18,7 +18,7 @@ import { replace, push } from 'react-router-redux';
 import Immutable from 'immutable';
 import { normalize } from 'normalizr';
 
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 import param from 'jquery-param';
 
 import schemaUtils from 'utils/apiUtils/schemaUtils';

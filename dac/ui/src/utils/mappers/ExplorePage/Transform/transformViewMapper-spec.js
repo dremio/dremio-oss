@@ -141,7 +141,7 @@ describe('transformViewMapper', () => {
         },
         examplesList:[
           {
-            description: 'Exactly matches \"addre\"',
+            description: 'Exactly matches "addre"',
             text: 'address0',
             positionList: [{offset:0, length:5}]
           },

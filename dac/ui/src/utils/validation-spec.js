@@ -17,7 +17,7 @@ import {
   applyValidators,
   isRequired, isNumber, isInteger, isWholeNumber,
   isRegularExpression, isEmail, confirmPassword,
-  makeLabelFromKey, isIntegerWithLimits
+  makeLabelFromKey, isIntegerWithLimits, noDoubleQuotes
 } from './validation';
 
 describe('validation', () => {
@@ -92,6 +92,17 @@ describe('validation', () => {
 
     it('should success for correct email', () => {
       expect(isEmail('email')({ email: 'dremio@gmail.com' })).to.eql(undefined);
+    });
+  });
+
+  describe('noDoubleQuotes', () => {
+    it('should prevent double quotes', () => {
+      expect(noDoubleQuotes('name')({name: 'a"b'})).to.eql({name: 'Double quotes are not allowed.'});
+      expect(noDoubleQuotes('name')({name: 'a""b'})).to.eql({name: 'Double quotes are not allowed.'});
+      expect(noDoubleQuotes('name')({name: 'a"""b'})).to.eql({name: 'Double quotes are not allowed.'});
+    });
+    it('should allow name w/o double quotes', () => {
+      expect(noDoubleQuotes('name')({name: 'ab'})).to.be.undefined;
     });
   });
 

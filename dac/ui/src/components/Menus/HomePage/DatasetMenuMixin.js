@@ -71,13 +71,13 @@ export default function(input) {
         {
           canDelete &&
           (entityType !== 'file' && <MenuItemLink
-              closeMenu={closeMenu}
-              href={this.getRemoveLocation()}
-              text={la('Remove')}/> ||
+            closeMenu={closeMenu}
+            href={this.getRemoveLocation()}
+            text={la('Remove')}/> ||
             entityType === 'file' && <MenuItem
               onClick={this.handleRemoveFile}>
               {la('Remove')}
-              </MenuItem>
+            </MenuItem>
           )
         }
 

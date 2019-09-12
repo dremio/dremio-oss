@@ -106,6 +106,7 @@ public class PartialJobListItem {
       case NOT_SUBMITTED:
       case RUNNING:
       case STARTING:
+      case PLANNING:
         return false;
       case CANCELED:
       case COMPLETED:

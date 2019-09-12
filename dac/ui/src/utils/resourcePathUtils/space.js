@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { HOME_SPACE_NAME } from 'constants/Constants';
+import { HOME_SPACE_NAME } from '@app/constants/Constants';
 
 // history needs current location because its resourcePath is not enough to get client href
 //eg /space/myspace

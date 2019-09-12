@@ -19,7 +19,7 @@ import { PERFORM_LOAD_DATASET } from 'actions/explore/dataset/get';
 import { newUntitled } from 'actions/explore/dataset/new';
 import { loadExistingDataset } from 'actions/explore/dataset/edit';
 import { updateViewState } from 'actions/resources';
-import { handleResumeRunDataset, DataLoadError, explorePageChanged } from 'sagas/runDataset';
+import { handleResumeRunDataset, DataLoadError, explorePageChanged, jobUpdateWatchers } from 'sagas/runDataset';
 import { REAPPLY_DATASET_SUCCESS, navigateAfterReapply } from 'actions/explore/dataset/reapply';
 import { EXPLORE_TABLE_ID } from 'reducers/explore/view';
 import { focusSqlEditor } from '@app/actions/explore/view';
@@ -27,7 +27,12 @@ import { getViewStateFromAction } from '@app/reducers/resources/view';
 import { getFullDataset, getDatasetVersionFromLocation } from '@app/selectors/explore';
 import { getLocation } from 'selectors/routing';
 import { TRANSFORM_PEEK_START } from '@app/actions/explore/dataset/peek';
-import { EXPLORE_PAGE_LISTENER_START, EXPLORE_PAGE_LISTENER_STOP, EXPLORE_PAGE_EXIT } from '@app/actions/explore/dataset/data';
+import { EXPLORE_PAGE_LISTENER_START,
+  EXPLORE_PAGE_LISTENER_STOP,
+  EXPLORE_PAGE_EXIT,
+  initializeExploreJobProgress,
+  setExploreJobIdInProgress
+} from '@app/actions/explore/dataset/data';
 import { log } from '@app/utils/logger';
 
 import apiUtils from 'utils/apiUtils/apiUtils';
@@ -65,6 +70,7 @@ export function* handlePerformLoadDataset({ meta }) {
         }));
       } else {
         const version = nextFullDataset.get('version');
+        yield put(initializeExploreJobProgress());
         yield call(loadTableData, version);
       }
     }
@@ -110,7 +116,7 @@ export function* cancelDataLoad() {
  * @throws DataLoadError
  */
 export function* loadTableData(datasetVersion, forceReload) {
-  log('prerequisites check');
+  log(`prerequisites check; forceReload=${!!forceReload}`);
   let resetViewState = true;
   // we should cancel a previous data load request in any case
   yield call(cancelDataLoad); // cancel previous call, when a new load request is sent
@@ -129,7 +135,10 @@ export function* loadTableData(datasetVersion, forceReload) {
   //#endregion ---------------------------------------------
 
   log('loading is about to start');
+
   try {
+    yield put(setExploreJobIdInProgress(jobId));
+    yield spawn(jobUpdateWatchers, jobId); // start listening for job status updates including record counts
     yield put(updateViewState(EXPLORE_TABLE_ID, {
       isInProgress: true,
       isFailed: false,

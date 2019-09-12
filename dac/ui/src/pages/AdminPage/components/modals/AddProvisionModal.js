@@ -22,7 +22,7 @@ import invariant from 'invariant';
 import {createProvision, editProvision} from 'actions/resources/provisioning';
 import {getEntity} from 'selectors/resources';
 import {showConfirmationDialog} from 'actions/confirmation';
-import {PROVISION_MANAGERS} from 'constants/provisioningPage/provisionManagers';
+import {PROVISION_MANAGERS} from '@app/constants/provisioningPage/provisionManagers';
 import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
 import SelectClusterType from 'pages/AdminPage/subpages/Provisioning/SelectClusterType';
 import Modal from 'components/Modals/Modal';
@@ -141,7 +141,7 @@ export class AddProvisionModal extends Component {
           style={styles.stepOneStyle}
           onSelectClusterType={this.handleSelectClusterType}
           clusters={Immutable.fromJS(PROVISION_MANAGERS)}
-          />}
+        />}
       </Modal>
     );
   }

@@ -29,9 +29,6 @@ import java.util.stream.Collectors;
 
 import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.util.Preconditions;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -43,12 +40,13 @@ import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
-import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
@@ -81,13 +79,12 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     return scan;
   }
 
-
   /**
    * An object that holds the relevant creation fields so we don't have to have an really long lambda.
    */
   private static final class Creator {
     private final FileSystemPlugin<?> plugin;
-    private final FileSystemWrapper fs;
+    private final FileSystem fs;
     private final boolean isAccelerator;
     private final ParquetReaderFactory readerFactory;
     private final ImplicitFilesystemColumnFinder finder;
@@ -97,7 +94,6 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     private final boolean readInt96AsTimeStamp;
     private final boolean enableDetailedTracing;
     private final boolean prefetchReader;
-    private final CodecFactory codec;
     private final boolean supportsColocatedReads;
     private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
     private final CompositeReaderConfig readerConfig;
@@ -111,7 +107,11 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       this.factory = context.getConfig().getInstance(InputStreamProviderFactory.KEY, InputStreamProviderFactory.class, InputStreamProviderFactory.DEFAULT);
       this.prefetchReader = context.getOptions().getOption(PREFETCH_READER);
       this.plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
-      this.fs = plugin.createFs(config.getProps().getUserName(), context);
+      try {
+        this.fs = plugin.createFS(config.getProps().getUserName(), context);
+      } catch (IOException e) {
+        throw new ExecutionSetupException("Cannot access plugin filesystem", e);
+      }
       this.isAccelerator = config.getPluginId().getName().equals(ACCELERATOR_STORAGEPLUGIN_NAME);
       this.readerFactory = UnifiedParquetReader.getReaderFactory(context.getConfig());
 
@@ -126,7 +126,6 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
           && ((ParquetFileConfig) FileFormat.getForFile(config.getFormatSettings())).getAutoCorrectCorruptDates();
       this.readInt96AsTimeStamp = context.getOptions().getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR);
       this.enableDetailedTracing = context.getOptions().getOption(ExecConstants.ENABLED_PARQUET_TRACING);
-      this.codec = CodecFactory.createDirectCodecFactory(fs.getConf(), new ParquetDirectByteBufferAllocator(context.getAllocator()), 0);
       this.supportsColocatedReads = plugin.supportsColocatedReads();
       this.readerConfig = CompositeReaderConfig.getCompound(config.getFullSchema(), config.getColumns(), config.getPartitionColumns());
 
@@ -151,8 +150,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       }
 
       PrefetchingIterator iterator = new PrefetchingIterator(splits);
-      UserGroupInformation ugi = plugin.getUGIForUser(config.getProps().getUserName());
-      return new ScanOperator(config, context, iterator, globalDictionaries, ugi);
+      return new ScanOperator(config, context, iterator, globalDictionaries);
     }
 
     /**
@@ -219,7 +217,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
         } catch (InvalidProtocolBufferException e) {
           throw new RuntimeException("Could not deserialize parquet dataset split scan attributes", e);
         }
-        this.path = new Path(splitXAttr.getPath());
+        this.path = Path.of(splitXAttr.getPath());
 
         if (!fs.supportsPath(path)) {
           throw UserException.invalidMetadataError()
@@ -275,12 +273,17 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
         }
 
         handleEx(() -> {
-          long length;
-          if (splitXAttr.hasFileLength() && context.getOptions().getOption(ExecConstants.PARQUET_CACHED_ENTITY_SET_FILE_SIZE)) {
+          long length, mTime;
+
+          if (splitXAttr.hasFileLength() && splitXAttr.hasLastModificationTime() && context.getOptions().getOption(ExecConstants.PARQUET_CACHED_ENTITY_SET_FILE_SIZE)) {
             length = splitXAttr.getFileLength();
+            mTime = splitXAttr.getLastModificationTime();
           } else {
-            length = fs.getFileStatus(path).getLen();
+            FileAttributes fileAttributes = fs.getFileAttributes(path);
+            length = fileAttributes.size();
+            mTime = fileAttributes.lastModifiedTime().toMillis();
           }
+
           final ParquetMetadata validLastFooter = path.equals(lastPath) ? lastFooter : null;
 
           BiConsumer<Path, ParquetMetadata> depletionListener = (path, footer) -> {
@@ -296,6 +299,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
 
           final Collection<List<String>> referencedTables = config.getReferencedTables();
           final List<String> dataset = referencedTables == null || referencedTables.isEmpty() ? null : referencedTables.iterator().next();
+
           inputStreamProvider = factory.create(
               plugin,
               fs,
@@ -308,7 +312,8 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
               splitXAttr.getRowGroupIndex(),
               depletionListener,
               readFullFile,
-              dataset);
+              dataset,
+              mTime);
           return null;
         });
       }
@@ -335,7 +340,6 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
               fs,
               footer,
               globalDictionaries,
-              codec,
               schemaHelper,
               vectorize,
               enableDetailedTracing,

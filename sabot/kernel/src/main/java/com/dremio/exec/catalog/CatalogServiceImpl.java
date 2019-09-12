@@ -937,10 +937,12 @@ public class CatalogServiceImpl implements CatalogService {
    */
   @Override
   public Catalog getCatalog(SchemaConfig schemaConfig, long maxRequestTime) {
-    final Catalog catalog = new CatalogImpl(context.get(),
-        new MetadataRequestOptions(schemaConfig, maxRequestTime),
-        new Retriever(), new SourceModifier(schemaConfig.getUserName()));
-    return new CachingCatalog(catalog);
+    final MetadataRequestOptions requestOptions = new MetadataRequestOptions(schemaConfig, maxRequestTime);
+    final Catalog catalog = new CatalogImpl(context.get(), requestOptions, new Retriever(),
+        new SourceModifier(schemaConfig.getUserName()));
+
+    final Catalog decoratedCatalog = SourceAccessChecker.secureIfNeeded(requestOptions, catalog);
+    return new CachingCatalog(decoratedCatalog);
   }
 
   @Override

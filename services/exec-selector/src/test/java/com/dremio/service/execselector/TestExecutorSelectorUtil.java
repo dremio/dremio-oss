@@ -36,7 +36,7 @@ public final class TestExecutorSelectorUtil {
    * Check whether the state of the selectionService has reached 'expected'
    */
   private static void checkServiceState(ExecutorSelectionService selectionService, Set<String> expectedAddresses) throws Exception {
-    try (ExecutorSelectionHandle hdl = selectionService.getExecutors(expectedAddresses.size())) {
+    try (ExecutorSelectionHandle hdl = selectionService.getExecutors(expectedAddresses.size(), new ExecutorSelectionContext())) {
       Collection<NodeEndpoint> nodes = hdl.getExecutors();
       if (expectedAddresses.size() != nodes.size()) {
         assertEquals(expectedAddresses.size(), nodes.size());

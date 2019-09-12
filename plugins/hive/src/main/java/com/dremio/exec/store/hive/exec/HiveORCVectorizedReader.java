@@ -18,14 +18,11 @@ package com.dremio.exec.store.hive.exec;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.ListIterator;
 import java.util.List;
+import java.util.ListIterator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.exec.store.hive.HivePluginOptions;
-import com.dremio.exec.store.hive.HiveUtilities;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -59,6 +56,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.UnionObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.orc.OrcConf;
 import org.apache.orc.OrcProto;
 import org.apache.orc.impl.DataReaderProperties;
@@ -66,9 +64,11 @@ import org.apache.orc.impl.DataReaderProperties;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.ScanFilter;
-import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
-import com.dremio.exec.store.hive.ORCScanFilter;
+import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.hive.HivePluginOptions;
+import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.exec.store.hive.exec.HiveORCCopiers.ORCCopier;
+import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.ScanOperator;
@@ -100,14 +100,16 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
   public HiveORCVectorizedReader(final HiveTableXattr tableAttr, final SplitAndPartitionInfo split,
       final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
       final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
-      final StructObjectInspector partitionOI, final ScanFilter filter, final Collection<List<String>> referencedTables) {
-    super(tableAttr, split, projectedColumns, context, jobConf, tableSerDe, tableOI, partitionSerDe, partitionOI, filter, referencedTables);
+      final StructObjectInspector partitionOI, final ScanFilter filter, final Collection<List<String>> referencedTables,
+      final UserGroupInformation readerUgi) {
+    super(tableAttr, split, projectedColumns, context, jobConf, tableSerDe, tableOI, partitionSerDe, partitionOI, filter,
+      referencedTables, readerUgi);
   }
 
   private int[] getOrdinalIdsOfSelectedColumns(List< OrcProto.Type > types, List<Integer> selectedColumns, boolean isOriginal) {
     int rootColumn = isOriginal ? 0 : TRANS_ROW_COLUMN_INDEX + 1;
     int[] ids = new int[types.size()];
-    OrcProto.Type root = (OrcProto.Type)types.get(rootColumn);
+    OrcProto.Type root = types.get(rootColumn);
 
     // iterating over only direct children
     for(int i = 0; i < root.getSubtypesCount(); ++i) {
@@ -294,7 +296,7 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     final OrcFile.ReaderOptions opts = OrcFile.readerOptions(jobConf);
 
     // TODO: DX-16001 make enabling async configurable.
-    final FileSystem fs = FileSystemWrapperCreator.get(path, jobConf, this.context.getStats());
+    final FileSystem fs = new HadoopFileSystemWrapper(jobConf, path.getFileSystem(jobConf), this.context.getStats());
     opts.filesystem(fs);
     final Reader hiveReader = OrcFile.createReader(path, opts);
 
@@ -334,8 +336,8 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     }
 
     if (filter != null) {
-      final ORCScanFilter orcScanFilter = (ORCScanFilter) filter;
-      final SearchArgument sarg = orcScanFilter.getSarg();
+      final HiveProxyingOrcScanFilter orcScanFilter = (HiveProxyingOrcScanFilter) filter;
+      final SearchArgument sarg = HiveUtilities.decodeSearchArgumentFromBase64(orcScanFilter.getProxiedOrcScanFilter().getKryoBase64EncodedFilter());
       options.searchArgument(sarg, OrcInputFormat.getSargColumnNames(selectedColNames, types, options.getInclude(), fSplit.isOriginal()));
     }
 

@@ -36,6 +36,7 @@ import org.apache.twill.api.TwillSpecification;
 
 import com.dremio.config.DremioConfig;
 import com.dremio.provision.yarn.service.YarnDefaultsConfigurator;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
@@ -69,6 +70,9 @@ public class DacDaemonYarnApplication implements TwillApplication {
   private final String keytabFileLocation;
   private List<File> classpathJarNames = new ArrayList<>();
   private List<String> jarNames = new ArrayList<>();
+
+  @VisibleForTesting
+  protected static boolean isTestingModeOn = false;
 
   public DacDaemonYarnApplication(DremioConfig dremioConfig, YarnConfiguration yarnConfig, @NotNull Environment env) {
     this.yarnConfig = yarnConfig;
@@ -104,7 +108,11 @@ public class DacDaemonYarnApplication implements TwillApplication {
     // Create an application bundle jar based on current application classpath
     AppBundleGenerator appBundleGenerator = AppBundleGenerator.of(dremioConfig);
     try {
-      yarnBundledJarPath = appBundleGenerator.generateBundle();
+      if (!isTestingModeOn) {
+        yarnBundledJarPath = appBundleGenerator.generateBundle();
+      } else {
+        yarnBundledJarPath = Paths.get("/temp");
+      }
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

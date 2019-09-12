@@ -23,13 +23,16 @@ import ExploreTableColumnFilter from 'pages/ExplorePage/components/ExploreTable/
 
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
 import Button from 'components/Buttons/Button';
+import ExploreCopyTableButton from '@app/pages/ExplorePage/components/ExploreTable/ExploreCopyTableButton';
+import ExploreTableJobStatus from '@app/pages/ExplorePage/components/ExploreTable/ExploreTableJobStatus';
+
 
 import { PALE_BLUE } from 'uiTheme/radium/colors.js';
 import { sqlEditorButton } from 'uiTheme/radium/buttons';
 
 import './TableControls.less';
 import SqlToggle from './SqlEditor/SqlToggle';
-import SampleDataMessage from './SampleDataMessage';
+
 
 @injectIntl
 @Radium
@@ -64,10 +67,17 @@ class TableControls extends PureComponent {
     };
   }
 
-  renderPreviewWarning() {
-    const { approximate } = this.props;
-    return approximate && <SampleDataMessage />;
-  }
+
+  renderCopyToClipboard = () => {
+    const { exploreViewState, dataset } = this.props;
+
+    const isDataAvailable = !exploreViewState.get('invalidated')
+      && !exploreViewState.get('isFailed')
+      && !exploreViewState.get('isInProgress');
+    const version = dataset && dataset.get('datasetVersion') || '';
+
+    return (isDataAvailable) ? <ExploreCopyTableButton version={version} style={styles.copy}/> : null;
+  };
 
   renderButton({
     key,
@@ -98,6 +108,7 @@ class TableControls extends PureComponent {
       groupBy,
       join,
       exploreViewState,
+      approximate,
       sqlState
     } = this.props;
 
@@ -139,7 +150,8 @@ class TableControls extends PureComponent {
           </div>
         </div>
         <div className='right-controls'>
-          {this.renderPreviewWarning()}
+          <ExploreTableJobStatus approximate={approximate}/>
+          {this.renderCopyToClipboard()}
         </div>
       </div>
     );
@@ -184,6 +196,10 @@ export const styles = {
   },
   controlsInner: {
     height: 24
+  },
+  copy: {
+    marginLeft: 5,
+    marginTop: 5
   }
 };
 

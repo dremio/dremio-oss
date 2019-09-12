@@ -17,9 +17,6 @@ package com.dremio.exec.store.parquet;
 
 import java.io.IOException;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.security.UserGroupInformation;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -65,7 +62,7 @@ public class ParquetWriter extends FileSystemWriter {
       PhysicalOperator child,
       String location,
       WriterOptions options,
-      FileSystemPlugin plugin,
+      FileSystemPlugin<?> plugin,
       ParquetFormatPlugin formatPlugin) {
     super(props, child, options);
     this.plugin = plugin;
@@ -80,11 +77,6 @@ public class ParquetWriter extends FileSystemWriter {
   @JsonProperty("location")
   public String getLocation() {
     return location;
-  }
-
-  @JsonIgnore
-  public Configuration getFsConf() {
-    return plugin.getFsConf();
   }
 
   @JsonIgnore
@@ -111,10 +103,5 @@ public class ParquetWriter extends FileSystemWriter {
   @JsonIgnore
   public boolean isPdfs() {
     return plugin.getSystemUserFS().isPdfs();
-  }
-
-  @JsonIgnore
-  public UserGroupInformation getUGI() {
-    return formatPlugin.getFsPlugin().getUGIForUser(props.getUserName());
   }
 }

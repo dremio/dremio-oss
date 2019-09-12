@@ -19,13 +19,13 @@ import java.io.IOException;
 import java.util.List;
 import java.util.function.BiConsumer;
 
-import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 
@@ -36,15 +36,19 @@ public interface InputStreamProviderFactory {
 
   String KEY = "dremio.plugins.parquet.input_stream_factory";
 
-  InputStreamProvider create(FileSystemPlugin plugin, FileSystemWrapper fs, OperatorContext context,
-                                    Path path, long fileLength, long splitSize, List<SchemaPath> fields,
-                                    ParquetMetadata footerIfKnown, int rowGroupIndex, BiConsumer<Path, ParquetMetadata> depletionListener, boolean readFullFile, List<String> dataset) throws IOException;
+  InputStreamProvider create(FileSystemPlugin<?> plugin, FileSystem fs, OperatorContext context,
+                             Path path, long fileLength, long splitSize, List<SchemaPath> fields,
+                             ParquetMetadata footerIfKnown, int rowGroupIndex, BiConsumer<Path,
+                             ParquetMetadata> depletionListener, boolean readFullFile,
+                             List<String> dataset, long mTime) throws IOException;
 
   InputStreamProviderFactory DEFAULT = new InputStreamProviderFactory() {
     @Override
-    public InputStreamProvider create(FileSystemPlugin plugin, FileSystemWrapper fs, OperatorContext context,
+    public InputStreamProvider create(FileSystemPlugin<?> plugin, FileSystem fs, OperatorContext context,
                                       Path path, long fileLength, long splitSize, List<SchemaPath> fields,
-                                      ParquetMetadata footerIfKnown, int rowGroupIndex, BiConsumer<Path, ParquetMetadata> depletionListener, boolean readFullFile, List<String> dataset) {
+                                      ParquetMetadata footerIfKnown, int rowGroupIndex, BiConsumer<Path,
+                                      ParquetMetadata> depletionListener, boolean readFullFile,
+                                      List<String> dataset, long mTime) {
       OptionManager options = context.getOptions();
       boolean useSingleStream =
         // option is set for single stream

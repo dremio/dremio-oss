@@ -17,11 +17,13 @@ package com.dremio.exec.store.hive.exec;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.pf4j.Extension;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
+import com.dremio.exec.store.hive.HiveImpersonationUtil;
 import com.dremio.exec.store.hive.HiveStoragePlugin;
-import com.dremio.exec.util.ImpersonationUtil;
+import com.dremio.exec.store.hive.proxy.HiveProxiedScanBatchCreator;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
@@ -30,11 +32,12 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 @SuppressWarnings("unused")
-public class HiveScanBatchCreator implements ProducerOperator.Creator<HiveSubScan> {
+@Extension
+public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveScanBatchCreator.class);
 
   @Override
-  public ProducerOperator create(FragmentExecutionContext fragmentExecContext, OperatorContext context, HiveSubScan config) throws ExecutionSetupException {
+  public ProducerOperator create(FragmentExecutionContext fragmentExecContext, OperatorContext context, HiveProxyingSubScan config) throws ExecutionSetupException {
     final HiveStoragePlugin storagePlugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
     final HiveConf conf = storagePlugin.getHiveConf();
 
@@ -59,8 +62,8 @@ public class HiveScanBatchCreator implements ProducerOperator.Creator<HiveSubSca
   }
 
   @VisibleForTesting
-  public UserGroupInformation getUGI(HiveStoragePlugin storagePlugin, HiveSubScan config) {
+  public UserGroupInformation getUGI(HiveStoragePlugin storagePlugin, HiveProxyingSubScan config) {
     final String userName = storagePlugin.getUsername(config.getProps().getUserName());
-    return ImpersonationUtil.createProxyUgi(userName);
+    return HiveImpersonationUtil.createProxyUgi(userName);
   }
 }

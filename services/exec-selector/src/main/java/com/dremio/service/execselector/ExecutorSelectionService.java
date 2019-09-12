@@ -33,6 +33,7 @@ public interface ExecutorSelectionService extends Service {
   /**
    * Get the executor endpoints that can execute a query of size 'querySize'
    * @param desiredNumExecutors  Desired number of executors
+   * @param executorSelectionContext Context information
    */
-  ExecutorSelectionHandle getExecutors(int desiredNumExecutors);
+  ExecutorSelectionHandle getExecutors(int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext);
 }

@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.0.0 http://maven.apache.org/xsd/assembly-2.0.0.xsd">
+  <id>pf4j-plugin</id>
+  <formats>
+    <format>jar</format>
+  </formats>
+  <containerDescriptorHandlers>
+    <containerDescriptorHandler>
+      <!-- Add handler for concatenating entries in META-INF/services together. Needed to register all FileSystems
+           that the Assembly plugin puts within the bundle. -->
+      <handlerName>metaInf-services</handlerName>
+    </containerDescriptorHandler>
+  </containerDescriptorHandlers>
+  <includeBaseDirectory>false</includeBaseDirectory>
+  <!-- Include project output -->
+  <fileSets>
+    <fileSet>
+      <directory>${project.build.outputDirectory}</directory>
+      <outputDirectory>.</outputDirectory>
+    </fileSet>
+  </fileSets>
+  <!-- Include dependencies -->
+  <dependencySets>
+    <dependencySet>
+      <outputDirectory>.</outputDirectory>
+      <excludes>
+        <!-- exclude native libraries -->
+        <exclude>*:*:jar:*:linux</exclude>
+      </excludes>
+      <unpack>true</unpack>
+    </dependencySet>
+    <dependencySet>
+      <outputDirectory>PF4J-INF/native-libs</outputDirectory>
+      <useStrictFiltering>true</useStrictFiltering>
+      <includes>
+        <!-- include native libraries -->
+        <include>*:*:jar:*:linux</include>
+      </includes>
+      <unpack>true</unpack>
+      <unpackOptions>
+        <excludes>
+          <exclude>META-INF/**</exclude>
+        </excludes>
+      </unpackOptions>
+    </dependencySet>
+  </dependencySets>
+</assembly>

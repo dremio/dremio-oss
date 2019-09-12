@@ -63,7 +63,11 @@ public class TestJobSubmit extends BaseTestServer {
 
     assertTrue(job.isCompletedExceptionally());
 
-    List<Job> jobs = ImmutableList.copyOf(jobsService.getAllJobs("jst==FAILED", null, null, 0, Integer.MAX_VALUE, DEFAULT_USERNAME));
+    List<Job> jobs = ImmutableList.copyOf(
+        jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("jst==FAILED")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
   }
 }

@@ -31,6 +31,7 @@ import MetadataRefreshConfig from 'utils/FormUtils/MetadataRefreshConfig';
 import PropertListConfig from 'utils/FormUtils/PropertyListConfig';
 import SharingWidgetConfig from 'utils/FormUtils/SharingWidgetConfig';
 import ValueListConfig from 'utils/FormUtils/ValueListConfig';
+import { PASSWORD_FIELD, USER_NAME_FIELD } from '@app/components/Forms/Credentials';
 
 
 export default class SourceFormJsonPolicy {
@@ -38,11 +39,6 @@ export default class SourceFormJsonPolicy {
   static deepCopyConfig(config) {
     return FormUtils.deepCopyConfig(config);
   }
-
-  static makeFullPropName(propertyName) {
-    return `config.${propertyName}`;
-  }
-
 
   //== Source List support
   /**
@@ -133,6 +129,7 @@ export default class SourceFormJsonPolicy {
   static makeCombinedFromFunctionalConfig(loadedFunctionalConfig) {
     return (loadedFunctionalConfig) ? {
       label: loadedFunctionalConfig.label,
+      icon: loadedFunctionalConfig.icon,
       sourceType: loadedFunctionalConfig.sourceType,
       form: new FormConfig({
         elements: loadedFunctionalConfig.elements.map(element => this.makeConfigFromFunctional(element))
@@ -144,7 +141,7 @@ export default class SourceFormJsonPolicy {
     if (functionalElements) {
       // find functional element for elementJson
       const functionalElement = functionalElements.find(
-        element => this.makeFullPropName(element.propertyName) === FormUtils.dropTrailingBrackets(elementJson.propName));
+        element => element.propertyName === FormUtils.dropTrailingBrackets(elementJson.propName));
 
       // join configs potentialy mutates both
       this.joinElementConfigs(elementJson, functionalElement);
@@ -167,7 +164,7 @@ export default class SourceFormJsonPolicy {
     const elementJson = {
       ...functionalElement,
       type: this.convertElementTypeForUi(functionalElement.type),
-      propName: `config.${functionalElement.propertyName}`
+      propName: functionalElement.propertyName
     };
     if (functionalElement.defaultValue) {
       elementJson.value = functionalElement.defaultValue;
@@ -184,7 +181,8 @@ export default class SourceFormJsonPolicy {
   }
 
   static setFunctionalPropsInUiElement(elementJson, functionalElement) {
-    elementJson.type = elementJson.uiType || this.convertElementTypeForUi(functionalElement.type);
+    elementJson.type = elementJson.uiType || this.convertElementTypeForUi(functionalElement.type) ||
+      elementJson.type;
     elementJson.propertyName = functionalElement.propertyName;
     elementJson.foundInFunctionalConfig = true;
 
@@ -216,7 +214,7 @@ export default class SourceFormJsonPolicy {
 
   static convertElementConfigJsonToObject(elementJson, functionalElements) {
     switch (elementJson.type) {
-      /* eslint-disable indent */
+    /* eslint-disable indent */
       case 'credentials':
         return new CredentialsConfig(elementJson);
       case 'data_freshness':
@@ -254,6 +252,7 @@ export default class SourceFormJsonPolicy {
 
     joinedConfig.label = (functionalConfig && functionalConfig.label) ? functionalConfig.label : joinedConfig.sourceType;
     // currently tags property is defined in uiConfig, which is already in joined
+    joinedConfig.icon = joinedConfig.icon || (functionalConfig && functionalConfig.icon) || '';
     return joinedConfig;
   }
 
@@ -367,7 +366,10 @@ export default class SourceFormJsonPolicy {
       looseElements = looseElements.filter((elem) => {
         const propName = elem.getConfig().propertyName;
 
-        return ['username', 'password'].indexOf(propName) === -1;
+        return [
+          USER_NAME_FIELD,
+          PASSWORD_FIELD
+        ].indexOf(propName) === -1;
       });
     }
 
@@ -424,7 +426,7 @@ export default class SourceFormJsonPolicy {
 
   static convertElementTypeForUi(type) {
     switch (type) {
-      /* eslint-disable indent */
+    /* eslint-disable indent */
       case 'boolean':
         return 'checkbox';
       case 'selection':

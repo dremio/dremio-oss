@@ -203,7 +203,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
         availabilityStatus = AVAILABILITY_STATUS.AVAILABLE;
       } else {
         // if the reflection has any valid materialization, then it can accelerate
-        if (StreamSupport.stream(materializationStore.getAllDoneWhen(now).spliterator(), false)
+        if (StreamSupport.stream(materializationStore.getAllDone(id, now).spliterator(), false)
           .anyMatch(
             m -> !hasMissingPartitions(m.getPartitionList(), activeHosts) && cacheViewer.get().isCached(m.getId())
             )

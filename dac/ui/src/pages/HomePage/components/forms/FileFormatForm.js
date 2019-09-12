@@ -203,7 +203,6 @@ export class FileFormatForm extends Component {
         </FormBody>
         <ViewStateWrapper
           viewState={previewViewState}
-          spinnerStyle={{height: 'calc(100% - 48px)', paddingBottom: 0}}
           spinnerDelay={0}
           style={{ display: 'flex'}}
           dataQa='file-preview-mask'

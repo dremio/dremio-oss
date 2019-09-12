@@ -1,0 +1,51 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.dremio.io.file;
+
+import java.util.List;
+
+/**
+ * A file block location
+ *
+ * Files are composed of a sequence of blocks. Blocks do partition the whole file
+ * and do not overlap.
+ * Each non-empty file has a least one block, with at least one host
+ */
+public interface FileBlockLocation {
+
+  /**
+   * Gets the block offset relative to the start of the file
+   * @return
+   */
+  long getOffset();
+
+  /**
+   * Gets the size in bytes of the block
+   *
+   * @return the block size
+   */
+  long getSize();
+
+  /**
+   * Gets the list of hosts physically storing the block.
+   *
+   * For non-distributed filesystems or filesystems without hosts information available,
+   * localhost is used instead.
+   *
+   * @return a list of hosts. Should contain at least one host
+   */
+  List<String> getHosts();
+}

@@ -33,7 +33,6 @@ import java.util.Queue;
 import java.util.Random;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SimpleBigIntVector;
@@ -42,6 +41,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -65,6 +65,7 @@ import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartitionSpillH
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggPartitionSpillHandler.SpilledPartitionIterator;
 import com.dremio.service.spill.SpillDirectory;
 import com.dremio.service.spill.SpillService;
+import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
@@ -84,9 +85,12 @@ import io.netty.util.internal.PlatformDependent;
  * {@link VectorizedHashAggOperator} with already implemented spilling
  * infrastructure.
  */
-public class TestVectorizedHashAggPartitionSpillHandler {
+public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
   private final List<Field> postSpillAccumulatorVectorFields = Lists.newArrayList();
   private int MAX_VALUES_PER_BATCH = 0;
+
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
   public void testPartitionSpillHandler() throws Exception {
@@ -174,7 +178,7 @@ public class TestVectorizedHashAggPartitionSpillHandler {
     final long[] expectedCount = {2, 2, 2, 2, 1, 1, 1};
     final long[] expectedCount1 = {3, 2, 2, 2, 1, 1, 1};
 
-    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
+    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-vectorized-hashagg-partition-spill-handler", 0, Long.MAX_VALUE);
          final VectorContainer c = new VectorContainer();) {
 
       /* GROUP BY key columns */

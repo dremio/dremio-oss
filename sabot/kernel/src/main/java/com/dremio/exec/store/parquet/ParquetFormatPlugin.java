@@ -26,10 +26,10 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
+import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
@@ -54,13 +54,16 @@ import com.dremio.exec.store.dfs.BasicFormatMatcher;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.MagicString;
 import com.dremio.exec.store.dfs.PreviousDatasetInfo;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.exec.store.parquet2.ParquetRowiseReader;
 import com.dremio.exec.util.GlobalDictionaryBuilder;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
+import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.DictionaryEncodedColumns;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -86,14 +89,14 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
   private final ParquetFormatMatcher formatMatcher;
   private final ParquetFormatConfig config;
   private final String name;
-  private FileSystemPlugin fsPlugin;
+  private FileSystemPlugin<?> fsPlugin;
 
-  public ParquetFormatPlugin(String name, SabotContext context, FileSystemPlugin fsPlugin){
+  public ParquetFormatPlugin(String name, SabotContext context, FileSystemPlugin<?> fsPlugin){
     this(name, context, new ParquetFormatConfig(), fsPlugin);
     this.fsPlugin = fsPlugin;
   }
 
-  public ParquetFormatPlugin(String name, SabotContext context, ParquetFormatConfig formatConfig, FileSystemPlugin fsPlugin){
+  public ParquetFormatPlugin(String name, SabotContext context, ParquetFormatConfig formatConfig, FileSystemPlugin<?> fsPlugin){
     super(context, fsPlugin);
     this.context = context;
     this.config = formatConfig;
@@ -113,7 +116,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
   }
 
   @Override
-  public AbstractWriter getWriter(PhysicalOperator child, String location, FileSystemPlugin plugin, WriterOptions options, OpProps props) throws IOException {
+  public AbstractWriter getWriter(PhysicalOperator child, String location, FileSystemPlugin<?> plugin, WriterOptions options, OpProps props) throws IOException {
     return new ParquetWriter(props, child, location, options, plugin, this);
   }
 
@@ -133,7 +136,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
 
   public ParquetGroupScanUtils getGroupScan(
       String userName,
-      FileSystemPlugin plugin,
+      FileSystemPlugin<?> plugin,
       FileSelection selection,
       List<String> tableSchemaPath,
       List<SchemaPath> columns,
@@ -144,9 +147,9 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
   }
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper fs, FileStatus status) throws ExecutionSetupException {
+  public RecordReader getRecordReader(OperatorContext context, FileSystem fs, FileAttributes attributes) throws ExecutionSetupException {
     try {
-      return new PreviewReader(context, fs, status);
+      return new PreviewReader(context, fs, attributes);
     } catch (IOException e) {
       throw new ExecutionSetupException(e);
     }
@@ -158,8 +161,9 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
   private class PreviewReader implements RecordReader {
 
     private final OperatorContext context;
-    private final FileSystemWrapper fs;
-    private final FileStatus status;
+    private final CompressionCodecFactory codec;
+    private final FileSystem fs;
+    private final FileAttributes attributes;
     private final ParquetMetadata footer;
     private final ParquetReaderUtility.DateCorruptionStatus dateStatus;
     private final SchemaDerivationHelper schemaHelper;
@@ -171,15 +175,15 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
 
     public PreviewReader(
         OperatorContext context,
-        FileSystemWrapper fs,
-        FileStatus status
+        FileSystem fs,
+        FileAttributes attributes
         ) throws IOException {
       super();
       this.context = context;
       this.fs = fs;
-      this.status = status;
+      this.attributes = attributes;
       final long maxFooterLen = context.getOptions().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
-      this.streamProvider = new SingleStreamProvider(fs, status.getPath(), status.getLen(), maxFooterLen, false, null);
+      this.streamProvider = new SingleStreamProvider(fs, attributes.getPath(), attributes.size(), maxFooterLen, false, null);
       this.footer = this.streamProvider.getFooter();
       boolean autoCorrectCorruptDates = context.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR) &&
         getConfig().autoCorrectCorruptDates;
@@ -188,6 +192,8 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
           .readInt96AsTimeStamp(context.getOptions().getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR))
           .dateCorruptionStatus(dateStatus)
           .build();
+      this.codec = CodecFactory.createDirectCodecFactory(new Configuration(), new ParquetDirectByteBufferAllocator(context.getAllocator()), 0);
+
     }
 
     @Override
@@ -220,11 +226,12 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
           context,
           footer,
           currentIndex,
-          status.getPath().toString(),
+          attributes.getPath().toString(),
           GroupScan.ALL_COLUMNS,
           fs,
           schemaHelper,
-          streamProvider
+          streamProvider,
+          codec
           );
       try {
         current.setup(output);
@@ -306,7 +313,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
    */
   public static DictionaryEncodedColumns scanForDictionaryEncodedColumns(FileSystem fs, String selectionRoot, BatchSchema batchSchema) {
     try {
-      Path root = new Path(selectionRoot);
+      Path root = Path.of(selectionRoot);
       if (!fs.isDirectory(root)) {
         root = root.getParent();
       }
@@ -345,8 +352,8 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
 
 
   @Override
-  public FileDatasetHandle getDatasetAccessor(DatasetType type, PreviousDatasetInfo previousInfo, FileSystemWrapper fs,
-      FileSelection fileSelection, FileSystemPlugin fsPlugin, NamespaceKey tableSchemaPath, FileUpdateKey updateKey,
+  public FileDatasetHandle getDatasetAccessor(DatasetType type, PreviousDatasetInfo previousInfo, FileSystem fs,
+      FileSelection fileSelection, FileSystemPlugin<?> fsPlugin, NamespaceKey tableSchemaPath, FileUpdateKey updateKey,
       int maxLeafColumns) {
     return new ParquetFormatDatasetAccessor(type, fs, fileSelection, fsPlugin, tableSchemaPath, updateKey, this, previousInfo, maxLeafColumns);
   }

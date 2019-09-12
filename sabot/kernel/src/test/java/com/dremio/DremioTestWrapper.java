@@ -117,6 +117,8 @@ public class DremioTestWrapper {
 
   private int expectedNumBatches;
 
+  private TestResult latestResult;
+
   public DremioTestWrapper(TestBuilder testBuilder, BufferAllocator allocator, Object query, QueryType queryType,
                           String baselineOptionSettingQueries, String testOptionSettingQueries,
                           QueryType baselineQueryType, boolean ordered, boolean highPerformanceComparison,
@@ -134,7 +136,7 @@ public class DremioTestWrapper {
     this.expectedNumBatches = expectedNumBatches;
   }
 
-  public void run() throws Exception {
+  public TestResult run() throws Exception {
     if (testBuilder.getExpectedSchema() != null) {
       compareSchemaOnly();
     } else {
@@ -144,6 +146,7 @@ public class DremioTestWrapper {
         compareUnorderedResults();
       }
     }
+    return latestResult;
   }
 
   private BufferAllocator getAllocator() {
@@ -402,8 +405,7 @@ public class DremioTestWrapper {
     RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
     List<QueryDataBatch> actual = null;
     try {
-      BaseTestQuery.test(testOptionSettingQueries);
-      actual = BaseTestQuery.testRunAndReturn(queryType, query);
+      actual = runQueryAndGetResults();
       QueryDataBatch batch = actual.get(0);
       loader.load(batch.getHeader().getDef(), batch.getData());
 
@@ -457,9 +459,7 @@ public class DremioTestWrapper {
     List<Map<String, Object>> actualRecords = new ArrayList<>();
 
     try {
-      BaseTestQuery.test(testOptionSettingQueries);
-      actual = BaseTestQuery.testRunAndReturn(queryType, query);
-
+      actual = runQueryAndGetResults();
       checkNumBatches(actual);
 
       addTypeInfoIfMissing(actual.get(0), testBuilder);
@@ -498,6 +498,13 @@ public class DremioTestWrapper {
     }
   }
 
+  private List<QueryDataBatch> runQueryAndGetResults() throws Exception{
+    BaseTestQuery.test(testOptionSettingQueries);
+    List<QueryDataBatch> actual = BaseTestQuery.testRunAndReturn(queryType, query);
+    latestResult = new TestResult(actual.get(0).getHeader());
+    return actual;
+  }
+
   public void compareMergedOnHeapVectors() throws Exception {
     RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
     BatchSchema schema = null;
@@ -508,9 +515,7 @@ public class DremioTestWrapper {
     Map<String, List<Object>> expectedSuperVectors;
 
     try {
-      BaseTestQuery.test(testOptionSettingQueries);
-      actual = BaseTestQuery.testRunAndReturn(queryType, query);
-
+      actual = runQueryAndGetResults();
       checkNumBatches(actual);
 
       // To avoid extra work for test writers, types can optionally be inferred from the test query
@@ -558,8 +563,7 @@ public class DremioTestWrapper {
   public void compareResultsHyperVector() throws Exception {
     RecordBatchLoader loader = new RecordBatchLoader(getAllocator());
 
-    BaseTestQuery.test(testOptionSettingQueries);
-    List<QueryDataBatch> results = BaseTestQuery.testRunAndReturn(queryType, query);
+    List<QueryDataBatch> results = runQueryAndGetResults();
 
     checkNumBatches(results);
 

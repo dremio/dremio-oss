@@ -123,4 +123,17 @@ describe('SingleCluster', () => {
       expect(shallow(instance.getWorkerInfoTitle()).html()).to.be.eql(expectedHtml);
     });
   });
+
+  describe('getClusterSubProperty', () => {
+    it('should find subproperty by key', () => {
+      const wrapper = shallow(<SingleCluster {...minimalProps}/>);
+      const instance = wrapper.instance();
+      expect(instance.getClusterSubProperty('yarn.resourcemanager.hostname')).to.be.equal('yarn_host');
+    });
+    it('should not fail if subproperty not found', () => {
+      const wrapper = shallow(<SingleCluster {...minimalProps}/>);
+      const instance = wrapper.instance();
+      expect(instance.getClusterSubProperty('a')).to.be.undefined;
+    });
+  });
 });

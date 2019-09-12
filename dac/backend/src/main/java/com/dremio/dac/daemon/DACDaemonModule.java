@@ -54,6 +54,7 @@ import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.search.SearchServiceImpl;
 import com.dremio.dac.service.search.SearchServiceInvoker;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.dac.service.users.UserServiceHelper;
 import com.dremio.dac.support.SupportService;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.ExecConstants;
@@ -76,7 +77,6 @@ import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
-import com.dremio.exec.work.RunningQueryProvider;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.exec.work.protector.ForemenTool;
 import com.dremio.exec.work.protector.ForemenWorkManager;
@@ -100,6 +100,7 @@ import com.dremio.sabot.rpc.CoordToExecHandler;
 import com.dremio.sabot.rpc.ExecToCoordHandler;
 import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.sabot.task.TaskPool;
+import com.dremio.security.CredentialsService;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.accelerator.AccelerationListManagerImpl;
@@ -347,6 +348,7 @@ public class DACDaemonModule implements DACModule {
         ));
 
     registry.bindSelf(HomeFileTool.class);
+    registry.bindSelf(CredentialsService.class);
 
     // Context Service.
     registry.bind(ContextService.class, new ContextService(
@@ -360,7 +362,6 @@ public class DACDaemonModule implements DACModule {
         registry.provider(UserServer.class),
         registry.provider(MaterializationDescriptorProvider.class),
         registry.provider(QueryObserverFactory.class),
-        registry.provider(RunningQueryProvider.class),
         registry.provider(AccelerationManager.class),
         registry.provider(AccelerationListManager.class),
         registry.provider(NamespaceService.Factory.class),
@@ -370,6 +371,7 @@ public class DACDaemonModule implements DACModule {
         registry.provider(ViewCreatorFactory.class),
         registry.provider(SpillService.class),
         registry.provider(ConnectionReader.class),
+        registry.provider(CredentialsService.class),
         roles
         ));
 
@@ -476,7 +478,6 @@ public class DACDaemonModule implements DACModule {
     } else {
       registry.bind(ForemenTool.class, ForemenTool.NO_OP);
       registry.bind(QueryCancelTool.class, QueryCancelTool.NO_OP);
-      registry.bind(RunningQueryProvider.class, RunningQueryProvider.EMPTY);
     }
 
     TaskPoolInitializer taskPoolInitializer = null;
@@ -648,6 +649,7 @@ public class DACDaemonModule implements DACModule {
     registry.bindSelf(ReflectionServiceHelper.class);
     registry.bindSelf(CatalogServiceHelper.class);
     registry.bindSelf(CollaborationHelper.class);
+    registry.bindSelf(UserServiceHelper.class);
   }
 
   /**

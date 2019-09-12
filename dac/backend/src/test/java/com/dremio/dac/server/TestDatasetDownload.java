@@ -43,6 +43,7 @@ import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.service.datasets.DatasetDownloadManager.DownloadDataResponse;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.service.job.proto.JobState;
+import com.dremio.service.jobs.GetJobRequest;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceKey;
@@ -76,7 +77,10 @@ public class TestDatasetDownload extends BaseTestServer {
     InitialDownloadResponse initialDownloadResponse = expectSuccess(
       getBuilder(getAPIv2().path(downloadPath).path("download").queryParam("downloadFormat", DownloadFormat.JSON)).buildGet(), InitialDownloadResponse.class);
     // wait for job
-    final Job job = l(JobsService.class).getJob(initialDownloadResponse.getJobId());
+    GetJobRequest request = GetJobRequest.newBuilder()
+      .setJobId(initialDownloadResponse.getJobId())
+      .build();
+    final Job job = l(JobsService.class).getJob(request);
     job.getData().loadIfNecessary();
     // get job data
     Response response = getBuilder(getAPIv2().path(initialDownloadResponse.getDownloadUrl())).buildGet().invoke();
@@ -90,7 +94,10 @@ public class TestDatasetDownload extends BaseTestServer {
     InitialDownloadResponse initialDownloadResponse = expectSuccess(
       getBuilder(getAPIv2().path(downloadPath).path("download").queryParam("downloadFormat", DownloadFormat.CSV)).buildGet(), InitialDownloadResponse.class);
     // wait for job
-    final Job job = l(JobsService.class).getJob(initialDownloadResponse.getJobId());
+    GetJobRequest request = GetJobRequest.newBuilder()
+      .setJobId(initialDownloadResponse.getJobId())
+      .build();
+    final Job job = l(JobsService.class).getJob(request);
     job.getData().loadIfNecessary();
     // get job data
     Response response = getBuilder(getAPIv2().path(initialDownloadResponse.getDownloadUrl())).buildGet().invoke();
@@ -141,8 +148,10 @@ public class TestDatasetDownload extends BaseTestServer {
     l(JobsService.class).cancel(SampleDataPopulator.DEFAULT_USER_NAME, job.getJobId(), "because I can");
 
     job.getData().loadIfNecessary();
-
-    if (l(JobsService.class).getJob(job.getJobId()).getJobAttempt().getState() == JobState.CANCELED) {
+    GetJobRequest request = GetJobRequest.newBuilder()
+      .setJobId(job.getJobId())
+      .build();
+    if (l(JobsService.class).getJob(request).getJobAttempt().getState() == JobState.CANCELED) {
       try {
         datasetService.downloadData(job.getJobAttempt().getInfo().getDownloadInfo(),
             SampleDataPopulator.DEFAULT_USER_NAME);

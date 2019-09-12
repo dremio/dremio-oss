@@ -27,10 +27,13 @@
       <excludes>
         <exclude>com.dremio.*:*-shade</exclude>
         <exclude>com.dremio.*:*-shaded</exclude>
+        <exclude>com.dremio.*:*-shaded-*</exclude>
         <exclude>com.dremio.jdbc:*</exclude>
         <exclude>com.dremio.client:*</exclude>
         <exclude>com.dremio.distribution:*</exclude>
         <exclude>com.dremio.provision:dremio-shimloader:jar</exclude>
+        <exclude>com.dremio.*:*-hive2-plugin:jar</exclude>
+        <exclude>com.dremio.*:*-hive3-plugin:jar</exclude>
       </excludes>
       <outputDirectory>jars</outputDirectory>
       <useProjectArtifact>false</useProjectArtifact>
@@ -61,6 +64,16 @@
         <exclude>org.apache.hbase:hbase-hadoop2-compat:jar:tests</exclude>
         <exclude>org.apache.parquet:parquet-column:test-jar:tests</exclude>
       </excludes>
+    </dependencySet>
+
+    <dependencySet>
+      <outputDirectory>plugins/connectors/</outputDirectory>
+      <unpack>false</unpack>
+      <useProjectArtifact>false</useProjectArtifact>
+      <includes>
+        <include>com.dremio.*:*-hive2-plugin:jar</include>
+        <include>com.dremio.*:*-hive3-plugin:jar</include>
+      </includes>
     </dependencySet>
   </dependencySets>
 </component>

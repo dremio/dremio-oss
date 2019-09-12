@@ -16,7 +16,7 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import { injectIntl } from 'react-intl';
-import { typeToIconType } from 'constants/DataTypes';
+import { typeToIconType } from '@app/constants/DataTypes';
 import Art from 'components/Art';
 import Select from './Select';
 

@@ -26,11 +26,13 @@ import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
 import org.joda.time.format.DateTimeParser;
 
-import com.carrotsearch.hppc.ObjectIntHashMap;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import com.google.common.collect.ImmutableMap;
 
 /* This file is a copy of arrow's DateUtility.java (prior to the java8 change)
  * This also has a few extra functions to replace Arrow Reader's calls
@@ -39,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 
 // Utility class for Date, DateTime, TimeStamp, Interval data types
 public class JodaDateUtility {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JodaDateUtility.class);
 
 
   /* We have a hashmap that stores the timezone as the key and an index as the value
@@ -46,7 +49,7 @@ public class JodaDateUtility {
    * reconstruct the timestamp, we use this index to index through the array timezoneList
    * and get the corresponding timezone and pass it to joda-time
    */
-  public static ObjectIntHashMap<String> timezoneMap = new ObjectIntHashMap<String>();
+  public static Map<String, Integer> timezoneMap;
 
   public static String[] timezoneList = {"Africa/Abidjan",
     "Africa/Accra",
@@ -624,9 +627,11 @@ public class JodaDateUtility {
     "Zulu"};
 
   static {
+    Map<String, Integer> map = new HashMap<>();
     for (int i = 0; i < timezoneList.length; i++) {
-      timezoneMap.put(timezoneList[i], i);
+      map.put(timezoneList[i], i);
     }
+    timezoneMap = ImmutableMap.copyOf(map);
   }
 
   public static final DateTimeFormatter formatDate = DateTimeFormat.forPattern("yyyy-MM-dd");
@@ -647,6 +652,10 @@ public class JodaDateUtility {
 
 
   public static int getIndex(String timezone) {
+    if (!timezoneMap.containsKey(timezone)) {
+      logger.error("'" + timezone + "' is an unregistered timezone. Using UTC");
+      timezone = "UTC";
+    }
     return timezoneMap.get(timezone);
   }
 

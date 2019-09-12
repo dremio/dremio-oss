@@ -18,16 +18,14 @@ import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import Radium from 'radium';
 
+import classNames from 'classnames';
+
 import PropTypes from 'prop-types';
 import ImmutablePropTypes from 'react-immutable-proptypes';
 
-import Spinner from 'components/Spinner';
+import LoadingOverlay from '@app/components/LoadingOverlay';
 import Message from 'components/Message';
-
 import { dismissViewStateError } from 'actions/resources';
-
-import { overlay } from 'uiTheme/radium/overlay';
-import classNames from 'classnames';
 
 const TIME_TP_WAIT_BEFORE_SPINNER = 500;
 
@@ -55,8 +53,6 @@ export class ViewStateWrapper extends Component {
     style: PropTypes.object,
     messageStyle: PropTypes.object, // styles that are applied to a error message
     showMessage: PropTypes.bool,
-    spinnerStyle: PropTypes.object,
-    progressMessage: PropTypes.string,
     dismissViewStateError: PropTypes.func,
     onDismissError: PropTypes.func,
     messageIsDismissable: PropTypes.bool,
@@ -123,33 +119,22 @@ export class ViewStateWrapper extends Component {
   renderStatus() {
     const {
       viewState,
-      spinnerStyle,
       hideChildrenWhenInProgress,
       hideChildrenWhenFailed,
       showMessage,
-      progressMessage,
       onDismissError,
       messageStyle,
       overlayStyle,
       dataQa,
       multilineErrorMessage
     } = this.props;
-    const resultOverlayStyle = { ...overlay, ...overlayStyle };
-    const commonProps = {
-      style: resultOverlayStyle,
-      'data-qa': dataQa,
-      className: 'view-state-wrapper-overlay'
-    };
+
     if (viewState.get('isInProgress') && !this.props.hideSpinner) {
-      if (this.state.shouldWeSeeSpinner || hideChildrenWhenInProgress) {
-        return <div {...commonProps}>
-          <div style={spinnerStyle}>
-            <Spinner/>
-            {progressMessage}
-          </div>
-        </div>;
-      }
-      return <div {...commonProps} />;
+      return (
+        <LoadingOverlay style={overlayStyle} dataQa={dataQa}
+          showSpinner={Boolean(this.state.shouldWeSeeSpinner || hideChildrenWhenInProgress)}
+        />
+      );
     }
 
     const handleDismiss = () => {

@@ -18,9 +18,9 @@ package com.dremio.exec.store;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -37,22 +37,25 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.data.NamedExpression;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.util.MajorTypeHelper;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.ClassGenerator;
-import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
+import com.dremio.exec.expr.ExpressionEvaluationOptions;
+import com.dremio.exec.expr.ExpressionSplitter;
 import com.dremio.exec.expr.TypeHelper;
-import com.dremio.exec.expr.ValueVectorReadExpression;
-import com.dremio.exec.expr.ValueVectorWriteExpression;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
-import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.util.BatchPrinter;
+import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.project.ProjectOperator;
 import com.dremio.sabot.op.project.Projector;
 import com.dremio.sabot.op.project.Projector.ComplexWriterCreator;
 import com.dremio.sabot.op.scan.OutputMutator;
+import com.google.common.base.Stopwatch;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
 public class CoercionReader extends AbstractRecordReader {
@@ -66,6 +69,10 @@ public class CoercionReader extends AbstractRecordReader {
   private Projector projector;
   private final BatchSchema targetSchema;
   private final List<NamedExpression> exprs;
+  private final ExpressionEvaluationOptions projectorOptions;
+  private ExpressionSplitter splitter;
+  private Stopwatch javaCodeGenWatch = Stopwatch.createUnstarted();
+  private Stopwatch gandivaCodeGenWatch = Stopwatch.createUnstarted();
 
   private OutputMutator outputMutator;
 
@@ -82,6 +89,8 @@ public class CoercionReader extends AbstractRecordReader {
     this.outgoing = new VectorContainer(context.getAllocator());
     this.targetSchema = targetSchema;
     this.exprs = new ArrayList<>(targetSchema.getFieldCount());
+    this.projectorOptions = new ExpressionEvaluationOptions(context.getOptions());
+    this.projectorOptions.setCodeGenOption(context.getOptions().getOption(ExecConstants.QUERY_EXEC_OPTION.getOptionName()).getStringVal());
 
     for (Field field : targetSchema.getFields()) {
       final FieldReference inputRef = FieldReference.getWithQuotedRef(field.getName());
@@ -140,53 +149,21 @@ public class CoercionReader extends AbstractRecordReader {
     final IntHashSet transferFieldIds = new IntHashSet();
     final List<TransferPair> transfers = Lists.newArrayList();
 
-    for (int i = 0; i < exprs.size(); i++) {
-      final NamedExpression namedExpression = exprs.get(i);
-
-      // it is possible that a filter removed all output or the shard has no data, so we don't have any incoming vectors
-      if (incoming.getValueVectorId(SchemaPath.getSimplePath(targetSchema.getFields().get(i).getName())) == null) {
-        continue;
-      }
-
-      final LogicalExpression expr = context.getClassProducer().materializeAndAllowComplex(namedExpression.getExpr(), incoming);
-      final Field outputField = expr.getCompleteType().toField(namedExpression.getRef());
-
-      switch(ProjectOperator.getEvalMode(incoming, expr, transferFieldIds)){
-
-      case COMPLEX: {
-        assert false : "Should not see complex expression in coercion reader";
-        break;
-      }
-      case DIRECT: {
-        final ValueVectorReadExpression vectorRead = (ValueVectorReadExpression) expr;
-        final TypedFieldId id = vectorRead.getFieldId();
-        final ValueVector vvIn = incoming.getValueAccessorById(id.getIntermediateClass(), id.getFieldIds()).getValueVector();
-        final FieldReference ref = namedExpression.getRef();
-        final ValueVector vvOut = outgoing.addOrGet(vectorRead.getCompleteType().toField(ref));
-        final TransferPair tp = vvIn.makeTransferPair(vvOut);
-        transfers.add(tp);
-        transferFieldIds.add(vectorRead.getFieldId().getFieldIds()[0]);
-        break;
-      }
-      case EVAL: {
-        final ValueVector vector = outgoing.addOrGet(outputField);
-        allocationVectors.add(vector);
-        final TypedFieldId fid = outgoing.getValueVectorId(SchemaPath.getSimplePath(outputField.getName()));
-        final boolean useSetSafe = !(vector instanceof FixedWidthVector);
-        final ValueVectorWriteExpression write = new ValueVectorWriteExpression(fid, expr, useSetSafe);
-        final HoldingContainer hc = cg.addExpr(write, ClassGenerator.BlockCreateMode.NEW_IF_TOO_LARGE);
-        if (expr instanceof ValueVectorReadExpression) {
-          assert false : "Should not have value vector read expressions in coercion reader";
-        }
-        break;
-      }
-      default:
-        assert false : "Unsupported eval mode, " + ProjectOperator.getEvalMode(incoming, expr, transferFieldIds);
-        throw new UnsupportedOperationException();
-      }
+    try {
+      splitter = ProjectOperator.createSplitterWithExpressions(incoming, exprs, transfers, cg,
+              transferFieldIds, context, projectorOptions, outgoing, targetSchema);
+      splitter.setupProjector(outgoing, javaCodeGenWatch, gandivaCodeGenWatch);
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
     }
-
+    javaCodeGenWatch.start();
     this.projector = cg.getCodeGenerator().getImplementationClass();
+    javaCodeGenWatch.stop();
+    OperatorStats stats = context.getStats();
+    stats.addLongStat(Metric.JAVA_BUILD_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    stats.addLongStat(Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    gandivaCodeGenWatch.reset();
+    javaCodeGenWatch.reset();
     this.projector.setup(
       context.getFunctionContext(),
       incoming,
@@ -222,16 +199,39 @@ public class CoercionReader extends AbstractRecordReader {
       BatchPrinter.printBatch(mutator.getContainer());
     }
     if (projector != null) {
-      projector.projectRecords(recordCount);
+      try {
+        if (recordCount > 0 ) {
+          splitter.projectRecords(recordCount, javaCodeGenWatch,
+            gandivaCodeGenWatch);
+        }
+        projector.projectRecords(recordCount);
+      } catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
       for (final ValueVector v : allocationVectors) {
         v.setValueCount(recordCount);
       }
     }
+    OperatorStats stats = context.getStats();
+    stats.addLongStat(Metric.JAVA_EXECUTE_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    stats.addLongStat(Metric.GANDIVA_EXECUTE_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
     return recordCount;
   }
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(outgoing, incoming, inner, mutator);
+    AutoCloseables.close(outgoing, incoming, inner, mutator, splitter);
+  }
+
+  public enum Metric implements MetricDef {
+    JAVA_BUILD_TIME,
+    GANDIVA_BUILD_TIME,
+    GANDIVA_EXECUTE_TIME,
+    JAVA_EXECUTE_TIME;
+
+    @Override
+    public int metricId() {
+      return ordinal();
+    }
   }
 }

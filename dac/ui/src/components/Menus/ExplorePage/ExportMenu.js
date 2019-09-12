@@ -16,7 +16,7 @@
 import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 
-import { MAP, LIST, MIXED } from 'constants/DataTypes';
+import { MAP, LIST, MIXED } from '@app/constants/DataTypes';
 
 const UNSUPPORTED_TYPE_COLUMNS = {
   'CSV': new Set([MAP, LIST, MIXED])
@@ -34,10 +34,11 @@ const TYPES = [
 export default class ExportMenu extends PureComponent {
   static propTypes = {
     action: PropTypes.func,
+    closeMenu: PropTypes.func,
     datasetColumns: PropTypes.array
   };
 
-  static defaultMenuItem = TYPES[0]
+  static defaultMenuItem = TYPES[0];
 
   renderMenuItems() {
     const datasetColumns = new Set(this.props.datasetColumns);
@@ -46,7 +47,10 @@ export default class ExportMenu extends PureComponent {
     return TYPES.map(type => {
       const types = UNSUPPORTED_TYPE_COLUMNS[type.name];
       const disabled = types && isTypesIntersected(types);
-      const onClick = disabled ? () => {} : () => this.props.action(type);
+      const onClick = disabled ? () => {} : () => {
+        this.props.action(type.name);
+        this.props.closeMenu();
+      };
 
       return <MenuItem key={type.name} onClick={onClick} disabled={disabled}>{type.label}</MenuItem>;
     });

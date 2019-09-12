@@ -16,6 +16,7 @@
 package com.dremio.common.memory;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
@@ -106,6 +107,16 @@ public class TestRootAllocator {
       closeables.add(alloc.buffer(1));
     }
     assertEquals(5l, rootAllocator.getAvailableBuffers());
+  }
+
+  @Test
+  public void ensureZeroBufferIsValid() throws Exception {
+    try(RollbackCloseable closeables = new RollbackCloseable(true)) {
+      BufferAllocator alloc = closeables.add(this.rootAllocator.newChildAllocator("child", 0, Long.MAX_VALUE));
+      ArrowBuf buffer = alloc.buffer(0);
+      assertTrue(buffer.memoryAddress() != 0);
+      closeables.add(buffer);
+    }
   }
 
   @Test

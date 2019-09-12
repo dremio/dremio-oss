@@ -16,16 +16,11 @@
 package com.dremio.exec.store.parquet;
 
 import java.io.IOException;
-import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.hadoop.fs.BlockLocation;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.parquet.column.statistics.Statistics;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
@@ -38,11 +33,11 @@ import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.apache.parquet.schema.Type;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.TimedRunnable;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.util.ImpersonationUtil;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileBlockLocation;
+import com.dremio.io.file.FileSystem;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -52,7 +47,7 @@ public class Metadata {
 
   private final FileSystem fs;
   private final ParquetFormatConfig formatConfig;
-  private final long maxFooterLen;
+  private final long maxFooterLength;
 
   /**
    * Get the parquet metadata for the parquet files in the given directory, including those in subdirectories
@@ -61,10 +56,9 @@ public class Metadata {
    * @return
    * @throws IOException
    */
-  public static ParquetTableMetadata getParquetTableMetadata(FileStatus status, FileSystem fs,
-      ParquetFormatConfig formatConfig, FileSystemPlugin<?> plugin) throws IOException {
-    Metadata metadata = new Metadata(formatConfig, plugin);
-    return metadata.getParquetTableMetadata(ImmutableList.of(status));
+  public static ParquetTableMetadata getParquetTableMetadata(FileAttributes attributes, FileSystem fs,
+      ParquetFormatConfig formatConfig, long maxFooterLength) throws IOException {
+    return getParquetTableMetadata(ImmutableList.of(attributes), fs, formatConfig, maxFooterLength);
   }
 
   /**
@@ -75,17 +69,15 @@ public class Metadata {
    * @throws IOException
    */
   public static ParquetTableMetadata getParquetTableMetadata(
-    List<FileStatus> fileStatuses, ParquetFormatConfig formatConfig, FileSystemPlugin<?> plugin) throws IOException {
-    Metadata metadata = new Metadata(formatConfig, plugin);
-    return metadata.getParquetTableMetadata(fileStatuses);
+    List<FileAttributes> fileAttributes, FileSystem fs, ParquetFormatConfig formatConfig, long maxFooterLength) throws IOException {
+    Metadata metadata = new Metadata(formatConfig, fs, maxFooterLength);
+    return metadata.getParquetTableMetadata(fileAttributes);
   }
 
-  private Metadata(ParquetFormatConfig formatConfig, FileSystemPlugin<?> plugin) {
-    this.fs = ImpersonationUtil.createFileSystem(plugin.getContext(), plugin.getId().getName(), plugin.getConfig(), null,
-      ImpersonationUtil.createProxyUgi(ImpersonationUtil.getProcessUserName()), plugin.getFsConf(), plugin.getConfig().getConnectionUniqueProperties(),
-      false);
+  private Metadata(ParquetFormatConfig formatConfig, FileSystem fs, long maxFooterLength) {
+    this.fs = fs;
     this.formatConfig = formatConfig;
-    this.maxFooterLen = plugin.getContext().getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
+    this.maxFooterLength = maxFooterLength;
   }
 
   /**
@@ -95,9 +87,9 @@ public class Metadata {
    * @return
    * @throws IOException
    */
-  private ParquetTableMetadata getParquetTableMetadata(List<FileStatus> fileStatuses)
+  private ParquetTableMetadata getParquetTableMetadata(List<FileAttributes> fileAttributesList)
       throws IOException {
-    List<ParquetFileMetadata> fileMetadataList = getParquetFileMetadata(fileStatuses);
+    List<ParquetFileMetadata> fileMetadataList = getParquetFileMetadata(fileAttributesList);
     return new ParquetTableMetadata(fileMetadataList);
   }
 
@@ -108,9 +100,9 @@ public class Metadata {
    * @return
    * @throws IOException
    */
-  private List<ParquetFileMetadata> getParquetFileMetadata(List<FileStatus> fileStatuses) throws IOException {
+  private List<ParquetFileMetadata> getParquetFileMetadata(List<FileAttributes> fileAttributesList) throws IOException {
     List<TimedRunnable<ParquetFileMetadata>> gatherers = Lists.newArrayList();
-    for (FileStatus file : fileStatuses) {
+    for (FileAttributes file : fileAttributesList) {
       gatherers.add(new MetadataGatherer(file));
     }
 
@@ -124,21 +116,15 @@ public class Metadata {
    */
   private class MetadataGatherer extends TimedRunnable<ParquetFileMetadata> {
 
-    private FileStatus fileStatus;
+    private final FileAttributes fileAttributes;
 
-    public MetadataGatherer(FileStatus fileStatus) {
-      this.fileStatus = fileStatus;
+    public MetadataGatherer(FileAttributes fileAttributes) {
+      this.fileAttributes = fileAttributes;
     }
 
     @Override
     protected ParquetFileMetadata runInner() throws Exception {
-      final UserGroupInformation processUGI = ImpersonationUtil.getProcessUserUGI();
-      return processUGI.doAs(new PrivilegedExceptionAction<ParquetFileMetadata>() {
-        @Override
-        public ParquetFileMetadata run() throws Exception {
-          return getParquetFileMetadata(fileStatus);
-        }
-      });
+      return getParquetFileMetadata(fileAttributes);
     }
 
     @Override
@@ -159,10 +145,10 @@ public class Metadata {
     return getOriginalType(t, path, depth + 1);
   }
 
-  private ParquetFileMetadata getParquetFileMetadata(FileStatus file) throws IOException {
+  private ParquetFileMetadata getParquetFileMetadata(FileAttributes file) throws IOException {
     final ParquetMetadata metadata;
 
-    metadata = SingletonParquetFooterCache.readFooter(fs, file, ParquetMetadataConverter.NO_FILTER, maxFooterLen);
+    metadata = SingletonParquetFooterCache.readFooter(fs, file, ParquetMetadataConverter.NO_FILTER, maxFooterLength);
 
     MessageType schema = metadata.getFileMetaData().getSchema();
 
@@ -234,7 +220,7 @@ public class Metadata {
       rowGroupIdx++;
     }
 
-    return new ParquetFileMetadata(file, file.getLen(), rowGroupMetadataList, columnTypeInfo);
+    return new ParquetFileMetadata(file, file.size(), rowGroupMetadataList, columnTypeInfo);
   }
 
   /**
@@ -246,22 +232,29 @@ public class Metadata {
    * @return
    * @throws IOException
    */
-  private Map<String, Float> getHostAffinity(FileStatus fileStatus, long start, long length)
+  private Map<String, Float> getHostAffinity(FileAttributes fileAttributes, long start, long length)
       throws IOException {
-    BlockLocation[] blockLocations = fs.getFileBlockLocations(fileStatus, start, length);
+    Iterable<FileBlockLocation> blockLocations = fs.getFileBlockLocations(fileAttributes, start, length);
     Map<String, Float> hostAffinityMap = Maps.newHashMap();
-    for (BlockLocation blockLocation : blockLocations) {
+    for (FileBlockLocation blockLocation : blockLocations) {
+      float blockStart = blockLocation.getOffset();
+      float blockEnd = blockStart + blockLocation.getSize();
+      float rowGroupEnd = start + length;
+      Float newAffinity = (blockLocation.getSize() - (blockStart < start ? start - blockStart : 0) -
+          (blockEnd > rowGroupEnd ? blockEnd - rowGroupEnd : 0)) / length;
+      /*
+       * Preserve the order of the hosts for cloud cache to ensure cache hits. It also guarantees
+       * the fragment goes to the next best host in case of failure.
+       */
       for (String host : blockLocation.getHosts()) {
         Float currentAffinity = hostAffinityMap.get(host);
-        float blockStart = blockLocation.getOffset();
-        float blockEnd = blockStart + blockLocation.getLength();
-        float rowGroupEnd = start + length;
-        Float newAffinity = (blockLocation.getLength() - (blockStart < start ? start - blockStart : 0) -
-            (blockEnd > rowGroupEnd ? blockEnd - rowGroupEnd : 0)) / length;
         if (currentAffinity != null) {
           hostAffinityMap.put(host, currentAffinity + newAffinity);
         } else {
           hostAffinityMap.put(host, newAffinity);
+        }
+        if (fs.preserveBlockLocationsOrder()) {
+          newAffinity /= 2;
         }
       }
     }
@@ -289,16 +282,16 @@ public class Metadata {
    * Struct which contains the metadata for a single parquet file
    */
   public static class ParquetFileMetadata {
-    private final FileStatus status;
+    private final FileAttributes fileAttributes;
     private final String path;
     private final Long length;
     private final List<RowGroupMetadata> rowGroups;
     private final Map<ColumnTypeMetadata.Key, ColumnTypeMetadata> columnTypeInfo;
 
-    public ParquetFileMetadata(FileStatus status, Long length, List<RowGroupMetadata> rowGroups,
+    public ParquetFileMetadata(FileAttributes fileAttributes, Long length, List<RowGroupMetadata> rowGroups,
         Map<ColumnTypeMetadata.Key, ColumnTypeMetadata> columnTypeInfo) {
-      this.status = status;
-      this.path = status.getPath().toString();
+      this.fileAttributes = fileAttributes;
+      this.path = fileAttributes.getPath().toString();
       this.length = length;
       this.rowGroups = rowGroups;
       this.columnTypeInfo = columnTypeInfo;
@@ -306,11 +299,11 @@ public class Metadata {
 
     @Override
     public String toString() {
-      return String.format("path: %s rowGroups: %s", status.getPath(), rowGroups);
+      return String.format("path: %s rowGroups: %s", fileAttributes.getPath(), rowGroups);
     }
 
-    public FileStatus getStatus() {
-      return status;
+    public FileAttributes getFileAttributes() {
+      return fileAttributes;
     }
 
     public String getPathString() {

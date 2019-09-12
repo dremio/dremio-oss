@@ -25,7 +25,11 @@ const proxy = require('http-proxy-middleware');
 const express = require('express');
 const app = express();
 
+// Must be before webpack.config.js import
+process.env.SKIP_SENTRY_STEP = 'true';
+
 const config = require('./webpack.config');
+config.bail = false; // to not fail on compilation error in dev mode
 const testConfig = require('./webpack.tests.config');
 const isProductionBuild = process.env.NODE_ENV === 'production';
 

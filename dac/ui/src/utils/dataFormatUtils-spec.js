@@ -15,7 +15,7 @@
  */
 import Immutable from 'immutable';
 
-import { MAP, LIST, BOOLEAN, TEXT } from 'constants/DataTypes';
+import { MAP, LIST, BOOLEAN, TEXT } from '@app/constants/DataTypes';
 import { UNMATCHED_CELL_VALUE, EMPTY_NULL_VALUE, EMPTY_STRING_VALUE } from './dataFormatUtils';
 import DataFormatUtils from './dataFormatUtils';
 

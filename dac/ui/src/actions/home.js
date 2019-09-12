@@ -15,7 +15,7 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 
 import folderSchema from 'schemas/folder';
@@ -118,24 +118,24 @@ export const loadWiki = (dispatch) => entityId => {
 
   return new Promise((resolve) => {
     ApiUtils.fetch(`catalog/${entityId}/collaboration/wiki`)
-    .then(response => response.json().then((wikiData) => {
-      wikiSuccess(dispatch, resolve, wikiData, commonActionProps);
-    }), async (response) => {
-      // no error message needed on 404 when wiki is not present for given id
-      if (response.status === 404) {
-        wikiSuccess(dispatch, resolve, {}, commonActionProps);
-        return;
-      }
-      const errorInfo = {
-        errorMessage: await ApiUtils.getErrorMessage(la('Wiki API returned an error'), response),
-        errorId: '' + Math.random()
-      };
-      dispatch({
-        type: wikiActions.failure,
-        ...errorInfo,
-        ...commonActionProps
+      .then(response => response.json().then((wikiData) => {
+        wikiSuccess(dispatch, resolve, wikiData, commonActionProps);
+      }), async (response) => {
+        // no error message needed on 404 when wiki is not present for given id
+        if (response.status === 404) {
+          wikiSuccess(dispatch, resolve, {}, commonActionProps);
+          return;
+        }
+        const errorInfo = {
+          errorMessage: await ApiUtils.getErrorMessage(la('Wiki API returned an error'), response),
+          errorId: '' + Math.random()
+        };
+        dispatch({
+          type: wikiActions.failure,
+          ...errorInfo,
+          ...commonActionProps
+        });
       });
-    });
   });
 };
 

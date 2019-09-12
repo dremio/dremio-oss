@@ -24,7 +24,7 @@ import EllipsedText from 'components/EllipsedText';
 import Meter from 'components/Meter';
 
 import { LINE_NOWRAP_ROW_START_CENTER,
-         FLEX_COL_START } from 'uiTheme/radium/flexStyle';
+  FLEX_COL_START } from 'uiTheme/radium/flexStyle';
 import { formDescription } from 'uiTheme/radium/typography';
 
 import dataFormatUtils from 'utils/dataFormatUtils';
@@ -53,29 +53,29 @@ export default class FieldValues extends Component {
     return <table className='field'>
       <tbody>
         {
-        options.map(option => {
-          const correctText = dataFormatUtils.formatValue(option.value);
-          const correctTextStyle = option.value === undefined || option.value === null || option.value === ''
-            ? styles.nullwrap
-            : {};
-          return (
-            <tr>
-              <td>
-                <FontIcon type={FontIcon.getIconTypeForDataType(option.type)} style={styles.icon}/>
-              </td>
-              <td style={styles.value}>
-                <EllipsedText text={correctText} style={{...correctTextStyle}}/>
-              </td>
-              <td style={styles.progressWrap}>
-                <Meter value={option.percent} max={maxPercent}/>
-              </td>
-              <td style={styles.percent}>
-                {`${option.percent.toPrecision(2)}%`}
-              </td>
-            </tr>
-          );
-        })
-      }
+          options.map(option => {
+            const correctText = dataFormatUtils.formatValue(option.value);
+            const correctTextStyle = option.value === undefined || option.value === null || option.value === ''
+              ? styles.nullwrap
+              : {};
+            return (
+              <tr>
+                <td>
+                  <FontIcon type={FontIcon.getIconTypeForDataType(option.type)} style={styles.icon}/>
+                </td>
+                <td style={styles.value}>
+                  <EllipsedText text={correctText} style={{...correctTextStyle}}/>
+                </td>
+                <td style={styles.progressWrap}>
+                  <Meter value={option.percent} max={maxPercent}/>
+                </td>
+                <td style={styles.percent}>
+                  {`${option.percent.toPrecision(2)}%`}
+                </td>
+              </tr>
+            );
+          })
+        }
       </tbody>
     </table>;
   }

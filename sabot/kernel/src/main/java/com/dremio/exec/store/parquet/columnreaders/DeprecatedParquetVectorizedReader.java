@@ -34,16 +34,13 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.RepeatedValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.format.SchemaElement;
-import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
-import org.apache.parquet.hadoop.util.HadoopStreams;
 import org.apache.parquet.io.SeekableInputStream;
 import org.apache.parquet.schema.PrimitiveType;
 
@@ -63,6 +60,9 @@ import com.dremio.exec.store.parquet.GlobalDictionaries;
 import com.dremio.exec.store.parquet.ParquetReaderStats;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
+import com.dremio.exec.store.parquet.Streams;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.collect.Lists;
@@ -77,7 +77,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
   private boolean allFieldsFixedLength;
   private List<ColumnReader<?>> columnStatuses;
   private FileSystem fileSystem;
-  Path hadoopPath;
+  Path fsPath;
   private VarLenBinaryReader varLengthReader;
   private ParquetMetadata footer;
   // This is a parallel list to the columns list above, it is used to determine the subset of the project
@@ -92,7 +92,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
   // records specified in the row group metadata
   long mockRecordsRead;
 
-  private final CodecFactory codecFactory;
+  private final CompressionCodecFactory codecFactory;
   int rowGroupIndex;
   long totalRecordsRead;
   SeekableInputStream singleInputStream;
@@ -107,14 +107,14 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     String path,
     int rowGroupIndex,
     FileSystem fs,
-    CodecFactory codecFactory,
+    CompressionCodecFactory codecFactory,
     ParquetMetadata footer,
     List<SchemaPath> columns,
     SchemaDerivationHelper schemHelper,
     Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns,
     GlobalDictionaries globalDictionaries) throws ExecutionSetupException {
     super(operatorContext, columns);
-    this.hadoopPath = new Path(path);
+    this.fsPath = Path.of(path);
     this.fileSystem = fs;
     this.codecFactory = codecFactory;
     this.rowGroupIndex = rowGroupIndex;
@@ -139,12 +139,12 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     return schemaHelper.readInt96AsTimeStamp();
   }
 
-  public CodecFactory getCodecFactory() {
+  public CompressionCodecFactory getCodecFactory() {
     return codecFactory;
   }
 
-  public Path getHadoopPath() {
-    return hadoopPath;
+  public Path getFsPath() {
+    return fsPath;
   }
 
   public FileSystem getFileSystem() {
@@ -256,16 +256,16 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     FileMetaData fileMetaData;
 
     logger.debug("Reading row group({}) with {} records in file {}.", rowGroupIndex, footer.getBlocks().get(rowGroupIndex).getRowCount(),
-        hadoopPath.toUri().getPath());
+        fsPath.toURI().getPath());
     totalRecordsRead = 0;
 
     boolean useSingleStream = context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM);
     if (useSingleStream || columns.size()  >= context.getOptions().getOption(ExecConstants.PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD)) {
       try {
-        singleInputStream = HadoopStreams.wrap(fileSystem.open(hadoopPath));
+        singleInputStream = Streams.wrap(fileSystem.open(fsPath));
       } catch (IOException ioe) {
         throw new ExecutionSetupException("Error opening or reading metadata for parquet file at location: "
-          + hadoopPath.getName(), ioe);
+          + fsPath.getName(), ioe);
       }
     }
 
@@ -538,7 +538,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
       totalRecordsRead += firstColumnStatus.getRecordsReadInCurrentPass();
       return firstColumnStatus.getRecordsReadInCurrentPass();
     } catch (Exception e) {
-      handleAndRaise("\nHadoop path: " + hadoopPath.toUri().getPath() +
+      handleAndRaise("\nHadoop path: " + fsPath.toURI().getPath() +
         "\nTotal records read: " + totalRecordsRead +
         "\nMock records read: " + mockRecordsRead +
         "\nRecords to read: " + recordsToRead +
@@ -552,7 +552,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
 
   @Override
   public void close() throws Exception {
-    logger.debug("Read {} records out of row group({}) in file '{}'", totalRecordsRead, rowGroupIndex, hadoopPath.toUri().getPath());
+    logger.debug("Read {} records out of row group({}) in file '{}'", totalRecordsRead, rowGroupIndex, fsPath.toURI().getPath());
     // enable this for debugging when it is know that a whole file will be read
     // limit kills upstream operators once it has enough records, so this assert will fail
 //    assert totalRecordsRead == footer.getBlocks().get(rowGroupIndex).getRowCount();
@@ -580,7 +580,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
 
     if(parquetReaderStats != null) {
       logger.trace("ParquetTrace,Summary,{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}",
-          hadoopPath,
+          fsPath,
           parquetReaderStats.numDictPageHeaders,
           parquetReaderStats.numPageHeaders,
           parquetReaderStats.numDictPageLoads,

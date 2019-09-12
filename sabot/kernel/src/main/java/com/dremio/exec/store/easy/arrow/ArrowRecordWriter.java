@@ -17,12 +17,11 @@ package com.dremio.exec.store.easy.arrow;
 
 import static com.dremio.exec.store.easy.arrow.ArrowFormatPlugin.MAGIC_STRING;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.List;
 
 import org.apache.arrow.vector.ValueVector;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.cache.VectorAccessibleSerializable;
@@ -35,11 +34,12 @@ import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.store.EventBasedRecordWriter;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.WritePartition;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat.ArrowFileFooter;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat.ArrowFileMetadata;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat.ArrowRecordBatchSummary;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -59,12 +59,12 @@ public class ArrowRecordWriter implements RecordWriter {
   private Path location;
   private String prefix;
   private String extension;
-  private FileSystemWrapper fs;
+  private FileSystem fs;
 
   private int nextFileIndex = 0;
 
   private Path currentFile;
-  private FSDataOutputStream currentFileOutputStream;
+  private DataOutputStream currentFileOutputStream;
   private OutputEntryListener outputEntryListener;
   private WriteStatsListener writeStatsListener;
   private VectorAccessible incoming;
@@ -80,7 +80,7 @@ public class ArrowRecordWriter implements RecordWriter {
     this.context = context;
     this.listOfFilesCreated = Lists.newArrayList();
     this.footerBuilder = ArrowFileFooter.newBuilder();
-    this.location = new Path(writerConfig.getLocation());
+    this.location = Path.of(writerConfig.getLocation());
     this.prefix = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
     this.extension = formatConfig.outputExtension;
   }
@@ -92,10 +92,10 @@ public class ArrowRecordWriter implements RecordWriter {
     this.incoming = incoming;
     this.outputEntryListener = outputEntryListener;
     this.writeStatsListener = writeStatsListener;
-    this.fs = writerConfig.getFormatPlugin().getFsPlugin().getFileSystem(writerConfig.getFsConf(), context);
-    this.currentFile = fs.canonicalizePath(new Path(location, String.format("%s_%d.%s", prefix, nextFileIndex, extension)));
+    this.fs = writerConfig.getFormatPlugin().getFsPlugin().createFS(writerConfig.getProps().getUserName(), context);
+    this.currentFile = fs.canonicalizePath(location.resolve(String.format("%s_%d.%s", prefix, nextFileIndex, extension)));
     this.relativePath = currentFile.getName();
-    this.currentFileOutputStream = fs.create(currentFile);
+    this.currentFileOutputStream = new DataOutputStream(fs.create(currentFile));
     listOfFilesCreated.add(currentFile);
 
     // write magic word bytes
@@ -123,13 +123,13 @@ public class ArrowRecordWriter implements RecordWriter {
       throw UserException.dataWriteError().message("You cannot partition data written in Arrow format.").build(logger);
     }
     final int recordCount = incoming.getRecordCount();
-    final long startOffset = currentFileOutputStream.getPos();
+    final long startOffset = currentFileOutputStream.size();
 
     final WritableBatch writableBatch = WritableBatch.getBatchNoHVWrap(recordCount, incoming, false /* isSv2 */);
     final VectorAccessibleSerializable serializer = new VectorAccessibleSerializable(writableBatch, null/*allocator*/);
 
     serializer.writeToStream(currentFileOutputStream);
-    final long endOffset = currentFileOutputStream.getPos();
+    final long endOffset = currentFileOutputStream.size();
 
     final ArrowRecordBatchSummary summary =
         ArrowRecordBatchSummary
@@ -157,7 +157,7 @@ public class ArrowRecordWriter implements RecordWriter {
   private void closeCurrentFile() throws IOException {
     if (currentFileOutputStream != null) {
       // Save the footer starting offset
-      final long footerStartOffset = currentFileOutputStream.getPos();
+      final long footerStartOffset = currentFileOutputStream.size();
 
       // write the footer
       ArrowFileFooter footer = footerBuilder.build();
@@ -169,7 +169,7 @@ public class ArrowRecordWriter implements RecordWriter {
       // write magic word bytes
       currentFileOutputStream.write(MAGIC_STRING.getBytes());
 
-      final long fileSize = currentFileOutputStream.getPos();
+      final long fileSize = currentFileOutputStream.size();
 
       currentFileOutputStream.close();
       currentFileOutputStream = null;

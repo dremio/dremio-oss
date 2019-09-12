@@ -33,9 +33,9 @@ import javax.ws.rs.core.SecurityContext;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.job.JobsUI;
-import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.SearchJobsRequest;
 import com.dremio.service.namespace.NamespaceService;
 import com.google.common.collect.ImmutableList;
 import com.google.common.escape.Escaper;
@@ -72,13 +72,21 @@ public class JobsResource {
   public JobsUI getJobs(
       @QueryParam("filter") String filters,
       @QueryParam("sort") String sortColumn,
-      @QueryParam("order") SortOrder order,
+      @QueryParam("order") SearchJobsRequest.ResultOrder order,
       @QueryParam("offset") @DefaultValue("0") int offset,
       @QueryParam("limit") @DefaultValue("100") int limit
       ) {
 
-    final List<Job> jobs = ImmutableList.copyOf(jobsService.get().getAllJobs(filters, sortColumn, order, offset, limit,
-      securityContext.getUserPrincipal().getName()));
+    final SearchJobsRequest request = SearchJobsRequest.newBuilder()
+        .setFilterString(filters)
+        .setOffset(offset)
+        .setLimit(limit)
+        .setSortColumn(sortColumn)
+        .setResultOrder(order)
+        .setUsername(securityContext.getUserPrincipal().getName())
+        .build();
+
+    final List<Job> jobs = ImmutableList.copyOf(jobsService.get().searchJobs(request));
     return new JobsUI(
         namespace,
         jobs,
@@ -86,7 +94,14 @@ public class JobsResource {
         );
   }
 
-  private String getNext(final int offset, final int limit, String filter, String sortColumn, SortOrder order, int previousReturn){
+  private String getNext(
+      final int offset,
+      final int limit,
+      String filter,
+      String sortColumn,
+      SearchJobsRequest.ResultOrder order,
+      int previousReturn
+  ) {
 
     // only return a next if we returned a full list.
     if(previousReturn != limit){

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import {RSAA} from 'redux-api-middleware';
-import {API_URL_V2, API_URL_V3} from 'constants/Api';
+import {API_URL_V2, API_URL_V3} from '@app/constants/Api';
 import summaryDatasetSchema from 'schemas/v2/summaryDataset';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import {Schema} from 'normalizr';

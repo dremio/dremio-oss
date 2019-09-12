@@ -32,11 +32,6 @@ public interface EventProvider {
   ExecProtos.FragmentHandle pollFinishedReceiver();
 
   /**
-   * @return true if fragment has been cancelled
-   */
-  boolean isCancelled();
-
-  /**
    * @return reason for failure, if there is one.
    */
   Optional<Throwable> getFailedReason();

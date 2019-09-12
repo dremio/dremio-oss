@@ -15,7 +15,7 @@
  */
 import Immutable from 'immutable';
 
-import { CUSTOM_JOIN } from 'constants/explorePage/joinTabs';
+import { CUSTOM_JOIN } from '@app/constants/explorePage/joinTabs';
 import * as Actions from 'actions/explore/join';
 import reducer from './join';
 

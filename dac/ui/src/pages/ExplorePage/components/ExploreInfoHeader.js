@@ -18,18 +18,22 @@ import { connect } from 'react-redux';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import CopyButton from 'components/Buttons/CopyButton';
 import Immutable from 'immutable';
 import DocumentTitle from 'react-document-title';
 import { injectIntl } from 'react-intl';
 
+import CopyButton from '@app/components/Buttons/CopyButton';
+import Button from '@app/components/Buttons/Button';
+import * as ButtonTypes from '@app/components/Buttons/ButtonTypes';
+
+import DropdownMenu from '@app/components/Menus/DropdownMenu';
 import EllipsedText from 'components/EllipsedText';
 import modelUtils from 'utils/modelUtils';
 import { constructFullPath, navigateToExploreDefaultIfNecessary } from 'utils/pathUtils';
 import { formatMessage } from 'utils/locale';
 import { needsTransform, isSqlChanged } from 'sagas/utils';
 
-import { PHYSICAL_DATASET_TYPES } from 'constants/datasetTypes';
+import { PHYSICAL_DATASET_TYPES } from '@app/constants/datasetTypes';
 //actions
 import { saveDataset, saveAsDataset } from 'actions/explore/dataset/save';
 import { performTransform, transformHistoryCheck } from 'actions/explore/dataset/transform';
@@ -41,14 +45,10 @@ import { pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
 import { startDownloadDataset } from 'actions/explore/download';
 import { performNextAction, NEXT_ACTIONS } from 'actions/explore/nextAction';
 
-import DropdownButton from 'components/Buttons/DropdownButton';
 import DatasetAccelerationButton from 'dyn-load/components/Acceleration/DatasetAccelerationButton';
-import ExploreSettingsButton from 'components/Buttons/ExploreSettingsButton';
 
-import SaveMenu from 'components/Menus/ExplorePage/SaveMenu';
-import ExportMenu from 'components/Menus/ExplorePage/ExportMenu';
-import BiToolsMenu from 'components/Menus/ExplorePage/BiToolsMenu';
-import RunMenu from 'components/Menus/ExplorePage/RunMenu';
+import SaveMenu, { DOWNLOAD_TYPES } from 'components/Menus/ExplorePage/SaveMenu';
+import CombinedActionMenu from '@app/components/Menus/ExplorePage/CombinedActionMenu';
 import BreadCrumbs from 'components/BreadCrumbs';
 import FontIcon from 'components/Icon/FontIcon';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
@@ -135,6 +135,14 @@ export class ExploreInfoHeader extends PureComponent {
       return this.handlePreviewClick();
     case 'save':
       return this.handleSave();
+    case DOWNLOAD_TYPES.json:
+    case DOWNLOAD_TYPES.csv:
+    case DOWNLOAD_TYPES.parquet:
+      return this.downloadDataset(actionType);
+    case NEXT_ACTIONS.openTableau:
+    case NEXT_ACTIONS.openPowerBI:
+    case NEXT_ACTIONS.openQlik:
+      return this.handleShowBI(actionType);
     default:
       break;
     }
@@ -254,7 +262,7 @@ export class ExploreInfoHeader extends PureComponent {
         });
       }
     );
-  }
+  };
 
   handleSaveAs = () => {
     const nextAction = this.state.nextAction;
@@ -263,7 +271,6 @@ export class ExploreInfoHeader extends PureComponent {
       () => this.props.saveAsDataset(nextAction)
     );
   };
-  handleAnchorChange = (e) => this.setState({anchor: e.currentTarget});
 
   handleShowBI = (nextAction) => {
     const {dataset} = this.props;
@@ -346,6 +353,109 @@ export class ExploreInfoHeader extends PureComponent {
     );
   }
 
+  renderRightPartOfHeader() {
+    return (
+      <div className='right-part'>
+        { this.renderAccelerationButton() }
+        { this.renderEllipsisButton() }
+        { this.renderSaveButton() }
+        { this.renderRunButton('preview', this.doButtonAction) }
+        { this.renderRunButton('run', this.doButtonAction) }
+        { /* this feature disabled for now
+            <div style={[style.divider]} />
+            {this.renderRightTreeToggler()}
+          */ }
+      </div>
+    );
+  }
+
+  renderAccelerationButton = () => {
+    if (!this.isCreatedAndNamedDataset()) {
+      return null;
+    }
+    const fullPath = ExploreInfoHeader.getFullPathListForDisplay(this.props.dataset);
+    return (
+      <DatasetAccelerationButton
+        style={{ marginLeft: 20 }}
+        fullPath={fullPath}
+        isEditedDataset={this.isEditedDataset()}/>
+    );
+  };
+
+  // ellipsis button with settings, download, and analyze options
+  renderEllipsisButton = () => {
+    const { dataset } = this.props;
+    const isSettingsDisabled = !this.shouldEnableSettingsButton();
+    const isActionDisabled = !dataset.get('isNewQuery') && !dataset.get('datasetType'); // not new query nor loaded
+    const datasetColumns = this.props.tableColumns.map(column => column.get('type')).toJS();
+    return (
+      <DropdownMenu
+        className='explore-ellipsis-button'
+        iconType='Ellipsis'
+        disabled={isSettingsDisabled && isActionDisabled}
+        style={style.noTextButton}
+        isButton
+        menu={<CombinedActionMenu
+          dataset={dataset}
+          datasetColumns={datasetColumns}
+          downloadAction={this.downloadDataset}
+          action={this.doButtonAction}
+          isSettingsDisabled={isSettingsDisabled}
+          isActionDisabled={isActionDisabled}
+        />}
+      />
+    );
+  };
+
+  renderSaveButton = () => {
+    const { dataset } = this.props;
+    const shouldEnableButtons = dataset.get('isNewQuery') || dataset.get('datasetType'); // new query or loaded
+    const mustSaveAs = dataset.getIn(['fullPath', 0]) === 'tmp';
+
+    return (
+      <DropdownMenu
+        className='explore-save-button'
+        iconType='Save'
+        disabled={!shouldEnableButtons}
+        style={style.noTextButton}
+        isButton
+        menu={<SaveMenu action={this.doButtonAction} mustSaveAs={mustSaveAs}/>}
+      />
+    );
+  };
+
+  renderRunButton = (type, actionFn)  => {
+    const doAction = () => actionFn(type); //type should be "preview" or "run" for doButtonAction
+
+    const isMac = navigator.platform && navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const runKbdShortTxt = (isMac) ? '⌘+Shift+Enter' : 'Ctrl+Shift+Enter';
+    const previewKbdShortTxt = (isMac) ? '⌘+Enter' : 'Ctrl+Enter';
+    const title = (type === 'preview') ?
+      `${la('Preview')} ${previewKbdShortTxt}` : `${la('Run')} ${runKbdShortTxt}`;
+
+    const className = (type === 'preview') ? 'preview-button' : 'run-button';
+    const btnType = (type === 'preview') ? ButtonTypes.SECONDARY : ButtonTypes.PRIMARY;
+    const btnText = (type === 'preview') ? la('Preview') : la('Run');
+    const dataQa = (type === 'preview') ? 'qa-preview' : 'qa-run';
+    const icon = (type === 'preview') ? null : 'NarwhalReversed';
+    const iconStyle = (type === 'preview') ? null : style.narwhal;
+
+    return (
+      <Button
+        type={btnType}
+        data-qa={dataQa}
+        className={className}
+        title={title}
+        onClick={doAction}
+        text={btnText}
+        icon={icon}
+        iconStyle={iconStyle}
+        style={style.actionBtnWrap}
+      />
+    );
+  };
+
+  // this feature disabled for now
   renderRightTreeToggler() {
     return !this.props.rightTreeVisible
       ? <button
@@ -358,74 +468,14 @@ export class ExploreInfoHeader extends PureComponent {
   }
 
   render() {
-    const { dataset, intl } = this.props;
+    const { dataset } = this.props;
     const classes = classNames('explore-info-header', { 'move-right': this.props.rightTreeVisible });
     const isInProgress = this.props.exploreViewState.get('isInProgress');
-    const shouldEnableButtons = dataset.get('isNewQuery') || dataset.get('datasetType'); // new query or loaded
-    const datasetColumns = this.props.tableColumns.map(column => column.get('type')).toJS();
-
-    const mustSaveAs = dataset.getIn(['fullPath', 0]) === 'tmp';
-    const fullPath = ExploreInfoHeader.getFullPathListForDisplay(dataset);
 
     return (
       <div className={classes} style={[style.base, isInProgress && style.disabledStyle]}>
         {this.renderLeftPartOfHeader(dataset)}
-        <div className='right-part'>
-          {this.isCreatedAndNamedDataset() &&
-            <DatasetAccelerationButton
-              style={{ marginLeft: 20 }}
-              fullPath={fullPath}
-              isEditedDataset={this.isEditedDataset()}/>
-          }
-          <ExploreSettingsButton dataset={dataset} disabled={!this.shouldEnableSettingsButton()}/>
-          <DropdownButton
-            className='download-button'
-            tooltip={la('Download')}
-            action={this.downloadDataset}
-            type='secondary'
-            iconType='Download'
-            defaultValue={ExportMenu.defaultMenuItem}
-            disabled={!shouldEnableButtons}
-            menu={<ExportMenu datasetColumns={datasetColumns}/>}/>
-          <DropdownButton
-            className='tableau-button'
-            iconType='OpenBI'
-            defaultValue={{ label: 'Tableau', name: NEXT_ACTIONS.openTableau }}
-            disabled={!shouldEnableButtons}
-            action={this.handleShowBI}
-            menu={<BiToolsMenu action={this.handleShowBI}/>}/>
-          <div style={[style.divider, {marginLeft: 5}]}></div>
-          <div onClick={this.handleAnchorChange}>
-            <DropdownButton
-              className='explore-save-button'
-              action={this.doButtonAction}
-              type='secondary'
-              iconType='Save'
-              shouldSwitch={false}
-              disabled={!shouldEnableButtons}
-              defaultValue={
-                mustSaveAs
-                  ? { name: 'saveAs', label: intl.formatMessage({ id: 'Dataset.SaveAs' })}
-                  : { name: 'save', label: intl.formatMessage({ id: 'Dataset.Save' })}
-              }
-              hideDropdown={mustSaveAs}
-              menu={<SaveMenu/>}/>
-          </div>
-          <DropdownButton
-            className='run-button'
-            action={this.doButtonAction}
-            type='primary'
-            iconStyle={style.narwhal}
-            iconType='NarwhalReversed'
-            defaultValue={{label: 'Preview', name: 'preview'}}
-            menu={<RunMenu/>}
-          />
-
-          { /* this feature disabled for now
-            <div style={[style.divider]} />
-            {this.renderRightTreeToggler()}
-          */ }
-        </div>
+        {this.renderRightPartOfHeader()}
       </div>
     );
   }
@@ -514,6 +564,13 @@ const style = {
     height: 28,
     borderLeft: '2px solid rgba(0,0,0,0.1)'
   },
+  noTextButton: {
+    minWidth: 50
+  },
+  actionBtnWrap: {
+    marginBottom: 0,
+    minWidth: 80
+  },
   narwhal: {
     Icon: {
       width: 22,
@@ -522,7 +579,7 @@ const style = {
     Container: {
       width: 24,
       height: 24,
-      marginRight: -3
+      marginRight: 10
     }
   },
   titleWrap: {

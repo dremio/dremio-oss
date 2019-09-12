@@ -17,8 +17,6 @@ package com.dremio.exec.store.dfs.easy;
 
 import java.util.List;
 
-import org.apache.hadoop.conf.Configuration;
-
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
@@ -39,7 +37,7 @@ public class EasyWriter extends FileSystemWriter {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EasyWriter.class);
 
   private final String location;
-  private final FileSystemPlugin plugin;
+  private final FileSystemPlugin<?> plugin;
   private final EasyFormatPlugin<?> formatPlugin;
 
   @JsonCreator
@@ -68,7 +66,7 @@ public class EasyWriter extends FileSystemWriter {
       String userName,
       String location,
       WriterOptions options,
-      FileSystemPlugin plugin,
+      FileSystemPlugin<?> plugin,
       EasyFormatPlugin<?> formatPlugin) {
     super(props, child, options);
     this.plugin = plugin;
@@ -89,11 +87,6 @@ public class EasyWriter extends FileSystemWriter {
   @JsonProperty("format")
   public FormatPluginConfig getFormatConfig(){
     return formatPlugin.getConfig();
-  }
-
-  @JsonIgnore
-  public Configuration getFsConf() {
-    return plugin.getFsConf();
   }
 
   @JsonIgnore

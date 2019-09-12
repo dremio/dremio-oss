@@ -271,6 +271,14 @@ public class AccumulatorSet implements ResizeListener, AutoCloseable {
     }
   }
 
+  @Override
+  public void releaseBatch(final int batchIdx)
+  {
+    for(Accumulator a : children){
+      a.releaseBatch(batchIdx);
+    }
+  }
+
   @VisibleForTesting
   public Map<Integer, List<List<Integer>>> getMapping() {
     return combinedAccumulators;

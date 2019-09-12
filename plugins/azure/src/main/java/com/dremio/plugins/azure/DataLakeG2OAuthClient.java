@@ -51,9 +51,10 @@ public class DataLakeG2OAuthClient extends DataLakeG2Client {
     String filesystem,
     String path,
     long startInclusive,
-    long endExclusive) throws Exception {
+    long endExclusive,
+    String version) throws Exception {
     checkAndUpdateClient();
-    return super.read(filesystem, path, startInclusive, endExclusive);
+    return super.read(filesystem, path, startInclusive, endExclusive, version);
   }
 
   private synchronized void checkAndUpdateClient() throws Exception {

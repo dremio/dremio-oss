@@ -27,11 +27,11 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.FormatMatcher;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.easy.json.JSONFormatPlugin.JSONFormatConfig;
+import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -43,17 +43,17 @@ public class JSONFormatPlugin extends EasyFormatPlugin<JSONFormatConfig> {
   private static final boolean IS_COMPRESSIBLE = true;
   private static final String DEFAULT_NAME = "json";
 
-  public JSONFormatPlugin(String name, SabotContext context, FileSystemPlugin fsPlugin) {
+  public JSONFormatPlugin(String name, SabotContext context, FileSystemPlugin<?> fsPlugin) {
     this(name, context, new JSONFormatConfig(), fsPlugin);
   }
 
-  public JSONFormatPlugin(String name, SabotContext context, JSONFormatConfig formatPluginConfig, FileSystemPlugin fsPlugin) {
+  public JSONFormatPlugin(String name, SabotContext context, JSONFormatConfig formatPluginConfig, FileSystemPlugin<?> fsPlugin) {
     super(name, context, formatPluginConfig, true, false, false, IS_COMPRESSIBLE, formatPluginConfig.getExtensions(), DEFAULT_NAME, fsPlugin);
   }
 
   @Override
-  public RecordReader getRecordReader(OperatorContext context, FileSystemWrapper dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns) throws ExecutionSetupException {
-    return new JSONRecordReader(context, splitAttributes.getPath(), dfs, columns);
+  public RecordReader getRecordReader(OperatorContext context, FileSystem dfs, EasyDatasetSplitXAttr splitAttributes, List<SchemaPath> columns) throws ExecutionSetupException {
+    return new JSONRecordReader(context, splitAttributes.getPath(), getFsPlugin().getCompressionCodecFactory(), dfs, columns);
   }
 
   @Override

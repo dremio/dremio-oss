@@ -153,6 +153,10 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
   }
 
   @Override
+  public void recordsProcessed(long recordCount) {
+  }
+
+  @Override
   public void planGenerationTime(long millisTaken) {
   }
 

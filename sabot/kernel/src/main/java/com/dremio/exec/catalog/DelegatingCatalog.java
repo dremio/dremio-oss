@@ -57,6 +57,11 @@ public class DelegatingCatalog implements Catalog {
   }
 
   @Override
+  public DremioTable getTableNoColumnCount(NamespaceKey key) {
+    return delegate.getTableNoColumnCount(key);
+  }
+
+  @Override
   public DremioTable getTable(NamespaceKey key) {
     return delegate.getTable(key);
   }

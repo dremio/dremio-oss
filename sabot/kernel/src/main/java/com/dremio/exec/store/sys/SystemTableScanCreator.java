@@ -35,7 +35,8 @@ public class SystemTableScanCreator implements ProducerOperator.Creator<SystemSu
   public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, SystemSubScan config) throws ExecutionSetupException {
     final SystemTable table = config.getTable();
     final SystemStoragePlugin plugin2 = fec.getStoragePlugin(config.getPluginId());
-    final RecordReader reader = new PojoRecordReader(table.getPojoClass(), table.getIterator(plugin2.getSabotContext(), context), config.getColumns());
+    final RecordReader reader = new PojoRecordReader(table.getPojoClass(), table.getIterator
+            (plugin2.getSabotContext(), context), config.getColumns(), context.getTargetBatchSize());
 
     return new ScanOperator(config, context, Collections.singleton(reader).iterator());
   }

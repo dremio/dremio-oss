@@ -16,7 +16,7 @@
 import { Link } from 'react-router';
 import FontIcon from 'components/Icon/FontIcon';
 import { abilities } from 'utils/datasetUtils';
-import { datasetTypeToEntityType } from 'constants/datasetTypes';
+import { datasetTypeToEntityType } from '@app/constants/datasetTypes';
 
 export default function(input) {
   Object.assign(input.prototype, { // eslint-disable-line no-restricted-properties

@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
@@ -120,7 +121,8 @@ public class TestQueryManager extends DremioTest {
     queryManager.getNodeStatusListener().nodesUnregistered(ImmutableSet.of(endpoint));
 
     // Ideally, we should not even call succeeded...
-    inOrder.verify(completionListener).failed(any(Exception.class));
+    // CompletionListener.failed() is called twice because QueryManager.populate() also verifies if the node is still up
+    inOrder.verify(completionListener, times(2)).failed(any(Exception.class));
     inOrder.verify(completionListener).succeeded();
   }
 

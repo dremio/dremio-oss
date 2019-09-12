@@ -21,6 +21,8 @@ import { FormattedMessage } from 'react-intl';
 
 import { NEXT_ACTIONS } from 'actions/explore/nextAction';
 import AnalyzeMenuItems from 'components/Menus/AnalyzeMenuItems';
+import FontIcon from '@app/components/Icon/FontIcon';
+import { DREMIO_CONNECTOR } from '@app/constants/links.json';
 
 import Menu from './Menu';
 import MenuLabel from './MenuLabel';
@@ -30,17 +32,33 @@ import MenuLabel from './MenuLabel';
 @pureRender
 export default class BiToolsMenu extends Component {
   static propTypes = {
-    action: PropTypes.func
+    action: PropTypes.func,
+    closeMenu: PropTypes.func
   };
 
-  handleTableauClick = () => this.props.action({name: NEXT_ACTIONS.openTableau, label: 'Tableau'})
-  handleQlikClick = () => this.props.action({name: NEXT_ACTIONS.openQlik, label: 'Qlik Sense'})
-  handlePowerBIClick = () => this.props.action({name: NEXT_ACTIONS.openPowerBI, label: 'Power BI'})
+  handleTableauClick = () => {
+    this.props.action(NEXT_ACTIONS.openTableau);
+    this.props.closeMenu();
+  };
+  handleQlikClick = () => {
+    this.props.action(NEXT_ACTIONS.openQlik);
+    this.props.closeMenu();
+  };
+  handlePowerBIClick = () => {
+    this.props.action(NEXT_ACTIONS.openPowerBI);
+    this.props.closeMenu();
+  };
 
   render() {
     return (
       <Menu>
-        <MenuLabel><FormattedMessage id='Dataset.AnalyzeWith'/></MenuLabel>
+        <MenuLabel>
+          <FormattedMessage id='Dataset.AnalyzeWith'/>
+          <a href={DREMIO_CONNECTOR} target='_blank' title={la('Dremio Connector required')}>
+            <FontIcon type='DownloadLink'/>
+            <span style={styles.driverText}>{la('Driver')}</span>
+          </a>
+        </MenuLabel>
         <AnalyzeMenuItems
           openTableau={this.handleTableauClick}
           openQlikSense={this.handleQlikClick}
@@ -50,3 +68,10 @@ export default class BiToolsMenu extends Component {
     );
   }
 }
+
+const styles = {
+  driverText: {
+    display: 'inline-block',
+    paddingRight: 5
+  }
+};

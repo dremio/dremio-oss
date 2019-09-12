@@ -103,7 +103,7 @@ public class SystemGroupScan extends AbstractBase implements GroupScan<SimpleCom
 
   @Override
   public String toString() {
-    return table.getTableName();
+    return table.getDatasetPath().getName();
   }
 
   /**

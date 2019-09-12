@@ -55,6 +55,7 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SystemStoragePluginInitializer.class);
 
   private static final String LOCAL_TASK_LEADER_NAME = "plugininit";
+  private static final int MAX_CACHE_SPACE_PERCENT = 100;
 
   @Override
   public Void initialize(BindingProvider provider) throws Exception {
@@ -129,9 +130,15 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
 
     createOrUpdateSystemSource(catalogService, ns, home);
 
+    final int maxCacheSpacePercent = config.hasPath(DremioConfig.DEBUG_DIST_MAX_CACHE_SPACE_PERCENT)?
+      config.getInt(DremioConfig.DEBUG_DIST_MAX_CACHE_SPACE_PERCENT) : MAX_CACHE_SPACE_PERCENT;
+
+    final boolean enableCachingForAcceleration = !config.hasPath(DremioConfig.DEBUG_DIST_CACHING_ENABLED)
+      || config.getBoolean(DremioConfig.DEBUG_DIST_CACHING_ENABLED);
+
     final boolean enableAsyncForAcceleration = !config.hasPath(DremioConfig.DEBUG_DIST_ASYNC_ENABLED)
       || config.getBoolean(DremioConfig.DEBUG_DIST_ASYNC_ENABLED);
-    createOrUpdateSystemSource(catalogService, ns, AccelerationStoragePluginConfig.create(accelerationPath, enableAsyncForAcceleration));
+    createOrUpdateSystemSource(catalogService, ns, AccelerationStoragePluginConfig.create(accelerationPath, enableAsyncForAcceleration, enableCachingForAcceleration, maxCacheSpacePercent));
 
     final boolean enableAsyncForJobs = !config.hasPath(DremioConfig.DEBUG_JOBS_ASYNC_ENABLED)
       || config.getBoolean(DremioConfig.DEBUG_JOBS_ASYNC_ENABLED);

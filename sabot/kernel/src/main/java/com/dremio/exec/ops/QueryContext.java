@@ -147,7 +147,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     this.queryPriority = priority;
     this.workloadType = Utilities.getWorkloadType(queryPriority, session.getClientInfos());
     this.datasetValidityChecker = datasetValidityChecker;
-    this.queryContextInfo = Utilities.createQueryContextInfo(session.getDefaultSchemaName(), priority, maxAllocation);
+    this.queryContextInfo = Utilities.createQueryContextInfo(session.getDefaultSchemaName(), priority, maxAllocation, session.getLastQueryId());
     this.contextInformation = new ContextInformationImpl(session.getCredentials(), queryContextInfo);
 
     this.allocator = sabotContext.getQueryPlanningAllocator()
@@ -361,6 +361,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     try {
       if (!closed) {
         AutoCloseables.close(asList(bufferManager, allocator));
+        session.setLastQueryId(queryId);
       }
     } finally {
       closed = true;

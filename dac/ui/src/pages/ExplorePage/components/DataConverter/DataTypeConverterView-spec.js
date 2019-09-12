@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
-import { TEXT, BINARY, INTEGER } from 'constants/DataTypes';
+import { TEXT, BINARY, INTEGER } from '@app/constants/DataTypes';
 import Tabs from 'components/Tabs';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 import DataTypeConverterView from './DataTypeConverterView';

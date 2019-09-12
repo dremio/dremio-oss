@@ -23,7 +23,7 @@ import { injectIntl } from 'react-intl';
 import Modal from 'components/Modals/Modal';
 import Message from 'components/Message';
 import { denormalizeFile } from '@app/reducers/home/content';
-import { MAX_UPLOAD_FILE_SIZE } from 'constants/Constants';
+import { MAX_UPLOAD_FILE_SIZE } from '@app/constants/Constants';
 import NumberFormatUtils from 'utils/numberFormatUtils';
 
 import {
@@ -114,9 +114,9 @@ export class AddFileModal extends Component {
     this.props.resetFileFormatPreview();
 
     return ApiUtils.attachFormSubmitHandlers(this.props.uploadFileToPath(file, { name }, extension))
-    .then((response) => {
-      this.goToPage(1);
-    });
+      .then((response) => {
+        this.goToPage(1);
+      });
   };
 
   onSubmitFormat = (values) => {

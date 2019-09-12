@@ -38,8 +38,8 @@ export default function grid(state = initialState, action) {
   case ActionTypes.CREATE_DATASET_SUCCESS: {
     const newDataset = Immutable.fromJS(action.payload);
     return state.setIn(['newDateset', 'dataset'], newDataset)
-                .setIn(['newDateset', 'isInProgress'], false)
-                .setIn(['newDateset', 'isFailed'], false);
+      .setIn(['newDateset', 'isInProgress'], false)
+      .setIn(['newDateset', 'isFailed'], false);
   }
   case ActionTypes.CREATE_DATASET_FROM_EXISTING_FAILURE:
   case ActionTypes.CREATE_DATASET_FAILURE:

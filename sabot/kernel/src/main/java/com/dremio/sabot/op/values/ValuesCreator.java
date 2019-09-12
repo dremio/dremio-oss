@@ -32,7 +32,7 @@ public class ValuesCreator implements ProducerOperator.Creator<Values> {
 
   @Override
   public ProducerOperator create(FragmentExecutionContext fec, OperatorContext context, Values config) throws ExecutionSetupException {
-    final JSONRecordReader reader = new JSONRecordReader(context, config.getContent().asNode(), null, Collections.singletonList(SchemaPath.getSimplePath("*")));
+    final JSONRecordReader reader = new JSONRecordReader(context, config.getContent().asNode(), null, null, Collections.singletonList(SchemaPath.getSimplePath("*")));
 
     return new ScanOperator(config, context, Iterators.singletonIterator((RecordReader) reader));
   }

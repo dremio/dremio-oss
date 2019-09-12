@@ -55,7 +55,7 @@ import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.explore.HistogramGenerator.CleanDataHistogramValue;
 import com.dremio.dac.explore.HistogramGenerator.Histogram;
-import com.dremio.dac.explore.Transformer.DatasetAndJob;
+import com.dremio.dac.explore.Transformer.DatasetAndData;
 import com.dremio.dac.explore.join.JoinRecommender;
 import com.dremio.dac.explore.model.CleanDataCard;
 import com.dremio.dac.explore.model.CleanDataCard.ConvertToSingleType;
@@ -88,7 +88,6 @@ import com.dremio.dac.explore.model.extract.MapSelection;
 import com.dremio.dac.explore.model.extract.ReplaceCards;
 import com.dremio.dac.explore.model.extract.ReplaceCards.ReplaceValuesCard;
 import com.dremio.dac.explore.model.extract.Selection;
-import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.proto.model.dataset.ExtractListRule;
 import com.dremio.dac.proto.model.dataset.ExtractMapRule;
@@ -303,8 +302,8 @@ public class DatasetVersionResource {
       throw new ClientErrorException("Query parameter 'newVersion' should not be null");
     }
 
-    final DatasetAndJob datasetAndJob = transformer.transformWithExecute(newVersion, datasetPath, getDatasetConfig(), transform, QueryType.UI_PREVIEW);
-    return tool.createPreviewResponse(datasetPath, datasetAndJob, limit, false);
+    final DatasetAndData datasetAndData = transformer.transformWithExecute(newVersion, datasetPath, getDatasetConfig(), transform, QueryType.UI_PREVIEW);
+    return tool.createPreviewResponse(datasetPath, datasetAndData, limit, false);
   }
 
   /**
@@ -330,9 +329,9 @@ public class DatasetVersionResource {
     }
 
     final DatasetVersionResourcePath resourcePath = resourcePath();
-    final DatasetAndJob datasetAndJob = transformer.transformWithExecute(newVersion, resourcePath.getDataset(), getDatasetConfig(), transform, QueryType.UI_RUN);
-    final History history = tool.getHistory(resourcePath.getDataset(), datasetAndJob.getDataset().getVersion());
-    return InitialTransformAndRunResponse.of(newDataset(datasetAndJob.getDataset(), null), datasetAndJob.getJob().getJobId(), history);
+    final DatasetAndData datasetAndData = transformer.transformWithExecute(newVersion, resourcePath.getDataset(), getDatasetConfig(), transform, QueryType.UI_RUN);
+    final History history = tool.getHistory(resourcePath.getDataset(), datasetAndData.getDataset().getVersion());
+    return InitialTransformAndRunResponse.of(newDataset(datasetAndData.getDataset(), null), datasetAndData.getJobId(), history);
   }
 
   protected DatasetUI newDataset(VirtualDatasetUI vds, DatasetVersion tipVersion) throws NamespaceException {
@@ -351,7 +350,7 @@ public class DatasetVersionResource {
     final VirtualDatasetUI virtualDatasetUI = getDatasetConfig();
     final SqlQuery query = new SqlQuery(virtualDatasetUI.getSql(), virtualDatasetUI.getState().getContextList(), securityContext);
     RunStartedListener listener = new RunStartedListener();
-    final JobUI job = executor.runQueryWithListener(query, QueryType.UI_RUN, datasetPath, version, listener);
+    executor.runQueryWithListener(query, QueryType.UI_RUN, datasetPath, version, listener);
     // wait for job to start (or WAIT_FOR_RUN_HISTORY_S seconds).
     boolean success = listener.await(WAIT_FOR_RUN_HISTORY_S, TimeUnit.SECONDS);
     if (!success) {
@@ -370,7 +369,7 @@ public class DatasetVersionResource {
     // path (tip version path) to be able to get a preview/run data
     // TODO(DX-14701) move links from BE to UI
     virtualDatasetUI.setFullPathList(datasetPath.toPathList());
-    return InitialRunResponse.of(newDataset(virtualDatasetUI, tipVersion), job.getJobId(), history);
+    return InitialRunResponse.of(newDataset(virtualDatasetUI, tipVersion), listener.getJobId(), history);
   }
 
 
@@ -572,12 +571,12 @@ public class DatasetVersionResource {
   @POST @Path("/editOriginalSql")
   @Produces(APPLICATION_JSON)
   public InitialPreviewResponse reapplyDatasetAndPreview() throws DatasetVersionNotFoundException, DatasetNotFoundException, NamespaceException, JobNotFoundException {
-    DatasetAndJob datasetAndJob = reapplyDataset(QueryType.UI_PREVIEW);
+    Transformer.DatasetAndData datasetAndData = reapplyDataset(QueryType.UI_PREVIEW);
     //max records = 0 means, that we should not wait for job completion
-    return tool.createPreviewResponse(new DatasetPath(datasetAndJob.getDataset().getFullPathList()), datasetAndJob, 0, false);
+    return tool.createPreviewResponse(new DatasetPath(datasetAndData.getDataset().getFullPathList()), datasetAndData, 0, false);
   }
 
-  private DatasetAndJob reapplyDataset(QueryType queryType) throws DatasetVersionNotFoundException, DatasetNotFoundException, NamespaceException {
+  private Transformer.DatasetAndData reapplyDataset(QueryType queryType) throws DatasetVersionNotFoundException, DatasetNotFoundException, NamespaceException {
     List<VirtualDatasetUI> items = getPreviousDatasetVersions(getDatasetConfig());
     List<Transform> transforms = new ArrayList<>();
     for(VirtualDatasetUI dataset : items){
@@ -593,10 +592,10 @@ public class DatasetVersionResource {
   public DatasetUIWithHistory reapplySave(
       @QueryParam("as") DatasetPath asDatasetPath
   ) throws DatasetVersionNotFoundException, UserNotFoundException, DatasetNotFoundException, NamespaceException {
-    DatasetAndJob datasetAndJob = reapplyDataset(QueryType.UI_PREVIEW);
-    datasetAndJob.getJob().getData().loadIfNecessary();
-    DatasetUI savedDataset = save(datasetAndJob.getDataset(), asDatasetPath, null);
-    return new DatasetUIWithHistory(savedDataset, tool.getHistory(asDatasetPath, datasetAndJob.getDataset().getVersion()));
+    Transformer.DatasetAndData datasetAndData = reapplyDataset(QueryType.UI_PREVIEW);
+    datasetAndData.getJobData().loadIfNecessary();
+    DatasetUI savedDataset = save(datasetAndData.getDataset(), asDatasetPath, null);
+    return new DatasetUIWithHistory(savedDataset, tool.getHistory(asDatasetPath, datasetAndData.getDataset().getVersion()));
   }
 
   // a partial duplicate of gethistory

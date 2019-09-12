@@ -22,7 +22,7 @@ import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
 import TextHighlight from 'components/TextHighlight';
 import EllipsedText from 'components/EllipsedText';
-import {EXTRA_POPPER_CONFIG} from 'constants/Constants';
+import {EXTRA_POPPER_CONFIG} from '@app/constants/Constants';
 // need this util as MainInfoItemName.js wraps label into a link. If we do not block event bubbling
 // redirect would occur
 import { stopPropagation } from '@app/utils/reactEventUtils';

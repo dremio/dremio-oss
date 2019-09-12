@@ -16,7 +16,7 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import Modal from 'components/Modals/Modal';
-import Keys from 'constants/Keys.json';
+import Keys from '@app/constants/Keys.json';
 
 export default class JobProfileModal extends Component {
   static propTypes = {

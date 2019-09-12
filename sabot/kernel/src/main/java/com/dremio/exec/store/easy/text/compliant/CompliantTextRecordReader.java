@@ -16,7 +16,6 @@
 package com.dremio.exec.store.easy.text.compliant;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +36,11 @@ import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.AbstractRecordReader;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.io.CompressionCodecFactory;
+import com.dremio.io.FSInputStream;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.FileSystemUtils;
+import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -56,21 +59,24 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
   private static final int WHITE_SPACE_BUFFER = 64 * 1024;
 
   // settings to be used while parsing
-  private TextParsingSettings settings;
+  private final TextParsingSettings settings;
   // Chunk of the file to be read by this reader
-  private FileSplit split;
+  private final FileSplit split;
   // text reader implementation
   private TextReader reader;
   // input buffer
   private ArrowBuf readBuffer;
   // working buffer to handle whitespaces
   private ArrowBuf whitespaceBuffer;
-  private FileSystemWrapper dfs;
+  private final CompressionCodecFactory codecFactory;
+  private final FileSystem dfs;
 
-  public CompliantTextRecordReader(FileSplit split, FileSystemWrapper dfs, OperatorContext context, TextParsingSettings settings, List<SchemaPath> columns) {
+  public CompliantTextRecordReader(FileSplit split, CompressionCodecFactory codecFactory, FileSystem dfs,
+      OperatorContext context, TextParsingSettings settings, List<SchemaPath> columns) {
     super(context, columns);
     this.split = split;
     this.settings = settings;
+    this.codecFactory = codecFactory;
     this.dfs = dfs;
   }
 
@@ -125,7 +131,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
       whitespaceBuffer = this.context.getAllocator().buffer(WHITE_SPACE_BUFFER);
 
       // setup Input using InputStream
-      InputStream stream = dfs.openPossiblyCompressedStream(split.getPath());
+      FSInputStream stream = FileSystemUtils.openPossiblyCompressedStream(codecFactory, dfs, Path.of(split.getPath().toUri()));
       TextInput input = new TextInput(settings, stream, readBuffer, split.getStart(), split.getStart() + split.getLength());
 
       // setup Reader using Input and Output
@@ -155,7 +161,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
 
       // setup Input using InputStream
       // we should read file header irrespective of split given given to this reader
-      InputStream hStream = dfs.openPossiblyCompressedStream(split.getPath());
+      FSInputStream hStream = FileSystemUtils.openPossiblyCompressedStream(codecFactory, dfs, Path.of(split.getPath().toUri()));
       TextInput hInput = new TextInput(settings, hStream, readBufferInReader, 0, Math.min(READ_BUFFER, split.getLength()));
       // setup Reader using Input and Output
       this.reader = new TextReader(settings, hInput, hOutput, whitespaceBufferInReader);
@@ -381,6 +387,7 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
 
   }
 
+  @Override
   public boolean supportsSkipAllQuery() {
     return true;
   }

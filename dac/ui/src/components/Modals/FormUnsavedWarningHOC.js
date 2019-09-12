@@ -84,7 +84,7 @@ export function wrapUnsavedChangesWarningWithModal(Modal) {
       return <Modal {...this.props}
         updateFormDirtyState={this.updateFormDirtyState}
         hide={this.hide}
-       />;
+      />;
     }
   };
 }

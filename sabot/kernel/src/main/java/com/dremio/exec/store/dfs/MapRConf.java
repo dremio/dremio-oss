@@ -18,9 +18,7 @@ package com.dremio.exec.store.dfs;
 import java.util.List;
 
 import javax.inject.Provider;
-
-import org.apache.hadoop.fs.Path;
-import org.hibernate.validator.constraints.NotBlank;
+import javax.validation.constraints.NotBlank;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
@@ -28,8 +26,8 @@ import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.io.file.Path;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import io.protostuff.Tag;
@@ -72,7 +70,7 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf
 
   @Override
   public Path getPath() {
-    return new Path(rootPath);
+    return Path.of(rootPath);
   }
 
   @Override
@@ -94,11 +92,6 @@ public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf
   @Override
   public SchemaMutability getSchemaMutability() {
     return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
-  }
-
-  @Override
-  public List<String> getConnectionUniqueProperties() {
-    return ImmutableList.of();
   }
 
   @Override

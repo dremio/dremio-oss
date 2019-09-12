@@ -18,7 +18,7 @@ import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { Popover } from '@app/components/Popover';
 import Immutable from 'immutable';
-import { MAP, TEXT, LIST, MIXED, BINARY } from 'constants/DataTypes';
+import { MAP, TEXT, LIST, MIXED, BINARY } from '@app/constants/DataTypes';
 import Menu from 'components/Menus/Menu';
 import MenuItemLink from 'components/Menus/MenuItemLink';
 import MenuItem from 'components/Menus/MenuItem';

@@ -15,7 +15,7 @@
  */
 import { shallow } from 'enzyme';
 
-import { TEXT, BOOLEAN } from 'constants/DataTypes';
+import { TEXT, BOOLEAN } from '@app/constants/DataTypes';
 
 import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
 import filterMappers from 'utils/mappers/ExplorePage/Transform/filterMappers';

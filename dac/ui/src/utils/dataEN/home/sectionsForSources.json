@@ -112,40 +112,6 @@
     ]
   },
   {
-    "id": "hbase",
-    "name": "Hbase",
-    "sections": [
-      {
-        "name": "Config",
-        "id": "config",
-        "fields": [
-          {
-            "name": "Quorum",
-            "id": "zkQuorum",
-            "type": "string"
-          },
-          {
-            "name": "Property",
-            "id": "propertyList",
-            "type": "repeated",
-            "fields": [
-              {
-                "id": "name",
-                "name": "name",
-                "type": "string"
-              },
-              {
-                "id": "value",
-                "name": "value",
-                "type": "string"
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
     "id": "linuxcluster",
     "name": "LinuxCluster"
   },

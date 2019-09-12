@@ -27,8 +27,8 @@ import java.util.Map;
 import com.dremio.dac.explore.Recommender.TransformRuleWrapper;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.extract.Card;
+import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobDataFragment;
-import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.proto.model.dataset.CardExample;
 import com.dremio.dac.proto.model.dataset.CardExamplePosition;
 import com.dremio.dac.util.DatasetsUtil;
@@ -71,23 +71,25 @@ public class CardGenerator {
   public <T> List<Card<T>> generateCards(SqlQuery datasetSql, String colName,
       List<TransformRuleWrapper<T>> transformRuleWrappers, Comparator<Card<T>> comparator) {
 
-    JobUI datasetPreviewJob = DatasetsUtil.getDatasetPreviewJob(executor, datasetSql, datasetPath, version);
-    String previewDataTable = datasetPreviewJob.getData().getJobResultsTable();
+    final String previewDataTable = DatasetsUtil
+      .getDatasetPreviewJob(executor, datasetSql, datasetPath, version)
+      .getJobResultsTable();
 
     // Generate a query to count the number of matches for each rule and total number of rows. Input here is from
     // preview data of the dataset with version.
     String countQuery = generateMatchCountQuery(colName, previewDataTable, transformRuleWrappers);
 
-    JobUI countJob = executor.runQuery(datasetSql.cloneWithNewSql(countQuery), QueryType.UI_INTERNAL_RUN, datasetPath, version);
-    JobDataFragment countJobData = countJob.getData().truncate(1);
+    JobDataFragment countJobData = executor
+      .runQuery(datasetSql.cloneWithNewSql(countQuery), QueryType.UI_INTERNAL_RUN, datasetPath, version)
+      .truncate(1);
 
     // Get the total number of records
     final int totalCount = toIntOrZero(countJobData.extractValue("total", 0));
 
     String exGenQuery = generateCardGenQuery(colName, previewDataTable, transformRuleWrappers);
 
-    JobUI exGenQueryJob = executor.runQuery(datasetSql.cloneWithNewSql(exGenQuery), QueryType.UI_INTERNAL_RUN, datasetPath, version);
-    List<List<CardExample>> cardsExamples = getExamples(exGenQueryJob, transformRuleWrappers);
+    JobData exGenQueryData = executor.runQuery(datasetSql.cloneWithNewSql(exGenQuery), QueryType.UI_INTERNAL_RUN, datasetPath, version);
+    List<List<CardExample>> cardsExamples = getExamples(exGenQueryData, transformRuleWrappers);
 
     List<Card<T>> cards = Lists.newArrayList();
     for(int i = 0; i < transformRuleWrappers.size() ; i++) {
@@ -117,9 +119,9 @@ public class CardGenerator {
     return 0;
   }
 
-  <T> List<List<CardExample>> getExamples(JobUI exGenQueryJob, List<TransformRuleWrapper<T>> transformRuleWrappers) {
+  private <T> List<List<CardExample>> getExamples(JobData exGenQueryData, List<TransformRuleWrapper<T>> transformRuleWrappers) {
 
-    JobDataFragment data = exGenQueryJob.getData().truncate(Card.EXAMPLES_TO_SHOW);
+    JobDataFragment data = exGenQueryData.truncate(Card.EXAMPLES_TO_SHOW);
 
     final List<List<CardExample>> examples = Lists.newArrayList();
     for(int ruleIndex = 0; ruleIndex < transformRuleWrappers.size(); ruleIndex++) {

@@ -37,6 +37,7 @@ import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
+import com.dremio.service.jobs.GetJobRequest;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobDataFragment;
 import com.dremio.service.jobs.JobRequest;
@@ -76,7 +77,10 @@ public class TestJobResultsStore extends BaseTestServer {
         NoOpJobStatusListener.INSTANCE)
     );
     JobDataFragment result = job.getData().truncate(10);
-    JobDataFragment storedResult = jobsService.getJob(job.getJobId()).getData().truncate(10);
+    GetJobRequest request = GetJobRequest.newBuilder()
+      .setJobId(job.getJobId())
+      .build();
+    JobDataFragment storedResult = jobsService.getJob(request).getData().truncate(10);
     for (Field column: result.getSchema()) {
       assertTrue(storedResult.getSchema().getFields().contains(column));
     }

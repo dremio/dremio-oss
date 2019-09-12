@@ -1772,7 +1772,7 @@ public class TestExampleQueries extends PlanTestBase {
    */
   @Test
   public void ensureThatStackedConversionsWork() throws Exception {
-    try(AutoCloseable c = withOption(PlannerSettings.NLJOIN_FOR_SCALAR, false) ) {
+    try (AutoCloseable c = withOption(PlannerSettings.NLJOIN_FOR_SCALAR, false)) {
 
       test(
         "create table dfs_test.zip as " +
@@ -1818,7 +1818,25 @@ public class TestExampleQueries extends PlanTestBase {
           "INNER JOIN dfs_test.lookup AS join_lookup ON nested_2.newID < join_lookup.id\n"
       );
     }
+  }
 
+  @Test
+  public void testLeftJoinNoAlias() throws Exception {
+    test(
+      "select * \n" +
+      "  from cp.\"tpch/lineitem.parquet\" \n" +
+      "    left outer join cp.\"tpch/customer.parquet\" c \n" +
+      "      on \"tpch/lineitem.parquet\".l_orderkey = c.c_custkey\n");
+  }
 
+  @Test
+  public void testLeftSubstring() throws Exception {
+    testBuilder()
+      .sqlQuery("select left('1234', 2) as l")
+      .unOrdered()
+      .baselineColumns("l")
+      .baselineValues("12")
+      .build()
+      .run();
   }
 }

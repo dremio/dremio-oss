@@ -63,7 +63,7 @@ export default function grid(oldState, action) {
     const cards = mappedData.length ? mappedData : mappedData.cards;
     const values = mappedData.values || {};
     return state.setIn(['transform', transformType, method, 'cards'], Immutable.fromJS(cards))
-                .setIn(['transform', transformType, method, 'values'], Immutable.fromJS(values));
+      .setIn(['transform', transformType, method, 'values'], Immutable.fromJS(values));
   }
 
   case ActionTypes.RUN_SELECTION_TRANSFORM_FAILURE: {
@@ -76,10 +76,10 @@ export default function grid(oldState, action) {
     // in this case, we have not ['transform', transformType, method, 'cards'] yet
     if (!state.getIn(['transform', transformType, method, 'cards'])) {
       return state.setIn(['transform', transformType, method, 'cards'],
-                         Immutable.fromJS([{isInProgress: true, isFailed: false}]));
+        Immutable.fromJS([{isInProgress: true, isFailed: false}]));
     }
     return state.setIn(['transform', transformType, method, 'cards', index, 'isInProgress'], true)
-                .setIn(['transform', transformType, method, 'cards', index, 'isFailed'], false);
+      .setIn(['transform', transformType, method, 'cards', index, 'isFailed'], false);
   }
 
   // This action is triggered by transformCardPreview saga
@@ -121,29 +121,29 @@ export default function grid(oldState, action) {
 
   case CleanActionTypes.LOAD_CLEAN_DATA_START: {
     return state.setIn(['cleanData', 'isInProgress'], true)
-                .setIn(['cleanData', 'isFailed'], false);
+      .setIn(['cleanData', 'isFailed'], false);
   }
 
   case CleanActionTypes.LOAD_CLEAN_DATA_SUCCESS: {
     return state.setIn(['cleanData', 'isInProgress'], false)
-                .setIn(['cleanData', 'isFailed'], false)
-                .setIn(['cleanData', 'newFieldName'], action.payload.newFieldName)
-                .setIn(['cleanData', 'newFieldNamePrefix'], action.payload.newFieldNamePrefix)
-                .setIn(['cleanData', 'single'], Immutable.fromJS(
-                  transforms.setDesiredTypes(action.payload.convertToSingles)
-                ))
-                .setIn(['cleanData', 'split', 'dataTypes'], action.payload.split)
-                .setIn(['cleanData', 'split', 'availableValuesCount'], action.payload.availableValuesCount)
-                .setIn(['cleanData', 'split', 'availableValues'], action.payload.availableValues);
+      .setIn(['cleanData', 'isFailed'], false)
+      .setIn(['cleanData', 'newFieldName'], action.payload.newFieldName)
+      .setIn(['cleanData', 'newFieldNamePrefix'], action.payload.newFieldNamePrefix)
+      .setIn(['cleanData', 'single'], Immutable.fromJS(
+        transforms.setDesiredTypes(action.payload.convertToSingles)
+      ))
+      .setIn(['cleanData', 'split', 'dataTypes'], action.payload.split)
+      .setIn(['cleanData', 'split', 'availableValuesCount'], action.payload.availableValuesCount)
+      .setIn(['cleanData', 'split', 'availableValues'], action.payload.availableValues);
   }
 
   case CleanActionTypes.LOAD_CLEAN_DATA_FAILURE: {
     return state.setIn(['cleanData', 'isInProgress'], false)
-                .setIn(['cleanData', 'isFailed'], true)
-                .setIn(['cleanData', 'single'], Immutable.List())
-                .setIn(['cleanData', 'split', 'dataTypes'], Immutable.List())
-                .setIn(['cleanData', 'split', 'availableValuesCount'], 0)
-                .setIn(['cleanData', 'split', 'availableValues'], Immutable.List());
+      .setIn(['cleanData', 'isFailed'], true)
+      .setIn(['cleanData', 'single'], Immutable.List())
+      .setIn(['cleanData', 'split', 'dataTypes'], Immutable.List())
+      .setIn(['cleanData', 'split', 'availableValuesCount'], 0)
+      .setIn(['cleanData', 'split', 'availableValues'], Immutable.List());
   }
 
   default:

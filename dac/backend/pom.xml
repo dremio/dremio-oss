@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>3.3.2-201908142136370993-d60145d</version>
+    <version>4.0.0-201909121834570395-c7a5071</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -361,10 +361,16 @@
       <scope>test</scope>
     </dependency>
     <dependency>
-      <groupId>org.hibernate</groupId>
+      <groupId>javax.validation</groupId>
+      <artifactId>validation-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.hibernate.validator</groupId>
       <artifactId>hibernate-validator</artifactId>
-      <version>5.2.4.Final</version>
-      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish</groupId>
+      <artifactId>javax.el</artifactId>
     </dependency>
   </dependencies>
 
@@ -402,16 +408,17 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
         <executions>
           <execution>
-            <id>add-sources-as-resources</id>
+            <id>copy-sources-as-resources</id>
             <phase>process-sources</phase>
             <goals>
-              <goal>add-resource</goal>
+              <goal>copy-resources</goal>
             </goals>
             <configuration>
+              <outputDirectory>${project.build.outputDirectory}</outputDirectory>
               <resources>
                 <resource>
                   <!-- source file must end up in the jar for janino parsing -->

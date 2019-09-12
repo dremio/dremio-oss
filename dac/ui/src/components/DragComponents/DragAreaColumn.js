@@ -25,7 +25,7 @@ import ColumnDragItem from 'utils/ColumnDragItem';
 import EllipsedText from 'components/EllipsedText';
 
 import { formDefault } from 'uiTheme/radium/typography';
-import { typeToIconType } from 'constants/DataTypes';
+import { typeToIconType } from '@app/constants/DataTypes';
 import { HISTORY_ITEM_COLOR, ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
 import { FLEX_ROW_START_CENTER } from 'uiTheme/radium/flexStyle';
 import { NOT_SUPPORTED_TYPES } from './DragColumnMenu';
@@ -136,35 +136,35 @@ class DragAreaColumn extends Component {
     const { dragOrigin, field, id, index } = this.props;
     const selectedColumnName = field.value;
     return this.filterColumns()
-    .sort(a => (NOT_SUPPORTED_TYPES.has(a.get('type'))))
-    .map(column => {
-      const columnType = column.get('type');
-      const columnName = column.get('name');
-      const columnDisabled = !this.canSelectColumn(columnName)
+      .sort(a => (NOT_SUPPORTED_TYPES.has(a.get('type'))))
+      .map(column => {
+        const columnType = column.get('type');
+        const columnName = column.get('name');
+        const columnDisabled = !this.canSelectColumn(columnName)
         || NOT_SUPPORTED_TYPES.has(columnType);
-      const disabledStyle = columnDisabled ? {color: HISTORY_ITEM_COLOR} : {};
-      const columnData = {
-        dragColumnId: id || selectedColumnName,
-        dragOrigin,
-        dragColumnIndex: index,
-        columnName,
-        columnType,
-        columnDisabled
-      };
+        const disabledStyle = columnDisabled ? {color: HISTORY_ITEM_COLOR} : {};
+        const columnData = {
+          dragColumnId: id || selectedColumnName,
+          dragOrigin,
+          dragColumnIndex: index,
+          columnName,
+          columnType,
+          columnDisabled
+        };
 
-      return (
-        <div
-          disabled={columnDisabled}
-          data-qa={columnName}
-          className={columnItemCls}
-          style={formDefault}
-          key={columnName}
-          onClick={!columnDisabled && this.selectColumn.bind(this, columnData, closeDD)}>
-          <FontIcon type={typeToIconType[columnType]} theme={styles.type}/>
-          <EllipsedText style={{...styles.name, ...disabledStyle}} text={columnName} />
-        </div>
-      );
-    });
+        return (
+          <div
+            disabled={columnDisabled}
+            data-qa={columnName}
+            className={columnItemCls}
+            style={formDefault}
+            key={columnName}
+            onClick={!columnDisabled && this.selectColumn.bind(this, columnData, closeDD)}>
+            <FontIcon type={typeToIconType[columnType]} theme={styles.type}/>
+            <EllipsedText style={{...styles.name, ...disabledStyle}} text={columnName} />
+          </div>
+        );
+      });
   }
 
   renderContent() {

@@ -15,7 +15,7 @@
  */
 import moment from 'moment';
 import { shallow } from 'enzyme';
-import { DATE, TIME, dateTypeToFormat, DATETIME } from 'constants/DataTypes';
+import { DATE, TIME, dateTypeToFormat, DATETIME } from '@app/constants/DataTypes';
 
 import DateInput from './DateInput';
 const getDD = wrapper => shallow(wrapper.find('SelectView').prop('children')({}));

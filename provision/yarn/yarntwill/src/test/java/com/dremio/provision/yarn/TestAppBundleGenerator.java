@@ -127,6 +127,9 @@ public class TestAppBundleGenerator {
     Files.write(mainFolder.resolve("prefix.jar"), Arrays.asList("extra random stuff"), UTF_8);
     Files.write(mainFolder.resolve("suffix.jar"), Arrays.asList("more extra random stuff"), UTF_8);
     Files.createDirectory(mainFolder.resolve("lib"));
+    Files.createDirectory(mainFolder.resolve("plugins"));
+    Files.createDirectory(mainFolder.resolve("plugins/connectors"));
+    Files.write(mainFolder.resolve("plugins/connectors/test-pf4j.jar"), Arrays.asList("fake pf4j stuff"), UTF_8);
     Files.write(mainFolder.resolve("lib/a.so"), Arrays.asList("some fake stuff"), UTF_8);
     Files.write(mainFolder.resolve("lib/b.so"), Arrays.asList("more fake stuff"), UTF_8);
 
@@ -141,8 +144,9 @@ public class TestAppBundleGenerator {
           classLoader,
           ImmutableList.of(mainFolder.resolve("prefix.jar").toString()),
           ImmutableList.of(mainFolder.resolve("suffix.jar").toString()),
-          ImmutableList.of(mainFolder.resolve("lib").toString())
-          );
+          ImmutableList.of(mainFolder.resolve("lib").toString()),
+          mainFolder.resolve("plugins")
+      );
 
       jarPath = generator.generateBundle();
     }
@@ -159,6 +163,9 @@ public class TestAppBundleGenerator {
           is(Arrays.asList("lib").stream()
               .map(s -> "dremio.app".concat(mainFolder.resolve(s).toAbsolutePath().toString()))
               .collect(Collectors.joining(" "))));
+      assertThat(mf.getMainAttributes().getValue(AppBundleGenerator.X_DREMIO_PLUGINS_PATH_MANIFEST_ATTRIBUTE),
+          is("dremio.app".concat(mainFolder.resolve("plugins").toAbsolutePath().toString()))
+        );
 
       // verify content
       ImmutableMap<String, String> content = ImmutableMap.<String, String> builder()
@@ -170,7 +177,8 @@ public class TestAppBundleGenerator {
           .put("suffix.jar", "more extra random stuff\n")
           .put("lib/a.so", "some fake stuff\n")
           .put("lib/b.so", "more fake stuff\n")
-          .build();
+          .put("plugins/connectors/test-pf4j.jar", "fake pf4j stuff\n")
+        .build();
 
       for(Map.Entry<String, String> entry: content.entrySet()) {
         assertThat(format("Invalid content for %s", entry.getKey()),
@@ -179,9 +187,5 @@ public class TestAppBundleGenerator {
             is(entry.getValue().getBytes(UTF_8)));
       }
     }
-
   }
-
-
-
 }

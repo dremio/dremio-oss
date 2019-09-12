@@ -120,7 +120,7 @@ describe('AccelerationGrid', () => {
       instance.componentWillReceiveProps({
         activeTab: 'raw',
         layoutFields: [
-            {id: {value: 'c'}}
+          {id: {value: 'c'}}
         ]
       });
       expect(instance.focusedColumn).to.equal(undefined);
@@ -129,8 +129,8 @@ describe('AccelerationGrid', () => {
       instance.componentWillReceiveProps({
         activeTab: 'aggregation',
         layoutFields: [
-            {id: {value: 'b'}},
-            {id: {value: 'c'}}
+          {id: {value: 'b'}},
+          {id: {value: 'c'}}
         ]
       });
       expect(instance.focusedColumn).to.equal(1);

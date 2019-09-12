@@ -342,7 +342,7 @@ export class SQLEditor extends PureComponent {
       readOnly,
       contextMenu,
       fitHeightToContent, // here to not pass it in monaco editor, as it does not support it
-       ...monacoProps} = this.props;
+      ...monacoProps} = this.props;
 
     return (
       // div wrapper is required for FF and IE. Without it a editor has uncontrolled grow on jobs page.

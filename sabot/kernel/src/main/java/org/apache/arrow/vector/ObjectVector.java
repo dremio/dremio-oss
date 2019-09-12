@@ -21,6 +21,7 @@ import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.compare.VectorVisitor;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.ObjectHolder;
 import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
@@ -288,5 +289,14 @@ public class ObjectVector extends BaseValueVector implements FieldVector {
   public void reAlloc() {
     addNewArray();
   }
-}
 
+  @Override
+  public int hashCode(int index) {
+    throw new UnsupportedOperationException("NYI");
+  }
+
+  @Override
+  public <OUT, IN> OUT accept(VectorVisitor<OUT, IN> vectorVisitor, IN in) {
+    throw new UnsupportedOperationException("ObjectVector does not support this");
+  }
+}

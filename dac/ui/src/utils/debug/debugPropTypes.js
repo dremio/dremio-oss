@@ -65,5 +65,5 @@ Property list: '${errorProps.join('\', \'')}'`);
     render() {
       return <ComponentToWrap {...this.props} />;
     }
-};
+  };
 };

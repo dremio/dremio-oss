@@ -15,7 +15,7 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 import { datasetAccelerationSchema } from 'schemas/acceleration';
 import {makeUncachebleURL} from 'ie11.js';
 import schemaUtils from 'utils/apiUtils/schemaUtils';

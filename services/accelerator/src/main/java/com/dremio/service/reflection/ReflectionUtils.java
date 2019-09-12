@@ -38,7 +38,6 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.acceleration.ExternalMaterializationDescriptor;
@@ -50,6 +49,7 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.work.user.SubstitutionSettings;
+import com.dremio.io.file.Path;
 import com.dremio.proto.model.UpdateId;
 import com.dremio.service.accelerator.AccelerationUtils;
 import com.dremio.service.job.proto.JobAttempt;
@@ -143,7 +143,7 @@ public class ReflectionUtils {
     return hash;
   }
 
-  public static Job submitRefreshJob(JobsService jobsService, NamespaceService namespaceService, ReflectionEntry entry,
+  public static JobId submitRefreshJob(JobsService jobsService, NamespaceService namespaceService, ReflectionEntry entry,
       Materialization materialization, String sql, JobStatusListener jobStatusListener) {
     final SqlQuery query = new SqlQuery(sql, SYSTEM_USERNAME);
     NamespaceKey datasetPathList = new NamespaceKey(namespaceService.findDatasetByUUID(entry.getDatasetId()).getFullPathList());
@@ -163,7 +163,7 @@ public class ReflectionUtils {
           .setDatasetPath(datasetPathList)
           .build(),
         jobStatusListener)
-    );
+    ).getJobId();
   }
 
   public static List<String> getMaterializationPath(Materialization materialization) {
@@ -547,7 +547,7 @@ public class ReflectionUtils {
       "Empty write path for job %s", jobId.getId());
 
     // relative path to the acceleration base path
-    final String path = PathUtils.relativePath(new Path(text.toString()), accelerationBasePath);
+    final String path = PathUtils.relativePath(Path.of(text.toString()), accelerationBasePath);
 
     // extract first 2 components of the path "<reflection-id>."<modified-materialization-id>"
     List<String> components = PathUtils.toPathComponents(path);

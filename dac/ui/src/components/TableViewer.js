@@ -68,14 +68,14 @@ export default class TableViewer extends Component {
     width = 20
   }, columnIndex) => {
     return (<Column
-        key={key === undefined ? columnIndex : key}
-        flexGrow={flexGrow}
-        width={width}
-        columnKey={key}
-        align={align}
-        header={<Cell>{label}</Cell>}
-        cell={this.renderCell(label)}
-      />);
+      key={key === undefined ? columnIndex : key}
+      flexGrow={flexGrow}
+      width={width}
+      columnKey={key}
+      align={align}
+      header={<Cell>{label}</Cell>}
+      cell={this.renderCell(label)}
+    />);
   }
 
   getRowClassName = (rowIndex) => {

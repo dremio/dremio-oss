@@ -37,7 +37,6 @@ describe('ExplorePageController', () => {
       sqlState: true,
       updateSqlPartSize: sinon.spy(),
       hideUnsavedChangesModal: sinon.spy(),
-      updateGridSizes: sinon.spy(),
       performLoadDataset: sinon.spy(),
       setCurrentSql: sinon.spy(),
       resetViewState: sinon.spy(),

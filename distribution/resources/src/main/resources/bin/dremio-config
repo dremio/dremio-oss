@@ -80,6 +80,9 @@ fi
 # get log directory
 DREMIO_LOG_DIR="${DREMIO_LOG_DIR:-${DREMIO_HOME}/log}"
 
+# get plugins root directory
+DREMIO_PLUGINS_DIR="${DREMIO_PLUGINS_DIR:-${DREMIO_HOME}/plugins}"
+
 touch "$DREMIO_LOG_DIR/server.out" &> /dev/null
 TOUCH_EXIT_CODE=$?
 if [ "$TOUCH_EXIT_CODE" = "0" ]; then
@@ -264,6 +267,7 @@ export is_cygwin
 export DREMIO_JAVA_OPTS
 export DREMIO_CONF_DIR
 export DREMIO_LOG_DIR
+export DREMIO_PLUGINS_DIR
 export DREMIO_CLASSPATH
 export DREMIO_MAX_HEAP_MEMORY_SIZE_MB
 export DREMIO_MAX_DIRECT_MEMORY_SIZE_MB

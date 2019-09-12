@@ -313,7 +313,7 @@
 
 ## Resource defined by class com.dremio.dac.resource.JobsResource
 
- - GET /jobs?filter={String}&sort={String}&order={com.dremio.datastore.SearchTypes$SortOrder}&offset={int}0&limit={int}100   
+ - GET /jobs?filter={String}&sort={String}&order={com.dremio.service.jobs.SearchJobsRequest$ResultOrder}&offset={int}0&limit={int}100   
    > `<=` [com.dremio.dac.model.job.JobsUI](#class-comdremiodacmodeljobjobsui)   
 
 
@@ -571,7 +571,7 @@
    > `<=` [com.dremio.dac.resource.SystemResource$ResourceInfo](#class-comdremiodacresourcesystemresource$resourceinfo)   
 
  - GET /system/nodes   
-   > `<=` java.util.List`<`[com.dremio.dac.proto.model.system.NodeInfo](#class-comdremiodacprotomodelsystemnodeinfo)`>`   
+   > `<=` java.util.List`<`[com.dremio.dac.model.system.Nodes$NodeInfo](#class-comdremiodacmodelsystemnodes$nodeinfo)`>`   
 
 
 ## Resource defined by class com.dremio.dac.resource.TableauResource
@@ -861,7 +861,7 @@
     owner: "abc",
     preview: true | false,
     recordsReturned: 1,
-    state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+    state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
     transformDescription: "abc",
     versionedResourcePath: "abc",
   },
@@ -1056,7 +1056,7 @@
         owner: "abc",
         preview: true | false,
         recordsReturned: 1,
-        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
         transformDescription: "abc",
         versionedResourcePath: "abc",
       },
@@ -1105,7 +1105,7 @@
       owner: "abc",
       preview: true | false,
       recordsReturned: 1,
-      state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+      state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
       transformDescription: "abc",
       versionedResourcePath: "abc",
     },
@@ -1245,7 +1245,7 @@
         owner: "abc",
         preview: true | false,
         recordsReturned: 1,
-        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
         transformDescription: "abc",
         versionedResourcePath: "abc",
       },
@@ -1307,7 +1307,7 @@
         owner: "abc",
         preview: true | false,
         recordsReturned: 1,
-        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
         transformDescription: "abc",
         versionedResourcePath: "abc",
       },
@@ -1368,7 +1368,7 @@
         owner: "abc",
         preview: true | false,
         recordsReturned: 1,
-        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
         transformDescription: "abc",
         versionedResourcePath: "abc",
       },
@@ -1745,7 +1745,7 @@
           owner: "abc",
           preview: true | false,
           recordsReturned: 1,
-          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
           transformDescription: "abc",
           versionedResourcePath: "abc",
         },
@@ -1981,7 +1981,7 @@
       planningTime: 1,
       profileUrl: "abc",
       reason: "abc",
-      result: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+      result: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
     },
     ...
   ],
@@ -2088,7 +2088,7 @@
   spilled: true | false,
   sql: "abc",
   startTime: 1,
-  state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+  state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
   stats: {
     inputBytes: 1,
     inputRecords: 1,
@@ -2220,6 +2220,7 @@
       availableCores: 1,
       fabricPort: 1,
       maxDirectMemory: 1,
+      nodeTag: "abc",
       provisionId: "abc",
       roles: {
         distributedCache: true | false,
@@ -2485,7 +2486,7 @@
       user: "abc",
     },
     reason: "NONE" | "OUT_OF_MEMORY" | "SCHEMA_CHANGE" | "INVALID_DATASET_METADATA" | "JSON_FIELD_CHANGE",
-    state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+    state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
     stats: {
       inputBytes: 1,
       inputRecords: 1,
@@ -2541,7 +2542,7 @@
       snowflakeAccelerated: true | false,
       spilled: true | false,
       startTime: 1,
-      state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+      state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
       user: "abc",
     },
     ...
@@ -2794,7 +2795,7 @@
           owner: "abc",
           preview: true | false,
           recordsReturned: 1,
-          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
           transformDescription: "abc",
           versionedResourcePath: "abc",
         },
@@ -3137,7 +3138,7 @@
               owner: "abc",
               preview: true | false,
               recordsReturned: 1,
-              state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+              state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
               transformDescription: "abc",
               versionedResourcePath: "abc",
             },
@@ -3475,7 +3476,7 @@
           owner: "abc",
           preview: true | false,
           recordsReturned: 1,
-          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
           transformDescription: "abc",
           versionedResourcePath: "abc",
         },
@@ -3801,7 +3802,7 @@
           owner: "abc",
           preview: true | false,
           recordsReturned: 1,
-          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
           transformDescription: "abc",
           versionedResourcePath: "abc",
         },
@@ -4116,7 +4117,7 @@
               owner: "abc",
               preview: true | false,
               recordsReturned: 1,
-              state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED",
+              state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
               transformDescription: "abc",
               versionedResourcePath: "abc",
             },
@@ -4258,6 +4259,23 @@
     },
     ...
   ],
+}
+```
+
+## `class com.dremio.dac.model.system.Nodes$NodeInfo`
+- Example:
+```
+{
+  cpu: "abc",
+  host: "abc",
+  ip: "abc",
+  isCoordinator: true | false,
+  isExecutor: true | false,
+  memory: "abc",
+  name: "abc",
+  nodeTag: "abc",
+  port: "abc",
+  status: "abc",
 }
 ```
 
@@ -4412,19 +4430,6 @@ any
   ignoreCase: true | false,
   matchType: "regex" | "exact",
   pattern: "abc",
-}
-```
-
-## `class com.dremio.dac.proto.model.system.NodeInfo`
-- Example:
-```
-{
-  cpu: "abc",
-  ip: "abc",
-  memory: "abc",
-  name: "abc",
-  port: "abc",
-  status: "abc",
 }
 ```
 

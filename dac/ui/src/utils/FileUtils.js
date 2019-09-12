@@ -40,7 +40,7 @@ export default class FileUtils {
   static getFileNameFromResponse(response) {
     const contentDisposition = response.headers.get('Content-Disposition');
     if (contentDisposition) {
-      const m = contentDisposition.match(/attachment; filename=\"([^"]+)\"/);
+      const m = contentDisposition.match(/attachment; filename="([^"]+)"/);
       if (m) {
         return m[1];
       }

@@ -21,8 +21,6 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.memory.RootAllocatorFactory;
 
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.MetricRegistry;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
@@ -39,7 +37,6 @@ public class BootStrapContext implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BootStrapContext.class);
 
   private final SabotConfig config;
-  private final MetricRegistry metrics;
   private final BufferAllocator allocator;
   private final ScanResult classpathScan;
   private final CloseableThreadPool executor;
@@ -48,9 +45,10 @@ public class BootStrapContext implements AutoCloseable {
   private final NodeDebugContextProvider nodeDebugContextProvider;
 
   public BootStrapContext(DremioConfig config, ScanResult classpathScan) {
+    Metrics.startReportersIfNotStarted(classpathScan, config.getLong("services.metrics.refresh_millis"));
+
     this.config = config.getSabotConfig();
     this.classpathScan = classpathScan;
-    this.metrics = Metrics.getInstance();
     this.allocator = RootAllocatorFactory.newRoot(config);
     this.executor = new CloseableThreadPool("dremio-general-");
     this.lpPersistance = new LogicalPlanPersistence(config.getSabotConfig(), classpathScan);
@@ -59,24 +57,18 @@ public class BootStrapContext implements AutoCloseable {
     registerMetrics();
 
     this.nodeDebugContextProvider = (allocator instanceof DremioRootAllocator)
-      ? new NodeDebugContextProviderImpl((DremioRootAllocator)allocator)
+      ? new NodeDebugContextProviderImpl((DremioRootAllocator) allocator)
       : NodeDebugContextProvider.NOOP;
   }
 
   private void registerMetrics() {
-    Metrics.registerGauge(MetricRegistry.name("dremio.memory.direct_current"), new Gauge<Long>() {
-      @Override
-      public Long getValue() {
-        return allocator.getAllocatedMemory();
-      }
-    });
+    Metrics.newGauge("dremio.memory.direct_current", allocator::getAllocatedMemory);
 
-    Metrics.registerGauge(MetricRegistry.name("dremio.memory.jvm_direct_current"), new Gauge<Long>() {
-      @Override
-      public Long getValue() {
-        return MemoryIterator.getDirectBean().getMemoryUsed();
-      }
-    });
+    if (allocator instanceof DremioRootAllocator) {
+      Metrics.newGauge("dremio.memory.remaining_heap_allocations", ((DremioRootAllocator) allocator)::getAvailableBuffers);
+    }
+
+    Metrics.newGauge("dremio.memory.jvm_direct_current", MemoryIterator.getDirectBean()::getMemoryUsed);
   }
 
   public DremioConfig getDremioConfig() {
@@ -89,10 +81,6 @@ public class BootStrapContext implements AutoCloseable {
 
   public SabotConfig getConfig() {
     return config;
-  }
-
-  public MetricRegistry getMetrics() {
-    return metrics;
   }
 
   public BufferAllocator getAllocator() {

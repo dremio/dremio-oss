@@ -204,13 +204,11 @@ public final class DecimalUtils {
       // cpu branch prediction.
       if (isNegative1)  {
         if (cmp > 0) {
-          logger.warn("Overflow happened for decimal addition. Max precision is " +
-            "38.");
+          logger.debug("Overflow happened for decimal addition. Max precision is {}", MAX_PRECISION);
         }
       } else {
         if (cmp < 0) {
-          logger.warn("Overflow happened for decimal addition. Max precision is " +
-            "38.");
+          logger.debug("Overflow happened for decimal addition. Max precision is {}", MAX_PRECISION);
         }
       }
     }

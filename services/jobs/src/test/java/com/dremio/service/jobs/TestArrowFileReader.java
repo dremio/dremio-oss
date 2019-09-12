@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
@@ -48,13 +47,14 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.junit.AfterClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
@@ -63,7 +63,6 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.store.RecordWriter.OutputEntryListener;
 import com.dremio.exec.store.RecordWriter.WriteStatsListener;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
@@ -71,18 +70,19 @@ import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPluginConfig;
 import com.dremio.exec.store.easy.arrow.ArrowRecordWriter;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
 /**
  * Unit tests for {@link ArrowFileReader}
  */
-public class TestArrowFileReader {
+public class TestArrowFileReader extends DremioTest {
   @Rule
   public TemporaryFolder dateGenFolder = new TemporaryFolder();
 
   private static final Configuration FS_CONF = new Configuration();
-  private static final BufferAllocator ALLOCATOR = new RootAllocator(Long.MAX_VALUE);
 
   private static final List<Boolean> TEST_BIT_VALUES = new ArrayList<>(5);
   private static final List<String> TEST_VARCHAR_VALUES = new ArrayList<>(5);
@@ -104,6 +104,9 @@ public class TestArrowFileReader {
     FS_CONF.set("fs.default.name","file:///");
   }
 
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+
   /**
    * Test reading a arrow file that contains just a single empty record batch (possible when the query/fragment returns
    * no results).
@@ -112,17 +115,17 @@ public class TestArrowFileReader {
   @Test
   public void readingZeroRecordFile() throws Exception {
     VectorContainer batchData = null;
-    try {
+    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-arrow-file-reader", 0, Long.MAX_VALUE)) {
       // generate a test file with just the empty record batch
       Path basePath = new Path(dateGenFolder.getRoot().getPath());
 
       batchData = createBatch(0,
-          new BitVector("colBit", ALLOCATOR),
-          new VarCharVector("colVarChar", ALLOCATOR),
-          testEmptyListVector(),
-          testEmptyUnionVector());
+          new BitVector("colBit", allocator),
+          new VarCharVector("colVarChar", allocator),
+          testEmptyListVector(allocator),
+          testEmptyUnionVector(allocator));
       ArrowFileMetadata metadata = writeArrowFile(batchData);
-      try(ArrowFileReader reader = new ArrowFileReader(FileSystem.get(FS_CONF), basePath, metadata, ALLOCATOR)) {
+      try(ArrowFileReader reader = new ArrowFileReader(HadoopFileSystem.getLocal(FS_CONF), com.dremio.io.file.Path.of(basePath.toUri()), metadata, allocator)) {
         {
           List<RecordBatchHolder> batchHolders = reader.read(0, 0);
           assertEquals(1, batchHolders.size());
@@ -175,13 +178,13 @@ public class TestArrowFileReader {
   @Test
   public void readingSingleBatchFile() throws Exception {
     VectorContainer batchData = null;
-    try {
+    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-arrow-file-reader", 0, Long.MAX_VALUE)) {
       Path basePath = new Path(dateGenFolder.getRoot().getPath());
       // generate a test file with just a single batch with 5 records.
-      batchData = createBatch(5, testBitVector(), testVarCharVector());
+      batchData = createBatch(5, testBitVector(allocator), testVarCharVector(allocator));
 
       ArrowFileMetadata metadata = writeArrowFile(batchData);
-      try(ArrowFileReader reader = new ArrowFileReader(FileSystem.get(FS_CONF), basePath, metadata, ALLOCATOR)) {
+      try(ArrowFileReader reader = new ArrowFileReader(HadoopFileSystem.getLocal(FS_CONF), com.dremio.io.file.Path.of(basePath.toUri()), metadata, allocator)) {
         {
           // Get everything
           List<RecordBatchHolder> batchHolders = reader.read(0, 5);
@@ -246,15 +249,15 @@ public class TestArrowFileReader {
   @Test
   public void readingMultiBatchFile() throws Exception {
     List<VectorContainer> containers = Lists.newArrayList();
-    try {
+    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-arrow-file-reader", 0, Long.MAX_VALUE)) {
       // generate a test file with multiple record batches each containing 5 records.
-      containers.add(createBatch(5, testBitVector(), testVarCharVector()));
-      containers.add(createBatch(5, testBitVector(), testVarCharVector()));
-      containers.add(createBatch(5, testBitVector(), testVarCharVector()));
+      containers.add(createBatch(5, testBitVector(allocator), testVarCharVector(allocator)));
+      containers.add(createBatch(5, testBitVector(allocator), testVarCharVector(allocator)));
+      containers.add(createBatch(5, testBitVector(allocator), testVarCharVector(allocator)));
 
       Path basePath = new Path(dateGenFolder.getRoot().getPath());
       ArrowFileMetadata metadata = writeArrowFile(containers.toArray(new VectorContainer[3]));
-      try(ArrowFileReader reader = new ArrowFileReader(FileSystem.get(FS_CONF), basePath, metadata, ALLOCATOR)) {
+      try(ArrowFileReader reader = new ArrowFileReader(HadoopFileSystem.getLocal(FS_CONF), com.dremio.io.file.Path.of(basePath.toUri()), metadata, allocator)) {
         {
           // Get everything
           List<RecordBatchHolder> batchHolders = reader.read(0, 15);
@@ -340,12 +343,13 @@ public class TestArrowFileReader {
 
   @Test
   public void writeAndReadEmptyListVectors() throws Exception {
-    try (final VectorContainer batchData = createBatch(1, testEmptyListVector())) {
+    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-arrow-file-reader", 0, Long.MAX_VALUE);
+         final VectorContainer batchData = createBatch(1, testEmptyListVector(allocator))) {
 
       final Path basePath = new Path(dateGenFolder.getRoot().getPath());
       final ArrowFileMetadata metadata = writeArrowFile(batchData);
       try (final ArrowFileReader reader =
-               new ArrowFileReader(FileSystem.get(FS_CONF), basePath, metadata, ALLOCATOR)) {
+               new ArrowFileReader(HadoopFileSystem.getLocal(FS_CONF), com.dremio.io.file.Path.of(basePath.toUri()), metadata, allocator)) {
 
         final List<RecordBatchHolder> batchHolders = reader.read(0, 1);
         assertEquals(1, batchHolders.size());
@@ -371,8 +375,8 @@ public class TestArrowFileReader {
   }
 
   /** Helper method which creates a test bit vector */
-  private static BitVector testBitVector() {
-    BitVector colBitV = new BitVector("colBit", ALLOCATOR);
+  private static BitVector testBitVector(BufferAllocator allocator) {
+    BitVector colBitV = new BitVector("colBit", allocator);
     colBitV.allocateNew(5);
     for(int i=0; i<TEST_BIT_VALUES.size(); i++) {
       if (TEST_BIT_VALUES.get(i) == null) {
@@ -386,8 +390,8 @@ public class TestArrowFileReader {
   }
 
   /** Helper method which creates a test varchar vector */
-  private static VarCharVector testVarCharVector() {
-    VarCharVector colVarCharV = new VarCharVector("colVarChar", ALLOCATOR);
+  private static VarCharVector testVarCharVector(BufferAllocator allocator) {
+    VarCharVector colVarCharV = new VarCharVector("colVarChar", allocator);
     colVarCharV.allocateNew(500, 5);
     for(int i=0; i<TEST_VARCHAR_VALUES.size(); i++) {
       if (TEST_VARCHAR_VALUES.get(i) == null) {
@@ -401,16 +405,16 @@ public class TestArrowFileReader {
   }
 
   /** Helper method which creates a empty list vector */
-  private static ListVector testEmptyListVector() {
+  private static ListVector testEmptyListVector(BufferAllocator allocator) {
     final ListVector vector =
-        new ListVector("emptyListVector", ALLOCATOR, FieldType.nullable(ArrowType.Null.INSTANCE), null);
+        new ListVector("emptyListVector", allocator, FieldType.nullable(ArrowType.Null.INSTANCE), null);
     vector.allocateNew();
     return vector;
   }
 
   /** Helper method which creates a union vector with no data */
-  private static UnionVector testEmptyUnionVector() {
-    final UnionVector unionVector = new UnionVector("unionVector", ALLOCATOR, null);
+  private static UnionVector testEmptyUnionVector(BufferAllocator allocator) {
+    final UnionVector unionVector = new UnionVector("unionVector", allocator, null);
     unionVector.initializeChildrenFromFields(
         asList(
             Field.nullable("intType", new ArrowType.Int(32, true)),
@@ -503,14 +507,14 @@ public class TestArrowFileReader {
     when(opContext.getFragmentHandle()).thenReturn(FragmentHandle.newBuilder().setMajorFragmentId(2323).setMinorFragmentId(234234).build());
 
     final EasyWriter writerConf = mock(EasyWriter.class);
-    when(writerConf.getFsConf()).thenReturn(FS_CONF);
     when(writerConf.getLocation()).thenReturn(dateGenFolder.getRoot().toString());
+    when(writerConf.getProps()).thenReturn(OpProps.prototype());
 
     final EasyFormatPlugin formatPlugin = mock(EasyFormatPlugin.class);
     final FileSystemPlugin fsPlugin = mock(FileSystemPlugin.class);
-    when(fsPlugin.getFileSystem((Configuration) notNull(), (OperatorContext) notNull())).thenReturn(new FileSystemWrapper(FS_CONF));
     when(writerConf.getFormatPlugin()).thenReturn(formatPlugin);
     when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);
+    when(fsPlugin.createFS(notNull(String.class), notNull(OperatorContext.class))).thenReturn(HadoopFileSystem.getLocal(FS_CONF));
 
     ArrowRecordWriter writer = new ArrowRecordWriter(
         opContext,
@@ -551,10 +555,5 @@ public class TestArrowFileReader {
     }
 
     return ArrowFileReader.toBean(ArrowFileFormat.ArrowFileMetadata.parseFrom(metadataCaptor.getValue()));
-  }
-
-  @AfterClass
-  public static void releaseAllocator() throws Exception {
-    ALLOCATOR.close();
   }
 }

@@ -37,6 +37,9 @@ public class MissingSourceTypeException extends RuntimeException {
   @Override
   public String getMessage() {
     switch (sourceType) {
+      case "DB2":
+        return "DB2 source type is no longer supported.";
+
       case "HBASE":
         return "HBase source type is not installed. Please download it from Dremio Hub: https://github.com/dremio-hub.";
 

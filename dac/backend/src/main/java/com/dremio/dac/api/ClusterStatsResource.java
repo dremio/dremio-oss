@@ -84,6 +84,10 @@ public class ClusterStatsResource {
   @GET
   @RolesAllowed({"admin", "user"})
   public ClusterStats getStats() {
+    return createStats();
+  }
+
+  ClusterStats createStats() {
     ClusterStats result = new ClusterStats();
 
     // node stats
@@ -230,11 +234,11 @@ public class ClusterStatsResource {
 
     @JsonCreator
     public EndPoint(
-        @JsonProperty("address") String address,
-        @JsonProperty("availableCores") int availableCores,
-        @JsonProperty("maxDirectMemoryBytes") long maxDirectMemoryBytes,
-        @JsonISODateTime
-        @JsonProperty("startedAt") long startedAt) {
+      @JsonProperty("address") String address,
+      @JsonProperty("availableCores") int availableCores,
+      @JsonProperty("maxDirectMemoryBytes") long maxDirectMemoryBytes,
+      @JsonISODateTime
+      @JsonProperty("startedAt") long startedAt) {
       this.address = address;
       this.availableCores = availableCores;
       this.maxDirectMemoryBytes = maxDirectMemoryBytes;
@@ -269,10 +273,10 @@ public class ClusterStatsResource {
 
     @JsonCreator
     public SourceStats(
-        @JsonProperty("id") EntityId id,
-        @JsonProperty("type") String type,
-        @JsonProperty("pdsCount") int pdsCount,
-        @JsonProperty("vdsCount") int vdsCount) {
+      @JsonProperty("id") EntityId id,
+      @JsonProperty("type") String type,
+      @JsonProperty("pdsCount") int pdsCount,
+      @JsonProperty("vdsCount") int vdsCount) {
       this.id = id;
       this.type = type;
       this.pdsCount = pdsCount;
@@ -319,11 +323,11 @@ public class ClusterStatsResource {
 
     @JsonCreator
     public ReflectionStats(
-        @JsonProperty("activeReflections") int activeReflections,
-        @JsonProperty("errorReflections") int errorReflections,
-        @JsonProperty("totalReflectionSizeBytes") long totalReflectionSizeBytes,
-        @JsonProperty("latestReflectionsSizeBytes") long latestReflectionsSizeBytes,
-        @JsonProperty("incrementalReflectionCount") int incrementalReflectionCount) {
+      @JsonProperty("activeReflections") int activeReflections,
+      @JsonProperty("errorReflections") int errorReflections,
+      @JsonProperty("totalReflectionSizeBytes") long totalReflectionSizeBytes,
+      @JsonProperty("latestReflectionsSizeBytes") long latestReflectionsSizeBytes,
+      @JsonProperty("incrementalReflectionCount") int incrementalReflectionCount) {
       this.activeReflections = activeReflections;
       this.errorReflections = errorReflections;
       this.totalReflectionSizeBytes = totalReflectionSizeBytes;
@@ -367,11 +371,11 @@ public class ClusterStatsResource {
 
     @JsonCreator
     public ClusterStats(
-        @JsonProperty("coordinators") List<EndPoint> coordinators,
-        @JsonProperty("executors") List<EndPoint> executors,
-        @JsonProperty("sources") List<SourceStats> sources,
-        @JsonProperty("jobStats") List<JobTypeStats> jobStats,
-        @JsonProperty("reflectionStats") ReflectionStats reflectionStats) {
+      @JsonProperty("coordinators") List<EndPoint> coordinators,
+      @JsonProperty("executors") List<EndPoint> executors,
+      @JsonProperty("sources") List<SourceStats> sources,
+      @JsonProperty("jobStats") List<JobTypeStats> jobStats,
+      @JsonProperty("reflectionStats") ReflectionStats reflectionStats) {
       this.coordinators = coordinators;
       this.executors = executors;
       this.sources = sources;

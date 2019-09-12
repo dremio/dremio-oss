@@ -21,20 +21,21 @@ import java.net.URISyntaxException;
 import java.util.List;
 
 import javax.inject.Provider;
+import javax.validation.constraints.NotBlank;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-import org.hibernate.validator.constraints.NotBlank;
 
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
+import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemConf;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
 import com.dremio.exec.store.dfs.SchemaMutability;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.FileSystemUtils;
+import com.dremio.io.file.Path;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -49,6 +50,8 @@ public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemSto
 
   private static final String UPLOADS = "_uploads";
   private static final String STAGING = "_staging";
+
+  private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(HomeFileConf.class);
 
   // this is transient since it is actually different for each node (which means it is property based as opposed to defined directly in this configuration).
   private transient String hostname;
@@ -93,7 +96,7 @@ public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemSto
 
   @Override
   public Path getPath() {
-    return new Path(uri.get().getPath());
+    return Path.of(uri.get().getPath());
   }
 
   @Override
@@ -127,11 +130,6 @@ public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemSto
   }
 
   @Override
-  public List<String> getConnectionUniqueProperties() {
-    return ImmutableList.of();
-  }
-
-  @Override
   public HomeFileSystemStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new HomeFileSystemStoragePlugin(this, context, name, pluginIdProvider);
   }
@@ -141,15 +139,15 @@ public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemSto
   }
 
   public Path getInnerUploads() {
-    return new Path(getPath(), UPLOADS);
+    return getPath().resolve(UPLOADS);
   }
 
   public Path getStagingPath(String hostname) {
-    return new Path(getPath(), STAGING + "." + hostname);
+    return getPath().resolve(STAGING + "." + hostname);
   }
 
-  public FileSystemWrapper getFilesystemAndCreatePaths(String hostname) throws IOException {
-    FileSystemWrapper fs = FileSystemWrapperCreator.get(uri.get(), new Configuration(), enableAsync);
+  public FileSystem getFilesystemAndCreatePaths(String hostname) throws IOException {
+    FileSystem fs = HadoopFileSystem.get(uri.get(), new Configuration(), enableAsync);
     fs.mkdirs(getPath(), HomeFileSystemStoragePlugin.DEFAULT_PERMISSIONS);
     fs.mkdirs(getInnerUploads(), HomeFileSystemStoragePlugin.DEFAULT_PERMISSIONS);
 
@@ -158,8 +156,9 @@ public class HomeFileConf extends FileSystemConf<HomeFileConf, HomeFileSystemSto
     }
 
     if(hostname != null) {
-      fs.mkdirs(getStagingPath(hostname), HomeFileSystemStoragePlugin.DEFAULT_PERMISSIONS);
-      fs.deleteOnExit(getStagingPath(hostname));
+      final Path stagingDir = getStagingPath(hostname);
+      fs.mkdirs(stagingDir, HomeFileSystemStoragePlugin.DEFAULT_PERMISSIONS);
+      FileSystemUtils.deleteOnExit(fs, stagingDir);
     }
     return fs;
   }

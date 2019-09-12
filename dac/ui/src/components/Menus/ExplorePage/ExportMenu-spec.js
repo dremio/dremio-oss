@@ -21,7 +21,8 @@ describe('ExportMenu', () => {
   let commonProps;
   beforeEach(() => {
     minimalProps = {
-      action: sinon.spy()
+      action: sinon.spy(),
+      closeMenu: () => {}
     };
     commonProps = {
       ...minimalProps,
@@ -47,7 +48,7 @@ describe('ExportMenu', () => {
     it('should call action when menu item is clicked', () => {
       const menuItem = wrapper.find('MenuItem').at(0);
       menuItem.simulate('click');
-      expect(commonProps.action).to.be.calledWith({ label: 'JSON', name: 'JSON'});
+      expect(commonProps.action).to.be.calledWith('JSON');
     });
 
     it('should render appropriate menu item label', () => {

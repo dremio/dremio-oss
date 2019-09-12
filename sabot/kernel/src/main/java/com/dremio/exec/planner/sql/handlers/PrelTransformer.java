@@ -238,7 +238,7 @@ public class PrelTransformer {
             public RelNode visit(TableScan scan) {
               if (scan instanceof FilesystemScanDrel) {
                 FilesystemScanDrel scanDrel = (FilesystemScanDrel) scan;
-                return new FilesystemScanDrel(
+                FilesystemScanDrel newScanDrel = new FilesystemScanDrel(
                   scanDrel.getCluster(),
                   scanDrel.getTraitSet(),
                   scanDrel.getTable(),
@@ -246,6 +246,10 @@ public class PrelTransformer {
                   scanDrel.getTableMetadata(),
                   scanDrel.getProjectedColumns(),
                   1.0);
+                if (scanDrel.getFilter() != null) {
+                  newScanDrel = newScanDrel.applyFilter(scanDrel.getFilter());
+                }
+                return newScanDrel;
               }
               return super.visit(scan);
             }

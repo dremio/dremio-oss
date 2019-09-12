@@ -92,6 +92,7 @@ describe('performLoadDataset saga', () => {
       next = gen.next(loadDatasetResponse);
       expect(next.value).to.be.eql(call(focusSqlEditorSaga));
       next = gen.next();
+      next = gen.next();
       expect(next.value).to.eql(call(loadTableData, datasetVersion));
       next = gen.next();
       expect(next.done).to.be.true;
@@ -201,7 +202,9 @@ describe('performLoadDataset saga', () => {
         jobId: { id: jobId }
       });
 
-      next = loadTableDataGen.next(validDataset); //update viewstate
+      next = loadTableDataGen.next(validDataset); //setExploreJobIdInProgress
+      next = loadTableDataGen.next(); //spawn jobUpdateWatchers
+      next = loadTableDataGen.next(); //update viewstate
     });
 
     afterEach(() => {

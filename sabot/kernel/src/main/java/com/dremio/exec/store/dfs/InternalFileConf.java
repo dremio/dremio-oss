@@ -20,12 +20,11 @@ import java.util.List;
 
 import javax.inject.Provider;
 
-import org.apache.hadoop.fs.Path;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.io.file.Path;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.collect.ImmutableList;
@@ -62,7 +61,7 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
 
   @Override
   public Path getPath() {
-    return new Path(path);
+    return Path.of(path);
   }
 
   @Override
@@ -83,11 +82,6 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
   @Override
   public SchemaMutability getSchemaMutability() {
     return mutability;
-  }
-
-  @Override
-  public List<String> getConnectionUniqueProperties() {
-    return ImmutableList.of();
   }
 
   @Override

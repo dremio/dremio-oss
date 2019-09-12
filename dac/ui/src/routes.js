@@ -31,26 +31,21 @@ import SSOLandingPage from 'dyn-load/pages/AuthenticationPage/components/SSOLand
 import { resetModuleState } from '@app/actions/modulesState';
 import { exploreStateKey } from '@app/selectors/explore';
 import { LOGIN_PATH, SIGNUP_PATH } from '@app/sagas/loginLogout';
+import { lazy } from '@app/components/Lazy';
 
 import App from './containers/App';
 
 import ReloadPage from './pages/ReloadPage';
 
-import HomePage from './pages/HomePage/HomePage';
 import HomeModals from './pages/HomePage/HomeModals';
 import Home from './pages/HomePage/subpages/Home';
 import { AllSpaces } from './pages/HomePage/subpages/AllSpaces/AllSpaces';
 import AllSources from './pages/HomePage/subpages/AllSources/AllSources';
 
 import ExploreModals from './pages/ExplorePage/ExploreModals';
-import ExplorePage from './pages/ExplorePage/ExplorePageController';
 
 import AccountPage from './pages/AccountPage/AccountPage';
 import Info from './pages/AccountPage/subpages/InfoController';
-import Datastore from './pages/AccountPage/subpages/Datastore';
-import Jdbcodbc from './pages/AccountPage/subpages/Jdbcodbc';
-import Api from './pages/AccountPage/subpages/Api';
-import Business from './pages/AccountPage/subpages/Business';
 
 import AuthenticationPage from './pages/AuthenticationPage/AuthenticationPage';
 import SignupPage from './pages/SignupPage/SignupPage';
@@ -60,11 +55,6 @@ import AdminPage from './pages/AdminPage/AdminPage';
 import NodeActivity from './pages/AdminPage/subpages/NodeActivity/NodeActivity';
 import Users from './pages/AdminPage/subpages/Users';
 import Advanced from './pages/AdminPage/subpages/Advanced';
-import EmailDomain from './pages/AdminPage/subpages/EmailDomain';
-import Data from './pages/AdminPage/subpages/Data';
-import Logging from './pages/AdminPage/subpages/Logging';
-import Audit from './pages/AdminPage/subpages/Audit';
-import UsersV2 from './pages/AdminPage/subpages/UsersV2';
 import Provisioning from './pages/AdminPage/subpages/Provisioning';
 import Support from './pages/AdminPage/subpages/Support';
 
@@ -76,7 +66,7 @@ import AccountModals from './pages/AccountPage/AccountModals';
 import JobPage from './pages/JobPage/JobPage';
 import JobModals from './pages/JobPage/JobModals';
 
-import Page from './components/Page';
+import Page, { MainMasterPage } from './components/Page';
 
 window.React = React;
 
@@ -90,6 +80,7 @@ export const getSourceRoute = (rootType, component) => {
   );
 };
 
+const ExplorePage = lazy(() => import('./pages/ExplorePage/ExplorePageController' /* webpackChunkName: 'ExplorePage' */));
 const getExploreRoute = (routeProps, dispatch) => {
 
   const onEnter = () => {
@@ -142,10 +133,6 @@ export default dispatch => (
           <Route path='/account' component={AccountPage} >
             <IndexRedirect to='/account/info' />
             <Route path='/account/info' component={Info} />
-            <Route path='/account/datastore' component={Datastore} />
-            <Route path='/account/jdbcodbc' component={Jdbcodbc} />
-            <Route path='/account/api' component={Api} />
-            <Route path='/account/business' component={Business} />
             <Route path='/account/personalTokens' component={PATListPage} />
           </Route>
         </Route>
@@ -159,11 +146,6 @@ export default dispatch => (
             <Route path='/admin/users' component={UserIsAdmin(Users)} />
             <Route path='/admin/roles' component={Roles} />
             <Route path='/admin/advanced' component={Advanced} />
-            <Route path='/admin/emailDomain' component={EmailDomain} />
-            <Route path='/admin/data' component={Data} />
-            <Route path='/admin/logging' component={Logging} />
-            <Route path='/admin/audit' component={Audit} />
-            <Route path='/admin/usersv2' component={UsersV2} />
             <Route path='/admin/provisioning' component={Provisioning} />
             <Route path='/admin/support' component={Support} />
             <Route path='/admin/votes' component={Votes} />
@@ -171,9 +153,6 @@ export default dispatch => (
             <Route path='/admin/rules' component={QAssignments} />
           </Route>
         </Route>
-      </Route>
-      <Route component={Page}>
-        <Route path='/spaces/recent' component={HomePage} />
       </Route>
       <Route component={UserIsAuthenticated(HomeModals)}>
         <Route component={Page}>
@@ -189,10 +168,10 @@ export default dispatch => (
           <Route path='/sources/list' component={AllSources} />
         </Route>
       </Route>
-      <Route component={UserIsAuthenticated(ExploreModals)}>
+      <Route component={MainMasterPage}>
         {
           getExploreRoute({
-            component: Page,
+            component: UserIsAuthenticated(ExploreModals),
             children: [
               <Route key='new_query' path='/new_query' component={ExplorePage} />,
               <Route key='existing_dataset' path='/:resources(/:resourceId)/:tableId(/:pageType)' component={ExplorePage} />

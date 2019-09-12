@@ -54,7 +54,7 @@ describe('MarkdownEditor', () => {
       const wrapper = mockInstance(<MarkdownEditorView
         readMode
         onReadModeHasScrollChanged={changeHandler}
-        />);
+      />);
 
       const testChange = (currentValue) => {
         simulateHasScrollChanged(wrapper, currentValue);
@@ -70,7 +70,7 @@ describe('MarkdownEditor', () => {
       // Please fix _updateHasScrollImpl
       const wrapper = mockInstance(<MarkdownEditorView
         readMode
-        />);
+      />);
 
       simulateHasScrollChanged(wrapper, true); // there should not be any errors
     });

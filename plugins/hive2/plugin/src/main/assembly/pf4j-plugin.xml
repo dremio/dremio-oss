@@ -1,0 +1,126 @@
+<?xml version="1.0"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.0.0 http://maven.apache.org/xsd/assembly-2.0.0.xsd">
+  <id>pf4j-plugin</id>
+  <formats>
+    <format>jar</format>
+  </formats>
+  <containerDescriptorHandlers>
+    <containerDescriptorHandler>
+      <!-- Add handler for concatenating entries in META-INF/services together. Needed to register all FileSystems
+           that the Assembly plugin puts within the bundle. -->
+      <handlerName>metaInf-services</handlerName>
+    </containerDescriptorHandler>
+  </containerDescriptorHandlers>
+  <includeBaseDirectory>false</includeBaseDirectory>
+  <!-- Include project output -->
+  <fileSets>
+    <fileSet>
+      <directory>${project.build.outputDirectory}</directory>
+      <outputDirectory>.</outputDirectory>
+    </fileSet>
+  </fileSets>
+  <!-- Include dependencies -->
+  <dependencySets>
+    <dependencySet>
+      <outputDirectory>.</outputDirectory>
+      <useStrictFiltering>true</useStrictFiltering>
+      <excludes>
+        <!-- exclude native libraries -->
+        <exclude>*:*:jar:*:linux</exclude>
+      </excludes>
+      <unpack>true</unpack>
+      <unpackOptions>
+        <excludes>
+          <!-- Omit the VersionInfo from hbase-common and use the VersionInfo implemented in the shim -->
+          <exclude>org/apache/hadoop/hbase/util/VersionInfo.class</exclude>
+          <!-- Omit all MapR pre-loaded classes from MapR-FS within Hive 2.x Plugin -->
+          <exclude>com/mapr/fs/jni/Errno.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRConstants.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRConstants$JniUsername.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRConstants$ErrorValue.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRConstants$RowConstants.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRConstants$PutConstants.class</exclude>
+          <exclude>com/mapr/fs/jni/JNIBlockLocation.class</exclude>
+          <exclude>com/mapr/fs/jni/JNIFsStatus.class</exclude>
+          <exclude>com/mapr/fs/jni/JNIFileStatus.class</exclude>
+          <exclude>com/mapr/fs/jni/JNIFileStatus$VolumeInfo.class</exclude>
+          <exclude>com/mapr/fs/jni/JNILoggerProxy.class</exclude>
+          <exclude>com/mapr/fs/jni/IPPort.class</exclude>
+          <exclude>com/mapr/fs/jni/GatewaySource.class</exclude>
+          <exclude>com/mapr/fs/jni/Page.class</exclude>
+          <exclude>com/mapr/fs/jni/Page$CacheState.class</exclude>
+          <exclude>com/mapr/fs/jni/InodeAttributes.class</exclude>
+          <exclude>com/mapr/fs/jni/SFid.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRAsyncRpc.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRGet.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRJSONPut.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRPut.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRIncrement.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRKeyValue.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRRowConstraint.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRScan.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRCallBackQueue.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRClient.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRTableTools.class</exclude>
+          <exclude>com/mapr/security/JNISecurity.class</exclude>
+          <exclude>com/mapr/security/JNISecurity$MutableErr.class</exclude>
+          <exclude>com/mapr/security/UnixUserGroupHelper.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRUserGroupInfo.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRUserInfo.class</exclude>
+          <exclude>com/mapr/fs/jni/RpcNative.class</exclude>
+          <exclude>com/mapr/fs/RpcCallContext.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRClientInitParams.class</exclude>
+          <exclude>com/mapr/fs/jni/RowColDecoder.class</exclude>
+          <exclude>com/mapr/fs/jni/RowColDecoder$1.class</exclude>
+          <exclude>com/mapr/fs/jni/RowColDecoderCallback.class</exclude>
+          <exclude>com/mapr/fs/jni/RowColParser.class</exclude>
+          <exclude>com/mapr/fs/jni/RowColParser$1.class</exclude>
+          <exclude>com/mapr/fs/jni/RowColParser$STATE.class</exclude>
+          <exclude>com/mapr/fs/jni/RowColParser$ValType.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRResult.class</exclude>
+          <exclude>com/mapr/fs/jni/MapRResult$MapRResultDecoderCallback.class</exclude>
+          <exclude>com/mapr/fs/jni/ParsedRow.class</exclude>
+          <exclude>com/mapr/fs/jni/MarlinProducerResult.class</exclude>
+          <exclude>com/mapr/fs/jni/NativeData.class</exclude>
+          <exclude>com/mapr/fs/jni/MarlinJniClient.class</exclude>
+          <exclude>com/mapr/fs/jni/MarlinJniAdmin.class</exclude>
+          <exclude>com/mapr/fs/jni/MarlinJniProducer.class</exclude>
+          <exclude>com/mapr/fs/jni/MarlinJniListener.class</exclude>
+        </excludes>
+      </unpackOptions>
+    </dependencySet>
+    <dependencySet>
+      <outputDirectory>PF4J-INF/native-libs</outputDirectory>
+      <useStrictFiltering>true</useStrictFiltering>
+      <includes>
+        <!-- include native libraries -->
+        <include>*:*:jar:*:linux</include>
+      </includes>
+      <unpack>true</unpack>
+      <unpackOptions>
+        <excludes>
+          <exclude>META-INF/**</exclude>
+        </excludes>
+      </unpackOptions>
+    </dependencySet>
+  </dependencySets>
+</assembly>

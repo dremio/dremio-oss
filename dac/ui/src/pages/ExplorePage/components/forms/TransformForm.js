@@ -152,7 +152,6 @@ export class TransformForm extends Component {
             Children.count(children) > 0 && <ViewStateWrapper
               className={content}
               viewState={viewState}
-              spinnerStyle={styles.spinner}
               hideChildrenWhenInProgress
               style={{ ...styles.formBody, ...style }}>
               <FormProgressWrapper submitting={submitting}>

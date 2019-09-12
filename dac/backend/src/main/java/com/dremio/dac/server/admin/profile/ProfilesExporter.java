@@ -24,8 +24,7 @@ import java.util.Optional;
 import javax.ws.rs.NotSupportedException;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RawLocalFileSystem;
 
 import com.dremio.common.utils.ProtobufUtils;
 import com.dremio.dac.proto.model.source.ClusterIdentity;
@@ -41,8 +40,11 @@ import com.dremio.datastore.KVStore;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.work.AttemptId;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
@@ -86,8 +88,8 @@ public final class ProfilesExporter {
   }
 
   private Path getProfileFileNameWithPath(String profileId) {
-    String full_path = outputFilePath + "profile_" + profileId + ".json";
-    return new Path(full_path);
+    String fullPath = outputFilePath + "profile_" + profileId + ".json";
+    return Path.of(fullPath);
   }
 
   private IndexedStore.FindByCondition getJobsFilter(Long fromDate, Long toDate) {
@@ -140,10 +142,9 @@ public final class ProfilesExporter {
 
     Path fakeFileName = getProfileFileNameWithPath("fake_id");
     Configuration conf = new Configuration();
-    FileSystem fs = fakeFileName.getFileSystem(conf);
-    boolean isLocalFileSystem = isLocalFileSystem(fs.getScheme());
-    fs.setWriteChecksum(!isLocalFileSystem);
-    fs.setVerifyChecksum(!isLocalFileSystem);
+    conf.setClass("fs.file.impl", RawLocalFileSystem.class, FileSystem.class);
+    // Use the raw local filesystem to avoid writing checksum files
+    FileSystem fs = HadoopFileSystem.get(fakeFileName, conf);
 
     BackupRestoreUtil.checkOrCreateDirectory(fs, fakeFileName.getParent());
 

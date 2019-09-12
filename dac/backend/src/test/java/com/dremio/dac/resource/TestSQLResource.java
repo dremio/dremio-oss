@@ -141,7 +141,7 @@ public class TestSQLResource extends BaseTestServer {
     logAdvisorResponse(returnedSuggestions);
     assertNotNull(returnedSuggestions);
     assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(34, returnedSuggestions.getSuggestions().size());
+    assertEquals(39, returnedSuggestions.getSuggestions().size());
   }
 
   @Test
@@ -185,13 +185,14 @@ public class TestSQLResource extends BaseTestServer {
       asList(
         "INFORMATION_SCHEMA.CATALOGS",
         "INFORMATION_SCHEMA.COLUMNS",
-        "cp.\"tpch/supplier.parquet\""));
+        "cp.\"tpch/supplier.parquet\""
+        ));
 
     logAdvisorResponse(returnedSuggestions);
     assertNotNull(returnedSuggestions);
     assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(4, returnedSuggestions.getSuggestions().size());
-    for (int i = 0; i < 4; i++) {
+    assertEquals((expectedTables.size() + 1), returnedSuggestions.getSuggestions().size());
+    for (int i = 0; i < (expectedTables.size() + 1); i++) {
       SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
       if (suggestion.getType().equals("TABLE")) {
         assertTrue(expectedTables.contains(suggestion.getName()));
@@ -368,13 +369,14 @@ public class TestSQLResource extends BaseTestServer {
         "mysrc.ds2",
         "mysrc.ds3",
         "sys.materializations",
-        "sys.memory"));
+        "sys.memory",
+        "\"sys.cache\".mount_points"));
 
     logAdvisorResponse(returnedSuggestions);
     assertNotNull(returnedSuggestions);
     assertNotNull(returnedSuggestions.getSuggestions());
-    assertEquals(6, returnedSuggestions.getSuggestions().size());
-    for (int i = 0; i < 6; i++) {
+    assertEquals((expectedTables.size() + 1), returnedSuggestions.getSuggestions().size());
+    for (int i = 0; i < (expectedTables.size() + 1); i++) {
       SuggestionResponse.Suggestion suggestion = returnedSuggestions.getSuggestions().get(i);
       if (suggestion.getType().equals("TABLE")) {
         assertTrue(expectedTables.contains(suggestion.getName()));

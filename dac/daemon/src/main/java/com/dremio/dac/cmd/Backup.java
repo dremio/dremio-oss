@@ -19,11 +19,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 
-import javax.ws.rs.core.MediaType;
-
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -31,13 +27,13 @@ import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.util.BackupRestoreUtil.BackupStats;
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.io.file.Path;
 
 /**
  * Backup command line.
  */
 public class Backup {
-  private static final MediaType JSON = MediaType.APPLICATION_JSON_TYPE;
-
   /**
    * Command line options for backup
    */
@@ -109,13 +105,13 @@ public class Backup {
 
       // Make sure that unqualified paths are resolved locally first, and default filesystem
       // is pointing to file
-      Path backupDir = new Path(options.backupDir);
-      final String scheme = backupDir.toUri().getScheme();
+      Path backupDir = Path.of(options.backupDir);
+      final String scheme = backupDir.toURI().getScheme();
       if (scheme == null || "file".equals(scheme)) {
-        backupDir = backupDir.makeQualified(URI.create("file:///"), FileSystem.getLocal(new Configuration()).getWorkingDirectory());
+        backupDir = HadoopFileSystem.getLocal(new Configuration()).makeQualified(backupDir);
       }
 
-      URI target = backupDir.toUri();
+      URI target = backupDir.toURI();
 
       if (options.localAttach) {
         String[] backupArgs = {"backup",options.backupDir};

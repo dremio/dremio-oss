@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>3.3.2-201908142136370993-d60145d</version>
+  <version>4.0.0-201909121834570395-c7a5071</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,10 +38,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.14.0-20190718172626-fa1a62d422-dremio</arrow.version>
+    <arrow.version>0.15.0-20190903164124-48d90692c7-dremio</arrow.version>
     <avatica.version>1.11.0</avatica.version>
     <calcite.version>1.16.0-201908081805070805-cb74ee3</calcite.version>
-    <db2jcc.version>4.23.42</db2jcc.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
@@ -50,11 +49,11 @@
     <!-- Currently Hive storage plugin only supports Apache Hive 1.2 or vendor
       specific variants of the Apache Hive 1.2. If the version is changed, make
       sure the jars and their dependencies are updated. -->
-    <hive.version>2.1.1-dremio-201907191201410736-68f8006</hive.version>
-    <hbase.version>1.1.3</hbase.version>
-    <hadoop.version>2.8.3</hadoop.version>
+    <hive.version>2.1.1-dremio-201908200647000054-61ee9c8</hive.version>
+    <hbase.version>2.2.0</hbase.version>
+    <hadoop.version>3.2.0-dremio-201909041046110436-7295d98</hadoop.version>
     <hsqldb.version>2.3.1</hsqldb.version>
-    <jackson.version>2.9.9</jackson.version>
+    <jackson.version>2.9.9.20190807</jackson.version>
     <jersey.version>2.25.1</jersey.version>
     <jetty.version>9.4.15.v20190215</jetty.version>
     <javax.ws.rs-api.version>2.0.1</javax.ws.rs-api.version>
@@ -62,11 +61,11 @@
     <lilith.version>0.9.44</lilith.version>
     <!--  Careful, 1.1.6 & 1.1.7 break a weird validate debug feature in Calcite... -->
     <logback.version>1.1.3</logback.version>
-    <metrics.version>4.0.2</metrics.version>
+    <metrics.version>4.1.0</metrics.version>
     <mariadb.connector.version>2.3.0</mariadb.connector.version>
-    <netty.version>4.1.22.Final</netty.version>
+    <netty.version>4.1.38.Final</netty.version>
     <!-- latest is 2.0.17.Final as of 10/28/18, but we run into this https://github.com/line/armeria/pull/1278 -->
-    <netty.boringssl.version>2.0.10.Final</netty.boringssl.version>
+    <netty.boringssl.version>2.0.25.Final</netty.boringssl.version>
     <parquet.version>1.12.0-201905082117230809-0fe4d5d</parquet.version>
     <postgresql.version>42.2.5</postgresql.version>
     <protobuf.version>2.5.0</protobuf.version>
@@ -77,7 +76,8 @@
     <zkclient.version>0.10</zkclient.version>
     <zookeeper.version>3.4.10</zookeeper.version>
     <curator.version>2.12.0</curator.version>
-    <aws-sdk.version>1.11.156</aws-sdk.version>
+    <aws-sdk.version>1.11.375</aws-sdk.version>
+    <aws-sdk-2.version>2.5.37</aws-sdk-2.version>
     <openhft-affinity.version>3.1.7</openhft-affinity.version>
     <fbs.version>1.9.0</fbs.version>
     <rocksdb.version>5.14.2</rocksdb.version>
@@ -136,7 +136,7 @@
         </property>
       </activation>
       <properties>
-        <hive.version>2.1.1-mapr-1803-201907191218120687-4b7de39</hive.version>
+        <hive.version>2.1.1-mapr-1803-201908200826380359-c333a66</hive.version>
         <hbase.version>1.1.8-mapr-1710</hbase.version>
         <hadoop.version>2.7.0-mapr-1803</hadoop.version>
         <!-- hadoop-yarn-common jar is updated in MapR patch 6.0.1 repository, it is updated to be
@@ -225,15 +225,22 @@
   </profiles>
 
   <build>
-    <extensions>
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>1.5.0.Final</version>
-      </extension>
-    </extensions>
 
     <plugins>
+      <plugin>
+        <!-- use as plugin instead of extension to resolve issues in Eclipse. See https://github.com/xolstice/protobuf-maven-plugin/issues/10#issuecomment-419529938 for more detail -->
+        <groupId>kr.motd.maven</groupId>
+        <artifactId>os-maven-plugin</artifactId>
+        <version>1.6.2</version>
+        <executions>
+          <execution>
+            <phase>initialize</phase>
+            <goals>
+              <goal>detect</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-checkstyle-plugin</artifactId>
@@ -428,13 +435,14 @@
           <skipPoms>false</skipPoms>
           <generateGitPropertiesFile>true</generateGitPropertiesFile>
           <failOnNoGitDirectory>false</failOnNoGitDirectory>
-          <gitDescribe>
-            <skip>false</skip>
-            <always>false</always>
-            <abbrev>7</abbrev>
-            <dirty>-dirty</dirty>
-            <forceLongFormat>true</forceLongFormat>
-          </gitDescribe>
+          <useNativeGit>true</useNativeGit>
+          <injectAllReactorProjects>true</injectAllReactorProjects>
+          <includeOnlyProperties>
+            <includeOnlyProperty>git.build.time</includeOnlyProperty>
+            <includeOnlyProperty>git.build.user.email</includeOnlyProperty>
+            <includeOnlyProperty>git.commit.id</includeOnlyProperty>
+            <includeOnlyProperty>git.commit.time</includeOnlyProperty>
+          </includeOnlyProperties>
         </configuration>
       </plugin>
       <plugin>
@@ -585,6 +593,7 @@ limitations under the License.
             <exclude>**/*.nonformat</exclude>
             <exclude>**/*.gzip</exclude>
             <exclude>**/*.fbs</exclude>
+            <exclude>**/*.idx</exclude>
 
             <!-- by file name -->
             <exclude>**/Jenkinsfile</exclude>
@@ -675,7 +684,7 @@ limitations under the License.
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-dependency-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>3.1.1</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -736,7 +745,7 @@ limitations under the License.
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-assembly-plugin</artifactId>
-          <version>3.1.0</version>
+          <version>3.1.1</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -777,6 +786,11 @@ limitations under the License.
           </dependencies>
         </plugin>
         <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>flatten-maven-plugin</artifactId>
+          <version>1.1.0</version>
+        </plugin>
+        <plugin>
           <groupId>org.owasp</groupId>
           <artifactId>dependency-check-maven</artifactId>
           <version>5.0.0</version>
@@ -800,7 +814,7 @@ limitations under the License.
         <plugin>
           <groupId>pl.project13.maven</groupId>
           <artifactId>git-commit-id-plugin</artifactId>
-          <version>2.2.2</version>
+          <version>3.0.1</version>
         </plugin>
         <plugin>
           <groupId>com.github.eirslett</groupId>
@@ -877,7 +891,7 @@ limitations under the License.
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>truezip-maven-plugin</artifactId>
-          <version>1.0</version>
+          <version>1.2</version>
         </plugin>
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
@@ -1104,7 +1118,7 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>com.dremio.contrib</groupId>
-        <artifactId>dremio-hive-exec-shaded</artifactId>
+        <artifactId>dremio-hive2-exec-shaded</artifactId>
         <version>${project.version}</version>
         <exclusions>
           <!-- Bug in maven assembly plugin forces us to be declarative
@@ -1129,8 +1143,20 @@ limitations under the License.
         <artifactId>dremio-twill-shaded</artifactId>
         <exclusions>
           <exclusion>
-            <groupId>*</groupId>
+            <groupId>org.apache.hadoop</groupId>
             <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.twill</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.google.guava</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>io.netty</groupId>
+            <artifactId>netty</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -1267,16 +1293,6 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>com.dremio.plugins</groupId>
-        <artifactId>dremio-hive-plugin</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.dremio.plugins</groupId>
-        <artifactId>dremio-hbase-plugin</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.dremio.plugins</groupId>
         <artifactId>dremio-jdbc-plugin</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -1348,6 +1364,11 @@ limitations under the License.
         <version>${metrics.version}</version>
       </dependency>
       <dependency>
+        <groupId>com.github.vladimir-bukhtoyarov</groupId>
+        <artifactId>rolling-metrics</artifactId>
+        <version>2.0.5</version>
+      </dependency>
+      <dependency>
         <groupId>io.dropwizard.metrics</groupId>
         <artifactId>metrics-jmx</artifactId>
         <version>${metrics.version}</version>
@@ -1385,6 +1406,11 @@ limitations under the License.
         <type>pom</type>
       </dependency>
       <dependency>
+        <groupId>com.fasterxml.woodstox</groupId>
+        <artifactId>woodstox-core</artifactId>
+        <version>5.2.1</version>
+      </dependency>
+      <dependency>
         <groupId>com.github.slugify</groupId>
         <artifactId>slugify</artifactId>
         <version>2.1.7</version>
@@ -1420,6 +1446,26 @@ limitations under the License.
         <version>${lilith.version}</version>
       </dependency>
       <dependency>
+        <groupId>io.opentracing</groupId>
+        <artifactId>opentracing-api</artifactId>
+        <version>0.33.0</version>
+      </dependency>
+      <dependency>
+        <groupId>io.opentracing</groupId>
+        <artifactId>opentracing-util</artifactId>
+        <version>0.33.0</version>
+      </dependency>
+      <dependency>
+        <groupId>io.opentracing</groupId>
+        <artifactId>opentracing-noop</artifactId>
+        <version>0.33.0</version>
+      </dependency>
+      <dependency>
+        <groupId>io.opentracing</groupId>
+        <artifactId>opentracing-mock</artifactId>
+        <version>0.33.0</version>
+      </dependency>
+      <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-bom</artifactId>
         <version>${netty.version}</version>
@@ -1445,6 +1491,11 @@ limitations under the License.
         <groupId>io.protostuff</groupId>
         <artifactId>protostuff-json</artifactId>
         <version>${protostuff.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>javax.validation</groupId>
+        <artifactId>validation-api</artifactId>
+        <version>2.0.1.Final</version>
       </dependency>
       <dependency>
         <groupId>junit</groupId>
@@ -1595,6 +1646,11 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>com.amazonaws</groupId>
+        <artifactId>aws-java-sdk-sts</artifactId>
+        <version>${aws-sdk.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.amazonaws</groupId>
         <artifactId>aws-java-sdk-core</artifactId>
         <version>${aws-sdk.version}</version>
         <exclusions>
@@ -1614,6 +1670,10 @@ limitations under the License.
         <artifactId>hadoop-aws</artifactId>
         <version>${hadoop.version}</version>
         <exclusions>
+          <exclusion>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-bundle</artifactId>
+          </exclusion>
           <exclusion>
             <groupId>commons-logging</groupId>
             <artifactId>commons-logging</artifactId>
@@ -1645,6 +1705,17 @@ limitations under the License.
         </exclusions>
       </dependency>
       <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>secretsmanager</artifactId>
+        <version>${aws-sdk-2.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-common</artifactId>
         <version>${hadoop.version}</version>
@@ -1664,6 +1735,10 @@ limitations under the License.
           <exclusion>
             <groupId>javax.servlet</groupId>
             <artifactId>servlet-api</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>javax.servlet.jsp</groupId>
+            <artifactId>jsp-api</artifactId>
           </exclusion>
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
@@ -2604,8 +2679,10 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>software.amazon.awssdk</groupId>
-        <artifactId>s3</artifactId>
-        <version>2.5.37</version>
+        <artifactId>bom</artifactId>
+        <version>${aws-sdk-2.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
         <exclusions>
           <exclusion>
             <groupId>commons-logging</groupId>
@@ -2616,7 +2693,7 @@ limitations under the License.
       <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-azure</artifactId>
-        <version>2.8.5-dremio-r2-35405b2aea7702ff65f91e7ae173c008e1f939ae</version>
+        <version>2.8.5-dremio-r2-154a6398c1949158585a5f60549b3bb99789976a</version>
         <exclusions>
           <exclusion>
             <groupId>org.apache.hadoop</groupId>
@@ -2637,6 +2714,29 @@ limitations under the License.
         <artifactId>hadoop-azure-datalake</artifactId>
         <version>${hadoop.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.apache.kafka</groupId>
+        <artifactId>kafka_2.10</artifactId>
+        <version>0.8.0</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.sun.jdmk</groupId>
+            <artifactId>jmxtools</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>com.sun.jmx</groupId>
+            <artifactId>jmxri</artifactId>
+          </exclusion>
+          <exclusion>
+            <artifactId>log4j</artifactId>
+            <groupId>log4j</groupId>
+          </exclusion>
+          <exclusion>
+            <artifactId>slf4j-simple</artifactId>
+            <groupId>org.slf4j</groupId>
+          </exclusion>
+        </exclusions>
+      </dependency>
       <!-- azure-data-lake-store-sdk is used by hadoop-azure in apache hadoop,
           upgrade it to a new version in which some bugs were fixed-->
       <dependency>
@@ -2648,6 +2748,11 @@ limitations under the License.
         <groupId>javax.xml.stream</groupId>
         <artifactId>stax-api</artifactId>
         <version>1.0-2</version>
+      </dependency>
+      <dependency>
+        <groupId>org.codehaus.woodstox</groupId>
+        <artifactId>stax2-api</artifactId>
+        <version>3.1.4</version>
       </dependency>
       <dependency>
         <groupId>org.apache.xmlbeans</groupId>
@@ -2692,11 +2797,21 @@ limitations under the License.
         <scope>import</scope>
       </dependency>
       <dependency>
+        <groupId>org.glassfish</groupId>
+        <artifactId>javax.el</artifactId>
+        <version>3.0.1-b11</version>
+      </dependency>
+      <dependency>
         <groupId>org.glassfish.jersey</groupId>
         <artifactId>jersey-bom</artifactId>
         <version>${jersey.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.hibernate.validator</groupId>
+        <artifactId>hibernate-validator</artifactId>
+        <version>6.0.17.Final</version>
       </dependency>
       <dependency>
         <groupId>org.xerial.snappy</groupId>

@@ -23,9 +23,12 @@ import java.util.List;
 import java.util.Properties;
 
 import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.hive.ql.exec.Utilities;
 import org.apache.hadoop.hive.ql.io.AcidUtils;
 import org.apache.hadoop.hive.ql.io.IOConstants;
+import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
+import org.apache.hadoop.hive.ql.io.sarg.SearchArgumentImpl;
 import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
 import org.apache.hadoop.hive.ql.metadata.HiveUtils;
 import org.apache.hadoop.hive.serde.serdeConstants;
@@ -40,6 +43,9 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hive.com.esotericsoftware.kryo.Kryo;
+import org.apache.hive.com.esotericsoftware.kryo.io.Input;
+import org.apache.hive.com.esotericsoftware.kryo.io.Output;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -117,8 +123,12 @@ public class HiveUtilities {
     }
 
     if (storageHandlerName.isPresent()) {
-      final HiveStorageHandler storageHandler = HiveUtils.getStorageHandler(jobConf, storageHandlerName.get());
-      return (Class<? extends InputFormat<?, ?>>) storageHandler.getInputFormatClass();
+      try (final ContextClassLoaderSwapper swapper = ContextClassLoaderSwapper.newInstance()) {
+        // HiveUtils.getStorageHandler() depends on the current context classloader if you query and HBase table,
+        // and don't have an HBase session open.
+        final HiveStorageHandler storageHandler = HiveUtils.getStorageHandler(jobConf, storageHandlerName.get());
+        return (Class<? extends InputFormat<?, ?>>) storageHandler.getInputFormatClass();
+      }
     }
 
     throw new ExecutionSetupException("Unable to get Hive table InputFormat class. There is neither " +
@@ -272,6 +282,30 @@ public class HiveUtilities {
     job.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS, job.get(serdeConstants.LIST_COLUMNS));
     job.set(IOConstants.SCHEMA_EVOLUTION_COLUMNS_TYPES, job.get(serdeConstants.LIST_COLUMN_TYPES));
 
+  }
+
+  /**
+   * Encodes a SearchArgument to base64.
+   * @param sarg
+   * @return
+   */
+  public static String encodeSearchArgumentAsBas64(final SearchArgument sarg) {
+    try(Output out = new Output(4 * 1024, 10 * 1024 * 1024)) {
+      new Kryo().writeObject(out, sarg);
+      out.flush();
+      return Base64.encodeBase64String(out.toBytes());
+    }
+  }
+
+  /**
+   * Encodes a SearchArgument from base64.
+   * @param kryoBase64EncodedFilter
+   * @return
+   */
+  public static SearchArgument decodeSearchArgumentFromBase64(final String kryoBase64EncodedFilter) {
+    try (Input input = new Input(Base64.decodeBase64(kryoBase64EncodedFilter))) {
+      return new Kryo().readObject(input, SearchArgumentImpl.class);
+    }
   }
 }
 

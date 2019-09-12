@@ -140,7 +140,7 @@ export const RESERVED_WORDS = new Set((
   //    Distributed under an MIT license: http://codemirror.net/LICENSE
   + ' ' + 'BOOL BOOLEAN BIT BLOB DECIMAL DOUBLE FLOAT LONG LONGBLOB LONGTEXT MEDIUM MEDIUMBLOB MEDIUMINT MEDIUMTEXT TIME TIMESTAMP TINYBLOB TINYINT TINYTEXT TEXT CLOB BIGINT INT INT2 INT8 INTEGER FLOAT DOUBLE CHAR VARCHAR DATE DATETIME YEAR UNSIGNED SIGNED NUMERIC REAL'
 
-  // todo: reconcile with constants/DataTypes.js, factor into independant list
+// todo: reconcile with constants/DataTypes.js, factor into independant list
 ).split(' '));
 
 export function constructFullPath(pathParts, preventQuoted, shouldEncode) {
@@ -178,8 +178,8 @@ export function constructResourcePath(fullPath, type = 'dataset') {
 export function getInitialResourceLocation(fullPath, datasetType, username) {
   return fullPath && fullPath[0] !== 'tmp' &&
          (datasetType === 'VIRTUAL_DATASET' || datasetType === 'PHYSICAL_DATASET_HOME_FILE')
-         ? constructFullPath(fullPath, false)
-         : `"@${username}"`;
+    ? constructFullPath(fullPath, false)
+    : `"@${username}"`;
 }
 
 export function getFullPathListFromEntity(entity) {

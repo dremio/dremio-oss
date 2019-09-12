@@ -21,7 +21,6 @@ import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.codahale.metrics.Gauge;
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.rpc.EventLoopCloseable;
@@ -82,18 +81,8 @@ public class UserServer implements Service {
 
     server = newUserRPCServer(eventLoopGroup);
 
-    Metrics.registerGauge("rpc.user.current", new Gauge<Long>() {
-      @Override
-      public Long getValue() {
-        return allocator.getAllocatedMemory();
-      }
-    });
-    Metrics.registerGauge("rpc.user.peak", new Gauge<Long>() {
-      @Override
-      public Long getValue() {
-        return allocator.getPeakMemoryAllocation();
-      }
-    });
+    Metrics.newGauge("rpc.user.current", allocator::getAllocatedMemory);
+    Metrics.newGauge("rpc.user.peak", allocator::getPeakMemoryAllocation);
     int initialPort = context.getConfig().getInt(ExecConstants.INITIAL_USER_PORT);
     if(allowPortHunting){
       initialPort += 333;

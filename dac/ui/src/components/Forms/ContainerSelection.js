@@ -51,10 +51,10 @@ export default class ContainerSelection extends Component {
           {elementConfig.getOptions().map((option, index) => {
             return (
               <Radio radioValue={option.value}
-                     value={selectedValue}
-                     key={index}
-                     label={option.label || option.value}
-                     {...radioProps}/>
+                value={selectedValue}
+                key={index}
+                label={option.label || option.value}
+                {...radioProps}/>
             );
           })}
         </div>

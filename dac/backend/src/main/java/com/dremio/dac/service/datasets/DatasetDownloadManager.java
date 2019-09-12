@@ -19,12 +19,11 @@ import static java.lang.String.format;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.DirectoryStream;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +33,9 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.service.job.proto.DownloadInfo;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobRequest;
@@ -44,6 +46,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 
 /**
@@ -99,7 +102,7 @@ public class DatasetDownloadManager {
     }
     final String downloadId = UUID.randomUUID().toString();
     final String fileName = format("%s.%s", PathUtils.slugify(datasetUI.getDisplayFullPath()), extensions.get(downloadFormat));
-    final Path downloadFilePath = new Path(downloadId);
+    final Path downloadFilePath = Path.of(downloadId);
 
     final String selectQuery;
     if (limit != -1) {
@@ -122,18 +125,22 @@ public class DatasetDownloadManager {
   }
 
   public DownloadDataResponse getDownloadData(DownloadInfo downloadInfo) throws IOException {
-    final Path jobDataDir = new Path(storageLocation, downloadInfo.getDownloadId());
+    final Path jobDataDir = storageLocation.resolve(downloadInfo.getDownloadId());
     // NFS filesystems has delay before files written by executor shows up in the coordinator.
     // For NFS, fs.exists() will force a refresh if the file is not found
     // No action is taken if it returns false as the code path already handles FileNotFoundException
     fs.exists(jobDataDir);
-    final FileStatus[] files = fs.listStatus(jobDataDir);
-    Preconditions.checkArgument(files.length == 1, format("Found %d files in download dir %s, must have only one file.", files.length, jobDataDir));
-    return new DownloadDataResponse(fs.open(files[0].getPath()), downloadInfo.getFileName(), files[0].getLen());
+    final List<FileAttributes> files;
+    try (final DirectoryStream<FileAttributes> stream = fs.list(jobDataDir)) {
+      files = Lists.newArrayList(stream);
+    }
+    Preconditions.checkArgument(files.size() == 1, format("Found %d files in download dir %s, must have only one file.", files.size(), jobDataDir));
+    final FileAttributes file = files.get(0);
+    return new DownloadDataResponse(fs.open(file.getPath()), downloadInfo.getFileName(), file.size());
   }
 
   public void cleanupDownloadData(String downloadId) throws IOException {
-    final Path jobDataDir = new Path(storageLocation, downloadId);
+    final Path jobDataDir = storageLocation.resolve(downloadId);
     logger.debug("Cleaning up data at {}", jobDataDir);
     fs.delete(jobDataDir, true);
   }

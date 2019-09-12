@@ -27,12 +27,74 @@ marked.setOptions({
   renderer: markedRenderer
 });
 
+// disable some eslint rules, as source code does not compliant to it
+/* eslint prefer-const: "off" */
+/* eslint no-cond-assign: "off" */
+/* eslint no-bitwise: "off" */
+/* eslint no-nested-ternary: "off" */
+/* eslint complexity: "off" */
+/* eslint object-shorthand: "off" */
+/* eslint no-var: "off" */
 
-/* eslint-disable */ // disable errors, as this is an original source code
+
 // it is mostly original code without any changes. Search for '[Dremio override]' comment to find altered code
+// [Dremio override] DX-12872 --------------------------
+// Original 'marked.Lexer.prototype.token' uses internal variable 'block' that is exposed through Lexer.rules
+// make it available here.
+// see https://github.com/markedjs/marked/blob/v0.7.0/lib/marked.js#L154
+const block = marked.Lexer.rules;
+// -----------------------------------------------------
+
+
+// Method from original source code https://github.com/markedjs/marked/blob/v0.7.0/lib/marked.js#L1496
+// it is untouched
+//-----------------------------------
+// Remove trailing 'c's. Equivalent to str.replace(/c*$/, '').
+// /c*$/ is vulnerable to REDOS.
+// invert: Remove suffix of non-c chars instead. Default falsey.
+function rtrim(str, c, invert) {
+  if (str.length === 0) {
+    return '';
+  }
+
+  // Length of suffix matching the invert condition.
+  var suffLen = 0;
+
+  // Step left until we fail to match the invert condition.
+  while (suffLen < str.length) {
+    var currChar = str.charAt(str.length - suffLen - 1);
+    if (currChar === c && !invert) {
+      suffLen++;
+    } else if (currChar !== c && invert) {
+      suffLen++;
+    } else {
+      break;
+    }
+  }
+
+  return str.substr(0, str.length - suffLen);
+}
+
+// Method from original source code https://github.com/markedjs/marked/blob/v0.7.0/lib/marked.js#L1461
+// it is untouched
 function splitCells(tableRow, count) {
-  var cells = tableRow.replace(/([^\\])\|/g, '$1 |').split(/ +\| */),
-      i = 0;
+  // ensure that every cell-delimiting pipe has a space
+  // before it to distinguish it from an escaped pipe
+  var row = tableRow.replace(/\|/g, function(match, offset, str) {
+      var escaped = false,
+        curr = offset;
+      while (--curr >= 0 && str[curr] === '\\') escaped = !escaped;
+      if (escaped) {
+        // odd number of slashes means | is escaped
+        // so we leave it alone
+        return '|';
+      } else {
+        // add space before unescaped |
+        return ' |';
+      }
+    }),
+    cells = row.split(/ \|/),
+    i = 0;
 
   if (cells.length > count) {
     cells.splice(count);
@@ -41,7 +103,8 @@ function splitCells(tableRow, count) {
   }
 
   for (; i < cells.length; i++) {
-    cells[i] = cells[i].replace(/\\\|/g, '|');
+    // leading or trailing whitespace is ignored per the gfm spec
+    cells[i] = cells[i].trim().replace(/\\\|/g, '|');
   }
   return cells;
 }
@@ -49,12 +112,15 @@ function splitCells(tableRow, count) {
 
 marked.Lexer.prototype.token = function(src, top) {
   src = src.replace(/^ +$/gm, '');
-  let next,
+  var next,
     loose,
     cap,
     bull,
     b,
     item,
+    listStart,
+    listItems,
+    t,
     space,
     i,
     tag,
@@ -77,23 +143,30 @@ marked.Lexer.prototype.token = function(src, top) {
 
     // code
     if (cap = this.rules.code.exec(src)) {
+      var lastToken = this.tokens[this.tokens.length - 1];
       src = src.substring(cap[0].length);
-      cap = cap[0].replace(/^ {4}/gm, '');
-      this.tokens.push({
-        type: 'code',
-        text: !this.options.pedantic
-          ? cap.replace(/\n+$/, '')
-          : cap
-      });
+      // An indented code block cannot interrupt a paragraph.
+      if (lastToken && lastToken.type === 'paragraph') {
+        lastToken.text += '\n' + cap[0].trimRight();
+      } else {
+        cap = cap[0].replace(/^ {4}/gm, '');
+        this.tokens.push({
+          type: 'code',
+          codeBlockStyle: 'indented',
+          text: !this.options.pedantic
+            ? rtrim(cap, '\n')
+            : cap
+        });
+      }
       continue;
     }
 
-    // fences (gfm)
+    // fences
     if (cap = this.rules.fences.exec(src)) {
       src = src.substring(cap[0].length);
       this.tokens.push({
         type: 'code',
-        lang: cap[2],
+        lang: cap[2] ? cap[2].trim() : cap[2],
         text: cap[3] || ''
       });
       continue;
@@ -118,7 +191,7 @@ marked.Lexer.prototype.token = function(src, top) {
     }
 
     // table no leading pipe (gfm)
-    if (top && (cap = this.rules.nptable.exec(src))) {
+    if (cap = this.rules.nptable.exec(src)) {
       item = {
         type: 'table',
         header: splitCells(cap[1].replace(/^ *| *\| *$/g, '')),
@@ -188,15 +261,19 @@ marked.Lexer.prototype.token = function(src, top) {
       bull = cap[2];
       isordered = bull.length > 1;
 
-      this.tokens.push({
+      listStart = {
         type: 'list_start',
         ordered: isordered,
-        start: isordered ? +bull : ''
-      });
+        start: isordered ? +bull : '',
+        loose: false
+      };
+
+      this.tokens.push(listStart);
 
       // Get each top-level item.
       cap = cap[0].match(this.rules.item);
 
+      listItems = [];
       next = false;
       l = cap.length;
       i = 0;
@@ -207,7 +284,7 @@ marked.Lexer.prototype.token = function(src, top) {
         // Remove the list item's bullet
         // so it is seen as the next token.
         space = item.length;
-        item = item.replace(/^ *([*+-]|\d+\.) +/, '');
+        item = item.replace(/^ *([*+-]|\d+\.) */, '');
 
         // Outdent whatever the
         // list item contains. Hacky.
@@ -220,14 +297,10 @@ marked.Lexer.prototype.token = function(src, top) {
 
         // Determine whether the next list item belongs here.
         // Backpedal if it does not belong in this list.
-        if (this.options.smartLists && i !== l - 1) {
-          // [Dremio override] DX-12872 --------------------------
-          // Original code used private variable 'block' that is exposed through Lexer.rules
-          b = marked.Lexer.rules.bullet.exec(cap[i + 1])[0]; // here
-          // original code was
-          //b = block.bullet.exec(cap[i + 1])[0];
-          // end of [Dremio override] --------------------------
-          if (bull !== b && !(bull.length > 1 && b.length > 1)) {
+        if (i !== l - 1) {
+          b = block.bullet.exec(cap[i + 1])[0];
+          if (bull.length > 1 ? b.length === 1
+            : (b.length > 1 || (this.options.smartLists && b !== bull))) {
             src = cap.slice(i + 1).join('\n') + src;
             i = l - 1;
           }
@@ -242,6 +315,10 @@ marked.Lexer.prototype.token = function(src, top) {
           if (!loose) loose = next;
         }
 
+        if (loose) {
+          listStart.loose = true;
+        }
+
         // Check for task list items
         istask = /^\[[ xX]\] /.test(item);
         ischecked = undefined;
@@ -250,13 +327,15 @@ marked.Lexer.prototype.token = function(src, top) {
           item = item.replace(/^\[[ xX]\] +/, '');
         }
 
-        this.tokens.push({
-          type: loose
-            ? 'loose_item_start'
-            : 'list_item_start',
+        t = {
+          type: 'list_item_start',
           task: istask,
-          checked: ischecked
-        });
+          checked: ischecked,
+          loose: loose
+        };
+
+        listItems.push(t);
+        this.tokens.push(t);
 
         // Recurse.
         this.token(item, false);
@@ -264,6 +343,14 @@ marked.Lexer.prototype.token = function(src, top) {
         this.tokens.push({
           type: 'list_item_end'
         });
+      }
+
+      if (listStart.loose) {
+        l = listItems.length;
+        i = 0;
+        for (; i < l; i++) {
+          listItems[i].loose = true;
+        }
       }
 
       this.tokens.push({
@@ -282,7 +369,7 @@ marked.Lexer.prototype.token = function(src, top) {
           : 'html',
         pre: !this.options.sanitizer
           && (cap[1] === 'pre' || cap[1] === 'script' || cap[1] === 'style'),
-        text: cap[0]
+        text: this.options.sanitize ? (this.options.sanitizer ? this.options.sanitizer(cap[0]) : escape(cap[0])) : cap[0]
       });
       continue;
     }
@@ -302,12 +389,12 @@ marked.Lexer.prototype.token = function(src, top) {
     }
 
     // table (gfm)
-    if (top && (cap = this.rules.table.exec(src))) {
+    if (cap = this.rules.table.exec(src)) {
       item = {
         type: 'table',
         header: splitCells(cap[1].replace(/^ *| *\| *$/g, '')),
         align: cap[2].replace(/^ *|\| *$/g, '').split(/ *\| */),
-        cells: cap[3] ? cap[3].replace(/(?: *\| *)?\n$/, '').split('\n') : []
+        cells: cap[3] ? cap[3].replace(/\n$/, '').split('\n') : []
       };
 
       if (item.header.length === item.align.length) {
@@ -342,7 +429,7 @@ marked.Lexer.prototype.token = function(src, top) {
       src = src.substring(cap[0].length);
       this.tokens.push({
         type: 'heading',
-        depth: cap[2] === '=' ? 1 : 2,
+        depth: cap[2].charAt(0) === '=' ? 1 : 2,
         text: cap[1]
       });
       continue;

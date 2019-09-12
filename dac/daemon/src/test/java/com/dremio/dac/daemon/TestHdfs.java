@@ -30,6 +30,7 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
@@ -68,6 +69,8 @@ import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 /**
  * HDFS tests.
  */
+// DX-18454: ignoring tests due to jetty version mismatch with Hadoop 3.2
+@Ignore
 public class TestHdfs extends BaseTestMiniDFS {
 
   private static DACDaemon dremioDaemon;

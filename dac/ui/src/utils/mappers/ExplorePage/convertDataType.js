@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import {TEXT, LIST, DATE, TIME, DATETIME, getTransformType} from 'constants/DataTypes';
+import {TEXT, LIST, DATE, TIME, DATETIME, getTransformType} from '@app/constants/DataTypes';
 
 
 export default function mapConvertDataType(form) {

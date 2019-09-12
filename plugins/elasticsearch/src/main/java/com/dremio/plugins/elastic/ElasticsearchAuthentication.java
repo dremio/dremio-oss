@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.regions.Region;
+import com.amazonaws.regions.Regions;
 import com.amazonaws.regions.RegionUtils;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.conf.Host;
@@ -95,8 +96,10 @@ public class ElasticsearchAuthentication {
       }
       regionName = splits[count - 4];
     }
-    Region region = RegionUtils.getRegion(regionName);
-    if (region == null) {
+    try {
+      Regions region = Regions.fromName(regionName);
+    }
+    catch (IllegalArgumentException iae) {
       throw UserException.validationError()
         .message("Failure creating Amazon Elasticsearch Service connection. The region is incorrect. You can change region in Advanced Options")
         .build(logger);

@@ -17,6 +17,7 @@ package com.dremio.exec.store.sys;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
@@ -25,6 +26,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.connector.metadata.EntityPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
@@ -53,7 +55,12 @@ public class SystemScanPrel extends ScanPrelBase {
       double observedRowcountAdjustment
       ) {
     super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment);
-    this.systemTable = Preconditions.checkNotNull(SystemStoragePlugin.TABLE_MAP.get(dataset.getName().getName().toLowerCase()), "Unexpected system table.");
+
+    final EntityPath datasetPath = new EntityPath(dataset.getName().getPathComponents());
+    final Optional<SystemTable> systemTable = SystemStoragePlugin.getDataset(datasetPath);
+    Preconditions.checkArgument(systemTable.isPresent(), "Unexpected system table path: %s", datasetPath);
+    this.systemTable = systemTable.get();
+
     this.executorCount = PrelUtil.getPlannerSettings(cluster).getExecutorCount();
     this.pluginId = dataset.getStoragePluginId();
   }
@@ -69,7 +76,12 @@ public class SystemScanPrel extends ScanPrelBase {
       RelDataType rowType
       ) {
     super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment);
-    this.systemTable = Preconditions.checkNotNull(SystemStoragePlugin.TABLE_MAP.get(dataset.getName().getName().toLowerCase()), "Unexpected system table.");
+
+    final EntityPath datasetPath = new EntityPath(dataset.getName().getPathComponents());
+    final Optional<SystemTable> systemTable = SystemStoragePlugin.getDataset(datasetPath);
+    Preconditions.checkArgument(systemTable.isPresent(), "Unexpected system table path: %s", datasetPath);
+    this.systemTable = systemTable.get();
+
     this.executorCount = PrelUtil.getPlannerSettings(cluster).getExecutorCount();
     this.rowType = rowType;
     this.pluginId = dataset.getStoragePluginId();

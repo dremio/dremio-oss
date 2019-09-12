@@ -44,7 +44,7 @@ export class AccelerationModal extends Component {
           onCancel={hide}
           onDone={hide}
           datasetId={datasetId}
-         />
+        />
       </Modal>
     );
   }

@@ -50,6 +50,14 @@ public interface Catalog extends SimpleCatalog<Catalog> {
   DremioTable getTableNoResolve(NamespaceKey key);
 
   /**
+   * Retrieve a table ignoring column count.
+   *
+   * @param key
+   * @return A DremioTable if found, otherwise null.
+   */
+  DremioTable getTableNoColumnCount(NamespaceKey key);
+
+  /**
    * Retrieve a table
    *
    * @param datasetId

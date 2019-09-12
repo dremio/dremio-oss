@@ -22,7 +22,7 @@ import Immutable from 'immutable';
 import FontIcon from 'components/Icon/FontIcon';
 import { unavailable } from 'uiTheme/radium/typography';
 import { ACTIVE_DRAG_AREA, BORDER_ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
-import { typeToIconType } from 'constants/DataTypes';
+import { typeToIconType } from '@app/constants/DataTypes';
 
 import DragSource from 'components/DragComponents/DragSource';
 import './ColumnMenuItem.less';

@@ -86,7 +86,7 @@ class AggregateContent extends Component {
         NOT_SUPPORTED_TYPES.has(column.get('type')) ||
         (!canSelectMeasure && columnsInBoth.has(column.get('name'))) ||
         (!canUseFieldAsBothDimensionAndMeasure && columnsInEither.has(column.get('name')))
-      );
+    );
     return Immutable.Set(disabledColumns.map((column) => column.get('name')));
   }
 

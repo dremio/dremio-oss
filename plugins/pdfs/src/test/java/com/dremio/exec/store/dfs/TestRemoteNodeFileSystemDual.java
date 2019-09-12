@@ -17,7 +17,9 @@ package com.dremio.exec.store.dfs;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+import java.io.EOFException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -27,7 +29,6 @@ import java.util.Random;
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -43,6 +44,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.hadoop.PathCanonicalizer;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.Roles;
 import com.dremio.exec.rpc.CloseableThreadPool;
@@ -51,6 +53,7 @@ import com.dremio.service.DirectProvider;
 import com.dremio.services.fabric.BaseTestFabric;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
+import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
@@ -66,27 +69,27 @@ public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
   private static final long MAX_ALLOCATION = Long.MAX_VALUE;
   private static final int TIMEOUT = 0;
 
-  @ClassRule public static final  TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @ClassRule public static final TemporaryFolder temporaryFolder = new TemporaryFolder();
+  @ClassRule  public static final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+
   @Rule public final ExpectedException exception = ExpectedException.none();
 
-  private static BufferAllocator root;
   private static ServiceHolder data;
   private static ServiceHolder client;
   private static FileSystem clientFS;
 
   @BeforeClass
   public static void setUpPDFSService() throws Exception {
-    root = new RootAllocator(Long.MAX_VALUE);
     EndpointProvider provider = new EndpointProvider();
-    client = new ServiceHolder(root, provider, PDFSMode.CLIENT, "client");
-    data = new ServiceHolder(root, provider, PDFSMode.DATA, "data");
+    client = new ServiceHolder(provider, PDFSMode.CLIENT, "client");
+    data = new ServiceHolder(provider, PDFSMode.DATA, "data");
     provider.add(data);
     clientFS = client.fileSystem;
   }
 
   @AfterClass
   public static void teardown() throws Exception{
-    AutoCloseables.close(data, client, root);
+    AutoCloseables.close(data, client);
   }
 
   @Test
@@ -115,6 +118,31 @@ public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
     client.fileSystem.delete(status.getPath(), false);
   }
 
+  @Test
+  public void testClientWriteEmptyFile() throws Exception {
+    Path basePath = new Path(temporaryFolder.newFolder().getAbsolutePath());
+    Path path = ((PathCanonicalizer) clientFS).canonicalizePath(new Path(basePath, "testfile.bytes"));
+
+    // create a file
+    FSDataOutputStream stream = clientFS.create(path, false);
+    // close it without writing anything to it
+    stream.close();
+
+    // make sure the file was created
+    RemoteIterator<LocatedFileStatus> iter = client.fileSystem.listFiles(basePath, false);
+    assertEquals(true, iter.hasNext());
+    LocatedFileStatus status = iter.next();
+
+    try(FSDataInputStream in = clientFS.open(status.getPath())){
+      in.readByte();
+      fail("Fail is expected to be empty");
+    } catch (EOFException e) {
+      // empty file as expected
+    }
+
+    client.fileSystem.delete(status.getPath(), false);
+  }
+
   private static class ServiceHolder implements AutoCloseable {
 
     private final CloseableThreadPool pool;
@@ -124,8 +152,8 @@ public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
     private final PDFSService service;
     private final FileSystem fileSystem;
 
-    public ServiceHolder(BufferAllocator allocator, Provider<Iterable<NodeEndpoint>> nodeProvider, PDFSMode mode, String name) throws Exception{
-      this.allocator = allocator.newChildAllocator(name, 0, Long.MAX_VALUE);
+    public ServiceHolder(Provider<Iterable<NodeEndpoint>> nodeProvider, PDFSMode mode, String name) throws Exception{
+      this.allocator = allocatorRule.newAllocator(name, 0, Long.MAX_VALUE);
       pool = new CloseableThreadPool(name);
       fabric = new FabricServiceImpl(HOSTNAME, 9970, true, THREAD_COUNT, this.allocator, RESERVATION,
           MAX_ALLOCATION, TIMEOUT, pool);

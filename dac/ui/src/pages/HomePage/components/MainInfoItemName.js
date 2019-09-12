@@ -124,8 +124,8 @@ export default class MainInfoItemName extends Component {
     const fullPath = constructFullPath(getFullPathListFromEntity(item));
     const href = this.getHref(item);
     const linkStyle = (fileType === 'folder' && !item.get('queryable'))
-        ? styles.flexAlign
-        : {...styles.flexAlign, ...styles.leafLink};
+      ? styles.flexAlign
+      : {...styles.flexAlign, ...styles.leafLink};
     const holderClass = fileType + '-path';
 
     return (

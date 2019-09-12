@@ -41,7 +41,7 @@ export class DateToNumberForm extends Component {
         {...formWrapperProps(this.props)}
         onFormSubmit={submit}
         style={{ minHeight: 0 }}
-        >
+      >
         <div style={radiosAlignmentStyle}>
           <Radio {...fields.format} className={radioStacked} label='Epoch' style={{ marginTop: 0 }} radioValue='EPOCH'/>
           <Radio {...fields.format} className={radioStacked} label='Excel' radioValue='EXCEL'/>

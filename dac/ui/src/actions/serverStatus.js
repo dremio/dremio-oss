@@ -15,7 +15,7 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2} from 'constants/Api';
+import { API_URL_V2} from '@app/constants/Api';
 
 export const SCHEDULE_CHECK_SERVER_STATUS = 'SCHEDULE_CHECK_SERVER_STATUS';
 export function scheduleCheckServerStatus(delay) {

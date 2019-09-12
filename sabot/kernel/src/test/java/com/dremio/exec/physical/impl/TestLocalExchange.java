@@ -57,6 +57,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.util.Utilities;
 import com.dremio.options.OptionList;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.execselector.ExecutorSelectionContext;
 import com.dremio.service.execselector.ExecutorSelectionHandle;
 import com.dremio.service.execselector.ExecutorSelectionHandleImpl;
 import com.dremio.service.execselector.ExecutorSelectionService;
@@ -423,7 +424,7 @@ public class TestLocalExchange extends PlanTestBase {
     PARALLELIZER.initFragmentWrappers(rootFragment, planningSet);
     PARALLELIZER.setExecutorSelectionService(new ExecutorSelectionService() {
       @Override
-      public ExecutorSelectionHandle getExecutors(int desiredNumExecutors) {
+      public ExecutorSelectionHandle getExecutors(int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
         return new ExecutorSelectionHandleImpl(sabotContext.getExecutors());
       }
 

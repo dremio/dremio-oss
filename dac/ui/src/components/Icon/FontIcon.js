@@ -55,9 +55,10 @@ const FILE_CONVERT = 'FileConvert';
 const TRASH = 'Trash';
 const FLAME = 'Flame';
 const CLIPBOARD = 'Clipboard';
+const DOWNLOAD_LINK = 'DownloadLink';
 const FONT_ICONS = new Set([CARET_DOWN, WARNING_ICON, CLOSE_X2, ANGEL_DOWN, HOME, CLOCK, USER_IN_BORDER,
   FILE, ARROW_DOWN, BAR_CHART, CARET_UP, FA_ON, FA_OFF, SPINNER, FA_TIMES, CARET_RIGHT, FOLDER,
-  SHARE_ALT, TRIANGLE, EYE, EYE_SLASH, SEARCH, COLUMNS, PLUS_CIRCLE, STOP, UNDO, EDIT]);
+  SHARE_ALT, TRIANGLE, EYE, EYE_SLASH, SEARCH, COLUMNS, PLUS_CIRCLE, STOP, UNDO, EDIT, DOWNLOAD_LINK]);
 
 
 
@@ -168,6 +169,13 @@ const DEFAULT_STYLES = {
       'width': 14,
       'height': 14
     }
+  },
+  [DOWNLOAD_LINK]: {
+    'Icon': {
+      width: 11,
+      height: 11,
+      margin: '2px 3px -1px 15px'
+    }
   }
 };
 /**
@@ -194,7 +202,7 @@ export class FullFontIcon extends Component {
     iconStyle: PropTypes.object,
     id: PropTypes.string,
     class: PropTypes.string
-  }
+  };
 
   getIcon() {
     const {type, hoverType, iconStyle, iconClass} = this.props;
@@ -277,7 +285,7 @@ export default class FontIcon extends Component {
     theme: PropTypes.object,
     tooltip: PropTypes.string,
     dataQa: PropTypes.string
-  }
+  };
 
   static components = {};
 
@@ -302,7 +310,7 @@ export default class FontIcon extends Component {
         theme: PropTypes.object,
         tooltip: PropTypes.string,
         dataQa: PropTypes.string
-      }
+      };
 
       render() {
         const { theme, tooltip, dataQa } = this.props;

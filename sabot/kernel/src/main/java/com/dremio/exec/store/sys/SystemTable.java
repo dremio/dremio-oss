@@ -38,6 +38,10 @@ import com.dremio.exec.store.sys.OptionIterator.OptionValueWrapper;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationListManager.MaterializationInfo;
 import com.dremio.exec.store.sys.accel.AccelerationListManager.ReflectionInfo;
+import com.dremio.exec.work.CacheManagerDatasetInfo;
+import com.dremio.exec.work.CacheManagerFilesInfo;
+import com.dremio.exec.work.CacheManagerMountPointInfo;
+import com.dremio.exec.work.CacheManagerStoragePluginInfo;
 import com.dremio.exec.work.WorkStats.FragmentInfo;
 import com.dremio.exec.work.WorkStats.SlicingThreadInfo;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -54,88 +58,84 @@ import com.google.common.collect.ImmutableList;
  */
 public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChunkListing {
 
-  OPTION("options", false, OptionValueWrapper.class) {
+  OPTION(false, OptionValueWrapper.class, "options") {
     @Override
-    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
       return new OptionIterator(sContext, context, OptionIterator.Mode.SYS_SESS);
     }
   },
 
-  BOOT("boot", false, OptionValueWrapper.class) {
+  BOOT(false, OptionValueWrapper.class, "boot") {
     @Override
-    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
       return new OptionIterator(sContext, context, OptionIterator.Mode.BOOT);
     }
   },
 
-  NODES("nodes", true, NodeIterator.NodeInstance.class) {
+  NODES(true, NodeIterator.NodeInstance.class, "nodes") {
     @Override
-    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
       return new NodeIterator(sContext, context);
     }
   },
 
   // TODO - should be possibly make this a distributed table so that we can figure out if
   // users have inconsistent versions installed across their cluster?
-  VERSION("version", false, VersionIterator.VersionInfo.class) {
+  VERSION(false, VersionIterator.VersionInfo.class, "version") {
     @Override
-    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
       return new VersionIterator();
     }
   },
 
-  MEMORY("memory", true, MemoryIterator.MemoryInfo.class) {
+  MEMORY(true, MemoryIterator.MemoryInfo.class, "memory") {
     @Override
-    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
       return new MemoryIterator(sContext, context);
     }
   },
 
-  THREADS("threads", true, ThreadsIterator.ThreadSummary.class) {
+  THREADS(true, ThreadsIterator.ThreadSummary.class, "threads") {
     @Override
-    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
       return new ThreadsIterator(sContext, context);
     }
   },
 
-  FRAGMENTS("fragments", true, FragmentInfo.class) {
+  FRAGMENTS(true, FragmentInfo.class, "fragments") {
     @Override
-    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
       return new FragmentIterator(sContext, context);
     }
   },
 
-  @SuppressWarnings("unchecked")
-  REFLECTIONS("reflections", false, ReflectionInfo.class) {
+  REFLECTIONS(false, ReflectionInfo.class, "reflections") {
     @Override
-    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return (Iterator<Object>) (Object) sContext.getAccelerationListManager().getReflections().iterator();
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return sContext.getAccelerationListManager().getReflections().iterator();
     }
   },
 
-  @SuppressWarnings("unchecked")
-  REFRESH("refreshes", false, AccelerationListManager.RefreshInfo.class) {
+  REFRESH(false, AccelerationListManager.RefreshInfo.class, "refreshes") {
     @Override
-    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return (Iterator<Object>) (Object) sContext.getAccelerationListManager().getRefreshInfos().iterator();
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return sContext.getAccelerationListManager().getRefreshInfos().iterator();
     }
   },
 
-  @SuppressWarnings("unchecked")
-  MATERIALIZATIONS("materializations", false, MaterializationInfo.class){
+  MATERIALIZATIONS(false, MaterializationInfo.class, "materializations") {
     @Override
-    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return (Iterator<Object>) (Object) sContext.getAccelerationListManager().getMaterializations().iterator();
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return sContext.getAccelerationListManager().getMaterializations().iterator();
     }
   },
 
-  @SuppressWarnings("unchecked")
-  SLICING_THREADS("slicing_threads", true, SlicingThreadInfo.class) {
+  SLICING_THREADS(true, SlicingThreadInfo.class, "slicing_threads") {
     @Override
-    public Iterator<Object> getIterator(SabotContext sContext, OperatorContext context) {
+    public Iterator<?> getIterator(SabotContext sContext, OperatorContext context) {
       final CoordinationProtos.NodeEndpoint endpoint = sContext.getEndpoint();
       final Iterable<TaskPool.ThreadInfo> threadInfos = sContext.getWorkStatsProvider().get().getSlicingThreads();
-      return (Iterator<Object>) (Object) StreamSupport.stream(threadInfos.spliterator(), false)
+      return StreamSupport.stream(threadInfos.spliterator(), false)
         .map((info) -> new SlicingThreadInfo(
           endpoint.getAddress(),
           endpoint.getFabricPort(),
@@ -144,19 +144,45 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
     }
   },
 
-  @SuppressWarnings("unchecked")
-  DEPENDENCIES("dependencies", false, AccelerationListManager.DependencyInfo.class){
+  DEPENDENCIES(false, AccelerationListManager.DependencyInfo.class, "dependencies") {
     @Override
-    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
-      return (Iterator<Object>) (Object) sContext.getAccelerationListManager().getReflectionDependencies().iterator();
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return sContext.getAccelerationListManager().getReflectionDependencies().iterator();
     }
   },
 
-  @SuppressWarnings("unchecked")
-  SERVICES("services", false, ServicesIterator.ServiceSetInfo.class) {
+  SERVICES(false, ServicesIterator.ServiceSetInfo.class, "services") {
     @Override
-    public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
       return new ServicesIterator(sContext);
+    }
+  },
+
+  CACHE_MANAGER_MOUNT_POINTS(true, CacheManagerMountPointInfo.class, "cache", "mount_points") {
+    @Override
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return new CacheManagerMountPointIterator(sContext, context);
+    }
+  },
+
+  CACHE_MANAGER_STORAGE_PLUGINS(true, CacheManagerStoragePluginInfo.class, "cache", "storage_plugins") {
+    @Override
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return new CacheManagerStoragePluginIterator(sContext, context);
+    }
+  },
+
+  CACHE_MANAGER_DATASETS(true, CacheManagerDatasetInfo.class, "cache", "datasets") {
+    @Override
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return new CacheManagerDatasetIterator(sContext, context);
+    }
+  },
+
+  CACHE_MANAGER_FILES(true, CacheManagerFilesInfo.class, "cache", "objects") {
+    @Override
+    public Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context) {
+      return new CacheManagerFilesIterator(sContext, context);
     }
   };
 
@@ -169,24 +195,21 @@ public enum SystemTable implements DatasetHandle, DatasetMetadata, PartitionChun
       ImmutableList.of(PartitionChunk.of(DatasetSplit.of(SIZE_IN_BYTES, RECORD_COUNT)));
 
   private final EntityPath entityPath;
-  private final String tableName;
   private final boolean distributed;
   private final Class<?> pojoClass;
 
-  SystemTable(final String tableName, final boolean distributed, final Class<?> pojoClass) {
-    this.tableName = tableName;
+  SystemTable(final boolean distributed, final Class<?> pojoClass, final String component, final String... components) {
     this.distributed = distributed;
     this.pojoClass = pojoClass;
-    this.entityPath = new EntityPath(ImmutableList.of("sys", tableName));
+
+    this.entityPath = new EntityPath(ImmutableList.<String>builder()
+        .add("sys")
+        .add(component)
+        .add(components)
+        .build());
   }
 
-  public Iterator<Object> getIterator(final SabotContext sContext, final OperatorContext context) {
-    throw new UnsupportedOperationException(tableName + " must override this method.");
-  }
-
-  public String getTableName() {
-    return tableName;
-  }
+  public abstract Iterator<?> getIterator(final SabotContext sContext, final OperatorContext context);
 
   public boolean isDistributed() {
     return distributed;

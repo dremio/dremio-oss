@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>3.3.2-201908142136370993-d60145d</version>
+    <version>4.0.0-201909121834570395-c7a5071</version>
   </parent>
 
   <artifactId>dremio-jdbc-driver</artifactId>
@@ -106,10 +106,6 @@
         <exclusion>
           <groupId>org.codehaus.jackson</groupId>
           <artifactId>*</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.dataformat</groupId>
-          <artifactId>jackson-dataformat-yaml</artifactId>
         </exclusion>
         <exclusion>
           <groupId>log4j</groupId>
@@ -325,7 +321,11 @@
         </exclusion>
         <exclusion>
           <artifactId>hibernate-validator</artifactId>
-          <groupId>org.hibernate</groupId>
+          <groupId>org.hibernate.validator</groupId>
+        </exclusion>
+        <exclusion>
+          <artifactId>secretsmanager</artifactId>
+          <groupId>software.amazon.awssdk</groupId>
         </exclusion>
         <exclusion>
           <artifactId>jcommander</artifactId>
@@ -509,6 +509,9 @@
             <additionalClasspathElement>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.sender/${lilith.version}/de.huxhorn.lilith.sender-${lilith.version}.jar</additionalClasspathElement>
             <additionalClasspathElement>${settings.localRepository}/de/huxhorn/lilith/de.huxhorn.lilith.data.logging.protobuf/${lilith.version}/de.huxhorn.lilith.data.logging.protobuf-${lilith.version}.jar</additionalClasspathElement>
             <additionalClasspathElement>${settings.localRepository}/com/google/protobuf/protobuf-java/${protobuf.version}/protobuf-java-${protobuf.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/software/amazon/awssdk/secretsmanager/${aws-sdk-2.version}/secretsmanager-${aws-sdk-2.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/software/amazon/awssdk/sdk-core/${aws-sdk-2.version}/sdk-core-${aws-sdk-2.version}.jar</additionalClasspathElement>
+            <additionalClasspathElement>${settings.localRepository}/software/amazon/awssdk/auth/${aws-sdk-2.version}/auth-${aws-sdk-2.version}.jar</additionalClasspathElement>
           </additionalClasspathElements>
           <classpathDependencyExcludes>
             <classpathDependencyExclude>*:*</classpathDependencyExclude>
@@ -523,6 +526,36 @@
       </plugin>
 
       <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>flatten-maven-plugin</artifactId>
+        <configuration>
+          <flattenMode>fatjar</flattenMode>
+          <pomElements>
+            <name/>
+            <description/>
+            <organization/>
+          </pomElements>
+        </configuration>
+        <executions>
+          <!-- enable flattening -->
+          <execution>
+            <id>flatten</id>
+            <phase>process-resources</phase>
+            <goals>
+              <goal>flatten</goal>
+            </goals>
+          </execution>
+          <!-- ensure proper cleanup -->
+          <execution>
+            <id>flatten.clean</id>
+            <phase>clean</phase>
+            <goals>
+              <goal>clean</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
@@ -535,7 +568,7 @@
         </executions>
         <configuration>
           <shadedArtifactAttached>false</shadedArtifactAttached>
-          <createDependencyReducedPom>true</createDependencyReducedPom>
+          <createDependencyReducedPom>false</createDependencyReducedPom>
           <minimizeJar>false</minimizeJar>
 
           <artifactSet>
@@ -553,7 +586,7 @@
               <exclude>org.mongodb:*</exclude>
               <exclude>com.googlecode.json-simple:*</exclude>
               <exclude>dom4j:*</exclude>
-              <exclude>org.hibernate:*</exclude>
+              <exclude>org.hibernate.validator:*</exclude>
               <exclude>javax.validation:*</exclude>
               <exclude>antlr:*</exclude>
               <exclude>org.ow2.asm:*</exclude>
@@ -594,6 +627,7 @@
             <relocation><pattern>com.dremio.service.</pattern><shadedPattern>cdjd.com.dremio.service.</shadedPattern></relocation>
             <relocation><pattern>com.dremio.services.</pattern><shadedPattern>cdjd.com.dremio.services.</shadedPattern></relocation>
             <relocation><pattern>com.dremio.metrics.</pattern><shadedPattern>cdjd.com.dremio.metrics.</shadedPattern></relocation>
+            <relocation><pattern>com.dremio.io.</pattern><shadedPattern>cdjd.com.dremio.io.</shadedPattern></relocation>
 
             <!-- Move dependencies out of path -->
             <relocation><pattern>io.</pattern><shadedPattern>cdjd.io.</shadedPattern></relocation>

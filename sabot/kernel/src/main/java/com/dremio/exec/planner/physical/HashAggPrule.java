@@ -77,13 +77,15 @@ public class HashAggPrule extends AggPruleBase {
         traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(inputDistOnAllKeys);
         createTransformRequest(call, aggregate, input, traits);
 
-        // hash distribute on single grouping key
-        DistributionTrait inputDistOnOneKey =
-          new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
-            ImmutableList.copyOf(getInputDistributionField(aggregate, false /* get single grouping key */)));
+        if (PrelUtil.getPlannerSettings(call.getPlanner()).isHashSingleKey()) {
+          // hash distribute on single grouping key
+          DistributionTrait inputDistOnOneKey =
+            new DistributionTrait(DistributionTrait.DistributionType.HASH_DISTRIBUTED,
+              ImmutableList.copyOf(getInputDistributionField(aggregate, false /* get single grouping key */)));
 
-        traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(inputDistOnOneKey);
-        createTransformRequest(call, aggregate, input, traits);
+          traits = call.getPlanner().emptyTraitSet().plus(Prel.PHYSICAL).plus(inputDistOnOneKey);
+          createTransformRequest(call, aggregate, input, traits);
+        }
 
         // if the call supports creating a two phase plan, also create and transform to the two-phase version of plan
         if (create2PhasePlan(call, aggregate)) {

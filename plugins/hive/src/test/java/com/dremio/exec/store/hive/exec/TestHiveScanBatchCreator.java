@@ -43,7 +43,7 @@ public class TestHiveScanBatchCreator {
     when(fragmentExecutionContext.getStoragePlugin(any())).thenReturn(plugin);
 
     final OpProps props = mock(OpProps.class);
-    final HiveSubScan hiveSubScan = mock(HiveSubScan.class);
+    final HiveProxyingSubScan hiveSubScan = mock(HiveProxyingSubScan.class);
     when(hiveSubScan.getProps()).thenReturn(props);
     when(hiveSubScan.getProps().getUserName()).thenReturn(originalName);
 

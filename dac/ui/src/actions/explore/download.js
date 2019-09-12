@@ -15,11 +15,11 @@
  */
 import { RSAA } from 'redux-api-middleware';
 import { push } from 'react-router-redux';
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 import { saveAsDataset } from 'actions/explore/dataset/save';
 
 import { showConfirmationDialog, hideConfirmationDialog } from 'actions/confirmation';
-import { POWER_BI_MANUAL } from 'constants/links.json';
+import { POWER_BI_MANUAL } from '@app/constants/links.json';
 
 import FileUtils from 'utils/FileUtils';
 import config from 'dyn-load/utils/config';

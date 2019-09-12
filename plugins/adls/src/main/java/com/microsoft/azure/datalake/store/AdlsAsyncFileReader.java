@@ -15,14 +15,15 @@
  */
 package com.microsoft.azure.datalake.store;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
 
+import org.apache.hadoop.fs.Path;
 import org.asynchttpclient.AsyncCompletionHandlerBase;
 import org.asynchttpclient.AsyncHandler;
 import org.asynchttpclient.AsyncHttpClient;
@@ -32,7 +33,8 @@ import org.asynchttpclient.Response;
 import org.asynchttpclient.netty.LazyResponseBodyPart;
 import org.asynchttpclient.util.HttpConstants;
 
-import com.dremio.exec.store.dfs.async.AsyncByteReader;
+import com.dremio.io.AsyncByteReader;
+import com.dremio.plugins.adl.store.DremioAdlFileSystem;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -85,6 +87,10 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
   private final AsyncHttpClient asyncHttpClient;
   private final String path;
   private final String sessionId = UUID.randomUUID().toString();
+  private final DremioAdlFileSystem fs;
+  private final Long cachedVersion;
+  private volatile Long latestVersion;
+  private final ExecutorService threadPool;
 
   /**
    * Helper class for processing ADLS responses. This will write to the given output buffer
@@ -146,14 +152,30 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
     }
   }
 
-  public AdlsAsyncFileReader(ADLStoreClient adlStoreClient, AsyncHttpClient asyncClient, String path) {
+  public AdlsAsyncFileReader(ADLStoreClient adlStoreClient, AsyncHttpClient asyncClient, String path, String cachedVersion,
+                             DremioAdlFileSystem fs, ExecutorService threadPool) {
     this.client = adlStoreClient;
     this.asyncHttpClient = asyncClient;
     this.path = path;
+    this.fs = fs;
+    this.cachedVersion = Long.parseLong(cachedVersion);
+    this.latestVersion = null;
+    this.threadPool = threadPool;
   }
 
   @Override
-  public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
+  public void close() {
+    latestVersion = null;
+  }
+
+  private CompletableFuture<Void> readFullyFuture(long offset, ByteBuf dst, int dstOffset, int len) {
+    if (latestVersion > cachedVersion) {
+      logger.debug("File has been modified, metadata refresh is required");
+      CompletableFuture<Void> future = new CompletableFuture<>();
+      future.completeExceptionally(new FileNotFoundException("Version of file changed " + path));
+      return future;
+    }
+
     final String clientRequestId = UUID.randomUUID().toString();
     int capacityAtOffset = dst.capacity() - dstOffset;
     if (capacityAtOffset < len) {
@@ -166,7 +188,7 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
       } catch (IOException ex) {
         throw new CompletionException(ex);
       }
-    });
+    }, threadPool);
 
     return future.thenCompose((authToken) -> {
       final AdlsRequestBuilder builder = new AdlsRequestBuilder(client, authToken)
@@ -193,7 +215,25 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
   }
 
   @Override
-  public List<ReaderStat> getStats() {
-    return new ArrayList<>();
+  public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
+    if (latestVersion != null) {
+      return readFullyFuture(offset, dst, dstOffset, len);
+    }
+
+    final CompletableFuture<Void> getStatusFuture = CompletableFuture.runAsync(() -> {
+      try {
+        if (latestVersion == null) {
+          synchronized (AdlsAsyncFileReader.this) {
+            if (latestVersion == null) {
+              latestVersion = fs.getFileStatus(new Path(path)).getModificationTime();
+            }
+          }
+        }
+      } catch (IOException ex) {
+        throw new CompletionException(ex);
+      }
+    }, threadPool);
+
+    return getStatusFuture.thenCompose(Void -> readFullyFuture(offset, dst, dstOffset, len));
   }
 }

@@ -20,9 +20,7 @@ import java.util.List;
 import javax.inject.Provider;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
-
-import org.apache.hadoop.fs.Path;
-import org.hibernate.validator.constraints.NotBlank;
+import javax.validation.constraints.NotBlank;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
@@ -30,7 +28,7 @@ import com.dremio.exec.catalog.conf.NotMetadataImpacting;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
-import com.google.common.collect.ImmutableList;
+import com.dremio.io.file.Path;
 
 import io.protostuff.Tag;
 
@@ -90,7 +88,7 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
 
   @Override
   public Path getPath() {
-    return new Path(rootPath);
+    return Path.of(rootPath);
   }
 
   @Override
@@ -111,11 +109,6 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   @Override
   public SchemaMutability getSchemaMutability() {
     return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
-  }
-
-  @Override
-  public List<String> getConnectionUniqueProperties() {
-    return ImmutableList.of();
   }
 
   public ShortCircuitFlag getShortCircuitFlag() {

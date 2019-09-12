@@ -23,6 +23,7 @@ import org.apache.calcite.avatica.util.Quoting;
 
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.RpcEndpointInfos;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.proto.UserProtos.Property;
@@ -128,6 +129,7 @@ public class UserSession {
   }
 
   private final AtomicInteger queryCount = new AtomicInteger(0);
+  private volatile QueryId lastQueryId = null;
   private boolean supportComplexTypes = false;
   private UserCredentials credentials;
   private NamespaceKey defaultSchemaPath;
@@ -354,4 +356,8 @@ public class UserSession {
   public NamespaceKey getDefaultSchemaPath() {
     return defaultSchemaPath;
   }
+
+  public QueryId getLastQueryId() { return lastQueryId; }
+
+  public void setLastQueryId(QueryId id) { lastQueryId = id; }
 }

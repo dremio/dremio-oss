@@ -30,7 +30,7 @@ import com.dremio.dac.explore.QueryExecutor;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.common.Field;
 import com.dremio.dac.model.common.VisitorException;
-import com.dremio.dac.model.job.JobUI;
+import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.proto.model.dataset.ExtractRule;
 import com.dremio.dac.proto.model.dataset.ExtractRulePattern;
@@ -77,15 +77,15 @@ public class DatasetsUtil {
    * @param version
    * @return
    */
-  public static JobUI getDatasetPreviewJob(QueryExecutor executor, SqlQuery query, DatasetPath datasetPath, DatasetVersion version) {
+  public static JobData getDatasetPreviewJob(QueryExecutor executor, SqlQuery query, DatasetPath datasetPath, DatasetVersion version) {
     // In most cases we should already have a preview job that ran on the given dataset version. If not it will trigger a job.
-    JobUI job = executor.runQuery(query, QueryType.UI_PREVIEW, datasetPath, version);
+    JobData jobData = executor.runQuery(query, QueryType.UI_PREVIEW, datasetPath, version);
 
     // Wait for the job to complete (will return immediately if the job already exists, otherwise a blocking call until
     // the job completes).
-    job.getData().loadIfNecessary();
+    jobData.loadIfNecessary();
 
-    return job;
+    return jobData;
   }
 
   /**

@@ -26,6 +26,7 @@ import ClusterWorkers from './ClusterWorkers';
 
 
 const YARN_HOST_PROPERTY = 'yarn.resourcemanager.hostname';
+const YARN_NODE_TAG_PROPERTY = 'services.node-tag';
 
 export class SingleCluster extends Component {
   static propTypes = {
@@ -34,15 +35,16 @@ export class SingleCluster extends Component {
     editProvision: PropTypes.func,
     changeProvisionState: PropTypes.func,
     viewState: PropTypes.instanceOf(Immutable.Map)
-  }
+  };
 
   getClusterCPUCores() {
     return this.props.entity.get('virtualCoreCount');
   }
 
-  getClusterHostName() {
-    return this.props.entity.get('subPropertyList')
-      .find((i) => i.get('key') === YARN_HOST_PROPERTY).get('value');
+  getClusterSubProperty(propName) {
+    const subProperty = this.props.entity.get('subPropertyList')
+      .find((i) => i.get('key') === propName);
+    return subProperty && subProperty.get('value');
   }
 
   getClusterRAM() {
@@ -50,7 +52,7 @@ export class SingleCluster extends Component {
   }
 
   getWorkerInfoTitle() {
-    const hostName = this.getClusterHostName();
+    const hostName = this.getClusterSubProperty(YARN_HOST_PROPERTY);
     const cores = this.getClusterCPUCores();
     const memory = this.getClusterRAM();
     return (
@@ -92,13 +94,14 @@ export class SingleCluster extends Component {
   render() {
     const { entity, editProvision, viewState } = this.props;
     const clusterInfo = this.getWorkerInfoTitle();
+    const clusterName = this.getClusterSubProperty(YARN_NODE_TAG_PROPERTY) || entity.get('clusterType');
 
     return (
       <div style={styles.base}>
         <ViewStateWrapper viewState={viewState}>
           {this.renderClusterState()}
           <div style={styles.title}>
-            <span className='h3'>{entity.get('clusterType')}</span>
+            <span className='h3'>{clusterName}</span>
             <span style={styles.clusterInfoTitle}>
               {clusterInfo}
             </span>

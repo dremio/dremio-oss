@@ -69,7 +69,7 @@ export default class StatefulTableViewer extends Component {
         }
         {this.renderTableContent()}
         { //position: relative needed to fit spinner and overlay under the table header.
-        viewState && viewState.get('isInProgress')
+          viewState && viewState.get('isInProgress')
           && <ViewStateWrapper style={{position: 'relative'}} viewState={viewState}/>
         }
       </div>

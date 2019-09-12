@@ -18,12 +18,8 @@ package com.dremio.exec.store.dfs;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.hadoop.fs.Path;
-
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.utils.PathUtils;
-import com.dremio.exec.store.avro.AvroFormatConfig;
-import com.dremio.exec.store.avro.AvroFormatPlugin;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPluginConfig;
 import com.dremio.exec.store.easy.excel.ExcelFormatPlugin;
@@ -34,13 +30,13 @@ import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
 import com.dremio.exec.store.easy.text.compliant.TextParsingSettings;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
+import com.dremio.io.file.Path;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.ArrowFileConfig;
-import com.dremio.service.namespace.file.proto.AvroFileConfig;
 import com.dremio.service.namespace.file.proto.ExcelFileConfig;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
@@ -72,7 +68,7 @@ public class PhysicalDatasetUtils {
     }
 
     final List<String> tableSchemaPath = new ArrayList<>(schemaPath);
-    tableSchemaPath.addAll(PathUtils.toPathComponents(new Path(tableName)));
+    tableSchemaPath.addAll(PathUtils.toPathComponents(Path.of(tableName)));
 
     try {
       final DatasetConfig config = namespaceService.getDataset(new NamespaceKey(tableSchemaPath));
@@ -125,8 +121,6 @@ public class PhysicalDatasetUtils {
         ParquetFormatConfig parquetFormatConfig = new ParquetFormatConfig();
         parquetFormatConfig.autoCorrectCorruptDates = parquetFileConfig.getAutoCorrectCorruptDates();
         return parquetFormatConfig;
-      case AVRO:
-        return new AvroFormatConfig();
       case ARROW:
         return new ArrowFormatPluginConfig();
       case EXCEL: {
@@ -192,9 +186,6 @@ public class PhysicalDatasetUtils {
       textFileConfig.setAutoGenerateColumnNames(settings.isAutoGenerateColumnNames());
       textFileConfig.setTrimHeader(settings.isTrimHeader());
       return textFileConfig;
-    }
-    if (formatPlugin instanceof AvroFormatPlugin) {
-      return new AvroFileConfig();
     }
     if (formatPlugin instanceof ExcelFormatPlugin) {
       final ExcelFormatPluginConfig excelFormatPluginConfig = (ExcelFormatPluginConfig)formatPlugin.getConfig();

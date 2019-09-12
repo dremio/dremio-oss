@@ -229,6 +229,13 @@ public class AttemptObservers implements AttemptObserver {
   }
 
   @Override
+  public void recordsProcessed(long recordCount) {
+    for (final AttemptObserver observer : observers) {
+      observer.recordsProcessed(recordCount);
+    }
+  }
+
+  @Override
   public void planGenerationTime(long millisTaken) {
     for (final AttemptObserver observer : observers) {
       observer.planGenerationTime(millisTaken);

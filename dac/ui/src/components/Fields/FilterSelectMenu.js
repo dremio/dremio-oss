@@ -178,8 +178,8 @@ export default class FilterSelectMenu extends PureComponent {
 
   renderSelectedLabel() { // todo: better loc
     const selectedItems = !this.props.selectedValues.size
-                            ? `: ${this.props.intl.formatMessage({ id: 'Common.All' })}`
-                            : this.getSelectedItems().map(item => item.label).join(', ');
+      ? `: ${this.props.intl.formatMessage({ id: 'Common.All' })}`
+      : this.getSelectedItems().map(item => item.label).join(', ');
     return !this.props.preventSelectedLabel
       ? (
         <EllipsedText className='filter-select-label' style={styles.infoLabel} text={selectedItems}/>

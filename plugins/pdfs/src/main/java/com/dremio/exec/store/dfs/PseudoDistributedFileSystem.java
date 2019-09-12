@@ -45,15 +45,16 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.hadoop.mapred.FileAlreadyExistsException;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.util.Progressable;
 
+import com.dremio.exec.hadoop.PathCanonicalizer;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
@@ -533,86 +534,9 @@ public class PseudoDistributedFileSystem extends FileSystem implements PathCanon
   }
 
   private static final class PDFSFileStatus extends FileStatus {
-    private final FileStatus delegate;
-    private PDFSFileStatus(Path path, FileStatus delegate) {
-      this.delegate = delegate;
-      this.setPath(path);
-    }
-
-    @Override
-    public long getLen() {
-      return delegate.getLen();
-    }
-
-    @Override
-    public boolean isFile() {
-      return delegate.isFile();
-    }
-
-    @Override
-    public boolean isDirectory() {
-      return delegate.isDirectory();
-    }
-
-    @SuppressWarnings("deprecation")
-    @Override
-    public boolean isDir() {
-      return delegate.isDir();
-    }
-
-    @Override
-    public boolean isSymlink() {
-      return delegate.isSymlink();
-    }
-
-    @Override
-    public long getBlockSize() {
-      return delegate.getBlockSize();
-    }
-
-    @Override
-    public short getReplication() {
-      return delegate.getReplication();
-    }
-
-    @Override
-    public long getModificationTime() {
-      return delegate.getModificationTime();
-    }
-
-    @Override
-    public long getAccessTime() {
-      return delegate.getAccessTime();
-    }
-
-    @Override
-    public FsPermission getPermission() {
-      return delegate.getPermission();
-    }
-
-    @Override
-    public boolean isEncrypted() {
-      return delegate.isEncrypted();
-    }
-
-    @Override
-    public String getOwner() {
-      return delegate.getOwner();
-    }
-
-    @Override
-    public String getGroup() {
-      return delegate.getGroup();
-    }
-
-    @Override
-    public Path getSymlink() throws IOException {
-      return delegate.getSymlink();
-    }
-
-    @Override
-    public void setSymlink(Path p) {
-      delegate.setSymlink(p);
+    private PDFSFileStatus(Path path, FileStatus delegate) throws IOException {
+      super(delegate);
+      super.setPath(path);
     }
   }
 

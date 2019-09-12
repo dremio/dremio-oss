@@ -1316,6 +1316,20 @@ public class TestFunctionsQuery extends BaseTestQuery {
   }
 
   @Test
+  public void testRandomWithSeed() throws Exception {
+    final String query = "select random(12), rand(12), random(11) from cp" +
+      ".\"parquet/decimals/castFloatDecimal.parquet\" limit 3";
+    testBuilder()
+      .unOrdered()
+      .sqlQuery(query)
+      .baselineColumns("EXPR$0", "EXPR$1", "EXPR$2")
+      .baselineValues(0.1597116001879662, 0.1597116001879662, 0.8405179541090823)
+      .baselineValues(0.7347813877263527, 0.7347813877263527, 0.5565188684135179)
+      .baselineValues(0.6069965050584282, 0.6069965050584282, 0.6293125967019425)
+      .go();
+  }
+
+  @Test
   public void testKvGen() throws Exception {
     String query = "SELECT KVGEN(CONVERT_FROM('{\"1\": 0.123, \"2\": 0.456, \"3\": 0.789}', 'JSON')) FROM (values (1))";
     test(query);

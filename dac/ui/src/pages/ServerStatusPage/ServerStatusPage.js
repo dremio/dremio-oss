@@ -30,7 +30,7 @@ import SimpleButton from 'components/Buttons/SimpleButton';
 
 import { getViewState } from 'selectors/resources';
 
-import { SERVER_STATUS_OK } from 'constants/serverStatus';
+import { SERVER_STATUS_OK } from '@app/constants/serverStatus';
 
 import {LIGHT_GREY} from 'uiTheme/radium/colors';
 

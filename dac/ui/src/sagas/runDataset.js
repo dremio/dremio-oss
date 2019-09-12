@@ -16,10 +16,10 @@
 import { take, race, put, call, select, takeEvery } from 'redux-saga/effects';
 import invariant from 'invariant';
 
-import { loadNextRows, EXPLORE_PAGE_EXIT } from 'actions/explore/dataset/data';
+import { loadNextRows, EXPLORE_PAGE_EXIT, updateExploreJobProgress, updateJobRecordCount } from 'actions/explore/dataset/data';
 import { updateHistoryWithJobState } from 'actions/explore/history';
 
-import socket, { WS_MESSAGE_JOB_PROGRESS, WS_CONNECTION_OPEN } from 'utils/socket';
+import socket, { WS_MESSAGE_JOB_PROGRESS, WS_MESSAGE_JOB_RECORDS, WS_CONNECTION_OPEN } from 'utils/socket';
 import { getExplorePageLocationChangePredicate } from '@app/sagas/utils';
 import { getTableDataRaw, getCurrentRouteParams } from '@app/selectors/explore';
 import { log } from '@app/utils/logger';
@@ -30,6 +30,12 @@ const getJobDoneActionFilter = (jobId) => (action) =>
 
 const getJobProgressActionFilter = (jobId) => (action) =>
   action.type === WS_MESSAGE_JOB_PROGRESS && action.payload.id.id === jobId && !action.payload.update.isComplete;
+
+const getJobUpdateActionFilter = (jobId) => (action) =>
+  action.type === WS_MESSAGE_JOB_PROGRESS && action.payload.id.id === jobId;
+
+const getJobRecordsActionFilter = (jobId) => (action) =>
+  action.type === WS_MESSAGE_JOB_RECORDS && action.payload.id.id === jobId;
 
 /**
  * Load data for a dataset, if data is missing in redux store. Or forces data load if {@see forceReload}
@@ -51,11 +57,15 @@ export function* handleResumeRunDataset(datasetVersion, jobId, forceReload, pagi
   // we load data asynchronously
   const tableData = yield select(getTableDataRaw, datasetVersion);
   const rows = tableData ? tableData.get('rows') : null;
+  log(`rows are present = ${!!rows}`);
 
   // if forceReload = true and data exists, we should not clear data here. As it would be replaced
   // by response in '/reducers/resources/entityReducers/table.js' reducer.
   if (forceReload || !rows) {
-    yield call(waitForRunToComplete, datasetVersion, paginationUrl, jobId);
+    yield race({
+      jobDone: call(waitForRunToComplete, datasetVersion, paginationUrl, jobId),
+      locationChange: call(explorePageChanged)
+    });
   }
 }
 
@@ -120,6 +130,7 @@ export function* waitForRunToComplete(datasetVersion, paginationUrl, jobId) {
 
       console.warn(`=+=+= socket returned payload for job id ${jobId}`);
       yield put(updateHistoryWithJobState(datasetVersion, jobDone.payload.update.state));
+      yield put(updateExploreJobProgress(jobDone.payload.update));
     }
   } finally {
     yield call([socket, socket.stopListenToJobProgress], jobId);
@@ -141,7 +152,7 @@ export function* explorePageChanged() {
 
 
 /**
- * Endless job that monitors job progress iwth id {@see jobId} and updates job state in redux
+ * Endless job that monitors job progress with id {@see jobId} and updates job state in redux
  * store for particular {@see datasetVersion}
  * @param {string} datasetVersion
  * @param {string} jobId
@@ -152,6 +163,46 @@ export function* watchUpdateHistoryOnJobProgress(datasetVersion, jobId) {
   }
 
   yield takeEvery(getJobProgressActionFilter(jobId), updateHistoryOnJobProgress);
+}
+
+/**
+ * handle job status and job running record watches
+ */
+export function* jobUpdateWatchers(jobId) {
+  yield race({
+    recordWatcher: call(watchUpdateJobRecords, jobId),
+    statusWatcher: call(watchUpdateJobStatus, jobId),
+    locationChange: call(explorePageChanged),
+    jobDone: take(EXPLORE_JOB_STATUS_DONE)
+  });
+}
+
+//export for testing
+export const EXPLORE_JOB_STATUS_DONE = 'EXPLORE_JOB_STATUS_DONE';
+
+/**
+ * monitor job status updates with jobId from the socket
+ */
+export function* watchUpdateJobStatus(jobId) {
+  function *updateJobStatus(action) {
+    yield put(updateExploreJobProgress(action.payload.update));
+    if (action.payload.update.isComplete) {
+      yield put({type: EXPLORE_JOB_STATUS_DONE});
+    }
+  }
+
+  yield takeEvery(getJobUpdateActionFilter(jobId), updateJobStatus);
+}
+
+/**
+ * monitor job records updates with jobId from the socket
+ */
+export function* watchUpdateJobRecords(jobId) {
+  function *updateJobProgressWithRecordCount(action) {
+    yield put(updateJobRecordCount(action.payload.recordCount));
+  }
+
+  yield takeEvery(getJobRecordsActionFilter(jobId), updateJobProgressWithRecordCount);
 }
 
 

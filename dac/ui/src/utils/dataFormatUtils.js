@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { MAP, LIST, BOOLEAN, TEXT, FLOAT } from 'constants/DataTypes';
+import { MAP, LIST, BOOLEAN, TEXT, FLOAT } from '@app/constants/DataTypes';
 import {padStart} from 'lodash/string';
 
 // todo: loc
@@ -140,7 +140,7 @@ class DataFormatUtils {
         out.push(
           <span className='special-char' title={charName.replace(/_/g, ' ')} data-char={charName}>
             <span className='special-char-inner' data-char={charName}>{char}</span>
-          </span>,
+          </span>
         );
       }
     }

@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, { Component, Fragment } from 'react';
+import { Component } from 'react';
 import PropTypes from 'prop-types';
-import { SelectView } from '@app/components/Fields/SelectView';
-import { triangleTop } from 'uiTheme/radium/overlay';
+import DropdownMenu from '@app/components/Menus/DropdownMenu';
 
 export default class HeaderDropdown extends Component {
   static propTypes = {
     dataQa: PropTypes.string,
     name: PropTypes.string.isRequired,
-    menu: PropTypes.node.isRequired
+    menu: PropTypes.node.isRequired,
+    style: PropTypes.object
   };
 
   static defaultProps = {
@@ -30,47 +30,22 @@ export default class HeaderDropdown extends Component {
   };
 
   render() {
-    const { dataQa } = this.props;
+    const { dataQa, name, menu, style } = this.props;
 
     return (
-      <SelectView
-        content={
-          <div className='item'>
-            <span className='item-wrap' style={styles.name}>{this.props.name}</span>
-            <i className='fa fa-angle-down' style={styles.downArrow}/>
-          </div>
-        }
-        hideExpandIcon // as 'content' render it's own icon
-        listStyle={styles.popover}
-        listRightAligned
+      <DropdownMenu
+        className='header-dropdown'
+        hideDivider
         dataQa={dataQa}
-      >
-        {
-          ({ closeDD }) => (
-            <Fragment>
-              <div style={styles.triangle}/>
-              {React.cloneElement(this.props.menu, { closeMenu: closeDD })}
-            </Fragment>
-          )
-        }
-      </SelectView>
+        style={{...styles.base, ...style}}
+        text={name}
+        menu={menu}/>
     );
   }
 }
 
 const styles = {
-  name: {
-    margin: '0 6px 0 0'
-  },
-  downArrow: {
-    fontSize: '18px'
-  },
-  popover: {
-    marginTop: 5,
-    overflow: 'visible'
-  },
-  triangle: {
-    ...triangleTop,
-    right: 11
+  base: {
+    padding: '0 10px'
   }
 };

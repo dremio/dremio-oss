@@ -21,9 +21,6 @@ import java.util.Optional;
 
 import javax.inject.Provider;
 
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.Path;
-
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
@@ -54,6 +51,9 @@ import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -91,6 +91,11 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
     super.start();
     materializationStore = new MaterializationStore(DirectProvider.<KVStoreProvider>wrap(getContext().getKVStoreProvider()));
     formatPlugin = (ParquetFormatPlugin) formatCreator.getFormatPluginByConfig(new ParquetFormatConfig());
+  }
+
+  @Override
+  public FileSystem createFS(String userName, OperatorContext operatorContext, boolean metadata) throws IOException {
+    return new AccelerationFileSystem(super.createFS(userName, operatorContext, metadata));
   }
 
   @Override
@@ -170,13 +175,13 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
       return Optional.empty();
     }
 
-    final String selectionRoot = new Path(getConfig().getPath(), refreshes.first().get().getReflectionId().getId()).toString();
+    final String selectionRoot = getConfig().getPath().resolve(refreshes.first().get().getReflectionId().getId()).toString();
 
-    ImmutableList<FileStatus> allStatus = refreshes.transformAndConcat((Function<Refresh, Iterable<FileStatus>>) input -> {
+    ImmutableList<FileAttributes> allStatus = refreshes.transformAndConcat((Function<Refresh, Iterable<FileAttributes>>) input -> {
       try {
         FileSelection selection = FileSelection.create(getSystemUserFS(), resolveTablePathToValidPath(input.getPath()));
         if(selection != null) {
-          return selection.minusDirectories().getFileStatuses();
+          return selection.minusDirectories().getFileAttributesList();
         }
         throw new IllegalStateException("Unable to retrieve selection for path." + input.getPath());
       } catch (IOException e) {
@@ -192,7 +197,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
     final FileSelection selection = FileSelection.createFromExpanded(allStatus, selectionRoot);
 
     final PreviousDatasetInfo pdi = new PreviousDatasetInfo(fileConfig, currentSchema, sortColumns);
-    FileDatasetHandle.checkMaxFiles(datasetPath.getName(), selection.getStatuses().size(), getContext(), getConfig().isInternal());
+    FileDatasetHandle.checkMaxFiles(datasetPath.getName(), selection.getFileAttributesList().size(), getContext(), getConfig().isInternal());
     return Optional.of(new ParquetFormatDatasetAccessor(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER, getSystemUserFS(), selection,
         this, new NamespaceKey(datasetPath.getComponents()), EMPTY, formatPlugin, pdi, fieldCount));
   }

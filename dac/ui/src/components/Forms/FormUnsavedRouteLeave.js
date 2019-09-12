@@ -121,8 +121,8 @@ export function wrapUnsavedChangesWithWrappedForm(WrappedFormController) {
 
     render() {
       return <WrappedFormController {...this.props}
-                      updateFormDirtyState={this.updateFormDirtyState}
-                      setChildDirtyState={this.setChildDirtyState}
+        updateFormDirtyState={this.updateFormDirtyState}
+        setChildDirtyState={this.setChildDirtyState}
       />;
     }
   };

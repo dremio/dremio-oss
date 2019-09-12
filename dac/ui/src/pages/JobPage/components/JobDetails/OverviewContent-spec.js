@@ -151,7 +151,7 @@ describe('OverviewContent', () => {
       };
       wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(
-          wrapper.instance().isMetadataJob()
+        wrapper.instance().isMetadataJob()
       ).to.eql(true);
     });
 
@@ -164,7 +164,7 @@ describe('OverviewContent', () => {
       };
       wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(
-          wrapper.instance().isMetadataJob()
+        wrapper.instance().isMetadataJob()
       ).to.eql(false);
     });
 
@@ -177,7 +177,7 @@ describe('OverviewContent', () => {
       };
       wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(
-          wrapper.instance().isDatasetAvailable()
+        wrapper.instance().isDatasetAvailable()
       ).to.eql(false);
     });
 
@@ -190,7 +190,7 @@ describe('OverviewContent', () => {
       };
       wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(
-          wrapper.instance().isParentsBlockToBeShown()
+        wrapper.instance().isParentsBlockToBeShown()
       ).to.eql(false);
     });
 
@@ -199,13 +199,13 @@ describe('OverviewContent', () => {
         jobDetails: Immutable.fromJS({
           ...commonProps.jobDetails.toJS(),
           parentsList: [
-              {datasetPathList: ['a', 'b']}
+            {datasetPathList: ['a', 'b']}
           ]
         })
       };
       wrapper = shallow(<OverviewContent {...props}/>, {context});
       expect(
-          wrapper.instance().isParentsBlockToBeShown()
+        wrapper.instance().isParentsBlockToBeShown()
       ).to.eql(true);
     });
 

@@ -63,21 +63,21 @@ export default class TextWrapper extends Component {
     return (
       <div className={flexContainer}>
         <FieldWithError errorPlacement={errorPlacement || 'top'}
-                        {...field}
-                        {...hoverHelpText}
-                        label={label}
-                        name={elementConfig.getPropName()}
-                        className={fieldWithError}>
+          {...field}
+          {...hoverHelpText}
+          label={label}
+          name={elementConfig.getPropName()}
+          className={fieldWithError}>
           <div className={textFieldWrapper}>
             <TextField initialFocus={focus}
-                       {...fieldProps}
-                       {...numberField}
-                       {...passwordField}
-                       {...isDisabled}
-                       value={currentValue}
-                       onChange={onChangeHandler}
-                       placeholder={placeholder || ''}
-                       className={textFieldBody}/>
+              {...fieldProps}
+              {...numberField}
+              {...passwordField}
+              {...isDisabled}
+              value={currentValue}
+              onChange={onChangeHandler}
+              placeholder={placeholder || ''}
+              className={textFieldBody}/>
           </div>
         </FieldWithError>
       </div>

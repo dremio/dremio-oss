@@ -23,7 +23,7 @@ import { getHomeContents, getNormalizedEntityPathByUrl } from '@app/selectors/ho
 import { loadHomeContent } from '@app/actions/home';
 import { getViewState } from 'selectors/resources';
 import { getEntityType } from 'utils/pathUtils';
-import { ENTITY_TYPES } from 'constants/Constants';
+import { ENTITY_TYPES } from '@app/constants/Constants';
 
 import { updateRightTreeVisibility } from 'actions/ui/ui';
 

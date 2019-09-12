@@ -48,7 +48,7 @@ describe('ExtractPattern', () => {
     });
 
     it(`should not render Pattern Index field if
-        pattern.value.value.value doesn\'t equal CAPTURE_GROUP or INDEX`, () => {
+        pattern.value.value.value doesn't equal CAPTURE_GROUP or INDEX`, () => {
       const props = {
         fields: {
           pattern: {

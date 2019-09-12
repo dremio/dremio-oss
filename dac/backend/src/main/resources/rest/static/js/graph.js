@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-$(window).load(function () {
+$(window).on('load', function() {
     globalconfig.majorcolorscale = d3.scale.category20().domain([0, d3.max(globalconfig.fragmentProfileSize, accessor("majorFragmentId"))]);
 
     // for each record, unroll the array pointed to by "fieldpath" into a new

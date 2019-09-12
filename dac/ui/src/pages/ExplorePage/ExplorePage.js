@@ -15,22 +15,21 @@
  */
 import { Component } from 'react';
 import Immutable from 'immutable';
-import ReactDOM from 'react-dom';
+import classNames from 'classnames';
 import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
-import MainHeader from 'components/MainHeader';
-import { hashHeightTopSplitter } from 'constants/explorePage/heightTopSplitter.js';
+import { hashHeightTopSplitter } from '@app/constants/explorePage/heightTopSplitter.js';
 import { PageTypes, pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
 import { clearEntities } from '@app/actions/resources/entities';
+import { flexElementAuto } from '@app/uiTheme/less/layout.less';
 
 import './ExplorePage.less';
 import HistoryLineController from './components/Timeline/HistoryLineController';
 import ExplorePageContentWrapper from './subpages/ExplorePageContentWrapper';
 
-const GRID_TABLE_MARGIN = 15;
 const EXPLORE_PAGE_MIN_HEIGHT = 700;
 
 @pureRender
@@ -48,9 +47,7 @@ export class ExplorePageView extends Component {
     toggleRightTree: PropTypes.func.isRequired,
     toggleAccessModal: PropTypes.func,
     showEditColumnsModal: PropTypes.func,
-    updateGridSizes: PropTypes.func.isRequired,
     isResizeInProgress: PropTypes.bool,
-    style: PropTypes.object,
     onUnmount: PropTypes.func.isRequired
   };
 
@@ -61,11 +58,6 @@ export class ExplorePageView extends Component {
 
   componentWillMount() {
     this.initSqlEditor(this.props);
-  }
-
-  componentDidMount() {
-    this.resize();
-    $(window).on('resize', this.resize);
   }
 
   componentWillReceiveProps(nextProps) {
@@ -82,7 +74,6 @@ export class ExplorePageView extends Component {
   locationIncludesNewQuery = (location) => location && location.pathname && location.pathname.includes('new_query');
 
   componentWillUnmount() {
-    $(window).off('resize', this.resize);
     this.props.onUnmount();
   }
 
@@ -110,20 +101,6 @@ export class ExplorePageView extends Component {
 
   startDrag() {}
 
-  resize = () => {
-    const gridNode = ReactDOM.findDOMNode(this.refs.ExplorePageView);
-    const historyNode = ReactDOM.findDOMNode(this.refs.historyLine);
-    const tableNode = ReactDOM.findDOMNode(this.refs.gridTableWrap);
-    const ExplorePageSizes = new Immutable.Map({
-      ExplorePageWidth: gridNode.offsetWidth,
-      ExplorePageHeight: gridNode.offsetHeight,
-      gridTableMargin: GRID_TABLE_MARGIN,
-      gridTableHeight: gridNode.offsetHeight - (tableNode && tableNode.offsetTop || 0),
-      historyLineWidth: historyNode.offsetWidth
-    });
-    this.props.updateGridSizes(ExplorePageSizes);
-  }
-
   render() {
     const { dataset, history, isResizeInProgress } = this.props;
     const selectState = isResizeInProgress ? 'text' : 'none';
@@ -141,31 +118,29 @@ export class ExplorePageView extends Component {
 
     return (
       <div id='grid-page'
-        ref='ExplorePageView'
-        style={{...this.props.style, dragStyle, cursor, ...minHeightOverride}}>
-        <MainHeader />
-        <div className='grid-wrap'>
-          <ExplorePageContentWrapper
-            pageType={this.props.pageType}
-            dataset={dataset}
-            location={this.props.location}
-            startDrag={this.startDrag}
-            rightTreeVisible={this.props.rightTreeVisible}
-            sqlSize={this.props.sqlSize}
-            sqlState={this.props.sqlState}
-            isError={this.state.isError}
-            errorData={this.state.errorData}
-            updateSqlPartSize={this.props.updateSqlPartSize}
-            toggleRightTree={this.props.toggleRightTree}
-            toggleAccessModal={this.props.toggleAccessModal}
-            showEditColumnsModal={this.props.showEditColumnsModal}
-          />
-          <HistoryLineController
-            dataset={dataset}
-            history={history}
-            location={this.props.location}
-            ref='historyLine'/>
-        </div>
+        className={classNames('grid-wrap', flexElementAuto)}
+        style={{dragStyle, cursor, ...minHeightOverride}}
+      >
+        <ExplorePageContentWrapper
+          pageType={this.props.pageType}
+          dataset={dataset}
+          location={this.props.location}
+          startDrag={this.startDrag}
+          rightTreeVisible={this.props.rightTreeVisible}
+          sqlSize={this.props.sqlSize}
+          sqlState={this.props.sqlState}
+          isError={this.state.isError}
+          errorData={this.state.errorData}
+          updateSqlPartSize={this.props.updateSqlPartSize}
+          toggleRightTree={this.props.toggleRightTree}
+          toggleAccessModal={this.props.toggleAccessModal}
+          showEditColumnsModal={this.props.showEditColumnsModal}
+        />
+        <HistoryLineController
+          dataset={dataset}
+          history={history}
+          location={this.props.location}
+          ref='historyLine'/>
       </div>
     );
   }

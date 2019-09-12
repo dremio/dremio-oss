@@ -86,6 +86,7 @@ public class TypeInferenceUtils {
       .put(SqlTypeName.VARCHAR, TypeProtos.MinorType.VARCHAR)
       .put(SqlTypeName.BOOLEAN, TypeProtos.MinorType.BIT)
       .put(SqlTypeName.DATE, TypeProtos.MinorType.DATE)
+      .put(SqlTypeName.DECIMAL, TypeProtos.MinorType.DECIMAL)
       .put(SqlTypeName.TIME, TypeProtos.MinorType.TIME)
       .put(SqlTypeName.TIMESTAMP, TypeProtos.MinorType.TIMESTAMP)
       .put(SqlTypeName.VARBINARY, TypeProtos.MinorType.VARBINARY)
@@ -104,9 +105,6 @@ public class TypeInferenceUtils {
       .put(SqlTypeName.INTERVAL_SECOND, TypeProtos.MinorType.INTERVALDAY)
       // SqlTypeName.CHAR is the type for Literals in Calcite, Dremio treats Literals as VARCHAR also
       .put(SqlTypeName.CHAR, TypeProtos.MinorType.VARCHAR)
-
-      // TODO Needs fixing : DX-15875
-      .put(SqlTypeName.DECIMAL, TypeProtos.MinorType.FLOAT8)
 
       // (2) These 2 types are defined in the Dremio type system but have been turned off for now
       // .put(SqlTypeName.TINYINT, TypeProtos.MinorType.TINYINT)

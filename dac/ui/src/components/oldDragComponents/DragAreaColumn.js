@@ -23,7 +23,7 @@ import { Popover } from '@app/components/Popover';
 import FontIcon from 'components/Icon/FontIcon';
 
 import { formDefault, formPlaceholder } from 'uiTheme/radium/typography';
-import { typeToIconType } from 'constants/DataTypes';
+import { typeToIconType } from '@app/constants/DataTypes';
 import { PALE_BLUE, HISTORY_ITEM_COLOR, ACTIVE_DRAG_AREA, BORDER_ACTIVE_DRAG_AREA } from 'uiTheme/radium/colors';
 import { FLEX_ROW_START_CENTER } from 'uiTheme/radium/flexStyle';
 import DragSource from 'components/DragComponents/DragSource';
@@ -160,33 +160,33 @@ class DragAreaColumn extends Component {
     return this.props.columns.filter(column =>
       column.get('name').toLowerCase().includes(pattern.trim().toLowerCase())
     )
-    .sort(a => (NOT_SUPPORTED_TYPES.indexOf(a.get('type')) !== -1))
-    .map(column => {
-      const columnType = column.get('type');
-      const disabled = NOT_SUPPORTED_TYPES.indexOf(columnType) !== -1;
-      const disabledStyle = disabled ? {color: HISTORY_ITEM_COLOR} : {};
-      const columnName = column.get('name');
-      const selectedItem = {
-        dragColumnId: id || item.get('name'),
-        dragColumnType: type,
-        dragColumnIndex: index,
-        columnName,
-        columnType,
-        disabled
-      };
+      .sort(a => (NOT_SUPPORTED_TYPES.indexOf(a.get('type')) !== -1))
+      .map(column => {
+        const columnType = column.get('type');
+        const disabled = NOT_SUPPORTED_TYPES.indexOf(columnType) !== -1;
+        const disabledStyle = disabled ? {color: HISTORY_ITEM_COLOR} : {};
+        const columnName = column.get('name');
+        const selectedItem = {
+          dragColumnId: id || item.get('name'),
+          dragColumnType: type,
+          dragColumnIndex: index,
+          columnName,
+          columnType,
+          disabled
+        };
 
-      return (
-        <div
-          disabled={disabled}
-          data-qa={columnName}
-          style={[styles.column, formDefault]}
-          key={columnName}
-          onClick={this.selectItemOnDrag.bind(this, selectedItem)}>
-          <FontIcon type={typeToIconType[columnType]} theme={styles.type}/>
-          <span style={[{marginLeft: 5}, disabledStyle]}>{columnName}</span>
-        </div>
-      );
-    });
+        return (
+          <div
+            disabled={disabled}
+            data-qa={columnName}
+            style={[styles.column, formDefault]}
+            key={columnName}
+            onClick={this.selectItemOnDrag.bind(this, selectedItem)}>
+            <FontIcon type={typeToIconType[columnType]} theme={styles.type}/>
+            <span style={[{marginLeft: 5}, disabledStyle]}>{columnName}</span>
+          </div>
+        );
+      });
   }
 
   renderContent() {

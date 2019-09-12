@@ -27,29 +27,31 @@ import com.dremio.service.namespace.source.proto.UpdateMode;
  * Serializer for namespace container.
  */
 final class NameSpaceContainerSerializer extends Serializer<NameSpaceContainer> {
-  private final Serializer<NameSpaceContainer> serializer = ProtostuffSerializer.of(NameSpaceContainer.getSchema());
+  private final Serializer<com.dremio.service.namespace.protostuff.NameSpaceContainer> serializer =
+    ProtostuffSerializer.of(com.dremio.service.namespace.protostuff.NameSpaceContainer.getSchema());
 
   public NameSpaceContainerSerializer() {
   }
 
   @Override
   public String toJson(NameSpaceContainer v) throws IOException {
-    return serializer.toJson(v);
+    return serializer.toJson(v.toProtoStuff());
   }
 
   @Override
   public NameSpaceContainer fromJson(String v) throws IOException {
-    return upgrade(serializer.fromJson(v));
+    final NameSpaceContainer container = new NameSpaceContainer(serializer.fromJson(v));
+    return upgrade(container);
   }
 
   @Override
   public byte[] convert(NameSpaceContainer v) {
-    return serializer.convert(v);
+    return serializer.convert(v.toProtoStuff());
   }
 
   @Override
   public NameSpaceContainer revert(byte[] v) {
-    return upgrade(serializer.revert(v));
+    return upgrade(new NameSpaceContainer(serializer.revert(v)));
   }
 
   /**

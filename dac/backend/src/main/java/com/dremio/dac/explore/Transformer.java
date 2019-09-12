@@ -26,7 +26,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.InitialPendingTransformResponse;
 import com.dremio.dac.explore.model.TransformBase;
-import com.dremio.dac.model.job.JobUI;
+import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.proto.model.dataset.FilterType;
 import com.dremio.dac.proto.model.dataset.FromType;
 import com.dremio.dac.proto.model.dataset.NameDatasetRef;
@@ -41,6 +41,7 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
@@ -116,7 +117,7 @@ public class Transformer {
    * @throws DatasetNotFoundException
    * @throws DatasetVersionNotFoundException
    */
-  public DatasetAndJob editOriginalSql(DatasetVersion newVersion, List<Transform> operations, QueryType queryType) throws NamespaceException, DatasetNotFoundException, DatasetVersionNotFoundException {
+  public DatasetAndData editOriginalSql(DatasetVersion newVersion, List<Transform> operations, QueryType queryType) throws NamespaceException, DatasetNotFoundException, DatasetVersionNotFoundException {
 
     // apply transformations bottom up.
     Collections.reverse(operations);
@@ -148,8 +149,8 @@ public class Transformer {
     VirtualDatasetUI headVersion = datasetService.getVersion(headPath, headConfig.getVirtualDataset().getVersion());
 
 
-    JobUI job = executor.runQuery(new SqlQuery(headVersion.getSql(), headVersion.getState().getContextList(), username()), queryType, headPath, headVersion.getVersion());
-    return new DatasetAndJob(job, headVersion);
+    JobData jobData = executor.runQuery(new SqlQuery(headVersion.getSql(), headVersion.getState().getContextList(), username()), queryType, headPath, headVersion.getVersion());
+    return new DatasetAndData(jobData, headVersion);
   }
 
   /**
@@ -224,7 +225,7 @@ public class Transformer {
    * @throws DatasetNotFoundException
    * @throws NamespaceException
    */
-  public DatasetAndJob transformWithExecute(
+  public DatasetAndData transformWithExecute(
       DatasetVersion newVersion,
       DatasetPath path,
       VirtualDatasetUI original,
@@ -253,14 +254,14 @@ public class Transformer {
       TransformBase transform,
       int limit)
       throws DatasetNotFoundException, NamespaceException {
-    final TransformResultDatsetAndJob result = this.transformWithExecute(newVersion, path, original, transform, QueryType.UI_PREVIEW, true);
+    final TransformResultDatsetAndData result = this.transformWithExecute(newVersion, path, original, transform, QueryType.UI_PREVIEW, true);
     final TransformResult transformResult = result.getTransformResult();
     final List<String> highlightedColumnNames = Lists.newArrayList(transformResult.getModifiedColumns());
     highlightedColumnNames.addAll(transformResult.getAddedColumns());
 
     return InitialPendingTransformResponse.of(
         result.getDataset().getSql(),
-        result.getJob().getData().truncate(limit),
+        result.getJobData().truncate(limit),
         highlightedColumnNames,
         Lists.newArrayList(transformResult.getRemovedColumns()),
         transformResult.getRowDeletionMarkerColumns()
@@ -268,20 +269,24 @@ public class Transformer {
   }
 
   /**
-   * DatasetAndJob
+   * DatasetAndData
    */
-  public static class DatasetAndJob {
-    private final JobUI job;
+  public static class DatasetAndData {
+    private final JobData jobData;
     private final VirtualDatasetUI dataset;
 
-    public DatasetAndJob(JobUI job, VirtualDatasetUI dataset) {
+    public DatasetAndData(JobData jobData, VirtualDatasetUI dataset) {
       super();
-      this.job = job;
+      this.jobData = jobData;
       this.dataset = dataset;
     }
 
-    public JobUI getJob() {
-      return job;
+    public JobId getJobId() {
+      return jobData.getJobId();
+    }
+
+    public JobData getJobData() {
+      return jobData;
     }
 
     public VirtualDatasetUI getDataset() {
@@ -290,7 +295,7 @@ public class Transformer {
 
   }
 
-  private TransformResultDatsetAndJob transformWithExecute(
+  private TransformResultDatsetAndData transformWithExecute(
     DatasetVersion newVersion,
     DatasetPath path,
     VirtualDatasetUI original,
@@ -306,7 +311,7 @@ public class Transformer {
       final SqlQuery query = new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext);
       actor.getMetadata(query);
     }
-    final TransformResultDatsetAndJob resultToReturn = new TransformResultDatsetAndJob(actor.getJob(), asDataset(newVersion, path, original,
+    final TransformResultDatsetAndData resultToReturn = new TransformResultDatsetAndData(actor.getJobData(), asDataset(newVersion, path, original,
       transform, transformResult, actor.getMetadata()), transformResult);
     // save this dataset version.
     datasetService.putVersion(resultToReturn.getDataset());
@@ -314,11 +319,11 @@ public class Transformer {
     return resultToReturn;
   }
 
-  private static class TransformResultDatsetAndJob extends DatasetAndJob {
+  private static class TransformResultDatsetAndData extends DatasetAndData {
     private final TransformResult transformResult;
 
-    public TransformResultDatsetAndJob(JobUI job, VirtualDatasetUI dataset, TransformResult transformResult) {
-      super(job, dataset);
+    public TransformResultDatsetAndData(JobData jobData, VirtualDatasetUI dataset, TransformResult transformResult) {
+      super(jobData, dataset);
       this.transformResult = transformResult;
     }
 
@@ -362,7 +367,7 @@ public class Transformer {
 
     private final MetadataCollectingJobStatusListener collector = new MetadataCollectingJobStatusListener();
     private volatile QueryMetadata metadata;
-    private volatile JobUI job;
+    private volatile JobData jobData;
     private final DatasetPath path;
     private final DatasetVersion newVersion;
     private final QueryType queryType;
@@ -383,7 +388,7 @@ public class Transformer {
 
     @Override
     protected QueryMetadata getMetadata(SqlQuery query) {
-      this.job = executor.runQueryWithListener(query, queryType, path, newVersion, collector);
+      this.jobData = executor.runQueryWithListener(query, queryType, path, newVersion, collector);
       try {
         this.metadata = collector.getMetadata();
       } catch (UserException e) {
@@ -410,8 +415,8 @@ public class Transformer {
       return metadata;
     }
 
-    public JobUI getJob() {
-      return job;
+    public JobData getJobData() {
+      return jobData;
     }
 
   }

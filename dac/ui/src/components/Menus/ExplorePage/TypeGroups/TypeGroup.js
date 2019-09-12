@@ -19,9 +19,9 @@ import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
-import { BINARY, TEXT, INTEGER, FLOAT, DATE, TIME, DATETIME } from 'constants/DataTypes';
+import { BINARY, TEXT, INTEGER, FLOAT, DATE, TIME, DATETIME } from '@app/constants/DataTypes';
 import { TO_BINARY_TYPES, TO_INTEGER_TYPES,
-         TO_DATE_TYPES, TO_FLOAT_TYPES, ALL_TYPES, TO_TIME_TYPES } from 'constants/columnTypeGroups';
+  TO_DATE_TYPES, TO_FLOAT_TYPES, ALL_TYPES, TO_TIME_TYPES } from '@app/constants/columnTypeGroups';
 
 import MenuItem from './../MenuItem';
 import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';

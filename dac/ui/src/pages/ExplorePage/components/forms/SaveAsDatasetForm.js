@@ -60,7 +60,8 @@ export class SaveAsDatasetForm extends Component {
       location: locationType
     }),
     fields: PropTypes.shape({
-      location: getLocationPropType()
+      location: getLocationPropType(),
+      name: PropTypes.object
     })
   };
 

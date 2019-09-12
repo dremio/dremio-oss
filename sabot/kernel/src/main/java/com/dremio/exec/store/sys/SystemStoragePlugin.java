@@ -17,6 +17,8 @@ package com.dremio.exec.store.sys;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.dremio.connector.metadata.BytesOutput;
@@ -43,13 +45,14 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 
 public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature, SupportsListingDatasets {
 
-  public static final ImmutableMap<String, SystemTable> TABLE_MAP = FluentIterable.of(SystemTable.values())
-      .uniqueIndex(input -> input.getTableName().toLowerCase());
+  private static final ImmutableMap<EntityPath, SystemTable> DATASET_MAP =
+      ImmutableMap.copyOf(Stream.of(SystemTable.values())
+          .collect(Collectors.toMap(systemTable -> canonicalize(systemTable.getDatasetPath()),
+              Function.identity())));
 
   private final SabotContext context;
   private final Predicate<String> userPredicate;
@@ -109,11 +112,8 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
 
   @Override
   public Optional<DatasetHandle> getDatasetHandle(EntityPath datasetPath, GetDatasetOption... options) {
-    if(datasetPath.size() != 2) {
-      return Optional.empty();
-    }
-
-    return Optional.ofNullable(TABLE_MAP.get(datasetPath.getName().toLowerCase()));
+    //noinspection unchecked
+    return (Optional<DatasetHandle>) (Object) getDataset(datasetPath);
   }
 
   @Override
@@ -151,5 +151,13 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
     // system source is only refreshed once when CatalogService starts up
     // and won't be refreshed again since its refresh policy is NEVER_REFRESH_POLICY.
     return MetadataValidity.INVALID;
+  }
+
+  private static EntityPath canonicalize(EntityPath entityPath) {
+    return new EntityPath(entityPath.getComponents().stream().map(String::toLowerCase).collect(Collectors.toList()));
+  }
+
+  public static Optional<SystemTable> getDataset(EntityPath datasetPath) {
+    return Optional.ofNullable(DATASET_MAP.get(canonicalize(datasetPath)));
   }
 }

@@ -14,20 +14,24 @@
  * limitations under the License.
  */
 import { Component } from 'react';
+
 import { applyValidators, isRequired, isWholeNumber } from 'utils/validation';
+import FormUtils from '@app/utils/FormUtils/FormUtils';
 
 import Host from './Host';
 
+const { CONFIG_PROP_NAME } = FormUtils;
+
 export default class SingleHostOptionalPort extends Component {
   static getFields() {
-    return Host.getFields().map(key => `config.${key}`);
+    return Host.getFields().map(FormUtils.addFormPrefixToPropName);
   }
 
   static propTypes = Host.propTypes;
 
   static validate(values) {
     return {
-      config: applyValidators(values.config, [
+      [CONFIG_PROP_NAME]: applyValidators(values[CONFIG_PROP_NAME], [
         isRequired('hostname'),
         isWholeNumber('port')
       ])
@@ -35,7 +39,7 @@ export default class SingleHostOptionalPort extends Component {
   }
 
   render() {
-    const {fields: { config }, ...otherProps} = this.props;
-    return <Host fields={config} {...otherProps} />;
+    const {fields: { [CONFIG_PROP_NAME]: configFields }, ...otherProps} = this.props;
+    return <Host fields={configFields} {...otherProps} />;
   }
 }

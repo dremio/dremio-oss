@@ -40,19 +40,15 @@ import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.homefiles.HomeFileTool;
 import com.dremio.dac.model.common.DACUnauthorizedException;
-import com.dremio.dac.model.spaces.HomeName;
-import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.dac.model.usergroup.UserForm;
 import com.dremio.dac.model.usergroup.UserName;
 import com.dremio.dac.model.usergroup.UserResourcePath;
 import com.dremio.dac.model.usergroup.UserUI;
 import com.dremio.dac.server.GenericErrorMessage;
 import com.dremio.dac.service.errors.ClientErrorException;
+import com.dremio.dac.service.users.UserServiceHelper;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
@@ -69,15 +65,17 @@ public class UserResource {
 
   private final UserService userService;
   private final NamespaceService namespaceService;
+  private final UserServiceHelper userServiceHelper;
   private final SecurityContext securityContext;
   private final HomeFileTool fileStore;
 
   @Inject
   public UserResource(UserService userService, NamespaceService namespaceService, HomeFileTool fileStore,
-                      @Context SecurityContext securityContext) {
+                      UserServiceHelper userServiceHelper, @Context SecurityContext securityContext) {
     this.userService = userService;
     this.namespaceService = namespaceService;
     this.fileStore = fileStore;
+    this.userServiceHelper = userServiceHelper;
     this.securityContext = securityContext;
   }
 
@@ -147,30 +145,7 @@ public class UserResource {
           new GenericErrorMessage("Deletion of the user account of currently logged in user is not allowed.")).build();
     }
 
-    userService.deleteUser(userName.getName(), version);
-
-    boolean namespaceDeleteSuccessful = true;
-    try {
-      final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath(userName.getName())).toNamespaceKey();
-      final HomeConfig homeConfig = namespaceService.getHome(homeKey);
-      namespaceService.deleteHome(homeKey, homeConfig.getTag());
-    } catch (NamespaceNotFoundException ex) {
-      logger.debug("Home space is not found", ex);
-    } catch (NamespaceException ex) {
-      namespaceDeleteSuccessful = false;
-      logger.error("Failed to delete home space for user '{}'", userName.getName(), ex);
-    }
-
-    // delete the home contents
-    boolean uploadsDeleteSuccessful;
-    try {
-      uploadsDeleteSuccessful = fileStore.deleteHomeAndContents(HomeName.getUserHomePath(userName.getName()).getName());
-    } catch (Exception e) {
-      uploadsDeleteSuccessful = false;
-      logger.error("Failed to delete user home contents '{}", userName.getName(), e);
-    }
-
-    if (!namespaceDeleteSuccessful || !uploadsDeleteSuccessful) {
+    if (!userServiceHelper.deleteUser(userName.getName(), version)) {
       return Response.serverError().build();
     }
 

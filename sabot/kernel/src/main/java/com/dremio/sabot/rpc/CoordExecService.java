@@ -22,7 +22,6 @@ import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.codahale.metrics.Gauge;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.proto.CoordExecRPC.ActivateFragments;
 import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
@@ -107,19 +106,8 @@ public class CoordExecService implements Service {
     fabricService.get().registerProtocol(new CoordExecProtocol());
 
     final String prefix = "rpc";
-    Metrics.registerGauge(prefix + "bit.control.current", new Gauge<Long>() {
-      @Override
-      public Long getValue() {
-        return allocator.getAllocatedMemory();
-      }
-    });
-
-    Metrics.registerGauge(prefix + "bit.control.peak", new Gauge<Long>() {
-      @Override
-      public Long getValue() {
-        return allocator.getPeakMemoryAllocation();
-      }
-    });
+    Metrics.newGauge(prefix + "bit.control.current", allocator::getAllocatedMemory);
+    Metrics.newGauge(prefix + "bit.control.peak", allocator::getPeakMemoryAllocation);
   }
 
 

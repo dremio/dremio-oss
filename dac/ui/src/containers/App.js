@@ -25,11 +25,12 @@ import urlParse from 'url-parse';
 import { showAppError } from 'actions/prodError';
 import { DnDContextDecorator } from '@app/components/DragComponents/DnDContextDecorator';
 import { ErrorBoundary } from '@app/components/ErrorBoundary';
+import { Suspense } from '@app/components/Lazy';
 
 import socket from 'utils/socket';
 import sentryUtil from 'utils/sentryUtil';
 
-import { SERVER_STATUS_OK } from 'constants/serverStatus';
+import { SERVER_STATUS_OK } from '@app/constants/serverStatus';
 import config from 'dyn-load/utils/config';
 import enableFatalPropTypes from 'enableFatalPropTypes';
 
@@ -184,16 +185,18 @@ export class App extends Component {
     return (
       <Fragment>
         <ErrorBoundary>
-          <LocationProvider location={this.props.location}>
-            <div style={{height: '100%'}}>
-              <MuiThemeProvider theme={theme}>
-                {children}
-              </MuiThemeProvider>
-              <NotificationContainer/>
-              <ConfirmationContainer/>
-              <ModalsContainer modals={{AboutModal}} />
-            </div>
-          </LocationProvider>
+          <Suspense>
+            <LocationProvider location={this.props.location}>
+              <div style={{height: '100%'}}>
+                <MuiThemeProvider theme={theme}>
+                  {children}
+                </MuiThemeProvider>
+                <NotificationContainer/>
+                <ConfirmationContainer/>
+                <ModalsContainer modals={{AboutModal}} />
+              </div>
+            </LocationProvider>
+          </Suspense>
         </ErrorBoundary>
         {
           shouldEnableRSOD ?

@@ -75,8 +75,10 @@ public class ConvertletTable extends ReflectiveConvertletTable {
     super();
 
     registerOp(SqlStdOperatorTable.TIMESTAMP_DIFF, DEFAULT_CONVERTLET);
-    registerOp(SqlStdOperatorTable.IS_DISTINCT_FROM, DistinctFromConvertlet.INSTANCE);
-    registerOp(SqlStdOperatorTable.IS_NOT_DISTINCT_FROM, DistinctFromConvertlet.INSTANCE);
+    registerOp(SqlStdOperatorTable.EQUALS, EqualityConvertlet.INSTANCE);
+    registerOp(SqlStdOperatorTable.NOT_EQUALS, EqualityConvertlet.INSTANCE);
+    registerOp(SqlStdOperatorTable.IS_DISTINCT_FROM, EqualityConvertlet.INSTANCE);
+    registerOp(SqlStdOperatorTable.IS_NOT_DISTINCT_FROM, EqualityConvertlet.INSTANCE);
     registerOp(SqlFlattenOperator.INSTANCE, FlattenConvertlet.INSTANCE);
     registerOp(SqlDatePartOperator.INSTANCE, SqlDatePartOperator.CONVERTLET);
     registerOp(SqlStdOperatorTable.MINUS, new SqlRexConvertlet() {

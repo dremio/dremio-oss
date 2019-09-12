@@ -16,6 +16,7 @@
 package com.dremio.service.reflection;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -132,7 +133,7 @@ public class TestReflectionStatusService {
     when(entriesStore.get(reflectionId)).thenReturn(entry);
 
     when(materializationStore.getLastMaterializationDone(reflectionId)).thenReturn(lastMaterialization);
-    when(materializationStore.getAllDoneWhen(Mockito.anyLong())).thenReturn(Collections.singleton(lastMaterialization));
+    when(materializationStore.getAllDone(eq(reflectionId), Mockito.anyLong())).thenReturn(Collections.singleton(lastMaterialization));
 
     when(validator.isValid(goal)).thenReturn(isValid);
     this.expected = expected;

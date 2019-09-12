@@ -55,6 +55,7 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.GetJobRequest;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobException;
 import com.dremio.service.jobs.JobNotFoundException;
@@ -95,7 +96,11 @@ public class JobResource {
   @Produces(APPLICATION_JSON)
   public JobUI getJob(@PathParam("jobId") String jobId) throws JobResourceNotFoundException {
     try {
-      return new JobUI(jobsService.getJob(new JobId(jobId), securityContext.getUserPrincipal().getName()));
+      GetJobRequest request = GetJobRequest.newBuilder()
+        .setJobId(new JobId(jobId))
+        .setUserName(securityContext.getUserPrincipal().getName())
+        .build();
+      return new JobUI(jobsService.getJob(request));
     } catch (JobNotFoundException e) {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }
@@ -123,10 +128,13 @@ public class JobResource {
   @Path("/details")
   @Produces(APPLICATION_JSON)
   public JobDetailsUI getJobDetail(@PathParam("jobId") String jobId) throws JobResourceNotFoundException {
-    JobId id = new JobId(jobId);
     final Job job;
     try {
-      job = jobsService.getJob(id, securityContext.getUserPrincipal().getName());
+      GetJobRequest request = GetJobRequest.newBuilder()
+        .setJobId(new JobId(jobId))
+        .setUserName(securityContext.getUserPrincipal().getName())
+        .build();
+      job = jobsService.getJob(request);
     } catch (JobNotFoundException e) {
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
     }
@@ -151,7 +159,11 @@ public class JobResource {
 
     final Job job;
     try {
-      job = jobsService.getJob(jobId, securityContext.getUserPrincipal().getName());
+      GetJobRequest request = GetJobRequest.newBuilder()
+        .setJobId(jobId)
+        .setUserName(securityContext.getUserPrincipal().getName())
+        .build();
+      job = jobsService.getJob(request);
     } catch (JobNotFoundException e) {
       logger.warn("job not found: {}", jobId);
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
@@ -173,7 +185,11 @@ public class JobResource {
 
     final Job job;
     try {
-      job = jobsService.getJob(jobId, securityContext.getUserPrincipal().getName());
+      GetJobRequest request = GetJobRequest.newBuilder()
+        .setJobId(jobId)
+        .setUserName(securityContext.getUserPrincipal().getName())
+        .build();
+      job = jobsService.getJob(request);
     } catch (JobNotFoundException e) {
       logger.warn("job not found: {}", jobId);
       throw JobResourceNotFoundException.fromJobNotFoundException(e);
@@ -195,7 +211,11 @@ public class JobResource {
   @Consumes(MediaType.APPLICATION_JSON)
   public Response downloadData(@PathParam("jobId") JobId jobId)
       throws IOException, JobResourceNotFoundException, JobNotFoundException {
-    final Job job = jobsService.getJob(jobId, securityContext.getUserPrincipal().getName());
+    GetJobRequest request = GetJobRequest.newBuilder()
+      .setJobId(jobId)
+      .setUserName(securityContext.getUserPrincipal().getName())
+      .build();
+    final Job job = jobsService.getJob(request);
     final JobInfo jobInfo = job.getJobAttempt().getInfo();
 
     if (jobInfo.getQueryType() == QueryType.UI_EXPORT) {

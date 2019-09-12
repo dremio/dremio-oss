@@ -18,24 +18,29 @@ package com.dremio.exec.expr.fn.impl;
 import static org.junit.Assert.assertEquals;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 
 import io.netty.buffer.ArrowBuf;
 
 /**
  * Unit tests for StringFunctionUtil
  */
-public class TestStringFunctionUtil {
+public class TestStringFunctionUtil extends DremioTest {
   protected BufferAllocator allocator;
 
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+
   @Before
-  public void setup(){
-    this.allocator = new RootAllocator(Long.MAX_VALUE);
+  public void setup() {
+    this.allocator = allocatorRule.newAllocator("test-string-function-util", 0, Long.MAX_VALUE);
   }
 
   @After

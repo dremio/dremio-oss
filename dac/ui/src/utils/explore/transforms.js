@@ -43,7 +43,7 @@ class Transforms {
 
   _getColumnsWithoutPreviewColumns(columns) {
     return columns.filter(col => col.get('status') !== 'HIGHLIGHTED')
-                  .map(col => col.set('color', undefined));
+      .map(col => col.set('color', undefined));
   }
 
   _getIndexOfPreviewColumn(columns) {
@@ -89,11 +89,11 @@ class Transforms {
     let columns = this._getColumnsWithoutPreviewColumns(table.get('columns'));
 
     const column = columns.get('0')
-                          .set('name', columnName)
-                          .set('status', 'HIGHLIGHTED')
-                          .set('color', HIGHLIGHTED_TABLE)
-                          .set('index', columns.size)
-                          .set('type', '');
+      .set('name', columnName)
+      .set('status', 'HIGHLIGHTED')
+      .set('color', HIGHLIGHTED_TABLE)
+      .set('index', columns.size)
+      .set('type', '');
     columns = columns.push(column);
     const rows = this._getRowsForPreview(table.get('rows'), addedByUiColumnIndex, columns.size - 1);
     return table.set('rows', rows).set('columns', columns);
@@ -148,8 +148,8 @@ class Transforms {
     } else if (newCol.length > 1) {
       return newCol.reduce((prevCol, col) => {
         return (col.index - newCol[0].index) <= DISTANCE_BETWEEN_NEW_COLUMNS
-        ? Math.round(((prevCol.index || prevCol) + col.index) / 2)
-        : newCol[0].index;
+          ? Math.round(((prevCol.index || prevCol) + col.index) / 2)
+          : newCol[0].index;
       });
     }
     return null;

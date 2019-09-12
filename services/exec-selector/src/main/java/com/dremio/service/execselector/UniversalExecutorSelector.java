@@ -30,7 +30,7 @@ public class UniversalExecutorSelector implements ExecutorSelector {
   private Set<NodeEndpoint> endpoints = new HashSet<>();
 
   @Override
-  public ExecutorSelectionHandle getExecutors(int desiredNumExecutors) {
+  public ExecutorSelectionHandle getExecutors(int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
     return new ExecutorSelectionHandleImpl(ImmutableSet.copyOf(endpoints));
   }
 

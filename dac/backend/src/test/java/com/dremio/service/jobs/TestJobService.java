@@ -198,19 +198,35 @@ public class TestJobService extends BaseTestServer {
     List<Job> jobs = ImmutableList.copyOf(jobsService.getAllJobs());
     assertEquals(7, jobs.size());
 
-    jobs = ImmutableList.copyOf(jobsService.getJobsForDataset(ds1.toNamespaceKey(), Integer.MAX_VALUE));
+    final SearchJobsRequest request = SearchJobsRequest.newBuilder()
+        .setDatasetPath(ds1.toNamespaceKey())
+        .build();
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(request));
     assertEquals(4, jobs.size());
 
-    jobs = ImmutableList.copyOf(jobsService.getJobsForDataset(ds1.toNamespaceKey(), new DatasetVersion("1"), Integer.MAX_VALUE));
+    final SearchJobsRequest request1 = SearchJobsRequest.newBuilder()
+        .setDatasetPath(ds1.toNamespaceKey())
+        .setDatasetVersion(new DatasetVersion("1"))
+        .build();
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(request1));
     assertEquals(3, jobs.size());
 
-    jobs = getAllJobs("ds==s.ds1,ds==s.ds2", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==s.ds1,ds==s.ds2")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(6, jobs.size());
 
-    jobs = getAllJobs("ds==s.ds3;dsv==v1", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==s.ds3;dsv==v1")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
 
-    jobs = getAllJobs("ds==s.ds3;dsv==v2", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==s.ds3;dsv==v2")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(0, jobs.size());
   }
 
@@ -225,7 +241,10 @@ public class TestJobService extends BaseTestServer {
     Job job = JobsServiceUtil.waitForJobCompletion(jobFuture);
 
     // get the latest version of the job entry
-    job = jobsService.getJob(job.getJobId());
+    GetJobRequest request = GetJobRequest.newBuilder()
+      .setJobId(job.getJobId())
+      .build();
+    job = jobsService.getJob(request);
     // and make sure it's marked as completed
     assertTrue("job should be marked as 'completed'", job.isCompleted());
   }
@@ -260,9 +279,15 @@ public class TestJobService extends BaseTestServer {
   public void testUnquotedJobFilter() throws Exception {
     Job jobA1 = createJob("A1", Arrays.asList("Prod-Sample", "ds-1"), "v1", "A", "Prod-Sample", JobState.COMPLETED, "select * from LocalFS1.\"dac-sample1.json\"", 100L, 110L, QueryType.UI_RUN);
     jobsService.storeJob(jobA1);
-    List<Job> jobs = getAllJobs("ads==Prod-Sample.ds-1", null, null);
+    List<Job> jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ads==Prod-Sample.ds-1")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
-    jobs = getAllJobs("ds==Prod-Sample.ds-1", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==Prod-Sample.ds-1")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(0, jobs.size());
   }
 
@@ -321,82 +346,175 @@ public class TestJobService extends BaseTestServer {
     completed += 1;
 
     // search by spaces
-    List<Job> jobs = getAllJobs("spc==space1", null, null);
+    List<Job> jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("spc==space1")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(10, jobs.size());
-    jobs = getAllJobs("spc==space2", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("spc==space2")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(3, jobs.size());
-    jobs = getAllJobs("spc==space3", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("spc==space3")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
 
     // search by query type
-    jobs = getAllJobs("qt==UI_RUN", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("qt==UI_RUN")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(5, jobs.size());
-    jobs = getAllJobs("qt==UI_INTERNAL_PREVIEW", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("qt==UI_INTERNAL_PREVIEW")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(2, jobs.size());
-    jobs = getAllJobs("qt==UI_PREVIEW", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("qt==UI_PREVIEW")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(4, jobs.size());
-    jobs = getAllJobs("qt==REST", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("qt==REST")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
-    jobs = getAllJobs("qt==UNKNOWN", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("qt==UNKNOWN")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(2, jobs.size());
 
-    jobs = getAllJobs("qt==UI", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("qt==UI")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(9, jobs.size());
-    jobs = getAllJobs("qt==EXTERNAL", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("qt==EXTERNAL")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
-    jobs = getAllJobs("qt==ACCELERATION", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("qt==ACCELERATION")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(0, jobs.size());
-    jobs = getAllJobs("qt==INTERNAL", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("qt==INTERNAL")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(4, jobs.size());
     //TODO: uncomment after DX-2330 fix
     //jobs = jobsManager.getAllJobs("qt!=SCHEMA", null, null);
     //assertEquals(12, jobs.size());
 
     // search by users
-    jobs = getAllJobs("usr==A", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("usr==A")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(5, jobs.size());
-    jobs = getAllJobs("usr==B", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("usr==B")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(5, jobs.size());
-    jobs = getAllJobs("usr==C", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("usr==C")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(3, jobs.size());
-    jobs = getAllJobs("usr==D", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("usr==D")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
 
     // search by job ids
-    jobs = getAllJobs("job==A1", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("job==A1")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
-    jobs = getAllJobs("job==B3", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("job==B3")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
 
     // search by dataset and version
-    jobs = getAllJobs("ds==space1.ds1", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==space1.ds1")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(5, jobs.size());
-    jobs = getAllJobs("ds==space1.ds1;dsv==v1", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==space1.ds1;dsv==v1")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(2, jobs.size());
-    jobs = getAllJobs("ds==space1.ds1;dsv==v2", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==space1.ds1;dsv==v2")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(2, jobs.size());
-    jobs = getAllJobs("ds==space1.ds1;dsv==v3", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==space1.ds1;dsv==v3")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
 
-    jobs = getAllJobs("ds==space1.ds2", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==space1.ds2")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(5, jobs.size());
-    jobs = getAllJobs("ds==space1.ds2;dsv==v1", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==space1.ds2;dsv==v1")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
-    jobs = getAllJobs("ds==space1.ds2;dsv==v2", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==space1.ds2;dsv==v2")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(3, jobs.size());
-    jobs = getAllJobs("ds==space1.ds2;dsv==v3", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==space1.ds2;dsv==v3")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
 
-    jobs = getAllJobs("ds==space2.ds3", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==space2.ds3")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(3, jobs.size());
-    jobs = getAllJobs("ds==space2.ds3;dsv==v1", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==space2.ds3;dsv==v1")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(2, jobs.size());
-    jobs = getAllJobs("ds==space2.ds3;dsv==v2", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==space2.ds3;dsv==v2")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
 
-    jobs = getAllJobs("ds==space3.ds4", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==space3.ds4")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
-    jobs = getAllJobs("ds==space3.ds4;dsv==v4", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("ds==space3.ds4;dsv==v4")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(1, jobs.size());
 
 //    // default sort order (descending by start time but running jobs on top)
@@ -409,64 +527,119 @@ public class TestJobService extends BaseTestServer {
 //    assertEquals(jobC2.getJobId(), jobs.get(4).getJobId());
 
     // search by job state
-    jobs = getAllJobs("jst==COMPLETED", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("jst==COMPLETED")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(completed, jobs.size());
 
-    jobs = getAllJobs("jst==RUNNING", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("jst==RUNNING")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(running, jobs.size());
 
-    jobs = getAllJobs("jst==CANCELED", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("jst==CANCELED")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(canceled, jobs.size());
 
     // filter by start and finish time
-    jobs = getAllJobs("et=gt=0", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("et=gt=0")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(completed + canceled, jobs.size());
 
-    jobs = getAllJobs("st=ge=300;et=lt=1000", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("st=ge=300;et=lt=1000")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(6, jobs.size());
 
-    jobs = getAllJobs("st=ge=0", "st", SortOrder.ASCENDING);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("st=ge=0")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(14, jobs.size());
 
     // SORT by start time
-    jobs = getAllJobs("st=ge=0", "st", SortOrder.ASCENDING);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("st=ge=0")
+        .setSortColumn("st")
+        .setResultOrder(SearchJobsRequest.ResultOrder.ASCENDING)
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(14, jobs.size());
     assertEquals(jobD1.getJobId(), jobs.get(0).getJobId());
 
-    jobs = getAllJobs("st=ge=0", "st", SortOrder.DESCENDING);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("st=ge=0")
+        .setSortColumn("st")
+        .setResultOrder(SearchJobsRequest.ResultOrder.DESCENDING)
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(14, jobs.size());
     assertEquals(jobB4.getJobId(), jobs.get(0).getJobId());
 
-    jobs = getAllJobs("et=ge=0", "et", SortOrder.ASCENDING);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("et=ge=0")
+        .setSortColumn("et")
+        .setResultOrder(SearchJobsRequest.ResultOrder.ASCENDING)
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(12, jobs.size());
     assertEquals(jobA1.getJobId(), jobs.get(0).getJobId());
 
-    jobs = getAllJobs("et=ge=0", "et", SortOrder.DESCENDING);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("et=ge=0")
+        .setSortColumn("et")
+        .setResultOrder(SearchJobsRequest.ResultOrder.DESCENDING)
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(12, jobs.size());
     assertEquals(jobD1.getJobId(), jobs.get(0).getJobId());
 
-    jobs = getAllJobs("blah=contains=COMPLETED", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("blah=contains=COMPLETED")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(completed, jobs.size());
 
-    jobs = getAllJobs("*=contains=ds3", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("*=contains=ds3")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(3, jobs.size());
 
-    jobs = getAllJobs("*=contains=space1", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("*=contains=space1")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(10, jobs.size());
 
-    jobs = getAllJobs("*=contains=space*.ds3", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("*=contains=space*.ds3")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(3, jobs.size());
 
-    jobs = getAllJobs("*=contains=space2.ds?", null, null);
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("*=contains=space2.ds?")
+        .setUsername(DEFAULT_USERNAME)
+        .build()));
     assertEquals(3, jobs.size());
 
     // user filtering
-    jobs = ImmutableList.copyOf(jobsService.getAllJobs("st=ge=0", "st", SortOrder.ASCENDING, 0, Integer.MAX_VALUE, "A"));
+    jobs = ImmutableList.copyOf(jobsService.searchJobs(SearchJobsRequest.newBuilder()
+        .setFilterString("st=ge=0")
+        .setSortColumn("st")
+        .setResultOrder(SearchJobsRequest.ResultOrder.ASCENDING)
+        .setOffset(0)
+        .setLimit(Integer.MAX_VALUE)
+        .setUsername("A").build()));
     assertEquals(14, jobs.size());
-  }
-
-  private List<Job> getAllJobs(String filterString, String sortColumn, SortOrder sortOrder) {
-    return ImmutableList.copyOf(jobsService.getAllJobs(filterString, sortColumn, sortOrder, 0, Integer.MAX_VALUE, DEFAULT_USERNAME));
   }
 
   @Test
@@ -562,7 +735,10 @@ public class TestJobService extends BaseTestServer {
 
     //make sure that the job output directory is gone
     assertFalse(jobsService.getJobResultsStore().jobOutputDirectoryExists(job.getJobId()));
-    job = jobsService.getJob(job.getJobId());
+    GetJobRequest request = GetJobRequest.newBuilder()
+      .setJobId(job.getJobId())
+      .build();
+    job = jobsService.getJob(request);
     assertFalse(JobDetailsUI.of(job).getResultsAvailable());
 
     context.getOptionManager().setOption(OptionValue.createLong(OptionType.SYSTEM, ExecConstants.RESULTS_MAX_AGE_IN_DAYS.getOptionName(), 30));
@@ -590,7 +766,10 @@ public class TestJobService extends BaseTestServer {
     assertEquals(null, queryProfile);
 
     thrown.expect(JobNotFoundException.class);
-    jobsService.getJob(job.getJobId());
+    GetJobRequest request = GetJobRequest.newBuilder()
+      .setJobId(job.getJobId())
+      .build();
+    jobsService.getJob(request);
   }
 
   @Test
@@ -778,7 +957,7 @@ public class TestJobService extends BaseTestServer {
     while (true) {
       JobState state = job.getJobAttempt().getState();
 
-      Assert.assertTrue("expected job to success successfully", Arrays.asList(JobState.RUNNING, JobState.ENQUEUED, JobState.STARTING, JobState.COMPLETED).contains(state));
+      Assert.assertTrue("expected job to success successfully", Arrays.asList(JobState.PLANNING, JobState.RUNNING, JobState.ENQUEUED, JobState.STARTING, JobState.COMPLETED).contains(state));
       if (state == JobState.COMPLETED) {
         break;
       } else {

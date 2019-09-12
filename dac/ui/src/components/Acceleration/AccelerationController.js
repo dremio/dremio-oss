@@ -20,9 +20,6 @@ import Immutable from 'immutable';
 
 import reflectionActions from 'actions/resources/reflection';
 import { getViewState } from 'selectors/resources';
-// import * as schemas from 'schemas';
-// import ApiUtils from 'utils/apiUtils/apiUtils';
-//import { overlay } from 'uiTheme/radium/overlay';
 import { loadDataset } from 'actions/resources/dataset';
 import ViewStateWrapper from '../ViewStateWrapper';
 import AccelerationForm from './AccelerationForm';

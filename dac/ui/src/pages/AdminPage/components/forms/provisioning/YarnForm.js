@@ -21,8 +21,7 @@ import HOCON from 'hoconfig-js/lib/parser';
 
 import { applyValidators, isNumber, isRequired } from 'utils/validation';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
-import { PROVISION_MANAGERS } from 'constants/provisioningPage/provisionManagers';
-import * as PROVISION_DISTRIBUTIONS from 'constants/provisioningPage/provisionDistributions';
+import * as PROVISION_DISTRIBUTIONS from '@app/constants/provisioningPage/provisionDistributions';
 import { FormBody, ModalForm, modalFormProps } from 'components/Forms';
 import NumberFormatUtils from 'utils/numberFormatUtils';
 import YarnProperties from 'components/Forms/YarnProperties';
@@ -31,19 +30,20 @@ import { formRow, label, sectionTitle } from 'uiTheme/radium/forms';
 import { formDefault, formLabel } from 'uiTheme/radium/typography';
 import TextFieldList from 'components/Forms/TextFieldList';
 import { formatMessage } from 'utils/locale';
-import config from 'dyn-load/utils/config';
 import { inputSpacing as inputSpacingCssValue } from '@app/uiTheme/less/variables.less';
 
-const FIELDS = [
-  'id', 'clusterType', 'resourceManagerHost', 'namenodeHost', 'queue',
-  'memoryMB', 'virtualCoreCount', 'dynamicConfig.containerCount',
-  'propertyList[].name', // we map from entity.key -> field.name in mapToFormFields to match what Property input expects.
-  'propertyList[].value', 'propertyList[].type', 'tag', 'distroType', 'isSecure',
-  'spillDirectories[]'
-];
+import config from 'dyn-load/utils/config';
+import {
+  FIELDS,
+  INIT_VALUES,
+  MAPPED_FIELDS,
+  PROVISION_MANAGERS
+} from 'dyn-load/constants/provisioningPage/provisionManagers';
+import YarnFormMixin, { cacheValidators } from 'dyn-load/pages/AdminPage/components/forms/provisioning/YarnFormMixin';
 
 const DEFAULT_MEMORY = 16;
 const DEFAULT_CORES = 4;
+const DEFAULT_CLUSTER_TYPE = 'YARN';
 
 function getMinErrors(values) {
   const errors = {};
@@ -62,8 +62,8 @@ function validate(values) {
   return {
     ...getMinErrors(values),
     ...applyValidators(values, [
-      isRequired('resourceManagerHost', la('Resource Manager')),
-      isRequired('namenodeHost', YarnForm.hostNameLabel(values)),
+      isRequired(MAPPED_FIELDS.resourceManagerHost, la('Resource Manager')),
+      isRequired(MAPPED_FIELDS.namenodeHost, YarnForm.hostNameLabel(values)),
       isRequired('virtualCoreCount', la('Cores per Worker')),
       isRequired('memoryMB', la('Memory per Worker')),
       isRequired('dynamicConfig.containerCount', la('Workers')),
@@ -72,12 +72,14 @@ function validate(values) {
       isNumber('dynamicConfig.containerCount', la('Workers'))
     ]),
     ...applyValidators(values, values.spillDirectories.map((item, index) => {
-      return isRequired(`spillDirectories.${index}`, la('Spill Directory'));
-    }))
+      return isRequired(`${MAPPED_FIELDS.spillDirectories}.${index}`, la('Spill Directory'));
+    })),
+    ...cacheValidators(values)
   };
 }
 
 @Radium
+@YarnFormMixin
 export class YarnForm extends Component {
 
   static propTypes = {
@@ -91,6 +93,13 @@ export class YarnForm extends Component {
     style: PropTypes.object
   };
 
+  static getPropsAsFields = (clusterType = DEFAULT_CLUSTER_TYPE) => {
+    const cluster = PROVISION_MANAGERS.find(
+      manager => manager.clusterType === clusterType
+    );
+    return cluster ? cluster.propsAsFields : [];
+  };
+
   /**
    * Generate form fields from provision entity
    */
@@ -98,32 +107,43 @@ export class YarnForm extends Component {
     const fields = {
       ...provision.toJS()
     };
-    const cluster = PROVISION_MANAGERS.find(manager => manager.clusterType === provision.get('clusterType'));
-    const propertyList = provision.get('subPropertyList').filter((property) => {
-      return !cluster.propsAsFields.some((propAsField) => propAsField.key === property.get('key'));
-    }).map((property) => ({
-      name: property.get('key'),
-      value: property.get('value'),
-      type: property.get('type')
-    })).toJS();
+    // find sub props to fields config in PROVISION_MANAGERS for the current provision cluster type
+    const propsAsFields = YarnForm.getPropsAsFields(provision.get('clusterType'));
+    const subPropertiesNotAsFields = [];
 
-    cluster.propsAsFields.forEach((propAsField) => {
-      fields[propAsField.field] = provision.get('subPropertyList')
-        .find((property) => propAsField.key === property.get('key')).get('value');
-      if (fields.spillDirectories) {
-        try {
-          fields.spillDirectories = HOCON.parse('value:' + fields.spillDirectories).value;
-          if (!Array.isArray(fields.spillDirectories)) {
-            throw new Error('spillDirectories was not an array');
+    // values of sub props from cluster entity, loaded via API, should be assigned to different fields
+    const subPropertyList = provision.get('subPropertyList');
+
+    subPropertyList.forEach(subProperty => {
+      const subPropValue = subProperty.get('value');
+      const propsAsFieldEntry = propsAsFields.find(prop => prop.key === subProperty.get('key'));
+      // if subProperty is mapped to a field via propsAsFields
+      if (propsAsFieldEntry) {
+        const fieldName = propsAsFieldEntry.field;
+        if (propsAsFieldEntry.isArray) {
+          // use parser to vet the value; check that the value is an array; assign to configured field
+          const parsedValue = HOCON.parse(`value: ${subPropValue}`).value;
+          if (Array.isArray(parsedValue)) {
+            fields[fieldName] = parsedValue;
+          } else {
+            console.error(`${propsAsFieldEntry.field} was not an array`);
+            // someone forced an invalid HOCON array into the system! This should be impossible via the FE, but
+            // since this value is just a string for most of its life it isn't validated as it normally would.
+            // (This could happen to someone using the API directly.)
+            // For now, just reset the value to `['']` so that the user has to re-enter
+            fields[fieldName] = [''];
           }
-        } catch (error) {
-          console.error(error);
-          // someone forced an invalid HOCON array into the system! This should be impossible via the FE, but
-          // since this value is just a string for most of its life it isn't validated as it normally would.
-          // (This could happen to someone using the API directly.)
-          // For now, just reset the value to `['']` so that the user has to re-enter
-          fields.spillDirectories = [''];
+        } else {
+          // assign sub property value to the configured field
+          fields[fieldName] = subPropValue;
         }
+      } else {
+        // add sub property to propertyList (a bucket of properties with user-specified keys)
+        subPropertiesNotAsFields.push({
+          name: subProperty.get('key'),
+          value: subPropValue,
+          type: subProperty.get('type')
+        });
       }
     });
 
@@ -131,7 +151,7 @@ export class YarnForm extends Component {
       ...fields,
       // we show value in GB
       memoryMB: NumberFormatUtils.roundNumberField(fields.memoryMB / 1024),
-      propertyList
+      propertyList: subPropertiesNotAsFields
     };
   }
 
@@ -181,37 +201,36 @@ export class YarnForm extends Component {
   /**
    * Generate values used on submit from form fields
    */
-  static normalizeValues(values) {
+  normalizeValues = (values) => {
+    const { provision } = this.props;
+    const propsAsFields = YarnForm.getPropsAsFields(provision && provision.get('clusterType'));
+
     const result = Object.keys(values).reduce((fields, fieldName) => {
       const value = values[fieldName];
-      let field = {[fieldName]: value};
-      if (fieldName === 'memoryMB') {
-        field[fieldName] = value * 1024;
-      } else if (fieldName === 'resourceManagerHost') {
-        field = {key: 'yarn.resourcemanager.hostname', value};
-        fields.subPropertyList.push(field);
-        return fields;
-      } else if (fieldName === 'namenodeHost') {
-        field = {key: 'fs.defaultFS', value};
-        fields.subPropertyList.push(field);
-        return fields;
-      } else if (fieldName === 'spillDirectories') {
-        field = {key: 'paths.spilling', value: JSON.stringify(value)}; // JSON is compatible with hocon in this scenario
-        fields.subPropertyList.push(field);
+      const propsAsFieldEntry = propsAsFields.find(prop => prop.field === fieldName);
+
+      if (propsAsFieldEntry) {
+        const key = propsAsFieldEntry.key;
+        const fieldValue = (propsAsFieldEntry.isArray) ? JSON.stringify(value) : value;
+        if (fieldValue || fieldValue === 0) { // 0 can be an intentional value; if not, it should be caught by validation
+          fields.subPropertyList.push({key, value: fieldValue});
+        }
         return fields;
       }
-      return {
-        ...fields,
-        ...field
-      };
+      if (fieldName === 'memoryMB') {
+        return {...fields, [fieldName]: value * 1024};
+      }
+      return {...fields, [fieldName]: value};
+
     }, {subPropertyList: []});
 
     result.subPropertyList = values.propertyList.map(
       (property) => ({key: property.name, value: property.value, type: property.type})
     ).concat(result.subPropertyList || []);
+
     delete result.propertyList;
     return result;
-  }
+  };
 
   getDistributionOptions() {
     const { MAPR, APACHE, HDP, CDH, OTHER } = PROVISION_DISTRIBUTIONS;
@@ -233,21 +252,13 @@ export class YarnForm extends Component {
     const currentState = this.props.provision.get('currentState');
     const isRunning = currentState === 'RUNNING';
     if (!isEditMode || !isRunning) return false;
-    return Object.entries(this.props.fields).some(([key, field]) => {
-      if (key === 'dynamicConfig') return false;
-      if (key === 'propertyList') {
-        return field.some(item => item.name.dirty || item.value.dirty);
-      }
-      if (key === 'spillDirectories') {
-        return field.some(item => item.dirty);
-      }
-      return field.dirty;
-    });
+    // if anything has changed, the yarn contains will need to restart
+    return this.props.dirty;
   }
 
   submitForm = (values) => {
-    return this.props.onFormSubmit(YarnForm.normalizeValues(values), this.getIsRestartRequired());
-  }
+    return this.props.onFormSubmit(this.normalizeValues(values), this.getIsRestartRequired());
+  };
 
   render() {
     const { fields, handleSubmit, style } = this.props;
@@ -283,7 +294,17 @@ export class YarnForm extends Component {
           </div>
           <div style={styles.formRow}>
             <FieldWithError
+              labelStyle={formLabel}
               style={styles.inlineBlock}
+              label={la('Cluster Name')}
+              errorPlacement='top'
+              {...fields.nodeTag}>
+              <TextField {...fields.nodeTag}/>
+            </FieldWithError>
+          </div>
+          <div style={styles.formRow}>
+            <FieldWithError
+              style={{...styles.inlineBlock, marginRight: inputSpacingCssValue}}
               labelStyle={formLabel}
               label={la('Resource Manager')}
               errorPlacement='top'
@@ -340,7 +361,7 @@ export class YarnForm extends Component {
               errorPlacement='bottom'
               {...fields.memoryMB}>
               <span>
-                <TextField {...fields.memoryMB} style={{width: 75}}/>
+                <TextField {...fields.memoryMB} style={{width: 75, marginRight: 5}}/>
                 <span style={formDefault}>{'GB'}</span>
               </span>
             </FieldWithError>
@@ -355,6 +376,7 @@ export class YarnForm extends Component {
                 fields={fields}/>
             </FieldWithError>
           </div>
+          {this.renderCacheSection(sectionTitle, styles, formLabel, fields)}
         </FormBody>
       </ModalForm>
     );
@@ -390,7 +412,8 @@ export default connectComplexForm({
     distroType: PROVISION_DISTRIBUTIONS.APACHE,
     isSecure: false,
     memoryMB: DEFAULT_MEMORY,
-    virtualCoreCount: DEFAULT_CORES
+    virtualCoreCount: DEFAULT_CORES,
+    ...INIT_VALUES
   }
 }, [], mapToFormState, null)(YarnForm);
 
@@ -401,6 +424,7 @@ const styles = {
     display: 'flex'
   },
   inlineBlock: {
-    display: 'inline-block'
+    display: 'inline-block',
+    paddingRight: 5
   }
 };

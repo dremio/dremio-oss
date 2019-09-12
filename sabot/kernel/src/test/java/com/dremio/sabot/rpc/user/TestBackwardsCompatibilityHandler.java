@@ -24,7 +24,6 @@ import static org.junit.Assert.assertEquals;
 import java.math.BigDecimal;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DecimalHelper;
 import org.apache.arrow.vector.DecimalVector;
@@ -32,10 +31,13 @@ import org.apache.arrow.vector.NullableDecimalVectorHelper;
 import org.apache.arrow.vector.UInt1Vector;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
@@ -43,13 +45,16 @@ import io.netty.buffer.ByteBuf;
 /**
  * Test valid behavior of backward compatibility.
  */
-public class TestBackwardsCompatibilityHandler {
+public class TestBackwardsCompatibilityHandler extends DremioTest {
+
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   private BufferAllocator allocator;
 
   @Before
   public void before() {
-    this.allocator = new RootAllocator(Integer.MAX_VALUE);
+    this.allocator = allocatorRule.newAllocator("test-backwards-compatibility-handler", 0, Long.MAX_VALUE);
   }
 
   @After
@@ -129,9 +134,7 @@ public class TestBackwardsCompatibilityHandler {
 
   @Test
   public void testConvertBitsToBytes() {
-    try (
-        BufferAllocator allocator = new RootAllocator(Integer.MAX_VALUE);
-        BitVector bits = new BitVector("$bits$", allocator);
+    try (BitVector bits = new BitVector("$bits$", allocator);
         UInt1Vector bytes = new UInt1Vector("$bits$", allocator);
     ) {
 
@@ -157,82 +160,80 @@ public class TestBackwardsCompatibilityHandler {
 
   @Test
   public void testPatchDecimal() {
-    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
-      DecimalVector decimalVector = new DecimalVector("decimal", allocator, 38, 9);
-      decimalVector.allocateNew(8);
+    DecimalVector decimalVector = new DecimalVector("decimal", allocator, 38, 9);
+    decimalVector.allocateNew(8);
 
-      BigDecimal decimal1 = new BigDecimal("123456789.000000000");
-      BigDecimal decimal2 = new BigDecimal("11.123456789");
-      BigDecimal decimal3 = new BigDecimal("1.000000000");
-      BigDecimal decimal4 = new BigDecimal("0.111111111");
-      BigDecimal decimal5 = new BigDecimal("-987654321.123456789");
-      BigDecimal decimal6 = new BigDecimal("-222222222222.222222222");
-      BigDecimal decimal7 = new BigDecimal("-7777777777777.666666667");
-      BigDecimal decimal8 = new BigDecimal("1212121212.343434343");
+    BigDecimal decimal1 = new BigDecimal("123456789.000000000");
+    BigDecimal decimal2 = new BigDecimal("11.123456789");
+    BigDecimal decimal3 = new BigDecimal("1.000000000");
+    BigDecimal decimal4 = new BigDecimal("0.111111111");
+    BigDecimal decimal5 = new BigDecimal("-987654321.123456789");
+    BigDecimal decimal6 = new BigDecimal("-222222222222.222222222");
+    BigDecimal decimal7 = new BigDecimal("-7777777777777.666666667");
+    BigDecimal decimal8 = new BigDecimal("1212121212.343434343");
 
-      decimalVector.set(0, decimal1);
-      decimalVector.set(1, decimal2);
-      decimalVector.set(2, decimal3);
-      decimalVector.set(3, decimal4);
-      decimalVector.set(4, decimal5);
-      decimalVector.set(5, decimal6);
-      decimalVector.set(6, decimal7);
-      decimalVector.set(7, decimal8);
+    decimalVector.set(0, decimal1);
+    decimalVector.set(1, decimal2);
+    decimalVector.set(2, decimal3);
+    decimalVector.set(3, decimal4);
+    decimalVector.set(4, decimal5);
+    decimalVector.set(5, decimal6);
+    decimalVector.set(6, decimal7);
+    decimalVector.set(7, decimal8);
 
-      decimalVector.setValueCount(8);
+    decimalVector.setValueCount(8);
 
-      assertEquals(8, decimalVector.getValueCount());
-      assertEquals(decimal1, decimalVector.getObject(0));
-      assertEquals(decimal2, decimalVector.getObject(1));
-      assertEquals(decimal3, decimalVector.getObject(2));
-      assertEquals(decimal4, decimalVector.getObject(3));
-      assertEquals(decimal5, decimalVector.getObject(4));
-      assertEquals(decimal6, decimalVector.getObject(5));
-      assertEquals(decimal7, decimalVector.getObject(6));
-      assertEquals(decimal8, decimalVector.getObject(7));
+    assertEquals(8, decimalVector.getValueCount());
+    assertEquals(decimal1, decimalVector.getObject(0));
+    assertEquals(decimal2, decimalVector.getObject(1));
+    assertEquals(decimal3, decimalVector.getObject(2));
+    assertEquals(decimal4, decimalVector.getObject(3));
+    assertEquals(decimal5, decimalVector.getObject(4));
+    assertEquals(decimal6, decimalVector.getObject(5));
+    assertEquals(decimal7, decimalVector.getObject(6));
+    assertEquals(decimal8, decimalVector.getObject(7));
 
-      NullableDecimalVectorHelper vectorHelper = new NullableDecimalVectorHelper(decimalVector);
-      SerializedField.Builder decimalField = vectorHelper.getMetadataBuilder();
-      SerializedField.Builder childDecimalField = decimalField.getChildBuilderList().get(1);
-      ByteBuf newBuffer = patchDecimal(allocator, decimalVector.getDataBuffer().asNettyBuffer(), decimalField,
-        childDecimalField);
+    NullableDecimalVectorHelper vectorHelper = new NullableDecimalVectorHelper(decimalVector);
+    SerializedField.Builder decimalField = vectorHelper.getMetadataBuilder();
+    SerializedField.Builder childDecimalField = decimalField.getChildBuilderList().get(1);
+    ByteBuf newBuffer = patchDecimal(allocator, decimalVector.getDataBuffer().asNettyBuffer(), decimalField,
+      childDecimalField);
 
-      int startIndex = 0;
-      BigDecimal bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
-      assertEquals(bd, decimal1);
-      startIndex += DecimalVector.TYPE_WIDTH + 8;
+    int startIndex = 0;
+    BigDecimal bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
+    assertEquals(bd, decimal1);
+    startIndex += DecimalVector.TYPE_WIDTH + 8;
 
-      bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
-      assertEquals(bd, decimal2);
-      startIndex += DecimalVector.TYPE_WIDTH + 8;
+    bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
+    assertEquals(bd, decimal2);
+    startIndex += DecimalVector.TYPE_WIDTH + 8;
 
-      bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
-      assertEquals(bd, decimal3);
-      startIndex += DecimalVector.TYPE_WIDTH + 8;
+    bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
+    assertEquals(bd, decimal3);
+    startIndex += DecimalVector.TYPE_WIDTH + 8;
 
-      bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
-      assertEquals(bd, decimal4);
-      startIndex += DecimalVector.TYPE_WIDTH + 8;
+    bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
+    assertEquals(bd, decimal4);
+    startIndex += DecimalVector.TYPE_WIDTH + 8;
 
-      bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
-      assertEquals(bd, decimal5);
-      startIndex += DecimalVector.TYPE_WIDTH + 8;
+    bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
+    assertEquals(bd, decimal5);
+    startIndex += DecimalVector.TYPE_WIDTH + 8;
 
-      bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
-      assertEquals(bd, decimal6);
-      startIndex += DecimalVector.TYPE_WIDTH + 8;
+    bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
+    assertEquals(bd, decimal6);
+    startIndex += DecimalVector.TYPE_WIDTH + 8;
 
-      bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
-      assertEquals(bd, decimal7);
-      startIndex += DecimalVector.TYPE_WIDTH + 8;
+    bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
+    assertEquals(bd, decimal7);
+    startIndex += DecimalVector.TYPE_WIDTH + 8;
 
-      bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
-      assertEquals(bd, decimal8);
+    bd = DecimalHelper.getBigDecimalFromSparse(newBuffer, startIndex, DrillBackwardsCompatibilityHandler.NUMBER_DECIMAL_DIGITS, decimalVector.getScale());
+    assertEquals(bd, decimal8);
 
-      final ArrowBuf validityBuffer = decimalVector.getValidityBuffer();
-      validityBuffer.release();
-      newBuffer.release();
-    }
+    final ArrowBuf validityBuffer = decimalVector.getValidityBuffer();
+    validityBuffer.release();
+    newBuffer.release();
   }
 
   @Test
@@ -240,7 +241,6 @@ public class TestBackwardsCompatibilityHandler {
     int originalTypeByteWidth = 8;
     int targetTypeByteWidth = 12;
     try (
-        BufferAllocator allocator = new RootAllocator(Integer.MAX_VALUE);
         UInt1Vector bytes = new UInt1Vector("$bits$", allocator);
     ) {
 

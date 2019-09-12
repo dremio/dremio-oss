@@ -19,13 +19,15 @@ import { testWithHooks } from 'testUtil';
 import Immutable from 'immutable';
 
 import { updateHistoryWithJobState } from 'actions/explore/history';
+import { updateExploreJobProgress } from 'actions/explore/dataset/data';
 import { LOGOUT_USER_SUCCESS } from '@app/actions/account';
 import { getTableDataRaw } from '@app/selectors/explore';
 
 import {
   waitForRunToComplete,
   handleResumeRunDataset,
-  DataLoadError
+  DataLoadError,
+  explorePageChanged
 } from './runDataset';
 
 describe('runDataset saga', () => {
@@ -54,12 +56,15 @@ describe('runDataset saga', () => {
       next = gen.next();
       expect(next.value).to.eql(select(getTableDataRaw, datasetVersion));
       next = gen.next(Immutable.fromJS({ rows: null }));
-      expect(next.value).to.eql(call(
-        waitForRunToComplete,
-        datasetVersion,
-        paginationUrl,
-        jobId
-      ));
+      expect(next.value).to.eql(race({
+        jobDone: call(
+          waitForRunToComplete,
+          datasetVersion,
+          paginationUrl,
+          jobId
+        ),
+        locationChange: call(explorePageChanged)
+      }));
       next = gen.next();
     });
 
@@ -69,12 +74,15 @@ describe('runDataset saga', () => {
       next = gen.next();
       expect(next.value).to.eql(select(getTableDataRaw, datasetVersion));
       next = gen.next(Immutable.fromJS({ rows: [] }));
-      expect(next.value).to.eql(call(
-        waitForRunToComplete,
-        datasetVersion,
-        paginationUrl,
-        jobId
-      ));
+      expect(next.value).to.eql(race({
+        jobDone: call(
+          waitForRunToComplete,
+          datasetVersion,
+          paginationUrl,
+          jobId
+        ),
+        locationChange: call(explorePageChanged)
+      }));
       next = gen.next();
     });
 
@@ -108,6 +116,7 @@ describe('runDataset saga', () => {
       expect(next.value.PUT).to.not.be.undefined; // loadNextRows
       gen.next();
     };
+
     const checkFinallyBlock = (response) => {
       // remove job listener
       next = gen.next(response);
@@ -115,12 +124,14 @@ describe('runDataset saga', () => {
       next = gen.next();
       expect(next.done).to.be.true;
     };
+
     it('should succeed', () => {
       goToResponse();
       // change history item status to completed
-      const resultViewState = { someProp: 'someProp' };
-      next = gen.next(resultViewState);
+      next = gen.next({ someProp: 'someProp' });
       expect(next.value).to.eql(put(updateHistoryWithJobState(dataset, true)));
+      next = gen.next();
+      expect(next.value).to.eql(put(updateExploreJobProgress({state: true})));
       checkFinallyBlock();
     });
 

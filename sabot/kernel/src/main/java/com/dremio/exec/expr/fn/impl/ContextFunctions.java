@@ -43,7 +43,7 @@ public class ContextFunctions {
 
     @Override
     public void setup() {
-      final byte[] queryUserNameBytes = contextInfo.getQueryUser().getBytes();
+      final byte[] queryUserNameBytes = contextInfo.getQueryUser().getBytes(java.nio.charset.StandardCharsets.UTF_8);
       buffer = buffer.reallocIfNeeded(queryUserNameBytes.length);
       queryUserBytesLength = queryUserNameBytes.length;
       buffer.setBytes(0, queryUserNameBytes);
@@ -73,7 +73,7 @@ public class ContextFunctions {
 
     @Override
     public void setup() {
-      final byte[] queryUserNameBytes = contextInfo.getQueryUser().getBytes();
+      final byte[] queryUserNameBytes = contextInfo.getQueryUser().getBytes(java.nio.charset.StandardCharsets.UTF_8);
       buffer = buffer.reallocIfNeeded(queryUserNameBytes.length);
       queryUserBytesLength = queryUserNameBytes.length;
       buffer.setBytes(0, queryUserNameBytes);
@@ -100,7 +100,9 @@ public class ContextFunctions {
 
     @Override
     public void setup() {
-      final byte[] currentSchemaBytes = contextInfo.getCurrentDefaultSchema().getBytes();
+      final byte[] currentSchemaBytes = contextInfo
+        .getCurrentDefaultSchema()
+        .getBytes(java.nio.charset.StandardCharsets.UTF_8);
       buffer = buffer.reallocIfNeeded(currentSchemaBytes.length);
       currentSchemaBytesLength= currentSchemaBytes.length;
       buffer.setBytes(0, currentSchemaBytes);
@@ -113,5 +115,38 @@ public class ContextFunctions {
       out.end = currentSchemaBytesLength;
       out.buffer = buffer;
     }
+  }
+
+  /**
+   * Implement "last_query_id" function. Returns the last query id for the user.
+   */
+  @FunctionTemplate(name = "last_query_id", scope = FunctionTemplate.FunctionScope.SIMPLE, syntax = FunctionSyntax.FUNCTION_ID, isDynamic = true)
+  public static class LastQueryId implements SimpleFunction {
+    @Output NullableVarCharHolder out;
+    @Inject ContextInformation contextInfo;
+    @Inject ArrowBuf buffer;
+    @Workspace int lastQueryIdLen = 0;
+
+    @Override
+    public void setup() {
+      final com.dremio.exec.proto.UserBitShared.QueryId lastQueryId = contextInfo.getLastQueryId();
+      if (lastQueryId != null) {
+        final String queryID = com.dremio.common.utils.protos.QueryIdHelper.getQueryId(contextInfo.getLastQueryId());
+        lastQueryIdLen = queryID.length();
+        buffer = buffer.reallocIfNeeded(lastQueryIdLen);
+        buffer.setBytes(0, queryID.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      }
+    }
+
+    @Override
+    public void eval() {
+      if (lastQueryIdLen > 0) {
+        out.isSet = 1;
+        out.start = 0;
+        out.end = lastQueryIdLen;
+        out.buffer = buffer;
+      }
+    }
+
   }
 }

@@ -21,17 +21,19 @@ import java.util.List;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.AbstractRecordReader;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.easy.json.JsonProcessor.ReadState;
 import com.dremio.exec.store.easy.json.reader.CountingJsonReader;
 import com.dremio.exec.vector.complex.fn.JsonReader;
+import com.dremio.io.CompressionCodecFactory;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.FileSystemUtils;
+import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -48,10 +50,11 @@ public class JSONRecordReader extends AbstractRecordReader {
   private final boolean readNumbersAsDouble;
 
   // Data we're consuming
-  private final Path hadoopPath;
+  private final Path fsPath;
   private final JsonNode embeddedContent;
 
-  private final FileSystemWrapper fileSystem;
+  private final CompressionCodecFactory codecFactory;
+  private final FileSystem fileSystem;
 
   private VectorContainerWriter writer;
   private JsonProcessor jsonReader;
@@ -64,6 +67,7 @@ public class JSONRecordReader extends AbstractRecordReader {
    * Create a JSON Record Reader that uses a file based input stream.
    * @param context
    * @param inputPath
+   * @param codecFactory
    * @param fileSystem
    * @param columns  pathnames of columns/subfields to read
    * @throws OutOfMemoryException
@@ -71,28 +75,32 @@ public class JSONRecordReader extends AbstractRecordReader {
   public JSONRecordReader(
       final OperatorContext context,
       final String inputPath,
-      final FileSystemWrapper fileSystem,
+      final CompressionCodecFactory codecFactory,
+      final FileSystem fileSystem,
       final List<SchemaPath> columns) throws OutOfMemoryException {
-    this(context, inputPath, null, fileSystem, columns);
+    this(context, inputPath, null, codecFactory, fileSystem, columns);
   }
 
   /**
    * Create a new JSON Record Reader that uses a in memory materialized JSON stream.
    * @param context
    * @param embeddedContent
+   * @param codecFactory
    * @param fileSystem
    * @param columns  pathnames of columns/subfields to read
    * @throws OutOfMemoryException
    */
   public JSONRecordReader(final OperatorContext context, final JsonNode embeddedContent,
-      final FileSystemWrapper fileSystem, final List<SchemaPath> columns) throws OutOfMemoryException {
-    this(context, null, embeddedContent, fileSystem, columns);
+      final CompressionCodecFactory codecFactory, final FileSystem fileSystem, final List<SchemaPath> columns)
+      throws OutOfMemoryException {
+    this(context, null, embeddedContent, codecFactory, fileSystem, columns);
   }
 
   private JSONRecordReader(final OperatorContext operatorContext,
                            final String inputPath,
                            final JsonNode embeddedContent,
-                           final FileSystemWrapper fileSystem,
+                           final CompressionCodecFactory codecFactory,
+                           final FileSystem fileSystem,
                            final List<SchemaPath> columns) {
     super(operatorContext, columns);
 
@@ -103,13 +111,14 @@ public class JSONRecordReader extends AbstractRecordReader {
         );
 
     if(inputPath != null) {
-      this.hadoopPath = new Path(inputPath);
+      this.fsPath = Path.of(inputPath);
       this.embeddedContent = null;
     } else {
       this.embeddedContent = embeddedContent;
-      this.hadoopPath = null;
+      this.fsPath = null;
     }
 
+    this.codecFactory = codecFactory;
     this.fileSystem = fileSystem;
     this.context = operatorContext;
 
@@ -122,7 +131,7 @@ public class JSONRecordReader extends AbstractRecordReader {
   @Override
   public String toString() {
     return super.toString()
-        + "[hadoopPath = " + hadoopPath
+        + "[hadoopPath = " + fsPath
         + ", recordCount = " + recordCount
         + ", runningRecordCount = " + runningRecordCount + ", ...]";
   }
@@ -130,8 +139,8 @@ public class JSONRecordReader extends AbstractRecordReader {
   @Override
   public void setup(final OutputMutator output) throws ExecutionSetupException {
     try{
-      if (hadoopPath != null) {
-        this.stream = fileSystem.openPossiblyCompressedStream(hadoopPath);
+      if (fsPath != null) {
+        this.stream = FileSystemUtils.openPossiblyCompressedStream(codecFactory, fileSystem, fsPath);
       }
 
       this.writer = new VectorContainerWriter(output);
@@ -150,7 +159,7 @@ public class JSONRecordReader extends AbstractRecordReader {
   }
 
   private void setupParser() throws IOException {
-    if(hadoopPath != null){
+    if(fsPath != null){
       jsonReader.setSource(stream);
     }else{
       jsonReader.setSource(embeddedContent);
@@ -174,9 +183,9 @@ public class JSONRecordReader extends AbstractRecordReader {
       exceptionBuilder.pushContext("Column ", columnNr);
     }
 
-    if (hadoopPath != null) {
+    if (fsPath != null) {
       exceptionBuilder.pushContext("Record ", currentRecordNumberInFile())
-          .pushContext("File ", hadoopPath.toUri().getPath());
+          .pushContext("File ", fsPath.toURI().getPath());
     }
 
     throw exceptionBuilder.build(logger);
@@ -241,6 +250,7 @@ public class JSONRecordReader extends AbstractRecordReader {
     }
   }
 
+  @Override
   public boolean supportsSkipAllQuery(){
     return true;
   }

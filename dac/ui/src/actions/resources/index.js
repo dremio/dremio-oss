@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 import { RSAA } from 'redux-api-middleware';
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 
 import {makeUncachebleURL} from 'ie11.js';
 
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import * as schemas from 'schemas';
-import { datasetTypeToEntityType } from 'constants/datasetTypes';
+import { datasetTypeToEntityType } from '@app/constants/datasetTypes';
 
 export const LOAD_ENTITIES_STARTED = 'LOAD_ENTITIES_STARTED';
 export const LOAD_ENTITIES_SUCCESS = 'LOAD_ENTITIES_SUCCESS';

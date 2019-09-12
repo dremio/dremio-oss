@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.provision</groupId>
     <artifactId>dremio-yarn-parent</artifactId>
-    <version>3.3.2-201908142136370993-d60145d</version>
+    <version>4.0.0-201909121834570395-c7a5071</version>
   </parent>
 
   <groupId>com.dremio.provision</groupId>

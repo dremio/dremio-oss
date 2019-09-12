@@ -26,7 +26,6 @@ import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.curator.utils.CloseableExecutorService;
 
-import com.codahale.metrics.Gauge;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.utils.protos.QueryIdHelper;
@@ -314,18 +313,8 @@ public class FragmentWorkManager implements Service, SafeExit {
     }
 
     final String prefix = "rpc";
-    Metrics.registerGauge(prefix + "bit.data.current", new Gauge<Long>() {
-      @Override
-      public Long getValue() {
-        return allocator.getAllocatedMemory();
-      }
-    });
-    Metrics.registerGauge(prefix + "bit.data.peak", new Gauge<Long>() {
-      @Override
-      public Long getValue() {
-        return allocator.getPeakMemoryAllocation();
-      }
-    });
+    Metrics.newGauge(prefix + "bit.data.current", allocator::getAllocatedMemory);
+    Metrics.newGauge(prefix + "bit.data.peak", allocator::getPeakMemoryAllocation);
   }
 
   public class ExecConnectionCreator {

@@ -169,8 +169,8 @@ public class StAXBasedParser implements ExcelParser {
    */
   private void init(final boolean extractHeader, final boolean hasMergedCells) throws XMLStreamException, IOException {
     if (hasMergedCells) {
-      xmlStreamReader = ExcelUtil.XML_INPUT_FACTORY.createXMLStreamReader(sheetInputStream);
       sheetInputStream.mark(-1);
+      xmlStreamReader = ExcelUtil.XML_INPUT_FACTORY.createXMLStreamReader(sheetInputStream);
       parseMergedCellInfo();
       sheetInputStream.reset();
       xmlStreamReader.close();

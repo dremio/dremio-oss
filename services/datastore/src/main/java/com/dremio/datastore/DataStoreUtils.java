@@ -15,12 +15,7 @@
  */
 package com.dremio.datastore;
 
-import static java.lang.String.format;
-
-import java.io.IOException;
 import java.lang.reflect.Constructor;
-
-import org.apache.hadoop.fs.GlobFilter;
 
 import com.google.common.base.Preconditions;
 
@@ -46,14 +41,6 @@ public final class DataStoreUtils {
     storeBuilderConfig.setDocumentConverterClassName(kvStoreMetadata.getDocumentConverterClassName());
     storeBuilderConfig.setVersionExtractorClassName(kvStoreMetadata.getVersionExtractorClassName());
     return storeBuilderConfig;
-  }
-
-  public static GlobFilter getGlobFilter(String suffix) {
-    try {
-      return new GlobFilter(format("*%s", suffix));
-    } catch (IOException ioe) {
-      throw new RuntimeException(ioe);
-    }
   }
 
   /**

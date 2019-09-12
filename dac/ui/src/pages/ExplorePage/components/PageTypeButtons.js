@@ -97,7 +97,7 @@ class ButtonController extends PureComponent {
       icon={icon}
       onClick={this.setPageType}
       dataQa={dataQa}
-      />;
+    />;
   }
 }
 
@@ -172,7 +172,7 @@ export class PageTypeButtonsView extends PureComponent {
           text={formatMessage(intlId)}
           pageType={pageType}
           {...rest}
-          />;
+        />;
       })}
     </span>;
   }

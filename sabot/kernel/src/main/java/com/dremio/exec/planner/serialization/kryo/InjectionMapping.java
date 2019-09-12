@@ -26,7 +26,7 @@ public class InjectionMapping {
 
   protected InjectionMapping() { }
 
-  protected Optional<Injection> findInjection(final Class klazz) {
+  public Optional<Injection> findInjection(final Class klazz) {
     Class current = klazz;
     while (current != null) {
       final Injection injection = mapping.get(current);

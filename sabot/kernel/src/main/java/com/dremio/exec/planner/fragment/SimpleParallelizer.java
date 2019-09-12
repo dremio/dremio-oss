@@ -54,10 +54,12 @@ import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
+import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
 import com.dremio.sabot.op.sort.external.ExternalSortOperator;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Pointer;
+import com.dremio.service.execselector.ExecutorSelectionContext;
 import com.dremio.service.execselector.ExecutorSelectionHandle;
 import com.dremio.service.execselector.ExecutorSelectionHandleImpl;
 import com.dremio.service.execselector.ExecutorSelectionService;
@@ -91,11 +93,20 @@ public class SimpleParallelizer implements ParallelizationParameters {
   private final ExecutionNodeMap executionMap;
   private final FragmentCodec fragmentCodec;
   private final QueryContext queryContext;
+  private final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo;
   private ExecutorSelectionService executorSelectionService;  // NB: re-assigned in unit tests, hence not final
   private final int targetNumFragsPerNode;
 
   public SimpleParallelizer(QueryContext context, AttemptObserver observer, ExecutorSelectionService executorSelectionService) {
+    this(context, observer, executorSelectionService, null);
+  }
+
+  public SimpleParallelizer(QueryContext context,
+                            AttemptObserver observer,
+                            ExecutorSelectionService executorSelectionService,
+                            ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
     this.queryContext = context;
+    this.resourceSchedulingDecisionInfo = resourceSchedulingDecisionInfo;
     OptionManager optionManager = context.getOptions();
     long sliceTarget = context.getPlannerSettings().getSliceTarget();
     this.parallelizationThreshold = sliceTarget > 0 ? sliceTarget : 1;
@@ -140,6 +151,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
     this.fragmentCodec = FragmentCodec.NONE;
     this.queryContext = null;
     this.targetNumFragsPerNode = 1;
+    this.resourceSchedulingDecisionInfo = null;
   }
 
   @Override
@@ -272,7 +284,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
     final Stopwatch stopwatch = Stopwatch.createStarted();
     final ExecutorSelectionHandle handle = hasHardAffinity.value
         ? new ExecutorSelectionHandleImpl(queryContext.getActiveEndpoints())
-        : executorSelectionService.getExecutors(idealNumNodes);
+        : executorSelectionService.getExecutors(idealNumNodes, new ExecutorSelectionContext(resourceSchedulingDecisionInfo));
     final ExecutionPlanningResources executionPlanningResources = new ExecutionPlanningResources(planningSet, handle);
     final Collection<NodeEndpoint> selectedEndpoints = handle.getExecutors();
     stopwatch.stop();

@@ -21,7 +21,7 @@ import PureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router';
 
-import { MAP, TEXT, LIST } from 'constants/DataTypes';
+import { MAP, TEXT, LIST } from '@app/constants/DataTypes';
 
 import exploreUtils from 'utils/explore/exploreUtils';
 import FontIcon from 'components/Icon/FontIcon';

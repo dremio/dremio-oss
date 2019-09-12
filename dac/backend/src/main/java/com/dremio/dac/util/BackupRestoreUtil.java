@@ -22,30 +22,28 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.URI;
+import java.nio.file.AccessMode;
+import java.nio.file.DirectoryStream;
+import java.nio.file.attribute.PosixFilePermission;
+import java.security.AccessControlException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
 import java.util.zip.CRC32;
 import java.util.zip.CheckedInputStream;
 import java.util.zip.CheckedOutputStream;
 
 import javax.ws.rs.core.UriBuilder;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.FileUtil;
-import org.apache.hadoop.fs.GlobFilter;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsAction;
-import org.apache.hadoop.fs.permission.FsPermission;
-import org.apache.hadoop.io.IOUtils;
-import org.apache.hadoop.security.AccessControlException;
+import org.apache.commons.io.IOUtils;
 
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.utils.ProtostuffUtil;
@@ -60,6 +58,11 @@ import com.dremio.datastore.KVStoreTuple;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.StoreBuilderConfig;
 import com.dremio.exec.store.dfs.PseudoDistributedFileSystem;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.FileSystemUtils;
+import com.dremio.io.file.Path;
+import com.dremio.io.file.PathFilters;
 import com.dremio.service.namespace.NamespaceException;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -67,20 +70,25 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 /**
  * Backup Service running only on master.
  */
 public final class BackupRestoreUtil {
-  private static final FsPermission DEFAULT_PERMISSIONS = new FsPermission(FsAction.ALL, FsAction.READ, FsAction.EXECUTE);
+  private static final Set<PosixFilePermission> DEFAULT_PERMISSIONS = Sets.immutableEnumSet(
+      PosixFilePermission.OWNER_READ,
+      PosixFilePermission.OWNER_WRITE,
+      PosixFilePermission.OWNER_EXECUTE
+      );
 
   private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd_HH.mm");
   private static final String BACKUP_DIR_PREFIX = "dremio_backup_";
   private static final String BACKUP_FILE_SUFFIX = "_backup.json";
   private static final String BACKUP_INFO_FILE_SUFFIX = "_info.json";
 
-  private static final GlobFilter BACKUP_FILES_GLOB = DataStoreUtils.getGlobFilter(BACKUP_FILE_SUFFIX);
-  private static final GlobFilter BACKUP_INFO_FILES_GLOB = DataStoreUtils.getGlobFilter(BACKUP_INFO_FILE_SUFFIX);
+  private static final Predicate<Path> BACKUP_FILES_FILTER = PathFilters.endsWith(BACKUP_FILE_SUFFIX);
+  private static final Predicate<Path> BACKUP_INFO_FILES_FILTER = PathFilters.endsWith(BACKUP_INFO_FILE_SUFFIX);
 
   private static String getTableName(String fileName, String suffix) {
     return fileName.substring(0, fileName.length() - suffix.length());
@@ -108,9 +116,9 @@ public final class BackupRestoreUtil {
   }
 
   private static <K, V> void dumpTable(FileSystem fs, Path backupRootDir, BackupFileInfo backupFileInfo, CoreKVStore<K, V> coreKVStore) throws IOException {
-    final Path backupFile = new Path(backupRootDir, format("%s%s", backupFileInfo.getKvstoreInfo().getTablename(), BACKUP_FILE_SUFFIX));
+    final Path backupFile = backupRootDir.resolve(format("%s%s", backupFileInfo.getKvstoreInfo().getTablename(), BACKUP_FILE_SUFFIX));
     final ObjectMapper objectMapper = new ObjectMapper();
-    final FSDataOutputStream fsout = fs.create(backupFile, true);
+    final OutputStream fsout = fs.create(backupFile, true);
     final CheckedOutputStream checkedOutputStream = new CheckedOutputStream(fsout, new CRC32());
     final BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(checkedOutputStream));
     final Iterator<Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>>> iterator = coreKVStore.find().iterator();
@@ -136,8 +144,8 @@ public final class BackupRestoreUtil {
     // write info file after backup file was successfully created and closed.
     backupFileInfo.setChecksum(checkedOutputStream.getChecksum().getValue());
     backupFileInfo.setRecords(records);
-    final Path backupInfoFile = new Path(backupRootDir, format("%s%s", backupFileInfo.getKvstoreInfo().getTablename(), BACKUP_INFO_FILE_SUFFIX));
-    try (FSDataOutputStream backupInfoOut = fs.create(backupInfoFile, true)) {
+    final Path backupInfoFile = backupRootDir.resolve(format("%s%s", backupFileInfo.getKvstoreInfo().getTablename(), BACKUP_INFO_FILE_SUFFIX));
+    try (OutputStream backupInfoOut = fs.create(backupInfoFile, true)) {
       ProtostuffUtil.toJSON(backupInfoOut, backupFileInfo, BackupFileInfo.getSchema(), false);
     }
   }
@@ -188,28 +196,30 @@ public final class BackupRestoreUtil {
 
   private static Map<String, BackupFileInfo> scanInfoFiles(FileSystem fs, Path backupDir) throws IOException {
     final Map<String, BackupFileInfo> tableToInfo = Maps.newHashMap();
-    final FileStatus[] backupFiles = fs.listStatus(backupDir, BACKUP_INFO_FILES_GLOB);
-    for (FileStatus backupFile : backupFiles) {
-      final String tableName = getTableName(backupFile.getPath().getName(), BACKUP_INFO_FILE_SUFFIX);
-      // read backup info file
-      final byte[] headerBytes = new byte[(int) backupFile.getLen()];
-      IOUtils.readFully(fs.open(backupFile.getPath()), headerBytes, 0, headerBytes.length);
-      final BackupFileInfo backupFileInfo = new BackupFileInfo();
-      ProtostuffUtil.fromJSON(headerBytes, backupFileInfo, BackupFileInfo.getSchema(), false);
-      tableToInfo.put(tableName, backupFileInfo);
+    try (final DirectoryStream<FileAttributes> backupFiles = fs.list(backupDir, BACKUP_INFO_FILES_FILTER)) {
+      for (FileAttributes backupFile : backupFiles) {
+        final String tableName = getTableName(backupFile.getPath().getName(), BACKUP_INFO_FILE_SUFFIX);
+        // read backup info file
+        final byte[] headerBytes = new byte[(int) backupFile.size()];
+        IOUtils.readFully(fs.open(backupFile.getPath()), headerBytes, 0, headerBytes.length);
+        final BackupFileInfo backupFileInfo = new BackupFileInfo();
+        ProtostuffUtil.fromJSON(headerBytes, backupFileInfo, BackupFileInfo.getSchema(), false);
+        tableToInfo.put(tableName, backupFileInfo);
+      }
     }
     return tableToInfo;
   }
 
   private static Map<String, Path> scanBackupFiles(FileSystem fs, Path backupDir, Map<String, BackupFileInfo> tableToInfo) throws IOException {
-    final FileStatus[] backupDataFiles = fs.listStatus(backupDir, BACKUP_FILES_GLOB);
     final Map<String, Path> tableToBackupData = Maps.newHashMap();
-    for (FileStatus backupDataFile : backupDataFiles) {
-      final String tableName = getTableName(backupDataFile.getPath().getName(), BACKUP_FILE_SUFFIX);
-      if (tableToInfo.containsKey(tableName)) {
-        tableToBackupData.put(tableName, backupDataFile.getPath());
-      } else {
-        throw new IOException("Missing metadata file for table " + tableName);
+    try (final DirectoryStream<FileAttributes> backupDataFiles = fs.list(backupDir, BACKUP_FILES_FILTER)) {
+      for (FileAttributes backupDataFile : backupDataFiles) {
+        final String tableName = getTableName(backupDataFile.getPath().getName(), BACKUP_FILE_SUFFIX);
+        if (tableToInfo.containsKey(tableName)) {
+          tableToBackupData.put(tableName, backupDataFile.getPath());
+        } else {
+          throw new IOException("Missing metadata file for table " + tableName);
+        }
       }
     }
     // make sure we found backup files for all metadata files
@@ -238,28 +248,27 @@ public final class BackupRestoreUtil {
                                          Path backupDir,
                                          HomeFileConf homeFileStore,
                                          BackupStats backupStats) throws IOException, NamespaceException {
-    final Path uploadsBackupDir = new Path(backupDir.toUri().getPath(), "uploads");
+    final Path uploadsBackupDir = Path.withoutSchemeAndAuthority(backupDir).resolve("uploads");
     fs.mkdirs(uploadsBackupDir);
     final Path uploadsDir = homeFileStore.getInnerUploads();
-    copyFiles(homeFileStore.getFilesystemAndCreatePaths(null), uploadsDir, fs, uploadsBackupDir, homeFileStore.isPdfsBased(), new Configuration(), backupStats);
+    copyFiles(homeFileStore.getFilesystemAndCreatePaths(null), uploadsDir, fs, uploadsBackupDir, homeFileStore.isPdfsBased(), backupStats);
   }
 
-  private static void copyFiles(FileSystem srcFs, Path srcPath, FileSystem dstFs, Path dstPath, boolean isPdfs, Configuration conf, BackupStats backupStats) throws IOException {
-    for (FileStatus fileStatus : srcFs.listStatus(srcPath)) {
-
-      if (fileStatus.isDirectory()) {
-        final Path dstDir = new Path(dstPath, fileStatus.getPath().getName());
+  private static void copyFiles(FileSystem srcFs, Path srcPath, FileSystem dstFs, Path dstPath, boolean isPdfs, BackupStats backupStats) throws IOException {
+    for (FileAttributes fileAttributes : srcFs.list(srcPath)) {
+      if (fileAttributes.isDirectory()) {
+        final Path dstDir = dstPath.resolve(fileAttributes.getPath().getName());
         dstFs.mkdirs(dstPath);
-        copyFiles(srcFs, fileStatus.getPath(), dstFs, dstDir, isPdfs, conf, backupStats);
+        copyFiles(srcFs, fileAttributes.getPath(), dstFs, dstDir, isPdfs, backupStats);
       } else {
         final Path dstFile;
         if (!isPdfs) {
-          dstFile = new Path(dstPath, fileStatus.getPath().getName());
+          dstFile = dstPath.resolve(fileAttributes.getPath().getName());
         } else {
           // strip off {host}@ from file name
-          dstFile = new Path(dstPath, PseudoDistributedFileSystem.getRemoteFileName(fileStatus.getPath().getName()));
+          dstFile = dstPath.resolve(PseudoDistributedFileSystem.getRemoteFileName(fileAttributes.getPath().getName()));
         }
-        FileUtil.copy(srcFs, fileStatus.getPath(), dstFs, dstFile, false, conf);
+        FileSystemUtils.copy(srcFs, fileAttributes.getPath(), dstFs, dstFile, false);
         backupStats.files++;
       }
     }
@@ -268,20 +277,28 @@ public final class BackupRestoreUtil {
 
   public static void restoreUploadedFiles(FileSystem fs, Path backupDir, HomeFileConf homeFileStore, BackupStats backupStats, String hostname) throws IOException {
     // restore uploaded files
-    final Path uploadsBackupDir = new Path(backupDir.toUri().getPath(), "uploads");
+    final Path uploadsBackupDir = Path.withoutSchemeAndAuthority(backupDir).resolve("uploads");
     FileSystem fs2 = homeFileStore.getFilesystemAndCreatePaths(hostname);
     fs2.delete(homeFileStore.getPath(), true);
-    FileUtil.copy(fs, uploadsBackupDir, fs2, homeFileStore.getInnerUploads(), false, false, new Configuration());
-    backupStats.files = fs.getContentSummary(backupDir).getFileCount();
+    FileSystemUtils.copy(fs, uploadsBackupDir, fs2, homeFileStore.getInnerUploads(), false, false);
+    try (final DirectoryStream<FileAttributes> directoryStream = FileSystemUtils.listRecursive(fs, backupDir, PathFilters.ALL_FILES)) {
+      int fileCount = 0;
+      for (FileAttributes attributes: directoryStream) {
+        if (attributes.isRegularFile()) {
+          fileCount++;
+        }
+      }
+      backupStats.files = fileCount;
+    }
   }
 
   public static BackupStats createBackup(FileSystem fs, Path backupRootDir, LocalKVStoreProvider localKVStoreProvider, HomeFileConf homeFileStore) throws IOException, NamespaceException {
     final Date now = new Date();
     final BackupStats backupStats = new BackupStats();
 
-    final Path backupDir = new Path(backupRootDir, format("%s%s", BACKUP_DIR_PREFIX, DATE_FORMAT.format(now)));
+    final Path backupDir = backupRootDir.resolve(format("%s%s", BACKUP_DIR_PREFIX, DATE_FORMAT.format(now)));
     fs.mkdirs(backupDir, DEFAULT_PERMISSIONS);
-    backupStats.backupPath = backupDir.toUri().getPath();
+    backupStats.backupPath = backupDir.toURI().getPath();
 
     for (Map.Entry<StoreBuilderConfig, CoreKVStore<?, ?>> entry : localKVStoreProvider.getStores().entrySet()) {
       final StoreBuilderConfig storeBuilderConfig = entry.getKey();
@@ -319,7 +336,7 @@ public final class BackupRestoreUtil {
     Map<String, BackupFileInfo> tableToInfo = scanInfoFiles(fs, backupDir);
     Map<String, Path> tableToBackupFiles = scanBackupFiles(fs, backupDir, tableToInfo);
     final BackupStats backupStats = new BackupStats();
-    backupStats.backupPath = backupDir.toUri().getPath();
+    backupStats.backupPath = backupDir.toURI().getPath();
 
     for (String table : tableToInfo.keySet()) {
       final StoreBuilderConfig storeBuilderConfig = DataStoreUtils.toBuilderConfig(tableToInfo.get(table).getKvstoreInfo());
@@ -353,14 +370,14 @@ public final class BackupRestoreUtil {
         throw new IllegalArgumentException(format("Path %s is not a directory.", parent));
       }
       try {
-        fs.access(parent, FsAction.WRITE_EXECUTE);
+        fs.access(parent, EnumSet.of(AccessMode.WRITE, AccessMode.EXECUTE));
       } catch(AccessControlException e) {
         throw new IllegalArgumentException(format("Cannot create directory %s: check parent directory permissions.", directory), e);
       }
       fs.mkdirs(directory);
     }
     try {
-      fs.access(directory, FsAction.ALL);
+      fs.access(directory, EnumSet.allOf(AccessMode.class));
     } catch(org.apache.hadoop.security.AccessControlException e) {
       throw new IllegalArgumentException(format("Path %s is not accessible/writeable.", directory), e);
     }

@@ -20,9 +20,12 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Optional;
 
 import org.reflections.util.ClasspathHelper;
 
@@ -42,7 +45,6 @@ import com.typesafe.config.ConfigValueFactory;
  * A configuration object that is merged with and validated against the dremio-reference.conf configuration.
  */
 public class DremioConfig extends NestedConfig {
-
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioConfig.class);
 
   private static final String REFERENCE_CONFIG = "dremio-reference.conf";
@@ -51,6 +53,7 @@ public class DremioConfig extends NestedConfig {
   public static final String LOCAL_WRITE_PATH_STRING = "paths.local";
   public static final String DIST_WRITE_PATH_STRING = "paths.dist";
 
+  public static final String NODE_TAG = "services.node-tag";
   public static final String ENABLE_COORDINATOR_BOOL = "services.coordinator.enabled";
   public static final String ENABLE_MASTER_BOOL = "services.coordinator.master.enabled";
   public static final String ENABLE_EXECUTOR_BOOL = "services.executor.enabled";
@@ -73,6 +76,11 @@ public class DremioConfig extends NestedConfig {
    */
   public static final String WEB_UI_SERVICE_CONFIG = "services.coordinator.web.ui";
 
+  /**
+   * Config values related to plugins
+   */
+  public static final String PLUGINS_ROOT_PATH_PROPERTY = "dremio.plugins.path";;
+
   public static final String CLIENT_PORT_INT = "services.coordinator.client-endpoint.port";
   public static final String SERVER_PORT_INT = "services.fabric.port";
 
@@ -91,6 +99,7 @@ public class DremioConfig extends NestedConfig {
   public static final String ZK_CLIENT_SESSION_TIMEOUT = "zk.client.session.timeout";
 
   // Provisioning options
+  public static final String YARN_ENABLED_BOOL = "provisioning.yarn.enabled";
   public static final String YARN_JVM_OPTIONS = "provisioning.yarn.jvmoptions";
   public static final String YARN_CLASSPATH = "provisioning.yarn.classpath";
   public static final String YARN_APP_CLASSPATH = "provisioning.yarn.app.classpath";
@@ -115,6 +124,8 @@ public class DremioConfig extends NestedConfig {
   public static final String DEBUG_DISABLE_MASTER_ELECTION_SERVICE_BOOL = "debug.master.election.disabled";
 
   public static final String DEBUG_DIST_ASYNC_ENABLED = "debug.dist.async.enabled";
+  public static final String DEBUG_DIST_CACHING_ENABLED = "debug.dist.caching.enabled";
+  public static final String DEBUG_DIST_MAX_CACHE_SPACE_PERCENT = "debug.dist.max.cache.space.percent";
   public static final String DEBUG_UPLOADS_ASYNC_ENABLED = "debug.uploads.async.enabled";
   public static final String DEBUG_SUPPORT_ASYNC_ENABLED = "debug.support.async.enabled";
   public static final String DEBUG_JOBS_ASYNC_ENABLED = "debug.results.async.enabled";
@@ -367,5 +378,20 @@ public class DremioConfig extends NestedConfig {
       }
     }
     return config;
+  }
+
+  public static Path getPluginsRootPath() {
+    final String pluginsDir = System.getProperty(PLUGINS_ROOT_PATH_PROPERTY);
+    if (pluginsDir != null) {
+      return Paths.get(pluginsDir);
+    }
+
+    logger.debug("The system property {} is not set", PLUGINS_ROOT_PATH_PROPERTY);
+    return Optional.ofNullable(System.getenv("DREMIO_HOME"))
+      .map(v -> Paths.get(v, "plugins"))
+      .orElseGet(() -> {
+        logger.debug("The environment variable DREMIO_HOME is not set.");
+        return Paths.get(".");
+      });
   }
 }

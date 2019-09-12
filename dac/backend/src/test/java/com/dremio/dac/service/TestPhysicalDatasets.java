@@ -29,7 +29,6 @@ import java.nio.file.Files;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
 
-import org.apache.hadoop.fs.Path;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -57,6 +56,7 @@ import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
+import com.dremio.io.file.Path;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
@@ -97,7 +97,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
   }
 
   private static String getSchemaPath(String file) throws IOException {
-    return "dacfs_test." + PathUtils.constructFullPath(PathUtils.toPathComponents(new Path(FileUtils.getResourceAsFile(file).getAbsolutePath())));
+    return "dacfs_test." + PathUtils.constructFullPath(PathUtils.toPathComponents(Path.of(FileUtils.getResourceAsFile(file).getAbsolutePath())));
   }
 
   private static SqlQuery createQuery(String file) throws IOException {
@@ -105,7 +105,7 @@ public class TestPhysicalDatasets extends BaseTestServer {
   }
 
   private static String getUrlPath(String file) throws IOException {
-    return new Path(FileUtils.getResourceAsFile(file).getAbsolutePath()).toString();
+    return Path.of(FileUtils.getResourceAsFile(file).getAbsolutePath()).toString();
   }
 
   private void checkCounts(String parentPath, String name, boolean isQueryable, int jobCount, int descendants, int datasetCount) throws Exception {

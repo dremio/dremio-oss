@@ -19,7 +19,7 @@ import { delay } from 'redux-saga';
 import { startDatasetMetadataLoad, completeDatasetMetadataLoad } from '@app/actions/explore/view';
 import { explorePageChanged } from '@app/sagas/runDataset';
 import { navigateToNextDataset } from '@app/actions/explore/dataset/common';
-import { startExplorePageListener, stopExplorePageListener } from '@app/actions/explore/dataset/data';
+import { startExplorePageListener, failedExploreJobProgress, stopExplorePageListener } from '@app/actions/explore/dataset/data';
 
 import { showConfirmationDialog, hideConfirmationDialog} from 'actions/confirmation';
 
@@ -72,6 +72,7 @@ export function* transformThenNavigate(action, viewId, navigateOptions) {
       yield put(navigateToNextDataset(response, navigateOptions));
       return response;
     }
+    yield put(failedExploreJobProgress());
     throw new TransformFailedError(response);
   } finally {
     yield put(startExplorePageListener(false));

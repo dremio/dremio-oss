@@ -194,6 +194,7 @@ public class YarnController {
     basicJVMOptions.put(DremioConfig.DEBUG_AUTOPORT_BOOL, "true");
     basicJVMOptions.put(DremioConfig.ENABLE_COORDINATOR_BOOL, "false");
     basicJVMOptions.put(DremioConfig.ENABLE_EXECUTOR_BOOL, "true");
+    basicJVMOptions.put(DremioConfig.YARN_ENABLED_BOOL, "true");
     basicJVMOptions.put(VM.DREMIO_CPU_AVAILABLE_PROPERTY, yarnConfiguration.get(YARN_CPU));
 
     final String kerberosPrincipal = dremioConfig.getString(DremioConfig.KERBEROS_PRINCIPAL);

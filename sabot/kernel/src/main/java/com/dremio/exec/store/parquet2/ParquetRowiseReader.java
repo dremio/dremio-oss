@@ -33,13 +33,11 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.commons.collections.CollectionUtils;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.ColumnReader;
+import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.filter.RecordFilter;
 import org.apache.parquet.filter.UnboundRecordFilter;
-import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.ColumnChunkIncReadStore;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
@@ -64,7 +62,8 @@ import com.dremio.exec.store.parquet.AbstractParquetReader;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
-import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Preconditions;
@@ -76,6 +75,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
   private final int rowGroupIndex;
   private final String path;
   private final InputStreamProvider inputStreamProvider;
+  private final CompressionCodecFactory codec;
 
   // same as the DEFAULT_RECORDS_TO_READ_IF_NOT_FIXED_WIDTH in DeprecatedParquetVectorizedReader
 
@@ -106,7 +106,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
 
   public ParquetRowiseReader(OperatorContext context, ParquetMetadata footer, int rowGroupIndex, String path,
                              List<SchemaPath> columns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
-                             SimpleIntVector deltas, InputStreamProvider inputStreamProvider) {
+                             SimpleIntVector deltas, InputStreamProvider inputStreamProvider, CompressionCodecFactory codec) {
     super(context, columns, deltas);
     this.footer = footer;
     this.fileSystem = fileSystem;
@@ -114,12 +114,13 @@ public class ParquetRowiseReader extends AbstractParquetReader {
     this.path = path;
     this.schemaHelper = schemaHelper;
     this.inputStreamProvider = inputStreamProvider;
+    this.codec = codec;
   }
 
   public ParquetRowiseReader(OperatorContext context, ParquetMetadata footer, int rowGroupIndex, String path,
                              List<SchemaPath> columns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
-                             InputStreamProvider inputStreamProvider) {
-    this(context, footer, rowGroupIndex, path, columns, fileSystem, schemaHelper, null, inputStreamProvider);
+                             InputStreamProvider inputStreamProvider, CompressionCodecFactory codec) {
+    this(context, footer, rowGroupIndex, path, columns, fileSystem, schemaHelper, null, inputStreamProvider, codec);
   }
 
   public static SchemaPath convertColumnDescriptor(final MessageType schema, final ColumnDescriptor columnDescriptor) {
@@ -253,16 +254,15 @@ public class ParquetRowiseReader extends AbstractParquetReader {
           paths.put(md.getPath(), md);
         }
 
-        Path filePath = new Path(path);
+        Path filePath = Path.of(path);
 
         BlockMetaData blockMetaData = footer.getBlocks().get(rowGroupIndex);
 
         recordCount = blockMetaData.getRowCount();
 
         pageReadStore = new ColumnChunkIncReadStore(recordCount,
-          CodecFactory.createDirectCodecFactory(fileSystem.getConf(),
-            new ParquetDirectByteBufferAllocator(operatorContext.getAllocator()), 0), operatorContext.getAllocator(),
-          fileSystem, filePath, inputStreamProvider);
+          codec, operatorContext.getAllocator(),
+          filePath, inputStreamProvider);
 
         for (String[] path : projection.getPaths()) {
           Type type = schema.getType(path);

@@ -84,7 +84,7 @@ public abstract class AsyncCommand implements CommandRunner<Void> {
   public void planExecution() throws ExecutionSetupException {
     PhysicalPlan plan = getPhysicalPlan();
     executionPlanningResources = ExecutionPlanCreator.getParallelizationInfo(context, observer, plan,
-        executorSelectionService);
+        executorSelectionService, resourceSchedulingDecisionInfo);
 
     executionPlan = ExecutionPlanCreator.getExecutionPlan(context, reader, observer, getPhysicalPlan(), resourceSet,
         executionPlanningResources.getPlanningSet(), executorSelectionService);

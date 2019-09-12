@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component, Fragment } from 'react';
 import { compose } from 'redux';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
@@ -39,7 +39,7 @@ import { showConfirmationDialog } from 'actions/confirmation';
 
 import { setResizeProgressState } from 'actions/explore/ui';
 
-import { updateGridSizes, updateRightTreeVisibility } from 'actions/ui/ui';
+import { updateRightTreeVisibility } from 'actions/ui/ui';
 
 import { hasDatasetChanged } from 'utils/datasetUtils';
 
@@ -63,7 +63,6 @@ export class ExplorePageControllerComponent extends Component {
     history: PropTypes.instanceOf(Immutable.Map),
     rightTreeVisible: PropTypes.bool,
     updateRightTreeVisibility: PropTypes.func,
-    updateGridSizes: PropTypes.func,
     setResizeProgressState: PropTypes.func,
     isResizeInProgress: PropTypes.bool,
     updateSqlPartSize: PropTypes.func.isRequired,
@@ -71,7 +70,6 @@ export class ExplorePageControllerComponent extends Component {
     performLoadDataset: PropTypes.func.isRequired,
     setCurrentSql: PropTypes.func.isRequired,
     resetViewState: PropTypes.func.isRequired,
-    style: PropTypes.object,
     showConfirmationDialog: PropTypes.func,
     router: PropTypes.object,
     addHasChangesHook: PropTypes.func, // (hasChangesCallback[: (nextLocation) => bool]) => void
@@ -224,18 +222,16 @@ export class ExplorePageControllerComponent extends Component {
       history,
       setResizeProgressState : setResizeProgressStateFn,
       rightTreeVisible,
-      updateGridSizes : updateGridSizesFn,
       location,
       updateSqlPartSize : updateSqlPartSizeFn,
       sqlState,
       sqlSize,
-      style,
       isResizeInProgress
     } = this.props;
     const nextPageType = this.isPageTypeValid(pageType) ? pageType : defaultPageType;
 
     return (
-      <div style={style}>
+      <Fragment>
         <ExplorePage
           pageType={nextPageType}
           dataset={dataset}
@@ -244,16 +240,14 @@ export class ExplorePageControllerComponent extends Component {
           rightTreeVisible={rightTreeVisible}
           toggleRightTree={this.toggleRightTree}
           dragType={this.state.dragType}
-          updateGridSizes={updateGridSizesFn}
           location={location}
           updateSqlPartSize={updateSqlPartSizeFn}
           sqlState={sqlState}
           sqlSize={sqlSize}
-          style={style}
           isResizeInProgress={isResizeInProgress}
         />
         <QlikStateModal />
-      </div>
+      </Fragment>
     );
   }
 }
@@ -287,7 +281,6 @@ const Connected = compose(
     setCurrentSql,
     resetViewState,
     updateSqlPartSize,
-    updateGridSizes,
     setResizeProgressState,
     updateRightTreeVisibility,
     showConfirmationDialog

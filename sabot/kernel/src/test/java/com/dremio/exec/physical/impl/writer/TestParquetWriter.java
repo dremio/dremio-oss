@@ -35,13 +35,11 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.hadoop.util.PageHeaderUtil;
@@ -60,6 +58,7 @@ import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.impl.DateFunctionsUtils;
 import com.dremio.exec.fn.interp.TestConstantFolding;
+import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.ExecProtos;
@@ -68,15 +67,14 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.WritePartition;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
 import com.dremio.exec.store.parquet.ParquetRecordWriter;
 import com.dremio.exec.store.parquet.ParquetWriter;
-import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
+import com.dremio.test.AllocatorRule;
 import com.google.common.base.Joiner;
 
 public class TestParquetWriter extends BaseTestQuery {
@@ -131,6 +129,9 @@ public class TestParquetWriter extends BaseTestQuery {
 
 
   private String allTypesTable = "cp.\"/parquet/alltypes.json\"";
+
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @BeforeClass
   public static void initFs() throws Exception {
@@ -762,7 +763,7 @@ public class TestParquetWriter extends BaseTestQuery {
     final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
     assertTrue(newFs.mkdirs(targetPath));
 
-    final BufferAllocator ALLOCATOR = new RootAllocator(Long.MAX_VALUE);
+    final BufferAllocator ALLOCATOR = allocatorRule.newAllocator("test-parquet-writer", 0, Long.MAX_VALUE);
 
     OptionManager optionManager = mock(OptionManager.class);
     when(optionManager.getOption(ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE_VALIDATOR)).thenReturn("none"); //compression shouldn't matter
@@ -779,7 +780,6 @@ public class TestParquetWriter extends BaseTestQuery {
     when(opContext.getStats()).thenReturn(operatorStats);
 
     ParquetWriter writerConf = mock(ParquetWriter.class);
-    when(writerConf.getFsConf()).thenReturn(hadoopConf);
     when(writerConf.getLocation()).thenReturn(targetPath.toUri().toString());
     OpProps props = mock(OpProps.class);
     when(writerConf.getProps()).thenReturn(props);
@@ -787,12 +787,9 @@ public class TestParquetWriter extends BaseTestQuery {
 
     ParquetFormatPlugin formatPlugin = mock(ParquetFormatPlugin.class);
     FileSystemPlugin fsPlugin = mock(FileSystemPlugin.class);
-    when(fsPlugin.getFileSystem((Configuration) notNull(), (OperatorContext) notNull())).thenReturn(new FileSystemWrapper(hadoopConf));
+    when(fsPlugin.createFS((String) notNull(), (OperatorContext) notNull())).thenReturn(HadoopFileSystem.getLocal(hadoopConf));
     when(writerConf.getFormatPlugin()).thenReturn(formatPlugin);
     when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);
-
-    UserGroupInformation ugi = ImpersonationUtil.createProxyUgi("testuser");
-    when(writerConf.getUGI()).thenReturn(ugi);
 
     ParquetRecordWriter writer = new ParquetRecordWriter(opContext, writerConf, new ParquetFormatConfig());
 
@@ -843,7 +840,7 @@ public class TestParquetWriter extends BaseTestQuery {
     final FileSystem newFs = targetPath.getFileSystem(hadoopConf);
     assertTrue(newFs.mkdirs(targetPath));
 
-    final BufferAllocator ALLOCATOR = new RootAllocator(128);
+    final BufferAllocator ALLOCATOR = allocatorRule.newAllocator("test-parquet-writer", 0, 128);
 
     OptionManager optionManager = mock(OptionManager.class);
     when(optionManager.getOption(ExecConstants.PARQUET_WRITER_COMPRESSION_TYPE_VALIDATOR)).thenReturn("none"); //compression shouldn't matter
@@ -860,7 +857,6 @@ public class TestParquetWriter extends BaseTestQuery {
     when(opContext.getStats()).thenReturn(operatorStats);
 
     ParquetWriter writerConf = mock(ParquetWriter.class);
-    when(writerConf.getFsConf()).thenReturn(hadoopConf);
     when(writerConf.getLocation()).thenReturn(targetPath.toUri().toString());
     OpProps props = mock(OpProps.class);
     when(writerConf.getProps()).thenReturn(props);
@@ -868,12 +864,9 @@ public class TestParquetWriter extends BaseTestQuery {
 
     ParquetFormatPlugin formatPlugin = mock(ParquetFormatPlugin.class);
     FileSystemPlugin fsPlugin = mock(FileSystemPlugin.class);
-    when(fsPlugin.getFileSystem((Configuration) notNull(), (OperatorContext) notNull())).thenReturn(new FileSystemWrapper(hadoopConf));
     when(writerConf.getFormatPlugin()).thenReturn(formatPlugin);
+    when(fsPlugin.createFS((String) notNull(), (OperatorContext) notNull())).thenReturn(HadoopFileSystem.getLocal(hadoopConf));
     when(formatPlugin.getFsPlugin()).thenReturn(fsPlugin);
-
-    UserGroupInformation ugi = mock(UserGroupInformation.class);
-    when(writerConf.getUGI()).thenReturn(ugi);
 
     ParquetRecordWriter writer = new ParquetRecordWriter(opContext, writerConf, new ParquetFormatConfig());
 

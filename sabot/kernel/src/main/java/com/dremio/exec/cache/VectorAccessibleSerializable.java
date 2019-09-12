@@ -32,8 +32,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.parquet.io.SeekableInputStream;
 import org.xerial.snappy.Snappy;
 
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.Timer;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared;
@@ -43,6 +41,9 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.metrics.Metrics;
+import com.dremio.metrics.Metrics.ResetType;
+import com.dremio.metrics.Timer;
+import com.dremio.metrics.Timer.TimerContext;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -55,8 +56,7 @@ import io.netty.util.internal.PlatformDependent;
  */
 public class VectorAccessibleSerializable extends AbstractStreamSerializable {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(VectorAccessibleSerializable.class);
-  static final MetricRegistry metrics = Metrics.getInstance();
-  static final String WRITER_TIMER = MetricRegistry.name(VectorAccessibleSerializable.class, "writerTime");
+  private static final Timer WRITER_TIMER = Metrics.newTimer(Metrics.join(VectorAccessibleSerializable.class.getName(), "writerTime"), ResetType.NEVER);
 
   static final int COMPRESSED_LENGTH_BYTES = 4;
   public static final int RAW_CHUNK_SIZE_TO_COMPRESS = 32*1024;
@@ -285,25 +285,25 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
   @Override
   public void writeToStream(OutputStream output) throws IOException {
     Preconditions.checkNotNull(output);
-    final Timer.Context timerContext = metrics.timer(WRITER_TIMER).time();
 
-    ArrowBuf[] buffers = new ArrowBuf[batch.getBuffers().length];
-    final ArrowBuf[] incomingBuffers = Arrays.stream(batch.getBuffers())
-                                             .map(buf -> buf.arrowBuf())
-                                             .collect(Collectors.toList())
-                                             .toArray(buffers);
-    final UserBitShared.RecordBatchDef batchDef = batch.getDef();
+    try (final TimerContext timerContext = WRITER_TIMER.start()) {
+      ArrowBuf[] buffers = new ArrowBuf[batch.getBuffers().length];
+      final ArrowBuf[] incomingBuffers = Arrays.stream(batch.getBuffers())
+                                               .map(buf -> buf.arrowBuf())
+                                               .collect(Collectors.toList())
+                                               .toArray(buffers);
+      final UserBitShared.RecordBatchDef batchDef = batch.getDef();
 
-    /* ArrowBuf associated with the selection vector */
-    ArrowBuf svBuf = null;
-    Integer svCount =  null;
+      /* ArrowBuf associated with the selection vector */
+      ArrowBuf svBuf = null;
+      Integer svCount =  null;
 
-    if (svMode == BatchSchema.SelectionVectorMode.TWO_BYTE) {
-      svCount = sv2.getCount();
-      svBuf = sv2.getBuffer(); //this calls retain() internally
-    }
+      if (svMode == BatchSchema.SelectionVectorMode.TWO_BYTE) {
+        svCount = sv2.getCount();
+        svBuf = sv2.getBuffer(); //this calls retain() internally
+      }
 
-    try {
+
       /* Write the metadata to the file */
       batchDef.writeDelimitedTo(output);
 
@@ -329,7 +329,6 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
 
       output.flush();
 
-      timerContext.stop();
     } catch (IOException e) {
       throw new RuntimeException(e);
     } finally {

@@ -18,7 +18,6 @@ package com.dremio.sabot.exec.fragment;
 import static org.mockito.Mockito.when;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -26,14 +25,19 @@ import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.options.OptionManager;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 
-public class TestBatchSize {
+public class TestBatchSize extends DremioTest {
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
   public void testRecordBatchAllocs() {
@@ -45,7 +49,7 @@ public class TestBatchSize {
     int batchSize = PhysicalPlanCreator.calculateBatchCountFromRecordSize(options, 0);
     Assert.assertTrue(batchSize >= (int)(0.95 * 4096));
 
-    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
+    try (BufferAllocator allocator = allocatorRule.newAllocator("test-batch-size", 0, Long.MAX_VALUE)) {
       final ValueVector bitV = new BitVector("bits", allocator);
       AllocationHelper.allocate(bitV, batchSize, 0);
       Assert.assertEquals(1024, allocator.getAllocatedMemory());

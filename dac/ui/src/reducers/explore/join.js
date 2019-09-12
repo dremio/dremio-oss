@@ -16,7 +16,7 @@
 import Immutable  from 'immutable';
 import * as ActionTypes from 'actions/explore/join';
 import { EDIT_RECOMMENDED_JOIN } from 'actions/explore/join';
-import { CUSTOM_JOIN } from 'constants/explorePage/joinTabs';
+import { CUSTOM_JOIN } from '@app/constants/explorePage/joinTabs';
 
 const initialState = Immutable.fromJS({
   joinTab: null,

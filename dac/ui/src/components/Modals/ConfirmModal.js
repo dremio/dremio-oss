@@ -22,7 +22,7 @@ import { Checkbox, TextField } from 'components/Fields';
 
 import { confirmBodyText, modalContent } from 'uiTheme/radium/modal';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
-import Keys from 'constants/Keys.json';
+import Keys from '@app/constants/Keys.json';
 
 export default class ConfirmModal extends Component {
 

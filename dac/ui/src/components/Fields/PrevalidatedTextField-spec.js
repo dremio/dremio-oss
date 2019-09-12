@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
-import Keys from 'constants/Keys.json';
+import Keys from '@app/constants/Keys.json';
 import PrevalidatedTextField from './PrevalidatedTextField';
 
 describe('PrevalidatedTextField', () => {

@@ -27,8 +27,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.parquet.schema.OriginalType;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 
@@ -51,7 +49,6 @@ import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.dfs.CompleteFileWork.FileWorkImpl;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.parquet.Metadata.ColumnMetadata;
 import com.dremio.exec.store.parquet.Metadata.ParquetFileMetadata;
 import com.dremio.exec.store.parquet.Metadata.ParquetTableMetadata;
@@ -59,7 +56,8 @@ import com.dremio.exec.store.parquet.Metadata.RowGroupMetadata;
 import com.dremio.exec.store.schedule.CompleteWork;
 import com.dremio.exec.store.schedule.EndpointByteMap;
 import com.dremio.exec.store.schedule.EndpointByteMapImpl;
-import com.dremio.exec.util.ImpersonationUtil;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Function;
@@ -75,14 +73,14 @@ import com.google.common.collect.Maps;
 public class ParquetGroupScanUtils {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetGroupScanUtils.class);
 
-  private final FileSystemPlugin plugin;
+  private final FileSystemPlugin<?> plugin;
   private final ParquetFormatPlugin formatPlugin;
   private String selectionRoot;
   private List<SchemaPath> columns;
   private List<RowGroupInfo> rowGroupInfos;
   private List<ParquetFilterCondition> conditions;
-  private final List<FileStatus> entries;
-  private final FileSystemWrapper fs;
+  private final List<FileAttributes> entries;
+  private final FileSystem fs;
   private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns;
   private ParquetTableMetadata parquetTableMetadata = null;
 
@@ -91,7 +89,7 @@ public class ParquetGroupScanUtils {
    */
   private Map<SchemaPath, Long> columnValueCounts;
   // Map from file names to maps of column name to partition value mappings
-  private Map<FileStatus, Map<SchemaPath, Object>> partitionValueMap = Maps.newHashMap();
+  private Map<FileAttributes, Map<SchemaPath, Object>> partitionValueMap = Maps.newHashMap();
   // Preserve order of insertion, need it to prune the map later if it goes above threshold.
   private Map<SchemaPath, MajorType> columnTypeMap = Maps.newLinkedHashMap();
 
@@ -106,7 +104,7 @@ public class ParquetGroupScanUtils {
   public ParquetGroupScanUtils(
     String userName,
     FileSelection selection,
-    FileSystemPlugin plugin,
+    FileSystemPlugin<?> plugin,
     ParquetFormatPlugin formatPlugin,
     String selectionRoot,
     List<SchemaPath> columns,
@@ -119,18 +117,16 @@ public class ParquetGroupScanUtils {
     this.conditions = conditions;
     this.columns = columns;
     this.plugin = plugin;
-    this.fs = ImpersonationUtil.createFileSystem(plugin.getContext(), plugin.getId().getName(), plugin.getConfig(), null,
-      ImpersonationUtil.createProxyUgi(userName), plugin.getFsConf(), plugin.getConfig().getConnectionUniqueProperties(),
-      false);
+    this.fs = plugin.createFS(userName, null, true);
     this.selectionRoot = selectionRoot;
-    this.entries = selection.getStatuses();
+    this.entries = selection.getFileAttributesList();
 
     this.globalDictionaryColumns = (globalDictionaryColumns == null)? Collections.<String, GlobalDictionaryFieldInfo>emptyMap() : globalDictionaryColumns;
     this.optionManager = optionManager;
     init();
   }
 
-  public List<FileStatus> getEntries() {
+  public List<FileAttributes> getEntries() {
     return entries;
   }
 
@@ -138,7 +134,7 @@ public class ParquetGroupScanUtils {
     return this.formatPlugin.getConfig();
   }
 
-  public FileSystemPlugin getPlugin() {
+  public FileSystemPlugin<?> getPlugin() {
     return plugin;
   }
 
@@ -146,16 +142,12 @@ public class ParquetGroupScanUtils {
     return selectionRoot;
   }
 
-  public Map<FileStatus, Map<SchemaPath, Object>> getPartitionValueMap() {
+  public Map<FileAttributes, Map<SchemaPath, Object>> getPartitionValueMap() {
     return partitionValueMap;
   }
 
   public Map<SchemaPath, MajorType> getColumnTypeMap() {
     return columnTypeMap;
-  }
-
-  public Configuration getFsConf() {
-    return plugin.getFsConf();
   }
 
   public Map<String, GlobalDictionaryFieldInfo> getGlobalDictionaryColumns() {
@@ -280,8 +272,8 @@ public class ParquetGroupScanUtils {
     private List<EndpointAffinity> affinities;
     private Map<SchemaPath, Long> columnValueCounts;
 
-    public RowGroupInfo(FileStatus status, long start, long length, int rowGroupIndex, long rowCount, Map<SchemaPath, Long> columnValueCounts) {
-      super(start, length, status);
+    public RowGroupInfo(FileAttributes fileAttributes, long start, long length, int rowGroupIndex, long rowCount, Map<SchemaPath, Long> columnValueCounts) {
+      super(start, length, fileAttributes);
       this.rowGroupIndex = rowGroupIndex;
       this.rowCount = rowCount;
       this.columnValueCounts = columnValueCounts == null? Collections.<SchemaPath, Long>emptyMap() : columnValueCounts;
@@ -291,6 +283,7 @@ public class ParquetGroupScanUtils {
       return this.rowGroupIndex;
     }
 
+    @Override
     public int compareTo(CompleteWork o) {
       return Long.compare(getTotalBytes(), o.getTotalBytes());
     }
@@ -300,6 +293,7 @@ public class ParquetGroupScanUtils {
       return affinities;
     }
 
+    @Override
     public long getTotalBytes() {
       return this.getLength();
     }
@@ -351,12 +345,12 @@ public class ParquetGroupScanUtils {
   private void init() throws IOException {
     final Stopwatch watch = Stopwatch.createStarted();
     columnTypeMap.put(SchemaPath.getSimplePath(UPDATE_COLUMN), Types.optional(MinorType.BIGINT));
-
+    long maxFooterLength = plugin.getContext().getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
     // TODO: do we need this code path?
     if (entries.size() == 1) {
-      parquetTableMetadata = Metadata.getParquetTableMetadata(entries.get(0), fs, formatPlugin.getConfig(), plugin);
+      parquetTableMetadata = Metadata.getParquetTableMetadata(entries.get(0), fs, formatPlugin.getConfig(), maxFooterLength);
     } else {
-      parquetTableMetadata = Metadata.getParquetTableMetadata(entries, formatPlugin.getConfig(), plugin);
+      parquetTableMetadata = Metadata.getParquetTableMetadata(entries, fs, formatPlugin.getConfig(), maxFooterLength);
     }
 
     ListMultimap<String, NodeEndpoint> hostEndpointMap = FluentIterable.from(plugin.getContext().getExecutors())
@@ -380,7 +374,7 @@ public class ParquetGroupScanUtils {
             rowGroupColumnValueCounts.put(schemaPath, rowCount - column.getNulls());
           }
         }
-        RowGroupInfo rowGroupInfo = new RowGroupInfo(file.getStatus(), rg.getStart(), rg.getLength(), rgIndex, rg.getRowCount(), rowGroupColumnValueCounts);
+        RowGroupInfo rowGroupInfo = new RowGroupInfo(file.getFileAttributes(), rg.getStart(), rg.getLength(), rgIndex, rg.getRowCount(), rowGroupColumnValueCounts);
 
         EndpointByteMap endpointByteMap = new EndpointByteMapImpl();
         for (String host : rg.getHostAffinity().keySet()) {
@@ -429,10 +423,10 @@ public class ParquetGroupScanUtils {
           }
           boolean partitionColumn = checkForPartitionColumn(file, rowGroupIdx, column, first, rowCount);
           if (partitionColumn) {
-            Map<SchemaPath, Object> map = partitionValueMap.get(file.getStatus());
+            Map<SchemaPath, Object> map = partitionValueMap.get(file.getFileAttributes());
             if (map == null) {
               map = Maps.newHashMap();
-              partitionValueMap.put(file.getStatus(), map);
+              partitionValueMap.put(file.getFileAttributes(), map);
 
             }
             Object value = map.get(schemaPath);
@@ -470,12 +464,12 @@ public class ParquetGroupScanUtils {
         continue;
       }
 
-      Map<SchemaPath, Object> map = partitionValueMap.get(file.getStatus());
+      Map<SchemaPath, Object> map = partitionValueMap.get(file.getFileAttributes());
       if (map == null) {
         map = Maps.newHashMap();
-        partitionValueMap.put(file.getStatus(), map);
+        partitionValueMap.put(file.getFileAttributes(), map);
       }
-      map.put(SchemaPath.getSimplePath(UPDATE_COLUMN), file.getStatus().getModificationTime());
+      map.put(SchemaPath.getSimplePath(UPDATE_COLUMN), file.getFileAttributes().lastModifiedTime().toMillis());
     }
 
     eliminateSomePartitionColumns();
@@ -567,6 +561,7 @@ public class ParquetGroupScanUtils {
     return toString();
   }
 
+  @Override
   public String toString() {
     return "ParquetGroupScanUtils [entries=" + entries
         + ", selectionRoot=" + selectionRoot

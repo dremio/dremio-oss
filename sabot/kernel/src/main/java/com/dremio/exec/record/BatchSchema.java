@@ -48,6 +48,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.Describer;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.dremio.common.util.MajorTypeHelper;
@@ -466,7 +467,14 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     for (Map.Entry<String,RelDataType> field : relDataType.getFieldList()) {
       MinorType minorType = TypeInferenceUtils.getMinorTypeFromCalciteType(field.getValue());
       if (minorType != null) {
-        Field f = MajorTypeHelper.getFieldForNameAndMajorType(field.getKey(), Types.optional(minorType));
+        final TypeProtos.MajorType majorType;
+        if (minorType == TypeProtos.MinorType.DECIMAL) {
+          majorType = Types.withScaleAndPrecision(
+            minorType, TypeProtos.DataMode.OPTIONAL, field.getValue().getScale(), field.getValue().getPrecision());
+        } else {
+          majorType = Types.optional(minorType);
+        }
+        final Field f = MajorTypeHelper.getFieldForNameAndMajorType(field.getKey(), majorType);
         builder.addField(f);
       }
     }
@@ -482,14 +490,20 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
       if (minorType != null) {
 
         // if we're using json/rels reader, the types are going to be larger than typical.
-        if(minorType == MinorType.INT){
+        if (minorType == MinorType.INT) {
           minorType = MinorType.BIGINT;
-        }
-
-        if(minorType == MinorType.FLOAT4){
+        } else if (minorType == MinorType.FLOAT4) {
           minorType = MinorType.FLOAT8;
         }
-        Field f = MajorTypeHelper.getFieldForNameAndMajorType(field.getKey(), Types.optional(minorType));
+
+        final TypeProtos.MajorType majorType;
+        if (minorType == TypeProtos.MinorType.DECIMAL) {
+          majorType = Types.withScaleAndPrecision(
+            minorType, TypeProtos.DataMode.OPTIONAL, field.getValue().getScale(), field.getValue().getPrecision());
+        } else {
+          majorType = Types.optional(minorType);
+        }
+        final Field f = MajorTypeHelper.getFieldForNameAndMajorType(field.getKey(), majorType);
         builder.addField(f);
       }
     }

@@ -20,7 +20,7 @@ import { collapseExploreSql } from '@app/actions/explore/ui';
 import { PageTypes } from '@app/pages/ExplorePage/pageTypes';
 import { getPathPart, changePageTypeInUrl } from '@app/pages/ExplorePage/pageTypeUtils';
 
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import apiUtils from '@app/utils/apiUtils/apiUtils';
 
@@ -81,16 +81,16 @@ export function _getNextJobId(fullDataset) {
 }
 
 export function navigateToNextDataset(response, {
-    replaceNav,
-    linkName,
-    isSaveAs,
-    preserveTip,
-    // we need to change a pathname only in the following cases
-    // 1) Save as
-    // 2) Edit original sql // handled by navigateAfterReapply
-    // 3) When we write a new query and click Preview/Run to navigate to newUntitled page
-    changePathname
-  } = {}) {
+  replaceNav,
+  linkName,
+  isSaveAs,
+  preserveTip,
+  // we need to change a pathname only in the following cases
+  // 1) Save as
+  // 2) Edit original sql // handled by navigateAfterReapply
+  // 3) When we write a new query and click Preview/Run to navigate to newUntitled page
+  changePathname
+} = {}) {
   return (dispatch, getStore) => {
     changePathname = isSaveAs || changePathname;
     const location = getStore().routing.locationBeforeTransitions;

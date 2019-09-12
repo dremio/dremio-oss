@@ -19,8 +19,8 @@ import Radium from 'radium';
 
 import PropTypes from 'prop-types';
 
-import { CONTAINER_ENTITY_TYPES } from 'constants/Constants';
-import { PHYSICAL_DATASET_TYPES } from 'constants/datasetTypes';
+import { CONTAINER_ENTITY_TYPES } from '@app/constants/Constants';
+import { PHYSICAL_DATASET_TYPES } from '@app/constants/datasetTypes';
 import ExistingForm from 'components/formsForAddData/ExistingForm';
 import { constructFullPath, splitFullPath } from 'utils/pathUtils';
 import InnerJoinController from './JoinTypes/InnerJoinController';

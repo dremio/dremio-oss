@@ -36,8 +36,10 @@ import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 import com.dremio.dac.model.usergroup.UserName;
 import com.dremio.dac.server.socket.SocketMessage.JobDetailsUpdate;
 import com.dremio.dac.server.socket.SocketMessage.JobProgressUpdate;
+import com.dremio.dac.server.socket.SocketMessage.JobRecordsUpdate;
 import com.dremio.dac.server.socket.SocketMessage.ListenDetails;
 import com.dremio.dac.server.socket.SocketMessage.ListenProgress;
+import com.dremio.dac.server.socket.SocketMessage.ListenRecords;
 import com.dremio.dac.server.socket.SocketMessage.Payload;
 import com.dremio.dac.server.tokens.TokenManager;
 import com.dremio.dac.server.tokens.TokenUtils;
@@ -154,6 +156,9 @@ public class SocketServlet extends WebSocketServlet {
         } else if (msg instanceof ListenProgress) {
           JobId id = ((ListenProgress) msg).getId();
           jobsService.registerListener(id, new ProgressListener(id, this));
+        } else if (msg instanceof ListenRecords) {
+          JobId id = ((ListenRecords) msg).getId();
+          jobsService.registerListener(id, new RecordsListener(id, this));
         }
       } catch (Exception e) {
         logger.warn("Failure handling socket message of {}.", message, e);
@@ -211,7 +216,6 @@ public class SocketServlet extends WebSocketServlet {
       final JobDetailsUpdate update = new JobDetailsUpdate(job.getJobId());
       socket.send(update);
     }
-
   }
 
   private class ProgressListener implements ExternalStatusListener {
@@ -236,7 +240,23 @@ public class SocketServlet extends WebSocketServlet {
       final JobProgressUpdate update = new JobProgressUpdate(job);
       socket.send(update);
     }
-
   }
 
+  private class RecordsListener implements ExternalStatusListener {
+
+    private final DremioSocket socket;
+    private final JobId jobId;
+
+    public RecordsListener(JobId jobId, DremioSocket socket) {
+      super();
+      this.socket = socket;
+      this.jobId = jobId;
+    }
+
+    @Override
+    public void reportRecordCount(Job jobId, long recordCount) {
+      final JobRecordsUpdate update = new JobRecordsUpdate(jobId.getJobId(), recordCount);
+      socket.send(update);
+    }
+  }
 }

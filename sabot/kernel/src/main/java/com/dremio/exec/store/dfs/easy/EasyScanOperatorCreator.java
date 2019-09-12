@@ -16,6 +16,7 @@
 package com.dremio.exec.store.dfs.easy;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -35,10 +36,11 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.util.ColumnUtils;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.exec.store.easy.proto.EasyProtobuf.EasyDatasetSplitXAttr;
@@ -98,9 +100,14 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
 
   @Override
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, final OperatorContext context, EasySubScan config) throws ExecutionSetupException {
-    final FileSystemPlugin plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
+    final FileSystemPlugin<?> plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
 
-    final FileSystemWrapper fs = plugin.createFs(config.getProps().getUserName(), context);
+    FileSystem fs;
+    try {
+      fs = plugin.createFS(config.getProps().getUserName(), context);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
     final FormatPluginConfig formatConfig = PhysicalDatasetUtils.toFormatPlugin(config.getFileConfig(), Collections.<String>emptyList());
     final EasyFormatPlugin<?> formatPlugin = (EasyFormatPlugin<?>) plugin.getFormatPlugin(formatConfig);
 
@@ -126,7 +133,7 @@ public class EasyScanOperatorCreator implements ProducerOperator.Creator<EasySub
                   public RecordReader apply(SplitAndExtended input) {
                     try {
                       // If a file source scheme has changed, then trigger a refresh to update the metadata.
-                      if (!fs.supportsPath(input.getExtended().getPath())) {
+                      if (!fs.supportsPath(Path.of(input.getExtended().getPath()))) {
                         throw UserException.invalidMetadataError()
                           .addContext(String.format("%s: Invalid FS for file '%s'", fs.getScheme(), input.getExtended().getPath()))
                           .addContext("File", input.getExtended().getPath())

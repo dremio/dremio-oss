@@ -36,6 +36,8 @@ import org.apache.twill.api.RuntimeSpecification;
 import org.apache.twill.api.TwillSpecification;
 import org.apache.twill.api.logging.LogEntry;
 import org.apache.twill.api.logging.LogThrowable;
+import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -76,6 +78,7 @@ public class TestYarnController {
 
   @BeforeClass
   public static void beforeClass() throws Exception {
+    DacDaemonYarnApplication.isTestingModeOn = true;
     finalPath = tempDir.newFolder("jars", "bundled");
     thirdrdPartyDir = tempDir.newFolder("jars", "3rdparty");
     File filePath = new File(finalPath, "dremio-daemon-bundle.jar");
@@ -88,7 +91,15 @@ public class TestYarnController {
     maprfsJar.createNewFile();
   }
 
+  @AfterClass
+  public static void afterClass() {
+    DacDaemonYarnApplication.isTestingModeOn = false;
+  }
 
+  @Before
+  public void setup() {
+    properties.set(DremioConfig.PLUGINS_ROOT_PATH_PROPERTY, "./plugins");
+  }
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();

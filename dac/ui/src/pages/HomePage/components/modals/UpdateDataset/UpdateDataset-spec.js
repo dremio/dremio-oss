@@ -74,7 +74,7 @@ describe('UpdateDataset', () => {
     it('should call copyDataset with pathFrom', () => {
       instance.copyDataset({ datasetName: 'ds3', selectedEntity: 'Prod-Sample2' });
       expect(commonProps.createDatasetFromExisting)
-            .to.have.been.calledWith(commonProps.item.get('fullPathList'), ['Prod-Sample2', 'ds3'], { name: 'ds3' });
+        .to.have.been.calledWith(commonProps.item.get('fullPathList'), ['Prod-Sample2', 'ds3'], { name: 'ds3' });
     });
 
     it('should call copyDataset w/o selected entity', () => {

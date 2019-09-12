@@ -23,7 +23,7 @@ import ReplacePatternForm from 'pages/ExplorePage/components/Transform/component
 import ExtractListForm from 'pages/ExplorePage/components/Transform/components/forms/ExtractListForm';
 import ExtractMapForm from 'pages/ExplorePage/components/Transform/components/forms/ExtractMapForm';
 
-import { LIST, MAP } from 'constants/DataTypes';
+import { LIST, MAP } from '@app/constants/DataTypes';
 
 import cards from './mocks/cards.json';
 import fields from './mocks/fields.json';

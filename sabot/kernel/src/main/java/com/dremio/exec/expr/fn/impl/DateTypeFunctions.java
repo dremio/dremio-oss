@@ -225,7 +225,7 @@ public class DateTypeFunctions {
         public void setup() {
 
             int timeZoneIndex = contextInfo.getRootFragmentTimeZone();
-            org.joda.time.DateTimeZone timeZone = org.joda.time.DateTimeZone.forID(org.apache.arrow.vector.util.DateUtility.getTimeZone(timeZoneIndex));
+            org.joda.time.DateTimeZone timeZone = org.joda.time.DateTimeZone.forID(com.dremio.common.util.JodaDateUtility.getTimeZone(timeZoneIndex));
             org.joda.time.LocalDateTime now = new org.joda.time.LocalDateTime(contextInfo.getQueryStartTime(), timeZone);
             queryStartDate = (new org.joda.time.DateMidnight(now.getYear(), now.getMonthOfYear(), now.getDayOfMonth(), timeZone)).
                 withZoneRetainFields(org.joda.time.DateTimeZone.UTC).getMillis();
@@ -339,7 +339,7 @@ public class DateTypeFunctions {
         public void setup() {
 
             int timeZoneIndex = contextInfo.getRootFragmentTimeZone();
-            org.joda.time.DateTimeZone timeZone = org.joda.time.DateTimeZone.forID(org.apache.arrow.vector.util.DateUtility.getTimeZone(timeZoneIndex));
+            org.joda.time.DateTimeZone timeZone = org.joda.time.DateTimeZone.forID(com.dremio.common.util.JodaDateUtility.getTimeZone(timeZoneIndex));
             org.joda.time.LocalDateTime now = new org.joda.time.LocalDateTime(contextInfo.getQueryStartTime(), timeZone);
             queryStartTime= (now.getHourOfDay() * org.apache.arrow.vector.util.DateUtility.hoursToMillis) +
                                    (now.getMinuteOfHour() * org.apache.arrow.vector.util.DateUtility.minutesToMillis) +

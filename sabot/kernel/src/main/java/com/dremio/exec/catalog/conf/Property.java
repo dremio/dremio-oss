@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.catalog.conf;
 
-import org.hibernate.validator.constraints.NotBlank;
+import javax.validation.constraints.NotBlank;
 
 import io.protostuff.Tag;
 

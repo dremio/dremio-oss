@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.dotfile;
 
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.Path;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.Path;
+
 
 public enum DotFileType {
   VIEW
@@ -30,8 +31,8 @@ public enum DotFileType {
     this.ending = '.' + name().toLowerCase() + ".meta";
   }
 
-  public boolean matches(FileStatus status){
-    return status.getPath().getName().endsWith(ending);
+  public boolean matches(FileAttributes attributes){
+    return attributes.getPath().getName().endsWith(ending);
   }
 
   /**
@@ -42,7 +43,7 @@ public enum DotFileType {
    * @return Path including the extensions that can be used to read/write in filesystem.
    */
   public Path getPath(String parentDir, String name) {
-    return new Path(parentDir, name + ending);
+    return Path.of(parentDir).resolve(name + ending);
   }
 
   /**

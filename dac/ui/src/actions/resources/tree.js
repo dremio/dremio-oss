@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { RSAA } from 'redux-api-middleware';
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 
 export const LOAD_RESOURCE_TREE_START = 'LOAD_RESOURCE_TREE_START';
 export const LOAD_RESOURCE_TREE_SUCCESS = 'LOAD_RESOURCE_TREE_SUCCESS';

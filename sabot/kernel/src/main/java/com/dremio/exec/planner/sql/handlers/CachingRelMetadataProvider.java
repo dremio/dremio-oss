@@ -206,10 +206,8 @@ public class CachingRelMetadataProvider implements RelMetadataProvider {
       // Cache miss or stale.
       try {
         Object result = method.invoke(metadata, args);
-        if (result != null) {
-          entry = new CacheEntry(NullSentinel.mask(result), timestamp);
-          cache.put(key, entry);
-        }
+        entry = new CacheEntry(NullSentinel.mask(result), timestamp);
+        cache.put(key, entry);
         return result;
       } catch (InvocationTargetException e) {
         Throwables.propagateIfPossible(e.getCause());

@@ -17,7 +17,7 @@ import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import FontIcon from 'components/Icon/FontIcon';
-import Keys from 'constants/Keys.json';
+import Keys from '@app/constants/Keys.json';
 import classNames from 'classnames';
 import { base, searchInput } from './SearchField.less';
 

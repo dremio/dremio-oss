@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>3.3.2-201908142136370993-d60145d</version>
+    <version>4.0.0-201909121834570395-c7a5071</version>
   </parent>
   <artifactId>dremio-services-metrics</artifactId>
   <name>Services - Metrics</name>
@@ -41,6 +41,14 @@
       <artifactId>metrics-jvm</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.github.vladimir-bukhtoyarov</groupId>
+      <artifactId>rolling-metrics</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.dataformat</groupId>
+      <artifactId>jackson-dataformat-yaml</artifactId>
+    </dependency>
+    <dependency>
       <groupId>io.dropwizard.metrics</groupId>
       <artifactId>metrics-jmx</artifactId>
     </dependency>
@@ -51,6 +59,17 @@
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-all</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 

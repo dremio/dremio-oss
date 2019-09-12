@@ -36,6 +36,7 @@ import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobState;
+import com.dremio.service.jobs.GetJobRequest;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobException;
 import com.dremio.service.jobs.JobNotFoundException;
@@ -65,7 +66,11 @@ public class JobResource {
   @Path("/{id}")
   public JobStatus getJobStatus(@PathParam("id") String id) {
     try {
-      Job job = jobs.getJob(new JobId(id), securityContext.getUserPrincipal().getName());
+      GetJobRequest request = GetJobRequest.newBuilder()
+        .setJobId(new JobId(id))
+        .setUserName(securityContext.getUserPrincipal().getName())
+        .build();
+      Job job = jobs.getJob(request);
 
       return JobStatus.fromJob(job);
     } catch (JobNotFoundException e) {
@@ -78,7 +83,11 @@ public class JobResource {
   public JobData getQueryResults(@PathParam("id") String id, @QueryParam("offset") @DefaultValue("0") Integer offset, @Valid @QueryParam("limit") @DefaultValue("100") Integer limit) {
     Preconditions.checkArgument(limit <= 500,"limit can not exceed 500 rows");
     try {
-      Job job = jobs.getJob(new JobId(id), securityContext.getUserPrincipal().getName());
+      GetJobRequest request = GetJobRequest.newBuilder()
+        .setJobId(new JobId(id))
+        .setUserName(securityContext.getUserPrincipal().getName())
+        .build();
+      Job job = jobs.getJob(request);
 
 
       if (job.getJobAttempt().getState() != JobState.COMPLETED) {

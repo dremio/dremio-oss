@@ -30,7 +30,7 @@ import {
   DOUBLE,
   TIMESTAMP,
   VARCHAR
-} from 'constants/DataTypes';
+} from '@app/constants/DataTypes';
 
 // todo: why is this missing some items from constants/DataTypes.js?
 export const ALL_TYPES = [

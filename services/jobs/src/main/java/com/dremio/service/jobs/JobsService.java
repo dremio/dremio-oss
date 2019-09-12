@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import com.dremio.common.utils.protos.ExternalIdHelper;
-import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.service.Service;
@@ -57,46 +56,12 @@ public interface JobsService extends Service {
   /**
    * Get details of the job.
    *
-   * @param jobId job id
-   * @return details of the job for given id
-   * @throws JobNotFoundException if job is not found
-   */
-  Job getJob(JobId jobId) throws JobNotFoundException;
-
-  /**
-   * Get details of the job, from the kvStore.
-   * This is useful if we don't want the details to change while we are consuming them.
-   *
-   * @param jobId job id
-   * @return details of the job for given id
-   * @throws JobNotFoundException if job is not found
-   */
-  Job getJobFromStore(JobId jobId) throws JobNotFoundException;
-
-  /**
-   * Get details of the job.
-   *
-   * @param jobId    job id
-   * @param userName username for permission check
-   * @return details of the job for given id
+   * @param getJobRequest GetJob Request
+   * @return              Job for given request
    * @throws JobNotFoundException if job is not found
    * @throws AccessControlException if user does not have access to the job
    */
-  Job getJob(JobId jobId, String userName) throws JobNotFoundException;
-
-  /**
-   * Get all jobs including running jobs.
-   *
-   * @param filterString How to filter jobs.
-   * @param sortColumn   Column to sort the results on.
-   * @param sortOrder    Order for sorting.
-   * @param offset       start listing jobs from offset
-   * @param limit        number of jobs to return
-   * @param userName     filter jobs for given user
-   * @return Jobs associated with the conditions in the expected.
-   */
-  Iterable<Job> getAllJobs(String filterString, String sortColumn, SortOrder sortOrder, int offset, int limit,
-                           String userName);
+  Job getJob(GetJobRequest getJobRequest) throws JobNotFoundException;
 
   /**
    * Get the number of jobs run for a given path and version.
@@ -134,37 +99,12 @@ public interface JobsService extends Service {
   List<JobTypeStats> getJobStats(long startDate, long endDate);
 
   /**
-   * Get list of jobs run for a given path.
+   * Search jobs.
    *
-   * @param datasetPath Path of Dataset
-   * @return The list of jobs.
+   * @param request request
+   * @return jobs that match
    */
-  Iterable<Job> getJobsForDataset(NamespaceKey datasetPath, int limit);
-
-  /**
-   * Get list of jobs run for a given path and version.
-   * <p>
-   * Sorted in descending order by:
-   * - START_TIME
-   * - FINISH_TIME
-   * - JOBID
-   *
-   * @param datasetPath Path of dataset
-   * @param version     Version for dataset (or null for all versions)
-   * @return The list of jobs.
-   */
-  Iterable<Job> getJobsForDataset(NamespaceKey datasetPath, DatasetVersion version, int limit);
-
-  /**
-   * Get list of jobs run for a given path and version and user
-   *
-   * @param datasetPath
-   * @param version
-   * @param user
-   * @param limit
-   * @return
-   */
-  Iterable<Job> getJobsForDataset(NamespaceKey datasetPath, DatasetVersion version, String user, int limit);
+  Iterable<Job> searchJobs(SearchJobsRequest request);
 
   /**
    * Get list of jobs that have the provided parent

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.provision</groupId>
     <artifactId>dremio-yarn-parent</artifactId>
-    <version>3.3.2-201908142136370993-d60145d</version>
+    <version>4.0.0-201909121834570395-c7a5071</version>
   </parent>
 
   <groupId>com.dremio.provision</groupId>
@@ -49,6 +49,13 @@
           <artifactId>jersey-core</artifactId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <!-- org.apache.kafka is explicitly needed for YARN since twill
+    is excluded through dependencyManagement which would have otherwise
+    provided kafka as a transitive dependency. -->
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka_2.10</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.twill</groupId>
@@ -284,6 +291,16 @@
       </exclusions> 
     </dependency>
   </dependencies>
+  <dependencyManagement>
+    <dependencies>
+      <!-- Twill JAR has a dependency on netty 3.6.6.Final. See Also: DX-16894 -->
+      <dependency>
+        <groupId>io.netty</groupId>
+        <artifactId>netty</artifactId>
+        <version>3.6.6.Final</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
   <build>
     <plugins>
       <plugin>

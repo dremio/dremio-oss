@@ -27,7 +27,7 @@ import {
   fieldTypes,
   measureTypeLabels,
   cellType,
-  granularityValue} from 'constants/AccelerationConstants';
+  granularityValue} from '@app/constants/AccelerationConstants';
 
 import { checkboxStandalone } from '@app/components/Fields/Checkbox.less';
 import { menuSelected as menuSelectedCls } from './CellPopover.less';
@@ -51,48 +51,48 @@ export class ColumnReorder extends Component {
   };
   render() {
     const {
-    columns,
-    fieldName,
-    indexes,
-    hoverIndex,
-    //handlers
-    handleDragStart,
-    handleDragEnd,
-    handleMoveColumn
-  } = this.props;
+      columns,
+      fieldName,
+      indexes,
+      hoverIndex,
+      //handlers
+      handleDragStart,
+      handleDragEnd,
+      handleMoveColumn
+    } = this.props;
 
     return (
       <div>
         {
-        columns.map((column, index) => {
-          const columnName = column.name;
-          const dragSourceStyle = hoverIndex === index ? styles.columnDragHover : { cursor: 'ns-resize' };
-          return (
-            <div style={styles.columnWrap} key={columnName}>
-              <DragTarget
-                dragType='sortColumns'
-                moveColumn={(dragIndex, currentHoverIndex) => handleMoveColumn(fieldName, dragIndex, currentHoverIndex)}
-                index={index}
-              >
-                <div style={dragSourceStyle}>
-                  <DragSource
-                    dragType='sortColumns'
-                    index={index}
-                    onDragStart={handleDragStart}
-                    onDragEnd={() => handleDragEnd(fieldName, column)}
-                    isFromAnother
-                    id={columnName}>
-                    <div style={styles.column}>
-                      <div style={styles.columnIndex}>{indexes[columnName] + 1}</div>
-                      <span style={{ marginLeft: 10 }}>{columnName}</span>
-                    </div>
-                  </DragSource>
-                </div>
-              </DragTarget>
-            </div>
-          );
-        })
-      }
+          columns.map((column, index) => {
+            const columnName = column.name;
+            const dragSourceStyle = hoverIndex === index ? styles.columnDragHover : { cursor: 'ns-resize' };
+            return (
+              <div style={styles.columnWrap} key={columnName}>
+                <DragTarget
+                  dragType='sortColumns'
+                  moveColumn={(dragIndex, currentHoverIndex) => handleMoveColumn(fieldName, dragIndex, currentHoverIndex)}
+                  index={index}
+                >
+                  <div style={dragSourceStyle}>
+                    <DragSource
+                      dragType='sortColumns'
+                      index={index}
+                      onDragStart={handleDragStart}
+                      onDragEnd={() => handleDragEnd(fieldName, column)}
+                      isFromAnother
+                      id={columnName}>
+                      <div style={styles.column}>
+                        <div style={styles.columnIndex}>{indexes[columnName] + 1}</div>
+                        <span style={{ marginLeft: 10 }}>{columnName}</span>
+                      </div>
+                    </DragSource>
+                  </div>
+                </DragTarget>
+              </div>
+            );
+          })
+        }
       </div>
     );
   }

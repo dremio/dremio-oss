@@ -188,7 +188,7 @@ public class ResourceAllocationsTest extends BaseTestQuery {
 
     asyncCommand.allocateResourcesBasedOnPlan(plan);
     final ExecutionPlanningResources executionPlanningResources = ExecutionPlanCreator.getParallelizationInfo(queryContext,
-        observer, plan, executorSelectionService);
+        observer, plan, executorSelectionService, null);
     final PlanningSet planningSet = executionPlanningResources.getPlanningSet();
 
     final ExecutionPlan exec = ExecutionPlanCreator.getExecutionPlan(queryContext, pPlanReader, observer, plan,

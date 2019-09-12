@@ -69,12 +69,12 @@ export class ReplaceCustomForm extends Component {
   renderFooter() {
     const {fields, transform, submitForm} = this.props;
     return transform.get('transformType') === 'replace'
-    ? <ReplaceFooter
-      tabId='replace'
-      fields={fields}
-      submitForm={submitForm}
-      transform={transform}/>
-    : null;
+      ? <ReplaceFooter
+        tabId='replace'
+        fields={fields}
+        submitForm={submitForm}
+        transform={transform}/>
+      : null;
   }
 
   render() {

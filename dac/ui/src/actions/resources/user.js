@@ -16,7 +16,7 @@
 import { RSAA } from 'redux-api-middleware';
 
 import schemaUtils from 'utils/apiUtils/schemaUtils';
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 
 import userSchema from 'schemas/user';
 import {makeUncachebleURL} from 'ie11.js';

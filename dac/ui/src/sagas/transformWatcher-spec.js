@@ -81,6 +81,7 @@ describe('transformWatcher saga', () => {
       };
       expect(() => {
         next = gen.next(response); // forces to go to a finally block as exception would be thrown
+        next = gen.next(); // put failedExploreJobProgress
         // we should resume data load listener after navigation
         expect(next.value).to.be.eql(put(startExplorePageListener(false)));
         next = gen.next();

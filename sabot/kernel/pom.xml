@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>3.3.2-201908142136370993-d60145d</version>
+    <version>4.0.0-201909121834570395-c7a5071</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -35,7 +35,7 @@
       <artifactId>dremio-services-options</artifactId>
       <version>${project.version}</version>
     </dependency>
-    
+
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-connector</artifactId>
@@ -46,7 +46,7 @@
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-base-rpc</artifactId>
     </dependency>
-    
+
     <dependency>
         <groupId>com.yahoo.datasketches</groupId>
         <artifactId>sketches-core</artifactId>
@@ -57,7 +57,7 @@
       <groupId>com.hubspot.jackson</groupId>
       <artifactId>jackson-datatype-protobuf</artifactId>
     </dependency>
-    
+
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-coordinator</artifactId>
@@ -117,12 +117,12 @@
       <artifactId>protostuff-runtime</artifactId>
       <version>${protostuff.version}</version>
     </dependency>
-    
+
     <dependency>
       <groupId>io.protostuff</groupId>
       <artifactId>protostuff-api</artifactId>
     </dependency>
-    
+
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-all</artifactId>
@@ -146,9 +146,19 @@
     </dependency>
 
     <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>secretsmanager</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.univocity</groupId>
       <artifactId>univocity-parsers</artifactId>
       <version>1.3.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
     </dependency>
 
     <dependency>
@@ -245,11 +255,14 @@
       <artifactId>avatica</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.hibernate</groupId>
+      <groupId>javax.validation</groupId>
+      <artifactId>validation-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.hibernate.validator</groupId>
       <artifactId>hibernate-validator</artifactId>
-      <version>5.2.4.Final</version>
-      <scope>compile</scope>
-    </dependency>    
+      <scope>runtime</scope>
+    </dependency>
     <dependency>
       <groupId>org.freemarker</groupId>
       <artifactId>freemarker</artifactId>
@@ -389,6 +402,24 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>io.opentracing</groupId>
+      <artifactId>opentracing-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.opentracing</groupId>
+      <artifactId>opentracing-util</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.opentracing</groupId>
+      <artifactId>opentracing-noop</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.opentracing</groupId>
+      <artifactId>opentracing-mock</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>javax.inject</groupId>
       <artifactId>javax.inject</artifactId>
       <version>1</version>
@@ -423,6 +454,10 @@
     <dependency>
       <groupId>com.beust</groupId>
       <artifactId>jcommander</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.github.slugify</groupId>
+      <artifactId>slugify</artifactId>
     </dependency>
     <dependency>
       <groupId>org.xerial.snappy</groupId>
@@ -466,26 +501,6 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.apache.avro</groupId>
-      <artifactId>avro</artifactId>
-      <version>1.7.7</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.avro</groupId>
-      <artifactId>avro-mapred</artifactId>
-      <version>1.7.7</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.mortbay.jetty</groupId>
-          <artifactId>servlet-api</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.avro</groupId>
-          <artifactId>avro-ipc</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-hdfs</artifactId>
       <scope>test</scope>
@@ -525,78 +540,11 @@
     </dependency>
   </dependencies>
 
-  <profiles>
-    <profile>
-      <id>default-hadoop</id>
-      <activation>
-        <property>
-          <name>!alt-hadoop</name>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-jar-plugin</artifactId>
-            <version>2.4</version>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>cdh4</id>
-      <dependencies>
-        <dependency>
-          <artifactId>hadoop-common</artifactId>
-          <groupId>org.apache.hadoop</groupId>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>hdp</id>
-      <dependencies>
-        <dependency>
-          <artifactId>hadoop-common</artifactId>
-          <groupId>org.apache.hadoop</groupId>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
-      <id>largeTests</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-surefire-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>include-large-tests</id>
-                <phase>test</phase>
-                <goals>
-                  <goal>test</goal>
-                </goals>
-                <configuration>
-                  <includes>
-                    <include>**/TestLargeFileCompilation.java</include>
-                  </includes>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
-
   <build>
     <plugins>
       <plugin>
         <groupId>com.mycila</groupId>
         <artifactId>license-maven-plugin</artifactId>
-        <version>3.0</version>
         <configuration>
           <validHeaders>
             <validHeader>src/main/licenses/com.dremio.exec.expr.fn.impl.GuavaUtf8.license.txt</validHeader>
@@ -801,16 +749,48 @@
         </executions>
       </plugin>
       <plugin> <!-- source file must end up in the jar for janino parsing -->
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
         <executions>
           <execution>
-            <id>add-sources-as-resources</id>
+            <phase>generate-resources</phase>
+            <goals><goal>copy-resources</goal></goals>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/src/test/resources/</directory>
+                  <includes>
+                    <include>multilevel/**</include>
+                    <include>parquet/**</include>
+                  </includes>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+              <outputDirectory>${project.build.directory}/src-resources</outputDirectory>
+            </configuration>
+          </execution>
+          <execution> <!-- copy all templates/data in the same location to compile them at once -->
+            <id>copy-fmpp-resources</id>
+            <phase>initialize</phase>
+            <goals><goal>copy-resources</goal></goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/codegen</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>src/main/codegen</directory>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-sources-as-resources</id>
             <phase>process-sources</phase>
             <goals>
-              <goal>add-resource</goal>
+              <goal>copy-resources</goal>
             </goals>
             <configuration>
+              <outputDirectory>${project.build.outputDirectory}</outputDirectory>
               <resources>
                 <resource>
                   <directory>${project.basedir}/src/main/java</directory>
@@ -827,22 +807,17 @@
                     <include>com/dremio/exec/expr/fn/impl/**/*.java</include>
                   </includes>
                 </resource>
-                <resource>
-                  <directory>${project.build.directory}/generated-sources/javacc</directory>
-                  <includes>
-                    <include>com/dremio/exec/expr/fn/impl/**/*.java</include>
-                  </includes>
-                </resource>
               </resources>
             </configuration>
           </execution>
           <execution>
-            <id>add-test-sources-as-resources</id>
+            <id>copy-test-sources-as-resources</id>
             <phase>process-test-sources</phase>
             <goals>
-              <goal>add-test-resource</goal>
+              <goal>copy-resources</goal>
             </goals>
             <configuration>
+              <outputDirectory>${project.build.testOutputDirectory}</outputDirectory>
               <resources>
                 <resource>
                   <directory>${project.basedir}/src/test/java</directory>
@@ -909,43 +884,6 @@
               <excludes>
                 <exclude>**/TestLargeFileCompilation.java</exclude>
               </excludes>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-resources-plugin</artifactId>
-        <executions>
-          <execution>
-            <phase>generate-resources</phase>
-            <goals><goal>copy-resources</goal></goals>
-            <configuration>
-              <resources>
-                <resource>
-                  <directory>${project.basedir}/src/test/resources/</directory>
-                  <includes>
-                    <include>multilevel/**</include>
-                    <include>parquet/**</include>
-                  </includes>
-                  <filtering>false</filtering>
-                </resource>
-              </resources>
-              <outputDirectory>${project.build.directory}/src-resources</outputDirectory>
-            </configuration>
-          </execution>
-          <execution> <!-- copy all templates/data in the same location to compile them at once -->
-            <id>copy-fmpp-resources</id>
-            <phase>initialize</phase>
-            <goals><goal>copy-resources</goal></goals>
-            <configuration>
-              <outputDirectory>${project.build.directory}/codegen</outputDirectory>
-              <resources>
-                <resource>
-                  <directory>src/main/codegen</directory>
-                  <filtering>false</filtering>
-                </resource>
-              </resources>
             </configuration>
           </execution>
         </executions>

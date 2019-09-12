@@ -31,49 +31,55 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.Dictionary;
+import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.filter2.recordlevel.PhoneBookWriter;
 import org.apache.parquet.filter2.recordlevel.PhoneBookWriter.User;
 import org.apache.parquet.hadoop.CodecFactory;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.common.VM;
+import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 import com.google.common.collect.Lists;
 
 
 /**
  * Tests for global dictionary utilities.
  */
-public class TestGlobalDictionaryBuilder {
+public class TestGlobalDictionaryBuilder extends DremioTest {
 
   @ClassRule
   public static TemporaryFolder folder = new TemporaryFolder();
 
   private static Path tableDirPath;
   private static Path partitionDirPath;
+  private static Configuration conf;
   private static FileSystem fs;
   private static final Charset UTF8 = Charset.forName("UTF-8");
 
   private static String [] kinds = { "landline", "mobile", "cell", "work", "home"};
 
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+
   @BeforeClass
   public static void setup() throws Exception {
-    Configuration conf = new Configuration();
-    conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "local");
-    fs = FileSystem.get(conf);
+    conf = new Configuration();
+    fs = HadoopFileSystem.getLocal(conf);
     File tableDir = folder.newFolder("t1");
     File partitionDir = folder.newFolder("p1");
 
@@ -114,8 +120,8 @@ public class TestGlobalDictionaryBuilder {
     PhoneBookWriter.writeToFileWithPageHeaders(users3, 100, 1024*1024).renameTo(f3);
     PhoneBookWriter.writeToFileWithPageHeaders(users4, 100, 1024*1024).renameTo(f4);
 
-    tableDirPath = new Path(tableDir.getAbsolutePath());
-    partitionDirPath = new Path(partitionDir.getAbsolutePath());
+    tableDirPath = Path.of(tableDir.getAbsolutePath());
+    partitionDirPath = Path.of(partitionDir.getAbsolutePath());
   }
 
   @AfterClass
@@ -126,39 +132,39 @@ public class TestGlobalDictionaryBuilder {
 
   @Test
   public void testDictionaryRootDirFiltering() throws Exception {
-    Path tabledir = new Path(folder.newFolder("testDictionaryRootDirFiltering").getAbsolutePath());
+    Path tabledir = Path.of(folder.newFolder("testDictionaryRootDirFiltering").getAbsolutePath());
     // initial no dictionaries present
     assertEquals(-1, GlobalDictionaryBuilder.getDictionaryVersion(fs, tabledir));
 
     assertNotNull(GlobalDictionaryBuilder.createDictionaryVersionedRootPath(fs, tabledir, 0,
-      new Path(folder.newFolder(UUID.randomUUID().toString()).getAbsolutePath())));
+      Path.of(folder.newFolder(UUID.randomUUID().toString()).getAbsolutePath())));
     assertEquals(0, GlobalDictionaryBuilder.getDictionaryVersion(fs, tabledir));
 
     assertNotNull(GlobalDictionaryBuilder.createDictionaryVersionedRootPath(fs, tabledir, 1,
-      new Path(folder.newFolder("testDictionaryRootDirFiltering_0").getAbsolutePath())));
+      Path.of(folder.newFolder("testDictionaryRootDirFiltering_0").getAbsolutePath())));
     assertEquals(1, GlobalDictionaryBuilder.getDictionaryVersion(fs, tabledir));
 
     try {
       assertNotNull(GlobalDictionaryBuilder.createDictionaryVersionedRootPath(fs, tabledir, 0,
-        new Path(folder.newFolder(UUID.randomUUID().toString()).getAbsolutePath())));
+        Path.of(folder.newFolder(UUID.randomUUID().toString()).getAbsolutePath())));
       fail("dictionaries for version 0 already exist, operation should fail");
     } catch (IOException ioe) {
     }
 
     try {
       assertNotNull(GlobalDictionaryBuilder.createDictionaryVersionedRootPath(fs, tabledir, 1,
-        new Path(folder.newFolder(UUID.randomUUID().toString()).getAbsolutePath())));
+        Path.of(folder.newFolder(UUID.randomUUID().toString()).getAbsolutePath())));
       fail("dictionaries for version 0 already exist, operation should fail");
     } catch (IOException ioe) {
     }
 
     assertNotNull(GlobalDictionaryBuilder.createDictionaryVersionedRootPath(fs, tabledir, 10,
-      new Path(folder.newFolder(UUID.randomUUID().toString()).getAbsolutePath())));
+      Path.of(folder.newFolder(UUID.randomUUID().toString()).getAbsolutePath())));
     assertNotNull(GlobalDictionaryBuilder.createDictionaryVersionedRootPath(fs, tabledir, 12,
-      new Path(folder.newFolder(UUID.randomUUID().toString()).getAbsolutePath())));
+      Path.of(folder.newFolder(UUID.randomUUID().toString()).getAbsolutePath())));
     try {
       assertNotNull(GlobalDictionaryBuilder.createDictionaryVersionedRootPath(fs, tabledir, 9,
-        new Path(folder.newFolder(UUID.randomUUID().toString()).getAbsolutePath())));
+        Path.of(folder.newFolder(UUID.randomUUID().toString()).getAbsolutePath())));
       fail("dictionaries with a higher version 12 already exist, operation should fail");
     } catch (IOException ioe) {
     }
@@ -181,8 +187,9 @@ public class TestGlobalDictionaryBuilder {
 
   @Test
   public void testGlobalDictionary() throws Exception {
-    try (final BufferAllocator bufferAllocator = new RootAllocator(VM.getMaxDirectMemory())) {
-      Map<ColumnDescriptor, Path> globalDictionaries = GlobalDictionaryBuilder.createGlobalDictionaries(fs, tableDirPath, bufferAllocator).getColumnsToDictionaryFiles();
+    try (final BufferAllocator bufferAllocator = allocatorRule.newAllocator("test-global-dictionary-builder", 0, Long.MAX_VALUE)) {
+      final CompressionCodecFactory codec = CodecFactory.createDirectCodecFactory(conf, new ParquetDirectByteBufferAllocator(bufferAllocator), 0);
+      Map<ColumnDescriptor, Path> globalDictionaries = GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, tableDirPath, bufferAllocator).getColumnsToDictionaryFiles();
       assertEquals(1, globalDictionaries.size());
       ColumnDescriptor column = globalDictionaries.entrySet().iterator().next().getKey();
       assertTrue(Arrays.equals(new String[] {"phoneNumbers", "phone", "kind"}, column.getPath()));
@@ -200,7 +207,7 @@ public class TestGlobalDictionaryBuilder {
       assertEquals(1, GlobalDictionaryBuilder.listDictionaryFiles(fs, dictionaryRootPath).size());
 
       // update global dictionary
-      globalDictionaries = GlobalDictionaryBuilder.updateGlobalDictionaries(fs, tableDirPath, partitionDirPath, bufferAllocator).getColumnsToDictionaryFiles();
+      globalDictionaries = GlobalDictionaryBuilder.updateGlobalDictionaries(codec, fs, tableDirPath, partitionDirPath, bufferAllocator).getColumnsToDictionaryFiles();
       assertEquals(1, globalDictionaries.size());
       column = globalDictionaries.entrySet().iterator().next().getKey();
       assertTrue(Arrays.equals(new String[] {"phoneNumbers", "phone", "kind"}, column.getPath()));
@@ -224,16 +231,16 @@ public class TestGlobalDictionaryBuilder {
 
   @Test
   public void testLocalDictionaries() throws IOException {
-    try (final BufferAllocator bufferAllocator = new RootAllocator(VM.getMaxDirectMemory())) {
-      final CodecFactory codecFactory = CodecFactory.createDirectCodecFactory(fs.getConf(), new ParquetDirectByteBufferAllocator(bufferAllocator), 0);
+    try (final BufferAllocator bufferAllocator = allocatorRule.newAllocator("test-global-dictionary-builder", 0, Long.MAX_VALUE)) {
+      final CompressionCodecFactory codecFactory = CodecFactory.createDirectCodecFactory(conf, new ParquetDirectByteBufferAllocator(bufferAllocator), 0);
       Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries1 =
-        LocalDictionariesReader.readDictionaries(fs, new Path(tableDirPath, "phonebook1.parquet"), codecFactory);
+        LocalDictionariesReader.readDictionaries(fs, tableDirPath.resolve("phonebook1.parquet"), codecFactory);
       Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries2 =
-        LocalDictionariesReader.readDictionaries(fs, new Path(tableDirPath, "phonebook2.parquet"), codecFactory);
+        LocalDictionariesReader.readDictionaries(fs, tableDirPath.resolve("phonebook2.parquet"), codecFactory);
       Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries3 =
-        LocalDictionariesReader.readDictionaries(fs, new Path(tableDirPath, "phonebook3.parquet"), codecFactory);
+        LocalDictionariesReader.readDictionaries(fs, tableDirPath.resolve("phonebook3.parquet"), codecFactory);
       Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries4 =
-        LocalDictionariesReader.readDictionaries(fs, new Path(partitionDirPath, "phonebook4.parquet"), codecFactory);
+        LocalDictionariesReader.readDictionaries(fs, partitionDirPath.resolve("phonebook4.parquet"), codecFactory);
 
       assertEquals(2, dictionaries1.getKey().size()); // name and kind have dictionaries
       assertEquals(1, dictionaries2.getKey().size());

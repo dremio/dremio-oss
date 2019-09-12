@@ -49,12 +49,12 @@ class RowsDropdown extends Component {
       let maxValue = (nextProps.tableLength + STEP) / STEP;
       maxValue = (Math.round(maxValue) * STEP);
 
-      this.state = {
+      this.setState({
         currentValue: nextProps.tableLength ? STEP : 0,
         dropdownState: false,
         min: STEP,
         max: maxValue
-      };
+      });
     }
   }
 

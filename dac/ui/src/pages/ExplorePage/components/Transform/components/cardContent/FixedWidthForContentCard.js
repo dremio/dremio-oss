@@ -79,8 +79,8 @@ export default class FixedWidthForContentCard extends Component {
 
   render() {
     const extraBorder = this.props.index === 2
-        ? { borderBottom: '1px solid #ccc' }
-        : {};
+      ? { borderBottom: '1px solid #ccc' }
+      : {};
     const data = FixedWidthForContentCard.getExampleTextParts(
       this.props.example, this.state.width
     );

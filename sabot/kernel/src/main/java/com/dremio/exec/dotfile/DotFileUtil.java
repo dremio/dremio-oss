@@ -16,21 +16,22 @@
 package com.dremio.exec.dotfile;
 
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.Path;
-
-import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.google.common.collect.Lists;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
+import com.dremio.io.file.PathFilters;
 
 public class DotFileUtil {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DotFileUtil.class);
 
-  private static List<DotFile> filterDotFiles(FileSystemWrapper fs, FileStatus[] statuses, DotFileType... types){
-    List<DotFile> files = Lists.newArrayList();
-    for(FileStatus s : statuses){
-      DotFile f = DotFile.create(fs, s);
+  private static List<DotFile> filterDotFiles(FileSystem fs, Iterable<FileAttributes> attributes, DotFileType... types){
+    List<DotFile> files = new ArrayList<>();
+    for(FileAttributes a : attributes){
+      DotFile f = DotFile.create(fs, a);
       if(f != null){
         if(types.length == 0){
           files.add(f);
@@ -47,15 +48,19 @@ public class DotFileUtil {
     return files;
   }
 
-  public static List<DotFile> getDotFiles(FileSystemWrapper fs, Path root, DotFileType... types) throws IOException{
-    return filterDotFiles(fs, fs.globStatus(new Path(root, "*.meta")), types);
+  public static List<DotFile> getDotFiles(FileSystem fs, Path root, DotFileType... types) throws IOException{
+    try (DirectoryStream<FileAttributes> stream = fs.glob(root.resolve("*.meta"), PathFilters.ALL_FILES)) {
+      return filterDotFiles(fs, stream, types);
+    }
   }
 
-  public static List<DotFile> getDotFiles(FileSystemWrapper fs, Path root, String name, DotFileType... types) throws IOException{
+  public static List<DotFile> getDotFiles(FileSystem fs, Path root, String name, DotFileType... types) throws IOException{
     if(!name.endsWith(".meta")) {
       name = name + DotFileType.DOT_FILE_GLOB;
     }
 
-    return filterDotFiles(fs, fs.globStatus(new Path(root, name)), types);
+    try (DirectoryStream<FileAttributes> stream = fs.glob(root.resolve(name), PathFilters.ALL_FILES)) {
+      return filterDotFiles(fs, stream, types);
+    }
   }
 }

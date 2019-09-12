@@ -34,6 +34,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
+import javax.ws.rs.client.Entity;
+
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.SqlExplainFormat;
@@ -45,6 +47,9 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUI;
+import com.dremio.dac.model.job.JobDataFragment;
+import com.dremio.dac.model.job.JobUI;
+import com.dremio.dac.model.spaces.Space;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.datastore.KVStoreProvider;
@@ -88,12 +93,15 @@ import com.dremio.service.reflection.ReflectionStatusService;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.ReflectionDetails;
+import com.dremio.service.reflection.proto.ReflectionDimensionField;
 import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
+import com.dremio.service.reflection.proto.ReflectionMeasureField;
 import com.dremio.service.reflection.proto.ReflectionType;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
+import com.dremio.service.users.SystemUser;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
@@ -212,6 +220,10 @@ public class BaseTestReflection extends BaseTestServer {
   }
 
   protected String getQueryPlan(final String query) {
+    return getQueryPlan(query, false);
+  }
+
+  protected String getQueryPlan(final String query, boolean asSystemUser) {
     final AtomicReference<String> plan = new AtomicReference<>("");
     final JobStatusListener capturePlanListener = new NoOpJobStatusListener() {
       @Override
@@ -229,8 +241,8 @@ public class BaseTestReflection extends BaseTestServer {
     JobsServiceUtil.waitForJobCompletion(
       getJobsService().submitJob(
         JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery(query, DEFAULT_USERNAME))
-          .setQueryType(QueryType.UI_INTERNAL_RUN)
+          .setSqlQuery(new SqlQuery(query, asSystemUser ? SystemUser.SYSTEM_USERNAME : DEFAULT_USERNAME))
+          .setQueryType(QueryType.UI_RUN)
           .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
           .build(), capturePlanListener)
     );
@@ -246,7 +258,27 @@ public class BaseTestReflection extends BaseTestServer {
     return builder.build();
   }
 
+  protected static List<ReflectionDimensionField> reflectionDimensionFields(String ... fields) {
+    ImmutableList.Builder<ReflectionDimensionField> builder = new ImmutableList.Builder<>();
+    for (String field : fields) {
+      builder.add(new ReflectionDimensionField(field));
+    }
+    return builder.build();
+  }
+
+  protected static List<ReflectionMeasureField> reflectionMeasureFields(String ... fields) {
+    ImmutableList.Builder<ReflectionMeasureField> builder = new ImmutableList.Builder<>();
+    for (String field : fields) {
+      builder.add(new ReflectionMeasureField(field));
+    }
+    return builder.build();
+  }
+
   protected static List<ReflectionRelationship> getChosen(List<ReflectionRelationship> relationships) {
+    if (relationships == null) {
+      return Collections.emptyList();
+    }
+
     return relationships.stream()
       .filter((r) -> r.getState() == CHOSEN)
       .collect(Collectors.toList());
@@ -381,6 +413,55 @@ public class BaseTestReflection extends BaseTestServer {
     return true;
   }
 
+  protected void createSpace(String name) {
+    expectSuccess(getBuilder(getAPIv2().path("space/" + name)).buildPut(Entity.json(new Space(null, name, null, null, null, 0, null))), Space.class);
+  }
 
+  /**
+   * Get data record of a reflection
+   * @param reflectionId    id of a reflection
+   * @return  data record of the reflection
+   * @throws Exception
+   */
+  protected JobDataFragment getReflectionsData(ReflectionId reflectionId) throws Exception {
+    SqlQuery reflectionsQuery = getQueryFromSQL(
+      String.format("select * from sys.reflections where reflection_id = '" + reflectionId.getId() + "'"));
+    final JobDataFragment reflectionsData = JobUI.getJobData(
+      l(JobsService.class).submitJob(JobRequest.newBuilder().setSqlQuery(reflectionsQuery).build(),
+        NoOpJobStatusListener.INSTANCE)
+    ).truncate(1);
+    return reflectionsData;
+  }
 
+  /**
+   * Get materialization data of a reflection
+   * @param reflectionId    id of a reflection
+   * @return  materialization data of the reflection
+   * @throws Exception
+   */
+  protected JobDataFragment getMaterializationsData(ReflectionId reflectionId) throws Exception {
+    SqlQuery materializationsQuery = getQueryFromSQL(
+      String.format("select * from sys.materializations where reflection_id = '" + reflectionId.getId() + "'"));
+    final JobDataFragment materializationsData = JobUI.getJobData(
+      l(JobsService.class).submitJob(JobRequest.newBuilder().setSqlQuery(materializationsQuery).build(),
+        NoOpJobStatusListener.INSTANCE)
+    ).truncate(1);
+    return materializationsData;
+  }
+
+  /**
+   * Get refresh data of a reflection
+   * @param reflectionId    id of a reflection
+   * @return  refresh data of the reflection
+   * @throws Exception
+   */
+  protected JobDataFragment getRefreshesData(ReflectionId reflectionId) throws Exception {
+    SqlQuery refreshesQuery = getQueryFromSQL(
+      String.format("select * from sys.materializations where reflection_id = '" + reflectionId.getId() + "'"));
+    final JobDataFragment refreshesData = JobUI.getJobData(
+      l(JobsService.class).submitJob(JobRequest.newBuilder().setSqlQuery(refreshesQuery).build(),
+        NoOpJobStatusListener.INSTANCE)
+    ).truncate(100);
+    return refreshesData;
+  }
 }

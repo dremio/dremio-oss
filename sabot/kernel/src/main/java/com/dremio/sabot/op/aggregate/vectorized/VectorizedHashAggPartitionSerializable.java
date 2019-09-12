@@ -306,7 +306,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    * @return true if there are no more batches to be spilled, false otherwise
    * @throws IOException failure while writing to stream
    */
-  boolean writeBatchToStream(final OutputStream output) throws IOException {
+  boolean writeBatchToStream(final OutputStream output) throws Exception {
     if (inProgressWritableBatch == null) {
       final LBlockHashTable hashTable = hashAggPartition.hashTable;
       final List<ArrowBuf> fixedBlockBuffers = hashTable.getFixedBlockBuffers();
@@ -325,8 +325,11 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
       return true;
     }
 
+    final int idx = batchDefinition.getCurrentBatchIndex();
     writeBatchToStreamHelper(output, inProgressWritableBatch, batchDefinition);
 
+    //release memory from this batch
+    hashAggPartition.hashTable.releaseBatch(idx);
     return false;
   }
 

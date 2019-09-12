@@ -204,7 +204,7 @@ export default class JobTable extends Component {
         placement='right'
         shouldShowOverlay={showOverlay}
         typeIcon={getIconByEntityType(datasetType)}/>
-      );
+    );
 
     return (
       <div key={key} style={style}>

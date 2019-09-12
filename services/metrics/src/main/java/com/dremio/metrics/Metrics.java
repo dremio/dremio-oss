@@ -15,49 +15,120 @@
  */
 package com.dremio.metrics;
 
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.net.URL;
+import java.time.Duration;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.LongSupplier;
+
+import javax.inject.Provider;
 
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Metric;
-import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.MetricSet;
-import com.codahale.metrics.Slf4jReporter;
-import com.codahale.metrics.jmx.JmxReporter;
+import com.codahale.metrics.Timer.Context;
 import com.codahale.metrics.jvm.BufferPoolMetricSet;
 import com.codahale.metrics.jvm.GarbageCollectorMetricSet;
 import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
-import com.dremio.common.config.SabotConfig;
+import com.dremio.common.scanner.persistence.ScanResult;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.github.rollingmetrics.counter.ResetOnSnapshotCounter;
+import com.github.rollingmetrics.counter.ResetPeriodicallyCounter;
+import com.github.rollingmetrics.counter.SmoothlyDecayingRollingCounter;
+import com.github.rollingmetrics.counter.WindowCounter;
+import com.github.rollingmetrics.histogram.HdrBuilder;
+import com.github.rollingmetrics.hitratio.HitRatio;
+import com.github.rollingmetrics.hitratio.ResetOnSnapshotHitRatio;
+import com.github.rollingmetrics.hitratio.ResetPeriodicallyHitRatio;
+import com.github.rollingmetrics.hitratio.SmoothlyDecayingRollingHitRatio;
+import com.github.rollingmetrics.hitratio.UniformHitRatio;
+import com.github.rollingmetrics.top.Top;
+import com.github.rollingmetrics.top.TopBuilder;
+import com.github.rollingmetrics.top.TopMetricSet;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Resources;
 
 /**
  * Dremio main metrics class
  */
 public final class Metrics {
+  private static final long MINIMUM_REFRESH_FREQUENCY = TimeUnit.SECONDS.toMillis(30);
+  private static final String CONFIG_FILE = "dremio-metrics.yaml";
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Metrics.class);
-
-  public static final String METRICS_JMX_OUTPUT_ENABLED = "dremio.metrics.jmx.enabled";
-  public static final String METRICS_LOG_OUTPUT_ENABLED = "dremio.metrics.log.enabled";
-  public static final String METRICS_LOG_OUTPUT_INTERVAL = "dremio.metrics.log.interval";
-
-  private static final SabotConfig config = SabotConfig.create();
+  private static final int DECAY_CHUNKS = 10;
+  private static final boolean[] shouldWarnOnReadMiss = {true};
 
   private Metrics() {
   }
 
+  /**
+   * Start the reporters configured in dremio-metrics.conf if there are any defined. Note that this will only start
+   * metrics once. Should not throw any exceptions and simply fail in logging if start fails.
+   */
+  @SuppressWarnings("unchecked")
+  public static synchronized void startReportersIfNotStarted(ScanResult scan, long refreshFrequency) {
+    if(refreshFrequency < MINIMUM_REFRESH_FREQUENCY) {
+      logger.warn("Metrics configruation refresh frequency set to {}ms. Adjusting to minimum of {}s.", refreshFrequency, TimeUnit.MILLISECONDS.toSeconds(MINIMUM_REFRESH_FREQUENCY));
+      refreshFrequency = MINIMUM_REFRESH_FREQUENCY;
+    }
+
+    final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+    Collection<Class<? extends ReporterConfigurator>> configurators = scan.getImplementations(ReporterConfigurator.class);
+    mapper.registerSubtypes((Collection<Class<?>>) (Object) configurators);
+    final ObjectReader reader = mapper.readerFor(new TypeReference<List<ParentConfigurator>>() { });
+
+    Provider<Collection<ParentConfigurator>> configurationProvider = () -> {
+
+      final URL resource;
+      try {
+        resource = Resources.getResource(CONFIG_FILE);
+        final Collection<ParentConfigurator> fromConfig = reader.readValue(resource);
+        // If we currently have a config file, we should be warned if it disappears in the future.
+        shouldWarnOnReadMiss[0] = true;
+        return fromConfig;
+
+      } catch(IllegalArgumentException ex) {
+        if (shouldWarnOnReadMiss[0]) {
+          logger.info("Unable to find metrics configuration file {}, disabling metrics reporting.", CONFIG_FILE);
+          shouldWarnOnReadMiss[0] = false;
+        }
+
+      } catch (IOException ex) {
+        logger.warn("Failure reading metric configuration.", ex);
+      }
+
+      return Collections.emptyList();
+    };
+
+
+    RegistryHolder.REPORTERS.startIfNot(refreshFrequency, configurationProvider);
+  }
+
+  @VisibleForTesting
+  static synchronized void startReportersIfNotStarted(long refreshFrequency, Provider<Collection<ParentConfigurator>> configurationProvider) {
+    RegistryHolder.REPORTERS.startIfNot(refreshFrequency, configurationProvider);
+  }
+
   private static class RegistryHolder {
     public static final MetricRegistry REGISTRY;
-    private static final JmxReporter JMX_REPORTER;
-    private static final Slf4jReporter LOG_REPORTER;
+    private static final ReporterManager REPORTERS;
 
     static {
       REGISTRY = new MetricRegistry();
       registerSysStats();
-      JMX_REPORTER = getJmxReporter();
-      LOG_REPORTER = getLogReporter();
+      REPORTERS = new ReporterManager(REGISTRY);
     }
 
     private static void registerSysStats(){
@@ -66,41 +137,12 @@ public final class Metrics {
       REGISTRY.registerAll(scoped("memory", new MemoryUsageGaugeSet()));
       REGISTRY.registerAll(scoped("threads", new ThreadStatesGaugeSet()));
     }
-
-    private static JmxReporter getJmxReporter() {
-      if (config.getBoolean(METRICS_JMX_OUTPUT_ENABLED)) {
-        JmxReporter reporter = JmxReporter.forRegistry(getInstance()).build();
-        reporter.start();
-
-        return reporter;
-      } else {
-        return null;
-      }
-    }
-
-    private static Slf4jReporter getLogReporter() {
-      if (config.getBoolean(METRICS_LOG_OUTPUT_ENABLED)) {
-        Slf4jReporter reporter = Slf4jReporter.forRegistry(getInstance()).outputTo(logger)
-            .convertRatesTo(TimeUnit.SECONDS).convertDurationsTo(TimeUnit.MILLISECONDS).build();
-        reporter.start(config.getInt(METRICS_LOG_OUTPUT_INTERVAL), TimeUnit.SECONDS);
-
-        return reporter;
-      } else {
-        return null;
-      }
-    }
   }
 
-  public static synchronized void registerGauge(String name, Gauge<?> metric) {
-    boolean removed = RegistryHolder.REGISTRY.remove(name);
-    if (removed) {
+  private static synchronized void remove(String name) {
+    if (RegistryHolder.REGISTRY.remove(name)) {
       logger.warn("Removing old metric since name matched newly registered metric. Metric name: {}", name);
     }
-    RegistryHolder.REGISTRY.register(name, metric);
-  }
-
-  public static MetricRegistry getInstance() {
-    return RegistryHolder.REGISTRY;
   }
 
   private static MetricSet scoped(final String name, final MetricSet metricSet) {
@@ -116,13 +158,282 @@ public final class Metrics {
     };
   }
 
-  public static void resetMetrics(){
-    RegistryHolder.REGISTRY.removeMatching(new MetricFilter(){
-      @Override
-      public boolean matches(String name, Metric metric) {
-        return true;
-      }});
+  public static synchronized void resetMetrics(){
+    RegistryHolder.REGISTRY.removeMatching((a,b) -> true);
     RegistryHolder.registerSysStats();
   }
+
+  public static synchronized void unregister(String metric) {
+    if (!RegistryHolder.REGISTRY.remove(metric)) {
+      logger.warn("Could not find metric to unregister. Metric name: {}", metric);
+    }
+  }
+
+  @VisibleForTesting
+  static Collection<ParentConfigurator> getConfigurators() {
+    return RegistryHolder.REPORTERS.getParentConfigurators();
+  }
+
+  public static synchronized void newGauge(String name, LongSupplier supplier) {
+    remove(name);
+    RegistryHolder.REGISTRY.register(name, (Gauge<Long>) supplier::getAsLong);
+  }
+
+  public static synchronized Counter newCounter(String name, ResetType reset) {
+    remove(name);
+    switch(reset) {
+    case NEVER:
+      com.codahale.metrics.Counter inner = RegistryHolder.REGISTRY.counter(name);
+      return new Counter() {
+        @Override
+        public void increment(long value, String... tags) {
+          inner.inc(value);
+        }
+        @Override
+        public void decrement(long value, String... tags) {
+          inner.dec(value);
+        }};
+
+    case ON_SNAPSHOT:
+      return registerWindowCounter(name, new ResetOnSnapshotCounter());
+    case PERIODIC_15M:
+    case PERIODIC_1D:
+    case PERIODIC_7D:
+      return registerWindowCounter(name, new ResetPeriodicallyCounter(reset.getDuration()));
+    case PERIODIC_DECAY:
+      return registerWindowCounter(name, new SmoothlyDecayingRollingCounter(reset.getDuration(), DECAY_CHUNKS));
+    default:
+      throw new UnsupportedOperationException("Unknown type: " + reset);
+    }
+  }
+
+  private static synchronized Counter registerWindowCounter(String name, WindowCounter counter) {
+    RegistryHolder.REGISTRY.register(name, (Gauge<Long>) counter::getSum);
+    return new Counter() {
+
+      @Override
+      public void increment(long value, String... tags) {
+        counter.add(value);
+      }
+
+      @Override
+      public void decrement(long value, String... tags) {
+        counter.add(-value);
+      }
+
+    };
+  }
+
+  /**
+   * The type of reset behavior a Counter/Histogram/Etc should have.
+   */
+  public static enum ResetType {
+    /**
+     * Never reset value.
+     */
+    NEVER,
+
+    /**
+     * Reset each time value is observed.
+     */
+    ON_SNAPSHOT,
+
+    /**
+     * Reset values every 15 minutes.
+     */
+    PERIODIC_15M(Duration.ofMinutes(15)),
+
+    /**
+     * Reset every day
+     */
+    PERIODIC_1D(Duration.ofDays(1)),
+
+    /**
+     * Reset every week
+     */
+    PERIODIC_7D(Duration.ofDays(7)),
+
+    /**
+     * Do multiple trackers. To be implemented.
+     */
+    MULTI(Duration.ofDays(7)),
+
+    /**
+     * Reset periodically with decay.
+     */
+    PERIODIC_DECAY(Duration.ofDays(7));
+
+    private Duration duration;
+
+    ResetType() {
+      this.duration = null;
+    }
+
+    ResetType(Duration duration) {
+      this.duration = duration;
+    }
+
+    public Duration getDuration() {
+      return duration;
+    }
+  }
+
+  /**
+   * Create a new reporter that reports the top slow operations over time.
+   * @param name The name of the metric
+   * @param count The number of items to keep (eg 10 for top 10)
+   * @param latencyThreshold The latency below which observations should be ignored.
+   * @param reset The desired reset behavior.
+   * @return The reporter to use.
+   */
+  public static synchronized TopMonitor newTopReporter(String name, int count, Duration latencyThreshold, ResetType reset) {
+    TopBuilder builder =  Top.builder(count).withLatencyThreshold(latencyThreshold);
+    switch(reset) {
+    case NEVER:
+      builder.neverResetPositions();
+      break;
+    case ON_SNAPSHOT:
+      builder.resetAllPositionsOnSnapshot();
+      break;
+    case PERIODIC_15M:
+    case PERIODIC_1D:
+    case PERIODIC_7D:
+      builder.resetAllPositionsPeriodically(reset.getDuration());
+      break;
+    case PERIODIC_DECAY:
+      builder.resetPositionsPeriodicallyByChunks(reset.getDuration(), DECAY_CHUNKS);
+      break;
+    default:
+      throw new UnsupportedOperationException("Unknown type: " + reset);
+    }
+
+    Top top = builder.build();
+    MetricSet metricSet = new TopMetricSet(name, top, TimeUnit.MILLISECONDS, 2);
+    RegistryHolder.REGISTRY.registerAll(metricSet);
+    return (latency, desc, tags) -> top.update(System.currentTimeMillis(), latency, TimeUnit.MILLISECONDS, () -> desc.get());
+  }
+
+  /**
+   * Tracks rate of occurrence. For example: requests per second.
+   */
+  public static synchronized Meter newMeter(String name) {
+    remove(name);
+    com.codahale.metrics.Meter meter = RegistryHolder.REGISTRY.meter(name);
+    return (tags) -> meter.mark();
+  }
+
+  /**
+   * Create a histogram of values.
+   */
+  public static synchronized Histogram newHistogram(String name, ResetType reset) {
+    remove(name);
+    HdrBuilder builder = new HdrBuilder();
+
+    switch(reset) {
+    case NEVER:
+      com.codahale.metrics.Histogram histogram = RegistryHolder.REGISTRY.histogram(name);
+      return (v, tags) -> histogram.update(v);
+    case ON_SNAPSHOT:
+      builder.resetReservoirOnSnapshot();
+      break;
+    case PERIODIC_15M:
+    case PERIODIC_1D:
+    case PERIODIC_7D:
+      builder.resetReservoirPeriodically(reset.getDuration());
+      break;
+    case PERIODIC_DECAY:
+      builder.resetReservoirPeriodicallyByChunks(reset.getDuration(), DECAY_CHUNKS);
+      break;
+    default:
+      throw new UnsupportedOperationException("Unknown type: " + reset);
+    }
+
+    com.codahale.metrics.Histogram hist = builder.buildAndRegisterHistogram(RegistryHolder.REGISTRY, name);
+    return (v, tags) -> hist.update(v);
+  }
+
+  /**
+   * Create a timer to observe length of operations.
+   */
+  public static synchronized Timer newTimer(String name, ResetType reset) {
+    remove(name);
+
+    HdrBuilder builder = new HdrBuilder();
+    switch(reset) {
+    case NEVER:
+      return asPublicTimer(RegistryHolder.REGISTRY.timer(name));
+    case ON_SNAPSHOT:
+      builder.resetReservoirOnSnapshot();
+      break;
+    case PERIODIC_15M:
+    case PERIODIC_1D:
+    case PERIODIC_7D:
+      builder.resetReservoirPeriodically(reset.getDuration());
+      break;
+    case PERIODIC_DECAY:
+      builder.resetReservoirPeriodicallyByChunks(reset.getDuration(), DECAY_CHUNKS);
+      break;
+    default:
+      throw new UnsupportedOperationException("Unknown type: " + reset);
+    }
+
+    return asPublicTimer(builder.buildAndRegisterTimer(RegistryHolder.REGISTRY, name));
+  }
+
+  private static Timer asPublicTimer(com.codahale.metrics.Timer timer) {
+    return (tags) -> {
+      Context ctxt = timer.time();
+      return () -> ctxt.close();
+    };
+  }
+
+  /**
+   * Create Cache Hit Monitor
+   */
+  public static synchronized CacheMonitor newCacheMonitor(String name, ResetType reset) {
+    remove(name);
+    HitRatio ratio;
+    switch(reset) {
+    case NEVER:
+      ratio = new UniformHitRatio();
+      break;
+    case ON_SNAPSHOT:
+      ratio = new ResetOnSnapshotHitRatio();
+      break;
+    case PERIODIC_15M:
+    case PERIODIC_1D:
+    case PERIODIC_7D:
+      ratio = new ResetPeriodicallyHitRatio(reset.getDuration());
+      break;
+    case PERIODIC_DECAY:
+      ratio = new SmoothlyDecayingRollingHitRatio(reset.getDuration(), DECAY_CHUNKS);
+      break;
+    default:
+      throw new UnsupportedOperationException("Unknown type: " + reset);
+    }
+
+    return new CacheMonitor() {
+
+      @Override
+      public void miss(String... tags) {
+        ratio.incrementMissCount();
+      }
+
+      @Override
+      public void hit(String... tags) {
+        ratio.incrementHitCount();
+      }
+    };
+  }
+
+  /**
+   * Join metrics references by period.
+   * @param fields
+   * @return A period-based concatenated string
+   */
+  public static String join(String... fields) {
+    return Joiner.on('.').join(fields);
+  }
+
 
 }

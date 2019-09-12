@@ -95,7 +95,8 @@ export class AccelerationForm extends Component {
     this.state = {
       mode,
       waitingForRecommendations: false,
-      saving: false
+      saving: false,
+      formIsDirty: false
     };
   }
 
@@ -204,6 +205,7 @@ export class AccelerationForm extends Component {
       //this.props.initializeForm(this.initialValues, true);
       this.initialValues = {...this.props.values};
       this.props.updateFormDirtyState(false);
+      this.setState({formIsDirty: false});
     }, 0);
   }
 
@@ -231,7 +233,9 @@ export class AccelerationForm extends Component {
     // TODO: not sure why an initializeForm call doesn't work property to reset the redux-form's state.  Sadly we
     // can't just call updateFormDirtyState in componentWillMount as redux-form thinks its dirty already and won't send
     // the set dirty calls even if more changes are made.
-    this.props.updateFormDirtyState(!deepEqual(nextProps.values, this.initialValues));
+    const isDirty = !deepEqual(nextProps.values, this.initialValues);
+    this.setState({formIsDirty: isDirty});
+    this.props.updateFormDirtyState(isDirty);
   }
 
   syncAdvancedToBasic(firstAggValues, props = this.props) {
@@ -555,10 +559,13 @@ export class AccelerationForm extends Component {
 
   render() {
     const { handleSubmit, onCancel, isModal = true } = this.props;
+    const { formIsDirty } = this.state;
     const modalFormStyle = isModal ? {} : styles.noModalForm;
     const confirmStyle = isModal ? {} : styles.noModalConfirmCancel;
     const cancelText = isModal ? la('Cancel') : la('Revert');
     const onCancelClick = isModal ? onCancel : this.resetForm;
+    const canSubmit = isModal ? true : formIsDirty;
+    const canCancel = isModal ? true : formIsDirty;
 
     return (
       <div style={styles.base}>
@@ -570,6 +577,8 @@ export class AccelerationForm extends Component {
           cancelText={cancelText}
           onSubmit={handleSubmit(this.submitForm)}
           onCancel={onCancelClick}
+          canSubmit={canSubmit}
+          canCancel={canCancel}
         >
           {this.renderFormErrorMessage()}
           {this.renderExtraErrorMessages()}

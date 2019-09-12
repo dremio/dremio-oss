@@ -18,27 +18,32 @@ package org.apache.arrow.vector;
 import java.util.LinkedList;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.util.Text;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 import com.google.common.base.Stopwatch;
 
 import io.airlift.tpch.RandomText;
 import io.airlift.tpch.TextPool;
 
-public class TestMutableVarcharVector {
+public class TestMutableVarcharVector extends DremioTest {
   private BufferAllocator testAllocator;
   static final int TOTAL_STRINGS = 1024;
   static final int smallAvgSize = 15;
   static final int midAvgSize = 100;
 
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+
   @Before
   public void setupBeforeTest() {
-    testAllocator = new RootAllocator(Long.MAX_VALUE);
+    testAllocator = allocatorRule.newAllocator("test-mutable-varchar-vector", 0, Long.MAX_VALUE);
   }
 
   @After
@@ -50,7 +55,7 @@ public class TestMutableVarcharVector {
   {
     RandomText random = new RandomText(1500869201, TextPool.getDefaultTestPool(), avgSize, N);
 
-    LinkedList<String> l1 = new LinkedList<String>();
+    LinkedList<String> l1 = new LinkedList<>();
 
     for (int i = 0; i < N; ++i) {
       l1.add(random.nextValue());

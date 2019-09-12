@@ -96,8 +96,8 @@ export default class FormSection extends Component {
     return (
       <div className={linkContainer}>
         <a href={linkConfig.url}
-           title={label}
-           target='_blank'>
+          title={label}
+          target='_blank'>
           {label} <i className='fa fa-external-link'></i>
         </a>
       </div>

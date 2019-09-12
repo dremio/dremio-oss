@@ -60,8 +60,10 @@ console.info({
   outputPath
 });
 
+const cssFileNameTemplate = '[name].[chunkhash].css';
 const extractStyles = new ExtractTextPlugin({
-  filename: isProductionBuild ? 'style.[contentHash].css' : 'style.css',
+  filename: cssFileNameTemplate,
+  allChunks: true, // to load css for dynamically imported modules
   ignoreOrder: isProductionBuild // see https://github.com/redbadger/website-honestly/issues/128
 });
 
@@ -218,9 +220,11 @@ const polyfill = [
   'isomorphic-fetch',
   'element-closest',
   'babel-polyfill',
-  'url-search-params-polyfill'
+  'url-search-params-polyfill',
+  'abortcontroller-polyfill'
 ];
 
+const outFileNameTemplate = '[name].[chunkhash].js';
 const config = {
   // abort process on errors
   bail: true,
@@ -250,7 +254,8 @@ const config = {
   output: {
     publicPath: '/',
     path: outputPath,
-    filename: isProductionBuild ? 'bundle.[hash].js' : 'bundle.js',
+    filename: outFileNameTemplate,
+    chunkFilename: outFileNameTemplate,
     sourceMapFilename: 'sourcemaps/[file].map'
   },
   module: {
@@ -259,17 +264,22 @@ const config = {
   devtool,
   plugins: [
     new webpack.BannerPlugin(require(dynLoader.path + '/webpackBanner')),
+    new webpack.HashedModuleIdsPlugin(),
     extractStyles,
     new webpack.optimize.CommonsChunkPlugin({
       name: 'vendor',
-      filename: isProductionBuild ? 'vendor.[hash].js' : 'vendor.js'
+      filename: 'vendor.[chunkhash].js'
+    }),
+    new webpack.optimize.CommonsChunkPlugin({
+      name:'manifest',
+      minChunks: Infinity
     }),
     new HtmlWebpackPlugin({
       template: './src/index.html',
       cache: false, // make sure rebuilds kick BuildInfo too
       files: {
-        css: [isProductionBuild ? 'style.[contentHash].css' : 'style.css'],
-        js: [isProductionBuild ? 'bundle.[hash].js' : 'bundle.js', isProductionBuild ? 'vendor.[hash].js' : 'vendor.js']
+        css: [cssFileNameTemplate],
+        js: [outFileNameTemplate]
       }
     }),
     new BuildInfo(),

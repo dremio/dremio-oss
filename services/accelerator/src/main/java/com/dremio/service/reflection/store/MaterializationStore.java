@@ -375,6 +375,16 @@ public class MaterializationStore {
     return Iterables.transform(materializationStore.get().find(condition), GET_MATERIALIZATION);
   }
 
+  public Iterable<Materialization> getAllDone(ReflectionId id, long expiresAfter) {
+    final FindByCondition condition = new FindByCondition()
+      .setCondition(and(
+        newTermQuery(MATERIALIZATION_STATE, MaterializationState.DONE.name()),
+        newTermQuery(MATERIALIZATION_REFLECTION_ID, id.getId()),
+        newRangeLong(MATERIALIZATION_EXPIRATION.getIndexFieldName(), expiresAfter, Long.MAX_VALUE, false, true)
+      ));
+    return Iterables.transform(materializationStore.get().find(condition), GET_MATERIALIZATION);
+  }
+
   /**
    * @return all materializations deprecated before the passed timestamp
    */

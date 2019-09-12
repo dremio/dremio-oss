@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 import Immutable from 'immutable';
-import {shallow} from 'enzyme';
-import {minimalFormProps} from 'testUtil';
-import * as PROVISION_DISTRIBUTIONS from 'constants/provisioningPage/provisionDistributions';
-import {YarnForm} from './YarnForm';
+import { shallow } from 'enzyme';
+import { minimalFormProps } from 'testUtil';
+import * as PROVISION_DISTRIBUTIONS from '@app/constants/provisioningPage/provisionDistributions';
+import { YarnForm } from './YarnForm';
 
 describe('YarnForm', () => {
   let minimalProps;
@@ -109,28 +109,9 @@ describe('YarnForm', () => {
       wrapper.setProps({provisionId: 'foo'});
       expect(instance.getIsRestartRequired()).to.be.false;
     });
-    it('return false if only dynamicConfig children dirty', () => {
-      wrapper.setProps({provisionId: 'foo'});
-      fields.dynamicConfig.containerCount.dirty = true;
-      expect(instance.getIsRestartRequired()).to.be.false;
-    });
-    it('return true if non-dynamicConfig children dirty', () => {
+    it('return true if any children dirty', () => {
       wrapper.setProps({provision: Immutable.fromJS({id: 'foo', currentState: 'RUNNING'})});
-      fields.dynamicConfig.containerCount.dirty = true;
-      fields.queue.dirty = true;
-      expect(instance.getIsRestartRequired()).to.be.true;
-
-      fields.queue.dirty = false;
-      fields.propertyList.push({name:{dirty:true}, value:{}});
-      expect(instance.getIsRestartRequired()).to.be.true;
-
-      fields.propertyList.length = 0;
-      fields.propertyList.push({name:{}, value:{dirty:true}});
-      expect(instance.getIsRestartRequired()).to.be.true;
-
-      fields.propertyList.length = 0;
-      fields.spillDirectories.length = 0;
-      fields.spillDirectories.push({dirty: true});
+      wrapper.setProps({dirty: true});
       expect(instance.getIsRestartRequired()).to.be.true;
     });
   });
@@ -159,9 +140,15 @@ describe('YarnForm', () => {
             key: 'paths.spilling',
             value: JSON.stringify(['/path1', '/path2']),
             type: 'type'
+          },
+          {
+            key: 'services.node-tag',
+            value: 'tag',
+            type: 'type'
           }
         ]
       });
+
       expect(YarnForm.mapToFormFields(provision)).to.be.eql({
         clusterType: 'YARN',
         dynamicConfig: {
@@ -171,6 +158,7 @@ describe('YarnForm', () => {
         namenodeHost: 'hdfs://localhost',
         propertyList: [],
         spillDirectories: ['/path1', '/path2'],
+        nodeTag: 'tag',
         resourceManagerHost: 'localhost',
         subPropertyList: [
           {
@@ -187,6 +175,11 @@ describe('YarnForm', () => {
             key: 'paths.spilling',
             value: JSON.stringify(['/path1', '/path2']),
             type: 'type'
+          },
+          {
+            key: 'services.node-tag',
+            value: 'tag',
+            type: 'type'
           }
         ],
         virtualCoreCount: 1
@@ -196,6 +189,8 @@ describe('YarnForm', () => {
 
   describe('#normalizeValues', () => {
     it('should return value to be submitted as entity', () => {
+      const wrapper = shallow(<YarnForm {...minimalProps}/>);
+      const instance = wrapper.instance();
       const values = {
         clusterType: 'YARN',
         dynamicConfig: {
@@ -207,7 +202,7 @@ describe('YarnForm', () => {
         resourceManagerHost: 'localhost',
         virtualCoreCount: 1
       };
-      expect(YarnForm.normalizeValues(values)).to.be.eql({
+      expect(instance.normalizeValues(values)).to.be.eql({
         clusterType: 'YARN',
         dynamicConfig: {
           containerCount: 2

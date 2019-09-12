@@ -15,21 +15,22 @@
  */
 package com.dremio.plugins.s3.store;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.FileNotFoundException;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicLong;
 
-import com.dremio.exec.store.dfs.async.AsyncByteReader;
+import com.amazonaws.services.s3.internal.Constants;
+import com.dremio.common.concurrent.NamedThreadFactory;
+import com.dremio.io.AsyncByteReader;
 
 import io.netty.buffer.ByteBuf;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 /**
  * The S3 async APIs are unstable. This is a replacement to use a wrapper around the sync APIs to
@@ -39,17 +40,18 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
  */
 class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(S3AsyncByteReaderUsingSyncClient.class);
-
-  private static final ExecutorService threadPool = Executors.newCachedThreadPool(new S3SyncThreadFactory("s3-read-"));
+  private static final ExecutorService threadPool = Executors.newCachedThreadPool(new NamedThreadFactory("s3-read-"));
 
   private final S3Client s3;
   private final String bucket;
   private final String path;
+  private final Instant instant;
 
-  S3AsyncByteReaderUsingSyncClient(S3Client s3, String bucket, String path) {
+  S3AsyncByteReaderUsingSyncClient(S3Client s3, String bucket, String path, String version) {
     this.s3 = s3;
     this.bucket = bucket;
     this.path = path;
+    this.instant = Instant.ofEpochMilli(Long.parseLong(version));
   }
 
   @Override
@@ -60,11 +62,6 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
     logger.debug("Submitted request to queue for bucket {}, path {} for {}", bucket, path, S3AsyncByteReader.range(offset, len));
     threadPool.submit(readRequest);
     return future;
-  }
-
-  @Override
-  public List<ReaderStat> getStats() {
-    return new ArrayList<>();
   }
 
   class S3SyncReadObject implements Runnable {
@@ -84,35 +81,32 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
 
     @Override
     public void run() {
-      GetObjectRequest request = GetObjectRequest.builder().bucket(bucket).key(path).range(S3AsyncByteReader.range(offset, len)).build();
+      GetObjectRequest.Builder requestBuilder = GetObjectRequest.builder()
+        .bucket(bucket)
+        .key(path)
+        .range(S3AsyncByteReader.range(offset, len))
+        .ifUnmodifiedSince(instant);
+      GetObjectRequest request = requestBuilder.build();
+
       try {
         ResponseBytes<GetObjectResponse> responseBytes = s3.getObjectAsBytes(request);
         byteBuf.setBytes(dstOffset, responseBytes.asInputStream(), len);
         logger.debug("Completed request for bucket {}, path {} for {}", bucket, path, request.range());
         future.complete(null);
-      } catch (Throwable t) {
+      } catch (S3Exception s3e) {
+        Exception exception = s3e;
+        if (s3e.statusCode() == Constants.FAILED_PRECONDITION_STATUS_CODE) {
+          logger.info("Request for bucket {}, path {} failed as requested version of file not present", bucket, path);
+          exception = new FileNotFoundException("Version of file changed " + path);
+        } else {
+          logger.error("Request for bucket {}, path {} failed. Failing read", bucket, path);
+        }
+
+        future.completeExceptionally(exception);
+      } catch (Exception e) {
         logger.debug("Failed request for bucket {}, path {} for {}", bucket, path, request.range());
-        future.completeExceptionally(t);
+        future.completeExceptionally(e);
       }
-    }
-  }
-
-  static class S3SyncThreadFactory implements ThreadFactory {
-    private static final ThreadFactory defaultThreadFactory = Executors.defaultThreadFactory();
-
-    private final String namePrefix;
-    private final AtomicLong threadCounter = new AtomicLong(0);
-
-    S3SyncThreadFactory(String name) {
-      this.namePrefix = name;
-    }
-
-    @Override
-    public Thread newThread(Runnable r) {
-      Thread t = defaultThreadFactory.newThread(r);
-
-      t.setName(namePrefix + threadCounter.getAndIncrement());
-      return t;
     }
   }
 }

@@ -32,8 +32,7 @@ import com.dremio.exec.store.dfs.BlockMapBuilder;
 import com.dremio.exec.store.dfs.CompleteFileWork;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.util.ImpersonationUtil;
+import com.dremio.io.file.FileSystem;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 
@@ -41,7 +40,7 @@ public class EasyGroupScanUtils {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(EasyGroupScanUtils.class);
 
   private FileSelection selection;
-  private final FileSystemPlugin plugin;
+  private final FileSystemPlugin<?> plugin;
   private final EasyFormatPlugin<?> formatPlugin;
   private final List<SchemaPath> columns;
   private List<CompleteFileWork> chunks;
@@ -52,7 +51,7 @@ public class EasyGroupScanUtils {
   public EasyGroupScanUtils(
       String userName,
       FileSelection selection,
-      FileSystemPlugin plugin,
+      FileSystemPlugin<?> plugin,
       EasyFormatPlugin<?> formatPlugin,
       List<SchemaPath> columns,
       String selectionRoot,
@@ -70,17 +69,17 @@ public class EasyGroupScanUtils {
 
 
   private void initFromSelection(FileSelection selection, EasyFormatPlugin<?> formatPlugin) throws IOException {
-    final FileSystemWrapper dfs = ImpersonationUtil.createFileSystem(userName, plugin.getFsConf(), false);
+    final FileSystem dfs = plugin.createFS(userName);
     this.selection = selection;
-    BlockMapBuilder b = new BlockMapBuilder(dfs, plugin.getContext().getExecutors());
-    this.chunks = b.generateFileWork(selection.getStatuses(), formatPlugin.isBlockSplittable());
+    BlockMapBuilder b = new BlockMapBuilder(plugin.getCompressionCodecFactory(), dfs, plugin.getContext().getExecutors());
+    this.chunks = b.generateFileWork(selection.getFileAttributesList(), formatPlugin.isBlockSplittable());
   }
 
   public FileSelection getSelection() {
     return selection;
   }
 
-  public FileSystemPlugin getPlugin() {
+  public FileSystemPlugin<?> getPlugin() {
     return plugin;
   }
 

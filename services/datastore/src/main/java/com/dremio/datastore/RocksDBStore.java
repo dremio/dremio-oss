@@ -15,8 +15,6 @@
  */
 package com.dremio.datastore;
 
-import static com.dremio.datastore.MetricUtils.COLLECT_METRICS;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -40,6 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.BiConsumer;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
@@ -52,11 +51,9 @@ import org.rocksdb.RocksIterator;
 import org.xerial.snappy.SnappyInputStream;
 import org.xerial.snappy.SnappyOutputStream;
 
-import com.codahale.metrics.MetricRegistry;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.DeferredException;
 import com.dremio.common.concurrent.AutoCloseableLock;
-import com.dremio.datastore.MetricUtils.MetricSetBuilder;
 import com.dremio.datastore.rocks.Rocks.BlobPointer;
 import com.dremio.datastore.rocks.Rocks.BlobPointer.Codec;
 import com.dremio.metrics.Metrics;
@@ -204,9 +201,7 @@ class RocksDBStore implements ByteStore {
       exclusiveLocks[i] = new AutoCloseableLock(core.writeLock());
     }
 
-    if (COLLECT_METRICS) {
-      registerMetrics();
-    }
+    registerMetrics();
   }
 
   private void throwIfClosed() {
@@ -216,19 +211,29 @@ class RocksDBStore implements ByteStore {
   }
 
   private void registerMetrics() {
-    final MetricSetBuilder builder = new MetricSetBuilder(MetricRegistry.name(METRICS_PREFIX, name));
-    for (String property : METRIC_PROPERTIES) {
-      builder.gauge(property, () -> {
+
+    forAllMetrics((metricName, property) ->
+      Metrics.newGauge(metricName, () -> {
         try {
           return db.getLongProperty(handle, property);
         } catch (RocksDBException e) {
           // throwing an exception would cause Dropwizard's metrics reporter to not report the remaining metrics
           logger.warn("failed to retrieve property '{}", property, e);
-          return null;
+          return -1;
         }
-      });
+      })
+    );
+  }
+
+  private void unregisterMetrics() {
+    forAllMetrics((metricName, prop) -> Metrics.unregister(metricName));
+  }
+
+  private void forAllMetrics(BiConsumer<String, String> consumer) {
+    for (String property : METRIC_PROPERTIES) {
+      final String metricName = Metrics.join(METRICS_PREFIX, name, property);
+      consumer.accept(metricName, property);
     }
-    Metrics.getInstance().registerAll(builder.build());
   }
 
   private void compact() throws RocksDBException {
@@ -392,11 +397,7 @@ class RocksDBStore implements ByteStore {
     if (!closed.compareAndSet(false, true)) {
       return;
     }
-
-    if (COLLECT_METRICS) {
-      MetricUtils.removeAllMetricsThatStartWith(MetricRegistry.name(METRICS_PREFIX, name));
-    }
-
+    unregisterMetrics();
     exclusively((deferred) -> {
       deleteAllIterators(deferred);
       try(FlushOptions options = new FlushOptions()){

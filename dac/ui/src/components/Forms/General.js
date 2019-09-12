@@ -58,7 +58,7 @@ export default class General extends Component {
       <div>
         <div className='general' style={section}>
           <div style={{...formRow, display: 'flex', marginBottom: 10}}>
-            <FieldWithError errorPlacement='top' label={la('Name')} {...name}
+            <FieldWithError errorPlacement='bottom' label={la('Name')} {...name}
               style={fieldWithErrorStyle}>
               <div style={fieldWithErrorDivStyle}>
                 <TextField initialFocus {...name} disabled={editing} style={textStyle}/>

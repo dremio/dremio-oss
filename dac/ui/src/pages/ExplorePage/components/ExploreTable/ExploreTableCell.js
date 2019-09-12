@@ -19,8 +19,8 @@ import { Cell } from 'fixed-data-table-2';
 import Immutable from 'immutable';
 import shallowEqual from 'fbjs/lib/shallowEqual';
 import { pick } from 'lodash/object';
-import { LIST, MAP, TEXT } from 'constants/DataTypes';
-import { DATE_TYPES, NUMBER_TYPES } from 'constants/columnTypeGroups';
+import { LIST, MAP, TEXT } from '@app/constants/DataTypes';
+import { DATE_TYPES, NUMBER_TYPES } from '@app/constants/columnTypeGroups';
 
 import dataFormatUtils from 'utils/dataFormatUtils';
 import exploreUtils from 'utils/explore/exploreUtils';

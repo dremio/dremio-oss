@@ -23,19 +23,21 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.util.Numbers;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
 import com.dremio.sabot.op.aggregate.vectorized.SumAccumulators;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 
-public class  TestGreedyMemoryAllocation {
+public class  TestGreedyMemoryAllocation extends DremioTest {
 
   private static final int MAX_VALUES_PER_BATCH = 990;
   private static final int JOINT_ALLOCATION_MIN = 4*1024;
@@ -49,10 +51,13 @@ public class  TestGreedyMemoryAllocation {
     return Numbers.nextPowerOfTwo(val);
   }
 
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+
   @Test
   public void testMemoryAllocation() throws Exception {
 
-    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE)) {
+    try (BufferAllocator allocator = allocatorRule.newAllocator("test-greedy-memory-allocation", 0, Long.MAX_VALUE)) {
 
       BigIntVector in1 = new BigIntVector("in1", allocator);
       BigIntVector in2 = new BigIntVector("in2", allocator);
@@ -90,7 +95,7 @@ public class  TestGreedyMemoryAllocation {
   @Test
   public void testMemoryAllocation1() throws Exception {
 
-    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
+    try (BufferAllocator allocator = allocatorRule.newAllocator("test-greedy-memory-allocation", 0, Long.MAX_VALUE);
          final VectorContainer c = new VectorContainer()) {
 
       IntVector in1 = new IntVector("in1", allocator);
@@ -175,7 +180,7 @@ public class  TestGreedyMemoryAllocation {
   public void testMemoryAllocationUnsorted() throws Exception {
     int batchSize = 3968;
 
-    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
+    try (BufferAllocator allocator = allocatorRule.newAllocator("test-greedy-memory-allocation", 0, Long.MAX_VALUE);
       final VectorContainer c = new VectorContainer()) {
 
       BigIntVector in1 = new BigIntVector("in1", allocator);

@@ -17,7 +17,7 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import moment from 'moment';
 import { CELL_EXPANSION_HEADER, WHITE } from 'uiTheme/radium/colors';
-import { dateTypeToFormat } from 'constants/DataTypes';
+import { dateTypeToFormat } from '@app/constants/DataTypes';
 
 const TIME_FORMAT = 'HH:mm:ss';
 

@@ -37,7 +37,6 @@ import org.apache.thrift.TException;
 import org.slf4j.helpers.NOPLogger;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.util.ImpersonationUtil;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -67,11 +66,12 @@ public class HiveClient implements AutoCloseable {
    */
   public static HiveClient createClientWithAuthz(final HiveClient processUserMetaStoreClient,
       final HiveConf hiveConf, final String userName, final UserGroupInformation ugiForRpc) throws MetaException {
+
     try {
       HiveConf hiveConfForClient = hiveConf;
       boolean needDelegationToken = false;
       final boolean impersonationEnabled = hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_ENABLE_DOAS);
-      String connectionUserName = ImpersonationUtil.resolveUserName(userName);
+      String connectionUserName = HiveImpersonationUtil.resolveUserName(userName);
 
       if (impersonationEnabled && hiveConf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_SASL)) {
         // When SASL is enabled for proxy user create a delegation token. Currently HiveMetaStoreClient can create
@@ -113,7 +113,7 @@ public class HiveClient implements AutoCloseable {
       Utils.setTokenStr(proxyUGI, delegationToken, "DremioDelegationTokenForHiveMetaStoreServer");
       proxyUserHiveConf.set("hive.metastore.token.signature", "DremioDelegationTokenForHiveMetaStoreServer");
     } catch (Exception e) {
-      final String processUsername = ImpersonationUtil.getProcessUserUGI().getShortUserName();
+      final String processUsername = HiveImpersonationUtil.getProcessUserUGI().getShortUserName();
       throw UserException.permissionError(e)
           .message("Failed to generate Hive metastore delegation token for user %s. " +
               "Check Hadoop services (including metastore) have correct proxy user impersonation settings (%s, %s) " +
@@ -130,6 +130,7 @@ public class HiveClient implements AutoCloseable {
   /**
    * Create a DrillMetaStoreClient that can be shared across multiple users. This is created when impersonation is
    * disabled.
+   *
    * @param hiveConf
    * @return
    * @throws MetaException
@@ -155,11 +156,13 @@ public class HiveClient implements AutoCloseable {
           new UGIDoAsCommand<Void>() {
             @Override
             public Void run() throws Exception {
-              client = new HiveMetaStoreClient(hiveConf);
+              try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+                client = new HiveMetaStoreClient(hiveConf);
+              }
               return null;
             }
           },
-          ImpersonationUtil.getProcessUserUGI(),
+          HiveImpersonationUtil.getProcessUserUGI(),
           "Failed to connect to Hive Metastore"
       );
     } catch (UndeclaredThrowableException e) {
@@ -302,7 +305,7 @@ public class HiveClient implements AutoCloseable {
     return doCommand(new RetryableClientCommand<String>() {
       @Override
       public String run(HiveMetaStoreClient client) throws TException {
-        return client.getDelegationToken(proxyUser, ImpersonationUtil.getProcessUserName());
+        return client.getDelegationToken(proxyUser, HiveImpersonationUtil.getProcessUserName());
       }
     });
   }
@@ -313,9 +316,12 @@ public class HiveClient implements AutoCloseable {
 
   private synchronized <T> T doCommand(RetryableClientCommand<T> cmd) throws TException{
     T value = null;
+
     try {
       // Hive client can not be used for multiple requests at the same time.
-      value = cmd.run(client);
+      try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+        value = cmd.run(client);
+      }
     } catch (NoSuchObjectException e) {
       throw e;
     } catch (TException e) {
@@ -326,7 +332,10 @@ public class HiveClient implements AutoCloseable {
         logger.warn("Failure while attempting to close existing hive metastore connection. May leak connection.", ex);
       }
       reconnect();
-      value = cmd.run(client);
+
+      try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+        value = cmd.run(client);
+      }
     }
 
     return value;
@@ -338,11 +347,13 @@ public class HiveClient implements AutoCloseable {
         new UGIDoAsCommand<Void>() {
           @Override
           public Void run() throws Exception {
-            client.reconnect();
+            try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+              client.reconnect();
+            }
             return null;
           }
         },
-        ImpersonationUtil.getProcessUserUGI(),
+        HiveImpersonationUtil.getProcessUserUGI(),
         "Failed to reconnect to Hive metastore"
     );
   }
@@ -365,7 +376,9 @@ public class HiveClient implements AutoCloseable {
 
   @Override
   public void close() {
-    client.close();
+    try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+      client.close();
+    }
   }
 
   protected interface UGIDoAsCommand<T> {
@@ -378,7 +391,9 @@ public class HiveClient implements AutoCloseable {
       return ugi.doAs(new PrivilegedExceptionAction<T>() {
         @Override
         public T run() throws Exception {
-          return cmd.run();
+          try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+            return cmd.run();
+          }
         }
       });
     } catch (final InterruptedException | IOException e) {
