@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>4.0.0-201909121834570395-c7a5071</version>
+  <version>4.0.1-201909191652190301-211720e</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -2560,7 +2560,7 @@ limitations under the License.
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpkix-jdk15on</artifactId>
-        <version>1.61</version>
+        <version>1.63</version>
       </dependency>
       <dependency>
         <groupId>org.hamcrest</groupId>

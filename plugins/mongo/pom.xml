@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>4.0.0-201909121834570395-c7a5071</version>
+    <version>4.0.1-201909191652190301-211720e</version>
   </parent>
 
   <artifactId>dremio-mongo-plugin</artifactId>
