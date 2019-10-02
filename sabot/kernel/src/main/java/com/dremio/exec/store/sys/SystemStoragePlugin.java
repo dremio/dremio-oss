@@ -18,9 +18,11 @@ package com.dremio.exec.store.sys;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.dremio.common.utils.SqlUtils;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetHandleListing;
@@ -33,19 +35,24 @@ import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
+import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.server.JobResultSchemaProvider;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
+import com.dremio.exec.store.Views;
+import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.users.SystemUser;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 
 public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature, SupportsListingDatasets {
 
@@ -54,27 +61,32 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
           .collect(Collectors.toMap(systemTable -> canonicalize(systemTable.getDatasetPath()),
               Function.identity())));
 
+  private static final String JOB_RESULTS = "job_results";
+  private static final String JOBS_STORAGE_PLUGIN_NAME = "__jobResultsStore";
+
   private final SabotContext context;
   private final Predicate<String> userPredicate;
+  private final JobResultSchemaProvider schemaProvider;
 
-  public SystemStoragePlugin(SabotContext context, String name) {
-    this(context, name, Predicates.<String>alwaysTrue());
+  SystemStoragePlugin(SabotContext context, String name) {
+    this(context, name, s -> true);
   }
 
-  protected SystemStoragePlugin(SabotContext context, String name, Predicate<String> userPredicate) {
+  SystemStoragePlugin(SabotContext context, String name, Predicate<String> userPredicate) {
     Preconditions.checkArgument("sys".equals(name));
     this.context = context;
     this.userPredicate = userPredicate;
+    this.schemaProvider = context.getJobResultSchemaProvider();
   }
 
   SabotContext getSabotContext() {
     return context;
   }
 
-
   @Override
   public boolean hasAccessPermission(String user, NamespaceKey key, DatasetConfig datasetConfig) {
-    return userPredicate.apply(user);
+    // for view permissions, see #getView
+    return userPredicate.test(user);
   }
 
   @Override
@@ -84,7 +96,23 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
 
   @Override
   public ViewTable getView(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
-    return null;
+    if (tableSchemaPath.size() != 3 || !JOB_RESULTS.equalsIgnoreCase(tableSchemaPath.get(1))) {
+      return null;
+    }
+
+    final String jobId = Iterables.getLast(tableSchemaPath);
+    final Optional<BatchSchema> batchSchema = schemaProvider.getResultSchema(jobId, schemaConfig.getUserName());
+
+    return batchSchema.map(schema -> {
+      final View view = Views.fieldTypesToView(jobId, getJobResultsQuery(jobId),
+          ViewFieldsHelper.getBatchSchemaFields(schema), null);
+
+      return new ViewTable(new NamespaceKey(tableSchemaPath), view, SystemUser.SYSTEM_USERNAME, schema);
+    }).orElse(null);
+  }
+
+  private static String getJobResultsQuery(String jobId) {
+    return String.format("SELECT * FROM %s.%s", JOBS_STORAGE_PLUGIN_NAME, SqlUtils.quoteIdentifier(jobId));
   }
 
   @Override

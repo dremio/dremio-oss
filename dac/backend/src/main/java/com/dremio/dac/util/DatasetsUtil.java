@@ -19,8 +19,11 @@ import static com.dremio.dac.proto.model.dataset.ExtractRuleType.pattern;
 import static com.dremio.dac.proto.model.dataset.ExtractRuleType.position;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -344,5 +347,21 @@ public class DatasetsUtil {
     }
 
     return fields;
+  }
+
+  public static Set<String> getPartitionedColumns(DatasetConfig datasetConfig) {
+    return datasetConfig.getReadDefinition() != null ?
+      toSet(datasetConfig.getReadDefinition().getPartitionColumnsList()) :
+      Collections.emptySet();
+  }
+
+  public static Set<String> getSortedColumns(DatasetConfig datasetConfig) {
+    return datasetConfig.getReadDefinition() != null ?
+      toSet(datasetConfig.getReadDefinition().getSortColumnsList()) :
+      Collections.emptySet();
+  }
+
+  private static Set<String> toSet(List<String> list) {
+    return list != null ? new HashSet<>(list) : Collections.emptySet();
   }
 }

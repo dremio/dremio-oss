@@ -136,6 +136,7 @@ export class DatasetOverlayContent extends Component {
 
     return (
       <div
+        data-qa='dataset-detail-popup'
         ref={onRef}
         style={[styles.base, this.props.style]}
         className={`dataset-label-overlay ${position}`}

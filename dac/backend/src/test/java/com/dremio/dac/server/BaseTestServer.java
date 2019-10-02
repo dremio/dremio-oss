@@ -103,6 +103,7 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.service.Binder;
 import com.dremio.service.BindingProvider;
@@ -540,6 +541,8 @@ public abstract class BaseTestServer extends BaseClientUtils {
         return null;
       }
     });
+    SabotContext context = dremioBinder.lookup(SabotContext.class);
+    dremioBinder.bind(OptionManager.class, context.getOptionManager());
     return dremioBinder;
   }
 

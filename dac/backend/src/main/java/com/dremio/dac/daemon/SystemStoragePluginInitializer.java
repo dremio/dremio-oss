@@ -133,42 +133,41 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     final int maxCacheSpacePercent = config.hasPath(DremioConfig.DEBUG_DIST_MAX_CACHE_SPACE_PERCENT)?
       config.getInt(DremioConfig.DEBUG_DIST_MAX_CACHE_SPACE_PERCENT) : MAX_CACHE_SPACE_PERCENT;
 
-    final boolean enableCachingForAcceleration = !config.hasPath(DremioConfig.DEBUG_DIST_CACHING_ENABLED)
-      || config.getBoolean(DremioConfig.DEBUG_DIST_CACHING_ENABLED);
+    final boolean enableCachingForAcceleration = enable(config, DremioConfig.DEBUG_DIST_CACHING_ENABLED);
 
-    final boolean enableAsyncForAcceleration = !config.hasPath(DremioConfig.DEBUG_DIST_ASYNC_ENABLED)
-      || config.getBoolean(DremioConfig.DEBUG_DIST_ASYNC_ENABLED);
-    createOrUpdateSystemSource(catalogService, ns, AccelerationStoragePluginConfig.create(accelerationPath, enableAsyncForAcceleration, enableCachingForAcceleration, maxCacheSpacePercent));
+    final boolean enableAsyncForAcceleration = enable(config, DremioConfig.DEBUG_DIST_ASYNC_ENABLED);
+    createOrUpdateSystemSource(catalogService, ns,
+        AccelerationStoragePluginConfig.create(accelerationPath, enableAsyncForAcceleration,
+            enableCachingForAcceleration, maxCacheSpacePercent));
 
-    final boolean enableAsyncForJobs = !config.hasPath(DremioConfig.DEBUG_JOBS_ASYNC_ENABLED)
-      || config.getBoolean(DremioConfig.DEBUG_JOBS_ASYNC_ENABLED);
+    final boolean enableAsyncForJobs = enable(config, DremioConfig.DEBUG_JOBS_ASYNC_ENABLED);
     createOrUpdateSystemSource(catalogService, ns,
       InternalFileConf.create(DACDaemonModule.JOBS_STORAGEPLUGIN_NAME, resultsPath, SchemaMutability.SYSTEM_TABLE,
-        CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE, enableAsyncForJobs));
+        CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE, enableAsyncForJobs));
 
-    final boolean enableAsyncForScratch = !config.hasPath(DremioConfig.DEBUG_SCRATCH_ASYNC_ENABLED)
-      || config.getBoolean(DremioConfig.DEBUG_SCRATCH_ASYNC_ENABLED);
+    final boolean enableAsyncForScratch = enable(config, DremioConfig.DEBUG_SCRATCH_ASYNC_ENABLED);
     createOrUpdateSystemSource(catalogService, ns,
       InternalFileConf.create(DACDaemonModule.SCRATCH_STORAGEPLUGIN_NAME, scratchPath, SchemaMutability.USER_TABLE,
         CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE, enableAsyncForScratch));
 
-    final boolean enableAsyncForDownload = !config.hasPath(DremioConfig.DEBUG_DOWNLOAD_ASYNC_ENABLED)
-      || config.getBoolean(DremioConfig.DEBUG_DOWNLOAD_ASYNC_ENABLED);
+    final boolean enableAsyncForDownload = enable(config, DremioConfig.DEBUG_DOWNLOAD_ASYNC_ENABLED);
     createOrUpdateSystemSource(catalogService, ns,
       InternalFileConf.create(DATASET_DOWNLOAD_STORAGE_PLUGIN, downloadPath, SchemaMutability.USER_TABLE,
         CatalogService.NEVER_REFRESH_POLICY, enableAsyncForDownload));
 
-    final boolean enableAsyncForLogs = !config.hasPath(DremioConfig.DEBUG_LOGS_ASYNC_ENABLED)
-      || config.getBoolean(DremioConfig.DEBUG_LOGS_ASYNC_ENABLED);
+    final boolean enableAsyncForLogs = enable(config, DremioConfig.DEBUG_LOGS_ASYNC_ENABLED);
     createOrUpdateSystemSource(catalogService, ns,
       InternalFileConf.create(LOGS_STORAGE_PLUGIN, logsPath, SchemaMutability.NONE,
-        CatalogService.DEFAULT_METADATA_POLICY, enableAsyncForLogs));
+        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForLogs));
 
-    final boolean enableAsyncForSupport = !config.hasPath(DremioConfig.DEBUG_SUPPORT_ASYNC_ENABLED)
-      || config.getBoolean(DremioConfig.DEBUG_SUPPORT_ASYNC_ENABLED);
+    final boolean enableAsyncForSupport = enable(config, DremioConfig.DEBUG_SUPPORT_ASYNC_ENABLED);
     createOrUpdateSystemSource(catalogService, ns,
       InternalFileConf.create(LOCAL_STORAGE_PLUGIN, supportURI, SchemaMutability.SYSTEM_TABLE,
         CatalogService.NEVER_REFRESH_POLICY, enableAsyncForSupport));
+  }
+
+  private static boolean enable(DremioConfig config, String path) {
+    return !config.hasPath(path) || config.getBoolean(path);
   }
 
   /**

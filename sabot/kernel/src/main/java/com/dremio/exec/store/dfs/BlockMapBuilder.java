@@ -45,6 +45,7 @@ import com.google.common.collect.ImmutableRangeMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
+import com.google.common.net.HostAndPort;
 
 public class BlockMapBuilder {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BlockMapBuilder.class);
@@ -235,7 +236,7 @@ public class BlockMapBuilder {
       for (String host : hosts) {
         NodeEndpoint endpoint = getNodeEndpoint(host);
         if (endpoint != null) {
-          endpointByteMap.add(endpoint, bytes);
+          endpointByteMap.add(HostAndPort.fromHost(endpoint.getAddress()), bytes);
         } else {
           logger.debug("Failure finding SabotNode running on host {}.  Skipping affinity to that host.", host);
         }

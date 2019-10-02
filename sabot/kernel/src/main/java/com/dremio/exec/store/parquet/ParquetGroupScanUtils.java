@@ -23,7 +23,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -60,15 +60,14 @@ import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Stopwatch;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.google.common.net.HostAndPort;
 
 public class ParquetGroupScanUtils {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ParquetGroupScanUtils.class);
@@ -309,10 +308,10 @@ public class ParquetGroupScanUtils {
     public void setEndpointByteMap(EndpointByteMap byteMap) {
       this.byteMap = byteMap;
       this.affinities = Lists.newArrayList();
-      final Iterator<ObjectLongCursor<NodeEndpoint>> nodeEndpointIterator = byteMap.iterator();
-      while (nodeEndpointIterator.hasNext()) {
-        ObjectLongCursor<NodeEndpoint> nodeEndPoint = nodeEndpointIterator.next();
-        affinities.add(new EndpointAffinity(nodeEndPoint.key, nodeEndPoint.value));
+      final Iterator<ObjectLongCursor<HostAndPort>> hostPortIterator = byteMap.iterator();
+      while (hostPortIterator.hasNext()) {
+        ObjectLongCursor<HostAndPort> nodeEndPoint = hostPortIterator.next();
+        affinities.add(EndpointAffinity.fromHostAndPort(nodeEndPoint.key, nodeEndPoint.value));
       }
     }
 
@@ -353,13 +352,12 @@ public class ParquetGroupScanUtils {
       parquetTableMetadata = Metadata.getParquetTableMetadata(entries, fs, formatPlugin.getConfig(), maxFooterLength);
     }
 
-    ListMultimap<String, NodeEndpoint> hostEndpointMap = FluentIterable.from(plugin.getContext().getExecutors())
-      .index(new Function<NodeEndpoint, String>() {
-        @Override
-        public String apply(NodeEndpoint endpoint) {
-          return endpoint.getAddress();
-        }
-      });
+    Set<HostAndPort> hostEndpointMap = Sets.newHashSet();
+    Set<HostAndPort> hostPortEndpointMap = Sets.newHashSet();
+    for(NodeEndpoint endpoint : plugin.getContext().getExecutors()) {
+      hostEndpointMap.add(HostAndPort.fromHost(endpoint.getAddress()));
+      hostPortEndpointMap.add(HostAndPort.fromParts(endpoint.getAddress(), endpoint.getFabricPort()));
+    }
 
     rowGroupInfos = Lists.newArrayList();
     for (ParquetFileMetadata file : parquetTableMetadata.getFiles()) {
@@ -377,10 +375,23 @@ public class ParquetGroupScanUtils {
         RowGroupInfo rowGroupInfo = new RowGroupInfo(file.getFileAttributes(), rg.getStart(), rg.getLength(), rgIndex, rg.getRowCount(), rowGroupColumnValueCounts);
 
         EndpointByteMap endpointByteMap = new EndpointByteMapImpl();
-        for (String host : rg.getHostAffinity().keySet()) {
-          if (hostEndpointMap.containsKey(host)) {
+        for (HostAndPort host : rg.getHostAffinity().keySet()) {
+          HostAndPort endpoint = null;
+          if (!host.hasPort()) {
+            if (hostEndpointMap.contains(host)) {
+              endpoint = host;
+            }
+          } else {
+            // multi executor deployment and affinity provider is sensitive to the port
+            // picking the map late as it allows a source that contains files in HDFS and S3
+            if (hostPortEndpointMap.contains(host)) {
+              endpoint = host;
+            }
+          }
+
+          if (endpoint != null) {
             endpointByteMap
-                .add(getRandom(hostEndpointMap.get(host)), (long) (rg.getHostAffinity().get(host) * rg.getLength()));
+                .add(endpoint, (long) (rg.getHostAffinity().get(host) * rg.getLength()));
           }
         }
         rowGroupInfo.setEndpointByteMap(endpointByteMap);
@@ -513,13 +524,6 @@ public class ParquetGroupScanUtils {
       }
       columnTypeMap = prunedColumnTypeMap;
     }
-  }
-
-  private <T> T getRandom(List<T> list) {
-    if (list == null || list.size() == 0) {
-      return null;
-    }
-    return list.get(ThreadLocalRandom.current().nextInt(0, list.size()));
   }
 
   public int getMaxParallelizationWidth() {

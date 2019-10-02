@@ -36,3 +36,4 @@ plugins/hive/metastore_db/*
 .npmrc
 .externalToolBuilders*
 .indexing
+jetbrains_config.js

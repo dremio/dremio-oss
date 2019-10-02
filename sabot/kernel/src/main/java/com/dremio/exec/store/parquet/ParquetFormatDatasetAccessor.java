@@ -63,7 +63,6 @@ import com.dremio.exec.catalog.FileConfigMetadata;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;
-import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
@@ -101,6 +100,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.net.HostAndPort;
 
 /**
  * Parquet dataset accessor.
@@ -318,8 +318,8 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
       final long size = rowGroupInfo.getTotalBytes();
 
       final List<DatasetSplitAffinity> affinities = new ArrayList<>();
-      for (ObjectLongCursor<CoordinationProtos.NodeEndpoint> item : rowGroupInfo.getByteMap()) {
-        affinities.add(DatasetSplitAffinity.of(item.key.getAddress(), item.value));
+      for (ObjectLongCursor<HostAndPort> item : rowGroupInfo.getByteMap()) {
+        affinities.add(DatasetSplitAffinity.of(item.key.toString(), item.value));
       }
 
       // Create a list of (partition name, partition value) pairs. Order of these pairs should be same a table

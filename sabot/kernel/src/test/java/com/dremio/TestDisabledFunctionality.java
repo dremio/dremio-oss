@@ -159,6 +159,7 @@ public class TestDisabledFunctionality extends BaseTestQuery{
   }
 
   @Test(expected = UnsupportedRelOperatorException.class) // DRILL-2068
+  @Ignore
   public void testImplicitCartesianJoin() throws Exception {
     try {
       test("select a.*, b.user_port " +
@@ -169,6 +170,7 @@ public class TestDisabledFunctionality extends BaseTestQuery{
   }
 
   @Test(expected = UnsupportedRelOperatorException.class) // see DRILL-2068, DRILL-1325
+  @Ignore
   public void testNonEqualJoin() throws Exception {
     try {
       test("select a.*, b.user_port " +
@@ -180,6 +182,7 @@ public class TestDisabledFunctionality extends BaseTestQuery{
   }
 
   @Test(expected = UnsupportedRelOperatorException.class) // see DRILL-2068, DRILL-1325
+  @Ignore
   public void testMultipleJoinsWithOneNonEqualJoin() throws Exception {
     try {
       test("select a.last_name, b.n_name, c.r_name " +
@@ -191,6 +194,7 @@ public class TestDisabledFunctionality extends BaseTestQuery{
   }
 
   @Test(expected = UnsupportedRelOperatorException.class) // see  DRILL-2068, DRILL-1325
+  @Ignore
   public void testLeftOuterJoin() throws Exception {
     try {
       test("select a.last_name, b.n_name " +
@@ -202,6 +206,7 @@ public class TestDisabledFunctionality extends BaseTestQuery{
   }
 
   @Test(expected = UnsupportedRelOperatorException.class) // see DRILL-2068, DRILL-1325
+  @Ignore
   public void testInnerJoin() throws Exception {
     try {
       test("select a.last_name, b.n_name " +
@@ -226,6 +231,7 @@ public class TestDisabledFunctionality extends BaseTestQuery{
   }
 
   @Test(expected = UnsupportedRelOperatorException.class) // see DRILL-2068, DRILL-1325
+  @Ignore
   public void testExplainPlanForCartesianJoin() throws Exception {
     try {
       test("explain plan for (select a.last_name, b.n_name " +
@@ -237,6 +243,7 @@ public class TestDisabledFunctionality extends BaseTestQuery{
   }
 
   @Test(expected = UnsupportedRelOperatorException.class) // see DRILL-2441
+  @Ignore
   public void testExplainPlanOuterJoinWithInequality() throws Exception {
     try {
       test("explain plan for (select a.last_name, b.n_name " +
@@ -248,6 +255,7 @@ public class TestDisabledFunctionality extends BaseTestQuery{
   }
 
   @Test(expected = UnsupportedRelOperatorException.class) // see DRILL-2441
+  @Ignore
   public void testOuterJoinWithInequality() throws Exception {
     try {
       test("select a.last_name, b.n_name " +

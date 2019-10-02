@@ -178,7 +178,7 @@ public class HadoopFileSystem
   @Override
   public FSInputStream open(Path f) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return newFSDataInputStreamWrapper(f, underlyingFs.open(toHadoopPath(f)));
+      return newFSDataInputStreamWrapper(f, underlyingFs.open(toHadoopPath(f)), operatorStats);
     } catch(FSError e) {
       throw propagateFSError(e);
     }
@@ -530,18 +530,39 @@ public class HadoopFileSystem
 
   @Override
   public boolean supportsAsync() {
-    return enableAsync &&
-      (underlyingFs instanceof MayProvideAsyncStream) &&
-      ((MayProvideAsyncStream) underlyingFs).supportsAsync();
+    if (!enableAsync) {
+      return false;
+    }
+
+    if (underlyingFs instanceof MayProvideAsyncStream) {
+      return ((MayProvideAsyncStream) underlyingFs).supportsAsync();
+    } else if (isHDFS){
+      // will use wrapper to emulate async APIs.
+      return true;
+    } else {
+      return false;
+    }
   }
 
   @Override
   public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey) throws IOException {
-    if (!supportsAsync()) {
+    if (!enableAsync) {
       throw new UnsupportedOperationException();
     }
+
     final org.apache.hadoop.fs.Path path = toHadoopPath(fileKey.getPath());
-    return ((MayProvideAsyncStream) underlyingFs).getAsyncByteReader(path, fileKey.getVersion());
+    if (underlyingFs instanceof MayProvideAsyncStream) {
+      return ((MayProvideAsyncStream) underlyingFs).getAsyncByteReader(path, fileKey.getVersion());
+    } else {
+      long modificationTime = Long.parseLong(fileKey.getVersion());
+      if (underlyingFs.getFileStatus(path).getModificationTime() > modificationTime) {
+        throw new FileNotFoundException("mtime of file has changed " + path);
+      }
+
+      // set operatorStats to null so that wait time isn't tracked here.
+      FSInputStream inputStream = newFSDataInputStreamWrapper(fileKey.getPath(), underlyingFs.open(path), null);
+      return new HadoopAsyncByteReader(fileKey.getPath(), inputStream);
+    }
   }
 
   private static final class ArrayDirectoryStream implements DirectoryStream<FileAttributes> {
@@ -587,10 +608,10 @@ public class HadoopFileSystem
     }
   }
 
-  FSInputStream newFSDataInputStreamWrapper(Path f, final FSDataInputStream is) throws IOException {
+  FSInputStream newFSDataInputStreamWrapper(Path f, final FSDataInputStream is, OperatorStats stats) throws IOException {
     FSInputStream result = FSDataInputStreamWrapper.of(is);
-    if (operatorStats != null) {
-      result = FSDataInputStreamWithStatsWrapper.of(is, operatorStats);
+    if (stats != null) {
+      result = FSDataInputStreamWithStatsWrapper.of(is, stats);
     } else {
       result = FSDataInputStreamWrapper.of(is);
     }

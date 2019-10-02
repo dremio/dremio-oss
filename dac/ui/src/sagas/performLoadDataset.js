@@ -24,7 +24,7 @@ import { REAPPLY_DATASET_SUCCESS, navigateAfterReapply } from 'actions/explore/d
 import { EXPLORE_TABLE_ID } from 'reducers/explore/view';
 import { focusSqlEditor } from '@app/actions/explore/view';
 import { getViewStateFromAction } from '@app/reducers/resources/view';
-import { getFullDataset, getDatasetVersionFromLocation } from '@app/selectors/explore';
+import {getFullDataset, getDatasetVersionFromLocation, getExploreJobId} from '@app/selectors/explore';
 import { getLocation } from 'selectors/routing';
 import { TRANSFORM_PEEK_START } from '@app/actions/explore/dataset/peek';
 import { EXPLORE_PAGE_LISTENER_START,
@@ -128,7 +128,7 @@ export function* loadTableData(datasetVersion, forceReload) {
   const dataset = yield select(getFullDataset, datasetVersion);
   if (!dataset) return; // do not load a data if metadata is not loaded
 
-  const jobId = dataset.getIn(['jobId', 'id'], null);
+  const jobId = yield select(getExploreJobId);
   const paginationUrl = dataset.get('paginationUrl');
   if (!paginationUrl || !jobId) return;
 

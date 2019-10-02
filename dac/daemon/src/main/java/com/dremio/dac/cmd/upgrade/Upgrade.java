@@ -34,6 +34,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.dac.cmd.AdminCommand;
 import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.cmd.CmdUtils;
 import com.dremio.dac.proto.model.source.ClusterIdentity;
@@ -58,6 +59,7 @@ import com.google.common.base.Preconditions;
  * 1. Not to repeat task run if already run, but upgrade aborted/stopped in between
  * 2. Repeat task run is it was not successful
  */
+@AdminCommand(value = "upgrade", description = "Upgrades KV store version")
 public class Upgrade {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Upgrade.class);

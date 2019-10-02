@@ -97,6 +97,7 @@ class DremioPopoverAdapter extends PureComponent {
 
     return useLayerForClickAway ?
       <Popover
+        className='dremio-popover'
         anchorOrigin={{horizontal: listRightAligned ? 'right' : 'left', vertical: 'bottom'}}
         transformOrigin={{horizontal: listRightAligned ? 'right' : 'left', vertical: 'top'}}
         onClose={onClose}

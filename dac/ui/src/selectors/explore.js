@@ -73,6 +73,14 @@ export function getPaginationUrl(state, datasetVersion) {
   return paginationUrl || datasetVersion;
 }
 
+export function getExploreJobId(state) {
+  // this selector will have to change once we move jobId out of fullDataset and load it prior to metadata
+  const location = getLocation(state);
+  const version = getDatasetVersionFromLocation(location);
+  const fullDataset = getFullDataset(state, version);
+  return fullDataset ? fullDataset.getIn(['jobId', 'id'], '') : '';
+}
+
 export function getPaginationJobId(state, datasetVersion) {
   const { entities } = state.resources;
   return entities.getIn(['fullDataset', datasetVersion, 'jobId', 'id']);

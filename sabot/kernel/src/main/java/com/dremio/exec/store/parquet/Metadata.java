@@ -41,6 +41,7 @@ import com.dremio.io.file.FileSystem;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.net.HostAndPort;
 
 public class Metadata {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Metadata.class);
@@ -232,10 +233,10 @@ public class Metadata {
    * @return
    * @throws IOException
    */
-  private Map<String, Float> getHostAffinity(FileAttributes fileAttributes, long start, long length)
+  private Map<HostAndPort, Float> getHostAffinity(FileAttributes fileAttributes, long start, long length)
       throws IOException {
     Iterable<FileBlockLocation> blockLocations = fs.getFileBlockLocations(fileAttributes, start, length);
-    Map<String, Float> hostAffinityMap = Maps.newHashMap();
+    Map<HostAndPort, Float> hostAffinityMap = Maps.newHashMap();
     for (FileBlockLocation blockLocation : blockLocations) {
       float blockStart = blockLocation.getOffset();
       float blockEnd = blockStart + blockLocation.getSize();
@@ -246,7 +247,7 @@ public class Metadata {
        * Preserve the order of the hosts for cloud cache to ensure cache hits. It also guarantees
        * the fragment goes to the next best host in case of failure.
        */
-      for (String host : blockLocation.getHosts()) {
+      for (HostAndPort host : blockLocation.getHostsWithPorts()) {
         Float currentAffinity = hostAffinityMap.get(host);
         if (currentAffinity != null) {
           hostAffinityMap.put(host, currentAffinity + newAffinity);
@@ -343,10 +344,10 @@ public class Metadata {
     private final Long start;
     private final Long length;
     private final Long rowCount;
-    private final Map<String, Float> hostAffinity;
+    private final Map<HostAndPort, Float> hostAffinity;
     private final List<ColumnMetadata> columns;
 
-    public RowGroupMetadata(Long start, Long length, Long rowCount, Map<String, Float> hostAffinity,
+    public RowGroupMetadata(Long start, Long length, Long rowCount, Map<HostAndPort, Float> hostAffinity,
         List<ColumnMetadata> columns) {
       this.start = start;
       this.length = length;
@@ -367,7 +368,7 @@ public class Metadata {
       return rowCount;
     }
 
-    public Map<String, Float> getHostAffinity() {
+    public Map<HostAndPort, Float> getHostAffinity() {
       return hostAffinity;
     }
 

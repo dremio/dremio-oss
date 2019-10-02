@@ -75,7 +75,7 @@ public class SabotContext implements AutoCloseable {
   private final CodeCompiler compiler;
   private final ScanResult classpathScan;
   private final LogicalPlanPersistence lpPersistence;
-  private volatile Provider<MaterializationDescriptorProvider> materializationProvider;
+  private final Provider<MaterializationDescriptorProvider> materializationProvider;
   private final NamespaceService.Factory namespaceServiceFactory;
   private final DatasetListingService datasetListing;
   private final KVStoreProvider kvStoreProvider;
@@ -92,6 +92,7 @@ public class SabotContext implements AutoCloseable {
   private final ClusterResourceInformation clusterInfo;
   private final FileSystemWrapper fileSystemWrapper;
   private final CredentialsService credentialsService;
+  private final JobResultSchemaProvider jobResultSchemaProvider;
 
   public SabotContext(
       DremioConfig dremioConfig,
@@ -117,7 +118,8 @@ public class SabotContext implements AutoCloseable {
       BufferAllocator queryPlanningAllocator,
       Provider<SpillService> spillService,
       Provider<ConnectionReader> connectionReaderProvider,
-      CredentialsService credentialsService
+      CredentialsService credentialsService,
+      JobResultSchemaProvider jobResultSchemaProvider
       ) {
     this.dremioConfig = dremioConfig;
     this.config = config;
@@ -161,6 +163,7 @@ public class SabotContext implements AutoCloseable {
       new ServiceSetDecorator(coord.getServiceSet(Role.EXECUTOR)),
       endpoint);
     this.credentialsService = credentialsService;
+    this.jobResultSchemaProvider = jobResultSchemaProvider;
   }
 
   private void checkIfCoordinator() {
@@ -371,5 +374,9 @@ public class SabotContext implements AutoCloseable {
 
   public CredentialsService getCredentialsService() {
     return credentialsService;
+  }
+
+  public JobResultSchemaProvider getJobResultSchemaProvider() {
+    return jobResultSchemaProvider;
   }
 }

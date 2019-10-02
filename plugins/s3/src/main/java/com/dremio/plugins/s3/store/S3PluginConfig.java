@@ -55,7 +55,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   public boolean secure;
 
   @Tag(4)
-  @DisplayMetadata(label = "External Buckets")
+  @DisplayMetadata(label = "Buckets")
   public List<String> externalBucketList;
 
   @Tag(5)

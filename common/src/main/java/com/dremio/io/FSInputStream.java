@@ -37,6 +37,16 @@ public abstract class FSInputStream extends InputStream {
   public abstract int read(ByteBuffer dst) throws IOException;
 
   /**
+   * Seeks to the position and reads bytes from the stream into the provided buffer {@code dst}
+   *
+   * @param position the position
+   * @param dst the buffer
+   * @return number of bytes read, possibly 0, or -1 if reaching end of stream
+   * @throws IOException
+   */
+  public abstract int read(long position, ByteBuffer dst) throws IOException;
+
+  /**
    * Gets the stream position
    * @return the stream position
    * @throws IOException

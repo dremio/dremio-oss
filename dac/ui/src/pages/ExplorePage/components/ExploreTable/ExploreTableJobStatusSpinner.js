@@ -24,7 +24,8 @@ import { JOB_STATUS, isWorking } from './ExploreTableJobStatus';
 
 export default class ExploreTableJobStatusSpinner extends Component {
   static propTypes = {
-    jobProgress: PropTypes.object
+    jobProgress: PropTypes.object,
+    jobId: PropTypes.string
   };
 
   prevState = {
@@ -33,17 +34,17 @@ export default class ExploreTableJobStatusSpinner extends Component {
   };
 
   componentDidUpdate(prevProps) {
-    const { jobProgress } = this.props;
+    const { jobProgress, jobId } = this.props;
     if (!jobProgress) return;
 
     const { jobProgress: prevJobProgress } = prevProps;
-    const { status, jobId } = jobProgress;
+    const { status } = jobProgress;
     if (status === JOB_STATUS.running && (!prevJobProgress || prevJobProgress.status !== JOB_STATUS.running)) {
       // if switched to running start listen to row count
       jobId && socket.startListenToJobRecords(jobId);
     } else if (status !== JOB_STATUS.running && (prevJobProgress && prevJobProgress.status === JOB_STATUS.running)) {
       // if switched from running stop listen to row count
-      prevJobProgress.jobId && socket.stopListenToJobRecords(prevJobProgress.jobId);
+      prevProps.jobId && socket.stopListenToJobRecords(prevProps.jobId);
     }
   }
 

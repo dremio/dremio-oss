@@ -412,12 +412,12 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   public void addOrUpdateSource(NamespaceKey sourcePath, SourceConfig sourceConfig, NamespaceAttribute... attributes) throws NamespaceException {
-    createOrUpdateEntity(NamespaceEntity.toEntity(SOURCE, sourcePath, sourceConfig, keyNormalization), attributes);
+    createOrUpdateEntity(NamespaceEntity.toEntity(SOURCE, sourcePath, sourceConfig, keyNormalization, new ArrayList<>()), attributes);
   }
 
   @Override
   public void addOrUpdateSpace(NamespaceKey spacePath, SpaceConfig spaceConfig, NamespaceAttribute... attributes) throws NamespaceException {
-    createOrUpdateEntity(NamespaceEntity.toEntity(SPACE, spacePath, spaceConfig, keyNormalization), attributes);
+    createOrUpdateEntity(NamespaceEntity.toEntity(SPACE, spacePath, spaceConfig, keyNormalization, new ArrayList<>()), attributes);
   }
 
   @Override
@@ -453,7 +453,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         break;
     }
 
-    createOrUpdateEntity(NamespaceEntity.toEntity(DATASET, datasetPath, dataset, keyNormalization), attributes);
+    createOrUpdateEntity(NamespaceEntity.toEntity(DATASET, datasetPath, dataset, keyNormalization, new ArrayList<>()), attributes);
   }
 
   /**
@@ -726,12 +726,12 @@ public class NamespaceServiceImpl implements NamespaceService {
 
   @Override
   public void addOrUpdateFolder(NamespaceKey folderPath, FolderConfig folderConfig,  NamespaceAttribute... attributes) throws NamespaceException {
-    createOrUpdateEntity(NamespaceEntity.toEntity(FOLDER, folderPath, folderConfig, keyNormalization), attributes);
+    createOrUpdateEntity(NamespaceEntity.toEntity(FOLDER, folderPath, folderConfig, keyNormalization, new ArrayList<>()), attributes);
   }
 
   @Override
   public void addOrUpdateHome(NamespaceKey homePath, HomeConfig homeConfig) throws NamespaceException {
-    createOrUpdateEntity(NamespaceEntity.toEntity(HOME, homePath, homeConfig, keyNormalization));
+    createOrUpdateEntity(NamespaceEntity.toEntity(HOME, homePath, homeConfig, keyNormalization, new ArrayList<>()));
   }
 
   @Override
@@ -1226,7 +1226,8 @@ public class NamespaceServiceImpl implements NamespaceService {
     final String newDatasetName = newDatasetPath.getName();
     final NamespaceInternalKey oldKey = new NamespaceInternalKey(oldDatasetPath, keyNormalization);
 
-    final DatasetConfig datasetConfig = getEntity(oldDatasetPath, DATASET).getDataset();
+    final NameSpaceContainer container = getEntity(oldDatasetPath, DATASET);
+    final DatasetConfig datasetConfig = container.getDataset();
 
     if (isPhysicalDataset(datasetConfig.getType())) {
       throw UserException.validationError()
@@ -1244,11 +1245,12 @@ public class NamespaceServiceImpl implements NamespaceService {
     datasetConfig.setName(newDatasetName);
     datasetConfig.setFullPathList(newDatasetPath.getPathComponents());
     datasetConfig.setLastModified(System.currentTimeMillis());
-    NamespaceEntity newValue = NamespaceEntity.toEntity(DATASET, newDatasetPath, datasetConfig, keyNormalization);
-
     // in case of upgrade we may have a version here from previous versions, so clear out
     datasetConfig.setVersion(null);
     datasetConfig.setTag(null);
+
+    final NamespaceEntity newValue = NamespaceEntity.toEntity(DATASET, newDatasetPath, datasetConfig, keyNormalization,
+        container.getAttributesList());
 
     namespace.put(newValue.getPathKey().getKey(), newValue.getContainer());
     namespace.delete(oldKey.getKey());

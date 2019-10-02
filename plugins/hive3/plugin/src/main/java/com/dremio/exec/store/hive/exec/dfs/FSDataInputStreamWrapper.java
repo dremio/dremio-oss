@@ -126,6 +126,15 @@ public class FSDataInputStreamWrapper extends FSInputStream {
   }
 
   @Override
+  public int read(long position, ByteBuffer dst) throws IOException {
+    try {
+      return underlyingIs.read(position, dst);
+    } catch(FSError e) {
+      throw DremioHadoopFileSystemWrapper.propagateFSError(e);
+    }
+  }
+
+  @Override
   public long getPosition() throws IOException {
     try {
       return underlyingIs.getPos();

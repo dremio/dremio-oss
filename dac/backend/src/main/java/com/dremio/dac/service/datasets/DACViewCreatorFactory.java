@@ -92,7 +92,7 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
       this.userName = userName;
       namespaceService = namespaceServiceFactory.get().get(userName);
       datasetService = new DatasetVersionMutator(initializerRegistry.get(), kvStoreProvider.get(), namespaceService,
-        jobsService, catalogService.get());
+        jobsService, catalogService.get(), contextService.get().get().getOptionManager());
     }
 
     @Override

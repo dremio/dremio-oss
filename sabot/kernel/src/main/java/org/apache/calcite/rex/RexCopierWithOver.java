@@ -34,4 +34,9 @@ public class RexCopierWithOver extends RexCopier {
     return over;
   }
 
+  @Override
+  public RexNode visitCorrelVariable(RexCorrelVariable variable) {
+    return new RexCorrelVariable(variable.id, variable.getType());
+  }
+
 }

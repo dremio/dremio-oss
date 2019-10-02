@@ -16,6 +16,8 @@
 package com.dremio.exec.planner.sql.handlers;
 
 import org.apache.calcite.rex.RexOver;
+import org.apache.calcite.rex.RexWindowBound;
+import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 
 public final class OverUtils {
@@ -27,7 +29,7 @@ public final class OverUtils {
    * Indicates if the given OVER clause has a window frame that is automatically added by
    * Calcite if the frame is not specified.
    */
-  public static boolean hasDefaultFrame(RexOver over) {
+  public static boolean hasDefaultFrame(SqlAggFunction operator, boolean isRows, RexWindowBound lowerBound, RexWindowBound upperBound, int oerderKeyCount) {
     // When Calcite parses an OVER clause with no frame,
     // it inject a 'default' frame depending on the function.
     // 1. For ROW_NUMBER(), it generates ROWS UNBOUNDED PRECEDING and CURRENT ROW.
@@ -39,16 +41,25 @@ public final class OverUtils {
     // and SqlWindow.create()/SqlWindow.populateBounds().
 
     return // Note: intentionally not simplifying this boolean for clarity.
-      (over.getAggOperator() == SqlStdOperatorTable.ROW_NUMBER && over.getWindow().isRows() &&
-        over.getWindow().getLowerBound().isUnbounded() && over.getWindow().getLowerBound().isPreceding() &&
-        over.getWindow().getUpperBound().isCurrentRow()) // First condition.
+      (operator == SqlStdOperatorTable.ROW_NUMBER && isRows &&
+        lowerBound.isUnbounded() && lowerBound.isPreceding() &&
+        upperBound.isCurrentRow()) // First condition.
         ||
-        (!over.getWindow().isRows() && over.getWindow().orderKeys.isEmpty() &&
-          over.getWindow().getLowerBound().isUnbounded() && over.getWindow().getLowerBound().isPreceding() &&
-          over.getWindow().getUpperBound().isUnbounded() && over.getWindow().getUpperBound().isFollowing())  // Second condition.
+        (!isRows && (oerderKeyCount == 0) &&
+          lowerBound.isUnbounded() && lowerBound.isPreceding() &&
+          upperBound.isUnbounded() && upperBound.isFollowing()) // Second condition.
         ||
-        (!over.getWindow().isRows() && !over.getWindow().orderKeys.isEmpty() &&
-          over.getWindow().getLowerBound().isUnbounded() && over.getWindow().getLowerBound().isPreceding() &&
-          !over.getWindow().getUpperBound().isUnbounded() && over.getWindow().getUpperBound().isCurrentRow());  // Third condition.
+        (!isRows && //(oerderKeyCount != 0) &&
+          lowerBound.isUnbounded() && lowerBound.isPreceding() &&
+          !upperBound.isUnbounded() && upperBound.isCurrentRow()); // Third condition.
+  }
+
+  public static boolean hasDefaultFrame(RexOver over) {
+    return hasDefaultFrame(
+      over.getAggOperator(),
+      over.getWindow().isRows(),
+      over.getWindow().getLowerBound(),
+      over.getWindow().getUpperBound(),
+      over.getWindow().orderKeys.size());
   }
 }

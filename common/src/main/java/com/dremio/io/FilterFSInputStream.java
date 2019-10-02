@@ -65,6 +65,11 @@ public class FilterFSInputStream extends FSInputStream {
   }
 
   @Override
+  public int read(long position, ByteBuffer dst) throws IOException {
+    return in.read(position, dst);
+  }
+
+  @Override
   public long getPosition() throws IOException {
     return in.getPosition();
   }

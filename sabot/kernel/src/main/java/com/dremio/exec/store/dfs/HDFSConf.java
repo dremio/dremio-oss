@@ -40,15 +40,6 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
     @Tag(3) @DisplayMetadata(label = "Disabled") DISABLED;
   }
 
-  //  optional string hostname = 1;
-  //  optional int32 port = 2;
-  //  optional bool enable_impersonation = 3 [default = false];
-  //  repeated Property property = 4;
-  //  optional string root_path = 5 [default = "/"];
-  //  optional ShortCircuitFlag short_circuit_enabled = 6
-  //  optional string short_circuit_socket_path = 7
-  //  optional bool allow_create_drop = 8
-
   @NotBlank
   @Tag(1)
   @DisplayMetadata(label = "NameNode Host")
@@ -86,6 +77,23 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   @DisplayMetadata(label = "Enable exports into the source (CTAS and DROP)")
   public boolean allowCreateDrop;
 
+  @Tag(12)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable asynchronous access when possible")
+  public boolean enableAsync = true;
+
+  @Tag(13)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable local caching when possible")
+  public boolean isCachingEnabled = false;
+
+  @Tag(14)
+  @NotMetadataImpacting
+  @Min(value = 1, message = "Max percent of total available cache space must be between 1 and 100")
+  @Max(value = 100, message = "Max percent of total available cache space must be between 1 and 100")
+  @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
+  public int maxCacheSpacePct = 100;
+
   @Override
   public Path getPath() {
     return Path.of(rootPath);
@@ -104,6 +112,26 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   @Override
   public String getConnection() {
     return "hdfs://" + hostname + ":" + port + "/";
+  }
+
+  @Override
+  public boolean isAsyncEnabled() {
+    return enableAsync;
+  }
+
+  @Override
+  public CacheProperties getCacheProperties() {
+    return new CacheProperties() {
+      @Override
+      public boolean isCachingEnabled() {
+        return isCachingEnabled;
+      }
+
+      @Override
+      public int cacheMaxSpaceLimitPct() {
+        return maxCacheSpacePct;
+      }
+    };
   }
 
   @Override

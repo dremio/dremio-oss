@@ -24,6 +24,7 @@ import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelShuttle;
 import org.apache.calcite.rel.SingleRel;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 
@@ -62,6 +63,7 @@ public class JdbcCrel extends SingleRel implements CopyToCluster, Rel {
     if (minDepth <= 0) {
       return planner.getCostFactory().makeInfiniteCost();
     }
+
     return planner.getCostFactory().makeCost(Integer.MAX_VALUE, Integer.MAX_VALUE, Integer.MAX_VALUE).multiplyBy(1.0/minDepth);
   }
 
@@ -78,5 +80,9 @@ public class JdbcCrel extends SingleRel implements CopyToCluster, Rel {
 
   public StoragePluginId getPluginId() {
     return this.pluginId;
+  }
+
+  public RelNode accept(RelShuttle shuttle) {
+    return shuttle.visit(this);
   }
 }

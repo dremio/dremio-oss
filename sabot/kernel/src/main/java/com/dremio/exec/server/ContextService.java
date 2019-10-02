@@ -82,6 +82,7 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<ViewCreatorFactory> viewCreatorFactory;
   private final Set<ClusterCoordinator.Role> roles;
   private final Provider<CredentialsService> credentialsService;
+  private final Provider<JobResultSchemaProvider> jobResultSchemaProvider;
   protected BufferAllocator queryPlannerAllocator;
 
   private SabotContext context;
@@ -107,11 +108,13 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<SpillService> spillService,
     Provider<ConnectionReader> connectionReaderProvider,
     Provider<CredentialsService> credentialsService,
-    boolean allRoles) {
+    Provider<JobResultSchemaProvider> jobResultSchemaProvider,
+    boolean allRoles
+  ) {
     this(bindingCreator, bootstrapContext, coord, provider, workStats, kvStoreProvider, fabric, userServer,
       materializationDescriptorProvider, queryObserverFactory, accelerationManager,
       accelerationListManager, namespaceServiceFactory, datasetListingServiceProvider, userService, catalogService,
-      viewCreatorFactory, spillService, connectionReaderProvider, credentialsService,
+      viewCreatorFactory, spillService, connectionReaderProvider, credentialsService, jobResultSchemaProvider,
       allRoles ? EnumSet.allOf(ClusterCoordinator.Role.class) : Sets.newHashSet(ClusterCoordinator.Role.EXECUTOR));
   }
 
@@ -136,7 +139,9 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<SpillService> spillService,
     Provider<ConnectionReader> connectionReaderProvider,
     Provider<CredentialsService> credentialsService,
-    Set<ClusterCoordinator.Role> roles) {
+    Provider<JobResultSchemaProvider> jobResultSchemaProvider,
+    Set<ClusterCoordinator.Role> roles
+  ) {
     this.bindingCreator = bindingCreator;
     this.bootstrapContext = bootstrapContext;
     this.provider = provider;
@@ -158,6 +163,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     this.connectionReaderProvider = connectionReaderProvider;
     this.roles = Sets.immutableEnumSet(roles);
     this.credentialsService = credentialsService;
+    this.jobResultSchemaProvider = jobResultSchemaProvider;
   }
 
   @Override
@@ -233,7 +239,8 @@ public class ContextService implements Service, Provider<SabotContext> {
         queryPlannerAllocator,
         spillService,
         connectionReaderProvider,
-        credentialsService.get()
+        credentialsService.get(),
+        jobResultSchemaProvider.get()
       );
   }
 

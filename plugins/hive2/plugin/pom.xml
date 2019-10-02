@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive2-plugin-parent</artifactId>
-    <version>4.0.1-201909191652190301-211720e</version>
+    <version>4.0.2-201910020123580864-a98a0b9</version>
   </parent>
 
   <artifactId>dremio-hive2-plugin</artifactId>
@@ -981,7 +981,7 @@
               <outputDirectory>${project.build.directory}/generated-sources/src/main</outputDirectory>
               <resources>
                 <resource>
-                    <directory>${project.basedir}/../../hive/src/main</directory>
+                  <directory>${project.basedir}/../../hive/src/main</directory>
                   <includes>
                     <include>**/*.*</include>
                   </includes>
@@ -989,6 +989,12 @@
                     <exclude>**/Hive2StoragePluginConfig.java</exclude>
                     <exclude>**/HivePluginOptions.java</exclude>
                   </excludes>
+                </resource>
+                <resource>
+                  <directory>${project.basedir}/../../../common/src/main</directory>
+                  <includes>
+                    <include>**/ByteBufferUtil.java</include>
+                  </includes>
                 </resource>
               </resources>
             </configuration>
@@ -1058,7 +1064,7 @@
             <configuration>
               <resources>
                 <resource>
-                  <directory>${project.basedir}/../../../../oss/sample-data/</directory>
+                  <directory>${project.basedir}/../../../sample-data/</directory>
                   <includes>
                     <include>region.parquet</include>
                   </includes>

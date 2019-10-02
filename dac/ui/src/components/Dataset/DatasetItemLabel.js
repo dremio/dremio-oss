@@ -113,6 +113,7 @@ export default class DatasetItemLabel extends Component {
     return (
       <div style={[styles.base, style]}>
         <div
+          data-qa='info-icon'
           style={{...styles.iconsBase, ...(showInfoIcon && {cursor: 'pointer'})}}
           onMouseEnter={this.handleMouseEnterIcon}
           onMouseLeave={this.handleMouseLeaveIcon}

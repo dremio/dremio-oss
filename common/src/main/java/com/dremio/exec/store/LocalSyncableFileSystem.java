@@ -254,6 +254,10 @@ public class LocalSyncableFileSystem extends FileSystem {
 
     }
 
+    // Compatibility with Hadoop 2.x. Was added in Hadoop 3.2
+    public int read(long position, ByteBuffer dst) throws IOException {
+      throw new IOException("positional read with ByteBuffer not supported");
+    }
 
     @Override
     public int read(byte[] b) throws IOException {

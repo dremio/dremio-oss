@@ -24,7 +24,7 @@
             id:2,
             child: 1,
             pop:"selection-vector-remover",
-            props: {"operatorId": 2, "schemaHashCode": -444278285}
+            props: {"operatorId": 2, "targetBatchSize":1024, "schemaHashCode": -444278285}
         },
         {
             id: 3,

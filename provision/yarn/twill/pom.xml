@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.provision</groupId>
     <artifactId>dremio-yarn-parent</artifactId>
-    <version>4.0.1-201909191652190301-211720e</version>
+    <version>4.0.2-201910020123580864-a98a0b9</version>
   </parent>
 
   <groupId>com.dremio.provision</groupId>
@@ -293,11 +293,11 @@
   </dependencies>
   <dependencyManagement>
     <dependencies>
-      <!-- Twill JAR has a dependency on netty 3.6.6.Final. See Also: DX-16894 -->
+      <!-- Twill JAR has a dependency on netty 3.6.x.Final. See Also: DX-16894 -->
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty</artifactId>
-        <version>3.6.6.Final</version>
+        <version>3.6.10.Final</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

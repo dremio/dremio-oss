@@ -18,7 +18,7 @@ import PropTypes from 'prop-types';
 import { withRouter } from 'react-router';
 import Immutable from 'immutable';
 
-import DividerHr from 'components/Menus/DividerHr';
+import DividerHr from '@app/components/Menus/DividerHr';
 
 import Menu from './Menu';
 import MenuItem from './MenuItem';
@@ -56,7 +56,8 @@ export class CombinedActionMenu extends PureComponent {
   };
 
   render() {
-    const { isSettingsDisabled, isActionDisabled, action, closeMenu, datasetColumns } = this.props;
+    const { isSettingsDisabled, isActionDisabled, action, closeMenu, datasetColumns, dataset } = this.props;
+    const datasetSql = dataset.get('sql');
     return (
       <Menu>
         <MenuLabel>{la('Dataset')}</MenuLabel>
@@ -68,7 +69,7 @@ export class CombinedActionMenu extends PureComponent {
         </MenuItem>
         <DividerHr />
         <MenuLabel>{la('Download')}</MenuLabel>
-        <ExportMenu action={action} closeMenu={closeMenu} datasetColumns={datasetColumns}/>
+        <ExportMenu action={action} datasetColumns={datasetColumns} datasetSql={datasetSql}/>
         <DividerHr />
         <BiToolsMenu action={action} closeMenu={closeMenu} disabled={isActionDisabled}/>
       </Menu>

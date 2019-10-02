@@ -40,7 +40,6 @@ import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.util.ChainedSqlOperatorTable;
 import org.apache.calcite.sql.util.SqlShuttle;
-import org.apache.calcite.sql2rel.RelDecorrelator;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.util.ImmutableIntList;
 import org.apache.calcite.util.Pair;
@@ -60,6 +59,8 @@ import com.dremio.exec.planner.acceleration.substitution.AccelerationAwareSubsti
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProviderFactory;
 import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.cost.DremioCost;
+import com.dremio.exec.planner.logical.DremioRelDecorrelator;
+import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
@@ -318,14 +319,18 @@ public class SqlConverter {
     // Previously we had "top" = !innerQuery, but calcite only adds project if it is not a top query.
     final RelRoot rel = sqlToRelConverter.convertQuery(validatedNode, false /* needs validate */, false /* top */);
     final RelNode rel2 = sqlToRelConverter.flattenTypes(rel.rel, true);
-    final RelNode rel3;
-    rel3 = expand ? rel2 : rel2.accept(new RelsWithRexSubQueryFlattener(sqlToRelConverter));
-    final RelNode rel4 = RelDecorrelator.decorrelateQuery(rel3, false);
+    RelNode converted;
+    final RelNode rel3 = expand ? rel2 : rel2.accept(new RelsWithRexSubQueryFlattener(sqlToRelConverter));
+    if (settings.isRelPlanningEnabled()) {
+      converted = rel3;
+    } else {
+      converted = DremioRelDecorrelator.decorrelateQuery(rel3, DremioRelFactories.CALCITE_LOGICAL_BUILDER.create(rel3.getCluster(), null), false, false);
+    }
 
     if (logger.isDebugEnabled()) {
-      logger.debug("ConvertQuery with expand = {}:\n{}", expand, RelOptUtil.toString(rel4, SqlExplainLevel.ALL_ATTRIBUTES));
+      logger.debug("ConvertQuery with expand = {}:\n{}", expand, RelOptUtil.toString(converted, SqlExplainLevel.ALL_ATTRIBUTES));
     }
-    return RelRootPlus.of(rel4, rel.validatedRowType, rel.kind, convertletTable.isReflectionDisallowed());
+    return RelRootPlus.of(converted, rel.validatedRowType, rel.kind, convertletTable.isReflectionDisallowed());
   }
 
   /**

@@ -55,6 +55,7 @@ public class AssignmentCreator2<T extends CompleteWork> {
   @VisibleForTesting
   public final static AtomicLong LEFTOVER_ASSIGNMENTS = new AtomicLong(0);
 
+  private final boolean isInstanceAffinity;
   private final List<WorkWrapper> workList;
   private final Map<String,HostFragments> hostFragmentMap;
   private final long maxSize;
@@ -68,6 +69,7 @@ public class AssignmentCreator2<T extends CompleteWork> {
 
   AssignmentCreator2(List<NodeEndpoint> incomingEndpoints, List<T> units, double balanceFactor) {
     this.workList = createWorkList(units);
+    this.isInstanceAffinity = this.workList.get(0).isInstanceAffinity;
     int unitsPerFragment = (int) Math.ceil(units.size() / (float) incomingEndpoints.size());
     this.maxSize = (long) (sumOfFirst(units, unitsPerFragment) * balanceFactor);
     this.hostFragmentMap = createHostFragmentsMap(incomingEndpoints);
@@ -234,10 +236,18 @@ public class AssignmentCreator2<T extends CompleteWork> {
     return sb.toString();
   }
 
+  private static String getHostname(NodeEndpoint endpoint, boolean isInstanceAffinity) {
+    if (!isInstanceAffinity) {
+      return endpoint.getAddress();
+    }
+
+    return endpoint.getAddress() + ':' + endpoint.getFabricPort();
+  }
+
   private Map<String,HostFragments> createHostFragmentsMap(List<NodeEndpoint> incomingEndpoints) {
     Multimap<String,Integer> endpointMap = ArrayListMultimap.create();
     for (int i = 0; i < incomingEndpoints.size(); i++) {
-      String host = incomingEndpoints.get(i).getAddress();
+      String host = getHostname(incomingEndpoints.get(i), isInstanceAffinity);
       endpointMap.put(host, i);
     }
 
@@ -332,17 +342,26 @@ public class AssignmentCreator2<T extends CompleteWork> {
   private class WorkWrapper implements Comparable<WorkWrapper> {
     private final T work;
     private final List<Set<String>> hostsList = Lists.newArrayList();
+    private final boolean isInstanceAffinity;
 
     private WorkWrapper(T work) {
       this.work = work;
-      if (!work.getAffinity().isEmpty()) {
-        init();
+      List<EndpointAffinity> endpointAffinityList = work.getAffinity();
+      if (!endpointAffinityList.isEmpty()) {
+        isInstanceAffinity = endpointAffinityList.get(0).isInstanceAffinity();
+        init(endpointAffinityList);
+      } else {
+        isInstanceAffinity = false;
       }
     }
 
-    private void init() {
+    private String getAffinityHost(EndpointAffinity endpointAffinity) {
+      return getHostname(endpointAffinity.getEndpoint(), isInstanceAffinity);
+    }
+
+    private void init(List<EndpointAffinity> endpointAffinities) {
       ImmutableSet.Builder<String> hostsBuilder = ImmutableSet.builder();
-      List<EndpointAffinity> endpointAffinityList = Lists.newArrayList(work.getAffinity());
+      List<EndpointAffinity> endpointAffinityList = Lists.newArrayList(endpointAffinities);
       Collections.sort(endpointAffinityList, (o1, o2) -> {
         return Double.compare(o1.getAffinity(), o2.getAffinity());
       });
@@ -351,13 +370,13 @@ public class AssignmentCreator2<T extends CompleteWork> {
 
       // organise the hosts based on affinity
       double currAffinity = endpointAffinityList.get(0).getAffinity();
-      hostsBuilder.add(endpointAffinityList.get(0).getEndpoint().getAddress());
+      hostsBuilder.add(getAffinityHost(endpointAffinityList.get(0)));
 
       for (int i = 1; i < endpointAffinityList.size(); i++) {
         EndpointAffinity endpointAffinity = endpointAffinityList.get(i);
         if (this.hostsList.size() == (NUM_PASSES - 1)) {
           // this is the last list. Include all hosts here
-          hostsBuilder.add(endpointAffinity.getEndpoint().getAddress());
+          hostsBuilder.add(getAffinityHost(endpointAffinity));
           continue;
         }
 
@@ -368,7 +387,7 @@ public class AssignmentCreator2<T extends CompleteWork> {
           currAffinity = endpointAffinity.getAffinity();
         }
 
-        hostsBuilder.add(endpointAffinity.getEndpoint().getAddress());
+        hostsBuilder.add(getAffinityHost(endpointAffinity));
       }
       this.hostsList.add(hostsBuilder.build());
     }

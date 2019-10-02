@@ -64,6 +64,7 @@ import com.dremio.sabot.task.TaskPool;
 import com.dremio.security.CredentialsService;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.BindingProvider;
+import com.dremio.service.DirectProvider;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.commandpool.CommandPoolFactory;
@@ -217,6 +218,7 @@ public class SabotNode implements AutoCloseable {
         registry.provider(SpillService.class),
         registry.provider(ConnectionReader.class),
         CredentialsService::new,
+        DirectProvider.wrap(JobResultSchemaProvider.NOOP),
         allRoles
         ));
 

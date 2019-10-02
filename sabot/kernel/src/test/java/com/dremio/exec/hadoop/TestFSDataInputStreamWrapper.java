@@ -18,6 +18,7 @@ package com.dremio.exec.hadoop;
 import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static com.dremio.exec.hadoop.FSErrorTestUtils.getDummyArguments;
 import static com.dremio.exec.hadoop.FSErrorTestUtils.newFSError;
+import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.sameInstance;
@@ -81,12 +82,22 @@ public class TestFSDataInputStreamWrapper {
     this.method = method;
   }
 
+  private static Class<?> getClass(String clsName) {
+    try {
+      return Class.forName(clsName);
+    } catch (ClassNotFoundException e) {
+      return null;
+    }
+  }
+
   @Test
   public void test() throws Exception {
+    Class<?> byteBufferPositionedReadableClass = getClass("org.apache.hadoop.fs.ByteBufferPositionedReadable");
+
     assumeNonMaprProfile();
     final IOException ioException = new IOException("test io exception");
     final FSError fsError = newFSError(ioException);
-    FSDataInputStream fdis = new FSDataInputStream(mock(InputStream.class, withSettings().extraInterfaces(Seekable.class, PositionedReadable.class, ByteBufferReadable.class).defaultAnswer(new Answer<Object>() {
+    FSDataInputStream fdis = new FSDataInputStream(mock(InputStream.class, withSettings().extraInterfaces(Seekable.class, byteBufferPositionedReadableClass == null ? AutoCloseable.class : byteBufferPositionedReadableClass, PositionedReadable.class, ByteBufferReadable.class).defaultAnswer(new Answer<Object>() {
       @Override
       public Object answer(InvocationOnMock invocation) throws Throwable {
         throw fsError;
@@ -98,8 +109,14 @@ public class TestFSDataInputStreamWrapper {
     try {
       method.invoke(fdisw, params);
     } catch(InvocationTargetException e) {
-      assertThat(e.getTargetException(), is(instanceOf(IOException.class)));
-      assertThat((IOException) e.getTargetException(), is(sameInstance(ioException)));
+      if (byteBufferPositionedReadableClass == null) {
+        assertThat(e.getTargetException(), anyOf(is(instanceOf(IOException.class)), is(instanceOf(UnsupportedOperationException.class))));
+      } else {
+        assertThat(e.getTargetException(), is(instanceOf(IOException.class)));
+      }
+      if (e.getTargetException() instanceof IOException) {
+        assertThat((IOException) e.getTargetException(), is(sameInstance(ioException)));
+      }
     }
   }
 }

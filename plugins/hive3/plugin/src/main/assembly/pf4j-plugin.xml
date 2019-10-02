@@ -47,6 +47,12 @@
         <exclude>*:*:jar:*:linux</exclude>
       </excludes>
       <unpack>true</unpack>
+      <unpackOptions>
+        <excludes>
+          <!-- Omit Hadoop ByteBufferUtil in favor of Dremio one within Hive 3.x Plugin -->
+          <exclude>org/apache/hadoop/fs/ByteBufferUtil.class</exclude>
+        </excludes>
+      </unpackOptions>
     </dependencySet>
     <dependencySet>
       <outputDirectory>PF4J-INF/native-libs</outputDirectory>

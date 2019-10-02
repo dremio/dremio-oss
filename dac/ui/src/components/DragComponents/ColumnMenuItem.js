@@ -26,8 +26,9 @@ import { unavailable } from 'uiTheme/radium/typography';
 import { typeToIconType } from '@app/constants/DataTypes';
 import { constructFullPath } from 'utils/pathUtils';
 
+import Art from '@app/components/Art';
 import DragSource from './DragSource';
-import { base, content, disabled as disabledCls } from './ColumnMenuItem.less';
+import { base, content, disabled as disabledCls, icon as iconCls } from './ColumnMenuItem.less';
 
 @pureRender
 @Radium
@@ -73,6 +74,7 @@ export default class ColumnMenuItem extends Component {
     // full paths are not yet supported by dremio in SELECT clauses, so force this to always be the simple name for now
     const idForDrag = true || // eslint-disable-line no-constant-condition
       isGroupBy ? item.get('name') : constructFullPath(this.props.fullPath.concat(item.get('name')));
+
     return (
       <div
         className={classNames(['inner-join-left-menu-item', base, className])}
@@ -97,6 +99,34 @@ export default class ColumnMenuItem extends Component {
               text={item.get('name')}>
               <span data-qa={item.get('name')} style={[styles.name, font]}>{item.get('name')}</span>
             </EllipsedText>
+            {/*
+              We need to put sort and partition icons to columns, i.e. ('S' and 'P' below represents
+              the icons):
+              col1  S |P
+              col2  S |
+              col3    |P
+              col4  S |P
+            */}
+            {
+              item.get('isSorted') && <Art dataQa='is-partitioned'
+                src='sorted.svg'
+                alt='sorted'
+                title='sorted'
+                className={iconCls}
+              />
+            }
+            {
+              item.get('isPartitioned') && <Art dataQa='is-partitioned'
+                src='Partition.svg'
+                alt='partitioned'
+                title='partitioned'
+                className={iconCls}
+              />
+            }
+            {
+              // need to add a empty placeholder for partition icon to keep alignment
+              item.get('isSorted') && !item.get('isPartitioned') && <div className={iconCls}></div>
+            }
             {this.renderDraggableIcon()}
           </div>
         </DragSource>

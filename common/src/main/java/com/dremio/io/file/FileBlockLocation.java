@@ -16,6 +16,9 @@
 package com.dremio.io.file;
 
 import java.util.List;
+import java.util.stream.Collectors;
+
+import com.google.common.net.HostAndPort;
 
 /**
  * A file block location
@@ -48,4 +51,13 @@ public interface FileBlockLocation {
    * @return a list of hosts. Should contain at least one host
    */
   List<String> getHosts();
+
+  /**
+   * Gets the list of hosts with ports physically storing the block.
+   *
+   * @return a list of hosts with ports. Should contain at least one HostAndPort
+   */
+  default List<HostAndPort> getHostsWithPorts() {
+    return getHosts().stream().map((h) -> HostAndPort.fromHost(h)).collect(Collectors.toList());
+  }
 }

@@ -579,8 +579,8 @@ public class BaseTestOperator extends ExecTest {
     validateSingle(pop, clazz, input.toGenerator(getTestAllocator()), result, batchSize);
   }
 
-  protected <T extends SingleInputOperator> void validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, Fixtures.Table result, int batchSize) throws Exception {
-    validateSingle(pop, clazz, generator, result, batchSize, null);
+  protected <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, Fixtures.Table result, int batchSize) throws Exception {
+    return validateSingle(pop, clazz, generator, result, batchSize, null);
   }
 
   private <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, Fixtures.Table result, int batchSize, Long expected) throws Exception {

@@ -75,6 +75,13 @@ class FSDataInputStreamWithStatsWrapper extends FSDataInputStreamWrapper {
   }
 
   @Override
+  public int read(long position, ByteBuffer buf) throws IOException {
+    try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
+      return super.read(position, buf);
+    }
+  }
+
+  @Override
   public synchronized void seek(long desired) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       super.seek(desired);

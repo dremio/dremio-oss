@@ -260,6 +260,7 @@ public class DatasetsResource {
       throw new DatasetNotFoundException(datasetPath);
     }
     final DatasetConfig datasetConfig = table.getDatasetConfig();
+
     return newDatasetSummary(datasetConfig,
       datasetService.getJobsCount(datasetPath.toNamespaceKey()),
       datasetService.getDescendantsCount(datasetPath.toNamespaceKey()));

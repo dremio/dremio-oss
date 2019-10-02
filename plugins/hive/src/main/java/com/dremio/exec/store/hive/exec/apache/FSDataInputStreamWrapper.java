@@ -119,6 +119,10 @@ class FSDataInputStreamWrapper extends FSDataInputStream {
     }
   }
 
+  public int read(long position, ByteBuffer buf) throws IOException {
+    throw new UnsupportedOperationException("positioned read with ByteBuffer not supported");
+  }
+
   @Override
   public FileDescriptor getFileDescriptor() throws IOException {
     try {

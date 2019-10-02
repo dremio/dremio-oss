@@ -24,7 +24,6 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.unmodifiableList;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -68,11 +67,9 @@ import com.dremio.dac.explore.model.DatasetResourcePath;
 import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.DatasetUIWithHistory;
 import com.dremio.dac.explore.model.DatasetVersionResourcePath;
-import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.explore.model.HistogramValue;
 import com.dremio.dac.explore.model.History;
 import com.dremio.dac.explore.model.HistoryItem;
-import com.dremio.dac.explore.model.InitialDownloadResponse;
 import com.dremio.dac.explore.model.InitialPendingTransformResponse;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.InitialRunResponse;
@@ -97,14 +94,12 @@ import com.dremio.dac.proto.model.dataset.ReplacePatternRule;
 import com.dremio.dac.proto.model.dataset.SplitRule;
 import com.dremio.dac.proto.model.dataset.Transform;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
-import com.dremio.dac.resource.JobResource;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
@@ -791,15 +786,6 @@ public class DatasetVersionResource {
   public JoinRecommendations getJoinRecommendations() throws DatasetVersionNotFoundException, DatasetNotFoundException, NamespaceException {
     final Dataset currentDataset = getCurrentDataset();
     return joinRecommender.recommendJoins(currentDataset);
-  }
-
-  @GET
-  @Path("download")
-  @Produces(APPLICATION_JSON)
-  public InitialDownloadResponse downloadDataset(@QueryParam("downloadFormat") @DefaultValue("JSON") DownloadFormat downloadFormat,
-                                                 @QueryParam("limit") @DefaultValue("1000000") int limit) throws IOException, DatasetVersionNotFoundException {
-    final Job job = datasetService.prepareDownload(datasetPath, version, downloadFormat, limit, securityContext.getUserPrincipal().getName());
-    return new InitialDownloadResponse(job.getJobId(), JobResource.getDownloadURL(job));
   }
 
   @GET

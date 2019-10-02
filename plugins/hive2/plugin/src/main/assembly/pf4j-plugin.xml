@@ -52,6 +52,10 @@
         <excludes>
           <!-- Omit the VersionInfo from hbase-common and use the VersionInfo implemented in the shim -->
           <exclude>org/apache/hadoop/hbase/util/VersionInfo.class</exclude>
+
+          <!-- Omit Hadoop ByteBufferUtil in favor of Dremio one within Hive 2.x Plugin -->
+          <exclude>org/apache/hadoop/fs/ByteBufferUtil.class</exclude>
+
           <!-- Omit all MapR pre-loaded classes from MapR-FS within Hive 2.x Plugin -->
           <exclude>com/mapr/fs/jni/Errno.class</exclude>
           <exclude>com/mapr/fs/jni/MapRConstants.class</exclude>

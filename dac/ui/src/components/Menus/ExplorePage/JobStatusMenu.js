@@ -15,6 +15,7 @@
  */
 import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
+import {Link} from 'react-router';
 
 import Menu from './Menu';
 import MenuItem from './MenuItem';
@@ -23,12 +24,8 @@ export class JobStatusMenu extends PureComponent {
   static propTypes = {
     action: PropTypes.func,
     isCancellable: PropTypes.bool,
-    closeMenu: PropTypes.func
-  };
-
-  clickDetail = () => {
-    this.props.closeMenu();
-    this.props.action('detail');
+    closeMenu: PropTypes.func,
+    jobId: PropTypes.string
   };
 
   clickCancel = () => {
@@ -37,11 +34,13 @@ export class JobStatusMenu extends PureComponent {
   };
 
   render() {
-    const {isCancellable} = this.props;
+    const {isCancellable, jobId} = this.props;
     return (
       <Menu>
-        <MenuItem key='job-details' onClick={this.clickDetail}>
-          {la('View Details')}
+        <MenuItem key='job-details'>
+          <Link to={{pathname: '/jobs', hash: `#${jobId}`}}>
+            {la('View Details')}
+          </Link>
         </MenuItem>
         <MenuItem key='job-cancel' onClick={this.clickCancel} disabled={!isCancellable}>
           {la('Cancel Job')}

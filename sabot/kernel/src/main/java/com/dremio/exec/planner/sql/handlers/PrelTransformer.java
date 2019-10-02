@@ -87,6 +87,8 @@ import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.cost.DefaultRelMetadataProvider;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.logical.ConstExecutor;
+import com.dremio.exec.planner.logical.DremioRelDecorrelator;
+import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.InvalidViewRel;
 import com.dremio.exec.planner.logical.PreProcessRel;
 import com.dremio.exec.planner.logical.ProjectRel;
@@ -200,9 +202,9 @@ public class PrelTransformer {
     return typedSqlNode;
   }
 
-  public static RelNode trimFields(final RelNode relNode, boolean shouldLog) {
+  public static RelNode trimFields(final RelNode relNode, boolean shouldLog, boolean isRelPlanning) {
     final Stopwatch w = Stopwatch.createStarted();
-    final RelFieldTrimmer trimmer = DremioFieldTrimmer.of(relNode.getCluster());
+    final RelFieldTrimmer trimmer = DremioFieldTrimmer.of(relNode.getCluster(), isRelPlanning);
     final RelNode trimmed = trimmer.trim(relNode);
     if(shouldLog) {
       log(PlannerType.HEP, PlannerPhase.FIELD_TRIMMING, trimmed, logger, w);
@@ -220,7 +222,7 @@ public class PrelTransformer {
   public static Rel convertToDrel(SqlHandlerConfig config, final RelNode relNode) throws SqlUnsupportedException, RelConversionException {
 
     try {
-      final RelNode trimmed = trimFields(relNode, true);
+      final RelNode trimmed = trimFields(relNode, true, config.getContext().getPlannerSettings().isRelPlanningEnabled());
       final RelNode preLog = transform(config, PlannerType.HEP_AC, PlannerPhase.PRE_LOGICAL, trimmed, trimmed.getTraitSet(), true);
 
       final RelTraitSet logicalTraits = preLog.getTraitSet().plus(Rel.LOGICAL);
@@ -258,14 +260,24 @@ public class PrelTransformer {
         intermediateNode = adjusted;
       }
 
+      RelNode postLogical;
+      if (config.getContext().getPlannerSettings().isRelPlanningEnabled()) {
+        final RelNode decorrelatedNode = DremioRelDecorrelator.decorrelateQuery(intermediateNode, DremioRelFactories.LOGICAL_BUILDER.create(intermediateNode.getCluster(), null), true, true);
+        final RelNode jdbcPushDown = transform(config, PlannerType.HEP_AC, PlannerPhase.RELATIONAL_PLANNING, decorrelatedNode, decorrelatedNode.getTraitSet().plus(Rel.LOGICAL), true);
+        postLogical = jdbcPushDown.accept(new ShortenJdbcColumnAliases()).accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.LOGICAL_BUILDER));
+      } else {
+        postLogical = intermediateNode;
+      }
+
       // Do Join Planning.
-      final RelNode preConvertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_MULTI_JOIN, intermediateNode, intermediateNode.getTraitSet(), true);
+      final RelNode preConvertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_MULTI_JOIN, postLogical, postLogical.getTraitSet(), true);
       final RelNode convertedRelNode = transform(config, PlannerType.HEP_BOTTOM_UP, PlannerPhase.JOIN_PLANNING_OPTIMIZATION, preConvertedRelNode, preConvertedRelNode.getTraitSet(), true);
 
       FlattenRelFinder flattenFinder = new FlattenRelFinder();
       final RelNode flattendPushed;
       if (flattenFinder.run(convertedRelNode)) {
-        flattendPushed = transform(config, PlannerType.VOLCANO, PlannerPhase.FLATTEN_PUSHDOWN, convertedRelNode, convertedRelNode.getTraitSet(), true);
+        flattendPushed = transform(config, PlannerType.VOLCANO, PlannerPhase.FLATTEN_PUSHDOWN,
+          convertedRelNode, convertedRelNode.getTraitSet(), true);
       } else {
         flattendPushed = convertedRelNode;
       }
@@ -384,12 +396,14 @@ public class PrelTransformer {
    *          Whether to log the planning phase.
    * @return The transformed relnode.
    */
-  public static RelNode transform(SqlHandlerConfig config,
-                           PlannerType plannerType,
-                           PlannerPhase phase,
-                           final RelNode input,
-                           RelTraitSet targetTraits,
-                           boolean log) {
+  public static RelNode transform(
+    SqlHandlerConfig config,
+    PlannerType plannerType,
+    PlannerPhase phase,
+    final RelNode input,
+    RelTraitSet targetTraits,
+    boolean log
+    ) {
     final RuleSet rules = config.getRules(phase);
     final RelTraitSet toTraits = targetTraits.simplify();
     final RelOptPlanner planner;
@@ -445,7 +459,7 @@ public class PrelTransformer {
           input.getCluster().getPlanner().getClass().getName());
       final DremioVolcanoPlanner volcanoPlanner = (DremioVolcanoPlanner) input.getCluster().getPlanner();
       volcanoPlanner.setPlannerPhase(phase);
-      volcanoPlanner.setNoneConventionHaveInfiniteCost(phase != PlannerPhase.JDBC_PUSHDOWN);
+      volcanoPlanner.setNoneConventionHaveInfiniteCost((phase != PlannerPhase.JDBC_PUSHDOWN) && (phase != PlannerPhase.RELATIONAL_PLANNING));
       final Program program = Programs.of(rules);
 
       final List<RelMetadataProvider> list = Lists.newArrayList();
@@ -474,7 +488,7 @@ public class PrelTransformer {
 
           final HepPlanner pl = new HepPlanner(p);
           pl.setRoot(relNode);
-          return pl.findBestExp().accept(new ConvertJdbcLogicalToJdbcRel());
+          return pl.findBestExp().accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.CALCITE_LOGICAL_BUILDER));
         }
       );
 
@@ -737,7 +751,6 @@ public class PrelTransformer {
       }
       return null;
     }
-
   }
 
   private static RelNode toConvertibleRelRoot(SqlHandlerConfig config, final SqlNode validatedNode, boolean expand, RelTransformer relTransformer) {
@@ -812,9 +825,9 @@ public class PrelTransformer {
       log("Failed to pushdown RexSubquery. Applying JDBC pushdown to query with IN/EXISTS/SCALAR sub-queries converted to joins.", jdbcPushed, logger, null);
       final RelNode expandedWithSample = convertedNodeWithoutRexSubquery.accept(new InjectSample(leafLimitEnabled));
       finalConvertedNode = transform(config,PlannerType.HEP_AC, PlannerPhase.JDBC_PUSHDOWN, expandedWithSample,
-        expandedWithSample.getTraitSet(), false).accept(new ConvertJdbcLogicalToJdbcRel());
+        expandedWithSample.getTraitSet(), false).accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.CALCITE_LOGICAL_BUILDER));
     } else {
-      finalConvertedNode = jdbcPushed.accept(new ShortenJdbcColumnAliases()).accept(new ConvertJdbcLogicalToJdbcRel());
+      finalConvertedNode = jdbcPushed.accept(new ShortenJdbcColumnAliases()).accept(new ConvertJdbcLogicalToJdbcRel(DremioRelFactories.CALCITE_LOGICAL_BUILDER));
     }
     config.getObserver().planRelTransform(PlannerPhase.JDBC_PUSHDOWN, null, convertedNode, finalConvertedNode, stopwatch.elapsed(TimeUnit.MILLISECONDS));
 
@@ -823,8 +836,41 @@ public class PrelTransformer {
     return finalConvertedNode;
   }
 
+  private static RelNode convertToRelRoot(SqlHandlerConfig config, SqlNode node, RelTransformer relTransformer) throws RelConversionException {
+    final boolean leafLimitEnabled = config.getContext().getPlannerSettings().isLeafLimitsEnabled();
+
+    // First try and convert without "expanding" exists/in/subqueries
+    final RelNode convertible = toConvertibleRelRoot(config, node, false, relTransformer);
+
+    // Check for RexSubQuery in the converted rel tree, and make sure that the table scans underlying
+    // rel node with RexSubQuery have the same JDBC convention.
+    final RelNode convertedNodeNotExpanded = convertible;
+    RexSubQueryUtils.RexSubQueryPushdownChecker checker = new RexSubQueryUtils.RexSubQueryPushdownChecker(null);
+    checker.visit(convertedNodeNotExpanded);
+
+    final RelNode convertedNodeWithoutRexSubquery;
+    if (!checker.foundRexSubQuery()) {
+      convertedNodeWithoutRexSubquery = convertedNodeNotExpanded;
+    } else {
+      convertedNodeWithoutRexSubquery = toConvertibleRelRoot(config, node, true, relTransformer);
+    }
+
+    // Convert with "expanding" exists/in subqueries (if applicable)
+    // if we are having a RexSubQuery, this expanded tree will
+    // have LogicalCorrelate rel nodes.
+    final DremioVolcanoPlanner volcanoPlanner = (DremioVolcanoPlanner) convertedNodeWithoutRexSubquery.getCluster().getPlanner();
+    final RelNode originalRoot = convertedNodeWithoutRexSubquery.accept(new InjectSample(leafLimitEnabled));
+    volcanoPlanner.setOriginalRoot(originalRoot);
+    return ExpansionNode.removeFromTree(convertedNodeWithoutRexSubquery.accept(new InjectSample(leafLimitEnabled)));
+  }
+
   private static RelNode convertToRel(SqlHandlerConfig config, SqlNode node, RelTransformer relTransformer) throws RelConversionException {
-    final RelNode rel = convertToRelRootAndJdbc(config, node, relTransformer);
+    RelNode rel;
+    if(config.getContext().getPlannerSettings().isRelPlanningEnabled()) {
+      rel = convertToRelRoot(config, node, relTransformer);
+    } else {
+      rel = convertToRelRootAndJdbc(config, node, relTransformer);
+    }
     log("INITIAL", rel, logger, null);
     return transform(config, PlannerType.HEP, PlannerPhase.WINDOW_REWRITE, rel, rel.getTraitSet(), true);
   }

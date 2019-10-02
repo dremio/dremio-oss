@@ -31,6 +31,7 @@ import com.dremio.io.file.Path;
 /**
  * Restore command.
  */
+@AdminCommand(value = "restore", description = "Restores Dremio metadata and user-uploaded files")
 public class Restore {
 
   /**

@@ -47,7 +47,6 @@ import com.dremio.exec.catalog.FileConfigMetadata;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.cost.ScanCostFactor;
-import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.server.SabotContext;
@@ -81,6 +80,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.net.HostAndPort;
 
 /**
  * Dataset accessor for text/json.. file formats
@@ -247,8 +247,8 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle {
       final String pathString = completeFileWork.getFileAttributes().getPath().toString();
 
       final List<DatasetSplitAffinity> affinities = new ArrayList<>();
-      for (ObjectLongCursor<CoordinationProtos.NodeEndpoint> item : completeFileWork.getByteMap()) {
-        affinities.add(DatasetSplitAffinity.of(item.key.getAddress(), completeFileWork.getTotalBytes()));
+      for (ObjectLongCursor<HostAndPort> item : completeFileWork.getByteMap()) {
+        affinities.add(DatasetSplitAffinity.of(item.key.getHost(), completeFileWork.getTotalBytes()));
       }
 
       EasyDatasetSplitXAttr splitExtended = EasyDatasetSplitXAttr.newBuilder()

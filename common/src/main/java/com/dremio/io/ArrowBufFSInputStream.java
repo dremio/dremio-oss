@@ -85,6 +85,12 @@ public class ArrowBufFSInputStream extends FSInputStream {
   }
 
   @Override
+  public int read(long position, ByteBuffer dst) throws IOException {
+    setPosition(position);
+    return read(dst);
+  }
+
+  @Override
   public long getPosition() throws IOException {
     return nettyBuf.readerIndex() - startIndex;
   }

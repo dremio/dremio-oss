@@ -48,9 +48,11 @@ public class JobListItem extends PartialJobListItem {
       @JsonProperty("accelerated") boolean accelerated,
       @JsonProperty("datasetVersion") String datasetVersion,
       @JsonProperty("snowflakeAccelerated") boolean snowflakeAccelerated,
-      @JsonProperty("spilled") boolean spilled) {
+      @JsonProperty("spilled") boolean spilled,
+      @JsonProperty("outputRecords") long outputRecords,
+      @JsonProperty("outputLimited") boolean outputLimited) {
     super(id, state, failureInfo, cancellationInfo, user, startTime, endTime, description, requestType,
-        accelerated, datasetVersion, snowflakeAccelerated, spilled);
+        accelerated, datasetVersion, snowflakeAccelerated, spilled, outputRecords, outputLimited);
     this.datasetPathList = datasetPathList;
     this.datasetType = datasetType;
   }

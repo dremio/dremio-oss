@@ -66,6 +66,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.ContextService;
+import com.dremio.exec.server.JobResultSchemaProvider;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.NodeRegistration;
 import com.dremio.exec.server.SabotContext;
@@ -372,6 +373,7 @@ public class DACDaemonModule implements DACModule {
         registry.provider(SpillService.class),
         registry.provider(ConnectionReader.class),
         registry.provider(CredentialsService.class),
+        registry.provider(JobResultSchemaProvider.class),
         roles
         ));
 
@@ -423,30 +425,31 @@ public class DACDaemonModule implements DACModule {
 
     registry.bind(CommandPool.class, CommandPoolFactory.INSTANCE.newPool(config));
 
-    registry.bind(JobsService.class,
-        new LocalJobsService(
-            registry.getBindingCreator(),
-            registry.provider(KVStoreProvider.class),
-            bootstrap.getAllocator(),
-            () -> {
-              try {
-                final CatalogService storagePluginRegistry = registry.provider(CatalogService.class).get();
-                return storagePluginRegistry.getSource(JOBS_STORAGEPLUGIN_NAME);
-              } catch(Exception e) {
-                Throwables.throwIfUnchecked(e);
-                throw new RuntimeException(e);
-              }
-            },
-            registry.provider(LocalQueryExecutor.class),
-            registry.provider(CoordTunnelCreator.class),
-            registry.provider(ForemenTool.class),
-            registry.provider(SabotContext.class),
-            registry.provider(SchedulerService.class),
-            registry.provider(CommandPool.class),
-            new JobResultToLogEntryConverter(),
-          isDistributedMaster
-            )
-        );
+    final LocalJobsService jobsService = new LocalJobsService(
+        registry.getBindingCreator(),
+        registry.provider(KVStoreProvider.class),
+        bootstrap.getAllocator(),
+        () -> {
+          try {
+            final CatalogService storagePluginRegistry = registry.provider(CatalogService.class).get();
+            return storagePluginRegistry.getSource(JOBS_STORAGEPLUGIN_NAME);
+          } catch (Exception e) {
+            Throwables.throwIfUnchecked(e);
+            throw new RuntimeException(e);
+          }
+        },
+        registry.provider(LocalQueryExecutor.class),
+        registry.provider(CoordTunnelCreator.class),
+        registry.provider(ForemenTool.class),
+        registry.provider(SabotContext.class),
+        registry.provider(SchedulerService.class),
+        registry.provider(CommandPool.class),
+        new JobResultToLogEntryConverter(),
+        isDistributedMaster
+    );
+    registry.bind(JobsService.class, jobsService);
+    registry.bind(JobResultSchemaProvider.class, jobsService);
+
     registry.bind(ResourceAllocator.class, new BasicResourceAllocator(registry.provider(ClusterCoordinator
       .class)));
     if(isCoordinator){
@@ -573,6 +576,10 @@ public class DACDaemonModule implements DACModule {
         registry.provider(ClusterCoordinator.class)
         ));
 
+
+    final Provider<SabotContext> sabotContextProvider = registry.provider(SabotContext.class);
+    final Provider<OptionManager> optionsProvider = () -> sabotContextProvider.get().getOptionManager();
+
     if(isCoordinator){
       registry.bind(SampleDataPopulatorService.class,
           new SampleDataPopulatorService(
@@ -585,6 +592,7 @@ public class DACDaemonModule implements DACModule {
               registry.provider(ReflectionServiceHelper.class),
               registry.provider(ConnectionReader.class),
               registry.provider(CollaborationHelper.class),
+              optionsProvider,
               dacConfig.prepopulate,
               dacConfig.addDefaultUser));
 
@@ -611,9 +619,6 @@ public class DACDaemonModule implements DACModule {
 
       registry.bind(RestServerV2.class, new RestServerV2(bootstrap.getClasspathScan()));
       registry.bind(APIServer.class, new APIServer(bootstrap.getClasspathScan()));
-
-      final Provider<SabotContext> sabotContextProvider = registry.provider(SabotContext.class);
-      final Provider<OptionManager> optionsProvider = () -> sabotContextProvider.get().getOptionManager();
 
       registry.bind(DremioServlet.class, new DremioServlet(dacConfig.getConfig(),
         registry.provider(ServerHealthMonitor.class),

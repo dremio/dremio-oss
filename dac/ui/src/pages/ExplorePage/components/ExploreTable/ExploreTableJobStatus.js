@@ -24,7 +24,7 @@ import { JobStatusMenu } from '@app/components/Menus/ExplorePage/JobStatusMenu';
 import SampleDataMessage from '@app/pages/ExplorePage/components/SampleDataMessage';
 import ExploreTableJobStatusSpinner from '@app/pages/ExplorePage/components/ExploreTable/ExploreTableJobStatusSpinner';
 import jobsUtils from '@app/utils/jobsUtils';
-import { getJobProgress, getImmutableTable } from '@app/selectors/explore';
+import {getJobProgress, getImmutableTable, getExploreJobId} from '@app/selectors/explore';
 import { cancelJobAndShowNotification } from '@app/actions/jobs/jobs';
 
 
@@ -53,11 +53,11 @@ export class ExploreTableJobStatus extends Component {
     approximate: PropTypes.bool,
     //connected
     jobProgress: PropTypes.object,
+    jobId: PropTypes.string,
     haveRows: PropTypes.bool,
     cancelJob: PropTypes.func,
     //withRouter props
-    location: PropTypes.object.isRequired,
-    router: PropTypes.object.isRequired
+    location: PropTypes.object.isRequired
   };
 
   jobStatusNames = {
@@ -72,15 +72,10 @@ export class ExploreTableJobStatus extends Component {
   };
 
   doButtonAction = (actionType) => {
-    const {cancelJob, jobProgress: {jobId}, router} = this.props;
+    const {cancelJob, jobProgress: {jobId}} = this.props;
     if (!jobId) return;
 
-    if (actionType === 'detail') {
-      //redirect to job detail
-      const pathname = '/jobs';
-      const hash = `#${jobId}`;
-      router.push({pathname, hash});
-    } else if (actionType === 'cancel') {
+    if (actionType === 'cancel') {
       cancelJob(jobId);
     } //else ignore
   };
@@ -117,7 +112,7 @@ export class ExploreTableJobStatus extends Component {
   };
 
   render() {
-    const { jobProgress } = this.props;
+    const { jobProgress, jobId } = this.props;
     if (!jobProgress) {
       return this.renderPreviewWarning();
     }
@@ -127,7 +122,6 @@ export class ExploreTableJobStatus extends Component {
     const jobStatusLabel = (isCompleteWithRecords) ? la('Records: ') : la('Status: ');
     const jobStatusName = (isCompleteWithRecords) ? '' + jobProgress.recordCount : this.jobStatusNames[jobProgress.status];
     const isJobCancellable = this.getCancellable(jobProgress.status);
-    const jobId = jobProgress.jobId;
 
     return (
       <div style={styles.wrapper}>
@@ -138,15 +132,15 @@ export class ExploreTableJobStatus extends Component {
         <span style={styles.value}>
           {!jobId && <span style={styles.text}>{jobStatusName}</span>}
           {jobId &&
-            <DropdownMenu
-              className='explore-job-status-button'
-              hideArrow
-              hideDivider
-              style={styles.textLink}
-              text={jobStatusName}
-              menu={<JobStatusMenu action={this.doButtonAction} isCancellable={isJobCancellable}/>}/>
+          <DropdownMenu
+            className='explore-job-status-button'
+            hideArrow
+            hideDivider
+            style={styles.textLink}
+            text={jobStatusName}
+            menu={<JobStatusMenu action={this.doButtonAction} jobId={jobId} isCancellable={isJobCancellable}/>}/>
           }
-          <ExploreTableJobStatusSpinner jobProgress={jobProgress}/>
+          <ExploreTableJobStatusSpinner jobProgress={jobProgress} jobId={jobId}/>
         </span>
         <span style={styles.divider}> | </span>
         <span style={styles.label}>{la('Time: ')}</span>
@@ -161,10 +155,12 @@ export class ExploreTableJobStatus extends Component {
 
 function mapStateToProps(state, props) {
   const jobProgress = getJobProgress(state);
+  const jobId = getExploreJobId(state);
+  const {approximate, location = {}} = props;
+
   let haveRows = false;
   // get preview tableData for preview w/o jobProgress
-  if (!jobProgress && props.approximate) {
-    const location = state.routing.locationBeforeTransitions || {};
+  if (!jobProgress && approximate) {
     const version = location.query && location.query.version;
     const tableData = getImmutableTable(state, version);
     const rows = tableData.get('rows');
@@ -173,6 +169,7 @@ function mapStateToProps(state, props) {
 
   return {
     jobProgress,
+    jobId,
     haveRows
   };
 }

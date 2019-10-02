@@ -194,6 +194,7 @@
   "Download.DownloadLimit": "Download Limit",
   "Download.DownloadLimitValue": "Downloads are limited to one million records.",
   "Download.DownloadLimitWarn": "Do not warn me about the download limit again.",
+  "Download.Notification": "{type} download initiated...",
   "Dataset.Accelerated": "Accelerated",
   "Dataset.Data": "Data",
   "Dataset.Wiki": "Catalog",

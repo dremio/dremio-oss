@@ -28,6 +28,7 @@ import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.util.ConstructorChecker;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.easy.arrow.ArrowFormatPluginConfig;
 import com.dremio.exec.store.easy.json.JSONFormatPlugin;
 import com.dremio.exec.store.easy.text.TextFormatPlugin;
 import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
@@ -100,6 +101,7 @@ public class FormatCreator {
 
     defaultFormats.put("parquet", new ParquetFormatConfig());
     defaultFormats.put("json", new JSONFormatPlugin.JSONFormatConfig());
+    defaultFormats.put("dremarrow1", new ArrowFormatPluginConfig());
     return defaultFormats;
   }
 

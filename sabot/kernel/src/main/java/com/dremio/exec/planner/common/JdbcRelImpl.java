@@ -22,6 +22,7 @@ import java.util.Set;
 import org.apache.calcite.plan.CopyWithCluster.CopyToCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
+import org.apache.calcite.tools.RelBuilder;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.google.common.base.Preconditions;
@@ -45,7 +46,7 @@ public interface JdbcRelImpl extends RelNode, CopyToCluster {
    *
    * @return reverted version of this node as a logical {@link RelNode}
    */
-  default RelNode revert() {
+  default RelNode revert(RelBuilder builder) {
     final List<RelNode> inputs = getInputs();
 
     final List<RelNode> revertedInputs = new ArrayList<>();
@@ -53,20 +54,21 @@ public interface JdbcRelImpl extends RelNode, CopyToCluster {
       final RelNode input = inputs.get(i);
       Preconditions.checkState(input instanceof JdbcRelImpl,
           String.format("%s (#%d) is not a JdbcRelImpl", input.getClass().getSimpleName(), i));
-      revertedInputs.add(((JdbcRelImpl) input).revert());
+      revertedInputs.add(((JdbcRelImpl) input).revert(builder));
     }
 
-    return revert(revertedInputs);
+    return revert(revertedInputs, builder);
   }
 
   /**
    * Return the logical {@link RelNode} version of this node, assuming that the given inputs are converted to logical
    * {@link RelNode}. Typically, consumers of this interface use {@link #revert()}.
    *
-   * @param revertedInputs inputs as logical {@link RelNode RelNodes}
+   * @param revertedInputs input {@link RelNode RelNodes}
+   * @param builder builder to use for revert {@link RelNode RelNodes}
    * @return reverted version of this node as a logical {@link RelNode}
    */
-  RelNode revert(List<RelNode> revertedInputs);
+  RelNode revert(List<RelNode> revertedInputs, RelBuilder builder);
 
   /**
    * Return an equivalent node with column aliases that are compatible with the target data source.

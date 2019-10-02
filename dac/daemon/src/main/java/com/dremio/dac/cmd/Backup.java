@@ -33,6 +33,7 @@ import com.dremio.io.file.Path;
 /**
  * Backup command line.
  */
+@AdminCommand(value =  "backup", description = "Backs up Dremio metadata and user-uploaded files")
 public class Backup {
   /**
    * Command line options for backup

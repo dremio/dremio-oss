@@ -27,22 +27,21 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dremio.common.utils.PathUtils;
 import com.dremio.common.utils.SqlUtils;
-import com.dremio.dac.explore.model.DatasetPath;
-import com.dremio.dac.explore.model.DatasetUI;
 import com.dremio.dac.explore.model.DownloadFormat;
-import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.service.job.proto.DownloadInfo;
+import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
-import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -52,10 +51,15 @@ import com.google.common.util.concurrent.Futures;
 /**
  * Schedule download jobs and read output of job for dataset download
  */
+@Options
 public class DatasetDownloadManager {
   private static final Logger logger = LoggerFactory.getLogger(DatasetDownloadManager.class);
 
   public static final String DATASET_DOWNLOAD_STORAGE_PLUGIN = "__datasetDownload";
+  /**
+   * If set to true, download will request data from job results store directly for *NON-pdfs* job storages
+   */
+  public static final BooleanValidator DOWNLOAD_FROM_JOBS_STORE = new BooleanValidator("dac.download.from_jobs_store", true);
 
   private static final Map<DownloadFormat, String> extensions = ImmutableMap.of(
     DownloadFormat.JSON, "json",
@@ -69,46 +73,47 @@ public class DatasetDownloadManager {
   private final NamespaceService namespaceService;
   private final FileSystem fs;
   private final Path storageLocation;
+  private final boolean isJobResultsPDFSBased;
+  private final OptionManager optionManager;
 
-  public DatasetDownloadManager(JobsService jobsService, NamespaceService namespaceService, Path storageLocation, FileSystem fs) {
+  public DatasetDownloadManager(JobsService jobsService, NamespaceService namespaceService, Path storageLocation,
+    FileSystem fs, boolean isJobResultsPDFSBased, final OptionManager optionManager) {
     this.jobsService = jobsService;
     this.namespaceService = namespaceService;
     this.storageLocation = storageLocation;
     this.fs = fs;
+    this.isJobResultsPDFSBased = isJobResultsPDFSBased;
+    this.optionManager = optionManager;
   }
 
-  /**
-   * Submit CTAS job for dataset download.
-   * @param datasetPath Path of dataset to download
-   * @param virtualDatasetUI dataset properties
-   * @param downloadFormat output format options for download
-   * @param limit number of records to include in output (-1 for no limit)
-   * @param userName logged in user who is downloading dataset.
-   * @return
-   * @throws IOException
-   */
-  public Job scheduleDownload(DatasetPath datasetPath,
-                              VirtualDatasetUI virtualDatasetUI,
-                              DownloadFormat downloadFormat,
-                              int limit,
-                              String userName) throws IOException {
-    final DatasetUI datasetUI;
-    try {
-      datasetUI = DatasetUI.newInstance(virtualDatasetUI, null, namespaceService);
-    } catch (NamespaceException ex) {
-      // This should never happen. TODO: only reason we create the DatasetUI is to get the resolved path of the dataset.
-      // Should move the logic of resolving the dataset path to a common method.
-      throw new IOException(ex);
-    }
+  public static String getDownloadFileName(JobId jobId , DownloadFormat downloadFormat) {
+    return format("%s.%s", jobId.getId(), extensions.get(downloadFormat));
+  }
+
+  public Job scheduleDownload(List<String> datasetPath,
+    String sql,
+    DownloadFormat downloadFormat,
+    List<String> context,
+    int limit,
+    String userName,
+    JobId jobId) throws IOException {
+
     final String downloadId = UUID.randomUUID().toString();
-    final String fileName = format("%s.%s", PathUtils.slugify(datasetUI.getDisplayFullPath()), extensions.get(downloadFormat));
+    final String fileName = getDownloadFileName(jobId, downloadFormat);
     final Path downloadFilePath = Path.of(downloadId);
+    final boolean getDataFromJobsResultsDirectly = this.optionManager.getOption(DOWNLOAD_FROM_JOBS_STORE) &&
+      !isJobResultsPDFSBased;
+
+    // we should read data directly from job result store whenever it is possible. For pdfs we could not guarantee
+    // an order in which we scan the results, that is why we need to use an original sql instead.
+    final String targetQuery = getDataFromJobsResultsDirectly ? format("SELECT * FROM sys.job_results.%s",
+      SqlUtils.quoteIdentifier(jobId.getId())): sql;
 
     final String selectQuery;
     if (limit != -1) {
-      selectQuery = format("SELECT * FROM (\n%s\n) LIMIT %d", virtualDatasetUI.getSql(), limit);
+      selectQuery = format("SELECT * FROM (\n%s\n) LIMIT %d", targetQuery, limit);
     } else {
-      selectQuery = format("\n%s\n", virtualDatasetUI.getSql());
+      selectQuery = format("\n%s\n", targetQuery);
     }
 
     String ctasSql = format("CREATE TABLE %s.%s STORE AS (%s) WITH SINGLE WRITER AS %s",
@@ -116,11 +121,11 @@ public class DatasetDownloadManager {
 
     final Job job = Futures.getUnchecked(
       jobsService.submitJob(
-        JobRequest.newDownloadJobBuilder(downloadId, fileName)
-          .setSqlQuery(new SqlQuery(ctasSql, virtualDatasetUI.getContextList(), userName))
+        JobRequest.newDownloadJobBuilder(downloadId, fileName, getDataFromJobsResultsDirectly)
+          .setSqlQuery(new SqlQuery(ctasSql, context, userName))
           .build(), NoOpJobStatusListener.INSTANCE)
     );
-    logger.debug("Scheduled download job {} for {}", job.getJobId(), datasetPath);
+    logger.debug("Scheduled download job {} for {}", job.getJobId(), String.join("/", datasetPath));
     return job;
   }
 

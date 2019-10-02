@@ -33,6 +33,10 @@ public final class DremioAggregateReduceFunctionsRule extends AggregateReduceFun
           new DremioAggregateReduceFunctionsRule(operand(LogicalAggregate.class, any()), true,
                   RelFactories.LOGICAL_BUILDER);
 
+  public static final DremioAggregateReduceFunctionsRule NO_REDUCE_SUM =
+          new DremioAggregateReduceFunctionsRule(operand(AggregateRel.class, any()), false,
+                  DremioRelFactories.LOGICAL_BUILDER);
+
   private DremioAggregateReduceFunctionsRule(RelOptRuleOperand operand, boolean reduceSum,
                                              RelBuilderFactory relBuilderFactory) {
     super(operand, reduceSum, relBuilderFactory);

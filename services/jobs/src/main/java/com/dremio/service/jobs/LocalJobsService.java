@@ -123,6 +123,7 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.serialization.InstanceSerializer;
 import com.dremio.exec.serialization.ProtoSerializer;
+import com.dremio.exec.server.JobResultSchemaProvider;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
@@ -194,7 +195,7 @@ import io.protostuff.ByteString;
 /**
  * Submit and monitor jobs from DAC.
  */
-public class LocalJobsService implements JobsService {
+public class LocalJobsService implements JobsService, JobResultSchemaProvider {
   private static final Logger logger = LoggerFactory.getLogger(LocalJobsService.class);
   private static final Logger QUERY_LOGGER = LoggerFactory.getLogger("query.logger");
 
@@ -451,7 +452,7 @@ public class LocalJobsService implements JobsService {
             .setFailIfNonEmptySent(!QueryTypeUtils.isQueryFromUI(queryType))
             .setUsername(jobRequest.getUsername())
             .setSqlContext(jobRequest.getSqlQuery().getContext())
-            .setInternalSingleThreaded(queryType == UI_INITIAL_PREVIEW)
+            .setInternalSingleThreaded(queryType == UI_INITIAL_PREVIEW || jobRequest.runInSingleThread())
             .setQueryResultsStorePath(storageName)
             .setAllowPartitionPruning(queryType != QueryType.ACCELERATOR_EXPLAIN)
             .setExposeInternalSources(QueryTypeUtils.isInternal(queryType))
@@ -667,6 +668,22 @@ public class LocalJobsService implements JobsService {
     }
 
     return SearchQueryUtils.and(builder.build());
+  }
+
+  @Override
+  public java.util.Optional<BatchSchema> getResultSchema(String jobId, String username) {
+    try {
+      final Job job = getJob(GetJobRequest.newBuilder()
+          .setJobId(new JobId(jobId))
+          .setUserName(username)
+          .build());
+      if (job.isCompleted()) {
+        return java.util.Optional.of(BatchSchema.deserialize(job.getJobAttempt().getInfo().getBatchSchema()));
+      } // else, fall through
+    } catch (JobNotFoundException ignored) {
+      // fall through
+    }
+    return java.util.Optional.empty();
   }
 
   private static class JobConverter implements KVStoreProvider.DocumentConverter<JobId, JobResult> {

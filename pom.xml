@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>4.0.1-201909191652190301-211720e</version>
+  <version>4.0.2-201910020123580864-a98a0b9</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,9 +38,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.15.0-20190903164124-48d90692c7-dremio</arrow.version>
+    <arrow.version>0.15.0-20190910102040-d7d65fea23-dremio</arrow.version>
     <avatica.version>1.11.0</avatica.version>
-    <calcite.version>1.16.0-201908081805070805-cb74ee3</calcite.version>
+    <calcite.version>1.16.0-201909031936280585-3f76472</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
@@ -74,7 +74,7 @@
     <slf4j.version>1.7.10</slf4j.version>
     <twill.version>0.11.0-201706241649560687-1b32fe4e</twill.version>
     <zkclient.version>0.10</zkclient.version>
-    <zookeeper.version>3.4.10</zookeeper.version>
+    <zookeeper.version>3.4.14</zookeeper.version>
     <curator.version>2.12.0</curator.version>
     <aws-sdk.version>1.11.375</aws-sdk.version>
     <aws-sdk-2.version>2.5.37</aws-sdk-2.version>

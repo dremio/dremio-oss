@@ -60,6 +60,12 @@ public class CompressionInputStreamWrapper extends CompressedFSInputStream {
     }
   }
 
+  @Override
+  public int read(long position, ByteBuffer dst) throws IOException {
+    setPosition(position);
+    return read(dst);
+  }
+
   private int readHeapBuffer(ByteBuffer dst) throws IOException {
     int result = read(dst.array(), dst.arrayOffset() + dst.position(), dst.remaining());
     if (result < 0) {

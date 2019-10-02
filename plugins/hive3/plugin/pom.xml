@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive3-plugin-parent</artifactId>
-    <version>4.0.1-201909191652190301-211720e</version>
+    <version>4.0.2-201910020123580864-a98a0b9</version>
   </parent>
 
   <artifactId>dremio-hive3-plugin</artifactId>
@@ -1340,13 +1340,31 @@
             </configuration>
           </execution>
           <execution>
+            <id>copy-java-sources</id>
+            <phase>process-sources</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.directory}/generated-sources/src/main</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/../../../common/src/main</directory>
+                  <includes>
+                    <include>**/ByteBufferUtil.java</include>
+                  </includes>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+          <execution>
             <id>copy-test-resources</id>
             <phase>generate-resources</phase>
             <goals><goal>copy-resources</goal></goals>
             <configuration>
               <resources>
                 <resource>
-                  <directory>${project.basedir}/../../../../oss/sample-data/</directory>
+                  <directory>${project.basedir}/../../../sample-data/</directory>
                   <includes>
                     <include>region.parquet</include>
                   </includes>

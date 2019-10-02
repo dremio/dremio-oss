@@ -16,6 +16,8 @@
 package com.dremio.exec.hadoop;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -25,6 +27,7 @@ import org.apache.hadoop.fs.ByteBufferReadable;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSError;
 
+import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.io.FSInputStream;
 
 
@@ -33,6 +36,9 @@ import com.dremio.io.FSInputStream;
  */
 @NotThreadSafe
 class FSDataInputStreamWrapper extends FSInputStream {
+  private static final String BYTE_BUFFER_POSITIONED_READ_METHOD_NAME = "read";
+  private static final Method BYTE_BUFFER_POSITIONED_READ_METHOD = getByteBufferPositionedReadMethod();
+
   /**
    * Wrapper when {@code FSDataInputStream#read(ByteBuffer)} is not supported
    */
@@ -126,6 +132,27 @@ class FSDataInputStreamWrapper extends FSInputStream {
   }
 
   @Override
+  public int read(long position, ByteBuffer dst) throws IOException {
+    try {
+      if (BYTE_BUFFER_POSITIONED_READ_METHOD == null) {
+        throw new UnsupportedOperationException("ByteBuffer positioned read not supported");
+      }
+      return (int)BYTE_BUFFER_POSITIONED_READ_METHOD.invoke(underlyingIs, position, dst);
+    } catch (InvocationTargetException e) {
+      IOException ioException = ErrorHelper.findWrappedCause(e, IOException.class);
+      if (ioException != null) {
+        throw ioException;
+      } else {
+        throw new IOException(e.getCause());
+      }
+    } catch (IllegalAccessException e) {
+      throw new UnsupportedOperationException("ByteBuffer positioned read not supported");
+    } catch (FSError e) {
+      throw HadoopFileSystem.propagateFSError(e);
+    }
+  }
+
+  @Override
   public long getPosition() throws IOException {
     try {
       return underlyingIs.getPos();
@@ -191,5 +218,17 @@ class FSDataInputStreamWrapper extends FSInputStream {
   @Override
   public boolean markSupported() {
     return underlyingIs.markSupported();
+  }
+
+  /*
+   * MapR uses hadoop 2.x distribution, and does not have this method.
+   */
+  private static Method getByteBufferPositionedReadMethod() {
+    Class[] types = { long.class, ByteBuffer.class};
+    try {
+      return FSDataInputStream.class.getMethod(BYTE_BUFFER_POSITIONED_READ_METHOD_NAME, types);
+    } catch (NoSuchMethodException e) {
+      return null;
+    }
   }
 }

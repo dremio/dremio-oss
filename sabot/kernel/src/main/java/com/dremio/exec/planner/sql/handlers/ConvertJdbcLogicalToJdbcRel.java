@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.sql.handlers;
 
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.tools.RelBuilderFactory;
 
 import com.dremio.exec.calcite.logical.JdbcCrel;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
@@ -24,6 +25,13 @@ import com.dremio.exec.planner.common.MoreRelOptUtil;
 import com.dremio.exec.planner.logical.JdbcRel;
 
 class ConvertJdbcLogicalToJdbcRel extends StatelessRelShuttleImpl {
+
+  private RelBuilderFactory factory;
+
+  public ConvertJdbcLogicalToJdbcRel(RelBuilderFactory factory) {
+    super();
+    this.factory = factory;
+  }
 
   @Override
   public RelNode visit(RelNode other) {
@@ -39,7 +47,7 @@ class ConvertJdbcLogicalToJdbcRel extends StatelessRelShuttleImpl {
         // contain a values operator. We try to pushdown these subtrees if they are joined with another subtree that
         // is pushed down to a jdbc source. After the HEP planner is finished, if we see that there are isolated
         // branches that were not joined, we don't want to push them down, so we must revert.
-        return ((JdbcRelImpl) logical.getInput()).revert();
+        return ((JdbcRelImpl) logical.getInput()).revert(factory.create(logical.getCluster(), null));
       }
 
       return new JdbcRel(logical.getCluster(), logical.getTraitSet(), logical.getInput());

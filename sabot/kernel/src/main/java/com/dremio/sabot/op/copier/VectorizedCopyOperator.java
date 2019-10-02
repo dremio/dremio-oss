@@ -29,7 +29,9 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.selection.SelectionVector2;
+import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.op.copier.FieldBufferCopier.Cursor;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.base.Preconditions;
 
@@ -41,10 +43,19 @@ public class VectorizedCopyOperator implements SingleInputOperator {
 
   private VectorAccessible incoming;
   private VectorContainer output;
+  private VectorContainer buffered;
   private SelectionVector2 sv2;
-  private List<TransferPair> transferPairs = new ArrayList<>();
+  private List<TransferPair> inToOutTransferPairs = new ArrayList<>();
+  private List<TransferPair> bufferedToOutTransferPairs = new ArrayList<>();
   private boolean straightCopy;
   private List<FieldBufferCopier> copiers = new ArrayList<FieldBufferCopier>();
+  private FieldBufferCopier.Cursor cursors[];
+  // incoming has been consumed upto this index.
+  private int incomingIndex;
+  // buffered container has these many records.
+  private int bufferedIndex;
+  private boolean shouldBufferOutput;
+  private boolean noMoreToConsume;
 
   // random vector to determine if no copy is needed.
   // could be null if no columns are projected from incoming.
@@ -52,6 +63,10 @@ public class VectorizedCopyOperator implements SingleInputOperator {
 
   public VectorizedCopyOperator(OperatorContext context, SelectionVectorRemover popConfig) throws OutOfMemoryException {
     this.context = context;
+    this.incomingIndex = 0;
+    this.bufferedIndex = 0;
+    this.shouldBufferOutput = true;
+    this.noMoreToConsume = false;
   }
 
   @Override
@@ -63,19 +78,40 @@ public class VectorizedCopyOperator implements SingleInputOperator {
     this.incoming = incoming;
     this.output = context.createOutputVectorContainer(incoming.getSchema());
     this.output.buildSchema(SelectionVectorMode.NONE);
+    this.buffered = context.createOutputVectorContainer(incoming.getSchema());
+    this.buffered.buildSchema(SelectionVectorMode.NONE);
+
     this.sv2 = straightCopy ? null : incoming.getSelectionVector2();
 
-    for(VectorWrapper<?> vv : incoming){
+    // set up transfer pairs from incoming to output
+    for (VectorWrapper<?> vv : incoming) {
       TransferPair tp = vv.getValueVector().makeTransferPair(output.addOrGet(vv.getField()));
-      transferPairs.add(tp);
+      inToOutTransferPairs.add(tp);
       randomVector = vv.getValueVector();
     }
 
-    copiers = FieldBufferCopier.getCopiers(VectorContainer.getFieldVectors(incoming), VectorContainer.getFieldVectors(output));
+    // set up transfer pairs from buffered to output
+    for (VectorWrapper<?> vv : buffered) {
+      TransferPair tp = vv.getValueVector().makeTransferPair(output.addOrGet(vv.getField()));
+      bufferedToOutTransferPairs.add(tp);
+    }
+
+    // setup copiers from incoming to buffered.
+    copiers = FieldBufferCopier.getCopiers(VectorContainer.getFieldVectors(incoming), VectorContainer.getFieldVectors(buffered));
+    if (straightCopy || randomVector == null) {
+      shouldBufferOutput = false;
+    }
+    cursors = new Cursor[copiers.size()];
 
     state = State.CAN_CONSUME;
 
     return output;
+  }
+
+  private void resetCursors() {
+    for (int i = 0; i < copiers.size(); i++) {
+      cursors[i] = null;
+    }
   }
 
   @Override
@@ -85,44 +121,123 @@ public class VectorizedCopyOperator implements SingleInputOperator {
 
   @Override
   public void noMoreToConsume() {
-    state = State.DONE;
+    noMoreToConsume = true;
+    if (bufferedIndex > 0) {
+      state = State.CAN_PRODUCE;
+    } else {
+      state = State.DONE;
+    }
   }
 
   @Override
   public void consumeData(int targetRecords) {
-    // do nothing.
     state.is(State.CAN_CONSUME);
-    state = State.CAN_PRODUCE;
+
+    if (shouldBufferOutput) {
+      assert incomingIndex == 0;
+      bufferedConsumeData();
+    } else {
+      unbufferedConsumeData();
+    }
   }
 
   @Override
   public int outputData() {
+    context.getStats().addLongStat(Metric.OUTPUT_BATCH_COUNT, 1); // useful for testing
+    return shouldBufferOutput ? bufferedOutputData() : unbufferedOutputData();
+  }
+
+  private void unbufferedConsumeData() {
+    // do nothing
+    state = State.CAN_PRODUCE;
+    return;
+  }
+
+  private int unbufferedOutputData() {
     final int count = incoming.getRecordCount();
     if (randomVector == null) {
       // if nothing is projected, just set the count and return
-    } else if (straightCopy || count == randomVector.getValueCount()){
-      for(TransferPair tp : transferPairs){
-        tp.transfer();
-      }
+      assert bufferedIndex == 0;
+      incomingIndex = count;
     } else {
-      final long addr = sv2.memoryAddress();
-      for (FieldBufferCopier copier : copiers) {
-        copier.copy(addr, count);
+      assert straightCopy;
+
+      for (TransferPair tp : inToOutTransferPairs) {
+        tp.transfer();
       }
     }
     state = State.CAN_CONSUME;
-
     output.setAllCount(count);
     return count;
   }
 
+  private void bufferedConsumeData() {
+    final int count = incoming.getRecordCount();
+
+    // copy from incoming to buffered.
+    final long addr = sv2.memoryAddress() + incomingIndex * 2;
+    int appendCount = Integer.min(count - incomingIndex, context.getTargetBatchSize() - bufferedIndex);
+    if (appendCount > 0) {
+      int idx = 0;
+      for (FieldBufferCopier copier : copiers) {
+        cursors[idx] = copier.copy(addr, appendCount, cursors[idx]);
+        ++idx;
+      }
+      incomingIndex += appendCount;
+      bufferedIndex += appendCount;
+    }
+
+    if (bufferedIndex >= context.getTargetBatchSize()) {
+      // buffered container is full
+      state = State.CAN_PRODUCE;
+    } else {
+      // everything in incoming is consumed.
+      assert incomingIndex == incoming.getRecordCount();
+      incomingIndex = 0;
+      state = State.CAN_CONSUME;
+    }
+  }
+
+  private int bufferedOutputData() {
+    // transfer from the buffered vector to the output vector.
+    final int ouputCount = bufferedIndex;
+    for (TransferPair tp : bufferedToOutTransferPairs) {
+      tp.transfer();
+    }
+    output.setAllCount(ouputCount);
+
+    // reset the buffered vector.
+    bufferedIndex = 0;
+    resetCursors();
+
+    // handle pending data if any, in incoming.
+    if (noMoreToConsume) {
+      assert incomingIndex == 0;
+      state = State.DONE;
+    } else {
+      bufferedConsumeData();
+    }
+    return ouputCount;
+  }
+
   @Override
   public void close() throws Exception {
+    AutoCloseables.close(buffered);
     AutoCloseables.close(output);
   }
 
   @Override
   public <OUT, IN, EXCEP extends Throwable> OUT accept(OperatorVisitor<OUT, IN, EXCEP> visitor, IN value) throws EXCEP {
     return visitor.visitSingleInput(this, value);
+  }
+
+  public enum Metric implements MetricDef {
+    OUTPUT_BATCH_COUNT
+    ;
+
+    @Override
+    public int metricId() {
+      return ordinal();
+    }
   }
 }

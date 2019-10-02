@@ -15,8 +15,16 @@
  */
 import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
+import { connect } from 'react-redux';
+import { injectIntl } from 'react-intl';
 
 import { MAP, LIST, MIXED } from '@app/constants/DataTypes';
+import { API_URL_V2 } from '@app/constants/Api';
+import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
+import { addParameterToUrl } from '@app/utils/urlUtils';
+import { getExploreJobId, getExploreState } from '@app/selectors/explore';
+import { isSqlChanged } from '@app/sagas/utils';
+import { addNotification } from 'actions/notification';
 
 const UNSUPPORTED_TYPE_COLUMNS = {
   'CSV': new Set([MAP, LIST, MIXED])
@@ -31,32 +39,63 @@ const TYPES = [
   { label: 'Parquet', name: 'PARQUET' }
 ];
 
-export default class ExportMenu extends PureComponent {
+@injectIntl
+export class ExportMenu extends PureComponent {
   static propTypes = {
     action: PropTypes.func,
-    closeMenu: PropTypes.func,
-    datasetColumns: PropTypes.array
+    datasetColumns: PropTypes.array,
+    datasetSql: PropTypes.string,
+    intl: PropTypes.object.isRequired,
+    //connected
+    jobId: PropTypes.string,
+    currentSql: PropTypes.string,
+    addNotification: PropTypes.func
   };
 
-  static defaultMenuItem = TYPES[0];
+  makeUrl = (type) => {
+    const {jobId} = this.props;
+    const downloadUrl = `/job/${encodeURIComponent(jobId)}/download?downloadFormat=${type.name}`;
+    const token = localStorageUtils.getAuthToken();
+    return `${API_URL_V2}${addParameterToUrl(downloadUrl, 'Authorization', token)}`;
+  };
 
   renderMenuItems() {
+    const { jobId, datasetSql, currentSql, intl } = this.props;
     const datasetColumns = new Set(this.props.datasetColumns);
+    const isSqlDirty = isSqlChanged(datasetSql, currentSql);
     const isTypesIntersected = (types) => !![...types].filter(type => datasetColumns.has(type)).length;
 
     return TYPES.map(type => {
       const types = UNSUPPORTED_TYPE_COLUMNS[type.name];
-      const disabled = types && isTypesIntersected(types);
-      const onClick = disabled ? () => {} : () => {
-        this.props.action(type.name);
-        this.props.closeMenu();
-      };
+      const disabled = isSqlDirty || !jobId || (types && isTypesIntersected(types));
+      const href = this.makeUrl(type);
+      const itemTitle = intl.formatMessage({ id: 'Download.DownloadLimitValue' });
 
-      return <MenuItem key={type.name} onClick={onClick} disabled={disabled}>{type.label}</MenuItem>;
+      return <MenuItem key={type.name} href={href} disabled={disabled} title={itemTitle} onClick={this.showNotification.bind(this, type.label)}>{type.label}</MenuItem>;
     });
+  }
+
+  showNotification(type) {
+    const { intl } = this.props;
+    const notificationMessage = intl.formatMessage({ id: 'Download.Notification' }, {type});
+    const message = <span>{notificationMessage}</span>;
+    this.props.addNotification(message, 'success', 10);
   }
 
   render() {
     return <Menu>{this.renderMenuItems()}</Menu>;
   }
 }
+
+function mapStateToProps(state, props) {
+  const explorePageState = getExploreState(state);
+  const currentSql = explorePageState.view.currentSql;
+
+  const jobId = getExploreJobId(state);
+  return {
+    jobId,
+    currentSql
+  };
+}
+
+export default connect(mapStateToProps, { addNotification })(ExportMenu);

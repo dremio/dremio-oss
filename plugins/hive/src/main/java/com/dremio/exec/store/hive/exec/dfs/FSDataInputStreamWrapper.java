@@ -126,6 +126,11 @@ public class FSDataInputStreamWrapper extends FSInputStream {
   }
 
   @Override
+  public int read(long position, ByteBuffer dst) throws IOException {
+    throw new UnsupportedOperationException("positional read with ByteBuffer not supported");
+  }
+
+  @Override
   public long getPosition() throws IOException {
     try {
       return underlyingIs.getPos();

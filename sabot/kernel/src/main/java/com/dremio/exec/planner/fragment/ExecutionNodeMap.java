@@ -40,6 +40,21 @@ public class ExecutionNodeMap {
     }
   }
 
+  public NodeEndpoint getExactEndpoint(String hostName, long port) {
+    List<NodeEndpoint> endpoints = nodeMap.get(hostName);
+    if (endpoints == null || endpoints.isEmpty()) {
+      return null;
+    }
+
+    for(NodeEndpoint endpoint : endpoints) {
+      if (endpoint.getFabricPort() == port) {
+        return endpoint;
+      }
+    }
+
+    return null;
+  }
+
   public NodeEndpoint getEndpoint(String address){
     List<NodeEndpoint> endpoints = nodeMap.get(address);
     if(endpoints == null || endpoints.isEmpty()){
