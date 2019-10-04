@@ -392,9 +392,7 @@ class DremioConnectionImpl extends AvaticaConnection
   }
 
   @Override
-  public String getCatalog() {
-    // Can't throw any SQLException because AvaticaConnection's getCatalog() is
-    // missing "throws SQLException".
+  public String getCatalog() throws SQLException {
     try {
       throwIfClosed();
     } catch (SQLException e) {
@@ -671,9 +669,7 @@ class DremioConnectionImpl extends AvaticaConnection
   }
 
   @Override
-  public String getSchema() {
-    // Can't throw any SQLException because AvaticaConnection's getCatalog() is
-    // missing "throws SQLException".
+  public String getSchema() throws SQLException {
     try {
       throwIfClosed();
     } catch (SQLException e) {
