@@ -97,7 +97,7 @@ public class DatasetListingInvoker implements DatasetListingService {
         .protocolId(57)
         .allocator(allocator)
         .name("dataset-listing-rpc")
-        .timeout(10 * 1000);
+        .timeout(60 * 1000);
 
     this.findEndpointCreator = builder.register(TYPE_DL_FIND,
         new AbstractReceiveHandler<DLFindRequest, DLFindResponse>(
