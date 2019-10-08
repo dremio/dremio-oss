@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 import org.apache.arrow.vector.complex.reader.FieldReader;
+import org.apache.arrow.vector.holders.UnionHolder;
 
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MinorType;
@@ -54,6 +55,14 @@ public class JsonWriter {
   public void write(FieldReader reader) throws JsonGenerationException, IOException{
     writeValue(reader);
     gen.flush();
+  }
+
+  public void write(UnionHolder holder) throws JsonGenerationException, IOException {
+    if (holder.isSet == 0) {
+      gen.writeIntNull();
+    } else {
+      write(holder.reader);
+    }
   }
 
   private void writeValue(FieldReader reader) throws JsonGenerationException, IOException{
