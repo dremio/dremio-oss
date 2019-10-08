@@ -81,7 +81,7 @@ public class JobResource {
   @GET
   @Path("/{id}/results")
   public JobData getQueryResults(@PathParam("id") String id, @QueryParam("offset") @DefaultValue("0") Integer offset, @Valid @QueryParam("limit") @DefaultValue("100") Integer limit) {
-    Preconditions.checkArgument(limit <= 500,"limit can not exceed 500 rows");
+    Preconditions.checkArgument(limit <= 100_000, "limit can not exceed 100,000 rows");
     try {
       GetJobRequest request = GetJobRequest.newBuilder()
         .setJobId(new JobId(id))
