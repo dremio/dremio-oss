@@ -39,6 +39,7 @@ import org.apache.twill.api.TwillPreparer;
 import org.apache.twill.api.TwillRunnerService;
 import org.apache.twill.api.logging.LogEntry;
 import org.apache.twill.yarn.YarnTwillRunnerService;
+import org.apache.twill.filesystem.FileContextLocationFactory;
 import org.slf4j.Logger;
 
 import com.dremio.common.VM;
@@ -90,7 +91,15 @@ public class YarnController {
     String zkStr = dremioConfig.getString(DremioConfig.ZOOKEEPER_QUORUM);
     String clusterId = yarnConfiguration.get(YARN_CLUSTER_ID);
     Preconditions.checkNotNull(clusterId, "Cluster ID can not be null");
-    TwillRunnerService twillRunner = new YarnTwillRunnerService(yarnConfiguration, zkStr);
+
+    String userName=null;
+    try {
+      userName = UserGroupInformation.getCurrentUser().getUserName();
+      userName = userName.contains("@")?userName.split("@")[0]:userName;
+    } catch (IOException e) {
+      logger.error("Exception while trying to retrieve current Hadoop user", e);
+    }
+    TwillRunnerService twillRunner = new YarnTwillRunnerService(yarnConfiguration, zkStr, new FileContextLocationFactory(yarnConfiguration, "/user/" + userName));
     TwillRunnerService previousOne = twillRunners.putIfAbsent(new ClusterId(clusterId), twillRunner);
     if (previousOne == null) {
       // start one we are planning to add - if it is already in collection it should be started
