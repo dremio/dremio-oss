@@ -157,8 +157,9 @@ export class ExploreCopyTableButton extends PureComponent {
       return;
     }
     const url = `job/${jobId}/data?offset=0&limit=${MAX_ROWS_TO_CLIPBOARD + 1}`;
+    const options = {headers: ApiUtils.getJobDataNumbersAsStringsHeader()};
     this.setState({isPreparing: true});
-    ApiUtils.fetch(url, undefined, 2).then(response => {
+    ApiUtils.fetch(url, options, 2).then(response => {
       // get tableData from response, make textToCopy, copy, setState
       return response.json().then(data => {
         this.textToCopy = ExploreCopyTableButton.makeCopyTextFromTableData(data);

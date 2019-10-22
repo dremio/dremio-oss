@@ -160,8 +160,8 @@ public class HadoopFileSystem
   }
 
   private static boolean isHDFS(org.apache.hadoop.fs.FileSystem fs) {
-    final String scheme = fs.getScheme().toLowerCase(Locale.ROOT);
     try {
+      final String scheme = fs.getScheme().toLowerCase(Locale.ROOT);
       return HDFS_SCHEME.equals(scheme) || WEBHDFS_SCHEME.equals(scheme);
     } catch (UnsupportedOperationException e) {
     }

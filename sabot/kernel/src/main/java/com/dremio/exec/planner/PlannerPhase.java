@@ -107,6 +107,7 @@ import com.dremio.exec.planner.logical.UnionAllRule;
 import com.dremio.exec.planner.logical.ValuesRule;
 import com.dremio.exec.planner.logical.WindowRule;
 import com.dremio.exec.planner.physical.EmptyPrule;
+import com.dremio.exec.planner.physical.FilterNLJMergeRule;
 import com.dremio.exec.planner.physical.FilterPrule;
 import com.dremio.exec.planner.physical.FlattenPrule;
 import com.dremio.exec.planner.physical.HashAggPrule;
@@ -662,6 +663,7 @@ public enum PlannerPhase {
     final List<RelOptRule> ruleList = new ArrayList<>();
     final PlannerSettings ps = optimizerRulesContext.getPlannerSettings();
 
+    ruleList.add(FilterNLJMergeRule.INSTANCE);
     ruleList.add(SortConvertPrule.INSTANCE);
     ruleList.add(SortPrule.INSTANCE);
     ruleList.add(ProjectPrule.INSTANCE);

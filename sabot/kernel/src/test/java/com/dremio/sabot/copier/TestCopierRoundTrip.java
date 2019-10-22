@@ -120,7 +120,7 @@ public class TestCopierRoundTrip extends BaseTestWithAllocator {
           PlatformDependent.putShort(mem, (short) (char) x);
           x += 2;
         }
-        sv2.setRecordCount(count);
+        sv2.setRecordCount(count/2);
 
         append(copiers, sv2);
 
@@ -201,7 +201,7 @@ public class TestCopierRoundTrip extends BaseTestWithAllocator {
           PlatformDependent.putShort(mem, (short) (char) x);
           x += 2;
         }
-        sv2.setRecordCount(count);
+        sv2.setRecordCount(count/2);
         append(copiers, sv2);
 
         out.setValueCount(count / 2);
@@ -285,7 +285,7 @@ public class TestCopierRoundTrip extends BaseTestWithAllocator {
           x += 2;
         }
 
-        sv2.setRecordCount(count);
+        sv2.setRecordCount(count/2);
         append(copiers, sv2);
 
         out.setValueCount(count / 2);

@@ -320,23 +320,28 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
        * delete tickets).
        */
       List<FragmentExecutor> fragmentExecutors = new ArrayList<>();
+      UserRpcException userRpcException = null;
       try {
         for (PlanFragmentFull fragment : fullFragments) {
           FragmentExecutor fe = buildFragment(queryTicket, fragment, schedulingInfo);
           fragmentExecutors.add(fe);
         }
-        sender.send(OK);
       } catch (UserRpcException e) {
-        sender.sendFailure(e);
+        userRpcException = e;
       } catch (Exception e) {
-        final UserRpcException genericException = new UserRpcException(NodeEndpoint.getDefaultInstance(), "Remote message leaked.", e);
-        sender.sendFailure(genericException);
+        userRpcException = new UserRpcException(NodeEndpoint.getDefaultInstance(), "Remote message leaked.", e);
       } finally {
         for (FragmentExecutor fe : fragmentExecutors) {
           startFragment(fe);
         }
         if (queryTicket != null) {
           queryTicket.release();
+        }
+
+        if (userRpcException == null) {
+          sender.send(OK);
+        } else {
+          sender.sendFailure(userRpcException);
         }
       }
     }

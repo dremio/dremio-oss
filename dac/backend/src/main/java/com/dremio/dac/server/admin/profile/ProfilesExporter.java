@@ -142,7 +142,7 @@ public final class ProfilesExporter {
 
     Path fakeFileName = getProfileFileNameWithPath("fake_id");
     Configuration conf = new Configuration();
-    conf.setClass("fs.file.impl", RawLocalFileSystem.class, FileSystem.class);
+    conf.setClass("fs.file.impl", RawLocalFileSystem.class, org.apache.hadoop.fs.FileSystem.class);
     // Use the raw local filesystem to avoid writing checksum files
     FileSystem fs = HadoopFileSystem.get(fakeFileName, conf);
 

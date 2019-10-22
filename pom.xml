@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>4.0.2-201910020123580864-a98a0b9</version>
+  <version>4.0.4-201910212053580380-773b665</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -55,7 +55,7 @@
     <hsqldb.version>2.3.1</hsqldb.version>
     <jackson.version>2.9.9.20190807</jackson.version>
     <jersey.version>2.25.1</jersey.version>
-    <jetty.version>9.4.15.v20190215</jetty.version>
+    <jetty.version>9.4.21.v20190926</jetty.version>
     <javax.ws.rs-api.version>2.0.1</javax.ws.rs-api.version>
     <junit.version>4.12</junit.version>
     <lilith.version>0.9.44</lilith.version>
@@ -1302,9 +1302,9 @@ limitations under the License.
         <version>${project.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.dremio.contrib</groupId>
+        <groupId>com.dremio.data</groupId>
         <artifactId>dremio-tpch-sample-data</artifactId>
-        <version>${project.version}</version>
+        <version>1.0.0</version>
       </dependency>
 
       <!-- 3rd party dependencies -->

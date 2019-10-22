@@ -54,12 +54,15 @@ public class NativeLibPluginClassLoader extends PluginClassLoader {
     // Overrode ClassLoader - getResources to prevent getting parent's resources recursively when
     // loading org.apache.hadoop.fs.FileSystem FileSystem implementations
     switch(name) {
-    case "META-INF/services/org.apache.hadoop.fs.FileSystem":
-    case "META-INF/services/org.apache.hadoop.io.compress.CompressionCodec":
-      return findResources(name);
+      case "META-INF/services/org.apache.hadoop.fs.FileSystem":
+      case "META-INF/services/org.apache.hadoop.io.compress.CompressionCodec":
+      case "META-INF/services/org.apache.hadoop.security.token.SecurityInfo":
+      case "META-INF/services/org.apache.hadoop.security.token.TokenIdentifier":
+      case "META-INF/services/org.apache.hadoop.security.token.TokenRenewer":
+        return findResources(name);
 
-    default:
-      return super.getResources(name);
+      default:
+        return super.getResources(name);
     }
   }
 

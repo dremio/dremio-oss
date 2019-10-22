@@ -24,6 +24,7 @@ import javax.annotation.Nullable;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 
@@ -35,13 +36,20 @@ public class ServiceRegistry implements Service {
 
   private volatile boolean closed = false;
   private final List<Service> services = new ArrayList<>();
+  private final boolean timerEnabled;
 
-  public ServiceRegistry(){
+  public ServiceRegistry() {
+    this(Timer.enabled());
+  }
+
+  @VisibleForTesting
+  ServiceRegistry(boolean timerEnabled) {
+    this.timerEnabled = timerEnabled;
   }
 
   public <T extends Service> T register(@Nullable T service) {
     if (service != null) {
-      services.add(Timer.enabled() ? new TimedService(service) : service);
+      services.add(wrapService(service));
     }
     return service;
   }
@@ -51,9 +59,11 @@ public class ServiceRegistry implements Service {
       return null;
     }
 
+    final Service toReplace = wrapService(service);
+
     for(ListIterator<Service> it = services.listIterator(); it.hasNext(); ) {
       Service s = it.next();
-      if (service.equals(s)) {
+      if (toReplace.equals(s)) {
         it.remove();
         try {
           // Closing service in case some resources are already allocated
@@ -61,11 +71,15 @@ public class ServiceRegistry implements Service {
         } catch (Exception e) {
           logger.warn("Exception when closing service {}", s, e);
         }
-        it.add(Timer.enabled() ? new TimedService(service) : service);
+        it.add(toReplace);
         return service;
       }
     }
     throw new IllegalArgumentException("Trying to replace an unregistered service");
+  }
+
+  private Service wrapService(Service service) {
+    return timerEnabled ? new TimedService(service) : service;
   }
 
   @Override
