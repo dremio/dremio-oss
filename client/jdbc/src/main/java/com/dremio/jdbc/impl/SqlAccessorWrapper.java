@@ -25,6 +25,7 @@ import java.sql.Clob;
 import java.sql.Date;
 import java.sql.NClob;
 import java.sql.Ref;
+import java.sql.Struct;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
 import java.sql.SQLXML;
@@ -204,6 +205,11 @@ class SqlAccessorWrapper implements Accessor {
 
   @Override
   public Array getArray() throws SQLException {
+    throw new SQLFeatureNotSupportedException();
+  }
+
+  @Override
+  public Struct getStruct() throws SQLException {
     throw new SQLFeatureNotSupportedException();
   }
 

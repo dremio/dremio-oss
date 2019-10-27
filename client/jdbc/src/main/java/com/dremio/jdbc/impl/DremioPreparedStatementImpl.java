@@ -82,7 +82,7 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   // called ResultSet.)
 
   @Override
-  public DremioConnectionImpl getConnection() {
+  public DremioConnectionImpl getConnection() throws SQLException {
     try {
       throwIfClosed();
     } catch (AlreadyClosedSqlException e) {
@@ -162,7 +162,7 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   }
 
   @Override
-  public long getLargeMaxRows() {
+  public long getLargeMaxRows() throws SQLException {
     try {
       throwIfClosed();
     } catch (AlreadyClosedSqlException e) {
@@ -267,7 +267,7 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   }
 
   @Override
-  public int getFetchDirection(){
+  public int getFetchDirection() throws SQLException {
     try {
       throwIfClosed();
     } catch (AlreadyClosedSqlException e) {
@@ -285,7 +285,7 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   }
 
   @Override
-  public int getFetchSize() {
+  public int getFetchSize() throws SQLException {
     try {
       throwIfClosed();
     } catch (AlreadyClosedSqlException e) {
@@ -330,7 +330,7 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   }
 
   @Override
-  public void clearBatch(){
+  public void clearBatch() throws SQLException {
     try {
       throwIfClosed();
     } catch (AlreadyClosedSqlException e) {
@@ -576,7 +576,7 @@ abstract class DremioPreparedStatementImpl extends AvaticaPreparedStatement
   // - setArray(int, Array)
 
   @Override
-  public ResultSetMetaData getMetaData() {
+  public ResultSetMetaData getMetaData() throws SQLException {
     try {
       throwIfClosed();
     } catch (AlreadyClosedSqlException e) {

@@ -199,7 +199,7 @@ class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
   }
 
   @Override
-  public long getLargeMaxRows() {
+  public long getLargeMaxRows() throws SQLException {
     try {
       throwIfClosed();
     } catch (SQLException e) {
@@ -286,7 +286,7 @@ class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
   }
 
   @Override
-  public int getFetchDirection() {
+  public int getFetchDirection() throws SQLException {
     try {
       throwIfClosed();
     } catch (SQLException e) {
@@ -304,7 +304,7 @@ class DremioStatementImpl extends AvaticaStatement implements DremioStatement,
   }
 
   @Override
-  public int getFetchSize() {
+  public int getFetchSize() throws SQLException {
     try {
       throwIfClosed();
     } catch (SQLException e) {

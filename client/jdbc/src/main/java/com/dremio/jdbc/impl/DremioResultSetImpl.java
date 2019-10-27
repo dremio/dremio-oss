@@ -88,7 +88,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
 
   DremioResultSetImpl(AvaticaStatement statement, QueryState state,
                      Meta.Signature signature, ResultSetMetaData resultSetMetaData,
-                     TimeZone timeZone, Meta.Frame firstFrame) {
+                     TimeZone timeZone, Meta.Frame firstFrame) throws SQLException {
     super(statement, state, signature, resultSetMetaData, timeZone, firstFrame);
     connection = (DremioConnectionImpl) statement.getConnection();
     client = connection.getClient();
