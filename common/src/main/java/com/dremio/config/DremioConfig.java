@@ -164,6 +164,9 @@ public class DremioConfig extends NestedConfig {
   public static final String MAX_KILL_ATTEMPTS = "provisioning.yarn.watchdog.max.kill.attempts";
   public static final String KILL_REATTEMPT_INTERVAL_MS = "provisioning.yarn.watchdog.kill.reattempt.interval";
 
+  // REST API configuration
+  public static final String CLIENT_API_JOB_QUERY_RESULT_LIMIT = "services.coordinator.client-api.job.query-result-limit";
+
   private final Config unresolved;
   private final Config reference;
   private final SabotConfig sabot;
