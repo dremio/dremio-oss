@@ -26,7 +26,6 @@ import io.protostuff.Tag;
  */
 public enum AWSAuthenticationType {
   @Tag(1) @DisplayMetadata(label = "AWS Access Key") ACCESS_KEY,
-  @Tag(2) @DisplayMetadata(label = "Default Chain") TEMP_CREDENTIALS,
   @Tag(2) @DisplayMetadata(label = "EC2 Metadata") EC2_METADATA,
   @Tag(3) @DisplayMetadata(label = "No Authentication") NONE;
 }

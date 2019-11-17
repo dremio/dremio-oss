@@ -41,7 +41,7 @@ import io.protostuff.Tag;
 @SourceType(value = "S3", label = "Amazon S3")
 public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlugin> {
 
-
+/*
   static final List<String> UNIQUE_CONN_PROPS = ImmutableList.of(
     Constants.ACCESS_KEY,
     Constants.SECRET_KEY,
@@ -68,7 +68,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
     S3FileSystem.REGION_OVERRIDE
   );
 
-
+*/
   @Tag(1)
   @DisplayMetadata(label = "AWS Access Key")
   public String accessKey = "";
@@ -104,7 +104,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   @DisplayMetadata(label = "Root Path")
   public String rootPath = "/";
 
-  @Tag()
+  @Tag(8)
   public AWSAuthenticationType credentialType = AWSAuthenticationType.ACCESS_KEY;
 
   @Tag(9)

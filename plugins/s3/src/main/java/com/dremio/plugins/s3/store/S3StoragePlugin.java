@@ -131,14 +131,7 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
       case EC2_METADATA:
         mainAWSCredProvider = EC2_METADATA_PROVIDER;
         break;
-      case TEMP_CREDENTIALS:
-        if (!("".equals(config.accessKey))) {
-          finalProperties.add(new Property(ACCESS_KEY, config.accessKey));
-          finalProperties.add(new Property(SECRET_KEY, config.accessSecret));
-          finalProperties.add(new Property(SESSION_TOKEN, config.accessToken));
-		}
-        finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, TEMP_PROVIDER));
-        break;
+   
       case NONE:
         mainAWSCredProvider = NONE_PROVIDER;
         break;
