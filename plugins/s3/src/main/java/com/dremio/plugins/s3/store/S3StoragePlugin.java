@@ -131,7 +131,6 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
       case EC2_METADATA:
         mainAWSCredProvider = EC2_METADATA_PROVIDER;
         break;
-   
       case NONE:
         mainAWSCredProvider = NONE_PROVIDER;
         break;
