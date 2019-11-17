@@ -77,14 +77,11 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   @Secret
   @DisplayMetadata(label = "AWS Access Secret")
   public String accessSecret = "";
-  
-  
 
   @Tag(3)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Encrypt connection")
   public boolean secure;
-
 
   @Tag(4)
   @DisplayMetadata(label = "Buckets")
@@ -116,7 +113,6 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   @DisplayMetadata(label = "Enable compatibility mode (experimental)")
   public boolean compatibilityMode = false;
 
-
   @Tag(11)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable local caching when possible")
@@ -141,7 +137,6 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   @DisplayMetadata(label = "Server side encryption key ARN")
   @NotMetadataImpacting
   public String kmsKeyARN;
-
 
   @Override
   public S3StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
