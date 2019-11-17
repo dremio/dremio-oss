@@ -84,15 +84,18 @@ export default class ProvisionInfoTable extends Component {
 
     return (
       <div style={styles.base}>
-        {tableData.size > 0 ? <TableViewer
-          tableData={tableData}
-          columns={columns}
-        /> :
-        <ViewCheckContent
-          message={la('No Workers')}
-          dataIsNotAvailable={tableData.size === 0}
-          customStyle={styles.emptyMessageStyle}
-        />}
+        {
+          tableData.size > 0 ? <TableViewer
+            tableData={tableData}
+            columns={columns}
+          /> : (
+            <ViewCheckContent
+              message={la('No Workers')}
+              dataIsNotAvailable={tableData.size === 0}
+              customStyle={styles.emptyMessageStyle}
+            />
+          )
+        }
       </div>
     );
   }

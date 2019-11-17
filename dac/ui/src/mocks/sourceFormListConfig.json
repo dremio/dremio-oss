@@ -13,6 +13,5 @@
   {"label": "Oracle", "sourceType": "ORACLE"},
   {"label": "PostgreSQL", "sourceType": "POSTGRES"},
   {"label": "Azure Data Lake Store", "sourceType": "ADL"},
-  {"label": "IBM DB2", "sourceType": "DB2"},
   {"label": "Sample Source", "sourceType": "SampleSource"}
 ]

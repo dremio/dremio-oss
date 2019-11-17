@@ -102,7 +102,6 @@ enum LegacySourceType {
   AZB = 13;
   HIVE = 14;
   PDFS = 15;
-  DB2 = 16;
   UNKNOWN = 17;
   HOME = 18;
   CLASSPATH = 19; // test-only

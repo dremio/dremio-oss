@@ -18,8 +18,8 @@ package com.dremio.datastore;
 import java.util.UUID;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.AutoCloseables;
@@ -28,6 +28,7 @@ import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.service.DirectProvider;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
+import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
 
 /**
@@ -51,10 +52,13 @@ public class TestRemoteKVStore extends AbstractTestKVStore {
   private BufferAllocator allocator;
   private CloseableThreadPool pool;
 
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+
   @Override
   void initProvider() throws Exception {
 
-    allocator = new RootAllocator(20 * 1024 * 1024);
+    allocator = allocatorRule.newAllocator("test-remote-kvstore", 0, 20 * 1024 * 1024);
     pool = new CloseableThreadPool("test-remoteocckvstore");
 
     localFabricService = new FabricServiceImpl(HOSTNAME, 45678, true, THREAD_COUNT, allocator, RESERVATION,

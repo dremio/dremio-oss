@@ -416,7 +416,7 @@ export class ExploreTableView extends PureComponent {
           showMessage={showMessage}
           hideChildrenWhenFailed={false}
           overlayStyle={maskStyle}
-          >
+        >
           {this.props.isGrayed && <div data-qa='table-grayed-out' style={{...styles.grayed, ...maskStyle}}/>}
           {this.renderTable()}
           <ViewCheckContent
@@ -428,7 +428,7 @@ export class ExploreTableView extends PureComponent {
               position: 'absolute',
               height: 0
             }}
-            />
+          />
         </ViewStateWrapper>
       </div>
     );

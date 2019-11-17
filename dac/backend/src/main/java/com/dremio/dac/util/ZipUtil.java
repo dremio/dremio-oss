@@ -23,8 +23,8 @@ import java.util.TimeZone;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 
 /**
  * Helper class to stream out files as chunk
@@ -81,7 +81,7 @@ public class ZipUtil {
   }
 
   private void setupZip(String filename) throws IOException {
-    fsout = fileSystem.create(new Path(filename+".zip"), true);
+    fsout = fileSystem.create(Path.of(filename+".zip"), true);
     zout = new ZipOutputStream(fsout);
   }
 

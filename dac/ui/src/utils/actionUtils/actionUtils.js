@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { AUTO_PREVIEW_DELAY } from 'constants/Constants';
+import { AUTO_PREVIEW_DELAY } from '@app/constants/Constants';
 
 class ActionUtils {
   shouldLoad(resource) {

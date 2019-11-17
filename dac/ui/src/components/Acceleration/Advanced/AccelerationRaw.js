@@ -87,7 +87,7 @@ export default class AccelerationRaw extends Component {
           reflections={reflections}
           layoutFields={rawReflections}
           activeTab='raw'
-          />
+        />
       </div>
     );
   }

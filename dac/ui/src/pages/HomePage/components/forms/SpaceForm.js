@@ -21,8 +21,13 @@ import { injectIntl } from 'react-intl';
 import { ModalForm, FormBody, modalFormProps } from 'components/Forms';
 import General from 'components/Forms/General';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
+import { applyValidators, noDoubleQuotes } from '@app/utils/validation';
 
 const SECTIONS = [General];
+
+function validate(values) {
+  return applyValidators(values, [noDoubleQuotes('name')]);
+}
 
 export class SpaceForm extends Component {
 
@@ -58,5 +63,6 @@ export class SpaceForm extends Component {
 
 export default injectIntl(connectComplexForm({
   form: 'space',
-  fields: ['version']
+  fields: ['version'],
+  validate
 }, SECTIONS, null, {})(SpaceForm));

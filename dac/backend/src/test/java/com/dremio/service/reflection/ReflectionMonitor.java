@@ -151,6 +151,10 @@ public class ReflectionMonitor {
     throw new IllegalStateException();
   }
 
+  public Materialization waitUntilMaterializationFinished(final ReflectionId id, Materialization m) {
+    return waitUntilMaterializationFinished(id, m != null ? m.getId() : null);
+  }
+
   public Materialization waitUntilMaterializationFinished(final ReflectionId id, MaterializationId lastMaterializationId) {
     Wait w = new Wait();
     while (w.loop()) {

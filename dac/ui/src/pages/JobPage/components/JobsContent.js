@@ -26,6 +26,7 @@ import { flexColumnContainer } from '@app/uiTheme/less/layout.less';
 
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import ViewCheckContent from 'components/ViewCheckContent';
+import jobUtils from 'utils/jobsUtils';
 import JobTable from './JobsTable/JobTable';
 import JobDetails from './JobDetails/JobDetails';
 import JobsFilters from './JobsFilters/JobsFilters';
@@ -122,7 +123,7 @@ export default class JobsContent extends PureComponent {
     jobs.forEach((job) => {
       const jobId = job.get('id');
       const jobState = job.get('state');
-      if (isStop || ['NOT_SUBMITTED', 'STARTING', 'RUNNING', 'ENQUEUED', 'CANCELLATION_REQUESTED'].includes(jobState)) {
+      if (isStop || jobUtils.isJobRunning(jobState)) {
         return callback(jobId);
       }
     });

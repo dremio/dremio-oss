@@ -79,9 +79,6 @@ public class EasyGroupScan extends AbstractGroupScan {
       case PSV:
         return UserBitShared.CoreOperatorType.TEXT_SUB_SCAN_VALUE;
 
-      case AVRO:
-        return UserBitShared.CoreOperatorType.AVRO_SUB_SCAN_VALUE;
-
       case PARQUET:
         return UserBitShared.CoreOperatorType.PARQUET_ROW_GROUP_SCAN_VALUE;
 

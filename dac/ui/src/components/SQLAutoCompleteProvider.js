@@ -57,21 +57,21 @@ const getItems = (monaco, sqlContextGetter) => {
         method: 'POST',
         body: JSON.stringify(request)
       }, 2).then((data) => {
-        const contentType = data.headers.get('content-type');
-        if (contentType && contentType.indexOf('application/json') !== -1) {
-          return data.json().then(({ suggestions }) => {
-            return suggestions.map(({
-              name,
-              type
-            }) => ({
-              label: name,
-              kind: typeMap[type],
-              detail: type
-            }));
-          });
-        }
-        return [];
-      }, errorHandler);
+      const contentType = data.headers.get('content-type');
+      if (contentType && contentType.indexOf('application/json') !== -1) {
+        return data.json().then(({ suggestions }) => {
+          return suggestions.map(({
+            name,
+            type
+          }) => ({
+            label: name,
+            kind: typeMap[type],
+            detail: type
+          }));
+        });
+      }
+      return [];
+    }, errorHandler);
   };
 };
 

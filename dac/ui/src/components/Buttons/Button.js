@@ -63,8 +63,10 @@ class Button extends Component {
     style: PropTypes.object,
     styles: PropTypes.oneOfType([PropTypes.array, PropTypes.object]),
     icon: PropTypes.string,
+    title: PropTypes.string,
+    dataQa: PropTypes.string,
     items: PropTypes.array
-  }
+  };
 
   constructor(props) {
     super(props);
@@ -129,7 +131,7 @@ class Button extends Component {
   }
 
   renderBtn() {
-    const { text, type, icon, items, disableSubmit, disable } = this.props;
+    const { text, type, icon, title, dataQa, items, disableSubmit, disable } = this.props;
     const customStyle = this.props.styles ? this.props.styles : {};
     const commonStyle = type === ButtonTypes.NEXT || type === ButtonTypes.PRIMARY
       ? [styles.primary, customStyle]
@@ -147,7 +149,8 @@ class Button extends Component {
     return !items
       ? (
         <button
-          data-qa={text}
+          data-qa={dataQa || text}
+          title={title}
           type={disableSubmit ? 'button' : 'submit'}
           style={[styles.wrapper, standartBtn, disable && {opacity: 0.7, pointerEvents: 'none'}, this.props.style]}
           className={classNames(this.props.className, icon)}

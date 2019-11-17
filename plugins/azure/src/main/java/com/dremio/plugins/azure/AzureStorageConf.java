@@ -18,8 +18,8 @@ package com.dremio.plugins.azure;
 import java.util.List;
 
 import javax.inject.Provider;
-
-import org.apache.hadoop.fs.Path;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.DisplayMetadata;
@@ -30,6 +30,7 @@ import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
+import com.dremio.io.file.Path;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -137,6 +138,18 @@ public class AzureStorageConf extends FileSystemConf<AzureStorageConf, AzureStor
   @Tag(13)
   public AzureAuthenticationType credentialsType = AzureAuthenticationType.ACCESS_KEY;
 
+  @Tag(14)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable local caching when possible")
+  public boolean isCachingEnabled = false;
+
+  @Tag(15)
+  @NotMetadataImpacting
+  @Min(value = 1, message = "Max percent of total available cache space must be between 1 and 100")
+  @Max(value = 100, message = "Max percent of total available cache space must be between 1 and 100")
+  @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
+  public int maxCacheSpacePct = 100;
+
   @Override
   public AzureStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     Preconditions.checkNotNull(accountName, "Account name must be provided.");
@@ -145,7 +158,7 @@ public class AzureStorageConf extends FileSystemConf<AzureStorageConf, AzureStor
 
   @Override
   public Path getPath() {
-    return new Path(rootPath);
+    return Path.of(rootPath);
   }
 
   @Override
@@ -169,12 +182,22 @@ public class AzureStorageConf extends FileSystemConf<AzureStorageConf, AzureStor
   }
 
   @Override
-  public List<String> getConnectionUniqueProperties() {
-    return credentialsType.getUniqueProperties();
+  public boolean isAsyncEnabled() {
+    return enableAsync;
   }
 
   @Override
-  public boolean isAsyncEnabled() {
-    return enableAsync;
+  public CacheProperties getCacheProperties() {
+    return new CacheProperties() {
+      @Override
+      public boolean isCachingEnabled() {
+        return isCachingEnabled;
+      }
+
+      @Override
+      public int cacheMaxSpaceLimitPct() {
+        return maxCacheSpacePct;
+      }
+    };
   }
 }

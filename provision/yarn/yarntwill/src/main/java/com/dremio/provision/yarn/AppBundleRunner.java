@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.config.DremioConfig;
 import com.dremio.provision.yarn.AppBundleRunnable.Arguments;
 import com.google.common.base.Preconditions;
 
@@ -84,10 +85,13 @@ public class AppBundleRunner implements AutoCloseable {
 
     final String classPath;
     final String nativeLibraryPath;
+    final String relativePluginPath;
+
     try(InputStream is = Files.newInputStream(manifestPath)) {
       final Manifest manifest = new Manifest(is);
       classPath = manifest.getMainAttributes().getValue(Attributes.Name.CLASS_PATH);
       nativeLibraryPath = Optional.ofNullable(manifest.getMainAttributes().getValue(AppBundleGenerator.X_DREMIO_LIBRARY_PATH_MANIFEST_ATTRIBUTE)).orElse("");
+      relativePluginPath = Optional.ofNullable(manifest.getMainAttributes().getValue(AppBundleGenerator.X_DREMIO_PLUGINS_PATH_MANIFEST_ATTRIBUTE)).orElse("");
     }
 
     // Convert the list of relative classpath URLs into absolute ones
@@ -114,6 +118,14 @@ public class AppBundleRunner implements AutoCloseable {
       return outputJarDir.resolve(uri.getPath());
     }).collect(Collectors.toList());
     logger.debug("Native Library path: {}", nativeLibraryPaths);
+
+    // Convert the relative plugin path URL extracted from the jar into an absolute path
+    // This is important as the URL will be different for each individual container
+    final Path absPluginPath = outputJarDir.resolve(URI.create(relativePluginPath).getPath());
+    logger.debug("Dremio plugin path: {}", absPluginPath);
+
+    // Set the dremio.plugin.path property so that this is available in each executor
+    System.setProperty(DremioConfig.PLUGINS_ROOT_PATH_PROPERTY, absPluginPath.toString());
 
 
     // Pick-up the classloader used as the parent to the System (application) classloader

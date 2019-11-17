@@ -26,8 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nullable;
 
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.MetricRegistry;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.exceptions.UserException;
@@ -102,12 +100,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     this.evictionDelayMillis = TimeUnit.SECONDS.toMillis(
       options.getOption(ExecConstants.FRAGMENT_CACHE_EVICTION_DELAY_S));
 
-    Metrics.registerGauge(MetricRegistry.name("dremio.exec.work.running_fragments"), new Gauge<Integer>() {
-      @Override
-      public Integer getValue() {
-        return size();
-      }
-    });
+    Metrics.newGauge("dremio.exec.work.running_fragments", this::size);
 
     initEvictionThread(evictionDelayMillis);
   }
@@ -321,19 +314,34 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
 
     @Override
     public void buildAndStartQuery(final QueryTicket queryTicket) {
+      /**
+       * To avoid race conditions between creation and deletion of phase/fragment tickets,
+       * build all the fragments first (creates the tickets) and then, start the fragments (can
+       * delete tickets).
+       */
+      List<FragmentExecutor> fragmentExecutors = new ArrayList<>();
+      UserRpcException userRpcException = null;
       try {
         for (PlanFragmentFull fragment : fullFragments) {
-          startFragment(queryTicket, fragment, schedulingInfo);
+          FragmentExecutor fe = buildFragment(queryTicket, fragment, schedulingInfo);
+          fragmentExecutors.add(fe);
         }
-        sender.send(OK);
       } catch (UserRpcException e) {
-        sender.sendFailure(e);
+        userRpcException = e;
       } catch (Exception e) {
-        final UserRpcException genericException = new UserRpcException(NodeEndpoint.getDefaultInstance(), "Remote message leaked.", e);
-        sender.sendFailure(genericException);
+        userRpcException = new UserRpcException(NodeEndpoint.getDefaultInstance(), "Remote message leaked.", e);
       } finally {
+        for (FragmentExecutor fe : fragmentExecutors) {
+          startFragment(fe);
+        }
         if (queryTicket != null) {
           queryTicket.release();
+        }
+
+        if (userRpcException == null) {
+          sender.send(OK);
+        } else {
+          sender.sendFailure(userRpcException);
         }
       }
     }
@@ -348,13 +356,14 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
       }
     }
 
-    private void startFragment(final QueryTicket queryTicket, final PlanFragmentFull fragment,
-                               final SchedulingInfo schedulingInfo) throws UserRpcException {
+    private FragmentExecutor buildFragment(final QueryTicket queryTicket, final PlanFragmentFull fragment,
+      final SchedulingInfo schedulingInfo) throws UserRpcException {
+
       logger.info("Received remote fragment start instruction for {}", QueryIdHelper.getQueryIdentifier(fragment.getHandle()));
 
       try {
         final EventProvider eventProvider = getEventProvider(fragment.getHandle());
-        startFragment(builder.build(queryTicket, fragment, eventProvider, schedulingInfo, fragmentReader));
+        return builder.build(queryTicket, fragment, eventProvider, schedulingInfo, fragmentReader);
       } catch (final Exception e) {
         throw new UserRpcException(identity, "Failure while trying to start remote fragment", e);
       } catch (final OutOfMemoryError t) {

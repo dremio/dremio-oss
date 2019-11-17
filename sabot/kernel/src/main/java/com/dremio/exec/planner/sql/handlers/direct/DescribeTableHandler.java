@@ -73,7 +73,9 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
       for(RelDataTypeField field : type.getFieldList()){
         ColumnsTable.Column c = new ColumnsTable.Column("dremio", path.getParent().toUnescapedString(), path.getLeaf(), field);
         if(column == null || column.equals(field.getName())){
-          DescribeResult r = new DescribeResult(field.getName(), c.DATA_TYPE);
+          Integer precision = c.NUMERIC_PRECISION;
+          Integer scale = c.NUMERIC_SCALE;
+          DescribeResult r = new DescribeResult(field.getName(), c.DATA_TYPE, precision, scale);
           columns.add(r);
         }
       }
@@ -89,11 +91,15 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
     public final String COLUMN_NAME;
     public final String DATA_TYPE;
     public final String IS_NULLABLE = "YES";
+    public final Integer NUMERIC_PRECISION;
+    public final Integer NUMERIC_SCALE;
 
-    public DescribeResult(String columnName, String dataType) {
+    public DescribeResult(String columnName, String dataType, Integer nPrecision, Integer nScale) {
       super();
       COLUMN_NAME = columnName;
       DATA_TYPE = dataType;
+      NUMERIC_PRECISION = nPrecision;
+      NUMERIC_SCALE = nScale;
     }
 
 

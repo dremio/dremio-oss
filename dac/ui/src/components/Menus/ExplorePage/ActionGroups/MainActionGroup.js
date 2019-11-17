@@ -19,8 +19,8 @@ import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
-import { MIXED } from 'constants/DataTypes';
-import { ALL_TYPES, CONVERTIBLE_TYPES, NOT_LIST_AND_MAP_TYPES } from 'constants/columnTypeGroups';
+import { MIXED } from '@app/constants/DataTypes';
+import { ALL_TYPES, CONVERTIBLE_TYPES, NOT_LIST_AND_MAP_TYPES } from '@app/constants/columnTypeGroups';
 import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
 
 @Radium

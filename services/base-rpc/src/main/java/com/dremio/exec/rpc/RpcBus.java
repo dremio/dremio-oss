@@ -22,13 +22,14 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.codahale.metrics.Histogram;
 import com.dremio.common.SerializedExecutor;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
+import com.dremio.metrics.Histogram;
 import com.dremio.metrics.Metrics;
+import com.dremio.metrics.Metrics.ResetType;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.protobuf.ByteString;
@@ -106,8 +107,7 @@ public abstract class RpcBus<T extends EnumLite, C extends RemoteConnection> imp
 
   public RpcBus(RpcConfig rpcConfig) {
     this.rpcConfig = rpcConfig;
-    this.sendDurations = Metrics.getInstance()
-        .histogram(rpcConfig.getName() + "-send-durations-ms");
+    this.sendDurations = Metrics.newHistogram(rpcConfig.getName() + "-send-durations-ms", ResetType.NEVER);
   }
 
   <SEND extends MessageLite, RECEIVE extends MessageLite>

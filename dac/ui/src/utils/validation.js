@@ -180,6 +180,15 @@ export function applyBoundValidator(values, fields) {
   return validations;
 }
 
+export function noDoubleQuotes(key) {
+  return function(values) {
+    const value = result(values, key);
+    if (value && value.includes('"')) {
+      return set({}, key, 'Double quotes are not allowed.');
+    }
+  };
+}
+
 export function applyValidators(values, validators) {
   const messages = merge({}, ...validators.map((v) => v(values)));
   return messages;

@@ -48,7 +48,7 @@ export default class DefaultWizardFooter extends Component {
     this.props.onCancel();
   }
 
-  onButtonClick = (submitType, e) => {
+  onButtonClick = (submitType, e, ...rest) => {
     if (e && e.preventDefault) {
       e.preventDefault();
     }
@@ -57,7 +57,7 @@ export default class DefaultWizardFooter extends Component {
     if (onFormSubmit && handleSubmit) {
       return handleSubmit((values) => {
         return onFormSubmit(values, submitType);
-      })(...Array.from(arguments).slice(1));
+      })(e, ...rest);
     }
     return onFormSubmit(submitType);
   }

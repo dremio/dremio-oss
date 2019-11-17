@@ -30,7 +30,7 @@ import { constructFullPath } from 'utils/pathUtils';
 import { JOIN_TABLE_VIEW_ID } from 'components/Wizards/JoinWizard/JoinController';
 import { accessEntity } from 'actions/resources/lru';
 
-import { CUSTOM_JOIN } from 'constants/explorePage/joinTabs';
+import { CUSTOM_JOIN } from '@app/constants/explorePage/joinTabs';
 
 import { ExploreInfoHeader } from '../ExploreInfoHeader';
 import ExploreTableController from './ExploreTableController';

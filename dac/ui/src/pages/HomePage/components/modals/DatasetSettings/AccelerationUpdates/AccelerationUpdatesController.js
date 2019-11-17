@@ -26,7 +26,7 @@ import {
   updateDatasetAccelerationSettings
 } from 'actions/resources/datasetAccelerationSettings';
 import ApiUtils from 'utils/apiUtils/apiUtils';
-import { INCREMENTAL_TYPES } from 'constants/columnTypeGroups';
+import { INCREMENTAL_TYPES } from '@app/constants/columnTypeGroups';
 import AccelerationUpdatesForm from './AccelerationUpdatesForm';
 
 const VIEW_ID = 'AccelerationUpdatesController';

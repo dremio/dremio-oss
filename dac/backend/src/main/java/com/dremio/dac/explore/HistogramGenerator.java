@@ -44,7 +44,6 @@ import com.dremio.dac.explore.model.HistogramValue;
 import com.dremio.dac.explore.model.extract.Selection;
 import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobDataFragment;
-import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.service.errors.ClientErrorException;
 import com.dremio.dac.util.DatasetsUtil;
@@ -95,7 +94,9 @@ class HistogramGenerator {
 
   public Histogram<HistogramValue> getHistogram(final DatasetPath datasetPath, DatasetVersion version, Selection selection,
                                                 DataType colType, SqlQuery datasetQuery) {
-    JobUI datasetPreviewJob = DatasetsUtil.getDatasetPreviewJob(executor, datasetQuery, datasetPath, version);
+    final String datasetPreviewJobResultsTable = DatasetsUtil
+      .getDatasetPreviewJob(executor, datasetQuery, datasetPath, version)
+      .getJobResultsTable();
 
     final String colName = selection.getColName();
     final int myBuckets = BUCKETS;
@@ -119,7 +120,7 @@ class HistogramGenerator {
 
     hgQueryBuilder.append("SELECT\n");
     hgQueryBuilder.append(format("  dremio_values_table.%s as %s,\n  COUNT(*) as dremio_value_count\n", colNameClean, projectedColName));
-    hgQueryBuilder.append(format("FROM %s AS dremio_values_table \n", datasetPreviewJob.getData().getJobResultsTable()));
+    hgQueryBuilder.append(format("FROM %s AS dremio_values_table \n", datasetPreviewJobResultsTable));
     hgQueryBuilder.append(format("GROUP BY dremio_values_table.%s\n", colNameClean));
     hgQueryBuilder.append("ORDER BY dremio_value_count DESC");
 
@@ -132,14 +133,13 @@ class HistogramGenerator {
         try {
           prelimValuesQueryBuilder.append("SELECT\n");
           prelimValuesQueryBuilder.append(format(" MIN(dremio_values_table.%s) as colMin, MAX(dremio_values_table.%s) as colMax\n", colNameClean, colNameClean));
-          prelimValuesQueryBuilder.append(format(" FROM %s AS dremio_values_table\n", datasetPreviewJob.getData().getJobResultsTable()));
+          prelimValuesQueryBuilder.append(format(" FROM %s AS dremio_values_table\n", datasetPreviewJobResultsTable));
 
           final SqlQuery prelimQuery = datasetQuery.cloneWithNewSql(prelimValuesQueryBuilder.toString());
-
-          final JobData completePrelimData = executor.runQuery(prelimQuery, QueryType.UI_INTERNAL_RUN, datasetPath, version).getData();
-
           // need to get values and calculate everything
-          prelimData = completePrelimData.range(offset, BATCH_SIZE);
+          prelimData = executor
+            .runQuery(prelimQuery, QueryType.UI_INTERNAL_RUN, datasetPath, version)
+            .range(offset, BATCH_SIZE);
         } catch (Throwable t) {
           logger.error(format("Exception while trying to get histogram. Reverting to simple group %s by value", colNameClean), t);
         }
@@ -189,7 +189,7 @@ class HistogramGenerator {
           hgQueryBuilder.append("SELECT\n");
           hgQueryBuilder.append(format("date_trunc('%s', dremio_values_table.%s) as %s,\n", trucateTo.name, colNameClean, projectedColName));
           hgQueryBuilder.append("COUNT(*) as dremio_value_count\n");
-          hgQueryBuilder.append(format(" FROM %s AS dremio_values_table\n", datasetPreviewJob.getData().getJobResultsTable()));
+          hgQueryBuilder.append(format(" FROM %s AS dremio_values_table\n", datasetPreviewJobResultsTable));
           hgQueryBuilder.append(format("GROUP BY\n"));
           hgQueryBuilder.append(format("date_trunc('%s', dremio_values_table.%s)\n", trucateTo.name, colNameClean));
           hgQueryBuilder.append(format("ORDER BY %s ASC", projectedColName));
@@ -250,7 +250,7 @@ class HistogramGenerator {
           hgQueryBuilder.setLength(0);
           hgQueryBuilder.append("SELECT\n");
           hgQueryBuilder.append(format("  ROUND(CAST(dremio_values_table.%s AS DOUBLE)/%f)*%f as %s,\n  COUNT(*) as dremio_value_count\n", colNameClean, range, range, projectedColName));
-          hgQueryBuilder.append(format("FROM %s AS dremio_values_table\n", datasetPreviewJob.getData().getJobResultsTable()));
+          hgQueryBuilder.append(format("FROM %s AS dremio_values_table\n", datasetPreviewJobResultsTable));
           //hgQueryBuilder.append(format(" WHERE %s < %s AND %s > %s\n", colNameClean, upperBoundary, colNameClean, lowerBoundary));
           hgQueryBuilder.append(format(" GROUP BY ROUND(CAST(dremio_values_table.%s AS DOUBLE)/%f)*%f\n", colNameClean, range, range));
           hgQueryBuilder.append(format("ORDER BY %s ASC", projectedColName));
@@ -263,7 +263,7 @@ class HistogramGenerator {
       // we got rounding number
     final SqlQuery hgQuery = datasetQuery.cloneWithNewSql(hgQueryBuilder.toString());
 
-    final JobData completeJobData = executor.runQuery(hgQuery, QueryType.UI_INTERNAL_RUN, datasetPath, version).getData();
+    final JobData completeJobData = executor.runQuery(hgQuery, QueryType.UI_INTERNAL_RUN, datasetPath, version);
 
     final List<HistogramValue> values = new ArrayList<>();
     long total = 0;
@@ -541,7 +541,9 @@ class HistogramGenerator {
 
   public Histogram<CleanDataHistogramValue> getCleanDataHistogram(final DatasetPath datasetPath, DatasetVersion version, String colName, SqlQuery datasetQuery) {
 
-    JobUI datasetPreviewJob = DatasetsUtil.getDatasetPreviewJob(executor, datasetQuery, datasetPath, version);
+    final String datasetPreviewJobResultsTable = DatasetsUtil
+      .getDatasetPreviewJob(executor, datasetQuery, datasetPath, version)
+      .getJobResultsTable();
 
     boolean[] casts = { true, false };
     // Types currently supported by clean type
@@ -577,12 +579,12 @@ class HistogramGenerator {
     }
     sb.append("  typeOf(").append("dremio_values_table.").append(quotedColName).append(") AS dremio_value_type,\n");
     sb.append("  COUNT(*) as dremio_value_count\n");
-    sb.append(" FROM ").append(datasetPreviewJob.getData().getJobResultsTable()).append(" AS dremio_values_table\n");
+    sb.append(" FROM ").append(datasetPreviewJobResultsTable).append(" AS dremio_values_table\n");
     sb.append(" GROUP BY ").append("dremio_values_table.").append(quotedColName).append(", typeOf(").append("dremio_values_table.").append(quotedColName).append(")\n");
     sb.append(" ORDER BY dremio_value_count DESC");
 
     // get the result
-    JobData completeJobData = executor.runQuery(datasetQuery.cloneWithNewSql(sb.toString()), QueryType.UI_INTERNAL_RUN, datasetPath, version).getData();
+    JobData completeJobData = executor.runQuery(datasetQuery.cloneWithNewSql(sb.toString()), QueryType.UI_INTERNAL_RUN, datasetPath, version);
 
     final String colCount = "dremio_value_count";
     long total = 0;
@@ -632,13 +634,15 @@ class HistogramGenerator {
   }
 
   public Map<DataType, Long> getTypeHistogram(final DatasetPath datasetPath, DatasetVersion version, String colName, SqlQuery datasetQuery) {
-    JobUI datasetPreviewJob = DatasetsUtil.getDatasetPreviewJob(executor, datasetQuery, datasetPath, version);
+    final String datasetPreviewJobTableResults = DatasetsUtil
+      .getDatasetPreviewJob(executor, datasetQuery, datasetPath, version)
+      .getJobResultsTable();
 
     String quotedColName = quoteIdentifier(colName);
     String newSql = format("SELECT typeOf(dremio_values_table.%s) AS dremio_value_type, COUNT(*) as dremio_type_count FROM %s AS dremio_values_table GROUP BY typeOf(dremio_values_table.%s)",
-        quotedColName, datasetPreviewJob.getData().getJobResultsTable(), quotedColName);
+        quotedColName, datasetPreviewJobTableResults, quotedColName);
 
-    JobData completeJobData = executor.runQuery(datasetQuery.cloneWithNewSql(newSql), QueryType.UI_INTERNAL_RUN, datasetPath, version).getData();
+    JobData completeJobData = executor.runQuery(datasetQuery.cloneWithNewSql(newSql), QueryType.UI_INTERNAL_RUN, datasetPath, version);
 
     final Map<DataType, Long> values = new LinkedHashMap<>();
 
@@ -729,13 +733,15 @@ class HistogramGenerator {
       return 0;
     }
 
-    JobUI datasetPreviewJob = DatasetsUtil.getDatasetPreviewJob(executor, datasetQuery, datasetPath, version);
+    final String datasetPreviewJobResultsTable = DatasetsUtil
+      .getDatasetPreviewJob(executor, datasetQuery, datasetPath, version)
+      .getJobResultsTable();
 
     final String quotedColName = format("%s", quoteIdentifier(colName));
 
     StringBuilder sb = new StringBuilder();
     sb.append("SELECT COUNT(*) as dremio_selection_count\n  FROM ");
-    sb.append(datasetPreviewJob.getData().getJobResultsTable());
+    sb.append(datasetPreviewJobResultsTable);
     sb.append("\n  WHERE \n");
     sb.append(
         Joiner.on(" OR ").join(
@@ -755,9 +761,9 @@ class HistogramGenerator {
         )
     );
 
-    final JobData completeJobData = executor.runQuery(
-        datasetQuery.cloneWithNewSql(sb.toString()), QueryType.UI_INTERNAL_RUN, datasetPath, version).getData();
-    final JobDataFragment dataFragment = completeJobData.truncate(1);
+    final JobDataFragment dataFragment = executor
+      .runQuery(datasetQuery.cloneWithNewSql(sb.toString()), QueryType.UI_INTERNAL_RUN, datasetPath, version)
+      .truncate(1);
 
     return (Long)dataFragment.extractValue("dremio_selection_count", 0);
   }

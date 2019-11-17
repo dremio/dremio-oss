@@ -43,19 +43,19 @@ describe('ViewStateWrapper', () => {
     // overlay prevents interaction with children
     it('should render children and overlay if hideChildrenWhenInProgress=false', () => {
       const wrapper = shallow(<ViewStateWrapper viewState={viewState}><button/></ViewStateWrapper>);
-      expect(wrapper.find('.view-state-wrapper-overlay')).to.have.length(1);
+      expect(wrapper.find('LoadingOverlay')).to.have.length(1);
       expect(wrapper.children().find('button')).to.have.length(1);
 
       wrapper.setProps({hideChildrenWhenInProgress: true});
       expect(wrapper.children().find('button')).to.have.length(0);
-      expect(wrapper.find('.view-state-wrapper-overlay')).to.have.length(1);
+      expect(wrapper.find('LoadingOverlay')).to.have.length(1);
     });
 
     it('should render spinner if state.shouldWeSeeSpinner=true', () => {
       const wrapper = shallow(<ViewStateWrapper viewState={viewState}/>);
-      expect(wrapper.find('Spinner')).to.have.length(0);
+      expect(wrapper.find('LoadingOverlay').prop('showSpinner')).to.be.false;
       wrapper.setState({shouldWeSeeSpinner: true});
-      expect(wrapper.find('Spinner')).to.have.length(1);
+      expect(wrapper.find('LoadingOverlay').prop('showSpinner')).to.be.true;
     });
 
     it('should set shouldWeSeeSpinner after spinnerDelay', (done) => {

@@ -37,7 +37,7 @@ export default class FormElementConfig {
     // Because this config class is used for several simple element types,
     // the renderer component is selected based on the element type
     switch (type) {
-      /* eslint-disable indent */
+    /* eslint-disable indent */
       case 'text':
       case 'number':
         return TextWrapper;

@@ -15,89 +15,12 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL, API_URL_V2} from 'constants/Api';
+import { API_URL_V2} from '@app/constants/Api';
 
 import intercomUtils from 'utils/intercomUtils';
 import { addNotification } from 'actions/notification';
 import { makeUncachebleURL } from '@app/ie11';
 
-export const SOURCE_CREDENTIAL_START = 'SOURCE_CREDENTIAL_START';
-export const SOURCE_CREDENTIAL_SUCCESS = 'SOURCE_CREDENTIAL_SUCCESS';
-export const SOURCE_CREDENTIAL_FAILURE = 'SOURCE_CREDENTIAL_FAILURE';
-
-function fetchSourceCredentials() {
-  return {
-    [RSAA]: {
-      types: [SOURCE_CREDENTIAL_START, SOURCE_CREDENTIAL_SUCCESS, SOURCE_CREDENTIAL_FAILURE],
-      method: 'GET',
-      endpoint: API_URL + '/user/datastore'
-    }
-  };
-}
-
-export function loadSourceCredentials() {
-  return (dispatch) => {
-    return dispatch(fetchSourceCredentials());
-  };
-}
-
-export const ADD_SOURCE_CREDENTIAL = 'ADD_SOURCE_CREDENTIAL';
-
-export function addSourceCredential() {
-  return (dispatch) => {
-    const action = { type: ADD_SOURCE_CREDENTIAL, credential: 'some new credential' };
-    dispatch(action);
-  };
-}
-
-export const REMOVE_SOURCE_CREDENTIAL = 'REMOVE_SOURCE_CREDENTIAL';
-
-export function removeSourceCredential(index) {
-  return (dispatch) => {
-    const action = { type: REMOVE_SOURCE_CREDENTIAL, index };
-    dispatch(action);
-  };
-}
-
-export const GET_API_KEY_START = 'GET_API_KEY_START';
-export const GET_API_KEY_SUCCESS = 'GET_API_KEY_SUCCESS';
-export const GET_API_KEY_FAILURE = 'GET_API_KEY_FAILURE';
-
-function fetchApiKey() {
-  return {
-    [RSAA]: {
-      types: [GET_API_KEY_START, GET_API_KEY_SUCCESS, GET_API_KEY_FAILURE],
-      method: 'GET',
-      endpoint: API_URL + '/user/apikey'
-    }
-  };
-}
-
-export function generateApiKey() {
-  return (dispatch) => {
-    return dispatch(fetchApiKey());
-  };
-}
-
-export const CONNECT_BI_TOOL_START = 'CONNECT_BI_TOOL_START';
-export const CONNECT_BI_TOOL_SUCCESS = 'CONNECT_BI_TOOL_SUCCESS';
-export const CONNECT_BI_TOOL_FAILURE = 'CONNECT_BI_TOOL_FAILURE';
-
-function fetchSetConnectionBiTool(value) {
-  return {
-    [RSAA]: {
-      types: [CONNECT_BI_TOOL_START, CONNECT_BI_TOOL_SUCCESS, CONNECT_BI_TOOL_FAILURE],
-      method: 'GET',
-      endpoint: `${API_URL}/user/BiTool/${value}`
-    }
-  };
-}
-
-export function setConnectionBiTool(value) {
-  return (dispatch) => {
-    return dispatch(fetchSetConnectionBiTool(value));
-  };
-}
 
 export const LOGIN_USER_START = 'LOGIN_USER_START';
 export const LOGIN_USER_SUCCESS = 'LOGIN_USER_SUCCESS';

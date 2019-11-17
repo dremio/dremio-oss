@@ -15,6 +15,8 @@
  */
 package com.dremio;
 
+import java.math.BigDecimal;
+
 import org.junit.Test;
 
 public class TestIsNotDistinctFromJoin extends PlanTestBase {
@@ -38,5 +40,21 @@ public class TestIsNotDistinctFromJoin extends PlanTestBase {
       "  GROUP BY l_orderkey\n" +
       ") \"t1\" ON ( ( \"t0\".\"l_orderkey\" = \"t1\".\"l_orderkey\") OR ( ( \"t0\".\"l_orderkey\" IS NULL) AND ( \"t1\".\"l_orderkey\" IS NULL)))\n" +
       "GROUP BY \"t0\".\"l_returnflag\"\n", new String[] {"IS NOT DISTINCT FROM"});
+  }
+
+  @Test
+  public void testDecimalCoercion() throws Exception {
+    String sql = "select t1.dec_38_0, t2.dec_38_2 from\n" +
+      "  cp.\"decimal/different_scale.parquet\" t1,\n" +
+      "  cp.\"decimal/different_scale.parquet\" t2\n" +
+      "where\n" +
+      "  t1.dec_38_0 is not distinct from t2.dec_38_2";
+
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("dec_38_0", "dec_38_2")
+      .baselineValues(new BigDecimal("1"), new BigDecimal("1.00"))
+      .go();
   }
 }

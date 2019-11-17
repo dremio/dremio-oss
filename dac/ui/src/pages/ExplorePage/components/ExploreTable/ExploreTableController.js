@@ -24,7 +24,7 @@ import PropTypes from 'prop-types';
 import exploreUtils from 'utils/explore/exploreUtils';
 import exploreTransforms from 'utils/exploreTransforms';
 
-import { LIST, MAP } from 'constants/DataTypes';
+import { LIST, MAP } from '@app/constants/DataTypes';
 
 import { getPeekData, getImmutableTable, getPaginationUrl, getExploreState, getColumnFilter } from 'selectors/explore';
 import { getViewState } from 'selectors/resources';
@@ -371,7 +371,7 @@ export class ExploreTableController extends Component {
           getTableHeight={this.props.getTableHeight}
           isGrayed={this.state.isGrayed}
           shouldRenderInvisibles={this.props.shouldRenderInvisibles}
-          />
+        />
         {this.renderExploreCellLargeOverlay()}
         {this.state.activeTextSelect &&
           <DropdownForSelectedText

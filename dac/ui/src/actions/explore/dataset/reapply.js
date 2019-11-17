@@ -16,7 +16,7 @@
 import { RSAA } from 'redux-api-middleware';
 import { push, replace } from 'react-router-redux';
 
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import { datasetWithoutData } from 'schemas/v2/fullDataset';
 import { performNextAction } from 'actions/explore/nextAction';

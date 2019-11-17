@@ -28,9 +28,8 @@ import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.util.ConstructorChecker;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.avro.AvroFormatConfig;
+import com.dremio.exec.store.easy.arrow.ArrowFormatPluginConfig;
 import com.dremio.exec.store.easy.json.JSONFormatPlugin;
-import com.dremio.exec.store.easy.sequencefile.SequenceFileFormatConfig;
 import com.dremio.exec.store.easy.text.TextFormatPlugin;
 import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
@@ -73,7 +72,7 @@ public class FormatCreator {
 
   private final SabotContext context;
   private final FileSystemConf<?, ?> storageConfig;
-  private final FileSystemPlugin fsPlugin;
+  private final FileSystemPlugin<?> fsPlugin;
 
   /** format plugins initialized from the Sabot config, indexed by name */
   private final Map<String, FormatPlugin> pluginsByName;
@@ -101,11 +100,8 @@ public class FormatCreator {
     defaultFormats.put("psva", psva);
 
     defaultFormats.put("parquet", new ParquetFormatConfig());
-    defaultFormats.put("avro", new AvroFormatConfig());
     defaultFormats.put("json", new JSONFormatPlugin.JSONFormatConfig());
-    SequenceFileFormatConfig seq = new SequenceFileFormatConfig();
-    seq.extensions = Lists.newArrayList("seq");
-    defaultFormats.put("sequencefile", seq);
+    defaultFormats.put("dremarrow1", new ArrowFormatPluginConfig());
     return defaultFormats;
   }
 

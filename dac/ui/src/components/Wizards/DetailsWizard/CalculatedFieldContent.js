@@ -62,7 +62,7 @@ class CalculatedFieldContent extends Component {
             {...expression}
             activeMode
             dragType={this.props.dragType}
-            />
+          />
           <div className={content}>
             <NewFieldSection columnName={columnName} fields={this.props.fields} showDropSource={Boolean(columnName)}/>
           </div>
@@ -78,8 +78,8 @@ class CalculatedFieldContent extends Component {
 
 const mapStateToProps = (state, props) => {
   const fieldsForColumn = props.columnName
-  ? { sourceColumnName: props.columnName, dropSourceField: true }
-  : { sourceColumnName: props.columns && props.columns.getIn([0, 'name']), dropSourceField: false};
+    ? { sourceColumnName: props.columnName, dropSourceField: true }
+    : { sourceColumnName: props.columns && props.columns.getIn([0, 'name']), dropSourceField: false};
   return {
     initialValues: {
       newFieldName: props.columnName || la('new_field'),

@@ -15,7 +15,7 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V3 } from 'constants/Api';
+import { API_URL_V3 } from '@app/constants/Api';
 import { makeUncachebleURL } from 'ie11.js';
 import { USERS_VIEW_ID } from '@app/actions/admin';
 

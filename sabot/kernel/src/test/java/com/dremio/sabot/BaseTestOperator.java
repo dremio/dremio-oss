@@ -28,7 +28,7 @@ import org.antlr.runtime.CommonTokenStream;
 import org.antlr.runtime.RecognitionException;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
-import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.curator.utils.CloseableExecutorService;
 import org.junit.After;
@@ -291,7 +291,7 @@ public class BaseTestOperator extends ExecTest {
 
     if(clazz.isAssignableFrom(o.getClass())){
       // make sure that the set of closeables that should be cleaned in finally are empty since we were succesful.
-      return new Pair((T) o, context.getStats());
+      return new Pair(o, context.getStats());
     }else{
       throw new RuntimeException(String.format("Unable to convert from expected operator of type %s to type %s.", o.getClass().getName(), clazz.getName()));
     }
@@ -303,7 +303,8 @@ public class BaseTestOperator extends ExecTest {
     final ScanResult result = CLASSPATH_SCAN_RESULT;
     final ExecutorService inner = Executors.newCachedThreadPool();
     final CloseableExecutorService executor = new CloseableExecutorService(inner);
-    final BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
+    final BufferAllocator rootAllocator = RootAllocatorFactory.newRoot(config);
+    final BufferAllocator allocator = rootAllocator.newChildAllocator("base-test-operator", 0, Long.MAX_VALUE);
     final LogicalPlanPersistence persistence = new LogicalPlanPersistence(config, result);
 
     OperatorCreatorRegistry registry = new OperatorCreatorRegistry(result);
@@ -413,7 +414,7 @@ public class BaseTestOperator extends ExecTest {
     }
     @Override
     public void close() throws Exception {
-      AutoCloseables.close(options, provider, storeProvider, allocator, executor);
+      AutoCloseables.close(options, provider, storeProvider, allocator, rootAllocator, executor);
     }
 
     /**
@@ -578,8 +579,8 @@ public class BaseTestOperator extends ExecTest {
     validateSingle(pop, clazz, input.toGenerator(getTestAllocator()), result, batchSize);
   }
 
-  protected <T extends SingleInputOperator> void validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, Fixtures.Table result, int batchSize) throws Exception {
-    validateSingle(pop, clazz, generator, result, batchSize, null);
+  protected <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, Fixtures.Table result, int batchSize) throws Exception {
+    return validateSingle(pop, clazz, generator, result, batchSize, null);
   }
 
   private <T extends SingleInputOperator> OperatorStats validateSingle(PhysicalOperator pop, Class<T> clazz, Generator generator, Fixtures.Table result, int batchSize, Long expected) throws Exception {

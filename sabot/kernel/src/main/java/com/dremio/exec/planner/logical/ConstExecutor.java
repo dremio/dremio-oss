@@ -16,7 +16,6 @@
 package com.dremio.exec.planner.logical;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -241,8 +240,7 @@ public class ConstExecutor implements RexExecutor {
               outputFloat = ((NullableFloat4Holder) output).value;
             }
             reducedValues.set(index, rexBuilder.makeLiteral(
-              new BigDecimal(((Number)outputFloat).doubleValue(), MathContext.DECIMAL32)
-                .stripTrailingZeros(),
+              BigDecimal.valueOf(outputFloat).stripTrailingZeros(),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.FLOAT, false, null),
               false));
             break;
@@ -254,7 +252,7 @@ public class ConstExecutor implements RexExecutor {
               outputFloat8 = ((NullableFloat8Holder) output).value;
             }
             reducedValues.set(index, rexBuilder.makeLiteral(
-              new BigDecimal(((Number)outputFloat8).doubleValue(), MathContext.DECIMAL64).stripTrailingZeros(),
+              BigDecimal.valueOf(outputFloat8).stripTrailingZeros(),
               TypeInferenceUtils.createCalciteTypeWithNullability(typeFactory, SqlTypeName.DOUBLE, false, null),
               false));
             break;

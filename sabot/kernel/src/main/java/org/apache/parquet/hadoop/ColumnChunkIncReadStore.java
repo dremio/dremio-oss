@@ -24,8 +24,6 @@ import java.util.Map;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.page.DataPage;
@@ -34,15 +32,17 @@ import org.apache.parquet.column.page.DataPageV2;
 import org.apache.parquet.column.page.DictionaryPage;
 import org.apache.parquet.column.page.PageReadStore;
 import org.apache.parquet.column.page.PageReader;
+import org.apache.parquet.compression.CompressionCodecFactory;
+import org.apache.parquet.compression.CompressionCodecFactory.BytesInputDecompressor;
 import org.apache.parquet.format.DataPageHeaderV2;
 import org.apache.parquet.format.PageHeader;
 import org.apache.parquet.format.Util;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
-import org.apache.parquet.hadoop.CodecFactory.BytesDecompressor;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 
 import com.dremio.exec.store.parquet.BulkInputStream;
 import com.dremio.exec.store.parquet.InputStreamProvider;
+import com.dremio.io.file.Path;
 
 import io.netty.buffer.ByteBuf;
 
@@ -50,18 +50,16 @@ public class ColumnChunkIncReadStore implements PageReadStore {
 
   private static ParquetMetadataConverter parquetMetadataConverter = new ParquetMetadataConverter();
 
-  private CodecFactory codecFactory;
+  private CompressionCodecFactory codecFactory;
   private BufferAllocator allocator;
-  private FileSystem fs;
   private Path path;
   private long rowCount;
   private InputStreamProvider inputStreamProvider;
 
-  public ColumnChunkIncReadStore(long rowCount, CodecFactory codecFactory, BufferAllocator allocator,
-      FileSystem fs, Path path, InputStreamProvider inputStreamProvider) {
+  public ColumnChunkIncReadStore(long rowCount, CompressionCodecFactory codecFactory, BufferAllocator allocator,
+      Path path, InputStreamProvider inputStreamProvider) {
     this.codecFactory = codecFactory;
     this.allocator = allocator;
-    this.fs = fs;
     this.path = path;
     this.rowCount = rowCount;
     this.inputStreamProvider = inputStreamProvider;
@@ -110,7 +108,7 @@ public class ColumnChunkIncReadStore implements PageReadStore {
 
     private DictionaryPage dictionaryPage;
     protected BulkInputStream in;
-    private BytesDecompressor decompressor;
+    private BytesInputDecompressor decompressor;
 
     // Release the data page buffer before reading the next page or in close
     private ByteBuf lastDataPageUncompressed;
@@ -142,7 +140,7 @@ public class ColumnChunkIncReadStore implements PageReadStore {
           dictionaryPage = readDictionaryPageHelper(pageHeader);
         } catch (Exception e) {
           throw new RuntimeException("Error reading dictionary page." +
-            "\nFile path: " + path.toUri().getPath() +
+            "\nFile path: " + path.toURI().getPath() +
             "\nRow count: " + rowCount +
             "\nColumn Chunk Metadata: " + metaData +
             "\nPage Header: " + pageHeader +
@@ -228,7 +226,7 @@ public class ColumnChunkIncReadStore implements PageReadStore {
         throw e; // throw as it is
       } catch (Exception e) {
         throw new RuntimeException("Error reading page." +
-          "\nFile path: " + path.toUri().getPath() +
+          "\nFile path: " + path.toURI().getPath() +
           "\nRow count: " + rowCount +
           "\nColumn Chunk Metadata: " + metaData +
           "\nPage Header: " + pageHeader +

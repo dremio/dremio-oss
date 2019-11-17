@@ -21,7 +21,6 @@ import java.util.List;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.datastore.SearchTypes.SortOrder;
-import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.User;
@@ -29,6 +28,7 @@ import com.dremio.service.users.UserLoginException;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.dremio.service.users.proto.UID;
+import com.google.common.base.StandardSystemProperty;
 
 /**
  * Implement {@link UserService} for testing:
@@ -39,7 +39,7 @@ public class UserServiceTestImpl implements UserService {
   public static final String TEST_USER_1 = "testUser1";
   public static final String TEST_USER_2 = "testUser2";
   public static final String ADMIN_USER = "admin";
-  public static final String PROCESS_USER = ImpersonationUtil.getProcessUserName();
+  public static final String PROCESS_USER = StandardSystemProperty.USER_NAME.value();
   public static final String TEST_USER_1_PASSWORD = "testUser1Password";
   public static final String TEST_USER_2_PASSWORD = "testUser2Password";
   public static final String ADMIN_USER_PASSWORD = "adminUserPw";

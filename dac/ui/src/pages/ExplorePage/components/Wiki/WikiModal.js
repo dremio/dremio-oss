@@ -20,7 +20,7 @@ import { Map, fromJS } from 'immutable';
 import Modal from '@app/components/Modals/Modal';
 import ConfirmCancelFooter from '@app/components/Modals/ConfirmCancelFooter';
 import { showUnsavedChangesConfirmDialog } from '@app/actions/confirmation';
-import { MarkdownEditorView } from '@app/components/MarkdownEditor';
+import MarkdownEditor from '@app/components/MarkdownEditor';
 import ViewStateWrapper from '@app/components/ViewStateWrapper';
 import ApiUtils from '@app/utils/apiUtils/apiUtils';
 import { SectionTitle } from '@app/pages/ExplorePage/components/Wiki/SectionTitle';
@@ -92,7 +92,7 @@ export class WikiModalView extends PureComponent {
           {topSectionButtons && <SectionTitle buttons={topSectionButtons} />}
           <ViewStateWrapper viewState={wikiViewState}
             hideChildrenWhenFailed={false} style={wrapperStylesFix}>
-            <MarkdownEditorView
+            <MarkdownEditor
               ref={this.onEditorRef}
               value={wikiValue}
               readMode={isReadMode}
@@ -155,20 +155,20 @@ export class WikiModalWithSave extends PureComponent {
           version: wikiVersion
         })
       }, 3).then((response) => {
-        this.resetError();
-        this.wikiChanged = false;
-        response.json().then(save);
-      }, async (response) => {
-        this.setState({
-          wikiViewState: fromJS({
-            isFailed: true,
-            error: {
-              message: await ApiUtils.getErrorMessage(la('Wiki is not saved'), response),
-              id: '' + Math.random()
-            }
-          })
-        });
+      this.resetError();
+      this.wikiChanged = false;
+      response.json().then(save);
+    }, async (response) => {
+      this.setState({
+        wikiViewState: fromJS({
+          isFailed: true,
+          error: {
+            message: await ApiUtils.getErrorMessage(la('Wiki is not saved'), response),
+            id: '' + Math.random()
+          }
+        })
       });
+    });
   };
 
   cancel = () => {

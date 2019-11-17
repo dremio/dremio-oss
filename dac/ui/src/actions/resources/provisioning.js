@@ -16,7 +16,7 @@
 import { RSAA } from 'redux-api-middleware';
 import { push } from 'react-router-redux';
 
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 import provisionSchema from 'schemas/provision';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 

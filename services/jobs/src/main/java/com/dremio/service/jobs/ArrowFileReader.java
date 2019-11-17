@@ -22,16 +22,14 @@ import static com.dremio.service.jobs.RecordBatchHolder.newRecordBatchHolder;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import org.apache.commons.io.IOUtils;
 
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.exceptions.UserException;
@@ -43,8 +41,13 @@ import com.dremio.exec.store.easy.arrow.ArrowFileFooter;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.exec.store.easy.arrow.ArrowRecordBatchSummary;
+import com.dremio.io.FSInputStream;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Longs;
 
 /**
  * Reader which takes a file and reads the record batches.
@@ -57,37 +60,37 @@ class ArrowFileReader implements AutoCloseable {
   private final BufferAllocator allocator;
   private final Path path;
 
-  private FSDataInputStream inputStream;
+  private FSInputStream inputStream;
 
   ArrowFileReader(final FileSystem dfs, Path basePath, final ArrowFileMetadata metadata, final BufferAllocator allocator) {
     this.dfs = dfs;
     this.metadata = metadata;
     this.allocator = allocator;
-    this.path = new Path(basePath, metadata.getPath());
+    this.path = basePath.resolve(metadata.getPath());
   }
 
   private void openFile() throws IOException {
     inputStream = dfs.open(path);
 
     if (false /* disable this until a PDFS getFileStatus() issue is fixed AssertionUtil.ASSERT_ENABLED */) {
-      final FileStatus fileStatus = dfs.getFileStatus(path);
-      final long len = fileStatus.getLen();
+      final FileAttributes fileAttributes = dfs.getFileAttributes(path);
+      final long size = fileAttributes.size();
 
       // Make sure the file size is at least the 2 * (Magic word size) + Footer offset size
       // We write magic word both at the beginning and at the end of the file.
-      if (len < 2 * MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE) {
+      if (size < 2 * MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE) {
         throw UserException.dataReadError()
             .message("File is too small to be an Arrow format file")
             .addContext("path", path.toString())
             .build(logger);
       }
 
-      inputStream.seek(len - (MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE));
+      inputStream.setPosition(size - (MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE));
 
-      final long footerOffset = inputStream.readLong();
+      final long footerOffset = readLong(inputStream);
 
       final byte[] magic = new byte[MAGIC_STRING_LENGTH];
-      inputStream.readFully(magic);
+      IOUtils.readFully(inputStream, magic);
       // Make sure magic word matches
       if (!Arrays.equals(magic, MAGIC_STRING.getBytes())) {
         throw UserException.dataReadError()
@@ -97,7 +100,7 @@ class ArrowFileReader implements AutoCloseable {
       }
 
       // Make sure the footer offset is valid
-      if (footerOffset < MAGIC_STRING_LENGTH || footerOffset >= (len - (MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE))) {
+      if (footerOffset < MAGIC_STRING_LENGTH || footerOffset >= (size - (MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE))) {
         throw UserException.dataReadError()
             .message("Invalid footer offset")
             .addContext("filePath", path.toString())
@@ -148,7 +151,7 @@ class ArrowFileReader implements AutoCloseable {
       final long currentBatchCount = batchSummary.getRecordCount();
 
       // Seek to the place where the batch starts and read
-      inputStream.seek(batchSummary.getOffset());
+      inputStream.setPosition(batchSummary.getOffset());
       vectorAccessibleSerializable.readFromStream(inputStream);
       final VectorContainer vectorContainer = vectorAccessibleSerializable.get();
 
@@ -192,14 +195,14 @@ class ArrowFileReader implements AutoCloseable {
    * @throws IOException
    */
   private RecordBatchHolder getEmptyBatch() throws IOException {
-    final FileStatus fileStatus = dfs.getFileStatus(path);
-    final long len = fileStatus.getLen();
-    inputStream.seek(len - (MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE));
+    final FileAttributes fileAttributes = dfs.getFileAttributes(path);
+    final long size = fileAttributes.size();
+    inputStream.setPosition(size - (MAGIC_STRING_LENGTH + FOOTER_OFFSET_SIZE));
 
-    final long footerOffset = inputStream.readLong();
+    final long footerOffset = readLong(inputStream);
 
     // Read the footer
-    inputStream.seek(footerOffset);
+    inputStream.setPosition(footerOffset);
     ArrowFileFormat.ArrowFileFooter footer = ArrowFileFormat.ArrowFileFooter.parseDelimitedFrom(inputStream);
     BatchSchema footerSchema = BatchSchema.newBuilder().addSerializedFields(footer.getFieldList()).build();
 
@@ -248,5 +251,14 @@ class ArrowFileReader implements AutoCloseable {
     beanMetadata.setFooter(beanFooter);
 
     return beanMetadata;
+  }
+
+  private static final ThreadLocal<byte[]> READ_BUFFER = ThreadLocal.withInitial(() -> new byte[Long.BYTES]);
+
+  private static long readLong(InputStream is) throws IOException {
+    byte[] buffer = READ_BUFFER.get();
+    IOUtils.readFully(is, buffer);
+
+    return Longs.fromByteArray(buffer);
   }
 }

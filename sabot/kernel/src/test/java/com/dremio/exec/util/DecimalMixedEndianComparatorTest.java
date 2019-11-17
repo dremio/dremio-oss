@@ -18,19 +18,32 @@ package com.dremio.exec.util;
 import java.math.BigDecimal;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+
+import com.dremio.common.AutoCloseables;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 
 import io.netty.buffer.ArrowBuf;
 
-public class DecimalMixedEndianComparatorTest {
+public class DecimalMixedEndianComparatorTest extends DremioTest {
   private BufferAllocator testAllocator;
+
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Before
   public void setupBeforeTest() {
-    testAllocator = new RootAllocator(Long.MAX_VALUE);
+    testAllocator = allocatorRule.newAllocator("decimal-mixed-endian-comparator-test", 0, Long.MAX_VALUE);
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    AutoCloseables.close(testAllocator);
   }
 
   @Test

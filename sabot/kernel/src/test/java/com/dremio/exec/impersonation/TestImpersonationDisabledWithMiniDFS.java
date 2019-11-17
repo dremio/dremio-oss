@@ -19,6 +19,7 @@ import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.exec.catalog.CatalogServiceImpl;
@@ -34,6 +35,8 @@ import com.google.common.collect.Maps;
  * the tests. Running this mini cluster is slow and it is best for these tests to only cover
  * necessary cases.
  */
+// DX-18454: ignoring tests due to jetty version mismatch with Hadoop 3.2
+@Ignore
 public class TestImpersonationDisabledWithMiniDFS extends BaseTestImpersonation {
 
   @BeforeClass

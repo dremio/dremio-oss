@@ -1164,6 +1164,23 @@ public final class LBlockHashTable implements AutoCloseable {
     listener.resetToMinimumSize();
   }
 
+
+  public void releaseBatch(final int batchIdx) throws Exception {
+    if (batchIdx == 0) {
+      controlBlocks[0].reset();
+      fixedBlocks[0].reset();
+      variableBlocks[0].reset();
+      initControlBlock(tableControlAddresses[0]);
+      return;
+    }
+
+    initControlBlock(tableControlAddresses[batchIdx]);
+    AutoCloseables.close(controlBlocks[batchIdx], fixedBlocks[batchIdx], variableBlocks[batchIdx]);
+
+    //release memory from accumulator
+    listener.releaseBatch(batchIdx);
+  }
+
   private void initControlBlock(final long controlBlockAddr) {
     final long addr = controlBlockAddr;
     final long max = addr + MAX_VALUES_PER_BATCH * CONTROL_WIDTH;

@@ -15,9 +15,10 @@
  */
 package com.dremio;
 
-import org.junit.Test;
+import java.util.regex.Pattern;
 
-import com.dremio.exec.planner.physical.PlannerSettings;
+import org.junit.Ignore;
+import org.junit.Test;
 
 public class TestFilterPastJoin extends PlanTestBase {
 
@@ -27,6 +28,14 @@ public class TestFilterPastJoin extends PlanTestBase {
       "FROM cp.\"tpch/lineitem.parquet\" l1 JOIN cp.\"tpch/lineitem.parquet\" l2\n" +
       "ON l1.l_shipdate = l2.l_receiptdate AND l1.l_orderkey = 32";
     testPlanMatchingPatterns(sql, new String[]{ "(?s)Join.*Filter" }, "(?s)Filter.*Join");
+  }
+
+  @Test
+  public void filterInCrossJoin() throws Exception {
+    String sql = "SELECT * " +
+        "FROM cp.\"tpch/lineitem.parquet\" l1, cp.\"tpch/lineitem.parquet\" l2 " +
+        "WHERE l1.l_orderkey - l2.l_partkey = 10";
+        testPlanMatchingPatterns(sql, new String[]{ Pattern.quote("NestedLoopJoin(condition=[=(-($0, $17), 10)]") }, new String[]{});
   }
 
   @Test
@@ -46,15 +55,11 @@ public class TestFilterPastJoin extends PlanTestBase {
   }
 
   @Test
+  @Ignore("DX-16984")
   public void filterInOnClauseTransitive() throws Exception {
-    setSessionOption(PlannerSettings.TRANSITIVE_JOIN, "true");
-    try {
-      String sql = "SELECT count(*)\n" +
-        "FROM cp.\"tpch/lineitem.parquet\" JOIN cp.\"tpch/orders.parquet\"\n" +
-        "ON l_orderkey = o_orderkey AND l_orderkey = 32";
-      testPlanMatchingPatterns(sql, new String[]{"(?s)Join.*Filter.*Filter"}, "(?s)Filter.*Join");
-    } finally {
-      resetSessionOption(PlannerSettings.TRANSITIVE_JOIN);
-    }
+    String sql = "SELECT count(*)\n" +
+      "FROM cp.\"tpch/lineitem.parquet\" JOIN cp.\"tpch/orders.parquet\"\n" +
+      "ON l_orderkey = o_orderkey AND l_orderkey = 32";
+    testPlanMatchingPatterns(sql, new String[]{"(?s)Join.*Filter.*Filter"}, "(?s)Filter.*Join");
   }
 }

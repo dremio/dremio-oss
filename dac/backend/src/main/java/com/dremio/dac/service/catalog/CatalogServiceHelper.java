@@ -229,7 +229,7 @@ public class CatalogServiceHelper {
         .collect(Collectors.toList()));
   }
 
-  private NameSpaceContainer getNamespaceEntity(NamespaceKey namespaceKey) throws NamespaceException {
+  protected NameSpaceContainer getNamespaceEntity(NamespaceKey namespaceKey) throws NamespaceException {
     return namespaceService.getEntities(Collections.singletonList(namespaceKey)).get(0);
   }
 

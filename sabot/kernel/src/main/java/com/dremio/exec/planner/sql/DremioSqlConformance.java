@@ -30,4 +30,45 @@ public final class DremioSqlConformance extends SqlDelegatingConformance {
   public boolean isBangEqualAllowed() {
     return true;
   }
+
+  @Override
+  public boolean isGroupByAlias() {
+    return true;
+  }
+
+  @Override
+  public boolean isGroupByOrdinal() {
+    return true;
+  }
+
+  @Override
+  public boolean isHavingAlias() {
+    return true;
+  }
+
+  @Override
+  public boolean isSortByOrdinal() {
+    return true;
+  }
+
+  @Override
+  public boolean isSortByAlias() {
+    return true;
+  }
+
+  @Override
+  public boolean isPercentRemainderAllowed() {
+    return true;
+  }
+
+  @Override
+  public boolean allowNiladicParentheses() {
+    return true;
+  }
+
+  @Override
+  public boolean allowExplicitRowValueConstructor() {
+    return true;
+  }
+
 }

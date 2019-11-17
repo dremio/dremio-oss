@@ -15,6 +15,8 @@
  */
 package com.dremio.exec;
 
+import static org.junit.Assert.assertTrue;
+
 import java.math.BigDecimal;
 import java.util.stream.IntStream;
 
@@ -711,9 +713,9 @@ public class TestWindowFunctions extends BaseTestQuery {
   public void testConstantsInMultiplePartitions() throws Exception {
     String root = FileUtils.getResourceAsFile("/store/text/data/t.json").toURI().toString();
     String query = String.format(
-        "select sum(1) over(partition by b1 order by a1) as sum1, sum(1) over(partition by a1) as sum2, rank() over(order by b1) as rank1, rank() over(order by 1) as rank2 \n" +
-        "from dfs_test.\"%s\" \n" +
-        "order by 1, 2, 3, 4", root);
+        "select sum(1) over(partition by b1 order by a1) as sum1, sum(1) over(partition by a1) as sum2, rank() over(order by b1) as rank1 \n" +
+        "from dfs_test.\"%s\" t\n" +
+        "order by 1, 2, 3", root);
 
     // Validate the plan
     final String[] expectedPlan = {"Window.*SUM\\(\\$3\\).*\n" +
@@ -725,17 +727,17 @@ public class TestWindowFunctions extends BaseTestQuery {
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
-        .baselineColumns("sum1", "sum2", "rank1", "rank2")
-        .baselineValues(2l, 5l, 1l, 1l)
-        .baselineValues(2l, 5l, 1l, 1l)
-        .baselineValues(2l, 5l, 6l, 1l)
-        .baselineValues(2l, 5l, 6l, 1l)
-        .baselineValues(3l, 5l, 3l, 1l)
-        .baselineValues(3l, 5l, 3l, 1l)
-        .baselineValues(3l, 5l, 3l, 1l)
-        .baselineValues(3l, 5l, 8l, 1l)
-        .baselineValues(3l, 5l, 8l, 1l)
-        .baselineValues(3l, 5l, 8l, 1l)
+        .baselineColumns("sum1", "sum2", "rank1")
+        .baselineValues(2l, 5l, 1l)
+        .baselineValues(2l, 5l, 1l)
+        .baselineValues(2l, 5l, 6l)
+        .baselineValues(2l, 5l, 6l)
+        .baselineValues(3l, 5l, 3l)
+        .baselineValues(3l, 5l, 3l)
+        .baselineValues(3l, 5l, 3l)
+        .baselineValues(3l, 5l, 8l)
+        .baselineValues(3l, 5l, 8l)
+        .baselineValues(3l, 5l, 8l)
         .build()
         .run();
   }
@@ -770,8 +772,8 @@ public class TestWindowFunctions extends BaseTestQuery {
 
   @Test // see DRILL-3657
   public void testProjectPushPastWindow() throws Exception {
-    String query = "select sum(n_nationkey) over(partition by 1 order by 1) as col1, \n" +
-            "count(n_nationkey) over(partition by 1 order by 1) as col2 \n" +
+    String query = "select sum(n_nationkey) over(partition by 1) as col1, \n" +
+            "count(n_nationkey) over(partition by 1) as col2 \n" +
             "from cp.\"tpch/nation.parquet\" \n" +
             "limit 5";
 
@@ -1052,5 +1054,50 @@ public class TestWindowFunctions extends BaseTestQuery {
         + " from cp.\"tpch/lineitem.parquet\" group by l_partkey, l_suppkey)";
     // Confirming that query can be planned. See DX-14211
     test(query);
+  }
+
+  @Test
+  public void testEmptyOver() throws Exception {
+    String query = "select count(*) over () from cp.\"tpch/lineitem.parquet\"";
+    test(query);
+  }
+
+  @Test
+  public void testEmptyOverWithLag() throws Exception {
+    try {
+      String query = "select lag(l_extendedprice) over () from cp.\"tpch/lineitem.parquet\"";
+      test(query);
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("LAG, LEAD or NTILE functions require ORDER BY clause in window specification"));
+    }
+  }
+
+  @Test
+  public void testEmptyOverWithLead() throws Exception {
+    try {
+      String query = "select lead(l_extendedprice) over () from cp.\"tpch/lineitem.parquet\"";
+      test(query);
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("LAG, LEAD or NTILE functions require ORDER BY clause in window specification"));
+    }
+  }
+
+  @Test
+  public void testEmptyOverWithNtile() throws Exception {
+    try {
+      String query = "select ntile(10) over () from cp.\"tpch/lineitem.parquet\"";
+      test(query);
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("LAG, LEAD or NTILE functions require ORDER BY clause in window specification"));
+    }
+  }
+
+  @Test
+  public void testOrderByOrdinal() throws Exception {
+    try {
+      test("select lead(100) over (order by 1) from cp.\"tpch/lineitem.parquet\"");
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("Dremio does not currently support order by with ordinals in over clause"));
+    }
   }
 }

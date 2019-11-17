@@ -80,4 +80,6 @@ public interface Accumulator extends AutoCloseable {
   void commitResize();
 
   void verifyBatchCount(int batches);
+
+  void releaseBatch(final int batchIdx);
 }

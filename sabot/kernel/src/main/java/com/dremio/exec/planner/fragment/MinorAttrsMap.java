@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.proto.CoordExecRPC.MinorAttr;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.ByteString;
 
@@ -42,14 +41,13 @@ public class MinorAttrsMap {
 
   public ByteString getAttrValue(Key key) {
     MinorAttr attr = map.get(key);
-    Preconditions.checkNotNull(
-      attr,
-      String.format(
+    if (attr == null) {
+      throw new NullPointerException(String.format(
         "Could not find minor specific attr value for operator %d-xx-%d, %s\nMap:%s",
         OpProps.getMajorFragmentId(key.getOperatorId()),
         OpProps.getLocalOperatorId(key.getOperatorId()),
         key.getName(), map));
-
+    }
     return attr.getValue();
   }
 

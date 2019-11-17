@@ -16,11 +16,18 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import uuid from 'uuid';
+import { get, set } from 'lodash/object';
 
 import FieldList, {AddButton, RemoveButton, RemoveButtonStyles } from 'components/Fields/FieldList';
 import { sectionTitle, description as descriptionStyle } from 'uiTheme/radium/forms';
+import FormUtils from '@app/utils/FormUtils/FormUtils';
 
 import Host from './Host';
+
+
+const { CONFIG_PROP_NAME, addFormPrefixToPropName } = FormUtils;
+
+const defaultPropName = addFormPrefixToPropName('hostList');
 
 HostItem.propTypes = {
   style: PropTypes.object,
@@ -42,22 +49,21 @@ function getKey(item) {
 }
 
 function validateHostList(values, elementConfig) {
-  const propertyName = (elementConfig) ? elementConfig.propertyName : 'hostList';
-  const {config} = values;
-  const hostList = config[propertyName];
-  const result = {config: {}};
+  const propertyName = (elementConfig) ? elementConfig.propertyName : defaultPropName;
+  const hostList = get(values, propertyName);
+  const result = {};
   if (!hostList || hostList.length === 0 || (hostList.length === 1 && !hostList[0].hostname)) {
-    result.config[propertyName] = [{hostname: 'At least one host is required.'}];
+    set(result, propertyName, [{hostname: 'At least one host is required.'}]);
     return result;
   }
 
-  result.config[propertyName] = hostList.map(host => Host.validate(host));
+  set(result, propertyName, hostList.map(host => Host.validate(host)));
   return result;
 }
 
 export default class HostList extends Component {
   static getFields(elementConfig) {
-    const propName = (elementConfig) ? elementConfig.propName : 'config.hostList';
+    const propName = (elementConfig) ? elementConfig.propName : defaultPropName;
     return Host.getFields().map(key => `${propName}[].${key}`);
   }
 
@@ -81,12 +87,12 @@ export default class HostList extends Component {
   }
 
   static validate(values) {
-    const {config: {hostList}} = values;
+    const { [CONFIG_PROP_NAME]: {hostList}} = values;
     if (!hostList || hostList.length === 0) {
-      return {config: {hostList: 'At least one host is required.'}};
+      return { [CONFIG_PROP_NAME]: {hostList: 'At least one host is required.'}};
     }
 
-    return {config: {hostList: hostList.map((host) => {
+    return { [CONFIG_PROP_NAME]: {hostList: hostList.map((host) => {
       return Host.validate(host);
     })}};
   }
@@ -99,13 +105,13 @@ export default class HostList extends Component {
   addItem(e) {
     e.preventDefault();
     const defaultPort = this.props.defaultPort || this.props.elementConfig.default_port || 9200;
-    this.props.fields.config[this.props.elementConfig.propertyName].addField(HostList.getNewHost(defaultPort));
+    get(this.props.fields, this.props.elementConfig.propertyName).addField(HostList.getNewHost(defaultPort));
   }
 
   render() {
     const {fields, single, title} = this.props;
     const {elementConfig} = this.props;
-    const fieldItems = fields.config[elementConfig.propertyName];
+    const fieldItems = get(fields, elementConfig.propertyName);
     const description = this.props.description ? <div style={styles.des}>{this.props.description}</div> : null;
     const addHost = !single
       ? <AddButton style={styles.addButton} addItem={this.addItem}>{la('Add host')}</AddButton>

@@ -255,4 +255,25 @@ describe('AccelerationForm', () => {
       expect(instance.renderExtraErrorMessages().length).to.equal(2);
     });
   });
+
+  describe('formIsDirty', () => {
+    it('should be initially set to false', () => {
+      const instance = shallow(<AccelerationForm {...commonProps}/>).instance();
+      expect(instance.state.formIsDirty).to.equal(false);
+    });
+    it('should be true after value change', () => {
+      const instance = shallow(<AccelerationForm {...commonProps}/>).instance();
+      instance.componentWillReceiveProps({...commonProps, values: {...values, rawReflections: []}});
+      expect(instance.state.formIsDirty).to.equal(true);
+    });
+    it('should be false after revert&submit/updateInitialValues', () => {
+      const instance = shallow(<AccelerationForm {...commonProps} />).instance();
+      instance.componentWillReceiveProps({...commonProps, values: {...values, rawReflections: []}});
+      expect(instance.state.formIsDirty).to.equal(true);
+      instance.updateInitialValues();
+      setTimeout(() => {
+        expect(instance.state.formIsDirty).to.equal(false);
+      }, 1);
+    });
+  });
 });

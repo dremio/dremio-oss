@@ -43,7 +43,8 @@ class IntercomUtils {
    * @returns {boolean}
    */
   ifChatAllowed(errorCallback) {
-    return this._ifAllowed(true, errorCallback);
+    // return this._ifAllowed(true, errorCallback); // disabling chat per DX-16804
+    return false;
   }
 
   _ifAllowed(forChat = false, errorCallback) {
@@ -108,7 +109,7 @@ class IntercomUtils {
         ...this._getExtraBootData()
       });
     }
-  }
+  };
 
   // need so Intercom can keep track of where user is for single-page-app nav
   update = () => {
@@ -119,7 +120,7 @@ class IntercomUtils {
     this._sendToIntercom('update');
 
     // todo: how do we avoid chat inbound from Intercom? (do we want to?)
-  }
+  };
 
   shutdown = () => {
     this._sendToIntercom('shutdown');

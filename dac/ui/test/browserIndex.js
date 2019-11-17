@@ -23,7 +23,7 @@ window.config = {
 const requireWithContext = require.context(
   'mocha-loader!./../src/',
   true,
-  /.+\-spec\.js?$/
+  /.+-spec\.js?$/
 );
 
 requireWithContext.keys().forEach(requireWithContext);

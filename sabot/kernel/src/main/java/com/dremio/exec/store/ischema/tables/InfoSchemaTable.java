@@ -76,11 +76,12 @@ public enum InfoSchemaTable implements DatasetHandle, DatasetMetadata, Partition
       String username,
       DatasetListingService service,
       SearchQuery query,
-      List<SchemaPath> columns
+      List<SchemaPath> columns,
+      int batchSize
   ) {
     return new PojoRecordReader(definition.getRecordClass(),
         definition.asIterable(catalogName, username, service, query).iterator(),
-        columns);
+        columns, batchSize);
   }
 
   @Override

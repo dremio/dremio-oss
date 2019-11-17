@@ -33,7 +33,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexShuttle;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.type.SqlTypeName;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.datastore.LegacyProtobufSerializer;
@@ -53,6 +52,7 @@ import com.dremio.exec.planner.sql.TypeInferenceUtils;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetScanPrel;
 import com.dremio.exec.util.GlobalDictionaryBuilder;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.DictionaryEncodedColumns;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetXAttr;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
@@ -232,7 +232,7 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
     }
 
     return new PrelWithDictionaryInfo(
-      (Prel)projectPrel.copy(projectPrel.getTraitSet(), newInput.getPrel(), newExprs, rowDataType), reorderedFields);
+      projectPrel.copy(projectPrel.getTraitSet(), newInput.getPrel(), newExprs, rowDataType), reorderedFields);
   }
 
   @Override
@@ -376,7 +376,7 @@ public class GlobalDictionaryVisitor extends BasePrelVisitor<PrelWithDictionaryI
       final DictionaryEncodedColumns dictionaryEncodedColumns = xAttr.getDictionaryEncodedColumns();
       dictionaryVersion = dictionaryEncodedColumns.getVersion();
       // Construct paths to dictionary files based on the version found in namespace. Do NOT look for files during planning.
-      final Path dictionaryRootPath = new Path(dictionaryEncodedColumns.getRootPath());
+      final Path dictionaryRootPath = Path.of(dictionaryEncodedColumns.getRootPath());
       for (String dictionaryEncodedColumn : dictionaryEncodedColumns.getColumnsList()) {
         if (!columnsPushedToScan.contains(dictionaryEncodedColumn)) {
           dictionaryEncodedColumnsToDictionaryFilePath.put(dictionaryEncodedColumn,

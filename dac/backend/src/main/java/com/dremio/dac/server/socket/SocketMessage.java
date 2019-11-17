@@ -111,6 +111,51 @@ public class SocketMessage {
   }
 
   /**
+   * Message from server > client informing client of updated record count.
+   */
+  @JsonTypeName("job-records")
+  public static class JobRecordsUpdate extends Payload {
+    private final JobId id;
+    private final long recordCount;
+
+    @JsonCreator
+    public JobRecordsUpdate(
+        @JsonProperty("id") JobId id,
+        @JsonProperty("recordCount") long recordCount) {
+      super();
+      this.id = id;
+      this.recordCount = recordCount;
+    }
+
+    public JobId getId() {
+      return id;
+    }
+
+    public long getRecordCount() {
+      return recordCount;
+    }
+  }
+
+  /**
+   * Message from client > server requesting record count updates.
+   */
+  @JsonTypeName("job-records-listen")
+  public static class ListenRecords extends Payload {
+    private final JobId id;
+
+    @JsonCreator
+    public ListenRecords(
+        @JsonProperty("id") JobId id) {
+      super();
+      this.id = id;
+    }
+
+    public JobId getId() {
+      return id;
+    }
+  }
+
+  /**
    * Message from server > client informing client updated job progress for history.
    */
   @JsonTypeName("job-progress")
@@ -208,8 +253,10 @@ public class SocketMessage {
         SocketMessage.ConnectionEstablished.class,
         SocketMessage.JobDetailsUpdate.class,
         SocketMessage.JobProgressUpdate.class,
+        SocketMessage.JobRecordsUpdate.class,
         SocketMessage.ListenDetails.class,
         SocketMessage.ListenProgress.class,
+        SocketMessage.ListenRecords.class,
         SocketMessage.ErrorPayload.class,
         SocketMessage.PingPayload.class,
         };

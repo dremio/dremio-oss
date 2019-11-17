@@ -148,21 +148,21 @@ public class YarnWatchdog {
         } else {
           ++numFailedPolls;
           if (numFailedPolls < missedPollsBeforeKill) {
-            logger.log(Level.INFO,"Watchdog poll failed. Number failed polls currently at %d", numFailedPolls);
+            logger.log(Level.INFO,"Watchdog poll failed. Number failed polls currently at {0}", numFailedPolls);
             long elapsedTime = System.currentTimeMillis() - lastPollSucceedTime;
             if (elapsedTime > (pollIntervalMs + pollTimeoutMs) * missedPollsBeforeKill) {
               /* Watchdog is expected to complete missedPollsBeforeKill polls, but actually it's not, because it might be
                  slow down for the whole system is unhealthy. We should kill watched process, otherwise watchdog might not
                  be able to get a chance to do next poll if the system become totally unhealthy.
                */
-              logger.log(Level.SEVERE, "Watchdog is unhealthy, elapsedTime is %dms, numFailedPolls is %d, pollIntervalMs is %d, pollTimeoutMs is %d, missedPollsBeforeKill is %d. Issuing process kill",
+              logger.log(Level.SEVERE, "Watchdog is unhealthy, elapsedTime is %dms, numFailedPolls is {0}, pollIntervalMs is {1}, pollTimeoutMs is {2}, missedPollsBeforeKill is {3}. Issuing process kill",
                 new Object[] {elapsedTime, numFailedPolls, pollIntervalMs, pollTimeoutMs, missedPollsBeforeKill});
               watchdogAction.doKill();
               running = false;
               break;
             }
           } else {
-            logger.log(Level.SEVERE,"Watchdog detected %d failed polls. Issuing process kill", numFailedPolls);
+            logger.log(Level.SEVERE,"Watchdog detected {0} failed polls. Issuing process kill", numFailedPolls);
             watchdogAction.doKill();
             running = false;
             break;
@@ -183,7 +183,7 @@ public class YarnWatchdog {
       try {
         watchdogAction.close();
       } catch (Exception e) {
-        logger.log(Level.SEVERE,"Closing the watchdog failed %s", exceptionStacktraceToString(e));
+        logger.log(Level.SEVERE,"Closing the watchdog failed {0}", exceptionStacktraceToString(e));
       }
       logger.log(Level.INFO,"Watchdog exiting normally");
     }

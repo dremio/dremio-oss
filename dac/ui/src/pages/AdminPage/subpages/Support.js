@@ -33,8 +33,7 @@ import ViewStateWrapper from 'components/ViewStateWrapper';
 import SimpleButton from 'components/Buttons/SimpleButton';
 import TextField from 'components/Fields/TextField';
 import ApiUtils from '@app/utils/apiUtils/apiUtils';
-import SupportAccess,
-  { RESERVED as SUPPORT_ACCESS_RESERVED } from 'dyn-load/pages/AdminPage/subpages/SupportAccess';
+import SupportAccess, { RESERVED as SUPPORT_ACCESS_RESERVED } from 'dyn-load/pages/AdminPage/subpages/SupportAccess';
 import FormUnsavedRouteLeave from 'components/Forms/FormUnsavedRouteLeave';
 
 import Header from '../components/Header';
@@ -53,7 +52,8 @@ export class Support extends PureComponent {
     addNotification: PropTypes.func.isRequired,
     viewState: PropTypes.instanceOf(Immutable.Map).isRequired,
     settings: PropTypes.instanceOf(Immutable.Map).isRequired,
-    setChildDirtyState: PropTypes.func
+    setChildDirtyState: PropTypes.func,
+    getSetting: PropTypes.func
   }
 
   componentWillMount() {

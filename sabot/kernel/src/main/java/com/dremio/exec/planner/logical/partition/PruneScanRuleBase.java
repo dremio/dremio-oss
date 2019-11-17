@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Nullable;
@@ -72,6 +73,7 @@ import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.Types;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.expr.HashVisitor;
@@ -98,6 +100,7 @@ import com.dremio.service.Pointer;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.PartitionValue;
+import com.github.slugify.Slugify;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -114,6 +117,7 @@ import com.google.common.collect.Maps;
 public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> extends RelOptRule {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PruneScanRuleBase.class);
 
+  private static final Slugify SLUGIFY = new Slugify();
   private static final long MIN_TO_LOG_INFO_MS = 10000;
 
   public static final int PARTITION_BATCH_SIZE = Character.MAX_VALUE;
@@ -172,6 +176,12 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
   }
 
   public static class PruneScanRuleFilterOnProject<T extends ScanRelBase & PruneableScan> extends PruneScanRuleBase<T> {
+    public PruneScanRuleFilterOnProject(StoragePluginId pluginId, Class<T> clazz, OptimizerRulesContext optimizerContext) {
+      super(pluginId.getType(), RelOptHelper.some(FilterRel.class, RelOptHelper.some(ProjectRel.class, RelOptHelper.any(clazz))),
+        pluginId.getType().value() + "NewPruneScanRule:Filter_On_Project."
+          + SLUGIFY.slugify(pluginId.getName()) + "." + UUID.randomUUID().toString(), optimizerContext);
+    }
+
     public PruneScanRuleFilterOnProject(SourceType pluginType, Class<T> clazz, OptimizerRulesContext optimizerContext) {
       super(pluginType, RelOptHelper.some(FilterRel.class, RelOptHelper.some(ProjectRel.class, RelOptHelper.any(clazz))),
           pluginType.value() + "NewPruneScanRule:Filter_On_Project", optimizerContext);
@@ -204,6 +214,12 @@ public abstract class PruneScanRuleBase<T extends ScanRelBase & PruneableScan> e
   }
 
   public static class PruneScanRuleFilterOnScan<T extends ScanRelBase & PruneableScan> extends PruneScanRuleBase<T> {
+    public PruneScanRuleFilterOnScan(StoragePluginId pluginId, Class<T> clazz, OptimizerRulesContext optimizerContext) {
+      super(pluginId.getType(), RelOptHelper.some(FilterRel.class, RelOptHelper.any(clazz)),
+        pluginId.getType().value() + "NewPruneScanRule:Filter_On_Scan."
+          + SLUGIFY.slugify(pluginId.getName()) + "." + UUID.randomUUID().toString(), optimizerContext);
+    }
+
     public PruneScanRuleFilterOnScan(SourceType pluginType, Class<T> clazz, OptimizerRulesContext optimizerContext) {
       super(pluginType, RelOptHelper.some(FilterRel.class, RelOptHelper.any(clazz)), pluginType.value() + "NewPruneScanRule:Filter_On_Scan", optimizerContext);
     }

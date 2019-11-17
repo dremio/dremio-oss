@@ -58,8 +58,6 @@ export class JobDetails extends Component {
     viewState: PropTypes.instanceOf(Immutable.Map)
   };
 
-  refreshInterval = 0;
-
   defaultProps = {
     jobDetails: Immutable.Map()
   }
@@ -79,7 +77,6 @@ export class JobDetails extends Component {
 
   componentWillUnmount() {
     this.stopListenToJobChange(this.props.jobId);
-    clearInterval(this.refreshInterval);
   }
 
   receiveProps(nextProps, oldProps) {
@@ -89,8 +86,6 @@ export class JobDetails extends Component {
     if (jobId && jobId !== oldJobId) {
       this.stopListenToJobChange(oldJobId);
       this.load(jobId);
-      clearInterval(this.refreshInterval);
-      this.refreshInterval = setInterval(this.load, 3000);
     }
   }
 

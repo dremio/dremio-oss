@@ -95,6 +95,7 @@ import com.dremio.service.Pointer;
 import com.dremio.service.Service;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.GetJobRequest;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobRequest;
@@ -556,7 +557,10 @@ public class SupportService implements Service {
       zip.putNextEntry(new ZipEntry("header.json"));
       recordHeader(zip, jobId, config, submissionId);
 
-      final Job job = jobsService.get().getJob(jobId);
+      GetJobRequest request = GetJobRequest.newBuilder()
+        .setJobId(jobId)
+        .build();
+      final Job job = jobsService.get().getJob(request);
       for(int attemptIndex = 0; attemptIndex < job.getAttempts().size() ; attemptIndex++) {
         zip.putNextEntry(new ZipEntry(String.format("profile_attempt_%d.json", attemptIndex)));
         QueryProfile profile = recordProfile(zip, jobId, attemptIndex);
@@ -585,7 +589,10 @@ public class SupportService implements Service {
     SupportHeader header = new SupportHeader();
 
     header.setClusterInfo(getClusterInfo());
-    header.setJob(jobsService.get().getJob(id).getJobAttempt());
+    GetJobRequest request = GetJobRequest.newBuilder()
+      .setJobId(id)
+      .build();
+    header.setJob(jobsService.get().getJob(request).getJobAttempt());
 
     Submission submission = new Submission()
         .setSubmissionId(submissionId)

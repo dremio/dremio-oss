@@ -27,10 +27,33 @@ import Header from 'pages/AdminPage/components/Header';
 import NodeTableCell from 'pages/AdminPage/subpages/NodeActivity/NodeTableCell';
 import NodeActivityViewMixin from 'dyn-load/pages/AdminPage/subpages/NodeActivity/NodeActivityViewMixin';
 
-import './NodeActivity.less'; // TODO to Vasyl, need to use Radium
+import './NodeActivity.less';
 import { page, pageContent } from 'uiTheme/radium/general';
 
 export const VIEW_ID = 'NodeActivityView';
+
+export const COLUMNS_CONFIG = [ //TODO intl
+  {
+    label: 'Node',
+    flexGrow: 1
+  },
+  {
+    label: 'Host',
+    flexGrow: 1
+  },
+  {
+    label: 'Port',
+    width: 100
+  },
+  {
+    label: 'CPU',
+    width: 100
+  },
+  {
+    label: 'Memory',
+    width: 140
+  }
+];
 
 @Radium
 @pureRender
@@ -40,29 +63,10 @@ class NodeActivityView extends Component {
   static propTypes = {
     sourceNodesList: PropTypes.instanceOf(Immutable.Map),
     viewState: PropTypes.instanceOf(Immutable.Map)
-  }
+  };
 
   getTableColumnsConfig() {
-    return [{
-      label: la('Node'),
-      flexGrow: 1
-    },
-    {
-      label: la('Host'),
-      flexGrow: 1
-    },
-    {
-      label: la('Port'),
-      width: 100
-    },
-    {
-      label: la('CPU'),
-      width: 100
-    },
-    {
-      label: la('Memory'),
-      width: 140
-    }];
+    return COLUMNS_CONFIG;
   }
 
   getTableColumns() {
@@ -105,7 +109,7 @@ class NodeActivityView extends Component {
   }
 
   getTableData() { // todo: styling: col alignment and spacing (esp. numbers)
-    const columnNames = this.getTableColumnsConfig().map(column => column.label);
+    const columnNames = COLUMNS_CONFIG.map(column => column.label);
     const nodes = this.getNodes();
     return nodes.map( node => this.getNodeData(columnNames, node, nodes));
   }

@@ -19,6 +19,7 @@ import static com.dremio.dac.proto.model.dataset.OrderDirection.ASC;
 import static com.dremio.service.namespace.dataset.DatasetVersion.newVersion;
 import static javax.ws.rs.client.Entity.entity;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -30,6 +31,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
@@ -54,11 +57,14 @@ import com.dremio.dac.explore.model.InitialTransformAndRunResponse;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.proto.model.dataset.TransformSort;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.server.socket.SocketMessage.ConnectionEstablished;
 import com.dremio.dac.server.socket.SocketMessage.ErrorPayload;
 import com.dremio.dac.server.socket.SocketMessage.JobDetailsUpdate;
 import com.dremio.dac.server.socket.SocketMessage.JobProgressUpdate;
+import com.dremio.dac.server.socket.SocketMessage.JobRecordsUpdate;
 import com.dremio.dac.server.socket.SocketMessage.Payload;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
@@ -149,6 +155,45 @@ public class TestWebSocket extends BaseTestServer {
     JobProgressUpdate progressUpdate = (JobProgressUpdate) payloads.get(payloads.size() - 1);
     assertTrue(progressUpdate.getUpdate().isComplete());
     expectSuccess(getBuilder(runResp.getPaginationUrl() + "?offset=0&limit=50").buildGet(), JobDataFragment.class);
+
+    // verify that we got PLANNING, STARTING, RUNNING, FINISHED and in sequential order
+    final AtomicInteger planningIndex = new AtomicInteger(-1);
+    final AtomicInteger startIndex = new AtomicInteger(-1);
+    final AtomicInteger runningIndex = new AtomicInteger(-1);
+    final AtomicInteger completedIndex = new AtomicInteger(-1);
+    IntStream.range(0, payloads.size()).forEach(index -> {
+      final Payload payload = payloads.get(index);
+      if (!(payload instanceof JobProgressUpdate)) {
+        return;
+      }
+
+      final JobProgressUpdate update = (JobProgressUpdate) payload;
+      switch (update.getUpdate().getState()) {
+        case STARTING:
+          startIndex.set(index);
+          break;
+        case RUNNING:
+          runningIndex.set(index);
+          break;
+        case COMPLETED:
+          completedIndex.set(index);
+          break;
+        case PLANNING:
+          planningIndex.set(index);
+          break;
+        default:
+          break;
+      }
+    });
+
+    assertTrue(planningIndex.longValue() > -1);
+    assertTrue(startIndex.longValue() > -1);
+    assertTrue(runningIndex.longValue() > -1);
+    assertTrue(completedIndex.longValue() > -1);
+
+    assertTrue(planningIndex.get() < startIndex.get());
+    assertTrue(startIndex.get() < runningIndex.get());
+    assertTrue(runningIndex.get() < completedIndex.get());
   }
 
   @Test
@@ -159,6 +204,50 @@ public class TestWebSocket extends BaseTestServer {
     List<Payload> payloads = socket.awaitCompletion(2, 10);
     JobDetailsUpdate detailsUpdate = (JobDetailsUpdate) payloads.get(payloads.size() - 1);
     assertTrue(detailsUpdate.getJobId().equals(runResp.getJobId()));
+  }
+
+  @Test
+  public void testRecordCountProgress() throws Exception {
+    final ForemenWorkManager foremenWorkManager = l(ForemenWorkManager.class);
+
+    final InitialPreviewResponse resp = createDatasetFromSQL(LONG_TEST_QUERY, null);
+
+    final InitialTransformAndRunResponse runResp = expectSuccess(
+        getBuilder(
+            getAPIv2()
+                .path(versionedResourcePath(resp.getDataset()))
+                .path("transformAndRun")
+                .queryParam("newVersion", newVersion())
+        ).buildPost(entity(new TransformSort("id", ASC), JSON)), InitialTransformAndRunResponse.class);
+
+    socket.send(new SocketMessage.ListenRecords(runResp.getJobId()));
+
+    // force all foremen to publishProgress
+    foremenWorkManager.publishAllProgress();
+
+    final List<Payload> payloads = socket.awaitCompletion(15);
+
+    if (payloads.get(1) instanceof ErrorPayload) {
+      Assert.fail(((ErrorPayload) payloads.get(1)).getMessage());
+    }
+
+    boolean isRecordsUpdate = false;
+    for (final Payload payload : payloads) {
+      if (!(payload instanceof JobRecordsUpdate)) {
+        if (payload instanceof ConnectionEstablished) {
+          continue;
+        }
+        throw new Exception();
+      }
+
+      final JobRecordsUpdate update = (JobRecordsUpdate) payload;
+
+      isRecordsUpdate = true;
+
+      assertNotEquals(update.getRecordCount(), -1);
+    }
+
+    assertTrue(isRecordsUpdate);
   }
 
   /**
@@ -199,7 +288,7 @@ public class TestWebSocket extends BaseTestServer {
       messagesArrived.release();
     }
 
-    public void awaitConnection(long secondsToWait) throws InterruptedException, TimeoutException{
+    public void awaitConnection(long secondsToWait) throws InterruptedException, TimeoutException {
       if(!connect.await(secondsToWait, TimeUnit.SECONDS)){
         throw new TimeoutException("Failure while waiting for connection to be established.");
       }
@@ -209,7 +298,7 @@ public class TestWebSocket extends BaseTestServer {
       }
     }
 
-    public List<Payload> awaitCompletion(int messagesExpected, long secondsToWait) throws InterruptedException{
+    public List<Payload> awaitCompletion(int messagesExpected, long secondsToWait) throws InterruptedException {
       if(!messagesArrived.tryAcquire(messagesExpected, secondsToWait, TimeUnit.SECONDS)){
         throw new AssertionError(String.format("Expected %d messages but didn't receive them within timeout. Total messages received %d.",
             messagesExpected, messagesArrived.availablePermits()));
@@ -217,7 +306,7 @@ public class TestWebSocket extends BaseTestServer {
       return Lists.newArrayList(messages);
     }
 
-    public List<Payload> awaitCompletion(long secondsToWait) throws InterruptedException{
+    public List<Payload> awaitCompletion(long secondsToWait) throws InterruptedException {
       boolean completed = false;
 
       while (!completed) {
@@ -232,12 +321,12 @@ public class TestWebSocket extends BaseTestServer {
           if (update.getUpdate().isComplete()) {
             completed = true;
           }
-
+        } else if (payload instanceof  JobRecordsUpdate) {
+          completed = true;
         }
       }
 
       return Lists.newArrayList(messages);
     }
   }
-
 }

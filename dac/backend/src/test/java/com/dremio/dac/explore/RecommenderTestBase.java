@@ -84,7 +84,7 @@ public class RecommenderTestBase extends BaseTestServer {
     }
 
     SqlQuery sqlQuery = new SqlQuery(queryB.toString(), DEFAULT_USERNAME);
-    JobDataFragment data = executor.runQuery(sqlQuery, QueryType.UI_INTERNAL_RUN, datasetPath, version).getData().truncate(outputs.size());
+    JobDataFragment data = executor.runQuery(sqlQuery, QueryType.UI_INTERNAL_RUN, datasetPath, version).truncate(outputs.size());
 
     assertEquals(outputs.size(), data.getReturnedRowCount());
     for(int i = 0; i < data.getReturnedRowCount(); i++) {

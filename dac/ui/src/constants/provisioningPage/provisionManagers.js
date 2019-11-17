@@ -13,6 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+export const MAPPED_FIELDS = {
+  resourceManagerHost: 'resourceManagerHost',
+  namenodeHost: 'namenodeHost',
+  nodeTag: 'nodeTag',
+  spillDirectories: 'spillDirectories'
+};
+
+export const FIELDS = [
+  'id', 'clusterType', 'queue',
+  'memoryMB', 'virtualCoreCount', 'dynamicConfig.containerCount',
+  'tag', 'distroType', 'isSecure',
+  'propertyList[].name', // we map from entity.key -> field.name in mapToFormFields to match what Property input expects.
+  'propertyList[].value',
+  'propertyList[].type',
+  MAPPED_FIELDS.resourceManagerHost,
+  MAPPED_FIELDS.namenodeHost,
+  MAPPED_FIELDS.nodeTag,
+  MAPPED_FIELDS.spillDirectories + '[]'
+];
+
+export const INIT_VALUES = {};
+
 /**
  * List of provision managers. Each item contains following info:
  *
@@ -35,15 +57,20 @@ export const PROVISION_MANAGERS = [ // todo: loc
     propsAsFields: [
       {
         key: 'yarn.resourcemanager.hostname',
-        field: 'resourceManagerHost'
+        field: MAPPED_FIELDS.resourceManagerHost
       },
       {
         key: 'fs.defaultFS',
-        field: 'namenodeHost'
+        field: MAPPED_FIELDS.namenodeHost
+      },
+      {
+        key: 'services.node-tag',
+        field: MAPPED_FIELDS.nodeTag
       },
       {
         key: 'paths.spilling',
-        field: 'spillDirectories'
+        field: MAPPED_FIELDS.spillDirectories,
+        isArray: true
       }
     ]
   }

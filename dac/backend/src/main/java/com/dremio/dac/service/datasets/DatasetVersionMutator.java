@@ -36,8 +36,8 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
+import com.dremio.dac.daemon.DACDaemonModule;
 import com.dremio.dac.explore.model.DatasetPath;
-import com.dremio.dac.explore.model.DownloadFormat;
 import com.dremio.dac.model.common.RootEntity.RootType;
 import com.dremio.dac.proto.model.dataset.NameDatasetRef;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
@@ -59,9 +59,10 @@ import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.StringSerializer;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.InternalFileConf;
+import com.dremio.options.OptionManager;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.job.proto.DownloadInfo;
-import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
@@ -89,6 +90,7 @@ public class DatasetVersionMutator {
   private final CatalogService catalogService;
 
   private final KVStore<VersionDatasetKey, VirtualDatasetVersion> datasetVersions;
+  private final OptionManager optionManager;
 
   @Inject
   public DatasetVersionMutator(
@@ -96,18 +98,21 @@ public class DatasetVersionMutator {
       final KVStoreProvider kv,
       final NamespaceService namespaceService,
       final JobsService jobsService,
-      final CatalogService catalogService) {
+      final CatalogService catalogService,
+      final OptionManager optionManager) {
     this.namespaceService = namespaceService;
     this.jobsService = jobsService;
     this.datasetVersions = kv.getStore(VersionStoreCreator.class);
     this.catalogService = catalogService;
     this.init = init;
+    this.optionManager = optionManager;
   }
 
-  private DatasetDownloadManager downloadManager() {
-    final FileSystemPlugin downloadPlugin = catalogService.getSource(DATASET_DOWNLOAD_STORAGE_PLUGIN);
+  public DatasetDownloadManager downloadManager() {
+    final FileSystemPlugin<?> downloadPlugin = catalogService.getSource(DATASET_DOWNLOAD_STORAGE_PLUGIN);
+    final FileSystemPlugin<InternalFileConf> jobResultsPlugin = catalogService.getSource(DACDaemonModule.JOBS_STORAGEPLUGIN_NAME);
     return new DatasetDownloadManager(jobsService, namespaceService, downloadPlugin.getConfig().getPath(),
-      downloadPlugin.getSystemUserFS());
+      downloadPlugin.getSystemUserFS(), jobResultsPlugin.getConfig().isPdfsBased(), optionManager);
   }
   private void validate(DatasetPath path, VirtualDatasetUI ds) {
     if (ds.getSqlFieldsList() == null || ds.getSqlFieldsList().isEmpty()) {
@@ -336,12 +341,6 @@ public class DatasetVersionMutator {
   }
 
   private static final SearchFieldSorting DEFAULT_SORTING = DATASET_ID.toSortField(SortOrder.DESCENDING);
-
-  public Job prepareDownload(DatasetPath datasetPath, DatasetVersion datasetVersion, DownloadFormat downloadFormat,
-                             int limit, String userName) throws DatasetVersionNotFoundException, IOException {
-    final VirtualDatasetUI vds = getVersion(datasetPath, datasetVersion);
-    return downloadManager().scheduleDownload(datasetPath, vds, downloadFormat, limit, userName);
-  }
 
   public DownloadDataResponse downloadData(DownloadInfo downloadInfo, String userName) throws IOException {
     // TODO check if user can access this dataset.

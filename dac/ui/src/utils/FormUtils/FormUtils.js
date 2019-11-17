@@ -17,8 +17,20 @@ import { merge, get, set } from 'lodash/object';
 import { applyValidators, isRequired, isNumber, isWholeNumber, isRequiredIfAnotherPropertyEqual } from 'utils/validation';
 import { getCreatedSource } from 'selectors/resources';
 import { MEMORY_UNITS } from 'utils/numberFormatUtils';
+import { ENTITY_TYPES } from '@app/constants/Constants';
 
+const CONFIG_PROP_NAME = 'config';
 export default class FormUtils {
+  static CONFIG_PROP_NAME = CONFIG_PROP_NAME;
+  /**
+   * Element names, provided by source type API, are expected to be part of "config" property
+   * of the submit payload. This method prepends a propertyName with "config." prefix.
+   *
+   * This method should be used only in sources related code
+   */
+  static addFormPrefixToPropName = propertyName => {
+    return `${CONFIG_PROP_NAME}.${propertyName}`;
+  };
 
   static DURATIONS= {
     // interval durations in milliseconds
@@ -233,9 +245,9 @@ export default class FormUtils {
   static addInitValueForEditing(initValues, configPropName, state) {
     const createdSource = getCreatedSource(state);
     if (createdSource && createdSource.size > 1) {
-      initValues.config = initValues.config || {};
-      initValues.config[configPropName] = createdSource.getIn(['config', configPropName])
-        && createdSource.getIn(['config', configPropName]).toJS() || [];
+      const config = initValues[CONFIG_PROP_NAME] = initValues[CONFIG_PROP_NAME] || {};
+      config[configPropName] = createdSource.getIn([CONFIG_PROP_NAME, configPropName])
+        && createdSource.getIn([CONFIG_PROP_NAME, configPropName]).toJS() || [];
     }
   }
 
@@ -278,6 +290,14 @@ export default class FormUtils {
         elementConfigJson.validate.label));
     }
     return accumulator;
+  }
+
+  static makeSpaceFromFormValues(values) {
+    return {
+      ...values,
+      tag: values.version,
+      entityType: ENTITY_TYPES.space
+    };
   }
 
 }

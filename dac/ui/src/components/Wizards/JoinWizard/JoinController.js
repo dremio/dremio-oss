@@ -35,7 +35,7 @@ import { loadRecommendedJoin } from 'actions/explore/join';
 import { getTableColumns, getJoinTable, getExploreState } from 'selectors/explore';
 import { getLocation } from 'selectors/routing';
 
-import { RECOMMENDED_JOIN, CUSTOM_JOIN} from 'constants/explorePage/joinTabs';
+import { RECOMMENDED_JOIN, CUSTOM_JOIN} from '@app/constants/explorePage/joinTabs';
 
 import { isEmptyValue } from 'utils/validation';
 import { constructFullPath } from 'utils/pathUtils';

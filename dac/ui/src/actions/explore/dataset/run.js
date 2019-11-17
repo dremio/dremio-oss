@@ -17,7 +17,7 @@ import { RSAA } from 'redux-api-middleware';
 import invariant from 'invariant';
 import { debounce } from 'lodash/function';
 
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import { datasetWithoutData } from 'schemas/v2/fullDataset';
 import exploreUtils from 'utils/explore/exploreUtils';

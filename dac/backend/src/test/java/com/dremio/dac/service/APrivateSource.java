@@ -19,8 +19,6 @@ import java.util.List;
 
 import javax.inject.Provider;
 
-import org.apache.hadoop.fs.Path;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.Secret;
@@ -29,6 +27,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.SchemaMutability;
+import com.dremio.io.file.Path;
 import com.google.common.collect.ImmutableList;
 
 import io.protostuff.Tag;
@@ -48,7 +47,7 @@ public class APrivateSource extends FileSystemConf<APrivateSource, FileSystemPlu
 
   @Override
   public Path getPath() {
-    return new Path("/");
+    return Path.of("/");
   }
 
   @Override
@@ -69,11 +68,6 @@ public class APrivateSource extends FileSystemConf<APrivateSource, FileSystemPlu
   @Override
   public SchemaMutability getSchemaMutability() {
     return SchemaMutability.NONE;
-  }
-
-  @Override
-  public List<String> getConnectionUniqueProperties() {
-    return ImmutableList.of();
   }
 
   @Override

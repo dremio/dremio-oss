@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
-import { TIME } from 'constants/DataTypes';
+import { TIME } from '@app/constants/DataTypes';
 import TimePicker from './TimePicker';
 
 describe('TimePicker', () => {

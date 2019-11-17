@@ -26,7 +26,7 @@ import { FLEX_COL_START, LINE_NOWRAP_ROW_BETWEEN_CENTER } from 'uiTheme/radium/f
 import { CELL_EXPANSION_HEADER, WHITE, BLUE } from 'uiTheme/radium/colors';
 import { fixedWidthSmall } from 'uiTheme/radium/typography';
 import EllipsedText from 'components/EllipsedText';
-import { MAP, TEXT, LIST } from 'constants/DataTypes';
+import { MAP, TEXT, LIST } from '@app/constants/DataTypes';
 import exploreUtils from 'utils/explore/exploreUtils';
 import FontIcon from 'components/Icon/FontIcon';
 import dataFormatUtils from 'utils/dataFormatUtils';

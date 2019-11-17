@@ -20,16 +20,15 @@ import java.io.IOException;
 import java.util.Arrays;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.parquet.bytes.BytesUtils;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.format.converter.ParquetMetadataConverter.MetadataFilter;
 import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
-import org.apache.parquet.hadoop.util.HadoopStreams;
 
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.google.common.base.Preconditions;
 
 /**
@@ -70,7 +69,7 @@ public class SingletonParquetFooterCache {
 
   public static ParquetMetadata readFooter(final FileSystem fs, final Path file, ParquetMetadataConverter.MetadataFilter filter,
                                            long maxFooterLen) throws IOException  {
-    return readFooter(fs, fs.getFileStatus(file), filter, maxFooterLen);
+    return readFooter(fs, fs.getFileAttributes(file), filter, maxFooterLen);
   }
 
   /**
@@ -83,11 +82,11 @@ public class SingletonParquetFooterCache {
    */
   public static ParquetMetadata readFooter(
     final FileSystem fs,
-    final FileStatus status,
+    final FileAttributes attributes,
     ParquetMetadataConverter.MetadataFilter filter,
     long maxFooterLen) throws IOException {
-    try(BulkInputStream file = BulkInputStream.wrap(HadoopStreams.wrap(fs.open(status.getPath())))) {
-      return readFooter(file, status.getPath().toString(), status.getLen(), filter, fs, maxFooterLen);
+    try(BulkInputStream file = BulkInputStream.wrap(Streams.wrap(fs.open(attributes.getPath())))) {
+      return readFooter(file, attributes.getPath().toString(), attributes.size(), filter, fs, maxFooterLen);
     }
   }
 
@@ -100,10 +99,10 @@ public class SingletonParquetFooterCache {
     Preconditions.checkArgument(fileLength >= MIN_FILE_SIZE || fileLength == -1, "%s is not a Parquet file (too small)", path);
 
     if (fileLength == -1) {
-      fileLength = fs.getFileStatus(new Path(path)).getLen();
+      fileLength = fs.getFileAttributes(Path.of(path)).size();
     }
 
-    int len = (int) Math.min( fileLength, (long) DEFAULT_READ_SIZE);
+    int len = (int) Math.min( fileLength, DEFAULT_READ_SIZE);
     byte[] footerBytes = new byte[len];
     file.seek(fileLength - len);
     file.readFully(footerBytes, 0, len);

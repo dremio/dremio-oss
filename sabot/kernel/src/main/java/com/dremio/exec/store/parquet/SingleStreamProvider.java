@@ -21,17 +21,14 @@ import java.nio.ByteBuffer;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.util.AutoCloseables;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
-import org.apache.parquet.hadoop.util.HadoopStreams;
 import org.apache.parquet.io.SeekableInputStream;
 
+import com.dremio.io.ArrowBufFSInputStream;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.op.scan.ScanOperator;
-import com.google.common.collect.Lists;
 
 import io.netty.buffer.ArrowBuf;
 
@@ -39,7 +36,7 @@ import io.netty.buffer.ArrowBuf;
  * An InputStreamProvider that uses a single stream.
  * It is OK to reuse this stream for reading several columns, in which case the user must handle the repositioning of the stream
  */
-public class SingleStreamProvider extends FSDataStreamInputStreamProvider {
+public class SingleStreamProvider implements InputStreamProvider {
   private final FileSystem fs;
   private final Path path;
   private final BufferAllocator allocator;
@@ -48,10 +45,8 @@ public class SingleStreamProvider extends FSDataStreamInputStreamProvider {
   private final boolean readFullFile;
   private BulkInputStream stream;
   private ParquetMetadata footer;
-  private FSDataInputStream fsDataInputStream;
 
   public SingleStreamProvider(FileSystem fs, Path path, long fileLength, long maxFooterLen, boolean readFullFile, OperatorContext context) {
-    super(context == null ? null : context.getStats());
     this.fs = fs;
     this.path = path;
     this.fileLength = fileLength;
@@ -67,7 +62,6 @@ public class SingleStreamProvider extends FSDataStreamInputStreamProvider {
   @Override
   public BulkInputStream getStream(ColumnChunkMetaData column) throws IOException {
     if(stream == null) {
-      this.fsDataInputStream = fs.open(path);
       stream = initStream();
     }
     return stream;
@@ -75,10 +69,10 @@ public class SingleStreamProvider extends FSDataStreamInputStreamProvider {
 
   private BulkInputStream initStream() throws IOException {
     if (!readFullFile) {
-      return BulkInputStream.wrap(HadoopStreams.wrap(fsDataInputStream));
+      return BulkInputStream.wrap(Streams.wrap(fs.open(path)));
     }
 
-    try (SeekableInputStream is = HadoopStreams.wrap(fsDataInputStream)) {
+    try (SeekableInputStream is = Streams.wrap(fs.open(path))) {
       int len = (int) fileLength;
       ArrowBuf buf = allocator.buffer(len);
       if (buf == null) {
@@ -88,16 +82,10 @@ public class SingleStreamProvider extends FSDataStreamInputStreamProvider {
         ByteBuffer buffer = buf.nioBuffer(0, len);
         is.readFully(buffer);
         buf.writerIndex(len);
-        if (stats != null) {
-          populateStats(Lists.newArrayList(fsDataInputStream));
-          stats.addLongStat(ScanOperator.Metric.PRELOADED_BYTES, len);
-        }
-        return BulkInputStream.wrap(HadoopStreams.wrap(new FSDataInputStream(new ByteBufferFSDataInputStream(buf.asNettyBuffer()))));
+        return BulkInputStream.wrap(Streams.wrap(new ArrowBufFSInputStream(buf)));
       } catch (Throwable t) {
         buf.close();
         throw t;
-      } finally {
-        this.fsDataInputStream = null;
       }
     }
   }
@@ -118,10 +106,6 @@ public class SingleStreamProvider extends FSDataStreamInputStreamProvider {
 
   @Override
   public void close() throws IOException {
-    if (fsDataInputStream != null) {
-      populateStats(Lists.newArrayList(fsDataInputStream));
-    }
-
     try {
       AutoCloseables.close(stream);
     } catch (IOException | RuntimeException e) {

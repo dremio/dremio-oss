@@ -61,7 +61,7 @@ public class TestJdbcMetadata extends JdbcTestActionBase {
       public ResultSet getResult(Connection c) throws SQLException {
         return c.getMetaData().getSchemas("DREMIO", "%sys%");
       }
-    }, 1);
+    }, 2);
   }
 
   @Test

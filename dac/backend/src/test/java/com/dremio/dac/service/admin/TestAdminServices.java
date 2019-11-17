@@ -25,6 +25,10 @@ import javax.ws.rs.client.Entity;
 
 import org.junit.Test;
 
+import com.dremio.dac.resource.ExportProfilesParams;
+import com.dremio.dac.resource.ExportProfilesParams.ExportFormatType;
+import com.dremio.dac.resource.ExportProfilesParams.WriteFileMode;
+import com.dremio.dac.resource.ExportProfilesStats;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.admin.Setting.TextSetting;
 import com.dremio.dac.service.admin.SettingsResource.SettingsWrapperObject;
@@ -68,6 +72,12 @@ public class TestAdminServices extends BaseTestServer {
     addOrUpdateSetting(new TextSetting(setting.getId(), "csv"));
     //revert setting to original state
     addOrUpdateSetting(setting);
+  }
+
+  @Test
+  public void profiles() {
+    ExportProfilesStats stats = expectSuccess(getBuilder(getAPIv2().path("export-profiles"))
+        .buildPost(Entity.entity(new ExportProfilesParams("/tmp/profiles", WriteFileMode.SKIP, null, null, ExportFormatType.JSON, 1), JSON)), ExportProfilesStats.class);
   }
 
   private SettingsWrapperObject getSettings(Set<String> requiredSettings, boolean includeSetSettings) {

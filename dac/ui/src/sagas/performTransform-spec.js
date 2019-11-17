@@ -67,6 +67,7 @@ describe('performTransform saga', () => {
       next = gen.next(); // getFetchDatasetMetaAction call
       next = gen.next({ apiAction }); // cancelDataLoad call
       expect(next.value).to.be.eql(call(cancelDataLoad));
+      next = gen.next(); // initializeExploreJobProgress
       next = gen.next(); // transformThenNavigate call
       expect(next.value).to.be.eql(call(transformThenNavigate, apiAction, undefined, undefined));
       next = gen.next(datasetResponse); // loadTableData call

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { SHARING_TAB_JSON_TEMPLATE } from 'constants/sourceTypes';
+import { SHARING_TAB_JSON_TEMPLATE } from '@app/constants/sourceTypes';
 import SourceFormJsonPolicy from 'utils/FormUtils/SourceFormJsonPolicy';
 import FormConfig from 'utils/FormUtils/FormConfig';
 
@@ -35,13 +35,6 @@ import MetadataRefreshWrapper from 'components/Forms/Wrappers/MetadataRefreshWra
 import SharingWrapper from 'components/Forms/Wrappers/SharingWrapper';
 
 describe('SourceFormJsonPolicy', () => {
-
-  describe('makeFullPropName', () => {
-    it('should add config prefix', () => {
-      expect(SourceFormJsonPolicy.makeFullPropName('a')).to.equal('config.a');
-      expect(SourceFormJsonPolicy.makeFullPropName('name')).to.equal('config.name');
-    });
-  });
 
   describe('combineDefaultAndLoadedList', () => {
     let defaultList, loadedList;
@@ -101,7 +94,7 @@ describe('SourceFormJsonPolicy', () => {
         const config = SourceFormJsonPolicy.makeCombinedFromFunctionalConfig(functionalConfig);
         const elementConfig = config.form.getDirectElements()[0].getConfig();
         expect(elementConfig.propertyName).to.equal('a');
-        expect(elementConfig.propName).to.equal('config.a');
+        expect(elementConfig.propName).to.equal('a');
         expect(elementConfig.value).to.equal('9');
       });
     });

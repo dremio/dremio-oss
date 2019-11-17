@@ -17,8 +17,6 @@ package com.dremio.exec.store.dfs;
 
 import java.io.IOException;
 
-import org.apache.hadoop.fs.FileStatus;
-
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.physical.base.AbstractWriter;
@@ -28,6 +26,8 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.file.proto.FileProtobuf.FileUpdateKey;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -51,7 +51,7 @@ public interface FormatPlugin {
 
   public FormatMatcher getMatcher();
 
-  public AbstractWriter getWriter(PhysicalOperator child, String location, FileSystemPlugin plugin, WriterOptions options, OpProps props) throws IOException;
+  public AbstractWriter getWriter(PhysicalOperator child, String location, FileSystemPlugin<?> plugin, WriterOptions options, OpProps props) throws IOException;
 
   public FormatPluginConfig getConfig();
   public String getName();
@@ -59,9 +59,9 @@ public interface FormatPlugin {
   FileDatasetHandle getDatasetAccessor(
       DatasetType type,
       PreviousDatasetInfo previousInfo,
-      FileSystemWrapper fs,
+      FileSystem fs,
       FileSelection fileSelection,
-      FileSystemPlugin fsPlugin,
+      FileSystemPlugin<?> fsPlugin,
       NamespaceKey tableSchemaPath,
       FileUpdateKey updateKey,
       int maxLeafColumns
@@ -70,5 +70,5 @@ public interface FormatPlugin {
   /**
    * Get a record reader specifically for the purposes of previews.
    */
-  public RecordReader getRecordReader(final OperatorContext context, final FileSystemWrapper dfs, final FileStatus status) throws ExecutionSetupException;
+  public RecordReader getRecordReader(final OperatorContext context, final FileSystem dfs, final FileAttributes attributes) throws ExecutionSetupException;
 }

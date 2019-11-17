@@ -27,6 +27,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDateTime;
 
 import com.dremio.common.util.DateTimes;
+import com.dremio.common.util.JodaDateUtility;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.google.common.base.Preconditions;
 
@@ -85,7 +86,7 @@ public class ChronoConvertlets {
     @Override
     public RexNode convertCall(SqlRexContext cx, SqlCall call) {
       final int timeZoneIndex = getContextInformation().getRootFragmentTimeZone();
-      final DateTimeZone timeZone = DateTimeZone.forID(DateUtility.getTimeZone(timeZoneIndex));
+      final DateTimeZone timeZone = DateTimeZone.forID(JodaDateUtility.getTimeZone(timeZoneIndex));
       final LocalDateTime dateTime = new LocalDateTime(getContextInformation().getQueryStartTime(), timeZone);
       final long queryStartTime =
           (dateTime.getHourOfDay() * DateUtility.hoursToMillis) +
@@ -110,7 +111,7 @@ public class ChronoConvertlets {
     @Override
     public RexNode convertCall(SqlRexContext cx, SqlCall call) {
       final int timeZoneIndex = getContextInformation().getRootFragmentTimeZone();
-      final DateTimeZone timeZone = DateTimeZone.forID(DateUtility.getTimeZone(timeZoneIndex));
+      final DateTimeZone timeZone = DateTimeZone.forID(JodaDateUtility.getTimeZone(timeZoneIndex));
       final LocalDateTime dateTime = new LocalDateTime(getContextInformation().getQueryStartTime(), timeZone);
       final long midNightAsMillis =
           new DateMidnight(dateTime.getYear(), dateTime.getMonthOfYear(), dateTime.getDayOfMonth(),

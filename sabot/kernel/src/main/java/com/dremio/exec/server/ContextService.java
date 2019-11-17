@@ -28,6 +28,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.config.DremioConfig;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.ConnectionReader;
@@ -39,9 +40,9 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
-import com.dremio.exec.work.RunningQueryProvider;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.sabot.rpc.user.UserServer;
+import com.dremio.security.CredentialsService;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -70,7 +71,6 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<UserServer> userServer;
   private final Provider<MaterializationDescriptorProvider> materializationDescriptorProvider;
   private final Provider<QueryObserverFactory> queryObserverFactory;
-  private final Provider<RunningQueryProvider> runningQueriesProvider;
   private final Provider<AccelerationManager> accelerationManager;
   private final Provider<AccelerationListManager> accelerationListManager;
   private final Provider<NamespaceService.Factory> namespaceServiceFactoryProvider;
@@ -81,6 +81,8 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<ConnectionReader> connectionReaderProvider;
   private final Provider<ViewCreatorFactory> viewCreatorFactory;
   private final Set<ClusterCoordinator.Role> roles;
+  private final Provider<CredentialsService> credentialsService;
+  private final Provider<JobResultSchemaProvider> jobResultSchemaProvider;
   protected BufferAllocator queryPlannerAllocator;
 
   private SabotContext context;
@@ -96,7 +98,6 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<UserServer> userServer,
     Provider<MaterializationDescriptorProvider> materializationDescriptorProvider,
     Provider<QueryObserverFactory> queryObserverFactory,
-    Provider<RunningQueryProvider> runningQueriesProvider,
     Provider<AccelerationManager> accelerationManager,
     Provider<AccelerationListManager> accelerationListManager,
     Provider<NamespaceService.Factory> namespaceServiceFactory,
@@ -106,12 +107,14 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<ViewCreatorFactory> viewCreatorFactory,
     Provider<SpillService> spillService,
     Provider<ConnectionReader> connectionReaderProvider,
+    Provider<CredentialsService> credentialsService,
+    Provider<JobResultSchemaProvider> jobResultSchemaProvider,
     boolean allRoles
   ) {
     this(bindingCreator, bootstrapContext, coord, provider, workStats, kvStoreProvider, fabric, userServer,
-      materializationDescriptorProvider, queryObserverFactory, runningQueriesProvider, accelerationManager,
+      materializationDescriptorProvider, queryObserverFactory, accelerationManager,
       accelerationListManager, namespaceServiceFactory, datasetListingServiceProvider, userService, catalogService,
-      viewCreatorFactory, spillService, connectionReaderProvider,
+      viewCreatorFactory, spillService, connectionReaderProvider, credentialsService, jobResultSchemaProvider,
       allRoles ? EnumSet.allOf(ClusterCoordinator.Role.class) : Sets.newHashSet(ClusterCoordinator.Role.EXECUTOR));
   }
 
@@ -126,7 +129,6 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<UserServer> userServer,
     Provider<MaterializationDescriptorProvider> materializationDescriptorProvider,
     Provider<QueryObserverFactory> queryObserverFactory,
-    Provider<RunningQueryProvider> runningQueriesProvider,
     Provider<AccelerationManager> accelerationManager,
     Provider<AccelerationListManager> accelerationListManager,
     Provider<NamespaceService.Factory> namespaceServiceFactoryProvider,
@@ -136,7 +138,10 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<ViewCreatorFactory> viewCreatorFactory,
     Provider<SpillService> spillService,
     Provider<ConnectionReader> connectionReaderProvider,
-    Set<ClusterCoordinator.Role> roles) {
+    Provider<CredentialsService> credentialsService,
+    Provider<JobResultSchemaProvider> jobResultSchemaProvider,
+    Set<ClusterCoordinator.Role> roles
+  ) {
     this.bindingCreator = bindingCreator;
     this.bootstrapContext = bootstrapContext;
     this.provider = provider;
@@ -152,12 +157,13 @@ public class ContextService implements Service, Provider<SabotContext> {
     this.namespaceServiceFactoryProvider = namespaceServiceFactoryProvider;
     this.datasetListingServiceProvider = datasetListingServiceProvider;
     this.userService = userService;
-    this.runningQueriesProvider = runningQueriesProvider;
     this.catalogService = catalogService;
     this.viewCreatorFactory = viewCreatorFactory;
     this.spillService = spillService;
     this.connectionReaderProvider = connectionReaderProvider;
     this.roles = Sets.immutableEnumSet(roles);
+    this.credentialsService = credentialsService;
+    this.jobResultSchemaProvider = jobResultSchemaProvider;
   }
 
   @Override
@@ -200,7 +206,8 @@ public class ContextService implements Service, Provider<SabotContext> {
       .setStartTime(System.currentTimeMillis())
       .setMaxDirectMemory(VM.getMaxDirectMemory())
       .setAvailableCores(VM.availableProcessors())
-      .setRoles(ClusterCoordinator.Role.toEndpointRoles(roles));
+      .setRoles(ClusterCoordinator.Role.toEndpointRoles(roles))
+      .setNodeTag(bootstrapContext.getDremioConfig().getString(DremioConfig.NODE_TAG));
 
     String containerId = System.getenv("CONTAINER_ID");
     if(containerId != null){
@@ -225,14 +232,15 @@ public class ContextService implements Service, Provider<SabotContext> {
         userService.get(),
         materializationDescriptorProvider,
         queryObserverFactory,
-        runningQueriesProvider,
         accelerationManager,
         accelerationListManager,
         catalogService,
         viewCreatorFactory,
         queryPlannerAllocator,
         spillService,
-        connectionReaderProvider
+        connectionReaderProvider,
+        credentialsService.get(),
+        jobResultSchemaProvider.get()
       );
   }
 

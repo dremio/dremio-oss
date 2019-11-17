@@ -28,8 +28,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer.TimedBlock;
@@ -37,6 +35,8 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.service.Service;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
@@ -111,7 +111,7 @@ public class JobResultsStore implements Service {
   private Path getJobOutputDir(final JobId jobId) {
     List<String> outputTablePath = getOutputTablePath(jobId);
 
-    return new Path(jobStoreLocation, Iterables.getLast(outputTablePath));
+    return jobStoreLocation.resolve(Iterables.getLast(outputTablePath));
   }
 
   public boolean cleanup(JobId jobId) {

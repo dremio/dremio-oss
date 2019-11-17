@@ -37,9 +37,9 @@ export default class SelectWrapper extends Component {
     return (
       <div className={flexContainer}>
         <FieldWithError errorPlacement='top'
-                        {...hoverHelpText}
-                        label={elementConfig.getConfig().label}
-                        labelClass={selectFieldWithError} >
+          {...hoverHelpText}
+          label={elementConfig.getConfig().label}
+          labelClass={selectFieldWithError} >
           <div className={selectWrapper}>
             <Select
               {...isDisabled}

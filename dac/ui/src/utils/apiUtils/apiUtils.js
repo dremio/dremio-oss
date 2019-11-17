@@ -16,7 +16,7 @@
 import uuid from 'uuid';
 import Immutable from 'immutable';
 
-import { API_URL_V2, API_URL_V3 } from 'constants/Api';
+import { API_URL_V2, API_URL_V3 } from '@app/constants/Api';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 
 /**
@@ -39,6 +39,19 @@ class ApiUtils {
         || error.name === ApiMiddlewareErrors.RequestError
         || error.name === ApiMiddlewareErrors.ApiError
       );
+  }
+
+  /**
+   * Make abortGroup object to be used by reducers/index.js to cancel API requests
+   * startTime is added for logging
+   * @param groupName
+   * @return {{startTime: number, actionGroup: *}}
+   */
+  getAbortInfo(groupName) {
+    return {
+      actionGroup: groupName,
+      startTime: Date.now()
+    };
   }
 
   getEntityFromResponse(entityType, response) {

@@ -718,10 +718,6 @@ public final class MoreRelOptUtil {
 
     Preconditions.checkState(found.value);
 
-    if (!found.value) {
-      return ImmutableList.of(-1);
-    }
-
     return result;
   }
 

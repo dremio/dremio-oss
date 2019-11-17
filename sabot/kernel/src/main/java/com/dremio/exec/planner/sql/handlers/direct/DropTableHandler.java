@@ -58,7 +58,7 @@ public class DropTableHandler extends SimpleDirectHandler {
   RelConversionException, IOException {
     SqlDropTable dropTableNode = SqlNodeUtil.unwrap(sqlNode, SqlDropTable.class);
     NamespaceKey path = catalog.resolveSingle(dropTableNode.getPath());
-    DremioTable table = catalog.getTableNoResolve(path);
+    DremioTable table = catalog.getTableNoColumnCount(path);
 
     if (!dropTableNode.checkTableExistence()) {
       if(table == null) {

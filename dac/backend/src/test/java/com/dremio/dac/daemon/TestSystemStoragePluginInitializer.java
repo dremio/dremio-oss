@@ -45,7 +45,7 @@ import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
+import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
@@ -87,7 +87,6 @@ public class TestSystemStoragePluginInitializer {
   private CloseableThreadPool pool;
   private FabricService fabricService;
   private CatalogService catalogService;
-  private FileSystemWrapperCreator fileSystemWrapperCreator;
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();
@@ -151,10 +150,9 @@ public class TestSystemStoragePluginInitializer {
     when(sabotContext.isCoordinator())
       .thenReturn(true);
 
-    fileSystemWrapperCreator = FileSystemWrapperCreator.DEFAULT_INSTANCE;
-    when(sabotContext.getFileSystemWrapperCreator())
-      .thenReturn(fileSystemWrapperCreator);
-
+    final FileSystemWrapper fileSystemWrapper = (fs, storageId, pluginConf, operatorContext, enableAsync, isMetadataEnabled) -> fs;
+    when(sabotContext.getFileSystemWrapper())
+      .thenReturn(fileSystemWrapper);
     pool = new CloseableThreadPool("catalog-test");
     fabricService = new FabricServiceImpl(HOSTNAME, 45678, true, THREAD_COUNT, allocator, RESERVATION,
         MAX_ALLOCATION, TIMEOUT, pool);

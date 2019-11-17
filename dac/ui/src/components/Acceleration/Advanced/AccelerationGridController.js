@@ -26,8 +26,8 @@ import AccelerationGridControllerMixin from 'dyn-load/components/Acceleration/Ad
 import AccelerationGrid from 'components/Acceleration/Advanced/AccelerationGrid';
 import AccelerationGridSubCell from 'components/Acceleration/Advanced/AccelerationGridSubCell';
 import CellPopover from 'components/Acceleration/Advanced/CellPopover';
-import { cellType, fieldTypes, granularityValue } from 'constants/AccelerationConstants';
-import { TIMESTAMP } from 'constants/DataTypes';
+import { cellType, fieldTypes, granularityValue } from '@app/constants/AccelerationConstants';
+import { TIMESTAMP } from '@app/constants/DataTypes';
 import { findAllMeasureTypes, getDefaultMeasureTypes } from 'utils/accelerationUtils';
 
 // AccelerationGridController is used for behavior definition cells on Raw/Aggregation

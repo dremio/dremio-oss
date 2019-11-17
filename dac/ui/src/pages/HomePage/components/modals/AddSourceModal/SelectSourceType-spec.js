@@ -31,8 +31,7 @@ const SOURCE_LIST = [
   {'label': 'NAS', 'sourceType': 'NAS'},
   {'label': 'Oracle', 'sourceType': 'ORACLE'},
   {'label': 'PostgreSQL', 'sourceType': 'POSTGRES', 'tags': ['beta']},
-  {'label': 'Azure Data Lake Store', 'sourceType': 'ADL', 'tags': ['beta']},
-  {'label': 'IBM DB2', 'sourceType': 'DB2'}
+  {'label': 'Azure Data Lake Store', 'sourceType': 'ADL', 'tags': ['beta']}
 ];
 
 

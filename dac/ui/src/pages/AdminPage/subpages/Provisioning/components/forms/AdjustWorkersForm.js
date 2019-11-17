@@ -64,12 +64,12 @@ export class AdjustWorkersForm extends Component {
               text={la('Cancel')}
               disableSubmit
               onClick={this.props.onCancel}
-              />
+            />
             <Button
               style={{marginLeft: 5}}
               type={ButtonTypes.NEXT}
               text={la('Adjust')}
-              />
+            />
           </div>
         </InnerComplexForm>
       </div>

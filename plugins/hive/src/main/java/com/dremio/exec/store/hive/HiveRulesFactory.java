@@ -18,7 +18,9 @@ package com.dremio.exec.store.hive;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
+import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
@@ -53,32 +55,49 @@ import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RelOptNamespaceTable;
 import com.dremio.exec.store.ScanFilter;
-import com.dremio.exec.store.StoragePluginRulesFactory.StoragePluginTypeRulesFactory;
+import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.TableMetadata;
-import com.dremio.exec.store.common.SourceLogicalConverter;
 import com.dremio.exec.store.dfs.FilterableScan;
 import com.dremio.exec.store.dfs.PruneableScan;
 import com.dremio.exec.store.hive.orc.ORCFilterPushDownRule;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.options.OptionManager;
-import com.dremio.options.Options;
-import com.dremio.options.TypeValidators;
+import com.github.slugify.Slugify;
 import com.google.common.base.Objects;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-public class HiveRulesFactory extends StoragePluginTypeRulesFactory {
+/**
+  * Rules factory for Hive. This must be instance based because any matches
+  * on Hive nodes are ClassLoader-specific, which are tied to a plugin.
+  *
+  * Note that Calcite uses the description field in RelOptRule to uniquely
+  * identify different rules so the description must be based on the plugin for
+  * all rules.
+  */
+public class HiveRulesFactory implements StoragePluginRulesFactory {
+  private static final Slugify SLUGIFY = new Slugify();
 
-  private static class HiveScanDrule extends SourceLogicalConverter {
-
-    public HiveScanDrule(SourceType pluginType) {
-      super(pluginType);
+  private static class HiveScanDrule extends ConverterRule {
+    private final String pluginName;
+    public HiveScanDrule(StoragePluginId pluginId) {
+      super(ScanCrel.class, Convention.NONE, Rel.LOGICAL, pluginId.getType().value() + ".HiveScanDrule."
+        + SLUGIFY.slugify(pluginId.getName()) + "." + UUID.randomUUID().toString());
+      pluginName = pluginId.getName();
     }
 
     @Override
-    public Rel convertScan(ScanCrel scan) {
-      return new HiveScanDrel(scan.getCluster(), scan.getTraitSet().plus(Rel.LOGICAL), scan.getTable(), scan.getPluginId(), scan.getTableMetadata(), scan.getProjectedColumns(), scan.getObservedRowcountAdjustment(), null);
+    public boolean matches(RelOptRuleCall call) {
+      ScanCrel scan = call.rel(0);
+      return scan.getPluginId().getName().equals(pluginName);
+    }
+
+    @Override
+    public final Rel convert(RelNode rel) {
+      final ScanCrel crel = (ScanCrel) rel;
+      return new HiveScanDrel(crel.getCluster(), crel.getTraitSet().plus(Rel.LOGICAL), crel.getTable(),
+        crel.getPluginId(), crel.getTableMetadata(), crel.getProjectedColumns(), crel.getObservedRowcountAdjustment(), null);
     }
 
   }
@@ -180,12 +199,13 @@ public class HiveRulesFactory extends StoragePluginTypeRulesFactory {
     }
   }
 
-  static class EliminateEmptyScans extends RelOptRule {
+  private static class EliminateEmptyScans extends RelOptRule {
 
-    public static EliminateEmptyScans INSTANCE = new EliminateEmptyScans();
-
-    public EliminateEmptyScans() {
-      super(RelOptHelper.any(HiveScanDrel.class), "Hive::eliminate_empty_scans");
+    public EliminateEmptyScans(StoragePluginId pluginId) {
+      // Note: matches to HiveScanDrel.class with this rule instance are guaranteed to be local to the same plugin
+      // because this match implicitly ensures the classloader is the same.
+      super(RelOptHelper.any(HiveScanDrel.class), "Hive::eliminate_empty_scans."
+        + SLUGIFY.slugify(pluginId.getName()) + "." + UUID.randomUUID().toString());
     }
 
     @Override
@@ -195,17 +215,11 @@ public class HiveRulesFactory extends StoragePluginTypeRulesFactory {
         call.transformTo(new EmptyRel(scan.getCluster(), scan.getTraitSet(), scan.getRowType(), scan.getProjectedSchema()));
       }
     }
-
   }
 
-  @Options
   public static class HiveScanPrel extends ScanPrelBase implements PruneableScan {
 
     private final ScanFilter filter;
-
-    public static final TypeValidators.LongValidator RESERVE = new TypeValidators.PositiveLongValidator("planner.op.scan.hive.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
-    public static final TypeValidators.LongValidator LIMIT = new TypeValidators.PositiveLongValidator("planner.op.scan.hive.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
-
 
     public HiveScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
         TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
@@ -246,7 +260,7 @@ public class HiveRulesFactory extends StoragePluginTypeRulesFactory {
     public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
       final BatchSchema schema = tableMetadata.getSchema().maskAndReorder(projectedColumns);
       return new HiveGroupScan(
-        creator.props(this, tableMetadata.getUser(), schema, RESERVE, LIMIT),
+        creator.props(this, tableMetadata.getUser(), schema, HivePluginOptions.RESERVE, HivePluginOptions.LIMIT),
         tableMetadata, projectedColumns, filter);
     }
 
@@ -296,11 +310,11 @@ public class HiveRulesFactory extends StoragePluginTypeRulesFactory {
   }
 
   private static class HiveScanPrule extends ConverterRule {
-    private final SourceType pluginType;
-
-    public HiveScanPrule(SourceType pluginType) {
-      super(HiveScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginType.value() + "HiveScanPrule");
-      this.pluginType = pluginType;
+    public HiveScanPrule(StoragePluginId pluginId) {
+      // Note: matches to HiveScanDrel.class with this rule instance are guaranteed to be local to the same plugin
+      // because this match implicitly ensures the classloader is the same.
+      super(HiveScanDrel.class, Rel.LOGICAL, Prel.PHYSICAL, pluginId.getType().value() + "HiveScanPrule."
+        + SLUGIFY.slugify(pluginId.getName()) + "." + UUID.randomUUID().toString());
     }
 
     @Override
@@ -310,46 +324,45 @@ public class HiveRulesFactory extends StoragePluginTypeRulesFactory {
           drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
           drel.getObservedRowcountAdjustment(), drel.getFilter());
     }
-
-    @Override
-    public boolean matches(RelOptRuleCall call) {
-      HiveScanDrel drel = (HiveScanDrel) call.rel(0);
-      return drel.getPluginId().getType().equals(pluginType);
-    }
-
   }
 
 
   @Override
   public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, SourceType pluginType) {
+    return ImmutableSet.of();
+  }
+
+  @Override
+  public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, StoragePluginId pluginId) {
     switch(phase){
     case LOGICAL:
       ImmutableSet.Builder<RelOptRule> builder = ImmutableSet.builder();
-      builder.add(new HiveScanDrule(pluginType));
-      builder.add(EliminateEmptyScans.INSTANCE);
+      builder.add(new HiveScanDrule(pluginId));
+      builder.add(new EliminateEmptyScans(pluginId));
+
 
       final PlannerSettings plannerSettings = optimizerContext.getPlannerSettings();
 
-      if(plannerSettings.isPartitionPruningEnabled()){
-        builder.add(new PruneScanRuleFilterOnProject<>(pluginType, HiveScanDrel.class, optimizerContext));
-        builder.add(new PruneScanRuleFilterOnScan<>(pluginType, HiveScanDrel.class, optimizerContext));
+      if (plannerSettings.isPartitionPruningEnabled()) {
+        builder.add(new PruneScanRuleFilterOnProject<>(pluginId, HiveScanDrel.class, optimizerContext));
+        builder.add(new PruneScanRuleFilterOnScan<>(pluginId, HiveScanDrel.class, optimizerContext));
       }
 
       final OptionManager options = plannerSettings.getOptions();
       if (options.getOption(HivePluginOptions.HIVE_ORC_READER_VECTORIZE) &&
           options.getOption(HivePluginOptions.ENABLE_FILTER_PUSHDOWN_HIVE_ORC)) {
-        builder.add(new ORCFilterPushDownRule(pluginType));
+        builder.add(new ORCFilterPushDownRule(pluginId));
       }
 
       return builder.build();
 
     case PHYSICAL:
-      return ImmutableSet.<RelOptRule>of(
-          new HiveScanPrule(pluginType)
+      return ImmutableSet.of(
+          new HiveScanPrule(pluginId)
           );
 
     default:
-      return ImmutableSet.<RelOptRule>of();
+      return ImmutableSet.of();
 
     }
   }

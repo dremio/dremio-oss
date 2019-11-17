@@ -20,16 +20,20 @@ import static org.junit.Assert.assertTrue;
 import java.util.Random;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.sabot.op.sort.external.SplayTree;
 import com.dremio.sabot.op.sort.external.SplayTree.SplayIterator;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 
 import io.netty.buffer.ArrowBuf;
 
-public class TestSplayTree {
+public class TestSplayTree extends DremioTest {
 
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
   public void sortRandom(){
@@ -89,7 +93,7 @@ public class TestSplayTree {
 
   private int sortData(int[] values){
     try(final SplayTreeImpl tree = new SplayTreeImpl(values);
-        BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
+        BufferAllocator allocator = allocatorRule.newAllocator("test-splay-tree", 0, Long.MAX_VALUE);
         ArrowBuf data = allocator.buffer((values.length + 1) * SplayTree.NODE_SIZE )){
 
       data.setZero(0, data.capacity());

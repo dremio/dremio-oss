@@ -15,7 +15,7 @@
  */
 import { shallow } from 'enzyme';
 
-import { MAP } from 'constants/DataTypes';
+import { MAP } from '@app/constants/DataTypes';
 import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
 import SqlGroup from './SqlGroup';
 

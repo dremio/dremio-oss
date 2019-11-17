@@ -167,6 +167,13 @@ public class Foreman {
     }
   }
 
+  /**
+   * Publish query progress.
+   */
+  public void publishProgress() {
+    attemptManager.publishProgress();
+  }
+
   private void newAttempt(AttemptReason reason, Predicate<DatasetConfig> datasetValidityChecker) {
     // we should ideally check if the query wasn't cancelled before starting a new attempt but this will over-complicate
     // things as the observer expects a query profile at completion and this may not be available if the cancellation

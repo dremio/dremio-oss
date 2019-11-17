@@ -21,13 +21,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.AllocationOutcome;
-import org.apache.arrow.memory.BaseAllocator;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.memory.RootAllocator;
-
-import com.dremio.common.exceptions.UserException;
 
 import io.netty.buffer.ArrowBuf;
 
@@ -50,6 +47,7 @@ public class DremioRootAllocator extends RootAllocator {
   public long getAvailableBuffers() {
     return listener.getAvailableBuffers();
   }
+
   /**
    * Constructor, hidden from public use. Use {@link #create(long)} instead
    */

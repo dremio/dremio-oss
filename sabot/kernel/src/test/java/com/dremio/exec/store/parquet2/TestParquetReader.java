@@ -27,7 +27,6 @@ import java.net.URL;
 import java.util.Map;
 
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.hadoop.fs.Path;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.junit.AfterClass;
@@ -39,6 +38,7 @@ import com.dremio.common.arrow.DremioArrowSchema;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
+import com.dremio.io.file.Path;
 
 public class TestParquetReader extends BaseTestQuery {
   // enable decimal data type
@@ -103,7 +103,7 @@ public class TestParquetReader extends BaseTestQuery {
   @Test
   public void testArrowSchema205InFooter() throws Exception {
     URL parquet205 = getClass().getResource("/dremio-region-205.parquet");
-    Path filePath = new Path(parquet205.toURI());
+    Path filePath = Path.of(parquet205.toURI());
     ParquetMetadata parquetMetadata =
       SingletonParquetFooterCache.readFooter(localFs, filePath, ParquetMetadataConverter.NO_FILTER,
         ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getDefault().getNumVal());
@@ -121,7 +121,7 @@ public class TestParquetReader extends BaseTestQuery {
   @Test
   public void testArrowSchema210InFooter() throws Exception {
     URL parquet210 = getClass().getResource("/dremio-region-210.parquet");
-    Path filePath210 = new Path(parquet210.toURI());
+    Path filePath210 = Path.of(parquet210.toURI());
     ParquetMetadata parquetMetadata210 =
       SingletonParquetFooterCache.readFooter(localFs, filePath210, ParquetMetadataConverter.NO_FILTER,
         ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getDefault().getNumVal());
@@ -140,7 +140,7 @@ public class TestParquetReader extends BaseTestQuery {
   public void testArrowSchemaOldInFooter() throws Exception {
     URL badparquet = getClass().getResource("/types.parquet");
 
-    Path filePathBad = new Path(badparquet.toURI());
+    Path filePathBad = Path.of(badparquet.toURI());
     ParquetMetadata parquetMetadataBad =
       SingletonParquetFooterCache.readFooter(localFs, filePathBad, ParquetMetadataConverter.NO_FILTER,
         ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getDefault().getNumVal());

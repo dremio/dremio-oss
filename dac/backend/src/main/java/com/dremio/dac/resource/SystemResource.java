@@ -215,7 +215,8 @@ public class SystemResource {
           pojo.extractString("memory", i),
           pojo.extractString("status", i),
           coord,
-          exec
+          exec,
+          ep.getNodeTag()
         );
         result.add(nodeInfo);
       }
@@ -237,7 +238,8 @@ public class SystemResource {
         "0",
         "green",
         true,
-        false
+        false,
+        ep.getNodeTag()
       );
       finalList.add(nodeInfo);
     }

@@ -21,7 +21,7 @@ export const ELASTIC = 'ELASTIC';
 export const HBASE = 'HBASE';
 export const HDFS = 'HDFS';
 export const HIVE = 'HIVE';
-export const DB2 = 'DB2';
+export const HIVE3 = 'HIVE3';
 export const MAPRFS = 'MAPRFS';
 export const SQLSERVER = 'MSSQL';
 export const MONGODB = 'MONGO';
@@ -44,7 +44,8 @@ export const sourceProperties = [
   {label: 'Elasticsearch', sourceType: ELASTIC},
   {label: 'HBase', sourceType: HBASE, beta: true},
   {label: 'HDFS', sourceType: HDFS},
-  {label: 'Hive', sourceType: HIVE},
+  {label: 'Hive 2.x', sourceType: HIVE},
+  {label: 'Hive 3.x', sourceType: HIVE3},
   {label: 'MapR-FS', sourceType: MAPRFS},
   {label: 'Microsoft SQL Server', sourceType: SQLSERVER},
   {label: 'MongoDB', sourceType: MONGODB, beta: true},

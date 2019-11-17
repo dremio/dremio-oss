@@ -15,7 +15,7 @@
  */
 import { RSAA } from 'redux-api-middleware';
 import { CALL_MOCK_API } from 'mockApi';
-import { API_URL_V3 } from 'constants/Api';
+import { API_URL_V3 } from '@app/constants/Api';
 import Immutable from 'immutable';
 
 const COMMON = {headers: {'Content-Type': 'application/json'}};

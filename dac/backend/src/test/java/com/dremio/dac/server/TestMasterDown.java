@@ -295,24 +295,26 @@ public class TestMasterDown extends BaseClientUtils {
     checkMasterOk(timeoutMs);
     checkNodeOk(timeoutMs);
     NamespaceService ns = mp.lookup(NamespaceService.Factory.class).get(DEFAULT_USERNAME);
+    final SabotContext sabotContext = mp.lookup(SabotContext.class);
 
     final DatasetVersionMutator datasetVersionMutator = new DatasetVersionMutator(
         mp.lookup(InitializerRegistry.class),
         mp.lookup(KVStoreProvider.class),
         ns,
         mp.lookup(JobsService.class),
-        mp.lookup(CatalogService.class));
+        mp.lookup(CatalogService.class),
+        sabotContext.getOptionManager());
 
-    TestUtilities.addClasspathSourceIf(mp.lookup(SabotContext.class).getCatalogService());
+    TestUtilities.addClasspathSourceIf(sabotContext.getCatalogService());
     DACSecurityContext dacSecurityContext = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
     SampleDataPopulator populator = new SampleDataPopulator(
-      mp.lookup(SabotContext.class),
+      sabotContext,
       new SourceService(
         ns,
         datasetVersionMutator,
-        mp.lookup(SabotContext.class).getCatalogService(),
+        sabotContext.getCatalogService(),
         mp.lookup(ReflectionServiceHelper.class),
-        new CollaborationHelper(mp.lookup(KVStoreProvider.class), mp.lookup(SabotContext.class), mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
+        new CollaborationHelper(mp.lookup(KVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
         ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG),
         dacSecurityContext
       ),

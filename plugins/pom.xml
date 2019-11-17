@@ -24,7 +24,7 @@
   <parent>
     <artifactId>dremio-parent</artifactId>
     <groupId>com.dremio</groupId>
-    <version>3.3.2-201908142136370993-d60145d</version>
+    <version>4.0.4-201910212053580380-773b665</version>
   </parent>
 
   <groupId>com.dremio.plugins</groupId>
@@ -34,11 +34,13 @@
 
   <modules>
     <module>elasticsearch</module>
-    <module>hbase</module>
-    <module>hive</module>
+    <module>hive-function-registry</module>
     <module>jdbc</module>
     <module>pdfs</module>
     <module>mongo</module>
+    <module>hive-common</module>
+    <module>hive</module>
+    <module>hive2</module>
   </modules>
 
   <profiles>
@@ -53,6 +55,7 @@
         <module>adls</module>
         <module>azure</module>
         <module>s3</module>
+        <module>hive3</module>
       </modules>
     </profile>
   </profiles>

@@ -20,7 +20,7 @@ import classNames from 'classnames';
 import Radium from 'radium';
 import { injectIntl } from 'react-intl';
 
-import { CONTAINER_ENTITY_TYPES } from 'constants/Constants';
+import { CONTAINER_ENTITY_TYPES } from '@app/constants/Constants';
 
 import Art from 'components/Art';
 import DragSource from 'components/DragComponents/DragSource';

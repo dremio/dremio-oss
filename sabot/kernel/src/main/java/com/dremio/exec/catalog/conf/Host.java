@@ -15,9 +15,8 @@
  */
 package com.dremio.exec.catalog.conf;
 
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-
-import org.hibernate.validator.constraints.NotBlank;
 
 import io.protostuff.Tag;
 
@@ -48,6 +47,7 @@ public class Host {
     return hostname;
   }
 
+  @Override
   public String toString() {
     return toCompound();
   }

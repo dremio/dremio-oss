@@ -37,6 +37,7 @@ enum ElasticSpecialType {
   IP_TYPE = 2;
   GEO_POINT = 3;
   NESTED = 4;
+  SCALED_FLOAT = 5;
 }
 
 message ElasticTableXattr {

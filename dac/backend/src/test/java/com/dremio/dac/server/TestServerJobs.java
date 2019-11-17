@@ -52,6 +52,7 @@ import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.jobs.NoOpJobStatusListener;
+import com.dremio.service.jobs.SearchJobsRequest;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -127,12 +128,20 @@ public class TestServerJobs extends BaseTestServer {
   public void testJob() throws Exception {
     TestSpacesStoragePlugin.setup(getCurrentDremioDaemon());
     expectSuccess(getBuilder(getAPIv2().path("dataset/testA.dsA1/data").queryParam("limit", "10000")).buildGet(), JobDataFragment.class);
-    List<Job> jobs = ImmutableList.copyOf(l(JobsService.class).getJobsForDataset(new DatasetPath("testA.dsA1").toNamespaceKey(), 100));
+    final SearchJobsRequest request1 = SearchJobsRequest.newBuilder()
+        .setDatasetPath(new DatasetPath("testA.dsA1").toNamespaceKey())
+        .setLimit(100)
+        .build();
+    List<Job> jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(request1));
     assertNotNull(jobs);
     assertTrue(jobs.size() > 0);
     JobUI job1 = waitForCompleteJobInIndex(jobs.get(0).getJobId());
     // get list of jobs and job again
-    jobs = ImmutableList.copyOf(l(JobsService.class).getJobsForDataset(new DatasetPath("testA.dsA1").toNamespaceKey(), 100));
+    final SearchJobsRequest request = SearchJobsRequest.newBuilder()
+        .setDatasetPath(new DatasetPath("testA.dsA1").toNamespaceKey())
+        .setLimit(100)
+        .build();
+    jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(request));
     job1 = expectSuccess(getBuilder(getAPIv2().path("job/" + job1.getJobId().getId())).buildGet(), JobUI.class);
     assertEquals(jobs.get(0).getJobId(), job1.getJobId());
     assertEquals(jobs.get(0).getJobAttempt().getInfo().getSql(), job1.getJobAttempt().getInfo().getSql());
@@ -240,7 +249,11 @@ public class TestServerJobs extends BaseTestServer {
   public void testJobDetails() throws Exception {
     TestSpacesStoragePlugin.setup(getCurrentDremioDaemon());
     expectSuccess(getBuilder(getAPIv2().path("dataset/testA.dsA1/data").queryParam("limit", "10000")).buildGet(), JobDataFragment.class);
-    List<Job> jobs = ImmutableList.copyOf(l(JobsService.class).getJobsForDataset(new DatasetPath("testA.dsA1").toNamespaceKey(), 100));
+    final SearchJobsRequest request = SearchJobsRequest.newBuilder()
+        .setDatasetPath(new DatasetPath("testA.dsA1").toNamespaceKey())
+        .setLimit(100)
+        .build();
+    List<Job> jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(request));
     JobDetailsUI jobDetails = expectSuccess(getBuilder(getAPIv2().path("job/" + jobs.get(0).getJobId().getId() + "/details")).buildGet(), JobDetailsUI.class);
     assertNotNull(jobDetails);
     assertNotNull(jobs);
@@ -323,19 +336,46 @@ public class TestServerJobs extends BaseTestServer {
         NoOpJobStatusListener.INSTANCE)
     );
 
-    List<Job> jobs2  = ImmutableList.copyOf(jobsService.getJobsForDataset(new DatasetPath("testB.dsB1").toNamespaceKey(), 1000));
+    final SearchJobsRequest request = SearchJobsRequest.newBuilder()
+        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
+        .setLimit(1000)
+        .build();
+    List<Job> jobs2  = ImmutableList.copyOf(jobsService.searchJobs(request));
     assertEquals(3, jobs2.size()); // we have already run that query for the latest version in the previous call
 
-    jobs2 = ImmutableList.copyOf(jobsService.getJobsForDataset(new DatasetPath("testB.dsB1").toNamespaceKey(), dsGet.getDatasetVersion(), 1000));
+    final SearchJobsRequest request1 = SearchJobsRequest.newBuilder()
+        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
+        .setDatasetVersion(dsGet.getDatasetVersion())
+        .setLimit(1000)
+        .build();
+    jobs2 = ImmutableList.copyOf(jobsService.searchJobs(request1));
     assertEquals(dsB1JobsVersion, jobs2.size());
 
-    jobs2  = ImmutableList.copyOf(jobsService.getJobsForDataset(new DatasetPath("testB.dsB1").toNamespaceKey(), dsGet.getDatasetVersion(), DEFAULT_USERNAME, 1000));
+    final SearchJobsRequest request4 = SearchJobsRequest.newBuilder()
+        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
+        .setDatasetVersion(dsGet.getDatasetVersion())
+        .setLimit(1000)
+        .setUsername(DEFAULT_USERNAME)
+        .build();
+    jobs2  = ImmutableList.copyOf(jobsService.searchJobs(request4));
     assertEquals(1, jobs2.size());
 
-    jobs2  = ImmutableList.copyOf(jobsService.getJobsForDataset(new DatasetPath("testB.dsB1").toNamespaceKey(), v2, DEFAULT_USERNAME, 1000));
+    final SearchJobsRequest request3 = SearchJobsRequest.newBuilder()
+        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
+        .setDatasetVersion(v2)
+        .setLimit(1000)
+        .setUsername(DEFAULT_USERNAME)
+        .build();
+    jobs2  = ImmutableList.copyOf(jobsService.searchJobs(request3));
     assertEquals(1, jobs2.size());
 
-    jobs2  = ImmutableList.copyOf(jobsService.getJobsForDataset(new DatasetPath("testB.dsB1").toNamespaceKey(), v2, USERNAME, 1000));
+    final SearchJobsRequest request2 = SearchJobsRequest.newBuilder()
+        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
+        .setDatasetVersion(v2)
+        .setLimit(1000)
+        .setUsername(USERNAME)
+        .build();
+    jobs2  = ImmutableList.copyOf(jobsService.searchJobs(request2));
     assertEquals(1, jobs2.size());
   }
 
@@ -398,16 +438,35 @@ public class TestServerJobs extends BaseTestServer {
         NoOpJobStatusListener.INSTANCE)
     );
 
-    List<Job> jobs  = ImmutableList.copyOf(jobsService.getJobsForDataset(new DatasetPath("testB.dsB1").toNamespaceKey(), dsGet.getDatasetVersion(), 1000));
+    final SearchJobsRequest request3 = SearchJobsRequest.newBuilder()
+        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
+        .setDatasetVersion(dsGet.getDatasetVersion())
+        .setLimit(1000)
+        .build();
+    List<Job> jobs  = ImmutableList.copyOf(jobsService.searchJobs(request3));
     assertEquals(dsB1JobsVersion, jobs.size());
 
-    jobs  = ImmutableList.copyOf(jobsService.getJobsForDataset(new DatasetPath("testB.dsB1").toNamespaceKey(), new DatasetVersion(v2.getVersion()), 1000));
+    final SearchJobsRequest request2 = SearchJobsRequest.newBuilder()
+        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
+        .setDatasetVersion(new DatasetVersion(v2.getVersion()))
+        .setLimit(1000)
+        .build();
+    jobs  = ImmutableList.copyOf(jobsService.searchJobs(request2));
     assertEquals(v2.getVersion(), 1, jobs.size());
 
-    jobs  = ImmutableList.copyOf(jobsService.getJobsForDataset(new DatasetPath("testB.dsB1").toNamespaceKey(), dsGet.getDatasetVersion(), 1000));
+    final SearchJobsRequest request1 = SearchJobsRequest.newBuilder()
+        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
+        .setDatasetVersion(dsGet.getDatasetVersion())
+        .setLimit(1000)
+        .build();
+    jobs  = ImmutableList.copyOf(jobsService.searchJobs(request1));
     assertEquals(dsB1JobsVersion, jobs.size());
 
-    jobs  = ImmutableList.copyOf(jobsService.getJobsForDataset(new DatasetPath("testB.dsB1").toNamespaceKey(), 1000));
+    final SearchJobsRequest request = SearchJobsRequest.newBuilder()
+        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
+        .setLimit(1000)
+        .build();
+    jobs  = ImmutableList.copyOf(jobsService.searchJobs(request));
     assertEquals(dsB1Jobs, jobs.size()); // we have already run that query for the latest version in the previous call
 
     doc("getting list of all jobs for dataset for a dataset using simple equality filter");

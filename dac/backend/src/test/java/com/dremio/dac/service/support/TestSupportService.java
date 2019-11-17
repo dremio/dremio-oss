@@ -44,6 +44,7 @@ import com.dremio.dac.support.SupportResponse;
 import com.dremio.dac.support.SupportService;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.SearchJobsRequest;
 import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
@@ -107,7 +108,12 @@ public class TestSupportService extends BaseTestServer {
     ).buildPost(Entity.entity(new CreateFromSQL("select * from " + badFileName, null), MediaType.APPLICATION_JSON_TYPE));
     expectError(FamilyExpectation.CLIENT_ERROR, invocation, Object.class);
 
-    List<Job> jobs = ImmutableList.copyOf(l(JobsService.class).getAllJobs("*=contains=" + badFileName, null, null, 0, 1, null));
+    final SearchJobsRequest request = SearchJobsRequest.newBuilder()
+        .setFilterString("*=contains=" + badFileName)
+        .setLimit(1)
+        .build();
+
+    List<Job> jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(request));
     assertEquals(1, jobs.size());
     Job job = jobs.get(0);
     String url = "/support/" + job.getJobId().getId();

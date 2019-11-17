@@ -19,8 +19,11 @@ import static com.dremio.dac.proto.model.dataset.ExtractRuleType.pattern;
 import static com.dremio.dac.proto.model.dataset.ExtractRuleType.position;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -30,7 +33,7 @@ import com.dremio.dac.explore.QueryExecutor;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.common.Field;
 import com.dremio.dac.model.common.VisitorException;
-import com.dremio.dac.model.job.JobUI;
+import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.dac.proto.model.dataset.ExtractRule;
 import com.dremio.dac.proto.model.dataset.ExtractRulePattern;
@@ -77,15 +80,15 @@ public class DatasetsUtil {
    * @param version
    * @return
    */
-  public static JobUI getDatasetPreviewJob(QueryExecutor executor, SqlQuery query, DatasetPath datasetPath, DatasetVersion version) {
+  public static JobData getDatasetPreviewJob(QueryExecutor executor, SqlQuery query, DatasetPath datasetPath, DatasetVersion version) {
     // In most cases we should already have a preview job that ran on the given dataset version. If not it will trigger a job.
-    JobUI job = executor.runQuery(query, QueryType.UI_PREVIEW, datasetPath, version);
+    JobData jobData = executor.runQuery(query, QueryType.UI_PREVIEW, datasetPath, version);
 
     // Wait for the job to complete (will return immediately if the job already exists, otherwise a blocking call until
     // the job completes).
-    job.getData().loadIfNecessary();
+    jobData.loadIfNecessary();
 
-    return job;
+    return jobData;
   }
 
   /**
@@ -344,5 +347,21 @@ public class DatasetsUtil {
     }
 
     return fields;
+  }
+
+  public static Set<String> getPartitionedColumns(DatasetConfig datasetConfig) {
+    return datasetConfig.getReadDefinition() != null ?
+      toSet(datasetConfig.getReadDefinition().getPartitionColumnsList()) :
+      Collections.emptySet();
+  }
+
+  public static Set<String> getSortedColumns(DatasetConfig datasetConfig) {
+    return datasetConfig.getReadDefinition() != null ?
+      toSet(datasetConfig.getReadDefinition().getSortColumnsList()) :
+      Collections.emptySet();
+  }
+
+  private static Set<String> toSet(List<String> list) {
+    return list != null ? new HashSet<>(list) : Collections.emptySet();
   }
 }

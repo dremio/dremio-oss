@@ -15,7 +15,7 @@
  */
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
-import { hashHeightTopSplitter } from 'constants/explorePage/heightTopSplitter.js';
+import { hashHeightTopSplitter } from '@app/constants/explorePage/heightTopSplitter.js';
 import { ExplorePageView as ExplorePage } from './ExplorePage';
 
 describe('ExplorePage', () => {
@@ -35,7 +35,6 @@ describe('ExplorePage', () => {
       toggleRightTree: sinon.spy(),
       rightTreeVisible: true,
       sqlState: true,
-      updateGridSizes: sinon.spy(),
       onUnmount: () => {}
     };
     commonProps = {

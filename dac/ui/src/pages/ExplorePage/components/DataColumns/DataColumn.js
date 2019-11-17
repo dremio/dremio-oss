@@ -48,7 +48,7 @@ export class DataColumn extends PureComponent {
         src={`types/${typeToIconType[type]}.svg`}
         alt={formatMessage(`${typeToFormatMessageId[type]}`)}
         className={iconCls}
-        />
+      />
       <div className={nameCls}>{name}</div>
     </div>);
   }

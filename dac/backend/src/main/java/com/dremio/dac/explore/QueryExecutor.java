@@ -30,7 +30,9 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.common.DACRuntimeException;
+import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobDataFragment;
+import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
@@ -39,12 +41,14 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.GetJobRequest;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobStatusListener;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.NoOpJobStatusListener;
+import com.dremio.service.jobs.SearchJobsRequest;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.file.FileFormat;
@@ -82,7 +86,7 @@ public class QueryExecutor {
    * @param version        the version for the dataset represented by the query (metadata)
    * @param statusListener Job status and event listener
    */
-  JobUI runQueryWithListener(SqlQuery query, QueryType queryType, DatasetPath datasetPath,
+  JobData runQueryWithListener(SqlQuery query, QueryType queryType, DatasetPath datasetPath,
                              DatasetVersion version, JobStatusListener statusListener) {
     return runQueryWithListener(query, queryType, datasetPath, version, statusListener, false);
   }
@@ -100,7 +104,7 @@ public class QueryExecutor {
    * @param statusListener Job status and event listener
    * @param runInSameThread runs attemptManager in a single thread
    */
-  JobUI runQueryWithListener(SqlQuery query, QueryType queryType, DatasetPath datasetPath,
+  JobData runQueryWithListener(SqlQuery query, QueryType queryType, DatasetPath datasetPath,
       DatasetVersion version, JobStatusListener statusListener, boolean runInSameThread) {
     String messagePath = datasetPath + (version == null ? "" : "/" + version);
     if (datasetPath.getRoot().getRootType() == SOURCE) {
@@ -114,9 +118,14 @@ public class QueryExecutor {
     try {
       // don't check the cache for UI_RUN queries
       if (queryType != QueryType.UI_RUN) {
-        final Iterable<Job> jobsForDataset = version == null ?
-          jobsService.getJobsForDataset(datasetPath.toNamespaceKey(), null, query.getUsername(), MAX_JOBS_TO_SEARCH) :
-          jobsService.getJobsForDataset(datasetPath.toNamespaceKey(), version, query.getUsername(), MAX_JOBS_TO_SEARCH);
+        final SearchJobsRequest.Builder requestBuilder = SearchJobsRequest.newBuilder()
+            .setDatasetPath(datasetPath.toNamespaceKey())
+            .setLimit(MAX_JOBS_TO_SEARCH)
+            .setUsername(query.getUsername());
+        if (version != null) {
+          requestBuilder.setDatasetVersion(version);
+        }
+        final Iterable<Job> jobsForDataset = jobsService.searchJobs(requestBuilder.build());
         for (Job job : jobsForDataset) {
           if (job.getJobAttempt().getInfo().getQueryType() == queryType
             && query.getSql().equals(job.getJobAttempt().getInfo().getSql())
@@ -124,7 +133,10 @@ public class QueryExecutor {
             && job.hasResults()) {
             try {
               statusListener.jobCompleted();
-              return new JobUI(jobsService.getJob(job.getJobId()));
+              GetJobRequest request = GetJobRequest.newBuilder()
+                .setJobId(job.getJobId())
+                .build();
+              return new JobDataWrapper(jobsService.getJob(request).getData());
             } catch (RuntimeException | JobNotFoundException e) {
               logger.debug("job {} not found for dataset {}", job.getJobId().getId(), messagePath, e);
               // no result
@@ -144,13 +156,13 @@ public class QueryExecutor {
           .runInSameThread(runInSameThread)
           .build(), statusListener)
       );
-      return new JobUI(job);
+      return new JobDataWrapper(job.getData());
     } catch (UserRemoteException e) {
       throw new DACRuntimeException(format("Failure while running %s query for dataset %s :\n%s", queryType, messagePath, query) + "\n" + e.getMessage(), e);
     }
   }
 
-  public JobUI runQuery(SqlQuery query, QueryType queryType, DatasetPath datasetPath, DatasetVersion version) {
+  public JobData runQuery(SqlQuery query, QueryType queryType, DatasetPath datasetPath, DatasetVersion version) {
     return runQueryWithListener(query, queryType, datasetPath, version, NoOpJobStatusListener.INSTANCE);
   }
 

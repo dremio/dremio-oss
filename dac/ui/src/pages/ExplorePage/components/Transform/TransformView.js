@@ -21,7 +21,7 @@ import { Link } from 'react-router';
 
 import Tabs from 'components/Tabs';
 
-import { LIST, MAP } from 'constants/DataTypes';
+import { LIST, MAP } from '@app/constants/DataTypes';
 
 import { methodTitle, methodTab } from 'uiTheme/radium/exploreTransform';
 import { PALE_BLUE } from 'uiTheme/radium/colors';
@@ -123,7 +123,7 @@ export default class TransformView extends Component {
           {...formProps}
           loadTransformValuesPreview={this.props.loadTransformValuesPreview}
           formKey={formKey}
-          />
+        />
         <ReplaceRangeForm
           tabId='Range'
           {...formProps}

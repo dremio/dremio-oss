@@ -197,4 +197,44 @@ public class TestDecimalQueries extends DecimalCompleteTest {
       .baselineValues(new BigDecimal("38171.843286701481")  )
       .go();
   }
+
+  @Test
+  public void testDecimalEqualityImplicitCast() throws Exception {
+    final String innerQuery = "select\n" +
+      "  cast(1.20 as Decimal(38,20)) as decimal38_20,\n" +
+      "  cast(1 as decimal(38,0)) as decimal38_0,\n" +
+      "  cast(1 as integer) \"int\",\n" +
+      "  cast(1 as bigint) \"bigint\"";
+    final String query = String.format("select\n" +
+      "  decimal38_20 = decimal38_0 eq1,\n" +
+      "  decimal38_20 = \"int\" eq2,\n" +
+      "  decimal38_20 = \"bigint\" eq3\n" +
+      "  from (%s)\n", innerQuery);
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("eq1", "eq2", "eq3")
+      .baselineValues(false, false, false)
+      .go();
+  }
+
+  @Test
+  public void testDecimalEqualityImplicitCast2() throws Exception {
+    final String innerQuery = "select\n" +
+      "  cast(1.00 as Decimal(38,20)) as decimal38_20,\n" +
+      "  cast(1 as decimal(38,0)) as decimal38_0,\n" +
+      "  cast(1 as integer) \"int\",\n" +
+      "  cast(1 as bigint) \"bigint\"";
+    final String query = String.format("select\n" +
+      "  decimal38_20 = decimal38_0 eq1,\n" +
+      "  decimal38_20 = \"int\" eq2,\n" +
+      "  decimal38_20 = \"bigint\" eq3\n" +
+      "  from (%s)\n", innerQuery);
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("eq1", "eq2", "eq3")
+      .baselineValues(true, true, true)
+      .go();
+  }
 }

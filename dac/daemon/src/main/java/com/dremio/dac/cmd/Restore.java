@@ -16,8 +16,6 @@
 package com.dremio.dac.cmd;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -26,10 +24,14 @@ import com.beust.jcommander.Parameters;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.util.BackupRestoreUtil;
 import com.dremio.dac.util.BackupRestoreUtil.BackupStats;
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 
 /**
  * Restore command.
  */
+@AdminCommand(value = "restore", description = "Restores Dremio metadata and user-uploaded files")
 public class Restore {
 
   /**
@@ -78,8 +80,8 @@ public class Restore {
       if (!dacConfig.isMaster) {
         throw new UnsupportedOperationException("Restore should be run on master node ");
       }
-      Path backupDir = new Path(options.backupDir);
-      FileSystem fs = backupDir.getFileSystem(new Configuration());
+      Path backupDir = Path.of(options.backupDir);
+      FileSystem fs = HadoopFileSystem.get(backupDir, new Configuration());
 
       if (options.restore) {
         action = "restore";

@@ -25,9 +25,10 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.rel.AbstractRelNode;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
+import org.apache.calcite.rel.core.Values;
+import org.apache.calcite.rel.logical.LogicalValues;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -55,7 +56,7 @@ import com.google.common.collect.Lists;
 /**
  * Values implemented in Dremio.
  */
-public class ValuesRel extends AbstractRelNode implements Rel {
+public class ValuesRel extends Values implements Rel {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ValuesRel.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -65,7 +66,7 @@ public class ValuesRel extends AbstractRelNode implements Rel {
   private final double rowCount;
 
   protected ValuesRel(RelOptCluster cluster, RelDataType rowType, ImmutableList<ImmutableList<RexLiteral>> tuples, RelTraitSet traits) {
-    super(cluster, traits);
+    super(cluster, rowType, tuples, traits);
     assert getConvention() == LOGICAL;
 
     // Remove the ANY type and derive the literal type.
@@ -84,8 +85,8 @@ public class ValuesRel extends AbstractRelNode implements Rel {
 
   }
 
-  private ValuesRel(RelOptCluster cluster, RelDataType rowType, RelTraitSet traits, JSONOptions options, double rowCount){
-    super(cluster, traits);
+  private ValuesRel(RelOptCluster cluster, RelDataType rowType, ImmutableList<ImmutableList<RexLiteral>> tuples, RelTraitSet traits, JSONOptions options, double rowCount){
+    super(cluster, rowType, tuples, traits);
     this.options = options;
     this.rowCount = rowCount;
     this.rowType = rowType;
@@ -179,7 +180,7 @@ public class ValuesRel extends AbstractRelNode implements Rel {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     assert inputs.isEmpty();
-    return new ValuesRel(getCluster(), rowType, traitSet, options, rowCount);
+    return new ValuesRel(getCluster(), rowType, tuples, traitSet, options, rowCount);
   }
 
   public JSONOptions getTuplesAsJsonOptions() throws IOException {
@@ -360,5 +361,9 @@ public class ValuesRel extends AbstractRelNode implements Rel {
     default:
       throw new UnsupportedOperationException(String.format("Unable to convert the value of %s and type %s to a Dremio constant expression.", literal, literal.getType().getSqlTypeName()));
     }
+  }
+
+  public static ValuesRel from(LogicalValues values) {
+    return new ValuesRel(values.getCluster(), values.getRowType(), values.getTuples(), values.getTraitSet().plus(Rel.LOGICAL));
   }
 }

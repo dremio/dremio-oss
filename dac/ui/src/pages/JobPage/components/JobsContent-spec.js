@@ -17,6 +17,7 @@ import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 import socket from 'utils/socket';
 
+import { JobState } from '@app/utils/jobsUtils';
 import JobsContent from './JobsContent';
 
 describe('JobsContent', () => {
@@ -75,11 +76,11 @@ describe('JobsContent', () => {
       expect(instance.setActiveJob).to.not.be.called;
 
       wrapper.setProps({jobId: '456', jobs: Immutable.fromJS([{id: '456', state: 'RUNNING'}])})
-      .setContext(context);
+        .setContext(context);
       expect(instance.setActiveJob).to.not.be.called;
 
       wrapper.setProps({jobId: undefined, jobs: Immutable.fromJS([{id: '789', state: 'RUNNING'}])})
-      .setContext(context);
+        .setContext(context);
       expect(instance.setActiveJob).to.be.calledWith(Immutable.fromJS({id: '789', state: 'RUNNING'}), true);
       socket.startListenToJobProgress.restore();
     });
@@ -105,6 +106,38 @@ describe('JobsContent', () => {
       expect(instance.runActionForJobs).to.be.calledWith(jobs, false);
       expect(socket.startListenToJobProgress).to.be.calledWith(jobs.getIn([0, 'id']));
       socket.startListenToJobProgress.restore();
+    });
+  });
+
+  describe('#runActionForJobs', () => {
+    it('should call callback for any running job', () => {
+      const props = {
+        ...commonProps,
+        jobId: '456',
+        jobs: Immutable.fromJS([{id: '456', state: 'RUNNING'}])
+      };
+      const instance = shallow(<JobsContent {...props}/>, {context}).instance();
+
+      const callbackList = [];
+      const callback = (id) => {
+        callbackList.push(id);
+      };
+
+      const jobs = Immutable.fromJS([
+        {id: '1', state: JobState.COMPLETED},
+        {id: '2', state: JobState.FAILED},
+        {id: '3', state: JobState.CANCELED},
+        {id: '4', state: JobState.CANCELLATION_REQUESTED},
+        {id: '5', state: JobState.ENQUEUED},
+        {id: '6', state: JobState.STARTING},
+        {id: '7', state: JobState.RUNNING},
+        {id: '8', state: JobState.PLANNING},
+        {id: '9', state: JobState.NOT_SUBMITTED}
+      ]);
+
+      instance.runActionForJobs(jobs, false, callback);
+
+      expect(callbackList).to.eql(['4', '5', '6', '7', '8', '9']);
     });
   });
 

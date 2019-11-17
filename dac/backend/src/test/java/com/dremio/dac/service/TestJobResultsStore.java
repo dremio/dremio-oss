@@ -15,11 +15,13 @@
  */
 package com.dremio.dac.service;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.arrow.vector.types.pojo.Field;
@@ -28,6 +30,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import com.dremio.dac.daemon.DACDaemonModule;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.job.JobDataFragmentWrapper;
 import com.dremio.dac.server.BaseTestServer;
@@ -37,6 +40,7 @@ import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
+import com.dremio.service.jobs.GetJobRequest;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobDataFragment;
 import com.dremio.service.jobs.JobRequest;
@@ -45,7 +49,10 @@ import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
+import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
+import com.dremio.service.users.SystemUser;
 import com.dremio.test.UserExceptionMatcher;
 
 /**
@@ -76,7 +83,10 @@ public class TestJobResultsStore extends BaseTestServer {
         NoOpJobStatusListener.INSTANCE)
     );
     JobDataFragment result = job.getData().truncate(10);
-    JobDataFragment storedResult = jobsService.getJob(job.getJobId()).getData().truncate(10);
+    GetJobRequest request = GetJobRequest.newBuilder()
+      .setJobId(job.getJobId())
+      .build();
+    JobDataFragment storedResult = jobsService.getJob(request).getData().truncate(10);
     for (Field column: result.getSchema()) {
       assertTrue(storedResult.getSchema().getFields().contains(column));
     }
@@ -115,5 +125,34 @@ public class TestJobResultsStore extends BaseTestServer {
     jobResult.setAttemptsList(attempts);
     when(jobResultsStore.loadJobData(new JobId("Canceled Job"),jobResult,0,0)).thenCallRealMethod();
     jobResultsStore.loadJobData(new JobId("Canceled Job"),jobResult,0,0);
+  }
+
+  @Test
+  public void testPromotedDataset() throws Exception {
+    final JobsService jobsService = l(JobsService.class);
+    final Job firstJob = JobsServiceUtil.waitForJobCompletion(
+        jobsService.submitJob(
+            JobRequest.newBuilder()
+                .setSqlQuery(new SqlQuery("select * from sys.version", DEFAULT_USERNAME))
+                .build(),
+            NoOpJobStatusListener.INSTANCE)
+    );
+
+    final String firstJobId = firstJob.getJobId().getId();
+    final Job secondJob = JobsServiceUtil.waitForJobCompletion(
+        jobsService.submitJob(
+            JobRequest.newBuilder()
+                .setSqlQuery(new SqlQuery(String.format("select * from \"%s\".\"%s\"",
+                    DACDaemonModule.JOBS_STORAGEPLUGIN_NAME, firstJobId),
+                    SystemUser.SYSTEM_USERNAME))
+                .build(),
+            NoOpJobStatusListener.INSTANCE)
+    );
+
+    assertTrue(secondJob.isCompleted());
+
+    final NamespaceService namespaceService = l(NamespaceService.class);
+    assertNotNull(namespaceService.getDataset(
+        new NamespaceKey(Arrays.asList(DACDaemonModule.JOBS_STORAGEPLUGIN_NAME, firstJobId))));
   }
 }

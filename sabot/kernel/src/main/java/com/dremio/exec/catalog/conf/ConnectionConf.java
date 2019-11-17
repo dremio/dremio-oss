@@ -38,6 +38,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.google.common.base.Defaults;
 import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 
 import io.protostuff.ByteString;
@@ -95,8 +96,14 @@ public abstract class ConnectionConf<T extends ConnectionConf<T, P>, P extends S
     try {
       for(Field field : FieldUtils.getAllFields(getClass())) {
         if(predicate.apply(field)) {
-          if (isSecret && field.getType() == String.class) {
-            field.set(this, USE_EXISTING_SECRET_VALUE);
+          if (isSecret && field.getType().equals(String.class)) {
+            final String value = (String) field.get(this);
+
+            if (Strings.isNullOrEmpty(value)) {
+              field.set(this, null);
+            } else {
+              field.set(this, USE_EXISTING_SECRET_VALUE);
+            }
           } else {
             Object defaultValue = Defaults.defaultValue(field.getType());
             field.set(this, defaultValue);

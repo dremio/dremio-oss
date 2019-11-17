@@ -202,10 +202,10 @@ public class HashAggPartitionWritableBatch {
       .setCarriesTwoByteSelectionVector(false)
       .build();
 
-    this.currentBatchIndex++;
+    final int batchIdx = this.currentBatchIndex++;
 
     return new HashAggPartitionBatchDefinition(fixedBufferLength, variableBufferLength, (byte)accumulators.length,
-      accumulatorTypes, accumulatorBatchDef);
+      accumulatorTypes, accumulatorBatchDef, batchIdx);
   }
 
   public ArrowBuf[] getBuffers() {
@@ -218,15 +218,22 @@ public class HashAggPartitionWritableBatch {
     final byte numAccumulators;
     final byte[] accumulatorTypes;
     final UserBitShared.RecordBatchDef accumulatorBatchDef;
+    final int batchIdx;
 
     public HashAggPartitionBatchDefinition(int fixedBufferLength, int variableBufferLength,
                                            byte numAccumulators, byte[] accumulatorTypes,
-                                           UserBitShared.RecordBatchDef accumulatorBatchDef) {
+                                           UserBitShared.RecordBatchDef accumulatorBatchDef, final int batchIdx) {
       this.fixedBufferLength = fixedBufferLength;
       this.variableBufferLength = variableBufferLength;
       this.numAccumulators = numAccumulators;
       this.accumulatorTypes = accumulatorTypes;
       this.accumulatorBatchDef = accumulatorBatchDef;
+      this.batchIdx = batchIdx;
+    }
+
+    public int getCurrentBatchIndex()
+    {
+      return batchIdx;
     }
   }
 }

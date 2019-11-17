@@ -18,7 +18,7 @@ import Immutable from 'immutable';
 import { minimalFormProps } from 'testUtil';
 
 import CancelablePromise from 'utils/CancelablePromise';
-import { RECOMMENDED_JOIN, CUSTOM_JOIN} from 'constants/explorePage/joinTabs';
+import { RECOMMENDED_JOIN, CUSTOM_JOIN} from '@app/constants/explorePage/joinTabs';
 import StepWizard from '../components/StepWizard';
 import { JoinController } from './JoinController';
 

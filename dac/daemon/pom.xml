@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>3.3.2-201908142136370993-d60145d</version>
+    <version>4.0.4-201910212053580380-773b665</version>
   </parent>
 
   <artifactId>dremio-dac-daemon</artifactId>
@@ -57,11 +57,8 @@
     </dependency>
     <dependency>
       <groupId>com.dremio.plugins</groupId>
-      <artifactId>dremio-hive-plugin</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.dremio.plugins</groupId>
-      <artifactId>dremio-hbase-plugin</artifactId>
+      <artifactId>dremio-hive-function-registry</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>com.dremio.plugins</groupId>
@@ -171,6 +168,20 @@
   <build>
     <plugins>
       <plugin>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <classpathDependencyExcludes>
+            <!--
+                 Exclude Hive uber-jars and their corresponding shaded modules, as these
+                 can introduce dependencies that conflict with the rest of Dremio (eg Jetty).
+                 In production these won't be in Dremio's classpath anyway and will be loaded through PF4J.
+            -->
+            <classpathDependencyExclude>com.dremio.*:*-shaded-*</classpathDependencyExclude>
+            <classpathDependencyExclude>com.dremio.*:*hive-plugin-shim*:jar</classpathDependencyExclude>
+          </classpathDependencyExcludes>
+        </configuration>
+      </plugin>
+      <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
         <executions>
@@ -240,11 +251,6 @@
         <dependency>
           <groupId>com.dremio.community.plugins</groupId>
           <artifactId>dremio-ce-jdbc-plugin</artifactId>
-          <version>${project.version}</version>
-        </dependency>
-        <dependency>
-          <groupId>com.dremio.community.plugins</groupId>
-          <artifactId>dremio-ce-hive-plugin</artifactId>
           <version>${project.version}</version>
         </dependency>
         <dependency>

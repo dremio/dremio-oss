@@ -42,14 +42,15 @@ import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
+import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
-import com.dremio.exec.work.RunningQueryProvider;
 import com.dremio.exec.work.WorkStats;
+import com.dremio.security.CredentialsService;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
+import com.dremio.service.coordinator.ServiceSetDecorator;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.spill.SpillService;
@@ -71,11 +72,10 @@ public class SabotContext implements AutoCloseable {
   private final SystemOptionManager systemOptions;
   private final PersistentStoreProvider provider;
   private final Provider<WorkStats> workStatsProvider;
-  private final Provider<RunningQueryProvider> runningQueriesProvider;
   private final CodeCompiler compiler;
   private final ScanResult classpathScan;
   private final LogicalPlanPersistence lpPersistence;
-  private volatile Provider<MaterializationDescriptorProvider> materializationProvider;
+  private final Provider<MaterializationDescriptorProvider> materializationProvider;
   private final NamespaceService.Factory namespaceServiceFactory;
   private final DatasetListingService datasetListing;
   private final KVStoreProvider kvStoreProvider;
@@ -90,7 +90,9 @@ public class SabotContext implements AutoCloseable {
   private final Provider<SpillService> spillService;
   private final Provider<ConnectionReader> connectionReaderProvider;
   private final ClusterResourceInformation clusterInfo;
-  private final FileSystemWrapperCreator fileSystemWrapperCreator;
+  private final FileSystemWrapper fileSystemWrapper;
+  private final CredentialsService credentialsService;
+  private final JobResultSchemaProvider jobResultSchemaProvider;
 
   public SabotContext(
       DremioConfig dremioConfig,
@@ -109,14 +111,15 @@ public class SabotContext implements AutoCloseable {
       UserService userService,
       Provider<MaterializationDescriptorProvider> materializationProvider,
       Provider<QueryObserverFactory> queryObserverFactory,
-      Provider<RunningQueryProvider> runningQueriesProvider,
       Provider<AccelerationManager> accelerationManager,
       Provider<AccelerationListManager> accelerationListManager,
       Provider<CatalogService> catalogService,
       Provider<ViewCreatorFactory> viewCreatorFactory,
       BufferAllocator queryPlanningAllocator,
       Provider<SpillService> spillService,
-      Provider<ConnectionReader> connectionReaderProvider
+      Provider<ConnectionReader> connectionReaderProvider,
+      CredentialsService credentialsService,
+      JobResultSchemaProvider jobResultSchemaProvider
       ) {
     this.dremioConfig = dremioConfig;
     this.config = config;
@@ -145,19 +148,22 @@ public class SabotContext implements AutoCloseable {
     this.userService = userService;
     this.queryObserverFactory = queryObserverFactory;
     this.materializationProvider = materializationProvider;
-    this.runningQueriesProvider = runningQueriesProvider;
     this.catalogService = catalogService;
     this.viewCreatorFactory = viewCreatorFactory;
     this.queryPlanningAllocator = queryPlanningAllocator;
     this.spillService = spillService;
     this.clusterInfo = new ClusterResourceInformation(coord);
-    this.fileSystemWrapperCreator = config.getInstance(
-      FileSystemWrapperCreator.FILE_SYSTEM_WRAPPER_CREATOR_CLASS,
-      FileSystemWrapperCreator.class,
-      FileSystemWrapperCreator.DEFAULT_INSTANCE,
+    this.fileSystemWrapper = config.getInstance(
+      FileSystemWrapper.FILE_SYSTEM_WRAPPER_CLASS,
+      FileSystemWrapper.class,
+      (fs, storageId, conf, operatorContext, enableAsync, isMetadataEnabled) -> fs,
       dremioConfig,
       systemOptions,
-      allocator);
+      allocator,
+      new ServiceSetDecorator(coord.getServiceSet(Role.EXECUTOR)),
+      endpoint);
+    this.credentialsService = credentialsService;
+    this.jobResultSchemaProvider = jobResultSchemaProvider;
   }
 
   private void checkIfCoordinator() {
@@ -331,7 +337,7 @@ public class SabotContext implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(fileSystemWrapperCreator, systemOptions);
+    AutoCloseables.close(fileSystemWrapper, systemOptions);
   }
 
   public Provider<WorkStats> getWorkStatsProvider() {
@@ -344,10 +350,6 @@ public class SabotContext implements AutoCloseable {
 
   public AccelerationListManager getAccelerationListManager() {
     return accelerationListManager.get();
-  }
-
-  public Provider<RunningQueryProvider> getRunningQueryProvider() {
-    return runningQueriesProvider;
   }
 
   public boolean isCoordinator() {
@@ -366,7 +368,15 @@ public class SabotContext implements AutoCloseable {
     return viewCreatorFactory.get().get(userName);
   }
 
-  public FileSystemWrapperCreator getFileSystemWrapperCreator() {
-    return fileSystemWrapperCreator;
+  public FileSystemWrapper getFileSystemWrapper() {
+    return fileSystemWrapper;
+  }
+
+  public CredentialsService getCredentialsService() {
+    return credentialsService;
+  }
+
+  public JobResultSchemaProvider getJobResultSchemaProvider() {
+    return jobResultSchemaProvider;
   }
 }

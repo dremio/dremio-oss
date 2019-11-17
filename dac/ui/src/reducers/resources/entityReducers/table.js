@@ -15,11 +15,18 @@
  */
 import Immutable from 'immutable';
 import { RUN_TABLE_TRANSFORM_START } from 'actions/explore/dataset/common';
-import { LOAD_NEXT_ROWS_SUCCESS } from 'actions/explore/dataset/data';
+import {
+  LOAD_NEXT_ROWS_SUCCESS,
+  UPDATE_EXPLORE_JOB_PROGRESS,
+  INIT_EXPLORE_JOB_PROGRESS,
+  FAILED_EXPLORE_JOB_PROGRESS,
+  SET_EXPLORE_JOBID_IN_PROGRESS,
+  UPDATE_EXPLORE_JOB_RECORDS } from 'actions/explore/dataset/data';
 
 import {
   UPDATE_COLUMN_FILTER
 } from 'actions/explore/view';
+import {JOB_STATUS} from '@app/pages/ExplorePage/components/ExploreTable/ExploreTableJobStatus';
 
 export default function table(state, action) {
   switch (action.type) {
@@ -42,6 +49,45 @@ export default function table(state, action) {
   }
   case UPDATE_COLUMN_FILTER:
     return state.setIn(['tableData', 'columnFilter'], action.columnFilter);
+  case INIT_EXPLORE_JOB_PROGRESS:
+    return state.setIn(['tableData', 'jobProgress'], {
+      status: JOB_STATUS.starting,
+      isRun: action.isRun,
+      startTime: new Date().getTime()
+      // endTime, jobId, isRun are not defined and are falsy at this time
+    });
+  case FAILED_EXPLORE_JOB_PROGRESS: {
+    const jobProgress = state.getIn(['tableData', 'jobProgress']);
+    return state.setIn(['tableData', 'jobProgress'], {
+      ...jobProgress,
+      status: JOB_STATUS.failed,
+      endTime: new Date().getTime()
+    });
+  }
+  case UPDATE_EXPLORE_JOB_PROGRESS: {
+    const jobProgress = state.getIn(['tableData', 'jobProgress']);
+    return state.setIn(['tableData', 'jobProgress'], {
+      ...jobProgress,
+      jobId: action.jobUpdate.id,
+      status: action.jobUpdate.state,
+      startTime: action.jobUpdate.startTime,
+      endTime: action.jobUpdate.endTime
+    });
+  }
+  case SET_EXPLORE_JOBID_IN_PROGRESS: {
+    const jobProgress = state.getIn(['tableData', 'jobProgress']);
+    return state.setIn(['tableData', 'jobProgress'], {
+      ...jobProgress,
+      jobId: action.jobId
+    });
+  }
+  case UPDATE_EXPLORE_JOB_RECORDS: {
+    const jobProgress = state.getIn(['tableData', 'jobProgress']);
+    return state.setIn(['tableData', 'jobProgress'], {
+      ...jobProgress,
+      recordCount: action.recordCount
+    });
+  }
   default:
     return state;
   }

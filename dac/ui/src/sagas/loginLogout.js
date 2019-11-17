@@ -106,7 +106,7 @@ export function* handleAppInit() {
     log('redirect after login is started. Redirect url:', redirectUrl);
     yield put(replace(redirectUrl));
   }
-  isAppInit = true;
+  isAppInit = true; // eslint-disable-line require-atomic-updates
 }
 
 //export for testing

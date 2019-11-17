@@ -22,13 +22,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.apache.calcite.rel.RelNode;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.acceleration.MaterializationExpander;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
 import com.dremio.exec.store.RecordWriter;
+import com.dremio.io.file.Path;
 import com.dremio.proto.model.UpdateId;
 import com.dremio.service.job.proto.Acceleration.Substitution;
 import com.dremio.service.job.proto.ExtraInfo;

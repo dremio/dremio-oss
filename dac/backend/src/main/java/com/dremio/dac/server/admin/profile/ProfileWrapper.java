@@ -122,7 +122,7 @@ public class ProfileWrapper {
     AccelerationWrapper wrapper = null;
     try {
       AccelerationDetails details = AccelerationDetailsUtils.deserialize(profile.getAccelerationProfile().getAccelerationDetails());
-      if (details != null && details.getReflectionRelationshipsList() != null) {
+      if (details != null) {
         wrapper = new AccelerationWrapper(details);
       }
     } catch (Exception e) {

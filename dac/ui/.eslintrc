@@ -16,11 +16,13 @@
   "parserOptions": {
     "sourceType": "module",
     "ecmaFeatures": {
-      "jsx": true
+      "jsx": true,
+      "legacyDecorators": true
     }
   },
 
   "rules":{
+    "no-prototype-builtins": "off",
     "no-debugger": "warn",
     "no-console": ["warn", { "allow": ["warn", "error", "info"] }],
     "react/prop-types": ["error", { "ignore": [], "customValidators": [] }],
@@ -132,7 +134,11 @@
     "semi-spacing": ["error", {"before": false, "after": true}],
     "semi": ["error", "always"],
     "space-before-blocks": ["error", "always"],
-    "space-before-function-paren": ["error", "never"],
+    "space-before-function-paren": ["error", {
+      "anonymous": "never",
+      "named": "never",
+      "asyncArrow": "always"
+    }],
     "space-infix-ops": "error",
     "space-unary-ops": ["error", { "words": true, "nonwords": false }],
     "arrow-spacing": "error",
@@ -147,7 +153,9 @@
     "linebreak-style": ["error", "unix"],
     "curly": ["error", "multi-line", "consistent"],
     "import/export": "error",
-    "import/order": "error",
+    "import/order": ["error", {
+      "groups": ["builtin", "external", "internal", "parent", "sibling", "index"]
+    }],
     "no-restricted-properties": ["error", {
       "object": "Object",
       "property": "assign",
@@ -163,7 +171,10 @@
   "settings": {
     "import/core-modules": [
       "redux-saga/effects"
-    ]
+    ],
+    "react": {
+      "version": "16.7"
+    }
   },
   "globals":{
     "$": false,

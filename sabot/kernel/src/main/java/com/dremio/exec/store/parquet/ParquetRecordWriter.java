@@ -20,12 +20,12 @@ import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static org.apache.parquet.column.ParquetProperties.DEFAULT_COLUMN_INDEX_TRUNCATE_LENGTH;
 import static org.apache.parquet.hadoop.ParquetWriter.DEFAULT_BLOCK_SIZE;
 import static org.apache.parquet.hadoop.ParquetWriter.MAX_PADDING_SIZE_DEFAULT;
 import static org.apache.parquet.schema.Type.Repetition.OPTIONAL;
 
 import java.io.IOException;
-import java.security.PrivilegedExceptionAction;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,16 +46,18 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Null;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.parquet.NoExceptionAutoCloseables;
+import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.ColumnWriteStore;
 import org.apache.parquet.column.ParquetProperties;
 import org.apache.parquet.column.ParquetProperties.WriterVersion;
 import org.apache.parquet.column.impl.ColumnWriteStoreV1;
 import org.apache.parquet.column.page.PageWriteStore;
 import org.apache.parquet.column.values.factory.DefaultV1ValuesWriterFactory;
+import org.apache.parquet.compression.CompressionCodecFactory;
+import org.apache.parquet.compression.CompressionCodecFactory.BytesInputCompressor;
 import org.apache.parquet.hadoop.CodecFactory;
+import org.apache.parquet.hadoop.CodecFactory.BytesCompressor;
 import org.apache.parquet.hadoop.ColumnChunkPageWriteStoreExposer;
 import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.metadata.CompressionCodecName;
@@ -87,7 +89,8 @@ import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
 import com.dremio.exec.store.ParquetOutputRecordWriter;
 import com.dremio.exec.store.WritePartition;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -122,9 +125,6 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   public static final String IS_DATE_CORRECT_PROPERTY = "is.date.correct";
   public static final String WRITER_VERSION_PROPERTY = "drill-writer.version";
 
-  private final Configuration conf;
-  private final UserGroupInformation proxyUserUGI;
-
   private final BufferAllocator codecAllocator;
   private final BufferAllocator columnEncoderAllocator;
 
@@ -139,8 +139,8 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private boolean enableDictionaryForBinary = false;
   private CompressionCodecName codec = CompressionCodecName.SNAPPY;
   private WriterVersion writerVersion = WriterVersion.PARQUET_1_0;
-  private CodecFactory codecFactory;
-  private FileSystemWrapper fs;
+  private CompressionCodecFactory codecFactory;
+  private FileSystem fs;
   private Path path;
 
   private long recordCount = 0;
@@ -163,6 +163,8 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private final long maxPartitions;
   private final long minRecordsForFlush;
 
+  private final String queryUser;
+
   // metrics workspace variables
   int numFilesWritten = 0;
   long minFileSize = Long.MAX_VALUE;
@@ -172,17 +174,16 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   long maxRecordCountInFile = Long.MIN_VALUE;
 
   public ParquetRecordWriter(OperatorContext context, ParquetWriter writer, ParquetFormatConfig config) throws OutOfMemoryException{
-    this.conf = new Configuration(writer.getFsConf());
     this.context = context;
     this.codecAllocator = context.getAllocator().newChildAllocator("ParquetCodecFactory", 0, Long.MAX_VALUE);
     this.columnEncoderAllocator = context.getAllocator().newChildAllocator("ParquetColEncoder", 0, Long.MAX_VALUE);
-    this.codecFactory = CodecFactory.createDirectCodecFactory(this.conf,
+    this.codecFactory = CodecFactory.createDirectCodecFactory(new Configuration(),
         new ParquetDirectByteBufferAllocator(codecAllocator), pageSize);
     this.extraMetaData.put(DREMIO_VERSION_PROPERTY, DremioVersionInfo.getVersion());
     this.extraMetaData.put(IS_DATE_CORRECT_PROPERTY, "true");
 
-    this.proxyUserUGI = writer.getUGI();
     this.plugin = writer.getFormatPlugin().getFsPlugin();
+    this.queryUser = writer.getProps().getUserName();
 
     FragmentHandle handle = context.getFragmentHandle();
     String fragmentId = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
@@ -221,7 +222,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
 
   @Override
   public void setup() throws IOException {
-    this.fs = plugin.getFileSystem(conf, context);
+    this.fs = plugin.createFS(queryUser, context);
     this.batchSchema = incoming.getSchema();
     newSchema();
 
@@ -235,24 +236,9 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private void initRecordReader() throws IOException {
 
     this.path = fs.canonicalizePath(partition.qualified(location, prefix + "_" + index + "." + extension));
-    try {
-      parquetFileWriter =
-          proxyUserUGI.doAs(new PrivilegedExceptionAction<ParquetFileWriter>() {
-            @Override
-            public ParquetFileWriter run() throws Exception {
-              final ParquetFileWriter parquetFileWriter =
-                  new ParquetFileWriter(checkNotNull(conf), checkNotNull(schema), path, ParquetFileWriter.Mode.CREATE, DEFAULT_BLOCK_SIZE,
-                    MAX_PADDING_SIZE_DEFAULT, true);
-              parquetFileWriter.start();
-              return parquetFileWriter;
-            }
-          });
-    } catch (InterruptedException e) {
-      // Preserve evidence that the interruption occurred so that code higher up on the call stack can learn of the
-      // interruption and respond to it if it wants to.
-      Thread.currentThread().interrupt();
-      throw new IOException("Interrupted while creating the parquet record writer", e);
-    }
+    parquetFileWriter = new ParquetFileWriter(OutputFile.of(fs, path), checkNotNull(schema), ParquetFileWriter.Mode.CREATE, DEFAULT_BLOCK_SIZE,
+        MAX_PADDING_SIZE_DEFAULT, DEFAULT_COLUMN_INDEX_TRUNCATE_LENGTH, true);
+    parquetFileWriter.start();
   }
 
   private void newSchema() throws IOException {
@@ -286,7 +272,8 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       .withEnableDictionarForBinaryType(enableDictionaryForBinary)
       .withPageRowCountLimit(Integer.MAX_VALUE) // Bug 16118
       .build();
-    pageStore = ColumnChunkPageWriteStoreExposer.newColumnChunkPageWriteStore(codecFactory.getCompressor(codec), schema, parquetProperties);
+    pageStore = ColumnChunkPageWriteStoreExposer.newColumnChunkPageWriteStore(
+        toDeprecatedBytesCompressor(codecFactory.getCompressor(codec)), schema, parquetProperties);
     store = new ColumnWriteStoreV1(pageStore, parquetProperties);
     MessageColumnIO columnIO = new ColumnIOFactory(false).getColumnIO(this.schema);
     consumer = columnIO.getRecordWriter(store);
@@ -307,6 +294,25 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     return new PrimitiveType(OPTIONAL, primitiveTypeName, length, name, originalType, decimalMetadata, null);
   }
 
+  @SuppressWarnings("deprecation")
+  private static BytesCompressor toDeprecatedBytesCompressor(final BytesInputCompressor compressor) {
+    return new BytesCompressor() {
+      @Override
+      public BytesInput compress(BytesInput bytes) throws IOException {
+        return compressor.compress(bytes);
+      }
+
+      @Override
+      public CompressionCodecName getCodecName() {
+        return compressor.getCodecName();
+      }
+
+      @Override
+      public void release() {
+        compressor.release();
+      }
+    };
+  }
   @Nullable
   private Type getType(Field field) {
     MinorType minorType = getMajorTypeForField(field).getMinorType();

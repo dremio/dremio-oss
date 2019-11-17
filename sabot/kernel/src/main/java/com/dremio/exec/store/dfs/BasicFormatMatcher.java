@@ -21,11 +21,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.io.compress.CompressionCodec;
-import org.apache.hadoop.io.compress.CompressionCodecFactory;
+import org.apache.commons.io.IOUtils;
 
+import com.dremio.io.CompressionCodec;
+import com.dremio.io.CompressionCodecFactory;
+import com.dremio.io.FSInputStream;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -61,8 +63,8 @@ public class BasicFormatMatcher extends FormatMatcher {
   }
 
   @Override
-  public boolean matches(FileSystemWrapper fs, FileSelection selection, CompressionCodecFactory codecFactory) throws IOException {
-    Optional<FileStatus> firstFileO = selection.getFirstFile();
+  public boolean matches(FileSystem fs, FileSelection selection, CompressionCodecFactory codecFactory) throws IOException {
+    Optional<FileAttributes> firstFileO = selection.getFirstFile();
     if(!firstFileO.isPresent()) {
       return false;
     }
@@ -72,13 +74,12 @@ public class BasicFormatMatcher extends FormatMatcher {
   /*
    * Function returns true if the file extension matches the pattern
    */
-  protected boolean isFileReadable(FileSystemWrapper fs, FileStatus status, CompressionCodecFactory codecFactory) throws IOException {
+  protected boolean isFileReadable(FileSystem fs, FileAttributes attributes, CompressionCodecFactory codecFactory) throws IOException {
   CompressionCodec codec = null;
     if (compressible) {
-      // TODO: investigate if creating a new codec factory is expensive
-      codec = codecFactory.getCodec(status.getPath());
+      codec = codecFactory.getCodec(attributes.getPath());
     }
-    String fileName = status.getPath().toString();
+    String fileName = attributes.getPath().toString();
     String fileNameHacked = null;
     if (codec != null) {
       fileNameHacked = fileName.substring(0, fileName.lastIndexOf('.'));
@@ -94,7 +95,7 @@ public class BasicFormatMatcher extends FormatMatcher {
       }
     }
 
-    if (matcher.matches(fs, status)) {
+    if (matcher.matches(fs, attributes)) {
       return true;
     }
     return false;
@@ -118,23 +119,23 @@ public class BasicFormatMatcher extends FormatMatcher {
       }
     }
 
-    public boolean matches(FileSystemWrapper fs, FileStatus status) throws IOException{
-      if (ranges.isEmpty() || status.isDirectory()) {
+    public boolean matches(FileSystem fs, FileAttributes attributes) throws IOException{
+      if (ranges.isEmpty() || attributes.isDirectory()) {
         return false;
       }
       // walk all the way down in the symlinks until a hard entry is reached
-      FileStatus current = status;
-      while (current.isSymlink()) {
-        current = fs.getFileStatus(status.getSymlink());
+      FileAttributes current = attributes;
+      while (current.isSymbolicLink()) {
+        current = fs.getFileAttributes(attributes.getSymbolicLink());
       }
       // if hard entry is not a file nor can it be a symlink then it is not readable simply deny matching.
-      if (!current.isFile()) {
+      if (!current.isRegularFile()) {
         return false;
       }
 
-      final Range<Long> fileRange = Range.closedOpen( 0L, status.getLen());
+      final Range<Long> fileRange = Range.closedOpen( 0L, attributes.size());
 
-      try (FSDataInputStream is = fs.open(status.getPath())) {
+      try (FSInputStream is = fs.open(attributes.getPath())) {
         for(RangeMagics rMagic : ranges) {
           Range<Long> r = rMagic.range;
           if (!fileRange.encloses(r)) {
@@ -142,7 +143,8 @@ public class BasicFormatMatcher extends FormatMatcher {
           }
           int len = (int) (r.upperEndpoint() - r.lowerEndpoint());
           byte[] bytes = new byte[len];
-          is.readFully(r.lowerEndpoint(), bytes);
+          is.setPosition(r.lowerEndpoint());
+          IOUtils.readFully(is, bytes);
           for (byte[] magic : rMagic.magics) {
             if (Arrays.equals(magic, bytes)) {
               return true;

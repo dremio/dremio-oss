@@ -20,6 +20,7 @@ import static com.dremio.exec.store.hive.HiveUtilities.addProperties;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -43,6 +44,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
@@ -52,6 +54,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
 import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
@@ -92,13 +95,14 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
   private final SplitAndPartitionInfo split;
   private final HiveTableXattr tableAttr;
   private final Collection<List<String>> referencedTables;
+  private final UserGroupInformation readerUgi;
   protected HiveOperatorContextOptions operatorContextOptions;
 
   public HiveAbstractReader(final HiveTableXattr tableAttr, final SplitAndPartitionInfo split,
                             final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
                             final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
                             final StructObjectInspector partitionOI, final ScanFilter filter,
-                            final Collection<List<String>> referencedTables) {
+                            final Collection<List<String>> referencedTables, final UserGroupInformation readerUgi) {
     super(context, projectedColumns);
     this.tableAttr = tableAttr;
     this.split = split;
@@ -109,113 +113,120 @@ public abstract class HiveAbstractReader extends AbstractRecordReader {
     this.partitionOI = partitionOI == null ? tableOI : partitionOI;
     this.filter = filter;
     this.referencedTables = referencedTables;
+    this.readerUgi = readerUgi;
   }
 
   @Override
-  public void setup(OutputMutator output) {
-    final HiveSplitXattr splitAttr;
-    try {
-      splitAttr = HiveSplitXattr.parseFrom(split.getDatasetSplitInfo().getExtendedProperty());
-    } catch (InvalidProtocolBufferException e) {
-      throw createExceptionWithContext("Failure deserializing Hive extended attributes.", e);
-    }
-
-    final Properties tableProperties = new Properties();
-    addProperties(jobConf, tableProperties, HiveReaderProtoUtil.getTableProperties(tableAttr));
-
-    List<String> selectedColumnNames;
-    List<TypeInfo> selectedColumnTypes = new ArrayList<>();
-
-    try {
-      if(partitionSerDe != null) {
-        finalOI = (StructObjectInspector)ObjectInspectorConverters.getConvertedOI(partitionOI, tableOI);
-      } else {
-        finalOI = tableOI;
+  public final void setup(OutputMutator output) {
+    try (ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+      final HiveSplitXattr splitAttr;
+      try {
+        splitAttr = HiveSplitXattr.parseFrom(split.getDatasetSplitInfo().getExtendedProperty());
+      } catch (InvalidProtocolBufferException e) {
+        throw createExceptionWithContext("Failure deserializing Hive extended attributes.", e);
       }
 
-      if (logger.isTraceEnabled()) {
-        for (StructField field: finalOI.getAllStructFieldRefs()) {
-          logger.trace("field in finalOI: {}", field.getClass().getName());
+      final Properties tableProperties = new Properties();
+      addProperties(jobConf, tableProperties, HiveReaderProtoUtil.getTableProperties(tableAttr));
+
+      List<String> selectedColumnNames;
+      List<TypeInfo> selectedColumnTypes = new ArrayList<>();
+
+      try {
+        if (partitionSerDe != null) {
+          finalOI = (StructObjectInspector) ObjectInspectorConverters.getConvertedOI(partitionOI, tableOI);
+        } else {
+          finalOI = tableOI;
         }
-        logger.trace("partitionSerDe class is {} {}", partitionSerDe.getClass().getName());
-      }
 
-      // We should always get the columns names from ObjectInspector. For some of the tables (ex. avro) metastore
-      // may not contain the schema, instead it is derived from other sources such as table properties or external file.
-      // SerDe object knows how to get the schema with all the config and table properties passed in initialization.
-      // ObjectInspector created from the SerDe object has the schema.
-      final StructTypeInfo sTypeInfo = (StructTypeInfo) TypeInfoUtils.getTypeInfoFromObjectInspector(finalOI);
-      final List<String> tableColumnNames = sTypeInfo.getAllStructFieldNames();
-
-      // Select list of columns for project pushdown into Hive SerDe readers.
-      final List<Integer> columnIds = Lists.newArrayList();
-      selectedColumnNames = Lists.newArrayList();
-      for (SchemaPath field : getColumns()) {
-        String columnName = field.getRootSegment().getPath();
-        if (!selectedColumnNames.contains(columnName)) {
-          columnIds.add(tableColumnNames.indexOf(columnName));
-          selectedColumnNames.add(columnName);
+        if (logger.isTraceEnabled()) {
+          for (StructField field : finalOI.getAllStructFieldRefs()) {
+            logger.trace("field in finalOI: {}", field.getClass().getName());
+          }
+          logger.trace("partitionSerDe class is {} {}", partitionSerDe.getClass().getName());
         }
-      }
 
-      ColumnProjectionUtils.appendReadColumns(jobConf, columnIds, selectedColumnNames);
+        // We should always get the columns names from ObjectInspector. For some of the tables (ex. avro) metastore
+        // may not contain the schema, instead it is derived from other sources such as table properties or external file.
+        // SerDe object knows how to get the schema with all the config and table properties passed in initialization.
+        // ObjectInspector created from the SerDe object has the schema.
+        final StructTypeInfo sTypeInfo = (StructTypeInfo) TypeInfoUtils.getTypeInfoFromObjectInspector(finalOI);
+        final List<String> tableColumnNames = sTypeInfo.getAllStructFieldNames();
 
-      List<StructField> selectedStructFieldRefs = new ArrayList<>();
-      List<ObjectInspector> selectedColumnObjInspectors = new ArrayList<>();
-      List<HiveFieldConverter> selectedColumnFieldConverters = new ArrayList<>();
-      this.operatorContextOptions = new HiveOperatorContextOptions(context);
+        // Select list of columns for project pushdown into Hive SerDe readers.
+        final List<Integer> columnIds = Lists.newArrayList();
+        selectedColumnNames = Lists.newArrayList();
+        for (SchemaPath field : getColumns()) {
+          String columnName = field.getRootSegment().getPath();
+          if (!selectedColumnNames.contains(columnName)) {
+            columnIds.add(tableColumnNames.indexOf(columnName));
+            selectedColumnNames.add(columnName);
+          }
+        }
 
-      for (String columnName : selectedColumnNames) {
-        StructField fieldRef = finalOI.getStructFieldRef(columnName);
-        selectedStructFieldRefs.add(fieldRef);
-        ObjectInspector fieldOI = fieldRef.getFieldObjectInspector();
+        ColumnProjectionUtils.appendReadColumns(jobConf, columnIds, selectedColumnNames);
 
-        TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(fieldOI.getTypeName());
+        List<StructField> selectedStructFieldRefs = new ArrayList<>();
+        List<ObjectInspector> selectedColumnObjInspectors = new ArrayList<>();
+        List<HiveFieldConverter> selectedColumnFieldConverters = new ArrayList<>();
+        this.operatorContextOptions = new HiveOperatorContextOptions(context);
 
-        selectedColumnObjInspectors.add(fieldOI);
-        selectedColumnTypes.add(typeInfo);
-        selectedColumnFieldConverters.add(HiveFieldConverter.create(typeInfo, context, this.operatorContextOptions));
-      }
+        for (String columnName : selectedColumnNames) {
+          StructField fieldRef = finalOI.getStructFieldRef(columnName);
+          selectedStructFieldRefs.add(fieldRef);
+          ObjectInspector fieldOI = fieldRef.getFieldObjectInspector();
 
-      if (logger.isTraceEnabled()) {
-        for(int i=0; i<selectedColumnNames.size(); ++i){
-          logger.trace("inspector:typeName={}, className={}, TypeInfo: {}, converter:{}",
+          TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(fieldOI.getTypeName());
+
+          selectedColumnObjInspectors.add(fieldOI);
+          selectedColumnTypes.add(typeInfo);
+          selectedColumnFieldConverters.add(HiveFieldConverter.create(typeInfo, context, this.operatorContextOptions));
+        }
+
+        if (logger.isTraceEnabled()) {
+          for (int i = 0; i < selectedColumnNames.size(); ++i) {
+            logger.trace("inspector:typeName={}, className={}, TypeInfo: {}, converter:{}",
               selectedColumnObjInspectors.get(i).getTypeName(),
               selectedColumnObjInspectors.get(i).getClass().getName(),
               selectedColumnTypes.get(i).toString(),
               selectedColumnFieldConverters.get(i).getClass().getName());
+          }
         }
+
+        this.selectedStructFieldRefs = selectedStructFieldRefs.toArray(new StructField[selectedStructFieldRefs.size()]);
+        this.selectedColumnObjInspectors = selectedColumnObjInspectors.toArray(new ObjectInspector[selectedColumnObjInspectors.size()]);
+        this.selectedColumnFieldConverters = selectedColumnFieldConverters.toArray(new HiveFieldConverter[selectedColumnFieldConverters.size()]);
+
+      } catch (Exception e) {
+        throw createExceptionWithContext("Failure while initializing Hive Reader", e);
       }
 
-      this.selectedStructFieldRefs = selectedStructFieldRefs.toArray(new StructField[selectedStructFieldRefs.size()]);
-      this.selectedColumnObjInspectors = selectedColumnObjInspectors.toArray(new ObjectInspector[selectedColumnObjInspectors.size()]);
-      this.selectedColumnFieldConverters = selectedColumnFieldConverters.toArray(new HiveFieldConverter[selectedColumnFieldConverters.size()]);
-
-    } catch (Exception e) {
-      throw createExceptionWithContext("Failure while initializing Hive Reader", e);
-    }
-
-    this.vectors = new ValueVector[selectedColumnNames.size()];
-    final OptionManager options = context.getOptions();
-    int i = 0;
-    Set<String> seenColumns = new HashSet<>();
-    for (SchemaPath selectedColumn : getColumns()) {
-      final String colName = selectedColumn.getRootSegment().getPath();
-      if (seenColumns.contains(colName)) {
-        continue;
+      this.vectors = new ValueVector[selectedColumnNames.size()];
+      final OptionManager options = context.getOptions();
+      int i = 0;
+      Set<String> seenColumns = new HashSet<>();
+      for (SchemaPath selectedColumn : getColumns()) {
+        final String colName = selectedColumn.getRootSegment().getPath();
+        if (seenColumns.contains(colName)) {
+          continue;
+        }
+        seenColumns.add(colName);
+        MajorType type = HiveUtilities.getMajorTypeFromHiveTypeInfo(selectedColumnTypes.get(i), options);
+        Field field = getFieldForNameAndMajorType(colName, type);
+        vectors[i] = output.addField(field, ValueVector.class);
+        i++;
       }
-      seenColumns.add(colName);
-      MajorType type = HiveUtilities.getMajorTypeFromHiveTypeInfo(selectedColumnTypes.get(i), options);
-      Field field = getFieldForNameAndMajorType(colName, type);
-      vectors[i] = output.addField(field, ValueVector.class);
-      i++;
-    }
 
-    try {
-      final InputSplit inputSplit = HiveUtilities.deserializeInputSplit(splitAttr.getInputSplit());
-      internalInit(inputSplit, jobConf, vectors);
-    } catch (Exception e) {
-      throw createExceptionWithContext("Failed to initialize Hive record reader", e);
+      try {
+        final InputSplit inputSplit = HiveUtilities.deserializeInputSplit(splitAttr.getInputSplit());
+        final PrivilegedExceptionAction<Void> internalInitAction = () -> {
+          internalInit(inputSplit, jobConf, vectors);
+          return null;
+        };
+        readerUgi.doAs(internalInitAction);
+      } catch (Exception e) {
+        throw createExceptionWithContext("Failed to initialize Hive record reader", e);
+      }
     }
   }
 

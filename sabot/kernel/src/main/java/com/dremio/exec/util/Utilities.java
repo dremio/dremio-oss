@@ -18,13 +18,13 @@ package com.dremio.exec.util;
 import java.util.List;
 import java.util.Locale;
 
-import org.apache.arrow.vector.util.DateUtility;
-
+import com.dremio.common.util.JodaDateUtility;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.CoordExecRPC.FragmentPriority;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.WorkloadClass;
 import com.dremio.exec.proto.UserBitShared.WorkloadType;
 import com.dremio.exec.proto.UserProtos.QueryPriority;
@@ -71,7 +71,7 @@ public class Utilities {
   }
 
   public static QueryContextInformation createQueryContextInfo(final String defaultSchemaName) {
-    return createQueryContextInfo(defaultSchemaName, null, Long.MAX_VALUE);
+    return createQueryContextInfo(defaultSchemaName, null, Long.MAX_VALUE, null);
   }
   /**
    * Create QueryContextInformation with given <i>defaultSchemaName</i>. Rest of the members of the
@@ -80,22 +80,24 @@ public class Utilities {
    * @param defaultSchemaName
    * @return
    */
-  public static QueryContextInformation createQueryContextInfo(final String defaultSchemaName, QueryPriority priority, long maxAllocation) {
+  public static QueryContextInformation createQueryContextInfo(final String defaultSchemaName, QueryPriority priority, long maxAllocation, QueryId lastQueryId) {
     final long queryStartTime = System.currentTimeMillis();
-    final int timeZone = DateUtility.getIndex(System.getProperty("user.timezone"));
+    final int timeZone = JodaDateUtility.getIndex(System.getProperty("user.timezone"));
     FragmentPriority.Builder priorityBuilder = FragmentPriority.newBuilder();
     if(priority != null){
       priorityBuilder.setWorkloadClass(priority.getWorkloadClass());
     } else {
       priorityBuilder.setWorkloadClass(WorkloadClass.GENERAL);
     }
-    return QueryContextInformation.newBuilder()
-        .setDefaultSchemaName(defaultSchemaName)
-        .setQueryStartTime(queryStartTime)
-        .setTimeZone(timeZone)
-        .setPriority(priorityBuilder)
-        .setQueryMaxAllocation(maxAllocation)
-        .build();
+
+    QueryContextInformation.Builder builder = QueryContextInformation.newBuilder()
+      .setDefaultSchemaName(defaultSchemaName)
+      .setQueryStartTime(queryStartTime)
+      .setTimeZone(timeZone)
+      .setPriority(priorityBuilder)
+      .setQueryMaxAllocation(maxAllocation);
+
+    return (lastQueryId == null ? builder : builder.setLastQueryId(lastQueryId)).build();
   }
 
   public static WorkloadType getWorkloadType(QueryPriority queryPriority, UserBitShared.RpcEndpointInfos clientInfos) {

@@ -59,6 +59,7 @@ class LocalDateTimeConverter implements IStringConverter<LocalDateTime> {
 /**
  * Export profiles command.
  */
+@AdminCommand(value = "export-profiles", description = "Exports profiles of jobs from Dremio")
 public class ExportProfiles {
   /**
    * Command line options for export profiles

@@ -399,6 +399,10 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   }
 
   @Override
+  public void recordsProcessed(long recordCount) {
+  }
+
+  @Override
   public void planGenerationTime(long millisTaken) {
     planPhases.add(PlanPhaseProfile.newBuilder()
       .setPhaseName("Execution Plan: Plan Generation")

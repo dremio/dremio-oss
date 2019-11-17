@@ -17,6 +17,7 @@ import { all, put, call, takeEvery, spawn, select, take, fork} from 'redux-saga/
 import invariant from 'invariant';
 import { newUntitledSql, newUntitledSqlAndRun } from 'actions/explore/dataset/new';
 import { PERFORM_TRANSFORM, runTableTransform } from 'actions/explore/dataset/transform';
+import { initializeExploreJobProgress } from '@app/actions/explore/dataset/data';
 import {
   PERFORM_TRANSFORM_AND_RUN,
   runDataset,
@@ -76,6 +77,7 @@ export function* performTransform({
     const didTransform = !!apiAction;
     if (apiAction) {
       yield call(cancelDataLoad);
+      yield put(initializeExploreJobProgress(isRun));
       // response will be not empty. See transformThenNavigate
       const response = yield call(transformThenNavigate, apiAction, viewId, navigateOptions);
       if (!response || response.error) {

@@ -18,7 +18,6 @@ package com.dremio.sabot.op.scan;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.FileNotFoundException;
-import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -31,7 +30,6 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
-import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +51,6 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.parquet.GlobalDictionaries;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
-import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -101,7 +98,10 @@ public class ScanOperator implements ProducerOperator {
     TOTAL_BYTES_READ,     // Total bytes read
     LOCAL_BYTES_READ,     // Total number of local bytes read using local I/O
     SHORT_CIRCUIT_BYTES_READ, // Total number of bytes read using short circuit reads
-    PRELOADED_BYTES           // Number of bytes pre-loaded
+    PRELOADED_BYTES,           // Number of bytes pre-loaded
+    NUM_CACHE_HITS,       // Number of C3 hits
+    NUM_CACHE_MISSES,     // Number of C3 misses
+    AVG_PROCESSING_TIME   // Average processing time of request by C3
     ;
 
     @Override
@@ -120,22 +120,17 @@ public class ScanOperator implements ProducerOperator {
   private SchemaChangeCallBack callBack = new SchemaChangeCallBack();
   private final BatchSchema schema;
   private final ImmutableList<SchemaPath> selectedColumns;
-  private final UserGroupInformation readerUGI;
   private final List<String> tableSchemaPath;
   private final SubScan config;
   private final GlobalDictionaries globalDictionaries;
   private final Stopwatch readTime = Stopwatch.createUnstarted();
 
   public ScanOperator(SubScan config, OperatorContext context, Iterator<RecordReader> readers) {
-    this(config, context, readers, null, ImpersonationUtil.getProcessUserUGI());
-  }
-
-  public ScanOperator(SubScan config, OperatorContext context, Iterator<RecordReader> readers, UserGroupInformation readerUGI) {
-    this(config, context, readers, null, readerUGI);
+    this(config, context, readers, null);
   }
 
   public ScanOperator(SubScan config, OperatorContext context,
-                      Iterator<RecordReader> readers, GlobalDictionaries globalDictionaries, UserGroupInformation readerUGI) {
+                      Iterator<RecordReader> readers, GlobalDictionaries globalDictionaries) {
     if (!readers.hasNext()) {
       this.readers = ImmutableList.<RecordReader>of(new EmptyRecordReader(context)).iterator();
     } else {
@@ -150,8 +145,6 @@ public class ScanOperator implements ProducerOperator {
     // change happens there, it gets corrected in the Foreman (when an InvalidMetadataError is thrown).
     this.tableSchemaPath = Iterables.getFirst(config.getReferencedTables(), null);
     this.selectedColumns = config.getColumns() == null ? null : ImmutableList.copyOf(config.getColumns());
-
-    this.readerUGI = Preconditions.checkNotNull(readerUGI, "The reader UserGroupInformation is missing.");
 
     final OperatorStats stats = context.getStats();
     try {
@@ -218,14 +211,7 @@ public class ScanOperator implements ProducerOperator {
   }
 
   private void setupReaderAsCorrectUser(final RecordReader reader) throws Exception {
-    readerUGI.doAs(new PrivilegedExceptionAction<Void>() {
-      @Override
-      public Void run()
-          throws Exception {
-        checkNotNull(reader).setup(mutator);
-        return null;
-      }
-    });
+    checkNotNull(reader).setup(mutator);
   }
 
   @Override

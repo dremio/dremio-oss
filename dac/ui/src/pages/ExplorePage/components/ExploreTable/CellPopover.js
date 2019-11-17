@@ -24,7 +24,7 @@ import result from 'lodash/result';
 
 import JSONTree from 'react-json-tree';
 import { FLEX_COL_START } from 'uiTheme/radium/flexStyle';
-import { LIST, MAP } from 'constants/DataTypes';
+import { LIST, MAP } from '@app/constants/DataTypes';
 import exploreUtils from 'utils/explore/exploreUtils';
 import SelectedTextPopover from './SelectedTextPopover';
 import getTheme from './themeTreeMap';

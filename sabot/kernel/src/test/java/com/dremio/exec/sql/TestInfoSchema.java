@@ -37,6 +37,10 @@ import com.google.common.collect.ImmutableList;
  */
 public class TestInfoSchema extends BaseTestQuery {
 
+  private static final String[] baselineColNames = {"COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE", "NUMERIC_PRECISION",
+    "NUMERIC_SCALE"};
+
+
   @Test
   public void selectFromAllTables() throws Exception{
     test("select * from INFORMATION_SCHEMA.SCHEMATA");
@@ -142,6 +146,7 @@ public class TestInfoSchema extends BaseTestQuery {
         .unOrdered()
         .baselineColumns("SCHEMA_NAME")
         .baselineValues("sys")
+        .baselineValues("sys.cache")
         .go();
   }
 
@@ -151,10 +156,10 @@ public class TestInfoSchema extends BaseTestQuery {
         .sqlQuery("DESCRIBE CATALOGS")
         .unOrdered()
         .optionSettingQueriesForTestQuery("USE INFORMATION_SCHEMA")
-        .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE")
-        .baselineValues("CATALOG_NAME", "CHARACTER VARYING", "YES")
-        .baselineValues("CATALOG_DESCRIPTION", "CHARACTER VARYING", "YES")
-        .baselineValues("CATALOG_CONNECT", "CHARACTER VARYING", "YES")
+        .baselineColumns(baselineColNames)
+        .baselineValues("CATALOG_NAME", "CHARACTER VARYING", "YES", null, null)
+        .baselineValues("CATALOG_DESCRIPTION", "CHARACTER VARYING", "YES", null, null)
+        .baselineValues("CATALOG_CONNECT", "CHARACTER VARYING", "YES", null, null)
         .go();
   }
 
@@ -163,11 +168,11 @@ public class TestInfoSchema extends BaseTestQuery {
     testBuilder()
         .sqlQuery("DESCRIBE INFORMATION_SCHEMA.\"TABLES\"")
         .unOrdered()
-        .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE")
-        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES")
-        .baselineValues("TABLE_SCHEMA", "CHARACTER VARYING", "YES")
-        .baselineValues("TABLE_NAME", "CHARACTER VARYING", "YES")
-        .baselineValues("TABLE_TYPE", "CHARACTER VARYING", "YES")
+        .baselineColumns(baselineColNames)
+        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES", null, null)
+        .baselineValues("TABLE_SCHEMA", "CHARACTER VARYING", "YES", null, null)
+        .baselineValues("TABLE_NAME", "CHARACTER VARYING", "YES", null, null)
+        .baselineValues("TABLE_TYPE", "CHARACTER VARYING", "YES", null, null)
         .go();
   }
 
@@ -206,8 +211,8 @@ public class TestInfoSchema extends BaseTestQuery {
         .sqlQuery("DESCRIBE \"TABLES\" TABLE_CATALOG")
         .unOrdered()
         .optionSettingQueriesForTestQuery("USE INFORMATION_SCHEMA")
-        .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE")
-        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES")
+        .baselineColumns(baselineColNames)
+        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES", null, null)
         .go();
   }
 
@@ -216,8 +221,8 @@ public class TestInfoSchema extends BaseTestQuery {
     testBuilder()
         .sqlQuery("DESCRIBE INFORMATION_SCHEMA.\"TABLES\" TABLE_CATALOG")
         .unOrdered()
-        .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE")
-        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES")
+        .baselineColumns(baselineColNames)
+        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES", null, null)
         .go();
   }
 
@@ -228,10 +233,10 @@ public class TestInfoSchema extends BaseTestQuery {
         .sqlQuery("DESCRIBE COLUMNS 'TABLE%'")
         .unOrdered()
         .optionSettingQueriesForTestQuery("USE INFORMATION_SCHEMA")
-        .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE")
-        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES")
-        .baselineValues("TABLE_SCHEMA", "CHARACTER VARYING", "YES")
-        .baselineValues("TABLE_NAME", "CHARACTER VARYING", "YES")
+        .baselineColumns(baselineColNames)
+        .baselineValues("TABLE_CATALOG", "CHARACTER VARYING", "YES", null, null)
+        .baselineValues("TABLE_SCHEMA", "CHARACTER VARYING", "YES", null, null)
+        .baselineValues("TABLE_NAME", "CHARACTER VARYING", "YES", null, null)
         .go();
   }
 
@@ -241,9 +246,9 @@ public class TestInfoSchema extends BaseTestQuery {
     testBuilder()
         .sqlQuery("DESCRIBE INFORMATION_SCHEMA.SCHEMATA 'SCHEMA%'")
         .unOrdered()
-        .baselineColumns("COLUMN_NAME", "DATA_TYPE", "IS_NULLABLE")
-        .baselineValues("SCHEMA_NAME", "CHARACTER VARYING", "YES")
-        .baselineValues("SCHEMA_OWNER", "CHARACTER VARYING", "YES")
+        .baselineColumns(baselineColNames)
+        .baselineValues("SCHEMA_NAME", "CHARACTER VARYING", "YES", null, null)
+        .baselineValues("SCHEMA_OWNER", "CHARACTER VARYING", "YES", null, null)
         .go();
   }
 

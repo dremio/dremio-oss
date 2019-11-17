@@ -26,17 +26,15 @@ import org.apache.arrow.memory.RootAllocator;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.Dictionary;
 import org.apache.parquet.column.page.DictionaryPage;
+import org.apache.parquet.compression.CompressionCodecFactory;
+import org.apache.parquet.compression.CompressionCodecFactory.BytesInputDecompressor;
 import org.apache.parquet.format.PageType;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.CodecFactory;
-import org.apache.parquet.hadoop.CodecFactory.BytesDecompressor;
 import org.apache.parquet.hadoop.PageHeaderWithOffset;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
@@ -46,7 +44,11 @@ import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 
 import com.dremio.common.VM;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
+import com.dremio.io.FSInputStream;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -71,7 +73,7 @@ public class LocalDictionariesReader {
    * @return pair of dictionaries found for binary fields and list of binary fields which are not dictionary encoded.
    * @throws IOException
    */
-  public static Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> readDictionaries(FileSystem fs, Path filePath, CodecFactory codecFactory) throws IOException {
+  public static Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> readDictionaries(FileSystem fs, Path filePath, CompressionCodecFactory codecFactory) throws IOException {
     // Passing the max footer length is not required in this case as the parquet reader would already have failed.
     final ParquetMetadata parquetMetadata = SingletonParquetFooterCache.readFooter(fs, filePath, ParquetMetadataConverter.NO_FILTER,
       ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR.getDefault().getNumVal());
@@ -89,7 +91,7 @@ public class LocalDictionariesReader {
 
     final Set<ColumnDescriptor> columnsToSkip = Sets.newHashSet(); // columns which are found in parquet file but are not dictionary encoded
     final Map<ColumnDescriptor, Dictionary> dictionaries = Maps.newHashMap();
-    try(final FSDataInputStream in = fs.open(filePath)) {
+    try(final FSInputStream in = fs.open(filePath)) {
       for (ColumnChunkMetaData columnChunkMetaData : rowGroupMetadata.getColumns()) {
         if (isBinaryType(columnChunkMetaData.getType())) {
           final ColumnDescriptor column = columnDescriptorMap.get(columnChunkMetaData.getPath());
@@ -106,8 +108,8 @@ public class LocalDictionariesReader {
     return new ImmutablePair<>(dictionaries, columnsToSkip);
   }
 
-  public static Dictionary readDictionary(FSDataInputStream in, ColumnDescriptor column, PageHeaderWithOffset pageHeader, BytesDecompressor decompressor) throws IOException {
-    in.seek(pageHeader.getOffset());
+  public static Dictionary readDictionary(FSInputStream in, ColumnDescriptor column, PageHeaderWithOffset pageHeader, BytesInputDecompressor decompressor) throws IOException {
+    in.setPosition(pageHeader.getOffset());
     final byte[] data = new byte[pageHeader.getPageHeader().getCompressed_page_size()];
     int read = in.read(data);
     if (read != data.length) {
@@ -122,9 +124,10 @@ public class LocalDictionariesReader {
 
   public static void main(String[] args) {
     try (final BufferAllocator bufferAllocator = new RootAllocator(VM.getMaxDirectMemory())) {
-      final FileSystem fs = FileSystem.getLocal(new Configuration());
-      final Path filePath = new Path(args[0]);
-      final CodecFactory codecFactory = CodecFactory.createDirectCodecFactory(fs.getConf(), new ParquetDirectByteBufferAllocator(bufferAllocator), 0);
+      final Configuration fsConf = new Configuration();
+      final FileSystem fs = HadoopFileSystem.getLocal(fsConf);
+      final Path filePath = Path.of(args[0]);
+      final CompressionCodecFactory codecFactory = CodecFactory.createDirectCodecFactory(fsConf, new ParquetDirectByteBufferAllocator(bufferAllocator), 0);
       final Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> dictionaries = readDictionaries(fs, filePath, codecFactory);
       for (Map.Entry<ColumnDescriptor, Dictionary> entry :  dictionaries.getLeft().entrySet()) {
         printDictionary(entry.getKey(), entry.getValue());

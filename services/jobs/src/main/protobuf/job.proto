@@ -37,6 +37,7 @@ enum JobState {
   FAILED = 5;
   CANCELLATION_REQUESTED = 6;
   ENQUEUED = 7;
+  PLANNING = 8;
 }
 
 message JobId {

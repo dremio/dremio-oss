@@ -17,10 +17,9 @@ package com.dremio.exec.store.dfs;
 
 import java.util.List;
 
-import org.apache.hadoop.fs.Path;
-
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.Property;
+import com.dremio.io.file.Path;
 
 public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends FileSystemPlugin<C>> extends ConnectionConf<C, P>{
   public abstract Path getPath();
@@ -32,13 +31,6 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
   public abstract String getConnection();
 
   public abstract SchemaMutability getSchemaMutability();
-
-  /**
-   * List of properties that are unique to the {@link FileSystem} objects. This are in addition to the URI and user.
-   * Examples include ADLS password, S3 access key and secret etc.
-   * @return
-   */
-  public abstract List<String> getConnectionUniqueProperties();
 
   /**
    * Whether the plugin should automatically create the requested path if it doesn't already exist.

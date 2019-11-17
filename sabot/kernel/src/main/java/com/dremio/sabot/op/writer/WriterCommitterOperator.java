@@ -17,9 +17,6 @@ package com.dremio.sabot.op.writer;
 
 import java.util.regex.Pattern;
 
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.FieldReference;
@@ -33,6 +30,8 @@ import com.dremio.exec.physical.config.WriterCommitterPOP;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.store.RecordWriter;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.project.ProjectOperator;
 import com.dremio.sabot.op.spi.SingleInputOperator;
@@ -59,6 +58,7 @@ public class WriterCommitterOperator implements SingleInputOperator {
     this.context = context;
   }
 
+  @Override
   public State getState(){
     return project == null ? State.NEEDS_SETUP : project.getState();
   }
@@ -112,7 +112,7 @@ public class WriterCommitterOperator implements SingleInputOperator {
   public void close() throws Exception {
     try {
       if (!success) {
-        Path path = new Path(Optional.fromNullable(config.getTempLocation()).or(config.getFinalLocation()));
+        Path path = Path.of(Optional.fromNullable(config.getTempLocation()).or(config.getFinalLocation()));
         if (fs != null && fs.exists(path)) {
           fs.delete(path, true);
         }
@@ -125,9 +125,9 @@ public class WriterCommitterOperator implements SingleInputOperator {
   @Override
   public void noMoreToConsume() throws Exception {
     if (config.getTempLocation() != null) {
-      Path temp = new Path(config.getTempLocation());
+      Path temp = Path.of(config.getTempLocation());
       if (fs.exists(temp)) {
-        fs.rename(temp, new Path(config.getFinalLocation()));
+        fs.rename(temp, Path.of(config.getFinalLocation()));
       }
     }
     project.noMoreToConsume();

@@ -16,22 +16,27 @@
 package com.dremio.exec.record;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.sabot.op.receiver.RawFragmentBatch;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 
-public class TestArrowRecordBatchLoader {
+public class TestArrowRecordBatchLoader extends DremioTest {
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+
   @Test
   public void list() throws InterruptedException {
-    try (BufferAllocator allocator = new RootAllocator(Integer.MAX_VALUE); ListVector inVector = new ListVector("input", allocator, null)) {
+    try (BufferAllocator allocator = allocatorRule.newAllocator("test-arrow-record-batch-loader", 0, Long.MAX_VALUE); ListVector inVector = new ListVector("input", allocator, null)) {
       UnionListWriter writer = inVector.getWriter();
       writer.allocate();
       writer.setPosition(0);

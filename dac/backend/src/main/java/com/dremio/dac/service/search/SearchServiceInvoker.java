@@ -39,7 +39,6 @@ import com.google.protobuf.ByteString;
 
 import io.netty.buffer.ArrowBuf;
 import io.protostuff.LinkedBuffer;
-import io.protostuff.ProtobufIOUtil;
 
 /**
  * Adapter that interacts with the {@link SearchService} running on master coordinator.
@@ -98,9 +97,7 @@ public class SearchServiceInvoker implements SearchService {
 
           final List<SearchRPC.SearchQueryResponseEntity> searchRPCResults = search.stream().map(input -> {
             final LinkedBuffer buffer = LinkedBuffer.allocate();
-            // TODO(DX-10857): change from opaque object to protobuf
-            final ByteString bytes = ByteString.copyFrom(
-              ProtobufIOUtil.toByteArray(input.getNamespaceContainer(), NameSpaceContainer.getSchema(), buffer));
+            final ByteString bytes = input.getNamespaceContainer().clone(buffer);
             buffer.clear();
 
             final SearchRPC.SearchQueryResponseEntity.Builder rpcBuilder = SearchRPC.SearchQueryResponseEntity.newBuilder();
@@ -179,9 +176,7 @@ public class SearchServiceInvoker implements SearchService {
       collaborationTag.setLastModified(tagsRPC.getLastModified());
       collaborationTag.setTag(tagsRPC.getVersion());
 
-      final NameSpaceContainer nameSpaceContainer = NameSpaceContainer.getSchema().newMessage();
-      // TODO(DX-10857): change from opaque object to protobuf
-      ProtobufIOUtil.mergeFrom(input.getResponse().toByteArray(), nameSpaceContainer, NameSpaceContainer.getSchema());
+      final NameSpaceContainer nameSpaceContainer = NameSpaceContainer.from(input.getResponse());
 
       return new SearchContainer(nameSpaceContainer, collaborationTag);
     }).collect(Collectors.toList());

@@ -289,7 +289,7 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
             errors={errors}
             autoCompleteEnabled={autoCompleteEnabled}
             sqlContext={context}
-            />
+          />
           { query.type !== 'transform' && this.renderContext() }
         </div>
       </DragTarget>

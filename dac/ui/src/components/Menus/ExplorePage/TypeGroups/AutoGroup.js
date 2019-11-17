@@ -19,8 +19,8 @@ import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Divider from '@material-ui/core/Divider';
 
-import { AUTO_TYPES } from 'constants/columnTypeGroups';
-import { JSONTYPE } from 'constants/DataTypes';
+import { AUTO_TYPES } from '@app/constants/columnTypeGroups';
+import { JSONTYPE } from '@app/constants/DataTypes';
 
 import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
 import MenuItem from './../MenuItem';

@@ -20,19 +20,24 @@ import static org.junit.Assert.assertTrue;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.memory.RootAllocator;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.AutoCloseables.RollbackCloseable;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 
 import io.netty.buffer.ArrowBuf;
 
-public class TestMemoryDebugInfo {
+public class TestMemoryDebugInfo extends DremioTest {
+
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
   public void testWithFullNode() {
     try (
-        BufferAllocator root = new RootAllocator(1024 * 1024);
+        BufferAllocator root = allocatorRule.newAllocator("test-memory-debug-info", 0, 1024 * 1024);
         BufferAllocator child = root.newChildAllocator("child", 0, 16 * 1024);
         BufferAllocator grandChild1 = child.newChildAllocator("grandchild1", 0, 64 * 1024);
         BufferAllocator grandChild2 = child.newChildAllocator("grandchild2", 0, 64 * 1024)) {
@@ -49,7 +54,7 @@ public class TestMemoryDebugInfo {
         assertTrue(info.contains("grandchild2"));
 
         // shouldn't have details about ROOT.
-        assertFalse(info.contains("ROOT"));
+        assertFalse(info.contains("test-memory-debug-info"));
       }
     }
   }
@@ -57,7 +62,7 @@ public class TestMemoryDebugInfo {
   @Test
   public void testWithRoot() {
     try (
-        BufferAllocator root = new RootAllocator(1024 * 1024);
+        BufferAllocator root = allocatorRule.newAllocator("test-memory-debug-info", 0, 1024 * 1024);
         BufferAllocator child = root.newChildAllocator("child", 0, Integer.MAX_VALUE);
         BufferAllocator grandChild1 = child.newChildAllocator("grandchild1", 0, Integer.MAX_VALUE);
         BufferAllocator grandChild2 = child.newChildAllocator("grandchild2", 0, Integer.MAX_VALUE)) {
@@ -69,7 +74,7 @@ public class TestMemoryDebugInfo {
         String info = MemoryDebugInfo.getDetailsOnAllocationFailure(e, grandChild2);
 
         // should print upto 6 levels below root.
-        assertTrue(info.contains("ROOT"));
+        assertTrue(info.contains("test-memory-debug-info"));
         assertTrue(info.contains("child"));
         assertTrue(info.contains("grandchild1"));
         assertTrue(info.contains("grandchild2"));
@@ -83,7 +88,7 @@ public class TestMemoryDebugInfo {
   @Test
   public void testPrune() throws Exception {
     try (RollbackCloseable closeable = new RollbackCloseable(true)) {
-      BufferAllocator root = new RootAllocator(1024 * 1024);
+      BufferAllocator root = allocatorRule.newAllocator("test-memory-debug-info", 0, 1024 * 1024);
       closeable.add(root);
 
       BufferAllocator twig = root.newChildAllocator("twig",0, 1024 * 1024);
@@ -108,7 +113,7 @@ public class TestMemoryDebugInfo {
       } catch (OutOfMemoryException e) {
         String info = MemoryDebugInfo.getDetailsOnAllocationFailure(e, twig);
 
-        assertTrue(!info.contains("ROOT"));
+        assertTrue(!info.contains("test-memory-debug-info"));
         assertTrue(info.contains("twig"));
         assertTrue(info.contains("big"));
         assertTrue(!info.contains("small"));

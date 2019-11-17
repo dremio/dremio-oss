@@ -57,5 +57,6 @@ public class TestBroadcast extends PlanTestBase {
   private void setup() throws Exception{
     testNoResult("alter session set \"planner.slice_target\" = 1");
     testNoResult("alter session set \"planner.enable_broadcast_join\" = true");
+    testNoResult("alter session set \"planner.filter.transitive_pushdown\" = false");
   }
 }

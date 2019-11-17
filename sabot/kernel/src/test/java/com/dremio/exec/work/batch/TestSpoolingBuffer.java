@@ -30,8 +30,8 @@ import java.util.concurrent.TimeUnit;
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -52,6 +52,7 @@ import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.spill.DefaultSpillServiceOptions;
 import com.dremio.service.spill.SpillService;
 import com.dremio.service.spill.SpillServiceImpl;
+import com.dremio.test.AllocatorRule;
 
 import io.netty.buffer.ArrowBuf;
 
@@ -64,6 +65,9 @@ public class TestSpoolingBuffer extends ExecTest {
   private static final int numBatchesToEnqueuePerIteration = 100;
   private static final int numBatchesToReadPerIteration = 50;
   private static final int totalBatches = numIterations * numBatchesToEnqueuePerIteration;
+
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
   public void testWriteThenRead() throws Exception {
@@ -91,7 +95,7 @@ public class TestSpoolingBuffer extends ExecTest {
       }
     });
 
-    try (BufferAllocator spoolingAllocator = new RootAllocator(Long.MAX_VALUE);
+    try (BufferAllocator spoolingAllocator = allocatorRule.newAllocator("test-spooling-buffer", 0, Long.MAX_VALUE);
       SpoolingRawBatchBuffer buffer = new SpoolingRawBatchBuffer(resource, config, queue, handle, spillService, spoolingAllocator, 1, 0, 0)) {
 
       for (int i = 0; i < numBatchesToEnqueuePerIteration; i++) {
@@ -149,7 +153,7 @@ public class TestSpoolingBuffer extends ExecTest {
         }
       });
 
-    try (BufferAllocator spoolingAllocator = new RootAllocator(Long.MAX_VALUE);
+    try (BufferAllocator spoolingAllocator = allocatorRule.newAllocator("test-spooling-buffer", 0, Long.MAX_VALUE);
          SpoolingRawBatchBuffer buffer = new SpoolingRawBatchBuffer(resource, config, queue, handle, spillService, spoolingAllocator, 1, 0, 0)) {
 
       RawFragmentBatch nextReadBatch;
@@ -223,7 +227,7 @@ public class TestSpoolingBuffer extends ExecTest {
         }
       });
 
-    try (BufferAllocator spoolingAllocator = new RootAllocator(Long.MAX_VALUE);
+    try (BufferAllocator spoolingAllocator = allocatorRule.newAllocator("test-spooling-buffer", 0, Long.MAX_VALUE);
       SpoolingRawBatchBuffer buffer = new SpoolingRawBatchBuffer(resource, config, queue, handle, spillService, spoolingAllocator, 1, 0, 0)) {
       RawFragmentBatch nextReadBatch;
       int nBatches = 0, readCount;

@@ -15,7 +15,7 @@
  */
 import { put, call, takeEvery } from 'redux-saga/effects';
 
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 
 import { updateViewState } from 'actions/resources';
 import { addNotification } from 'actions/notification';

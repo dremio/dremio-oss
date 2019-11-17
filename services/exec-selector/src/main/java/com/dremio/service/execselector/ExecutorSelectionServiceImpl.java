@@ -153,12 +153,12 @@ public class ExecutorSelectionServiceImpl implements ExecutorSelectionService {
   }
 
   @Override
-  public ExecutorSelectionHandle getExecutors(int desiredNumExecutors) {
+  public ExecutorSelectionHandle getExecutors(int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
     while (true) {
       try (final AutoCloseableLock ignored = new AutoCloseableLock(rwLock.readLock()).open()) {
         if (optionsProvider.get().getOption(EXECUTOR_SELECTION_TYPE).equals(selectorType)) {
           // Common case: option stayed the same
-          return selector.getExecutors(desiredNumExecutors);
+          return selector.getExecutors(desiredNumExecutors, executorSelectionContext);
         }
       }
 

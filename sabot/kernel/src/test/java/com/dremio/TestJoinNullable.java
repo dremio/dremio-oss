@@ -104,6 +104,7 @@ public class TestJoinNullable extends PlanTestBase {
   }
 
   @Test
+  @Ignore
   public void withNullEqualInWhereConditionNegative() throws Exception {
     final String query = "SELECT * FROM " +
         "cp.\"jsoninput/nullableOrdered1.json\" t1, " +

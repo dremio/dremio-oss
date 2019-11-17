@@ -19,11 +19,16 @@ import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
 import static com.dremio.plugins.azure.AzureAuthenticationType.ACCESS_KEY;
 import static com.dremio.plugins.azure.AzureAuthenticationType.AZURE_ACTIVE_DIRECTORY;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
@@ -34,10 +39,12 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
-import com.dremio.exec.store.dfs.async.AsyncByteReader;
+import com.dremio.io.AsyncByteReader;
 import com.dremio.plugins.azure.AzureStorageConf.AccountKind;
 import com.dremio.plugins.util.ContainerFileSystem;
+import com.microsoft.azure.storage.v10.adlsg2.models.DataLakeStorageErrorException;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.Flowable;
@@ -47,7 +54,7 @@ import io.reactivex.Flowable;
  *
  * Supports both Blob containers and Hierarchical containers
  */
-public class AzureStorageFileSystem extends ContainerFileSystem implements AsyncByteReader.MayProvideAsyncStream {
+public class AzureStorageFileSystem extends ContainerFileSystem implements MayProvideAsyncStream {
 
   private static final Logger logger = LoggerFactory.getLogger(AzureStorageFileSystem.class);
 
@@ -237,8 +244,24 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements Async
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey) throws IOException {
-    return new AzureAsyncReader(fileKey.getPath(), client);
+  public AsyncByteReader getAsyncByteReader(Path path, String version) throws IOException {
+    return new AzureAsyncReader(path, client, version);
+  }
+
+  // Utility method to convert string representation of a datetime Long value into a HTTP 1.1
+  // protocol compliant datetime string representation as follow:
+  //      Sun, 06 Nov 1994 08:49:37 GMT  ; RFC 822, updated by RFC 1123
+  //      Sunday, 06-Nov-94 08:49:37 GMT ; RFC 850, obsoleted by RFC 1036
+  //      Sun Nov  6 08:49:37 1994       ; ANSI C's asctime() format
+  // References:
+  // HTTP/1.1 protocol specification: https://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3
+  // Conditional headers: https://docs.microsoft.com/en-us/rest/api/storageservices/specifying-conditional-headers-for-blob-service-operations
+  static String convertToHttpDateTime(String version) {
+    ZonedDateTime date = ZonedDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(version)), ZoneId.of("GMT"));
+    String dayOfWeek = date.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
+    // DateTimeFormatter does not support commas
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss", Locale.ENGLISH);
+    return String.format("%s, %s GMT", dayOfWeek, date.format(formatter));
   }
 
   private static final class AzureAsyncReader implements AsyncByteReader {
@@ -247,8 +270,9 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements Async
     private final String container;
     private final String subpath;
     private final DataLakeG2Client client;
+    private final String version;
 
-    public AzureAsyncReader(Path path, DataLakeG2Client client) {
+    public AzureAsyncReader(Path path, DataLakeG2Client client, String version) {
       super();
       this.client = client;
       this.container = ContainerFileSystem.getContainerName(path);
@@ -257,6 +281,7 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements Async
       // DX-15746: Refactoring needs to be done and there should be a container utility package that
       //           accommodate to cloud sources generally
       this.subpath = removeLeadingSlash(ContainerFileSystem.pathWithoutContainer(path).toString());
+      this.version = convertToHttpDateTime(version);
     }
 
     @Override
@@ -266,7 +291,7 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements Async
       logger.debug("Reading data from container: {}", this.container);
       logger.debug("Reading data from container subpath: {}", this.subpath);
       try {
-        client.read(container, subpath, offset, offset + len)
+        client.read(container, subpath, offset, offset + len, version)
           .subscribe(
 
             // in single success
@@ -295,19 +320,25 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements Async
 
             // on single failure
             ex -> {
-              logger.error("Error reading HTTP response asynchronously.", ex);
-              future.completeExceptionally(ex);
+              if (ex instanceof DataLakeStorageErrorException) {
+                DataLakeStorageErrorException adlsEx = (DataLakeStorageErrorException) ex;
+                if (adlsEx.body().error().code().equals("ConditionNotMet")) {
+                  logger.debug("Version of file changed, metadata refresh is required");
+                  future.completeExceptionally(new FileNotFoundException("Version of file changed " + subpath));
+                } else {
+                  logger.error("Error reading HTTP response asynchronously.", ex);
+                  future.completeExceptionally(ex);
+                }
+              } else {
+                logger.error("Error reading HTTP response asynchronously.", ex);
+                future.completeExceptionally(ex);
+              }
             });
-      } catch(Exception ex) {
+      } catch (Exception ex) {
         logger.error("Unable to read with client: ", ex);
         future.completeExceptionally(ex);
       }
       return future;
-    }
-
-    @Override
-    public List<ReaderStat> getStats() {
-      return new ArrayList<>();
     }
   }
 }

@@ -71,7 +71,7 @@ export class DatasetChangesView extends Component {
     const {
       childComp: ChildComponent,
       ...rest
-     } = this.props;
+    } = this.props;
     return <ChildComponent getDatasetChangeDetails={this.hasChanges} {...rest} />;
   }
 }

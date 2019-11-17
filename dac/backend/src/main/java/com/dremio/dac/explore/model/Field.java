@@ -28,16 +28,23 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class Field {
   private final String name;
   private final String type;
+  private final boolean isPartitioned;
+  private final boolean isSorted;
 
-  public Field(ViewFieldType field) {
+  public Field(ViewFieldType field, boolean isPartitioned, boolean isSorted) {
     this.name = field.getName();
     this.type = DataTypeUtil.getDataType(SqlTypeName.get(field.getType())).name();
+    this.isPartitioned = isPartitioned;
+    this.isSorted = isSorted;
   }
 
   @JsonCreator
-  public Field(@JsonProperty("name") String name, @JsonProperty("type") String type) {
+  public Field(@JsonProperty("name") String name, @JsonProperty("type") String type,
+    @JsonProperty("isPartitioned") boolean isPartitioned, @JsonProperty("isSorted") boolean isSorted) {
     this.name = name;
     this.type = type;
+    this.isPartitioned = isPartitioned;
+    this.isSorted = isSorted;
   }
 
   public String getName() {
@@ -46,5 +53,15 @@ public class Field {
 
   public String getType() {
     return type;
+  }
+
+  @JsonProperty("isPartitioned")
+  public boolean isPartitioned() {
+    return isPartitioned;
+  }
+
+  @JsonProperty("isSorted")
+  public boolean isSorted() {
+    return isSorted;
   }
 }

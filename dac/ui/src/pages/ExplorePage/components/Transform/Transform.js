@@ -37,7 +37,7 @@ import {
 } from 'actions/explore/recommended';
 import { resetViewState } from 'actions/resources';
 
-import { MAP, LIST } from 'constants/DataTypes';
+import { MAP, LIST } from '@app/constants/DataTypes';
 
 import TransformView from './TransformView';
 

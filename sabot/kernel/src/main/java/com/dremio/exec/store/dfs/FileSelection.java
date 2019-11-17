@@ -16,28 +16,31 @@
 package com.dremio.exec.store.dfs;
 
 import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
+import static com.dremio.io.file.PathFilters.NO_HIDDEN_FILES;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.DirectoryIteratorException;
+import java.nio.file.DirectoryStream;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Nullable;
-
 import org.apache.commons.io.FilenameUtils;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.util.Utilities;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.FileSystemUtils;
+import com.dremio.io.file.Path;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -50,7 +53,7 @@ public class FileSelection {
   public static final String PATH_SEPARATOR = System.getProperty("file.separator");
   private static final String WILD_CARD = "*";
 
-  private final ImmutableList<FileStatus> statuses;
+  private final ImmutableList<FileAttributes> fileAttributesList;
   private final String selectionRoot;
 
   private enum StatusType {
@@ -67,14 +70,14 @@ public class FileSelection {
    * @param statuses  list of file statuses
    * @param selectionRoot  root path for selections
    */
-  private FileSelection(StatusType status, final ImmutableList<FileStatus> statuses, final String selectionRoot) {
-    this.statuses = Preconditions.checkNotNull(statuses);
+  private FileSelection(StatusType status, final ImmutableList<FileAttributes> fileAttributesList, final String selectionRoot) {
+    this.fileAttributesList = Preconditions.checkNotNull(fileAttributesList);
     this.selectionRoot = Preconditions.checkNotNull(selectionRoot);
     this.dirStatus = status;
   }
 
   public boolean isEmpty() {
-    return statuses.isEmpty();
+    return fileAttributesList.isEmpty();
   }
 
   /**
@@ -82,7 +85,7 @@ public class FileSelection {
    */
   protected FileSelection(final FileSelection selection) {
     Preconditions.checkNotNull(selection, "selection cannot be null");
-    this.statuses = selection.statuses;
+    this.fileAttributesList = selection.fileAttributesList;
     this.selectionRoot = selection.selectionRoot;
     this.dirStatus = selection.dirStatus;
   }
@@ -91,13 +94,13 @@ public class FileSelection {
     return selectionRoot;
   }
 
-  public List<FileStatus> getStatuses() {
-    return statuses;
+  public List<FileAttributes> getFileAttributesList() {
+    return fileAttributesList;
   }
 
   public boolean containsDirectories() throws IOException {
     if (dirStatus == StatusType.EXPANDED) {
-      for (final FileStatus status : getStatuses()) {
+      for (final FileAttributes status : getFileAttributesList()) {
         if (status.isDirectory()) {
           return true;
         }
@@ -106,13 +109,8 @@ public class FileSelection {
     return dirStatus == StatusType.HAS_DIRS;
   }
 
-  public List<FileStatus> getAllDirectories() throws IOException {
-    return Lists.newArrayList(Iterables.filter(statuses, new Predicate<FileStatus>() {
-      @Override
-      public boolean apply(@Nullable FileStatus status) {
-        return status.isDirectory();
-      }
-    }));
+  public List<FileAttributes> getAllDirectories() throws IOException {
+    return Lists.newArrayList(Iterables.filter(fileAttributesList, FileAttributes::isDirectory));
   }
 
   public FileSelection minusDirectories() throws IOException {
@@ -121,13 +119,8 @@ public class FileSelection {
     }
 
     Stopwatch timer = Stopwatch.createStarted();
-    final int total = statuses.size();
-    final ImmutableList<FileStatus> nonDirectories = FluentIterable.from(statuses).filter(new Predicate<FileStatus>() {
-      @Override
-      public boolean apply(@Nullable FileStatus status) {
-        return !status.isDirectory();
-      }
-    }).toList();
+    final int total = fileAttributesList.size();
+    final ImmutableList<FileAttributes> nonDirectories = ImmutableList.copyOf(Iterables.filter(fileAttributesList, Predicates.not(FileAttributes::isDirectory)));
 
     final FileSelection fileSel = create(StatusType.NO_DIRS, nonDirectories, selectionRoot);
     logger.debug("FileSelection.minusDirectories() took {} ms, numFiles: {}", timer.elapsed(TimeUnit.MILLISECONDS), total);
@@ -135,92 +128,30 @@ public class FileSelection {
     return fileSel;
   }
 
-  public FileStatus getFirstPath() throws IOException {
-    return getStatuses().get(0);
+  public FileAttributes getFirstPath() throws IOException {
+    return getFileAttributesList().get(0);
   }
 
-  public int getMaxDepth(FileStatus rootStatus) {
+  public int getMaxDepth(FileAttributes rootStatus) {
     final int selectionDepth = rootStatus.getPath().depth();
 
     int maxDepth = 0;
-    for (final FileStatus status : getStatuses()) {
+    for (final FileAttributes status : getFileAttributesList()) {
       maxDepth = Math.max(maxDepth, status.getPath().depth() - selectionDepth);
     }
     return maxDepth;
   }
 
-  public Optional<FileStatus> getFirstFile() throws IOException {
-    return Iterables.tryFind(FluentIterable.from(statuses), new Predicate<FileStatus>() {
-
-      @Override
-      public boolean apply(FileStatus input) {
-        return input.isFile();
-      }});
+  public Optional<FileAttributes> getFirstFile() throws IOException {
+    return Iterables.tryFind(fileAttributesList, FileAttributes::isRegularFile);
   }
 
   public boolean isExpanded() {
     return dirStatus == StatusType.EXPANDED;
   }
 
-  private static String commonPath(final List<FileStatus> statuses) {
-    if (statuses == null || statuses.isEmpty()) {
-      return "";
-    }
-
-    final List<String> files = Lists.newArrayList();
-    for (final FileStatus status : statuses) {
-      files.add(status.getPath().toString());
-    }
-    return commonPathForFiles(files);
-  }
-
-  /**
-   * Returns longest common path for the given list of files.
-   *
-   * @param files  list of files.
-   * @return  longest common path
-   */
-  private static String commonPathForFiles(final List<String> files) {
-    if (files == null || files.isEmpty()) {
-      return "";
-    }
-
-    final int total = files.size();
-    final String[][] folders = new String[total][];
-    int shortest = Integer.MAX_VALUE;
-    for (int i = 0; i < total; i++) {
-      final Path path = new Path(files.get(i));
-      folders[i] = Path.getPathWithoutSchemeAndAuthority(path).toString().split(PATH_SEPARATOR);
-      shortest = Math.min(shortest, folders[i].length);
-    }
-
-    int latest;
-    out:
-    for (latest = 0; latest < shortest; latest++) {
-      final String current = folders[0][latest];
-      for (int i = 1; i < folders.length; i++) {
-        if (!current.equals(folders[i][latest])) {
-          break out;
-        }
-      }
-    }
-    final Path path = new Path(files.get(0));
-    final URI uri = path.toUri();
-    final String pathString = buildPath(folders[0], latest);
-    return new Path(uri.getScheme(), uri.getAuthority(), pathString).toString();
-  }
-
-  private static String buildPath(final String[] path, final int folderIndex) {
-    final StringBuilder builder = new StringBuilder();
-    for (int i=0; i<folderIndex; i++) {
-      builder.append(path[i]).append(PATH_SEPARATOR);
-    }
-    builder.deleteCharAt(builder.length() - 1);
-    return builder.toString();
-  }
-
-  public static FileSelection create(FileStatus status) throws IOException {
-    return new FileSelection(StatusType.EXPANDED, ImmutableList.of(status), status.getPath().toString());
+  public static FileSelection create(FileAttributes fileAttributes) throws IOException {
+    return new FileSelection(StatusType.EXPANDED, ImmutableList.of(fileAttributes), fileAttributes.getPath().toString());
   }
 
   public static Path getPathBasedOnFullPath(List<String> fullPath) {
@@ -228,22 +159,22 @@ public class FileSelection {
     if (Strings.isNullOrEmpty(parent)) {
       parent = "/";
     }
-    parent = Path.getPathWithoutSchemeAndAuthority(new Path(Path.SEPARATOR, parent)).toString();
+    parent = Path.withoutSchemeAndAuthority(Path.of(Path.SEPARATOR).resolve(parent)).toString();
     String path = PathUtils.removeQuotes(fullPath.get(fullPath.size() - 1));
-    return new Path(parent, removeLeadingSlash(path));
+    return Path.of(parent).resolve(removeLeadingSlash(path));
   }
 
-  public static FileSelection create(final FileSystemWrapper fs, final List<String> fullPath) throws IOException {
+  public static FileSelection create(final FileSystem fs, final List<String> fullPath) throws IOException {
     return create(fs, getPathBasedOnFullPath(fullPath));
   }
 
   // Check if path is actually a full schema path
-  public static FileSelection createWithFullSchema(final FileSystemWrapper fs, final String parent, final String fullSchemaPath) throws IOException {
-    final Path combined = Path.mergePaths(new Path(parent), PathUtils.toFSPath(fullSchemaPath));
+  public static FileSelection createWithFullSchema(final FileSystem fs, final String parent, final String fullSchemaPath) throws IOException {
+    final Path combined = Path.mergePaths(Path.of(parent), PathUtils.toFSPath(fullSchemaPath));
     return create(fs, combined);
   }
 
-  public static FileSelection create(final FileSystemWrapper fs, Path combined) throws IOException {
+  public static FileSelection create(final FileSystem fs, Path combined) throws IOException {
     Stopwatch timer = Stopwatch.createStarted();
 
     // NFS filesystems has delay before files written by executor shows up in the coordinator.
@@ -251,19 +182,25 @@ public class FileSelection {
     // No action is taken if it returns false as the code path already handles the Exception case
     fs.exists(combined);
 
-    final ImmutableList<FileStatus> statuses = fs.listRecursive(combined, false);
-    logger.trace("Returned statuses are: {}", statuses);
-    if (statuses == null || statuses.isEmpty()) {
+    final ImmutableList<FileAttributes> fileAttributes;
+    try(DirectoryStream<FileAttributes> stream = FileSystemUtils.globRecursive(fs, combined, NO_HIDDEN_FILES)) {
+      fileAttributes = ImmutableList.copyOf(stream);
+    } catch (DirectoryIteratorException e) {
+      throw e.getCause();
+    }
+
+    logger.trace("Returned files are: {}", fileAttributes);
+    if (fileAttributes == null || fileAttributes.isEmpty()) {
       return null;
     }
 
-    final FileSelection fileSel = createFromExpanded(statuses, combined.toUri().getPath());
+    final FileSelection fileSel = createFromExpanded(fileAttributes, combined.toURI().getPath());
     logger.debug("FileSelection.create() took {} ms ", timer.elapsed(TimeUnit.MILLISECONDS));
     return fileSel;
   }
 
-  public static FileSelection createFromExpanded(final ImmutableList<FileStatus> statuses, final String root) {
-    return create(StatusType.EXPANDED, statuses, root);
+  public static FileSelection createFromExpanded(final ImmutableList<FileAttributes> fileAttributes, final String root) {
+    return create(StatusType.EXPANDED, fileAttributes, root);
   }
 
   /**
@@ -276,8 +213,8 @@ public class FileSelection {
    *          otherwise a new selection.
    *
    */
-  private static FileSelection create(StatusType status, final ImmutableList<FileStatus> statuses, final String root) {
-    if (statuses == null || statuses.size() == 0) {
+  private static FileSelection create(StatusType status, final ImmutableList<FileAttributes> fileAttributes, final String root) {
+    if (fileAttributes == null || fileAttributes.isEmpty()) {
       return null;
     }
 
@@ -286,10 +223,15 @@ public class FileSelection {
       throw new IllegalArgumentException("Selection root is null or empty" + root);
     }
     final Path rootPath = handleWildCard(root);
-    final URI uri = statuses.get(0).getPath().toUri();
-    final Path path = new Path(uri.getScheme(), uri.getAuthority(), rootPath.toUri().getPath());
-    selectionRoot = Path.getPathWithoutSchemeAndAuthority(path).toString();
-    return new FileSelection(status, statuses, selectionRoot);
+    final URI uri = fileAttributes.get(0).getPath().toURI();
+    final Path path;
+    try {
+      path = Path.of(new URI(uri.getScheme(), uri.getAuthority(), rootPath.toURI().getPath(), null, null));
+    } catch (URISyntaxException e) {
+      throw new IllegalArgumentException(e.getMessage(), e);
+    }
+    selectionRoot = Path.withoutSchemeAndAuthority(path).toString();
+    return new FileSelection(status, fileAttributes, selectionRoot);
   }
 
   private static Path handleWildCard(final String root) {
@@ -297,14 +239,10 @@ public class FileSelection {
       int idx = root.indexOf(WILD_CARD); // first wild card in the path
       idx = root.lastIndexOf(PATH_SEPARATOR, idx); // file separator right before the first wild card
       final String newRoot = root.substring(0, idx);
-      return newRoot.isEmpty() ? new Path(Path.SEPARATOR) : new Path(newRoot);
+      return newRoot.isEmpty() ? Path.of(Path.SEPARATOR) : Path.of(newRoot);
     } else {
-      return new Path(root);
+      return Path.of(root);
     }
-  }
-
-  public List<FileStatus> getFileStatuses() {
-    return statuses;
   }
 
   public boolean supportDirPruning() {
@@ -313,7 +251,7 @@ public class FileSelection {
 
   @Override
   public int hashCode() {
-    return Objects.hash(statuses.size(), selectionRoot);
+    return Objects.hash(fileAttributesList.size(), selectionRoot);
   }
 
   @Override
@@ -323,13 +261,13 @@ public class FileSelection {
     }
     FileSelection that = (FileSelection) obj;
     return Objects.equals(this.selectionRoot, that.selectionRoot)
-        && Utilities.listsUnorderedEquals(this.statuses, that.statuses);
+        && Utilities.listsUnorderedEquals(this.fileAttributesList, that.fileAttributesList);
   }
 
   public List<String> getExtensions() {
     final List<String> extensions = Lists.newArrayList();
-    for (FileStatus fileStatus : statuses) {
-      if (fileStatus.isFile()) {
+    for (FileAttributes fileStatus : fileAttributesList) {
+      if (fileStatus.isRegularFile()) {
         final String ext = FilenameUtils.getExtension(fileStatus.getPath().getName());
         if (ext != null && !ext.isEmpty()) {
           extensions.add(ext);

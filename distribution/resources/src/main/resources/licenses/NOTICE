@@ -37,11 +37,17 @@ Apache Calcite Copyright 2012-2017 The Apache Software Foundation
 
 Apache Commons Compress Copyright 2002-2017 The Apache Software Foundation
 
+Apache Commons Configuration Copyright 2001-2019 The Apache Software Foundation
+
+Apache Commons Crypto Copyright 2016-2019 The Apache Software Foundation
+
 Apache Commons Lang Copyright 2001-2017 The Apache Software Foundation
 
 Apache Commons Math Copyright 2001-2016 The Apache Software Foundation
 
 Apache Commons Pool Copyright 2001-2016 The Apache Software Foundation
+
+Apache Commons Text Copyright 2014-2019 The Apache Software Foundation
 
 Apache Curator Copyright 2013-2014 The Apache Software Foundation
 
@@ -55,6 +61,8 @@ Apache Groovy Copyright 2003-2017 The Apache Software Foundation
 
 Apache HBase Copyright 2007-2017 The Apache Software Foundation
 
+Apache HBase Copyright 2007-2019 The Apache Software Foundation
+
 Apache HTrace Copyright 2017 The Apache Software Foundation
 
 Apache Hive Copyright 2008-2016 The Apache Software Foundation
@@ -65,7 +73,11 @@ Apache HttpComponents Core Copyright 2005-2017 The Apache Software Foundation
 
 Apache Kafka Copyright 2017 The Apache Software Foundation.
 
+Apache Kerby Copyright 2015-2019 The Apache Software Foundation
+
 Apache Lucene Copyright 2001-2017 The Apache Software Foundation
+
+Apache ORC Copyright 2013-2019 The Apache Software Foundation
 
 Apache POI Copyright 2003-2017 The Apache Software Foundation
 
@@ -213,6 +225,8 @@ Copyright (c) 2014, 2015, 2016, 2017 Hardmath123
 
 Copyright (c) 2014, 2015, 2016, 2017 Simon Lydell
 
+Copyright (c) 2014, Chris Lohfink All rights reserved.  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:  * Redistributions of source code must retain the above copyright notice, this   list of conditions and the following disclaimer.  * Redistributions in binary form must reproduce the above copyright notice, this   list of conditions and the following disclaimer in the documentation and/or   other materials provided with the distribution.  * Neither the name of the {organization} nor the names of its   contributors may be used to endorse or promote products derived from   this software without specific prior written permission.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
 Copyright (c) 2014, Facebook, Inc. All rights reserved.
 
 Copyright (c) 2014-2015, Felix Boehm <me@feedic.com>
@@ -349,6 +363,8 @@ Copyright (c) 2017 Jed Watson
 
 Copyright (c) 2017 Ryan Florence
 
+Copyright (c) 2017 molsson
+
 Copyright (c) 2017, Gajus Kuizinas (http://gajus.com/) All rights reserved.
 
 Copyright (c) 2017, Tim Radvan (tjvr) All rights reserved.
@@ -395,6 +411,10 @@ Copyright 2010-2013 Coda Hale and Yammer, Inc.
 
 Copyright 2010-2013, Carrot Search s.c., Boznicza 11/56, Poznan, Poland
 
+Copyright 2011 The Error Prone Authors.
+
+Copyright 2012-2014 Zafar Khaja <zafarkhaja@gmail.com>.
+
 Copyright 2012-2015 The Dojo Foundation <http://dojofoundation.org/> Based on Underscore.js, copyright 2009-2015 Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors <http://underscorejs.org/>
 
 Copyright 2013 Thorsten Lorenz.  All rights reserved.
@@ -417,15 +437,25 @@ Copyright 2014-2018 Chronicle Software Ltd
 
 Copyright 2015, Dustin Diaz (the Original Author) All rights reserved.
 
+Copyright 2016 Josh Elser
+
+Copyright 2016 Vladimir Bukhtoyarov.
+
 Copyright 2016, Google Inc. All rights reserved. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:     * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.     * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the  distribution.     * Neither the name of Google Inc. nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Copyright 2016-2019 The OpenTracing Authors
 
 Copyright JS Foundation and other contributors <https://js.foundation/>
 
 Copyright JS Foundation and other contributors, https://js.foundation/
 
+Copyright OpenJS Foundation and other contributors <https://openjsf.org/>
+
 Copyright The Apache Software Foundation
 
 Copyright jQuery Foundation and other contributors <https://jquery.org/>
+
+Copyright © 1995, 2019, Oracle and/or its affiliates.
 
 Copyright © 2001-2009 The Apache Software Foundation.
 
@@ -444,6 +474,8 @@ Copyright © 2016 [Eli Grey][1].
 Copyright © 2017 The Netty project
 
 Copyright ©2009-2011 FasterXML, LLC. All rights reserved unless otherwise indicated.
+
+Copyright ©2010-2019 Oracle Corporation. All Rights Reserved.
 
 Copyright(c) 2018 Microsoft Corporation All rights reserved.
 
@@ -466,6 +498,10 @@ Nimbus JOSE + JWT  Copyright 2012 - 2018, Connect2id Ltd.
 Nimbus Language Tags  Copyright 2012-2016, Connect2id Ltd.
 
 Nimbus OAuth 2.0 SDK with OpenID Connect extensions  Copyright (c) Connect2id Ltd., 2012 - 2019
+
+SQLLine - Shell for issuing SQL to relational databases via JDBC  Copyright (c) 2002,2003,2004,2005,2006,2007 Marc Prud'hommeaux Copyright (c) 2004-2010 The Eigenbase Project Copyright (c) 2013-2019 Julian Hyde All rights reserved.
+
+Snappy Copyright Notices Copyright 2011 Dain Sundstrom dain@iq80.com Copyright 2011, Google Inc.opensource@google.com Snappy License Copyright 2011, Google Inc. All rights reserved.  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:  * Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer. * Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution. * Neither the name of Google Inc. nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS AS IS AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 The MIT License (MIT)  Copyright (c) 2016 Microsoft Azure  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the Software), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.  THE SOFTWARE IS PROVIDED AS IS, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 

@@ -57,7 +57,7 @@ class EditTextContent extends Component {
         transform={transform}
         onFormSubmit={this.props.submit}
         style={{ minHeight: 0 }}
-        >
+      >
         <div style={[style.base]} className='edit-text-content'>
           {content}
           <NewFieldSection columnName={columnName} fields={fields} className={sectionMargin} />

@@ -38,8 +38,8 @@ public final class S3ClientFactoryHelper {
 
   public static AmazonS3 createS3ClientHelper(Configuration config, URI name)
     throws IOException {
-    S3ClientFactory.DefaultS3ClientFactory clientFactory = new S3ClientFactory.DefaultS3ClientFactory();
+    DefaultS3ClientFactory clientFactory = new DefaultS3ClientFactory();
     clientFactory.setConf(config);
-    return clientFactory.createS3Client(name);
+    return clientFactory.createS3Client(name, "", S3AUtils.createAWSCredentialProviderSet(name, config));
   }
 }

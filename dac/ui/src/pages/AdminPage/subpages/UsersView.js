@@ -157,7 +157,7 @@ export default class UsersView extends Component {
                 style={styles.searchInput}
                 onChange={this.props.search}
                 ref='searchInputs'
-            />
+              />
             </div>
           </div>
         }
@@ -187,12 +187,12 @@ const styles = {
     display: 'flex',
     alignItems: 'center'
   },
-// pending server support:
-//   userAvatar: {
-//     width: '22px',
-//     height: '22px',
-//     margin: '0 10px 0 5px'
-//   },
+  // pending server support:
+  //   userAvatar: {
+  //     width: '22px',
+  //     height: '22px',
+  //     margin: '0 10px 0 5px'
+  //   },
   searchWrap: {
     clear: 'both',
     margin: '10px 0',

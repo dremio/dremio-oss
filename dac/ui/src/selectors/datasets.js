@@ -16,7 +16,7 @@
 import { createSelector } from 'reselect';
 import Immutable from 'immutable';
 
-import { HOME_SPACE_NAME, RECENT_SPACE_NAME } from 'constants/Constants';
+import { HOME_SPACE_NAME, RECENT_SPACE_NAME } from '@app/constants/Constants';
 
 function _getResourceName(resourceName) {
   if (resourceName === 'home' || !resourceName) {
@@ -50,7 +50,7 @@ function getDatasetsList(state, props) {
     const dataset = entities.getIn(['dataset', name]);
     return dataset.set('datasetConfig', entities.getIn(['datasetConfig', dataset.get('datasetConfig')]));
   }
-);
+  );
 }
 
 function getFoldersList(state, props) {

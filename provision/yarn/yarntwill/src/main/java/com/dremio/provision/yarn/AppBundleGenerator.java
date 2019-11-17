@@ -61,8 +61,10 @@ import com.google.common.collect.ImmutableList;
 public class AppBundleGenerator {
 
   public static final String X_DREMIO_LIBRARY_PATH_MANIFEST_ATTRIBUTE = "X-Dremio-Library-Path";
+  public static final String X_DREMIO_PLUGINS_PATH_MANIFEST_ATTRIBUTE = "X-Dremio-Plugins-Path";
   private static final String DREMIO_BUNDLE_PREFIX = "dremio-bundle";
   private static final Path DREMIO_APP_PATH = Paths.get("dremio.app");
+  private static final String DELIMITER = " ";
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AppBundleGenerator.class);
 
@@ -70,6 +72,7 @@ public class AppBundleGenerator {
   private final List<String> classPathPrefix;
   private final List<String> classPath;
   private final List<String> nativeLibraryPath;
+  private final Path pluginsPath;
 
   // A simple wrapper to create a Jar file
   static interface JarGenerator extends Closeable {
@@ -139,11 +142,16 @@ public class AppBundleGenerator {
     }
   }
 
-  public AppBundleGenerator(ClassLoader classLoader, @NotNull List<String> classPathPrefix, @NotNull List<String> classPath, List<String> nativeLibraryPath) {
+  public AppBundleGenerator(ClassLoader classLoader,
+                            @NotNull List<String> classPathPrefix,
+                            @NotNull List<String> classPath,
+                            List<String> nativeLibraryPath,
+                            Path pluginsPath) {
     this.classLoader = classLoader;
     this.classPathPrefix = ImmutableList.copyOf(classPathPrefix);
     this.classPath = ImmutableList.copyOf(classPath);
     this.nativeLibraryPath = ImmutableList.copyOf(nativeLibraryPath);
+    this.pluginsPath = pluginsPath;
   }
 
   public static AppBundleGenerator of(DremioConfig config) {
@@ -152,12 +160,15 @@ public class AppBundleGenerator {
         .map(p -> Arrays.asList(p.split(File.pathSeparator)))
         .orElse(Collections.emptyList());
 
+    final Path pluginsPath = DremioConfig.getPluginsRootPath();
+
     return new AppBundleGenerator(
         AppBundleGenerator.class.getClassLoader(),
         config.getStringList(DremioConfig.YARN_APP_CLASSPATH_PREFIX),
         config.getStringList(DremioConfig.YARN_APP_CLASSPATH),
-        nativeLibraryPath
-        );
+        nativeLibraryPath,
+        pluginsPath
+    );
   }
 
   public Path generateBundle() throws IOException {
@@ -172,6 +183,9 @@ public class AppBundleGenerator {
       // After that add native libraries
       List<URI> nativeLibrariesEntries = addPathsToBundle(jarGenerator, nativeLibraryPath.stream().map(Paths::get));
 
+      // After that add plugins
+      URI pluginsPathEntry = addPathToJar(jarGenerator, pluginsPath);
+
       // Finally, add classpath and native library path entries in jar manifest
       // Following spec for class-path, string is a list of URI separated by space...
       Manifest manifest = new Manifest();
@@ -180,9 +194,10 @@ public class AppBundleGenerator {
       mainAttributes.put(Attributes.Name.CLASS_PATH,
           jarEntries.stream()
           .map(URI::toString)
-          .collect(Collectors.joining(" ")));
+          .collect(Collectors.joining(DELIMITER)));
       mainAttributes.putValue(X_DREMIO_LIBRARY_PATH_MANIFEST_ATTRIBUTE,
-          nativeLibrariesEntries.stream().map(URI::toString).collect(Collectors.joining(" ")));
+          nativeLibrariesEntries.stream().map(URI::toString).collect(Collectors.joining(DELIMITER)));
+      mainAttributes.putValue(X_DREMIO_PLUGINS_PATH_MANIFEST_ATTRIBUTE, pluginsPathEntry.toString());
 
       jarGenerator.addManifest(manifest);
     }
@@ -278,7 +293,7 @@ public class AppBundleGenerator {
       try(Stream<Path> list = Files.list(path)) {
         list.forEach(subPath -> {
           // Ignore return value, directory is being added
-          doAddPathToJar(jarGenerator, subPath);
+          addPathToJar(jarGenerator, subPath);
         });
       } catch (IOException e) {
         logger.error("Not able to list path {} content", path, e);

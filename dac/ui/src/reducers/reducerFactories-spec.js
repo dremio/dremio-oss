@@ -24,10 +24,10 @@ describe('extractValue', () => {
   const test = (actionType, action, pathToValue, expectedValue) => {
     it(`actionType to listen = '${actionType}'; action = ${JSON.stringify(action)};
         path to extract = '${pathToValue}'; expected state value = ${JSON.stringify(expectedValue)}`,
-      () => {
-        const reducer = extractValue(actionType, pathToValue);
-        expect(reducer(undefined, action)).to.be.equal(expectedValue);
-      });
+    () => {
+      const reducer = extractValue(actionType, pathToValue);
+      expect(reducer(undefined, action)).to.be.equal(expectedValue);
+    });
   };
 
   const obj = { b: 1};

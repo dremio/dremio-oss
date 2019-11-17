@@ -101,8 +101,8 @@ export class InnerJoinController extends Component {
     const columnNameInArea = this.state.type === 'custom' ? 'custom' : 'default';
     const columnName = dropData.id;
     const columnIndexThatWillBeAdded = !this.state.columnsInDragArea
-                                                   .find(col => col.getIn([columnNameInArea, 'name']) === columnName)
-                                        && this.state[name].findIndex(column => column.get('name') === columnName);
+      .find(col => col.getIn([columnNameInArea, 'name']) === columnName)
+      && this.state[name].findIndex(column => column.get('name') === columnName);
     const column = this.state[name].get(columnIndexThatWillBeAdded);
 
     if (dropData.id && columnIndexThatWillBeAdded || columnIndexThatWillBeAdded === 0) {

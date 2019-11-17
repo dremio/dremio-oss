@@ -22,9 +22,9 @@ import { getExploreState } from '@app/selectors/explore';
 import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
 import filterMappers from 'utils/mappers/ExplorePage/Transform/filterMappers';
 import NewFieldSection from 'components/Forms/NewFieldSection';
-import { getDefaultValue } from 'constants/DataTypes';
+import { getDefaultValue } from '@app/constants/DataTypes';
 import Tabs from 'components/Tabs';
-import { isDateType } from 'constants/DataTypes';
+import { isDateType } from '@app/constants/DataTypes';
 import exploreUtils from 'utils/explore/exploreUtils';
 import TransformForm, { formWrapperProps } from '../../../forms/TransformForm';
 import ReplaceFooter from './../ReplaceFooter';
@@ -160,14 +160,14 @@ export class ReplaceRangeForm extends Component {
           chartWidth={chartWidth}
           fields={fields}
           isReplace={transformType === 'replace'}
-          />
+        />
         <Tabs activeTab={transformType}>
           <ReplaceFooter
             tabId='replace'
             fields={fields}
             submitForm={submitForm}
             transform={transform}
-            />
+          />
         </Tabs>
       </TransformForm>
     );

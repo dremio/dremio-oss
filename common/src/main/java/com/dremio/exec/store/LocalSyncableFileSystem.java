@@ -63,7 +63,7 @@ public class LocalSyncableFileSystem extends FileSystem {
 
   @Override
   public FSDataOutputStream create(Path path, FsPermission fsPermission, boolean b, int i, short i2, long l, Progressable progressable) throws IOException {
-    return new FSDataOutputStream(new LocalSyncableOutputStream(localize(path)));
+    return new FSDataOutputStream(new LocalSyncableOutputStream(localize(path)), null);
   }
 
   @Override
@@ -157,7 +157,7 @@ public class LocalSyncableFileSystem extends FileSystem {
       output = new BufferedOutputStream(fos, 64*1024);
     }
 
-    @Override
+    // Compatibility with Hadoop 2.x. Was removed with Hadoop 3.0
     public void sync() throws IOException {
       output.flush();
       fos.getFD().sync();
@@ -254,6 +254,10 @@ public class LocalSyncableFileSystem extends FileSystem {
 
     }
 
+    // Compatibility with Hadoop 2.x. Was added in Hadoop 3.2
+    public int read(long position, ByteBuffer dst) throws IOException {
+      throw new IOException("positional read with ByteBuffer not supported");
+    }
 
     @Override
     public int read(byte[] b) throws IOException {

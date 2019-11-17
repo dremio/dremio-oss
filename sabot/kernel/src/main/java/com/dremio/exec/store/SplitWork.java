@@ -31,6 +31,7 @@ import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.DatasetSplit
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedDatasetSplitInfo;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.NormalizedPartitionInfo;
 import com.google.common.collect.FluentIterable;
+import com.google.common.net.HostAndPort;
 
 public class SplitWork implements CompleteWork {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SplitWork.class);
@@ -81,13 +82,24 @@ public class SplitWork implements CompleteWork {
     return datasetSplit;
   }
 
+  NodeEndpoint getMatchingNode(HostAndPort hostPort) {
+    if (!hostPort.hasPort()) {
+      return nodeMap.getEndpoint(hostPort.getHost());
+    }
+
+    // affinity host has port information
+    // match it exactly
+    return nodeMap.getExactEndpoint(hostPort.getHost(), hostPort.getPort());
+  }
+
   @Override
   public List<EndpointAffinity> getAffinity() {
     List<EndpointAffinity> endpoints = new ArrayList<>();
     for(Affinity a : datasetSplit.getAffinitiesList()){
-      NodeEndpoint endpoint = nodeMap.getEndpoint(a.getHost());
+      HostAndPort hostAndPort = HostAndPort.fromString(a.getHost());
+      NodeEndpoint endpoint = getMatchingNode(hostAndPort);
       if(endpoint != null){
-        endpoints.add(new EndpointAffinity(endpoint, a.getFactor(), affinityType == DistributionAffinity.HARD, affinityType == DistributionAffinity.HARD ? 1 : Integer.MAX_VALUE));
+        endpoints.add(new EndpointAffinity(hostAndPort, endpoint, a.getFactor(), affinityType == DistributionAffinity.HARD, affinityType == DistributionAffinity.HARD ? 1 : Integer.MAX_VALUE));
       } else {
         if (affinityType == DistributionAffinity.HARD) {
           // Throw an error if there is no endpoint on host

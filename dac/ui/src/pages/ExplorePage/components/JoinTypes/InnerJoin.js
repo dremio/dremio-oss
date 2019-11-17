@@ -24,7 +24,7 @@ import Select from 'components/Fields/Select';
 import { bodySmall, formDefault } from 'uiTheme/radium/typography';
 import { PALE_BLUE, PALE_GREY } from 'uiTheme/radium/colors';
 import { LINE_CENTER_CENTER } from 'uiTheme/radium/flexStyle';
-import { MAP, LIST, OTHER, GEO, MIXED, ANY } from 'constants/DataTypes';
+import { MAP, LIST, OTHER, GEO, MIXED, ANY } from '@app/constants/DataTypes';
 import JoinColumnMenu from './components/JoinColumnMenu';
 import JoinDragArea from './components/JoinDragArea';
 import {

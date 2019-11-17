@@ -908,7 +908,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   // type DECIMAL / Decimal9?:
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimalAscNullsFirst() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -922,7 +921,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimalAscNullsLast() throws Exception {
      JdbcAssert
          .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -937,7 +935,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimalAscNullsDefaultLast() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -951,7 +948,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimalDescNullsFirst() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -965,7 +961,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimalDescNullsLast() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -979,7 +974,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimalDescNullsDefaultFirst() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -993,7 +987,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimalDefaultedAscNullsFirst() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1007,7 +1000,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimalDefaultedAscNullsLast() throws Exception {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
@@ -1020,7 +1012,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimalDefaultedAscNullsDefaultLast() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1040,7 +1031,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   // code paths for NULLS FIRST/LAST handling.
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal5AscNullsFirst() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1054,7 +1044,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal5AscNullsLast() throws Exception {
      JdbcAssert
          .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1069,7 +1058,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal5AscNullsDefaultLast() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1083,7 +1071,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal5DescNullsFirst() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1097,7 +1084,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal5DescNullsLast() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1111,7 +1097,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal5DescNullsDefaultFirst() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1125,7 +1110,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal5DefaultedAscNullsFirst() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1139,7 +1123,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal5DefaultedAscNullsLast() throws Exception {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
@@ -1152,7 +1135,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal5DefaultedAscNullsDefaultLast() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1172,7 +1154,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   // code paths for NULLS FIRST/LAST handling.
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal35AscNullsFirst() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1186,7 +1167,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal35AscNullsLast() throws Exception {
      JdbcAssert
          .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1201,7 +1181,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal35AscNullsDefaultLast() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1215,7 +1194,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal35DescNullsFirst() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1229,7 +1207,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal35DescNullsLast() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1243,7 +1220,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal35DescNullsDefaultFirst() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1257,7 +1233,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal35DefaultedAscNullsFirst() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())
@@ -1271,7 +1246,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal35DefaultedAscNullsLast() throws Exception {
     JdbcAssert.withNoDefaultSchema(sabotNode.getJDBCConnectionString())
         .sql( "SELECT tbl.id, \n" +
@@ -1284,7 +1258,6 @@ public class JdbcNullOrderingAndGroupingTest extends JdbcTestQueryBase {
   }
 
   @Test
-  @Ignore("decimal")
   public void testOrderDecimal35DefaultedAscNullsDefaultLast() throws Exception {
     JdbcAssert
         .withNoDefaultSchema(sabotNode.getJDBCConnectionString())

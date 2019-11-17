@@ -54,6 +54,7 @@ import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
+import com.dremio.options.OptionManager;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobNotFoundException;
@@ -81,12 +82,14 @@ public class TestResource {
   private final JobsService jobsService;
   private final CatalogService catalogService;
   private final ReflectionServiceHelper reflectionHelper;
+  private final OptionManager optionManager;
 
   @Inject
   public TestResource(InitializerRegistry init, SabotContext context, UserService userService,
                       KVStoreProvider provider, JobsService jobsService,
                       CatalogService catalogService, ReflectionServiceHelper reflectionHelper,
-                      SecurityContext security, ConnectionReader connectionReader, CollaborationHelper collaborationService) {
+                      SecurityContext security, ConnectionReader connectionReader, CollaborationHelper collaborationService,
+                      OptionManager optionManager) {
     this.init = init;
     this.provider = provider;
     this.context = context;
@@ -97,6 +100,7 @@ public class TestResource {
     this.security = security;
     this.connectionReader = connectionReader;
     this.collaborationService = collaborationService;
+    this.optionManager = optionManager;
   }
 
   @Bootstrap
@@ -117,7 +121,7 @@ public class TestResource {
   }
 
   private DatasetVersionMutator newDS(NamespaceService nsWithAuth) {
-    return new DatasetVersionMutator(init, provider, nsWithAuth, jobsService, catalogService);
+    return new DatasetVersionMutator(init, provider, nsWithAuth, jobsService, catalogService, optionManager);
   }
 
   private SourceService newSourceService(NamespaceService nsWithAuth, DatasetVersionMutator ds) {

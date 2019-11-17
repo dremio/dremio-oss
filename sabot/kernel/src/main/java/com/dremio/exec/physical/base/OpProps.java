@@ -17,6 +17,7 @@ package com.dremio.exec.physical.base;
 
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.service.users.SystemUser;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -216,7 +217,7 @@ public class OpProps {
   }
 
   public static OpProps prototype(int operatorId, long reserve, long limit) {
-    return new OpProps(operatorId, null, reserve, limit, 0, 1, false, 1024, new BatchSchema(ImmutableList.of()), false, 1.0d, false);
+    return new OpProps(operatorId, SystemUser.SYSTEM_USERNAME, reserve, limit, 0, 1, false, 1024, new BatchSchema(ImmutableList.of()), false, 1.0d, false);
   }
 
   public static OpProps prototype(long reserve, long limit) {

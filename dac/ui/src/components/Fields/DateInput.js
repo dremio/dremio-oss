@@ -23,7 +23,7 @@ import { SelectView } from '@app/components/Fields/SelectView';
 import FontIcon from 'components/Icon/FontIcon';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
-import { dateTypeToFormat, TIME, DATE } from 'constants/DataTypes';
+import { dateTypeToFormat, TIME, DATE } from '@app/constants/DataTypes';
 
 import TimePicker from './TimePicker';
 
@@ -34,7 +34,8 @@ export default class DateInput extends PureComponent {
     onChange: PropTypes.func,
     value: PropTypes.string,
     disabled: PropTypes.bool,
-    type: PropTypes.string
+    type: PropTypes.string,
+    style: PropTypes.object
   };
 
   static mergeDateWithTime(dateMoment, timeMoment, type) {

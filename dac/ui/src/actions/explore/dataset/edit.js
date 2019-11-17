@@ -26,8 +26,8 @@ export const loadExistingDataset = (dataset, viewId, tipVersion) =>
   (dispatch) => {
     const jobId = dataset.get('jobId');
     const href = jobId
-        ? exploreUtils.getReviewLink(dataset, tipVersion)
-        : exploreUtils.getPreviewLink(dataset, tipVersion);
+      ? exploreUtils.getReviewLink(dataset, tipVersion)
+      : exploreUtils.getPreviewLink(dataset, tipVersion);
     return dispatch(
       loadExploreEntities({
         href,

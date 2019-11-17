@@ -61,12 +61,12 @@ public class TestHardAssignmentCreator extends ExecTest {
           ENDPOINT_4_2
       );
 
-  private static class TestWork implements CompleteWork {
+  public static class TestWork implements CompleteWork {
     private final String id;
     private final long sizeInBytes;
     private final List<EndpointAffinity> affinities;
 
-    private TestWork(String id, long sizeInBytes, List<EndpointAffinity> affinities) {
+    public TestWork(String id, long sizeInBytes, List<EndpointAffinity> affinities) {
       this.id = id;
       this.sizeInBytes = sizeInBytes;
       this.affinities = affinities;
@@ -284,7 +284,7 @@ public class TestHardAssignmentCreator extends ExecTest {
     }
   }
 
-  private static final NodeEndpoint newNodeEndpoint(String address, int port) {
+  public static final NodeEndpoint newNodeEndpoint(String address, int port) {
     return NodeEndpoint.newBuilder().setAddress(address).setFabricPort(port).build();
   }
 }

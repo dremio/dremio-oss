@@ -161,7 +161,6 @@ public interface AttemptObserver {
    * Report substitution
    * @param materialization
    * @param substitutions number of plans returned after substitution finished
-   * @param query
    * @param target
    */
   void planSubstituted(DremioMaterialization materialization,
@@ -222,6 +221,12 @@ public interface AttemptObserver {
    * Executor nodes were selected for the query
    */
   void executorsSelected(long millisTaken, int idealNumFragments, int idealNumNodes, int numExecutors, String detailsText);
+
+  /**
+   * Number of records processed
+   * @param recordCount records processed
+   */
+  void recordsProcessed(long recordCount);
 
   /**
    * Time taken to generate fragments.

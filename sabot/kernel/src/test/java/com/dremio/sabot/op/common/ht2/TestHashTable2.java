@@ -24,21 +24,26 @@ import static org.junit.Assert.assertTrue;
 import java.util.Random;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SimpleBigIntVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.commons.io.Charsets;
 import org.apache.commons.lang3.RandomStringUtils;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.util.Numbers;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 import com.koloboke.collect.hash.HashConfig;
 
-public class TestHashTable2 {
+public class TestHashTable2 extends DremioTest {
 
   private int MAX_VALUES_PER_BATCH = 0;
+
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Test
   public void testSimple() throws Exception {
@@ -60,8 +65,8 @@ public class TestHashTable2 {
     String[] col2arr = {"every", "every", "every", "none", null, null};
     Integer[] col3arr = {1, 1, 1, 1, 1, 1};
 
-    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
-        final VectorContainer c = new VectorContainer();) {
+    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
+         final VectorContainer c = new VectorContainer()) {
 
       VarCharVector col1 = new VarCharVector("col1", allocator);
       TestVarBinaryPivot.populate(col1, col1arr);
@@ -129,8 +134,8 @@ public class TestHashTable2 {
     Integer[] col1Arr = {1, 2, 3, 3, 2, 1};
     Integer[] col2Arr = {100, 200, 300, 300, 200, 400};
 
-    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
-         final VectorContainer c = new VectorContainer();) {
+    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
+         final VectorContainer c = new VectorContainer()) {
       IntVector intcol1 = new IntVector("intcol1", allocator);
       TestIntPivot.populate(intcol1, col1Arr);
       IntVector intcol2 = new IntVector("intcol2", allocator);
@@ -190,8 +195,8 @@ public class TestHashTable2 {
 
   private void emptyValuesHelper() throws Exception {
 
-    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
-        final VectorContainer c = new VectorContainer();) {
+    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
+         final VectorContainer c = new VectorContainer()) {
 
       VarCharVector col1 = new VarCharVector("col1", allocator);
       c.add(col1);
@@ -286,8 +291,8 @@ public class TestHashTable2 {
       }
     }
 
-    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
-         final VectorContainer c = new VectorContainer();) {
+    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
+         final VectorContainer c = new VectorContainer()) {
 
       VarCharVector col1 = new VarCharVector("col1", allocator);
       TestVarBinaryPivot.populate(col1, col1Arr);
@@ -405,8 +410,8 @@ public class TestHashTable2 {
       col3Arr[i] = random.nextInt();
     }
 
-    try (BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
-         final VectorContainer c = new VectorContainer();) {
+    try (final BufferAllocator allocator = allocatorRule.newAllocator("test-hash-table-2", 0, Long.MAX_VALUE);
+         final VectorContainer c = new VectorContainer()) {
 
       VarCharVector col1 = new VarCharVector("col1", allocator);
       TestVarBinaryPivot.populate(col1, col1Arr);

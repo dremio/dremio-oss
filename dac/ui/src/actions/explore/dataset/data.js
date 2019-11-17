@@ -15,7 +15,7 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 import apiUtils from '@app/utils/apiUtils/apiUtils';
 
 export const PAGE_SIZE = 100;
@@ -98,4 +98,34 @@ export const explorePageExit = () => ({ type: EXPLORE_PAGE_EXIT });
 export const explorePageLocationChanged = (newRouteState) => ({
   type: EXPLORE_PAGE_LOCATION_CHANGED,
   newRouteState
+});
+
+export const UPDATE_EXPLORE_JOB_PROGRESS = 'UPDATE_EXPLORE_JOB_PROGRESS';
+export const updateExploreJobProgress = (jobUpdate) => ({
+  type: UPDATE_EXPLORE_JOB_PROGRESS,
+  jobUpdate
+});
+
+export const SET_EXPLORE_JOBID_IN_PROGRESS = 'SET_EXPLORE_JOBID_IN_PROGRESS';
+export const setExploreJobIdInProgress = (jobId) => ({
+  type: SET_EXPLORE_JOBID_IN_PROGRESS,
+  jobId
+});
+
+export const UPDATE_EXPLORE_JOB_RECORDS = 'UPDATE_EXPLORE_JOB_RECORDS';
+export const updateJobRecordCount = (recordCount) => ({
+  type: UPDATE_EXPLORE_JOB_RECORDS,
+  recordCount
+});
+
+export const INIT_EXPLORE_JOB_PROGRESS = 'INIT_EXPLORE_JOB_PROGRESS';
+// initialize explore job progess
+export const initializeExploreJobProgress = (isRun) => ({
+  type: INIT_EXPLORE_JOB_PROGRESS,
+  isRun
+});
+
+export const FAILED_EXPLORE_JOB_PROGRESS = 'FAILED_EXPLORE_JOB_PROGRESS';
+export const failedExploreJobProgress = () => ({
+  type: FAILED_EXPLORE_JOB_PROGRESS
 });

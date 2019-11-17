@@ -36,7 +36,6 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateMilliVector;
@@ -65,6 +64,7 @@ import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -85,6 +85,8 @@ import com.dremio.service.jobs.JobDataImpl;
 import com.dremio.service.jobs.JobLoader;
 import com.dremio.service.jobs.RecordBatchHolder;
 import com.dremio.service.jobs.RecordBatches;
+import com.dremio.test.AllocatorRule;
+import com.dremio.test.DremioTest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.base.Function;
@@ -102,7 +104,7 @@ import io.netty.buffer.ArrowBuf;
  * </ul>
  */
 @RunWith(Parameterized.class)
-public class TestData {
+public class TestData extends DremioTest {
   private static final JobId TEST_JOB_ID = new JobId("testJobId");
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
   static {
@@ -111,8 +113,11 @@ public class TestData {
     OBJECT_MAPPER.registerModule(module);
   }
 
-  private static BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
-  private static ArrowBuf tempBuf = allocator.buffer(1024);
+  @ClassRule
+  public static final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
+
+  private static BufferAllocator allocator;
+  private static ArrowBuf tempBuf;
 
   private static String defaultMaxCellLength;
 
@@ -129,6 +134,8 @@ public class TestData {
 
   @BeforeClass
   public static void setMaxCellLength() {
+    allocator = allocatorRule.newAllocator("test-data", 0, Long.MAX_VALUE);
+    tempBuf = allocator.buffer(1024);
     // For testing purposes set the value to 30
     defaultMaxCellLength = System.getProperty(JobData.MAX_CELL_SIZE_KEY);
     System.setProperty(JobData.MAX_CELL_SIZE_KEY, "30");
@@ -139,6 +146,7 @@ public class TestData {
     if (defaultMaxCellLength != null) {
       System.setProperty(JobData.MAX_CELL_SIZE_KEY, defaultMaxCellLength);
     }
+    allocator.close();
   }
 
   private final boolean convertNumbersToStrings;

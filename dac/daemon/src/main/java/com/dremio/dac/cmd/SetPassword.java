@@ -28,6 +28,7 @@ import com.dremio.service.users.SimpleUserService;
 /**
  * Set password for a given user, used by admins.
  */
+@AdminCommand(value = "set-password", description = "Sets passwords for Dremio users (non-LDAP)")
 public class SetPassword {
 
   /**

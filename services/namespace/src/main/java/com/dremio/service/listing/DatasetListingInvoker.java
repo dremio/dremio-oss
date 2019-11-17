@@ -120,9 +120,7 @@ public class DatasetListingInvoker implements DatasetListingService {
             final LinkedBuffer buffer = LinkedBuffer.allocate();
             final Iterable<ByteString> containersAsBytes = StreamSupport.stream(searchResults.spliterator(), false)
                 .map(input -> {
-                    // TODO(DX-10857): change from opaque object to protobuf; avoid unnecessary copies
-                    final ByteString bytes = ByteString.copyFrom(
-                        ProtobufIOUtil.toByteArray(input.getValue(), NameSpaceContainer.getSchema(), buffer));
+                    final ByteString bytes = input.getValue().clone(buffer);
                     buffer.clear();
                     return bytes;
                 }).collect(Collectors.toList());
@@ -262,8 +260,7 @@ public class DatasetListingInvoker implements DatasetListingService {
     return findResponse.getResponseList().stream()
         .map(input -> {
             // TODO(DX-10857): change from opaque object to protobuf; avoid unnecessary copies
-            final NameSpaceContainer nameSpaceContainer = NameSpaceContainer.getSchema().newMessage();
-            ProtobufIOUtil.mergeFrom(input.toByteArray(), nameSpaceContainer, NameSpaceContainer.getSchema());
+            final NameSpaceContainer nameSpaceContainer = NameSpaceContainer.from(input);
             return new AbstractMap.SimpleEntry<>(
                 new NamespaceKey(nameSpaceContainer.getFullPathList()), nameSpaceContainer);
         }).collect(Collectors.toList());
@@ -294,7 +291,6 @@ public class DatasetListingInvoker implements DatasetListingService {
       throw new RemoteNamespaceException(getSourceResponse.getFailureMessage());
     }
 
-    // TODO(DX-10857): change from opaque object to protobuf; avoid unnecessary copies
     final SourceConfig source = SourceConfig.getSchema().newMessage();
     ProtobufIOUtil.mergeFrom(getSourceResponse.getResponse().toByteArray(), source, SourceConfig.getSchema());
 

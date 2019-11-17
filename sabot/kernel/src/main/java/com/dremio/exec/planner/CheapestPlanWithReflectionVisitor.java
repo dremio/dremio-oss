@@ -35,6 +35,7 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.util.Pair;
 
+import com.dremio.exec.planner.physical.PlannerSettings;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
@@ -59,6 +60,7 @@ public class CheapestPlanWithReflectionVisitor {
   private static final Result EMPTY_RESULT = new Result(null, null, EMPTY_MAP);
 
   private boolean tooDeepFailure = false;
+  private int MAX_DEPTH = PlannerSettings.MAX_RECURSION_STACK_DEPTH;
 
   public CheapestPlanWithReflectionVisitor(VolcanoPlanner planner) {
     this.root = planner.getRoot();
@@ -93,7 +95,7 @@ public class CheapestPlanWithReflectionVisitor {
   }
 
   private Result visit(final RelNode p, int depth) {
-    if (depth > 100) {
+    if (depth > MAX_DEPTH) {
       tooDeepFailure = true;
       logger.debug("Traversal is too deep, aborting");
       return null;

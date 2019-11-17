@@ -47,8 +47,8 @@ export default class SelectFrequentValuesOption extends Component {
     const correctText = dataFormatUtils.formatValue(option.value);
     // note: some APIs don't express null correctly (instead they drop the field)
     const correctTextStyle = option.value === undefined || option.value === null || option.value === ''
-       ? styles.emptyTextWrap
-       : {};
+      ? styles.emptyTextWrap
+      : {};
     return <EllipsedText text={correctText} style={{ ...correctTextStyle, marginLeft: 10 }} />;
   }
 

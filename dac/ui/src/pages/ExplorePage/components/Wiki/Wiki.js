@@ -23,7 +23,7 @@ import { withRouter } from 'react-router';
 import { withRouteLeaveSubscription } from '@app/containers/RouteLeave.js';
 import { TagsView } from '@app/pages/ExplorePage/components/TagsEditor/Tags.js';
 import ViewStateWrapper from '@app/components/ViewStateWrapper';
-import { MarkdownEditorView } from '@app/components/MarkdownEditor';
+import MarkdownEditor from '@app/components/MarkdownEditor';
 import { toolbarHeight as toolbarHeightCssValue } from '@app/components/MarkdownEditor.less';
 import { startSearch as startSearchAction } from 'actions/search';
 import ApiUtils from '@app/utils/apiUtils/apiUtils';
@@ -197,12 +197,12 @@ export class WikiView extends PureComponent {
           version: tagsVersion
         })
       }, 3).then((response) => {
-        response.json().then(this.setOriginalTags);
-      }, (error) => {
-        this.setState({
-          tagsViewState: this.getErrorViewState(la('Error: Tags are not saved'))
-        });
+      response.json().then(this.setOriginalTags);
+    }, (error) => {
+      this.setState({
+        tagsViewState: this.getErrorViewState(la('Error: Tags are not saved'))
       });
+    });
   }
 
   addTag = tag => {
@@ -322,7 +322,7 @@ export class WikiView extends PureComponent {
                 })] : null}
               />
               {
-                wiki ? <MarkdownEditorView
+                wiki ? <MarkdownEditor
                   value={wiki}
                   readMode
                   onChange={this.onChange}

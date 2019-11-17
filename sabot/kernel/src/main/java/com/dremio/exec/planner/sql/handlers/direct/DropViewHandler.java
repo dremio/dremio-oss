@@ -43,7 +43,7 @@ public class DropViewHandler implements SqlDirectHandler<SimpleCommandResult> {
     final SqlDropView dropView = SqlNodeUtil.unwrap(sqlNode, SqlDropView.class);
     NamespaceKey path = catalog.resolveSingle(dropView.getPath());
 
-    DremioTable table = catalog.getTableNoResolve(path);
+    DremioTable table = catalog.getTableNoColumnCount(path);
     if (!dropView.checkViewExistence()) {
       if(table == null) {
         throw UserException.validationError()

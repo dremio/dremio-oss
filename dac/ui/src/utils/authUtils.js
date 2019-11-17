@@ -60,7 +60,7 @@ export const isAuthorized = (/* rule */ {
   capabilities = [],
   isAdmin = false
 }, // see authInfoPropType for format
-  authInfo // see rulePropType for format
+authInfo // see rulePropType for format
 ) => {
   let result = false;
 

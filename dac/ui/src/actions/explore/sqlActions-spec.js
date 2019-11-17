@@ -16,7 +16,7 @@
 import { expect } from 'chai';
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 
 import * as Actions from './sqlActions.js';
 

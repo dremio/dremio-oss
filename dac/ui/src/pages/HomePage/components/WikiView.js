@@ -18,7 +18,7 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { fromJS } from 'immutable';
 import { injectIntl } from 'react-intl';
-import { MarkdownEditorView } from 'components/MarkdownEditor';
+import MarkdownEditor from 'components/MarkdownEditor';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import { SectionTitle, getIconButtonConfig } from '@app/pages/ExplorePage/components/Wiki/SectionTitle';
 import { WikiEmptyState } from '@app/components/WikiEmptyState';
@@ -200,7 +200,7 @@ export default class WikiView extends Component {
           />
           {(wikiText.length) ?
             <div className={wikiWidget} data-qa='wikiWidget'>
-              <MarkdownEditorView
+              <MarkdownEditor
                 value={wikiText}
                 className={editor}
                 readMode

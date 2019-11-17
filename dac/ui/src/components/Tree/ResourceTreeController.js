@@ -96,10 +96,10 @@ export class ResourceTreeController extends Component {
   expandPathToSelectedNode = (path) => {
     const parentsFullPathList = splitFullPath(path);
     const parents = parentsFullPathList
-    .slice(0, parentsFullPathList.length - 1)
-    .map((node, index, curArr) => {
-      return constructFullPath(curArr.slice(0, index + 1));
-    });
+      .slice(0, parentsFullPathList.length - 1)
+      .map((node, index, curArr) => {
+        return constructFullPath(curArr.slice(0, index + 1));
+      });
     this.setState({
       expandedNodes: this.state.expandedNodes.concat(Immutable.fromJS(parents))
     });

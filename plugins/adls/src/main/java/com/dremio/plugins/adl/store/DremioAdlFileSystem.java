@@ -17,16 +17,18 @@ package com.dremio.plugins.adl.store;
 
 import java.io.IOException;
 
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.adl.AdlFileSystem;
 
-import com.dremio.exec.store.dfs.async.AsyncByteReader;
+import com.dremio.exec.hadoop.MayProvideAsyncStream;
+import com.dremio.io.AsyncByteReader;
 import com.microsoft.azure.datalake.store.AdlsAsyncFileReader;
 
 /**
  * Specialized Hadoop FileSystem implementation for ADLS gen 1 which adds async reading capabilities.
  */
 @SuppressWarnings("Unchecked")
-public class DremioAdlFileSystem extends AdlFileSystem implements AsyncByteReader.MayProvideAsyncStream {
+public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyncStream {
 
   static final String SCHEME = "dremioAdl";
   private volatile AsyncHttpClientManager asyncHttpClientManager;
@@ -49,7 +51,7 @@ public class DremioAdlFileSystem extends AdlFileSystem implements AsyncByteReade
   }
 
   @Override
-  public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey) throws IOException {
+  public AsyncByteReader getAsyncByteReader(Path path, String version) throws IOException {
     if (asyncHttpClientManager == null) {
       synchronized (this) {
         if (asyncHttpClientManager == null) {
@@ -60,6 +62,6 @@ public class DremioAdlFileSystem extends AdlFileSystem implements AsyncByteReade
     }
 
     return new AdlsAsyncFileReader(asyncHttpClientManager.getClient(), asyncHttpClientManager.getAsyncHttpClient(),
-      fileKey.getPath().toUri().getPath());
+      path.toUri().getPath(), version, this, asyncHttpClientManager.getUtilityThreadPool());
   }
 }

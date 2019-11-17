@@ -15,10 +15,17 @@
  */
 package com.dremio.exec.hive;
 
+import java.util.concurrent.TimeUnit;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.rules.TestRule;
+import org.junit.runner.RunWith;
 
 import com.dremio.PlanTestBase;
+import com.dremio.common.util.TestTools;
+import com.dremio.exec.GuavaPatcherRunner;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
@@ -27,7 +34,11 @@ import com.dremio.exec.store.hive.HiveTestDataGenerator;
  * Base class for Hive test. Takes care of generating and adding Hive test plugin before tests and deleting the
  * plugin after tests.
  */
+@RunWith(GuavaPatcherRunner.class)
 public class HiveTestBase extends PlanTestBase {
+  @ClassRule
+  public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(100000, TimeUnit.SECONDS);
+
   protected static HiveTestDataGenerator hiveTest;
 
   @BeforeClass
@@ -40,7 +51,9 @@ public class HiveTestBase extends PlanTestBase {
     if (sabotContext == null) {
       throw new RuntimeException("context null!!!");
     }
-    hiveTest.addHiveTestPlugin(getSabotContext().getCatalogService());
+
+    hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
+    hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());
     test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
   }
 
@@ -48,7 +61,8 @@ public class HiveTestBase extends PlanTestBase {
   public static void cleanupHiveTestData() throws Exception{
     test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
     if (hiveTest != null) {
-      hiveTest.deleteHiveTestPlugin(getSabotContext().getCatalogService());
+      hiveTest.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
+      hiveTest.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());
     }
   }
 }

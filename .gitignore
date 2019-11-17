@@ -1,12 +1,12 @@
+#ignore all folders that start with period
+.*/
+!.mvn/
 .buildpath
 .checkstyle
 .classpath
-.idea/
-.vscode/
+.flattened-pom.xml
 .project
 .mvn/wrapper/maven-wrapper.jar
-.profiler
-.settings/
 *~
 *.log
 *.lck
@@ -35,5 +35,5 @@ plugins/sample-data/dremio_hive_db/*
 plugins/hive/metastore_db/*
 .npmrc
 .externalToolBuilders*
-.vscode
 .indexing
+jetbrains_config.js

@@ -18,6 +18,7 @@ package com.dremio.dac.explore.model;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.model.job.JobFilters;
@@ -64,17 +65,21 @@ public class DatasetSummary {
     List<String> fullPath = datasetConfig.getFullPathList();
 
     DatasetType datasetType = datasetConfig.getType();
-    List<Field> fields;
+    List<Field> fields; // here
     DatasetVersion datasetVersion;
 
     List<com.dremio.dac.model.common.Field> fieldList = DatasetsUtil.getFieldsFromDatasetConfig(datasetConfig);
     if (fieldList == null) {
       fields = null;
     } else {
+      final Set<String> partitionedColumnsSet = DatasetsUtil.getPartitionedColumns(datasetConfig);
+      final Set<String> sortedColumns = DatasetsUtil.getSortedColumns(datasetConfig);
+
       fields = Lists.transform(fieldList, new Function<com.dremio.dac.model.common.Field, Field>() {
         @Override
         public Field apply(com.dremio.dac.model.common.Field input) {
-          return new Field(input.getName(), input.getType().name());
+          return new Field(input.getName(), input.getType().name(), partitionedColumnsSet.contains(input.getName()),
+            sortedColumns.contains(input.getName()));
         }
       });
     }

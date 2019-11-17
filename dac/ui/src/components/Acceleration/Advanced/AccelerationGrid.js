@@ -34,7 +34,7 @@ import FormBody from 'components/Forms/FormBody';
 import Message from 'components/Message';
 
 import { formDescription, formLabel } from 'uiTheme/radium/typography';
-import { typeToIconType } from 'constants/DataTypes';
+import { typeToIconType } from '@app/constants/DataTypes';
 
 import LayoutInfo from '../LayoutInfo';
 import { commonStyles } from '../commonStyles';

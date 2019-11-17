@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>3.3.2-201908142136370993-d60145d</version>
+    <version>4.0.4-201910212053580380-773b665</version>
   </parent>
 
   <groupId>com.dremio.contrib</groupId>
@@ -31,8 +31,21 @@
   <packaging>pom</packaging>
 
   <modules>
-    <module>hive-exec-shade</module>
+    <module>hive2-exec-shade</module>
     <module>slim-shade</module>
-    <module>tpch-sample-data</module>
   </modules>
+
+  <profiles>
+    <profile>
+      <id>notmapr</id>
+      <activation>
+        <property>
+          <name>!mapr</name>
+        </property>
+      </activation>
+      <modules>
+        <module>hive3-exec-shade</module>
+      </modules>
+    </profile>
+  </profiles>
 </project>

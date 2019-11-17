@@ -15,6 +15,9 @@
  */
 package com.dremio.service.namespace;
 
+import java.util.List;
+
+import com.dremio.common.Any;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
@@ -47,7 +50,13 @@ final class NamespaceEntity {
   /**
    * Helper method that converts the given object into a {@link NamespaceEntity}
    */
-  static NamespaceEntity toEntity(Type type, NamespaceKey path, Object config, boolean keyNormalization) {
+  static NamespaceEntity toEntity(
+      Type type,
+      NamespaceKey path,
+      Object config,
+      boolean keyNormalization,
+      List<Any> attributes
+  ) {
     final NameSpaceContainer container = new NameSpaceContainer();
     final NamespaceInternalKey namespaceInternalKey = new NamespaceInternalKey(path, keyNormalization);
     container.setType(type);
@@ -71,6 +80,7 @@ final class NamespaceEntity {
         throw new UnsupportedOperationException("Unknown type: " + type);
     }
     container.setFullPathList(path.getPathComponents());
+    container.setAttributesList(attributes);
     return new NamespaceEntity(namespaceInternalKey, container);
   }
 }

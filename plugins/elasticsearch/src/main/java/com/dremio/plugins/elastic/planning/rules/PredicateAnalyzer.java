@@ -73,8 +73,8 @@ import com.dremio.elastic.proto.ElasticReaderProto.ElasticSpecialType;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.expr.fn.impl.RegexpUtil;
 import com.dremio.lucene.queryparser.classic.QueryConverter;
-import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.ElasticsearchConf;
+import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.dremio.plugins.elastic.ElasticsearchStoragePlugin;
 import com.dremio.plugins.elastic.mapping.FieldAnnotation;
 import com.dremio.plugins.elastic.planning.rels.ElasticIntermediateScanPrel;
@@ -185,7 +185,7 @@ public class PredicateAnalyzer {
 
       final RexNode expression = SchemaField.convert(originalExpression,
         scan,
-        ImmutableSet.of(ElasticSpecialType.GEO_POINT, ElasticSpecialType.GEO_SHAPE)
+        ImmutableSet.of(ElasticSpecialType.GEO_POINT, ElasticSpecialType.GEO_SHAPE, ElasticSpecialType.SCALED_FLOAT)
       ).accept(new NotLikeConverter(scan.getCluster().getRexBuilder()));
 
       try {

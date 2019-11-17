@@ -24,6 +24,8 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.InvalidRelException;
+import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.core.CorrelationId;
@@ -32,6 +34,8 @@ import org.apache.calcite.rel.core.RelFactories;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.sql.SemiJoinType;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
@@ -65,12 +69,19 @@ public class DremioRelFactories {
   public static final RelFactories.FilterFactory LOGICAL_FILTER_FACTORY = new FilterFactoryImpl();
   public static final RelFactories.AggregateFactory LOGICAL_AGGREGATE_FACTORY = new AggregateFactoryImpl();
   public static final RelFactories.JoinFactory LOGICAL_JOIN_FACTORY = new JoinFactoryImpl();
+  public static final RelFactories.SortFactory LOGICAL_SORT_FACTORY = new SortFactoryImpl();
+  public static final RelFactories.CorrelateFactory LOGICAL_CORRELATE_FACTORY = new CorrelateFactoryImpl();
+  public static final RelFactories.SetOpFactory LOGICAL_UNION_FACTORY = new SetOpFactoryImpl();
 
   public static final RelBuilderFactory LOGICAL_BUILDER = RelBuilder.proto(
       Contexts.of(
           LOGICAL_FILTER_FACTORY,
           LOGICAL_JOIN_FACTORY,
-          LOGICAL_PROJECT_FACTORY));
+          LOGICAL_AGGREGATE_FACTORY,
+          LOGICAL_PROJECT_FACTORY,
+          LOGICAL_SORT_FACTORY,
+          LOGICAL_CORRELATE_FACTORY,
+          LOGICAL_UNION_FACTORY));
 
   public static final RelFactories.ProjectFactory LOGICAL_PROJECT_PROPAGATE_FACTORY = new ProjectPropagateFactoryImpl();
   public static final RelFactories.FilterFactory LOGICAL_FILTER_PROPAGATE_FACTORY = new FilterPropagateFactoryImpl();
@@ -130,6 +141,75 @@ public class DremioRelFactories {
         // Semantic error not possible. Must be a bug. Convert to
         // internal error.
         throw new AssertionError(e);
+      }
+    }
+  }
+
+  /**
+   * Implementation of {@link RelFactories.SortFactory} that
+   * returns a vanilla {@link SortRel} with offset and fetch.
+   */
+  private static class SortFactoryImpl implements RelFactories.SortFactory {
+    @Override
+    public RelNode createSort(RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
+      return createSort(input.getTraitSet(), input, collation, offset, fetch);
+    }
+
+    @Override
+    public RelNode createSort(RelTraitSet traits, RelNode input, RelCollation collation, RexNode offset, RexNode fetch) {
+      RelNode newInput;
+      if (!collation.getFieldCollations().isEmpty()) {
+        collation = RelCollationTraitDef.INSTANCE.canonize(collation);
+        newInput = SortRel.create(input.getCluster(), traits, input, collation, null, null);
+        traits = newInput.getTraitSet();
+      } else {
+        newInput = input;
+      }
+
+      if (!isOffsetEmpty(offset) || !isFetchEmpty(fetch)) {
+        return new LimitRel(newInput.getCluster(), traits, newInput, offset, fetch);
+      }
+      return newInput;
+    }
+  }
+
+  public static boolean isOffsetEmpty(RexNode offset) {
+    return offset == null;
+  }
+
+  public static boolean isFetchEmpty(RexNode fetch) {
+    return fetch == null;
+  }
+
+  /**
+   * Implementation of {@link RelFactories.CorrelateFactory} that
+   * returns a vanilla {@link CorrelateRel}.
+   */
+  private static class CorrelateFactoryImpl implements RelFactories.CorrelateFactory {
+    @Override
+    public RelNode createCorrelate(RelNode left, RelNode right, CorrelationId correlationId, ImmutableBitSet requiredColumns, SemiJoinType joinType) {
+      return new CorrelateRel(left.getCluster(), left.getTraitSet(), left, right, correlationId, requiredColumns, joinType);
+    }
+  }
+
+  /**
+   * Implementation of {@link RelFactories.SetOpFactory} that
+   * returns a vanilla {@link UnionRel}.
+   */
+  private static class SetOpFactoryImpl implements RelFactories.SetOpFactory {
+
+    public RelNode createSetOp(SqlKind kind, List<RelNode> inputs, boolean all) {
+      final RelOptCluster cluster = inputs.get(0).getCluster();
+      final RelTraitSet traitSet = cluster.traitSetOf(Rel.LOGICAL);
+      switch(kind) {
+        case UNION:
+          try {
+            return new UnionRel(cluster, traitSet, inputs, all, true);
+          } catch (InvalidRelException e) {
+            throw new AssertionError(e);
+          }
+        default:
+          throw new AssertionError("Dremio doesn't currently support " + kind + " operations.");
       }
     }
   }

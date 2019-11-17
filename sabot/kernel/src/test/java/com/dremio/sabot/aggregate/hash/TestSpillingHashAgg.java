@@ -24,7 +24,6 @@ import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.memory.RootAllocator;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,12 +44,16 @@ import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggSpillStats;
+import com.dremio.test.AllocatorRule;
 import com.dremio.test.UserExceptionMatcher;
 
 public class TestSpillingHashAgg extends BaseTestOperator {
 
   @Rule
   public final TestRule TIMEOUT = TestTools.getTimeoutRule(1000, TimeUnit.SECONDS);
+
+  @Rule
+  public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   private HashAggregate getHashAggregate(long reserve, long max, int hashTableBatchSize) {
     OpProps props = PROPS.cloneWithNewReserve(reserve).cloneWithMemoryExpensive(true);
@@ -613,12 +616,13 @@ public class TestSpillingHashAgg extends BaseTestOperator {
   public void testCloseWithoutSetup() throws Exception {
     final HashAggregate agg = getHashAggregate(1_000_000, 12_000_000);
     SabotContext context = mock(SabotContext.class);
-    BufferAllocator allocator = new RootAllocator(Long.MAX_VALUE);
-    when(context.getAllocator()).thenReturn(allocator);
-    OptionManager optionManager = mock(OptionManager.class);
-    try (BufferAllocator alloc = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
-         OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), alloc, optionManager, 1000);
-         final VectorizedHashAggOperator op = new VectorizedHashAggOperator(agg, operatorContext)) {
+    try (BufferAllocator allocator = allocatorRule.newAllocator("test-spilling-hashagg", 0, Long.MAX_VALUE)) {
+      when(context.getAllocator()).thenReturn(allocator);
+      OptionManager optionManager = mock(OptionManager.class);
+      try (BufferAllocator alloc = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
+          OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), alloc, optionManager, 1000);
+          final VectorizedHashAggOperator op = new VectorizedHashAggOperator(agg, operatorContext)) {
+      }
     }
   }
 

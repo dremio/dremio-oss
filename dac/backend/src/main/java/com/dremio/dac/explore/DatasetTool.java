@@ -31,7 +31,6 @@ import javax.ws.rs.core.SecurityContext;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
-import com.dremio.dac.explore.Transformer.DatasetAndJob;
 import com.dremio.dac.explore.model.Column;
 import com.dremio.dac.explore.model.DatasetName;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -44,6 +43,7 @@ import com.dremio.dac.explore.model.HistoryItem;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.explore.model.InitialRunResponse;
 import com.dremio.dac.explore.model.TransformBase;
+import com.dremio.dac.model.job.JobData;
 import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobDataFragmentWrapper;
 import com.dremio.dac.model.job.JobDetailsUI;
@@ -76,9 +76,11 @@ import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.GetJobRequest;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.SearchJobsRequest;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
 import com.dremio.service.namespace.NamespaceException;
@@ -129,9 +131,9 @@ public class DatasetTool {
       ) throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
 
     SqlQuery query = new SqlQuery(newDataset.getSql(), newDataset.getState().getContextList(), username());
-    JobUI job = executor.runQuery(query, QueryType.UI_PREVIEW, tipVersion.getDataset(), newDataset.getVersion());
+    JobData jobData = executor.runQuery(query, QueryType.UI_PREVIEW, tipVersion.getDataset(), newDataset.getVersion());
 
-    return createPreviewResponse(newDataset, job, tipVersion, limit, true);
+    return createPreviewResponse(newDataset, jobData, tipVersion, limit, true);
   }
 
   private String username(){
@@ -152,7 +154,7 @@ public class DatasetTool {
    * @throws NamespaceException
    * @throws JobNotFoundException
    */
-  InitialPreviewResponse createPreviewResponse(VirtualDatasetUI datasetUI, JobUI job, DatasetVersionResourcePath tipVersion,
+  InitialPreviewResponse createPreviewResponse(VirtualDatasetUI datasetUI, JobData job, DatasetVersionResourcePath tipVersion,
       Integer maxRecords, boolean catchExecutionError) throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
     JobDataFragment dataLimited = null;
     ApiErrorModel<?> error = null;
@@ -163,9 +165,12 @@ public class DatasetTool {
 
     try {
       if (maxRecords > 0) {
-        dataLimited = job.getData().truncate(maxRecords);
+        dataLimited = job.truncate(maxRecords);
       } else {
-        dataLimited = getDataOnlyWithColumns(jobsService.getJob(job.getJobId()));
+        final GetJobRequest request = GetJobRequest.newBuilder()
+          .setJobId(job.getJobId())
+          .build();
+        dataLimited = getDataOnlyWithColumns(jobsService.getJob(request));
       }
     } catch (Exception ex) {
       if (!catchExecutionError) {
@@ -241,15 +246,15 @@ public class DatasetTool {
     };
   }
 
-  InitialRunResponse createRunResponse(VirtualDatasetUI datasetUI, JobUI job, DatasetVersion tipVersion) throws DatasetVersionNotFoundException, NamespaceException {
+  InitialRunResponse createRunResponse(VirtualDatasetUI datasetUI, JobId jobId, DatasetVersion tipVersion) throws DatasetVersionNotFoundException, NamespaceException {
     final History history = getHistory(new DatasetPath(datasetUI.getFullPathList()), datasetUI.getVersion(), tipVersion);
-    return new InitialRunResponse(newDataset(datasetUI, null), JobResource.getPaginationURL(job.getJobId()), job.getJobId(), history);
+    return new InitialRunResponse(newDataset(datasetUI, null), JobResource.getPaginationURL(jobId), jobId, history);
   }
 
-  InitialPreviewResponse createPreviewResponse(DatasetPath path, DatasetAndJob datasetAndJob, int maxRecords, boolean catchExecutionError)
+  InitialPreviewResponse createPreviewResponse(DatasetPath path, Transformer.DatasetAndData datasetAndData, int maxRecords, boolean catchExecutionError)
       throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
     return createPreviewResponse(
-      datasetAndJob.getDataset(), datasetAndJob.getJob(), new DatasetVersionResourcePath(path, datasetAndJob.getDataset().getVersion()), maxRecords, catchExecutionError
+      datasetAndData.getDataset(), datasetAndData.getJobData(), new DatasetVersionResourcePath(path, datasetAndData.getDataset().getVersion()), maxRecords, catchExecutionError
     );
   }
 
@@ -260,7 +265,10 @@ public class DatasetTool {
                                               Integer limit)
       throws DatasetVersionNotFoundException, NamespaceException, JobNotFoundException {
 
-    final Job jobRawData = jobsService.getJob(new JobId(jobId));
+    final GetJobRequest request = GetJobRequest.newBuilder()
+      .setJobId(new JobId(jobId))
+      .build();
+    final Job jobRawData = jobsService.getJob(request);
     final JobUI job = new JobUI(jobRawData);
     final JobInfo jobInfo = jobRawData.getJobAttempt().getInfo();
     QueryType queryType = jobInfo.getQueryType();
@@ -425,7 +433,7 @@ public class DatasetTool {
     try {
       final MetadataCollectingJobStatusListener listener = new MetadataCollectingJobStatusListener();
       final QueryType queryType = prepare ? QueryType.PREPARE_INTERNAL : QueryType.UI_PREVIEW;
-      final JobUI job = executor.runQueryWithListener(query, queryType, TMP_DATASET_PATH, newDataset.getVersion(), listener, runInSameThread);
+      final JobData jobData = executor.runQueryWithListener(query, queryType, TMP_DATASET_PATH, newDataset.getVersion(), listener, runInSameThread);
 
       final QueryMetadata queryMetadata = listener.getMetadata();
       applyQueryMetaToDatasetAndSave(queryMetadata, newDataset, query, from);
@@ -435,7 +443,7 @@ public class DatasetTool {
       // in case of initial preview a returned dataset should be actual tip version. Dataset's path and version should
       // be consistent and represent actual key in dataset version store. So use dataset's path and
       // version as tipVersion
-      return createPreviewResponse(newDataset, job, new DatasetVersionResourcePath(new DatasetPath(newDataset.getFullPathList()), newDataset.getVersion()),
+      return createPreviewResponse(newDataset, jobData, new DatasetVersionResourcePath(new DatasetPath(newDataset.getFullPathList()), newDataset.getVersion()),
         limit, false);
     } catch (Exception ex) {
       List<String> parentDataset = getParentDataset(from);
@@ -471,10 +479,10 @@ public class DatasetTool {
     MetadataCollectingJobStatusListener listener = new MetadataCollectingJobStatusListener();
 
     try {
-      final JobUI job = executor.runQueryWithListener(query, QueryType.UI_RUN, TMP_DATASET_PATH, version, listener);
+      final JobId jobId = executor.runQueryWithListener(query, QueryType.UI_RUN, TMP_DATASET_PATH, version, listener).getJobId();
       final QueryMetadata queryMetadata = listener.getMetadata();
       applyQueryMetaToDatasetAndSave(queryMetadata, newDataset, query, from);
-      return createRunResponse(newDataset, job, newDataset.getVersion());
+      return createRunResponse(newDataset, jobId, newDataset.getVersion());
     } catch(UserException e) {
       throw toInvalidQueryException(e, query.getSql(), context);
     }
@@ -585,8 +593,12 @@ public class DatasetTool {
       // grab the most recent job for this dataset version (note the use of limit 1 to avoid
       // retrieving all results, the API just returns a list, so this also has to index into the returned list
       // that will always contain a single element)
-      Iterable<Job> jobs = jobsService.getJobsForDataset(
-          new NamespaceKey(currentDataset.getFullPathList()), currentDataset.getVersion(), 1);
+      final SearchJobsRequest request = SearchJobsRequest.newBuilder()
+          .setDatasetPath(new NamespaceKey(currentDataset.getFullPathList()))
+          .setDatasetVersion(currentDataset.getVersion())
+          .setLimit(1)
+          .build();
+      Iterable<Job> jobs = jobsService.searchJobs(request);
       final JobState jobState;
       // jobs are not persisted forever so we may not have a job for this version of the dataset
       Iterator<Job> iterator = jobs.iterator();

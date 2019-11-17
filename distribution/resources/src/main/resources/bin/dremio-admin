@@ -22,26 +22,6 @@ bin=`cd "$bin">/dev/null; pwd`
 export DREMIO_ENV_SCRIPT="dremio-env"
 . "$bin"/dremio-config
 
-function exit_with_usage {
-  RC=$1
-  echo "Usage: dremio-admin [--config <conf-dir>]\
- (backup|clean|restore|set-password|upgrade) [args...]" >&2
-  echo -e "backup: Backs up Dremio metadata and user-uploaded files."
-  echo -e "clean: Cleans Dremio metadata."
-  echo -e "restore: Restores Dremio metadata and user-uploaded files."
-  echo -e "set-password: Sets passwords for Dremio users (non-LDAP)."
-  echo -e "upgrade: Upgrades KV store version."
-  echo -e "export-profiles: Exports profiles of jobs from Dremio"
-  echo -e "Run export DREMIO_ADMIN_LOG_DIR=<path> to set log directory."
-  echo -e "Run export DREMIO_ADMIN_LOG_VERBOSITY=<value> to set verbosity. Default is INFO."
-  exit $RC
-}
-
-if [ $# = 0 ]; then
-    echo "Missing action argument" >&2
-    exit_with_usage 1
-fi
-
 if [ -n "$CLIENT_GC_OPTS" ]; then
   CLIENT_GC_OPTS=${CLIENT_GC_OPTS/"-Xloggc:<FILE-PATH>"/"-Xloggc:${loggc}"}
   CLIENT_GC_OPTS=${CLIENT_GC_OPTS/"-Xlog:gc:<FILE-PATH>"/"-Xloggc:${loggc}"}
@@ -51,51 +31,6 @@ fi
 DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB:-4096}m"
 DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS $DREMIO_JAVA_CLIENT_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS"
 
-export DREMIO_MAINCLASS=
-
-action="$1"
-shift
-
-case "$action" in
-    backup)
-        DREMIO_MAINCLASS=com.dremio.dac.cmd.Backup
-        Command="Backup"
-        ;;
-
-    clean)
-        DREMIO_MAINCLASS=com.dremio.dac.cmd.Clean
-        Command="Clean"
-        ;;
-
-    export-profiles)
-        DREMIO_MAINCLASS=com.dremio.dac.cmd.ExportProfiles
-        Command="ExportProfiles"
-        ;;
-
-    restore)
-        DREMIO_MAINCLASS=com.dremio.dac.cmd.Restore
-        Command="Restore"
-        ;;
-
-    set-password)
-        DREMIO_MAINCLASS=com.dremio.dac.cmd.SetPassword
-        Command="SetPassword"
-        ;;
-
-    upgrade)
-        DREMIO_MAINCLASS=com.dremio.dac.cmd.upgrade.Upgrade
-        Command="Upgrade"
-        ;;
-
-    -h|--help)
-        exit_with_usage 1
-        ;;
-    *)
-        echo "Unknown action $action." >&2
-        exit_with_usage 1
-        ;;
-esac
-
 if [ -z "$DREMIO_ADMIN_LOG_DIR" ]; then
   if [ -w "$DREMIO_LOG_DIR" ]; then
     DREMIO_ADMIN_LOG_DIR="$DREMIO_LOG_DIR"
@@ -104,6 +39,7 @@ if [ -z "$DREMIO_ADMIN_LOG_DIR" ]; then
   fi
 fi
 
+Command="$1"
 DateTime=$(date '+%Y-%m-%d_%H:%M:%S')
 LOG_PARAM="-Ddremio.admin.log.path=${DREMIO_ADMIN_LOG_DIR}/admin_${Command}_${DateTime}.log"
 
@@ -111,4 +47,5 @@ if [ -n "$DREMIO_ADMIN_LOG_VERBOSITY" ]; then
       LOG_PARAM="$LOG_PARAM -Ddremio.admin.log.verbosity=${DREMIO_ADMIN_LOG_VERBOSITY}"
 fi
 
-exec "$JAVA" $DREMIO_JAVA_OPTS $LOG_PARAM -Dlogback.configurationFile=logback-admin.xml -cp $DREMIO_CLASSPATH ${DREMIO_MAINCLASS} $@
+exec "$JAVA" $DREMIO_JAVA_OPTS $LOG_PARAM -Dlogback.configurationFile=logback-admin.xml -cp $DREMIO_CLASSPATH \
+  com.dremio.dac.cmd.AdminCommandRunner $@

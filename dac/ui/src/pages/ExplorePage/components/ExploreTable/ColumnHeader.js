@@ -29,8 +29,8 @@ import { overlay } from '@app/uiTheme/radium/overlay';
 
 import { EXPLORE_HOVER_COLOR } from 'uiTheme/radium/colors';
 
-import { typeToIconType, BINARY, MIXED } from 'constants/DataTypes';
-import Keys from 'constants/Keys.json';
+import { typeToIconType, BINARY, MIXED } from '@app/constants/DataTypes';
+import Keys from '@app/constants/Keys.json';
 
 const MAX_COLUMN_NAME_LENTH = 62;
 const ACTION_MENU_WIDTH = 24;

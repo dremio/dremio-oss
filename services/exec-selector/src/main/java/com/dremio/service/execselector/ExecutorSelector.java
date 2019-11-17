@@ -24,9 +24,9 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
  *
  * Thread safety note:
  * - The caller will guarantee an exclusive lock around the calls to {@link #nodesRegistered(Set)} and {@link #nodesUnregistered(Set)}
- * - However, the caller will have a non-exclusive lock around the call to {@link #getExecutors(int)} or
+ * - However, the caller will have a non-exclusive lock around the call to {@link #getExecutors(int, ExecutorSelectionContext)} or
  *   the call to {@link #getNumExecutors()}
- * This means that while there might be several calls to {@link #getExecutors(int)} running concurrently, these calls
+ * This means that while there might be several calls to {@link #getExecutors(int, ExecutorSelectionContext)} running concurrently, these calls
  * will never run concurrently with calls to register or unregister a node
  */
 public interface ExecutorSelector extends AutoCloseable {
@@ -36,8 +36,9 @@ public interface ExecutorSelector extends AutoCloseable {
    * Note: this method is the more commonly used method among the three, and it needs to be optimized for speed.
    *       In particular, the code should not be making copies of the endpoints or the collection of endpoints at
    *       the time of this call
+   * @param executorSelectionContext Contextual information for execution selection
    */
-  ExecutorSelectionHandle getExecutors(int desiredNumExecutors);
+  ExecutorSelectionHandle getExecutors(int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext);
 
   /**
    * The action to taken when a set of nodes are unregistered from the cluster.

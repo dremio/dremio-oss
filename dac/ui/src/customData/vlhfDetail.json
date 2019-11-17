@@ -32,13 +32,13 @@
         "name": "Advanced Options",
         "sections": [
           {
-            "help": {"position": "bottom", "text": "Set to 0 to have Dremio automatically decide."},
             "elements": [
               {
                 "propName": "config.fetchSize",
                 "size": "half",
                 "value": "0",
-                "tooltip": "Number of records to fetch at once."
+                "tooltip": "Number of records to fetch at once.",
+                "help": {"position": "bottom", "text": "Set to 0 to have Dremio automatically decide."}
               },
               {
                 "propName": "config.useLegacyDialect"
@@ -78,11 +78,16 @@
                           "size": "half",
                           "errMsg": "Both access secret and key are required for private S3 buckets.",
                           "secure": true
+                        },
+                        {
+                          "propName": "config.assumedRoleARN",
+                          "size": "full",
+                          "validate": {"isRequired": false}
                         }
                       ],
                       "help": {
                         "position": "top",
-                        "text": "All buckets associated with this access key will be available."
+                        "text": "All or whitelisted (if specified) buckets associated with this access key or IAM role to assume (if specified) will be available. "
                       }
                     }
                   },
@@ -98,9 +103,16 @@
                   {
                     "value": "EC2_METADATA",
                     "container": {
+                      "elements": [
+                        {
+                          "propName": "config.assumedRoleARN",
+                          "size": "full",
+                          "validate": {"isRequired": false}
+                        }
+                      ],
                       "help": {
                         "position": "top",
-                        "text": "All buckets associated with the IAM roles will be available."
+                        "text": "All or whitelisted (if specified) buckets associated with the IAM role attached to EC2 or IAM role to assume (if specified) will be available."
                       }
                     }
                   },
@@ -150,16 +162,40 @@
               },
               {
                 "propName": "config.rootPath"
+              },
+              {
+                "propName": "config.kmsKeyARN"
               }
             ]
           },
           {
-            "name" : "Connection Properties",
             "elements": [
               {
                 "emptyLabel": "No properties added",
                 "addLabel": "Add property",
                 "propName": "config.propertyList"
+              }
+            ]
+          },
+          {
+            "elements": [
+              {
+                "propName": "config.whitelistedBuckets[]",
+                "uiType": "value_list",
+                "emptyLabel": "No whitelisted buckets added",
+                "addLabel": "Add bucket",
+                "validate": {"isRequired": false}
+              }
+            ]
+          },
+          {
+            "name": "Cache Options",
+            "elements": [
+              {
+                "propName": "config.isCachingEnabled"
+              },
+              {
+                "propName": "config.maxCacheSpacePct"
               }
             ]
           }
@@ -221,6 +257,17 @@
                 "emptyLabel": "No properties added",
                 "addLabel": "Add property",
                 "propName": "config.propertyList"
+              }
+            ]
+          },
+          {
+            "name": "Cache Options",
+            "elements": [
+              {
+                "propName": "config.isCachingEnabled"
+              },
+              {
+                "propName": "config.maxCacheSpacePct"
               }
             ]
           }
@@ -463,57 +510,6 @@
     ]
     }
   },
-  "HBASE": {
-    "sourceType": "HBASE", "tags": ["beta"],
-    "metadataRefresh": {"datasetDiscovery": true},
-    "form": {"tabs": [
-      {
-        "name": "General",
-        "isGeneral": true,
-        "sections": [
-          {
-            "name": "Connection",
-            "layout": "row",
-            "elements": [
-              {
-                "propName": "config.zkQuorum",
-                "placeholder": "e.g. 123.0.0.1,123.0.0.2",
-                "size": "half",
-                "validate": {"isRequired": true}
-              },
-              {
-                "propName": "config.port",
-                "size": "half",
-                "validate": {"isRequired": true}
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "name": "Advanced Options",
-        "sections": [
-          {
-            "elements": [
-              {
-                "propName": "config.isSizeCalcEnabled"
-              }
-            ]
-          },
-          {
-            "name": "Connection Properties",
-            "elements": [
-              {
-                "emptyLabel": "No properties added",
-                "addLabel": "Add property",
-                "propName": "config.propertyList"
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  }},
   "HDFS": {
     "sourceType": "HDFS",
     "metadataRefresh": {"authorization": true, "isFileSystemSource": true },
@@ -550,6 +546,9 @@
           {
             "elements": [
               {
+                "propName": "config.enableAsync"
+              },
+              {
                 "propName": "config.allowCreateDrop"
               },
               {
@@ -576,6 +575,17 @@
                 "emptyLabel": "No properties added",
                 "addLabel": "Add property",
                 "propName": "config.propertyList"
+              }
+            ]
+          },
+          {
+            "name": "Cache Options",
+            "elements": [
+              {
+                "propName": "config.isCachingEnabled"
+              },
+              {
+                "propName": "config.maxCacheSpacePct"
               }
             ]
           }
@@ -656,6 +666,79 @@
       }
     ]
   }},
+  "HIVE3": {
+    "sourceType": "HIVE3",
+    "metadataRefresh": {"datasetDiscovery": true, "authorization": true},
+    "form": {"tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "layout": "row",
+            "elements": [
+              {
+                "propName": "config.hostname",
+                "placeholder": "e.g. 123.123.123.123",
+                "size": "half",
+                "validate": {
+                  "isRequired": true
+                }
+              },
+              {
+                "propName": "config.port",
+                "size": "half",
+                "validate": {
+                  "isRequired": true
+                }
+              },
+              {
+                "uiType": "check_enabled_container",
+                "propName": "config.enableSasl",
+                "container": {
+                  "propName": "config.kerberosPrincipal",
+                  "placeholder": "e.g. principal@REALM.COM",
+                  "errMsg": "Value is required unless you uncheck the checkbox."
+                }
+              }
+            ]
+          },
+          {
+            "name": "Authorization",
+            "layout": "row",
+            "elements": [
+              {
+                "uiType": "container_selection",
+                "selectorType": "select",
+                "propName": "config.authType",
+                "options": [
+                  {"value": "STORAGE", "container": {}},
+                  {"value": "SQL", "container": {}}
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "title": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "label": "Connection Properties",
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property",
+                "propName": "config.propertyList"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+    }},
   "MAPRFS": {
     "sourceType": "MAPRFS",
     "metadataRefresh": {"authorization": true, "isFileSystemSource": true },
@@ -1185,65 +1268,6 @@
       }
     ]
   }},
-  "DB2": {
-    "sourceType": "DB2",
-    "metadataRefresh": {"datasetDiscovery": true},
-    "form": {"tabs": [
-      {
-        "name": "General",
-        "isGeneral": true,
-        "sections": [
-          {
-            "name": "Connection",
-            "layout": "row",
-            "elements": [
-              {
-                "propName": "config.hostname",
-                "placeholder": "e.g.123.123.123.123",
-                "size": "half",
-                "validate": {"isRequired": true}
-              },
-              {
-                "propName": "config.port",
-                "size": "half",
-                "validate": {"isRequired": true}
-              },
-              {
-                "propName": "config.databaseName",
-                "validate": {"isRequired": true}
-              }
-            ]
-          },
-          {
-            "name": "Authentication",
-            "elements": [
-              {
-                "propName": "config.authenticationType"
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "name": "Advanced Options",
-        "sections": [
-          {
-            "help": {"position": "bottom", "text": "Set to 0 to have Dremio automatically decide."},
-            "elements": [
-              {
-                "propName": "config.fetchSize",
-                "size": "half",
-                "tooltip": "Number of records to fetch at once."
-              }
-            ]
-          }
-        ]
-      }
-    ],
-    "ignored used for icon testing when moved level up": {
-      "icon": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+DQo8c3ZnIHdpZHRoPSI0OHB4IiBoZWlnaHQ9IjQ4cHgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgdmVyc2lvbj0iMS4xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIj4NCiAgICA8IS0tIEdlbmVyYXRvcjogU2tldGNoIDQxLjIgKDM1Mzk3KSAtIGh0dHA6Ly93d3cuYm9oZW1pYW5jb2RpbmcuY29tL3NrZXRjaCAtLT4NCiAgICA8dGl0bGU+U291cmNlL1MzPC90aXRsZT4NCiAgICA8ZGVzYz5DcmVhdGVkIHdpdGggU2tldGNoLjwvZGVzYz4NCiAgICA8ZGVmcz48L2RlZnM+DQogICAgPGcgaWQ9IkVsZW1lbnRzIiBzdHJva2U9Im5vbmUiIHN0cm9rZS13aWR0aD0iMSIgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj4NCiAgICAgICAgPGcgaWQ9IlNvdXJjZS9TMyI+DQogICAgICAgICAgICA8Zz4NCiAgICAgICAgICAgICAgICA8Y2lyY2xlIGlkPSJPdmFsIiBmaWxsPSIjRTZFNkU2IiBjeD0iMjQiIGN5PSIyNCIgcj0iMjQiPjwvY2lyY2xlPg0KICAgICAgICAgICAgICAgIDxnIGlkPSJMb2dvL1MzIiB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4LjAwMDAwMCwgNC4wMDAwMDApIj4NCiAgICAgICAgICAgICAgICAgICAgPGcgaWQ9IlNvdXJjZS9TMyI+DQogICAgICAgICAgICAgICAgICAgICAgICA8cG9seWdvbiBpZD0iRmlsbC0xIiBmaWxsPSIjOEMzMTIzIiBwb2ludHM9IjAgOC4yMDU5NzU5IDAgMzEuNDE2MDk2NCAyLjYyNDIxNzM5IDMyLjczODAyNDEgOS4wNTM5NTY1MiAxOS44MDY5Mzk4IDIuNjI0MjE3MzkgNi44ODM1NjYyNyI+PC9wb2x5Z29uPg0KICAgICAgICAgICAgICAgICAgICAgICAgPHBvbHlnb24gaWQ9IkZpbGwtMiIgZmlsbD0iI0UwNTI0MyIgcG9pbnRzPSIxNi4yODY3NDM1IDI5LjM5OTQyMTcgMi42MjQyNjUyMiAzMi43MzA5ODggMi42MjQyNjUyMiA2Ljg4Mzc1OTA0IDE2LjI4Njc0MzUgMTAuMjE2NzcxMSAyMi43NDM3NDM1IDE5Ljg0OTA2MDIiPjwvcG9seWdvbj4NCiAgICAgICAgICAgICAgICAgICAgICAgIDxwb2x5Z29uIGlkPSJGaWxsLTMiIGZpbGw9IiM4QzMxMjMiIHBvaW50cz0iMTYuMjg2NzQzNSAyOS4zOTk0MjE3IDI5Ljk0ODc0MzUgMzIuNzMwOTg4IDMyLjMwODk2MDkgMjAuMTM4MjE2OSAyOS45NDg3NDM1IDYuODgzNzU5MDQgMTYuMjg2NzQzNSAxMC4yMTY3NzExIj48L3BvbHlnb24+DQogICAgICAgICAgICAgICAgICAgICAgICA8cG9seWdvbiBpZD0iRmlsbC00IiBmaWxsPSIjRTA1MjQzIiBwb2ludHM9IjI5Ljk0OTIyMTcgMzIuNzM4MDI0MSAzMi41NzQzOTU3IDMxLjQxNjA5NjQgMzIuNTc0Mzk1NyA4LjIwNTk3NTkgMjkuOTQ5MjIxNyA2Ljg4MzU2NjI3Ij48L3BvbHlnb24+DQogICAgICAgICAgICAgICAgICAgICAgICA8cG9seWdvbiBpZD0iRmlsbC01IiBmaWxsPSIjOEMzMTIzIiBwb2ludHM9IjEwLjMyOTE5MTMgMjQuMDg3NjYyNyAxNi4yODY4ODcgMjQuODUyIDIxLjAxMDE5MTMgMTkuODQ4NjI2NSAxNi4yODY4ODcgMTQuODQ1MjUzIDEwLjMyOTE5MTMgMTUuNTk3NTQyMiI+PC9wb2x5Z29uPg0KICAgICAgICAgICAgICAgICAgICAgICAgPHBvbHlnb24gaWQ9IkZpbGwtNiIgZmlsbD0iIzVFMUYxOCIgcG9pbnRzPSIxNi4yODY3OTEzIDAuMDAwMTQ0NTc4MzEzIDEwLjMyOTA5NTcgMTEuNDkyMTkyOCAxNi4yODY3OTEzIDEyLjU4NjY1MDYgMjIuMjQ1NDQzNSAxMS40OTIxOTI4Ij48L3BvbHlnb24+DQogICAgICAgICAgICAgICAgICAgICAgICA8cG9seWdvbiBpZD0iRmlsbC03IiBmaWxsPSIjRjJCMEE5IiBwb2ludHM9IjEwLjMyOTE0MzUgMjguMTgyMDcyMyAxNi4yODY4MzkxIDM5LjY3NDEyMDUgMjIuMjQ1NDkxMyAyOC4xODIwNzIzIDE2LjI4NjgzOTEgMjcuMDgwODY3NSI+PC9wb2x5Z29uPg0KICAgICAgICAgICAgICAgICAgICAgICAgPHBvbHlnb24gaWQ9IkZpbGwtOCIgZmlsbD0iI0UwNTI0MyIgcG9pbnRzPSIxNi4yODY3OTEzIDAuMDAwMTQ0NTc4MzEzIDE2LjI4Njc5MTMgMTAuMDA2ODkxNiAyMi4yNDU0NDM1IDExLjQ5MjE5MjggMjIuMjQ1NDQzNSAzLjAwMjA3MjI5Ij48L3BvbHlnb24+DQogICAgICAgICAgICAgICAgICAgICAgICA8cG9seWdvbiBpZD0iRmlsbC05IiBmaWxsPSIjOEMzMTIzIiBwb2ludHM9IjE2LjI4Njc5MTMgMC4wMDAxNDQ1NzgzMTMgMTAuMzI5MDk1NyAzLjAwMjA3MjI5IDEwLjMyOTA5NTcgMTEuNDkyMTkyOCAxNi4yODY3OTEzIDEwLjAwNjg5MTYiPjwvcG9seWdvbj4NCiAgICAgICAgICAgICAgICAgICAgICAgIDxwb2x5Z29uIGlkPSJGaWxsLTEwIiBmaWxsPSIjRTA1MjQzIiBwb2ludHM9IjE2LjI4Njc5MTMgMjkuNjY4MDQ4MiAxNi4yODY3OTEzIDM5LjY3NDMxMzMgMjIuMjQ0OTY1MiAzNi42NzI4Njc1IDIyLjI0NDk2NTIgMjguMTgyMjY1MSI+PC9wb2x5Z29uPg0KICAgICAgICAgICAgICAgICAgICAgICAgPHBvbHlnb24gaWQ9IkZpbGwtMTEiIGZpbGw9IiM4QzMxMjMiIHBvaW50cz0iMTAuMzI4NzEzIDM2LjY3Mjg2NzUgMTYuMjg2ODg3IDM5LjY3NDMxMzMgMTYuMjg2ODg3IDI5LjY2ODA0ODIgMTAuMzI4NzEzIDI4LjE4MjI2NTEiPjwvcG9seWdvbj4NCiAgICAgICAgICAgICAgICAgICAgICAgIDxwb2x5Z29uIGlkPSJGaWxsLTEyIiBmaWxsPSIjRTA1MjQzIiBwb2ludHM9IjIyLjI0NTQ0MzUgMjQuMDg3NjYyNyAxNi4yODY3OTEzIDI0Ljg1MiAxNi4yODY3OTEzIDE0Ljg0NTI1MyAyMi4yNDU0NDM1IDE1LjU5NzU0MjIiPjwvcG9seWdvbj4NCiAgICAgICAgICAgICAgICAgICAgPC9nPg0KICAgICAgICAgICAgICAgIDwvZz4NCiAgICAgICAgICAgIDwvZz4NCiAgICAgICAgPC9nPg0KICAgIDwvZz4NCjwvc3ZnPg=="
-    }
-  }},
   "AZURE_STORAGE": {
     "sourceType": "AZURE_STORAGE",
     "metadataRefresh": {"datasetDiscovery": true, "isFileSystemSource": true },
@@ -1350,6 +1374,17 @@
                 "addLabel": "Add value",
                 "uiType": "value_list",
                 "propName": "config.containers[]"
+              }
+            ]
+          },
+          {
+            "name": "Cache Options",
+            "elements": [
+              {
+                "propName": "config.isCachingEnabled"
+              },
+              {
+                "propName": "config.maxCacheSpacePct"
               }
             ]
           }

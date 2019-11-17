@@ -30,6 +30,9 @@ public interface ResizeListener {
 
     @Override
     public void verifyBatchCount(int batches) { }
+
+    @Override
+    public void releaseBatch(final int batchIdx) { }
   };
 
   void addBatch() throws Exception;
@@ -41,4 +44,6 @@ public interface ResizeListener {
   void commitResize();
 
   void verifyBatchCount(int batches);
+
+  void releaseBatch(final int batchIdx);
 }

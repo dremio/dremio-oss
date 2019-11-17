@@ -21,7 +21,7 @@ import uuid from 'uuid';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 
 import { getExploreState } from '@app/selectors/explore';
-import { parseTextToDataType } from 'constants/DataTypes';
+import { parseTextToDataType } from '@app/constants/DataTypes';
 import fieldsMappers from 'utils/mappers/ExplorePage/Transform/fieldsMappers';
 import filterMappers from 'utils/mappers/ExplorePage/Transform/filterMappers';
 import NewFieldSection from 'components/Forms/NewFieldSection';

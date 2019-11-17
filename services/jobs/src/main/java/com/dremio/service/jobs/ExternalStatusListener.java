@@ -25,12 +25,20 @@ public interface ExternalStatusListener {
    *
    * @param job updated job
    */
-  void profileUpdated(Job job);
+  default void profileUpdated(Job job) {}
 
   /**
    * Called when job is completed. Provides final job object.
    *
    * @param job updated job
    */
-  void queryCompleted(Job job);
+  default void queryCompleted(Job job) {}
+
+  /**
+   * Called when record count changes, ever so often.
+   *
+   * @param jobId updated job
+   * @param recordCount number of records processed
+   */
+  default void reportRecordCount(Job jobId, long recordCount) {}
 }

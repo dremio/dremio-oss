@@ -19,7 +19,7 @@ import transformModelMapper from 'utils/mappers/ExplorePage/Transform/transformM
 import simpleTransformMappers from 'utils/mappers/ExplorePage/simpleTransformMappers';
 import mapConvertDataType from 'utils/mappers/ExplorePage/convertDataType';
 import dataStoreUtils from 'utils/dataStoreUtils';
-import { TEXT, INTEGER, FLOAT, DECIMAL, BOOLEAN, DATE, DATETIME, TIME, LIST, MAP } from 'constants/DataTypes';
+import { TEXT, INTEGER, FLOAT, DECIMAL, BOOLEAN, DATE, DATETIME, TIME, LIST, MAP } from '@app/constants/DataTypes';
 
 const DROP_WIDTH = 150;
 const ARROW_WIDTH = 20;
@@ -436,7 +436,7 @@ class ExploreUtils {
       return item;
     }
     return transformationMapperHash[detailsType || item.type] && transformationMapperHash[detailsType || item.type](
-        item, item.transformType
+      item, item.transformType
     ) || item;
   }
 

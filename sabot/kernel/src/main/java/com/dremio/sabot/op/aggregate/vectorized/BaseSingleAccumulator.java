@@ -384,6 +384,21 @@ abstract class BaseSingleAccumulator implements Accumulator {
     vector.setValueCount(0);
   }
 
+  @Override
+  public void releaseBatch(final int batchIdx)
+  {
+    //the 0th batch memory is never released, only reset.
+    if (batchIdx == 0) {
+      resetFirstAccumulatorVector();
+      return;
+    }
+
+    Preconditions.checkArgument(batchIdx < accumulators.length, "Error: incorrect batch index to release");
+
+    final FieldVector vector = accumulators[batchIdx];
+    vector.close();
+  }
+
   void initialize(FieldVector vector){
     // default initialization
     setNotNullAndZero(vector);

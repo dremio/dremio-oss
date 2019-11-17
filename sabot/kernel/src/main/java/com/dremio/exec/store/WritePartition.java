@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.store;
 
-import org.apache.hadoop.fs.Path;
+import com.dremio.io.file.Path;
 
 public class WritePartition {
 
@@ -44,24 +44,24 @@ public class WritePartition {
   }
 
   public Path qualified(String baseLocation, String name){
-    return qualified(new Path(baseLocation), name);
+    return qualified(Path.of(baseLocation), name);
   }
 
   public Path qualified(Path baseLocation, String name){
     if(paths == null){
-      return new Path(baseLocation, name);
+      return baseLocation.resolve(name);
     }
 
     Path path = baseLocation;
 
     if(distributionOrdinal != null){
-      path = new Path(path, Integer.toString(distributionOrdinal));
+      path = path.resolve(Integer.toString(distributionOrdinal));
     }
 
     for(String partition : paths){
-      path = new Path(path, partition);
+      path = path.resolve(partition);
     }
 
-    return new Path(path, name);
+    return path.resolve(name);
   }
 }

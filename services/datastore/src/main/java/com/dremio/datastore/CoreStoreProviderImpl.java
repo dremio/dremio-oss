@@ -19,7 +19,12 @@ import static java.lang.String.format;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -29,14 +34,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.StreamSupport;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.GlobFilter;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IOUtils;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.perf.Timer;
@@ -90,7 +87,7 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
 
   private static final String METADATA_FILE_SUFFIX = "_metadata.json";
   private static final String METADATA_FILES_DIR = "metadata";
-  private static final GlobFilter METADATA_FILES_GLOB = DataStoreUtils.getGlobFilter(METADATA_FILE_SUFFIX);
+  private static final DirectoryStream.Filter<Path> METADATA_FILES_GLOB = p -> p.toString().endsWith(METADATA_FILE_SUFFIX);
   private static final String ALARM = ".indexing";
 
   private final ConcurrentMap<String, StoreWithId> idToStore = new ConcurrentHashMap<>();
@@ -480,9 +477,8 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
 
   private void createMetaDataFile(StoreBuilderConfig builderConfig) throws IOException {
     final KVStoreInfo kvStoreInfo = DataStoreUtils.toInfo(builderConfig);
-    final Path metadataFile = new Path(metaDataFilesDir.getAbsolutePath(), format("%s%s", builderConfig.getName(), METADATA_FILE_SUFFIX));
-    final FileSystem fs = FileSystem.getLocal(new Configuration());
-    try (FSDataOutputStream metaDataOut = fs.create(metadataFile, true)) {
+    final Path metadataFile = Paths.get(metaDataFilesDir.getAbsolutePath(), format("%s%s", builderConfig.getName(), METADATA_FILE_SUFFIX));
+    try (OutputStream metaDataOut = Files.newOutputStream(metadataFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
       ProtostuffUtil.toJSON(metaDataOut, kvStoreInfo, KVStoreInfo.getSchema(), false);
     }
   }
@@ -491,16 +487,15 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
    * Scan dbDirectory to read kvstore definitions and load all stores in memory.
    */
   public void scan() throws Exception {
-    final FileSystem fs = FileSystem.getLocal(new Configuration());
-    final FileStatus[] metaDataFiles = fs.listStatus(new Path(metaDataFilesDir.getPath()), METADATA_FILES_GLOB);
-    for (FileStatus fileStatus : metaDataFiles) {
-      final byte[] headerBytes = new byte[(int) fileStatus.getLen()];
-      IOUtils.readFully(fs.open(fileStatus.getPath()), headerBytes, 0, headerBytes.length);
-      final KVStoreInfo metadata = new KVStoreInfo();
-      ProtostuffUtil.fromJSON(headerBytes, metadata, KVStoreInfo.getSchema(), false);
+    try (DirectoryStream<Path> metaDataFiles = Files.newDirectoryStream(metaDataFilesDir.toPath(), METADATA_FILES_GLOB)) {
+      for (Path metadataFile : metaDataFiles) {
+        final byte[] headerBytes = Files.readAllBytes(metadataFile);
+        final KVStoreInfo metadata = new KVStoreInfo();
+        ProtostuffUtil.fromJSON(headerBytes, metadata, KVStoreInfo.getSchema(), false);
 
-      final StoreBuilderConfig storeBuilderConfig = DataStoreUtils.toBuilderConfig(metadata);
-      getOrCreateStore(storeBuilderConfig);
+        final StoreBuilderConfig storeBuilderConfig = DataStoreUtils.toBuilderConfig(metadata);
+        getOrCreateStore(storeBuilderConfig);
+      }
     }
   }
 

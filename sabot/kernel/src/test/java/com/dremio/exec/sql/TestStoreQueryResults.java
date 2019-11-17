@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.sql;
 
-import static com.dremio.exec.util.ImpersonationUtil.getProcessUserName;
 import static java.lang.String.format;
 
 import java.io.File;
@@ -62,6 +61,7 @@ import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.proto.model.attempts.AttemptReason;
 import com.google.common.base.Function;
+import com.google.common.base.StandardSystemProperty;
 import com.google.common.collect.FluentIterable;
 
 import io.netty.buffer.ByteBuf;
@@ -300,7 +300,7 @@ public class TestStoreQueryResults extends BaseTestQuery {
     LocalExecutionConfig config = LocalExecutionConfig.newBuilder()
         .setEnableLeafLimits(false)
         .setFailIfNonEmptySent(false)
-        .setUsername(getProcessUserName())
+        .setUsername(StandardSystemProperty.USER_NAME.value())
         .setSqlContext(Collections.<String>emptyList())
         .setInternalSingleThreaded(false)
         .setQueryResultsStorePath(queryResultsStorePath)

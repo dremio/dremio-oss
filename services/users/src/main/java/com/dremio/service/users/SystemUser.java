@@ -35,4 +35,14 @@ public class SystemUser {
           .setEmail("dremio@dremio.net")
           .build();
 
+  /**
+   * Determines if the username is the system username
+   *
+   * @param username the name to check
+   * @return
+   */
+  public static boolean isSystemUserName(String username) {
+    return SYSTEM_USERNAME.equals(username);
+  }
+
 }

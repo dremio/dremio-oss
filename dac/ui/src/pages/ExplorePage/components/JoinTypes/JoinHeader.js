@@ -23,7 +23,7 @@ import { getExploreState } from '@app/selectors/explore';
 
 import Art from 'components/Art';
 
-import { RECOMMENDED_JOIN, CUSTOM_JOIN } from 'constants/explorePage/joinTabs';
+import { RECOMMENDED_JOIN, CUSTOM_JOIN } from '@app/constants/explorePage/joinTabs';
 import { setJoinTab, clearJoinDataset } from 'actions/explore/join';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
@@ -96,8 +96,8 @@ export class JoinHeader extends Component {
       const { hasRecommendations, viewState } = this.props;
       const isHovered = Radium.getState(this.state, tab.id, ':hover');
       const disabledStyle = (tab.id === RECOMMENDED_JOIN && !hasRecommendations) || viewState.get('isInProgress')
-       ? styles.disabled
-       : {};
+        ? styles.disabled
+        : {};
       const activeTabStyle = (isHovered || this.isActiveTab(tab.id)) && !viewState.get('isInProgress')
         ? styles.activeTab
         : {};

@@ -115,6 +115,4 @@ public class FragmentStatusThread extends Thread implements AutoCloseable {
   public void close() {
     this.interrupt();
   }
-
-
 }

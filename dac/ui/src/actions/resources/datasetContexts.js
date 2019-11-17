@@ -15,7 +15,7 @@
  */
 import { RSAA } from 'redux-api-middleware';
 // import { CALL_MOCK_API } from 'mockApi';
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 
 import datasetContextSchema from 'schemas/v2/datasetContext';
 import schemaUtils from 'utils/apiUtils/schemaUtils';

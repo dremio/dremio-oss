@@ -157,8 +157,7 @@ public class DremioServlet implements Servlet {
         commitInfo = new CommitInfo(
           p.getProperty("git.commit.id"),
           p.getProperty("git.build.user.email"),
-          DateTime.parse(p.getProperty("git.commit.time"), DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZ")).getMillis(),
-          p.getProperty("git.commit.message.short"));
+          DateTime.parse(p.getProperty("git.commit.time"), DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZ")).getMillis());
       }
     } catch (Exception e) {
       logger.warn("Failure when trying to access and parse git.properties.", e);

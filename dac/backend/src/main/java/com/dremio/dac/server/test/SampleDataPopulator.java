@@ -67,7 +67,6 @@ import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
-import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
 import com.dremio.service.namespace.NamespaceException;
@@ -87,6 +86,7 @@ import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.StandardSystemProperty;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.io.Resources;
@@ -155,7 +155,7 @@ public class SampleDataPopulator implements AutoCloseable {
         createUserIfNotExists(
             userService,
             namespaceService,
-            ImpersonationUtil.getProcessUserName(),
+            StandardSystemProperty.USER_NAME.value(),
             PASSWORD,
             DEFAULT_USER_FIRSTNAME,
             DEFAULT_USER_LASTNAME);

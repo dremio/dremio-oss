@@ -50,6 +50,12 @@ public class StreamAggPrule extends AggPruleBase {
   @Override
   public void onMatch(RelOptRuleCall call) {
     final AggregateRel aggregate = (AggregateRel) call.rel(0);
+
+    // too many group by keys in streaming agg will result in compilation error
+    if (aggregate.getGroupCount() > PrelUtil.getPlannerSettings(call.getPlanner()).streamAggMaxGroupKey()) {
+      return;
+    }
+
     RelNode input = aggregate.getInput();
 
     // StreamAgg changes row type, therefore input and output collations are different

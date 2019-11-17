@@ -20,6 +20,7 @@
 #
 #   DREMIO_CONF_DIR   Alternate Dremio conf dir. Default is ${DREMIO_HOME}/conf.
 #   DREMIO_LOG_DIR    Where log files are stored.  PWD by default.
+#   DREMIO_PLUGINS_DIR Where plugins are stored. Default is ${DREMIO_HOME}/plugins.
 #   DREMIO_PID_DIR    The pid files are stored. /tmp by default.
 #   DREMIO_NICENESS The scheduling priority for daemons. Defaults to 0.
 #   DREMIO_STOP_TIMEOUT  Time, in seconds, after which we kill -9 the server if it has not stopped.
@@ -108,6 +109,7 @@ dremio_internal_start() {
 
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS ${SERVER_GC_OPTS}"
     [ "$DREMIO_LOG_TO_CONSOLE" != "1" ] && DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.log.path=${DREMIO_LOG_DIR}"
+    DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Ddremio.plugins.path=${DREMIO_PLUGINS_DIR}"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -Xmx${DREMIO_MAX_HEAP_MEMORY_SIZE_MB}m"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:MaxDirectMemorySize=${DREMIO_MAX_DIRECT_MEMORY_SIZE_MB}m"
     DREMIO_JAVA_OPTS="$DREMIO_JAVA_OPTS -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${DREMIO_LOG_DIR}"

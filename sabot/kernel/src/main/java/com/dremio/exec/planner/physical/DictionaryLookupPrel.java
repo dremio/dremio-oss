@@ -94,7 +94,7 @@ public class DictionaryLookupPrel extends SinglePrel {
     BatchSchema schema = b.build();
     return new DictionaryLookupPOP(
         creator.getContext().getCatalogService(),
-        creator.props(this, null, schema, RESERVE, LIMIT),
+        creator.props(this, creator.getContext().getQueryUserName(), schema, RESERVE, LIMIT),
         child,
         dictionaryEncodedFields);
   }

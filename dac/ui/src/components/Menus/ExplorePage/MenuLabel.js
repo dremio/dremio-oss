@@ -46,7 +46,6 @@ const styles = {
     paddingLeft: 8,
     height: 24,
     ...formDefault,
-    color: '#999',
-    fontStyle: 'italic'
+    fontWeight: 'bold'
   }
 };

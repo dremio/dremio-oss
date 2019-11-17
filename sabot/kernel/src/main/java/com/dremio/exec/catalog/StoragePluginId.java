@@ -35,7 +35,14 @@ import io.protostuff.ProtostuffIOUtil;
  * Describes a particular storage plugin instance.
  */
 public class StoragePluginId {
+  public static final int CAPABILITIES_INDEX_0 = 0;
+  public static final int CONFIG_INDEX_1 = 1;
+  public static final int CONNECTION_INDEX_2 = 2;
+  public static final int HASH_CODE_INDEX_3 = 3;
 
+  // The only changes permitted to these fields without breaking backward compatibility are adding
+  // new fields that start after the last field _alphabetically_ (eg after 'h'). Kryo serializes fields in
+  // alphabetical order.
   private final ConnectionConf<?, ?> connection;
   private final SourceConfig config;
   private final SourceCapabilities capabilities;

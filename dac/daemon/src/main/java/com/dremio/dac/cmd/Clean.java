@@ -36,7 +36,8 @@ import com.dremio.service.namespace.PartitionChunkId;
 /**
  * Backup command line.
  */
-public class Clean{
+@AdminCommand(value = "clean", description = "Cleans Dremio metadata")
+public class Clean {
 
   /**
    * Command line options for db stats reporting and cleaning

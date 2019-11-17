@@ -37,6 +37,7 @@ message NodeEndpoint {
   optional int64 max_direct_memory = 103;
   // available number of cores per executor
   optional int32 available_cores = 104;
+  optional string node_tag = 105;
 }
 
 message DremioServiceInstance {

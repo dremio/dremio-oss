@@ -133,8 +133,8 @@ public class TestBuilder {
     return null;
   }
 
-  public void go() throws Exception {
-    build().run();
+  public TestResult go() throws Exception {
+    return build().run();
   }
 
   public TestBuilder sqlQuery(String query) {

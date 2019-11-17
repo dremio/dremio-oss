@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { PureComponent } from 'react';
+import { Component, PureComponent, forwardRef } from 'react';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 import { showAppError } from 'actions/prodError';
@@ -58,3 +58,21 @@ export class ErrorBoundary extends PureComponent {
     return this.props.children;
   }
 }
+
+export const withErrorBoundary = ComponentToWrap => {
+  class WithErrorBoundaryHOC extends Component {
+    static propTypes = {
+      forwardedRef: PropTypes.any
+    };
+
+    render() {
+      return (
+        <ErrorBoundary>
+          <ComponentToWrap ref={this.props.forwardedRef} {...this.props} />
+        </ErrorBoundary>
+      );
+    }
+  }
+
+  return forwardRef((props, ref) => <WithErrorBoundaryHOC forwardedRef={ref} {...props} />);
+};

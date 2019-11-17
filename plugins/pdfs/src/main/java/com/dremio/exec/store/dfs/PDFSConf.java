@@ -19,12 +19,11 @@ import java.util.List;
 
 import javax.inject.Provider;
 
-import org.apache.hadoop.fs.Path;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.io.file.Path;
 import com.google.common.collect.ImmutableList;
 
 import io.protostuff.Tag;
@@ -40,7 +39,7 @@ public class PDFSConf extends FileSystemConf<PDFSConf, FileSystemPlugin<PDFSConf
 
   @Override
   public Path getPath() {
-    return new Path(path);
+    return Path.of(path);
   }
 
   @Override
@@ -61,11 +60,6 @@ public class PDFSConf extends FileSystemConf<PDFSConf, FileSystemPlugin<PDFSConf
   @Override
   public SchemaMutability getSchemaMutability() {
     return SchemaMutability.SYSTEM_TABLE_AND_VIEW;
-  }
-
-  @Override
-  public List<String> getConnectionUniqueProperties() {
-    return ImmutableList.of();
   }
 
   @Override

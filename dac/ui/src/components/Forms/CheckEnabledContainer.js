@@ -25,7 +25,7 @@ import FormSectionConfig from 'utils/FormUtils/FormSectionConfig';
 import FormElementConfig from 'utils/FormUtils/FormElementConfig';
 
 import { flexContainer, flexElementAuto, flexColumnContainer } from '@app/uiTheme/less/layout.less';
-import { checkboxMargin, enabledContainer, tooltipIcon } from './CheckEnabledContainer.less';
+import { checkboxMargin, indentedContainer, tooltipIcon } from './CheckEnabledContainer.less';
 
 /**
  * Displays a checkbox and a container, which can be either shown/hidden or its inputs enabled/disabled based
@@ -60,6 +60,7 @@ export default class CheckEnabledContainer extends Component {
     const enableContainer = checkField.checked;
     const isInverted = (elementConfigJson.inverted) ? {inverted: true} : null;
     const container = elementConfig.getContainer();
+    const containerIsIndented = !elementConfigJson.noIndent;
     const containerIsElement = container instanceof FormElementConfig;
     const containerIsSection = container instanceof FormSectionConfig;
 
@@ -75,16 +76,16 @@ export default class CheckEnabledContainer extends Component {
           }
         </div>
         {(elementConfigJson.whenNotChecked !== 'hide' || enableContainer) &&
-        <div className={classNames([flexElementAuto, enabledContainer])}>
+        <div className={classNames([flexElementAuto, containerIsIndented && indentedContainer])}>
           {containerIsElement &&
           <FormElement fields={fields}
-                       disabled={!enableContainer || mainCheckboxIsDisabled}
-                       elementConfig={container}/>
+            disabled={!enableContainer || mainCheckboxIsDisabled}
+            elementConfig={container}/>
           }
           {containerIsSection &&
           <FormSection fields={fields}
-                       disabled={!enableContainer || mainCheckboxIsDisabled}
-                       sectionConfig={container}/>
+            disabled={!enableContainer || mainCheckboxIsDisabled}
+            sectionConfig={container}/>
           }
         </div>
         }

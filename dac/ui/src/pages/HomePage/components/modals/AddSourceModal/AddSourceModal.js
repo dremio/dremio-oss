@@ -32,6 +32,7 @@ import SelectSourceType from 'pages/HomePage/components/modals/AddSourceModal/Se
 import ConfigurableSourceForm from 'pages/HomePage/components/modals/ConfigurableSourceForm';
 
 import AddSourceModalMixin from 'dyn-load/pages/HomePage/components/modals/AddSourceModal/AddSourceModalMixin';
+import { processUiConfig } from '@app/pages/HomePage/components/modals/EditSourceView';
 
 
 const VIEW_ID = 'ADD_SOURCE_MODAL';
@@ -86,8 +87,8 @@ export class AddSourceModal extends Component {
   setStateWithSourceTypeConfigFromServer(typeCode) {
     ApiUtils.fetch(`source/type/${typeCode}`).then(response => {
       response.json().then((result) => {
-        const conbinedConfig = SourceFormJsonPolicy.getCombinedConfig(typeCode, result);
-        this.setState({isTypeSelected: true, selectedFormType: conbinedConfig});
+        const combinedConfig = SourceFormJsonPolicy.getCombinedConfig(typeCode, processUiConfig(result));
+        this.setState({isTypeSelected: true, selectedFormType: combinedConfig});
       });
     }, () => {
       this.setState({didSourceTypeLoadFail: true});
@@ -194,15 +195,15 @@ export class AddSourceModal extends Component {
         <ViewStateWrapper viewState={viewState}>
           {!this.state.isTypeSelected
             ? <SelectSourceType sourceTypes={this.state.sourceTypes}
-                                onSelectSource={this.handleSelectSource}/>
+              onSelectSource={this.handleSelectSource}/>
             : <ConfigurableSourceForm sourceFormConfig={this.state.selectedFormType}
-                                      ref='form'
-                                      onFormSubmit={this.handleAddSourceSubmit}
-                                      onCancel={this.hide}
-                                      updateFormDirtyState={updateFormDirtyState}
-                                      footerChildren={this.renderLongSubmitLabel()}
-                                      fields={FormUtils.getFieldsFromConfig(this.state.selectedFormType)}
-                                      validate={FormUtils.getValidationsFromConfig(this.state.selectedFormType)}
+              ref='form'
+              onFormSubmit={this.handleAddSourceSubmit}
+              onCancel={this.hide}
+              updateFormDirtyState={updateFormDirtyState}
+              footerChildren={this.renderLongSubmitLabel()}
+              fields={FormUtils.getFieldsFromConfig(this.state.selectedFormType)}
+              validate={FormUtils.getValidationsFromConfig(this.state.selectedFormType)}
             />
           }
         </ViewStateWrapper>

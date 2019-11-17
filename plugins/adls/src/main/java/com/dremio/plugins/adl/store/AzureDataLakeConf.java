@@ -21,9 +21,10 @@ import java.util.List;
 import java.util.Map;
 
 import javax.inject.Provider;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.adl.AdlConfKeys;
 
 import com.dremio.exec.catalog.StoragePluginId;
@@ -35,9 +36,9 @@ import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
+import com.dremio.io.file.Path;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 
 import io.protostuff.Tag;
 
@@ -47,14 +48,6 @@ import io.protostuff.Tag;
  */
 @SourceType(value = "ADL", label = "Azure Data Lake Storage Gen1")
 public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDataLakeStoragePlugin> {
-
-  private static final List<String> UNIQUE_CONN_PROPS = ImmutableList.of(
-      "dfs.adls.oauth2.client.id",
-      "dfs.adls.oauth2.credential",
-      "dfs.adls.oauth2.refresh.url",
-      "dfs.adls.oauth2.refresh.token"
-  );
-
   /**
    * Type ADL Auth
    */
@@ -116,6 +109,18 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   @DisplayMetadata(label = "Enable asynchronous access when possible")
   public boolean enableAsync = true;
 
+  @Tag(11)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable local caching when possible")
+  public boolean isCachingEnabled = false;
+
+  @Tag(12)
+  @NotMetadataImpacting
+  @Min(value = 1, message = "Max percent of total available cache space must be between 1 and 100")
+  @Max(value = 100, message = "Max percent of total available cache space must be between 1 and 100")
+  @DisplayMetadata(label = "Max percent of total available cache space to use when possible")
+  public int maxCacheSpacePct = 100;
+
   @Override
   public AzureDataLakeStoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     Preconditions.checkNotNull(accountName, "Account name must be set.");
@@ -126,7 +131,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
 
   @Override
   public Path getPath() {
-    return new Path(rootPath);
+    return Path.of(rootPath);
   }
 
   @Override
@@ -147,11 +152,6 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   @Override
   public SchemaMutability getSchemaMutability() {
     return allowCreateDrop ? SchemaMutability.USER_TABLE : SchemaMutability.NONE;
-  }
-
-  @Override
-  public List<String> getConnectionUniqueProperties() {
-    return UNIQUE_CONN_PROPS;
   }
 
   /**
@@ -213,5 +213,20 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   @Override
   public boolean isAsyncEnabled() {
     return enableAsync;
+  }
+
+  @Override
+  public CacheProperties getCacheProperties() {
+    return new CacheProperties() {
+      @Override
+      public boolean isCachingEnabled() {
+        return isCachingEnabled;
+      }
+
+      @Override
+      public int cacheMaxSpaceLimitPct() {
+        return maxCacheSpacePct;
+      }
+    };
   }
 }

@@ -83,8 +83,8 @@ public abstract class ColumnReader<V extends ValueVector> {
     this.schemaElement = schemaElement;
     this.valueVec =  v;
     this.pageReader = (parentReader.getSingleStream() != null)?
-      new DeprecatedSingleStreamPageReader(this, parentReader.getSingleStream(), parentReader.getHadoopPath(), columnChunkMetaData) :
-      new PageReader(this, parentReader.getFileSystem(), parentReader.getHadoopPath(), columnChunkMetaData);
+      new DeprecatedSingleStreamPageReader(this, parentReader.getSingleStream(), parentReader.getFsPath(), columnChunkMetaData) :
+      new PageReader(this, parentReader.getFileSystem(), parentReader.getFsPath(), columnChunkMetaData);
 
     if (columnDescriptor.getType() != PrimitiveType.PrimitiveTypeName.BINARY) {
       if (columnDescriptor.getType() == PrimitiveTypeName.FIXED_LEN_BYTE_ARRAY) {

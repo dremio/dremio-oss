@@ -18,8 +18,8 @@ package com.dremio.exec;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import org.apache.parquet.compression.CompressionCodecFactory;
+import org.apache.parquet.hadoop.CodecFactory;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -29,7 +29,11 @@ import org.junit.rules.TemporaryFolder;
 import com.dremio.BaseTestQuery;
 import com.dremio.PlanTestBase;
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.util.GlobalDictionaryBuilder;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
+import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 
 /**
  * Global dictionary planning test.
@@ -44,6 +48,7 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
 
   private static Path tableDirPath1;
   private static Path tableDirPath2;
+  private static CompressionCodecFactory codec;
   private static FileSystem fs;
   private static String[] ALL_COLUMNS = new String[] {"DictionaryLookup(decoded fields=[[city, group, position, state]])"};
 
@@ -55,13 +60,16 @@ public class TestGlobalDictionaryPlan extends PlanTestBase {
     testNoResult("alter session set \"store.parquet.enable_dictionary_encoding_binary_type\"=true");
     testNoResult("CREATE TABLE dfs_test.globaldictionary AS SELECT * FROM cp.\"globaldictionary.json\"");
     testNoResult("CREATE TABLE dfs_test.places AS SELECT * FROM cp.\"places.json\"");
-    fs = FileSystem.getLocal(new Configuration());
+    final Configuration conf = new Configuration();
+    codec = CodecFactory.createDirectCodecFactory(conf, new ParquetDirectByteBufferAllocator(testAllocator), 0);
 
-    tableDirPath1 = new Path(getDfsTestTmpSchemaLocation() + "/globaldictionary");
-    GlobalDictionaryBuilder.createGlobalDictionaries(fs, tableDirPath1, testAllocator);
+    fs = HadoopFileSystem.getLocal(conf);
 
-    tableDirPath2 = new Path(getDfsTestTmpSchemaLocation() + "/places");
-    GlobalDictionaryBuilder.createGlobalDictionaries(fs, tableDirPath2, testAllocator);
+    tableDirPath1 = Path.of(getDfsTestTmpSchemaLocation() + "/globaldictionary");
+    GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, tableDirPath1, testAllocator);
+
+    tableDirPath2 = Path.of(getDfsTestTmpSchemaLocation() + "/places");
+    GlobalDictionaryBuilder.createGlobalDictionaries(codec, fs, tableDirPath2, testAllocator);
   }
 
   @AfterClass

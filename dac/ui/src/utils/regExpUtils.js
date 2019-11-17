@@ -17,3 +17,7 @@
 export const escapeSpecialCharacters = str => {
   return str ? str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
 };
+
+export const escapeDblQuotes = str => {
+  return (str && str.replace) ? str.replace(/"/g, '""') : '';
+};

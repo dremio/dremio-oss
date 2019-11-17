@@ -15,13 +15,12 @@
  */
 package com.dremio.exec.store.easy.json;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.List;
 
 import org.apache.arrow.vector.complex.reader.FieldReader;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
@@ -32,12 +31,13 @@ import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
 import com.dremio.exec.store.JSONOutputRecordWriter;
 import com.dremio.exec.store.WritePartition;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.easy.json.JSONFormatPlugin.JSONFormatConfig;
 import com.dremio.exec.vector.complex.fn.BasicJsonOutput;
 import com.dremio.exec.vector.complex.fn.ExtendedJsonOutput;
 import com.dremio.exec.vector.complex.fn.JsonWriter;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -49,9 +49,9 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JsonRecordWriter.class);
   private static final String LINE_FEED = String.format("%n");
 
-  private final Configuration conf;
   private final OperatorContext context;
   private final FileSystemPlugin<?> plugin;
+  private final String queryUser;
 
   private String location;
   private String prefix;
@@ -62,8 +62,8 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
   private Path fileName;
   private WritePartition partition;
 
-  private FileSystemWrapper fs = null;
-  private FSDataOutputStream stream = null;
+  private FileSystem fs = null;
+  private DataOutputStream stream = null;
   private JsonGenerator jsonGenerator = null;
 
   private long fileSize = 0;
@@ -76,7 +76,7 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
     final FragmentHandle handle = context.getFragmentHandle();
     final String fragmentId = String.format("%d_%d", handle.getMajorFragmentId(), handle.getMinorFragmentId());
 
-    this.conf = new Configuration(writer.getFsConf());
+    this.queryUser = writer.getProps().getUserName();
     this.context = context;
     this.location = writer.getLocation();
     this.prefix = fragmentId;
@@ -89,7 +89,7 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
 
   @Override
   public void setup() throws IOException {
-    this.fs = plugin.getFileSystem(conf, context);
+    this.fs = plugin.createFS(queryUser, context);
   }
 
   @Override
@@ -102,8 +102,8 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
 
     try {
       this.fileName = fs.canonicalizePath(partition.qualified(location, prefix + "_0." + extension));
-      stream = fs.create(fileName);
-      jsonGenerator = factory.createGenerator(stream.getWrappedStream())
+      stream = new DataOutputStream(fs.create(fileName));
+      jsonGenerator = factory.createGenerator((OutputStream) stream)
         .disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET)
         .enable(JsonGenerator.Feature.FLUSH_PASSED_TO_STREAM)
         .useDefaultPrettyPrinter();
@@ -268,7 +268,7 @@ public class JsonRecordWriter extends JSONOutputRecordWriter {
           if (gen != null) {
             gen.flush();
             if (stream != null) {
-              fileSize = stream.getPos();
+              fileSize = stream.size();
             }
           }
         },

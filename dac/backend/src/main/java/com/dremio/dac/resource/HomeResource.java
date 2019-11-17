@@ -254,7 +254,7 @@ public class HomeResource {
     final FileConfig config = new FileConfig();
     try {
       // upload file to staging area
-      final org.apache.hadoop.fs.Path stagingLocation = fileStore.stageFile(filePath, extension, fileInputStream);
+      final com.dremio.io.file.Path stagingLocation = fileStore.stageFile(filePath, extension, fileInputStream);
       config.setLocation(stagingLocation.toString());
       config.setName(filePath.getLeaf().getName());
       config.setCtime(System.currentTimeMillis());
@@ -296,7 +296,7 @@ public class HomeResource {
           .build(logger);
     }
     final String fileName = filePath.getFileName().getName();
-    final org.apache.hadoop.fs.Path finalLocation = fileStore.saveFile(fileFormat.getLocation(), filePath, fileFormat.getFileType());
+    final com.dremio.io.file.Path finalLocation = fileStore.saveFile(fileFormat.getLocation(), filePath, fileFormat.getFileType());
     // save new name and location, full path
     fileFormat.setLocation(finalLocation.toString());
     fileFormat.setName(fileName);
@@ -326,7 +326,7 @@ public class HomeResource {
     FilePath filePath = FilePath.fromURLPath(homeName, path);
     logger.debug("filePath: " + filePath.toPathString());
     // use file's location directly to query file
-    String fileLocation = PathUtils.toDottedPath(new org.apache.hadoop.fs.Path(fileFormat.getLocation()));
+    String fileLocation = PathUtils.toDottedPath(com.dremio.io.file.Path.of(fileFormat.getLocation()));
     SqlQuery query = new SqlQuery(format("select * from table(%s.%s (%s)) limit 500",
         SqlUtils.quoteIdentifier(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), fileLocation, fileFormat.toTableOptions()), securityContext.getUserPrincipal().getName());
 

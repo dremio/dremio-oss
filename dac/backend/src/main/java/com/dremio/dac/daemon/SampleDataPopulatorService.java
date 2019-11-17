@@ -30,6 +30,7 @@ import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.options.OptionManager;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.Service;
 import com.dremio.service.jobs.JobsService;
@@ -50,6 +51,7 @@ public class SampleDataPopulatorService implements Service {
   private final Provider<ReflectionServiceHelper> reflectionHelper;
   private final Provider<ConnectionReader> connectionReader;
   private final Provider<CollaborationHelper> collaborationService;
+  private final Provider<OptionManager> optionManager;
 
   private SampleDataPopulator sample;
 
@@ -66,6 +68,7 @@ public class SampleDataPopulatorService implements Service {
     Provider<ReflectionServiceHelper> reflectionHelper,
     Provider<ConnectionReader> connectionReader,
     Provider<CollaborationHelper> collaborationService,
+    Provider<OptionManager> optionManager,
     boolean prepopulate,
     boolean addDefaultUser) {
     this.contextProvider = contextProvider;
@@ -77,8 +80,13 @@ public class SampleDataPopulatorService implements Service {
     this.reflectionHelper = reflectionHelper;
     this.connectionReader = connectionReader;
     this.collaborationService = collaborationService;
+    this.optionManager = optionManager;
     this.prepopulate = prepopulate;
     this.addDefaultUser = addDefaultUser;
+  }
+
+  public Provider<OptionManager> getOptionManager() {
+    return optionManager;
   }
 
   @Override
@@ -92,7 +100,7 @@ public class SampleDataPopulatorService implements Service {
 
     if (prepopulate) {
       final DatasetVersionMutator data = new DatasetVersionMutator(init.get(), kv, ns, jobsService.get(),
-        catalogService.get());
+        catalogService.get(), optionManager.get());
       SecurityContext context = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
       final SourceService ss = new SourceService(ns, data, catalogService.get(), reflectionHelper.get(), collaborationService.get(), connectionReader.get(), context);
       sample = new SampleDataPopulator(

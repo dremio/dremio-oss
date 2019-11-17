@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
@@ -91,6 +93,7 @@ class QueryManager {
   private final ResourceAllocationResultObserver resourceAllocationResultObserver;
   private final Catalog catalog;
   private final OptionList nonDefaultOptions;
+  private final AttemptObservers attemptObservers;
 
   private ImmutableMap<NodeEndpoint, NodeTracker> nodeMap = ImmutableMap.of();
   private ImmutableMap<FragmentHandle, FragmentData> fragmentDataMap = ImmutableMap.of();
@@ -103,6 +106,9 @@ class QueryManager {
   private long endPlanningTime;  // NB: tracks the end of both planning and resource scheduling. Name kept to match the profile object, which was kept intact for legacy reasons
   private long startTime;
   private long endTime;
+
+  // how many records were processed when last checked
+  private volatile long previousRecordCount = -1;
 
   // How many nodes have finished their execution.  Query is complete when all nodes are complete.
   private final AtomicInteger finishedNodes = new AtomicInteger(0);
@@ -135,6 +141,8 @@ class QueryManager {
       context.getAccelerationManager().newPopulator());
     observers.add(capturer);
     observers.add(new TimeMarker());
+
+    this.attemptObservers = observers;
   }
 
   private static boolean isTerminal(final FragmentState state) {
@@ -168,6 +176,37 @@ class QueryManager {
       }
     }
 
+  }
+
+  /**
+   * Update observers if more records have been processed.
+   */
+  void publishProgress() {
+    final long currentRecordCount = getCurrentRecordCount();
+
+    if (previousRecordCount == currentRecordCount) {
+      return;
+    }
+
+    attemptObservers.recordsProcessed(currentRecordCount);
+
+    previousRecordCount = currentRecordCount;
+  }
+
+  /**
+   * Compute how many records have been processed.
+   */
+ private long getCurrentRecordCount() {
+    final AtomicLong totalRecordCount = new AtomicLong();
+
+    // collect total processed record count
+    fragmentDataMap.values()
+      .forEach(fragmentData -> fragmentData.getProfile().getOperatorProfileList()
+        .forEach(operatorProfile -> operatorProfile.getInputProfileList()
+          .forEach(inputProfile -> totalRecordCount.addAndGet(inputProfile.getRecords()))));
+
+    // return new record count
+   return totalRecordCount.longValue();
   }
 
   private boolean updateFragmentStatus(final FragmentStatus fragmentStatus) {
@@ -237,6 +276,47 @@ class QueryManager {
     this.nodeMap = ImmutableMap.copyOf(trackers);
     this.fragmentDataMap = ImmutableMap.copyOf(dataCollectors);
     this.nodeReporters = ImmutableMap.copyOf(nodeReporters);
+
+    validateEndpoints();
+  }
+
+  /**
+   * Throws an exception if any of the executors the query is scheduled to run on is down
+   */
+  private void validateEndpoints() {
+    // set of all active endpoints, minimized
+    Set<NodeEndpoint> minimizedActiveSet =  context.getActiveEndpoints().stream()
+      .map((e) -> EndpointHelper.getMinimalEndpoint(e))
+      .collect(Collectors.toSet());
+    logger.debug("validating endpoints {}", minimizedActiveSet);
+
+    // will contain the list of all failed nodes
+    List<NodeEndpoint> failedNodeList = new ArrayList<>();
+
+    for (NodeEndpoint endpoint : nodeMap.keySet()) {
+      if (minimizedActiveSet.contains(endpoint)) {
+        // endpoint is still active, nothing more to do
+        continue;
+      }
+
+      // endpoint is no longer active, make sure we fail the query if we still have work running on the endpoint
+      final NodeTracker tracker = nodeMap.get(endpoint);
+      if (tracker.isDone()) {
+        logger.debug("Endpoint {} is no longer active but corresponding tracker is done", endpoint);
+        // no more fragments are running on this endpoint anymore, nothing more to do
+        continue;
+      }
+
+      failedNodeList.add(endpoint);
+    }
+
+    if (!failedNodeList.isEmpty()) {
+      logger.warn("One or more nodes are down {}, cancelling query {}", failedNodeList, QueryIdHelper.getQueryId(queryId));
+
+      completionListener.failed(
+        new ForemanException(String.format("One or more nodes lost connectivity during query.  Identified nodes were [%s].",
+          failedNodeList)));
+    }
   }
 
   /**

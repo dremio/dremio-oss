@@ -19,7 +19,7 @@ import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
-import {BINARY, TEXT, INTEGER, FLOAT, DECIMAL, MAP, BOOLEAN, DATE, TIME, DATETIME} from 'constants/DataTypes';
+import {BINARY, TEXT, INTEGER, FLOAT, DECIMAL, MAP, BOOLEAN, DATE, TIME, DATETIME} from '@app/constants/DataTypes';
 
 import Menu from './Menu';
 

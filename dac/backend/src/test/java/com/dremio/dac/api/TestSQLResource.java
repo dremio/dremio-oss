@@ -15,7 +15,8 @@
  */
 package com.dremio.dac.api;
 
-import java.util.Arrays;
+import static com.dremio.service.jobs.JobsServiceUtil.finalJobStates;
+
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
@@ -53,7 +54,7 @@ public class TestSQLResource extends BaseTestServer {
 
       JobState jobState = status.getJobState();
 
-      Assert.assertTrue("expected job to complete successfully", Arrays.asList(JobState.COMPLETED, JobState.RUNNING, JobState.ENQUEUED, JobState.STARTING).contains(jobState));
+      Assert.assertTrue("expected job to complete successfully", ensureJobIsRunningOrFinishedWith(JobState.COMPLETED, jobState));
 
       if (jobState == JobState.COMPLETED) {
         Assert.assertNotNull(status.getRowCount());
@@ -80,7 +81,7 @@ public class TestSQLResource extends BaseTestServer {
 
       JobState jobState = status.getJobState();
 
-      Assert.assertTrue("expcted job to fail", Arrays.asList(JobState.FAILED, JobState.RUNNING, JobState.ENQUEUED, JobState.STARTING).contains(jobState));
+      Assert.assertTrue("expected job to fail", ensureJobIsRunningOrFinishedWith(JobState.FAILED, jobState));
 
       if (jobState == JobState.FAILED) {
         Assert.assertNull(status.getRowCount());
@@ -107,7 +108,7 @@ public class TestSQLResource extends BaseTestServer {
 
       JobState jobState = status.getJobState();
 
-      Assert.assertTrue("expected job to complete successfully", Arrays.asList(JobState.COMPLETED, JobState.RUNNING, JobState.ENQUEUED, JobState.STARTING).contains(jobState));
+      Assert.assertTrue("expected job to complete successfully", ensureJobIsRunningOrFinishedWith(JobState.COMPLETED, jobState));
 
       if (jobState == JobState.COMPLETED) {
         expectStatus(Response.Status.BAD_REQUEST, getBuilder(getPublicAPI(3).path(JOB_PATH).path(details.getId()).path("results").queryParam("limit", 1000)).buildGet());
@@ -116,5 +117,13 @@ public class TestSQLResource extends BaseTestServer {
         Thread.sleep(TimeUnit.MILLISECONDS.toMillis(100));
       }
     }
+  }
+
+  private boolean ensureJobIsRunningOrFinishedWith(JobState expectedFinalState, JobState state) {
+    if (expectedFinalState.equals(state)) {
+      return true;
+    }
+
+    return !finalJobStates.contains(state);
   }
 }

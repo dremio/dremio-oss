@@ -28,7 +28,7 @@ enum FileType {
   CSV = 3;
   TSV = 4;
   PSV = 5;
-  AVRO = 6;
+  AVRO = 6 [ deprecated = true ];
   PARQUET = 7;
   HTTP_LOG = 8;
   EXCEL = 9;
@@ -79,6 +79,7 @@ message JsonFileConfig {
 }
 
 message AvroFileConfig {
+  option deprecated = true;
   option (extends_class) = "com.dremio.service.namespace.file.FileFormat";
 }
 

@@ -16,6 +16,7 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import uuid from 'uuid';
+import { get, set } from 'lodash/object';
 
 import FieldList, { AddButton } from 'components/Fields/FieldList';
 import Property from 'components/Forms/Property';
@@ -62,9 +63,11 @@ function validateValueList(values, elementConfig) {
   }, {});
 }
 
+const defaultPropName = FormUtils.addFormPrefixToPropName('propertyList');
+
 export default class SourceProperties extends Component {
   static getFields(elementConfig) {
-    const propName = (elementConfig) ? elementConfig.propName : 'config.propertyList';
+    const propName = (elementConfig) ? elementConfig.propName : defaultPropName;
     return Property.getFields().map(field => `${propName}[].${field}`);
   }
 
@@ -84,9 +87,10 @@ export default class SourceProperties extends Component {
   };
 
   static validate(values) {
-    const propertyName = (this.props.elementConfig) ? this.props.elementConfig.propertyName : 'propertyList';
-    const result = {config: {}};
-    result[propertyName] = values.config[propertyName].map(property => Property.validate(property));
+    const propertyName = (this.props.elementConfig) ? this.props.elementConfig.propertyName : defaultPropName;
+    const result = {};
+    set(result, propertyName, get(result, propertyName)
+      .map(property => Property.validate(property)));
     return result;
   }
 
@@ -101,9 +105,9 @@ export default class SourceProperties extends Component {
   //
 
   addItem = (e) => {
-    const {fields: {config}, elementConfig, singleValue} = this.props;
-    const propertyName = (elementConfig) ? elementConfig.propertyName : 'propertyList';
-    const propertyListFields = config[propertyName];
+    const {fields, elementConfig, singleValue} = this.props;
+    const propertyName = (elementConfig) ? elementConfig.propertyName : defaultPropName;
+    const propertyListFields = get(fields, propertyName);
     const properties = (singleValue) ? FormUtils.getFieldByComplexPropName(this.props.fields, elementConfig.propName) : propertyListFields;
     e.preventDefault();
     properties.addField({id: uuid.v4()});
@@ -117,9 +121,9 @@ export default class SourceProperties extends Component {
   }
 
   render() {
-    const {fields: {config}, emptyLabel, addLabel, elementConfig, singleValue} = this.props;
-    const propertyName = (elementConfig) ? elementConfig.propertyName : 'propertyList';
-    const propertyListFields = config[propertyName];
+    const { fields, emptyLabel, addLabel, elementConfig, singleValue} = this.props;
+    const propertyName = (elementConfig) ? elementConfig.propertyName : defaultPropName;
+    const propertyListFields = get(fields, propertyName);
     const des = this.props.description ? <div className='largerFontSize' style={description}>{this.props.description}</div> : null;
     const properties = (singleValue) ? FormUtils.getFieldByComplexPropName(this.props.fields, elementConfig.propName) : propertyListFields;
     return (

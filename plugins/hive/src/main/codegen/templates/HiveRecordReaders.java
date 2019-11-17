@@ -42,8 +42,8 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.hive.HivePluginOptions;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.store.hive.ORCScanFilter;
+import com.dremio.exec.store.hive.exec.HiveProxyingOrcScanFilter;
+import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -54,6 +54,7 @@ import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import org.apache.hadoop.fs.FSError;
 <#if entry.hiveReader == "Orc">
 import org.apache.hadoop.hive.ql.io.orc.OrcFile;
+import org.apache.hadoop.hive.ql.io.AcidUtils;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
 import org.apache.hadoop.hive.ql.io.orc.OrcStruct;
@@ -81,10 +82,12 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
 <#if entry.hiveReader == "Orc">
-  import org.apache.orc.OrcConf;
-  import org.apache.orc.OrcProto;
-  import org.apache.orc.impl.DataReaderProperties;
+import org.apache.orc.OrcConf;
+import org.apache.orc.OrcProto;
+import org.apache.orc.impl.DataReaderProperties;
 </#if>
+import org.apache.hadoop.security.UserGroupInformation;
+
 public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
 
 <#-- Specialized reader for Hive ORC, allowing zero copy to use the Dremio allocator -->
@@ -107,50 +110,89 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
   public Hive${entry.hiveReader}Reader(final HiveTableXattr tableAttr, final SplitAndPartitionInfo split,
       final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
       final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
-      final StructObjectInspector partitionOI, final ScanFilter filter, final Collection<List<String>> referencedTables) {
-    super(tableAttr, split, projectedColumns, context, jobConf, tableSerDe, tableOI, partitionSerDe, partitionOI, filter, referencedTables);
+      final StructObjectInspector partitionOI, final ScanFilter filter, final Collection<List<String>> referencedTables,
+      final UserGroupInformation readerUgi) {
+    super(tableAttr, split, projectedColumns, context, jobConf, tableSerDe, tableOI, partitionSerDe, partitionOI, filter,
+      referencedTables, readerUgi);
   }
 
   public void internalInit(InputSplit inputSplit, JobConf jobConf, ValueVector[] vectors) throws IOException {
 
 <#-- Push down the filter in Hive ORC SerDe reader -->
 <#if entry.hiveReader == "Orc">
-    if (filter != null && filter instanceof ORCScanFilter) {
-      final ORCScanFilter scanFilter = (ORCScanFilter) filter;
+    if (filter != null && filter instanceof HiveProxyingOrcScanFilter) {
+      final HiveProxyingOrcScanFilter scanFilter = (HiveProxyingOrcScanFilter) filter;
       jobConf.set(ColumnProjectionUtils.READ_COLUMN_NAMES_CONF_STR, jobConf.get(serdeConstants.LIST_COLUMNS));
-      jobConf.set(ConvertAstToSearchArg.SARG_PUSHDOWN, scanFilter.getKryoBase64EncodedFilter());
+      jobConf.set(ConvertAstToSearchArg.SARG_PUSHDOWN, scanFilter.getProxiedOrcScanFilter().getKryoBase64EncodedFilter());
     }
-  Reader.Options options = new Reader.Options();
-  if ( !((OrcInputFormat)jobConf.getInputFormat()).isAcidRead(jobConf, inputSplit) ){
-    final OrcFile.ReaderOptions opts = OrcFile.readerOptions(jobConf);
 
-    final OrcSplit fSplit = (OrcSplit)inputSplit;
-    final org.apache.hadoop.fs.Path path = fSplit.getPath();
-    // TODO: DX-16001 make enabling async configurable.
-    final org.apache.hadoop.fs.FileSystem fs = com.dremio.exec.store.dfs.FileSystemWrapperCreator.get(path, jobConf, this.context.getStats());
-    opts.filesystem(fs);
-    final Reader hiveReader = OrcFile.createReader(path, opts);
+    /*
+     * There are three cases possible if acid table gets updated
+     * and dremio metadata for file paths becomes invalid as hive
+     * would have compacted the data files that store the table data.
+     *
+     * (1) We started with a base file, the table was updated that led
+     * to some new delta files and eventually compaction cleaned up everything
+     * into a new single base file (with new name). This is something we
+     * already handled in DX-14414 since the read will be done by hive orc
+     * vectorized reader which will try to create inner record reader
+     * as OrcFile.createReader(split_path, opts) and this will attempt
+     * to open the non-existent old base file. We will catch FileNotFound
+     * exception which will then be rethrown as invalid metadata error
+     * and dremio will refresh the acid table metadata before reattempting.
 
-    final List<OrcProto.Type> types = hiveReader.getTypes();
+     * (2) We started with a set of delta files, the table was updated that
+     * led to new delta files and compaction cleaned up everything into a
+     * single base file. Since the old
+     * metadata references delta files, we will use the non-vectorized orc
+     * reader. Unlike (1), here the reader creation happens internally in
+     * OrcInputFormal class. There we check for the existence of each delta
+     * file and so if none of the delta files exist, we get an
+     * empty reader. This is why reflection refresh on an acid table was returning
+     * 0 bytes. Since dremio doesn't catch any exception during creation
+     * of reader using input split path, there is no way
+     * for us to rethrow a invalid metadata error and refresh/reattempt.
+     * This problem is fixed in DX-16380. The non vectorized orc reader
+     * checks for the existence of each delta file before trying to create
+     * the reader and explicitly throws FileNotFound exception which
+     * is then handled by HiveAbstractReader apropriately.
 
-    Boolean zeroCopy = OrcConf.USE_ZEROCOPY.getBoolean(jobConf);
-    Boolean useDirectMemory = context.getOptions().getOption(HivePluginOptions.HIVE_ORC_READER_USE_DIRECT_MEMORY);
-    dataReader = DremioORCRecordUtils.createDefaultDataReader(context.getAllocator(), DataReaderProperties.builder()
-                              .withBufferSize(hiveReader.getCompressionSize())
-                              .withCompression(hiveReader.getCompressionKind())
-                              .withFileSystem(fs)
-                              .withPath(path)
-                              .withTypeCount(types.size())
-                              .withZeroCopy(zeroCopy)
-                              .build(), useDirectMemory);
-    options.dataReader(dataReader);
-  }
-  try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {
-    reader = ((OrcInputFormat)jobConf.getInputFormat()).getRecordReader(inputSplit, jobConf, Reporter.NULL, options);
-  }
-  catch(FSError e) {
-    throw FileSystemWrapper.propagateFSError(e);
-  }
+     * (3) We have a combination of base+delta files. This is similar to (2)
+     * since as long as there is one delta file in our metadata, we will
+     * use the non vectorized reader.
+     */
+    AcidUtils.setTransactionalTableRaiseErrorIfDeltaFileNotFound(jobConf, true);
+    final Reader.Options options = new Reader.Options();
+    if ( !((OrcInputFormat)jobConf.getInputFormat()).isAcidRead(jobConf, inputSplit) ) {
+      final OrcFile.ReaderOptions opts = OrcFile.readerOptions(jobConf);
+
+      final OrcSplit fSplit = (OrcSplit)inputSplit;
+      final org.apache.hadoop.fs.Path path = fSplit.getPath();
+      // TODO: DX-16001 make enabling async configurable.
+      final HadoopFileSystemWrapper fs = new HadoopFileSystemWrapper(path, jobConf, this.context.getStats());
+        opts.filesystem(fs);
+      final Reader hiveReader = OrcFile.createReader(path, opts);
+
+      final List<OrcProto.Type> types = hiveReader.getTypes();
+
+      final Boolean zeroCopy = OrcConf.USE_ZEROCOPY.getBoolean(jobConf);
+      final Boolean useDirectMemory = context.getOptions().getOption(HivePluginOptions.HIVE_ORC_READER_USE_DIRECT_MEMORY);
+      dataReader = DremioORCRecordUtils.createDefaultDataReader(context.getAllocator(), DataReaderProperties.builder()
+        .withBufferSize(hiveReader.getCompressionSize())
+        .withCompression(hiveReader.getCompressionKind())
+        .withFileSystem(fs)
+        .withPath(path)
+        .withTypeCount(types.size())
+        .withZeroCopy(zeroCopy)
+        .build(), useDirectMemory);
+      options.dataReader(dataReader);
+    }
+    try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {
+      reader = ((OrcInputFormat)jobConf.getInputFormat()).getRecordReader(inputSplit, jobConf, Reporter.NULL, options);
+    }
+    catch(FSError e) {
+      throw HadoopFileSystemWrapper.propagateFSError(e);
+    }
 <#else>
     reader = jobConf.getInputFormat().getRecordReader(inputSplit, jobConf, Reporter.NULL);
 </#if>
@@ -195,7 +237,7 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
         }
       }
       catch(FSError e) {
-        throw FileSystemWrapper.propagateFSError(e);
+        throw HadoopFileSystemWrapper.propagateFSError(e);
       }
       Object deSerializedValue = partitionSerDe.deserialize((Writable) value);
       if (partTblObjectInspectorConverter != null) {
@@ -223,7 +265,7 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
         reader.close();
       }
       catch(FSError e) {
-        throw FileSystemWrapper.propagateFSError(e);
+        throw HadoopFileSystemWrapper.propagateFSError(e);
       }
       reader = null;
     }
@@ -231,7 +273,7 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
     if (dataReader != null) {
       if (dataReader.isRemoteRead()) {
         context.getStats().addLongStat(ScanOperator.Metric.NUM_REMOTE_READERS, 1);
-      } else {
+        } else {
         context.getStats().addLongStat(ScanOperator.Metric.NUM_REMOTE_READERS, 0);
       }
       dataReader = null;

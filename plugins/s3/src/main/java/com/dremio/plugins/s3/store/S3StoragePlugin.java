@@ -24,7 +24,10 @@ import static org.apache.hadoop.fs.s3a.Constants.MAX_TOTAL_TASKS;
 import static org.apache.hadoop.fs.s3a.Constants.MULTIPART_SIZE;
 import static org.apache.hadoop.fs.s3a.Constants.SECRET_KEY;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
-import static org.apache.hadoop.fs.s3a.Constants.SESSION_TOKEN;
+
+import static org.apache.hadoop.fs.s3a.Constants.SERVER_SIDE_ENCRYPTION_ALGORITHM;
+import static org.apache.hadoop.fs.s3a.Constants.SERVER_SIDE_ENCRYPTION_KEY;
+
 
 import java.io.IOException;
 import java.net.URI;
@@ -35,8 +38,10 @@ import java.util.Map;
 
 import javax.inject.Provider;
 
-import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider;
 import org.apache.hadoop.fs.s3a.Constants;
+import org.apache.hadoop.fs.s3a.S3AEncryptionMethods;
+import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,13 +54,14 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.io.file.FileSystem;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 /**
  * S3 Extension of FileSystemStoragePlugin
@@ -70,10 +76,15 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
    */
   public static final int DEFAULT_MAX_CONNECTIONS = 1000;
   public static final String EXTERNAL_BUCKETS = "dremio.s3.external.buckets";
-  public static final String ACCESS_KEY_PROVIDER = "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider";
-  public static final String EC2_METADATA_PROVIDER = "org.apache.hadoop.fs.s3a.SharedInstanceProfileCredentialsProvider";
-  public static final String NONE_PROVIDER = "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider";
-  public static final String TEMP_PROVIDER = "org.apache.hadoop.fs.s3a.TemporaryAWSCredentialsProvider";
+
+  public static final String WHITELISTED_BUCKETS = "dremio.s3.whitelisted.buckets";
+
+  // AWS Credential providers
+  public static final String ACCESS_KEY_PROVIDER = SimpleAWSCredentialsProvider.NAME;
+  public static final String EC2_METADATA_PROVIDER = "com.amazonaws.auth.InstanceProfileCredentialsProvider";
+  public static final String NONE_PROVIDER = AnonymousAWSCredentialsProvider.NAME;
+  public static final String ASSUME_ROLE_PROVIDER = "com.dremio.plugins.s3.store.STSCredentialProviderV1";
+
 
   public S3StoragePlugin(S3PluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
@@ -83,7 +94,7 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
   protected List<Property> getProperties() {
     final S3PluginConfig config = getConfig();
     final List<Property> finalProperties = new ArrayList<>();
-    finalProperties.add(new Property(FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3:///"));
+    finalProperties.add(new Property(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3:///"));
     finalProperties.add(new Property("fs.dremioS3.impl", S3FileSystem.class.getName()));
     finalProperties.add(new Property(MAXIMUM_CONNECTIONS, String.valueOf(DEFAULT_MAX_CONNECTIONS)));
     finalProperties.add(new Property(FAST_UPLOAD, "true"));
@@ -104,6 +115,8 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
       finalProperties.add(new Property(S3FileSystem.COMPATIBILITY_MODE, "true"));
     }
 
+    String mainAWSCredProvider;
+
     switch (config.credentialType) {
       case ACCESS_KEY:
         if (("".equals(config.accessKey)) || ("".equals(config.accessSecret))) {
@@ -111,13 +124,12 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
             .message("Failure creating S3 connection. You must provide AWS Access Key and AWS Access Secret.")
             .build(logger);
         }
+        mainAWSCredProvider = ACCESS_KEY_PROVIDER;
         finalProperties.add(new Property(ACCESS_KEY, config.accessKey));
         finalProperties.add(new Property(SECRET_KEY, config.accessSecret));
-        finalProperties.add(new Property(SESSION_TOKEN, config.accessToken));
-        finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, TEMP_PROVIDER));
         break;
       case EC2_METADATA:
-        finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, EC2_METADATA_PROVIDER));
+        mainAWSCredProvider = EC2_METADATA_PROVIDER;
         break;
       case TEMP_CREDENTIALS:
         if (!("".equals(config.accessKey))) {
@@ -128,11 +140,19 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
         finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, TEMP_PROVIDER));
         break;
       case NONE:
-        finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, NONE_PROVIDER));
+        mainAWSCredProvider = NONE_PROVIDER;
         break;
       default:
         throw new RuntimeException("Failure creating S3 connection. Invalid credentials type.");
     }
+
+    if (!Strings.isNullOrEmpty(config.assumedRoleARN) && !NONE_PROVIDER.equals(mainAWSCredProvider)) {
+      finalProperties.add(new Property(Constants.ASSUMED_ROLE_ARN, config.assumedRoleARN));
+      finalProperties.add(new Property(Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER, mainAWSCredProvider));
+      mainAWSCredProvider = ASSUME_ROLE_PROVIDER;
+    }
+
+    finalProperties.add(new Property(Constants.AWS_CREDENTIALS_PROVIDER, mainAWSCredProvider));
 
     final List<Property> propertyList = super.getProperties();
     if (propertyList != null && !propertyList.isEmpty()) {
@@ -148,6 +168,16 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
           .message("Failure creating S3 connection. You must provide one or more external buckets when you choose no authentication.")
           .build(logger);
       }
+    }
+
+    if (config.whitelistedBuckets != null && !config.whitelistedBuckets.isEmpty()) {
+      finalProperties.add(new Property(WHITELISTED_BUCKETS, Joiner.on(",").join(config.whitelistedBuckets)));
+    }
+
+    if (!Strings.isNullOrEmpty(config.kmsKeyARN)) {
+      finalProperties.add(new Property(SERVER_SIDE_ENCRYPTION_KEY, config.kmsKeyARN));
+      finalProperties.add(new Property(SERVER_SIDE_ENCRYPTION_ALGORITHM, S3AEncryptionMethods.SSE_KMS.getMethod()));
+      finalProperties.add(new Property(SECURE_CONNECTIONS, Boolean.TRUE.toString()));
     }
 
     return finalProperties;
@@ -185,11 +215,11 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
 
   private void ensureDefaultName() throws IOException {
     String urlSafeName = URLEncoder.encode(getName(), "UTF-8");
-    getFsConf().set(FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3://" + urlSafeName);
+    getFsConf().set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, "dremioS3://" + urlSafeName);
     // we create a new fs wrapper since we are calling initialize on it
-    final FileSystemWrapper fs = createFS(SYSTEM_USERNAME);
+    final FileSystem fs = createFS(SYSTEM_USERNAME);
     // do not use fs.getURI() or fs.getConf() directly as they will produce wrong results
-    fs.initialize(URI.create(getFsConf().get(FileSystem.FS_DEFAULT_NAME_KEY)), getFsConf());
+    fs.unwrap(org.apache.hadoop.fs.FileSystem.class).initialize(URI.create(getFsConf().get(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY)), getFsConf());
   }
 
   @Override
@@ -214,12 +244,6 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     if (!fs.containerExists(containerName)) {
       throw UserException.validationError()
           .message("Cannot create the table because '%s' bucket does not exist", containerName)
-          .build(logger);
-    }
-
-    if (!fs.mayHaveWritePermission(containerName)) {
-      throw UserException.validationError()
-          .message("No write permission to '%s' bucket", containerName)
           .build(logger);
     }
 

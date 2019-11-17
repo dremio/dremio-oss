@@ -17,24 +17,10 @@ package com.dremio;
 
 import java.util.regex.Pattern;
 
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
-
-import com.dremio.exec.planner.physical.PlannerSettings;
 
 public class TestTransitiveJoin extends PlanTestBase {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestTransitiveJoin.class);
-
-  @Before
-  public void setupOptions() throws Exception {
-    setSessionOption(PlannerSettings.TRANSITIVE_JOIN, "true");
-  }
-
-  @After
-  public void resetOptions() throws Exception {
-    resetSessionOption(PlannerSettings.TRANSITIVE_JOIN);
-  }
 
   @Test
   public void testTransitiveJoin() throws Exception {

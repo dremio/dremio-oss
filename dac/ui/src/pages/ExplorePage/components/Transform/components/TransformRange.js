@@ -20,7 +20,7 @@ import d3 from 'd3';
 import moment from 'moment';
 
 import Checkbox from 'components/Fields/Checkbox';
-import { isDateType, dateTypeToFormat, convertToUnix } from 'constants/DataTypes';
+import { isDateType, dateTypeToFormat, convertToUnix } from '@app/constants/DataTypes';
 import { isEmptyValue } from 'utils/validation';
 
 import TransformRangeBound from './TransformRangeBound';

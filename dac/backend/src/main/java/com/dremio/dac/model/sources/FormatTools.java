@@ -15,7 +15,11 @@
  */
 package com.dremio.dac.model.sources;
 
+import static com.dremio.io.file.PathFilters.NO_HIDDEN_FILES;
+
 import java.io.IOException;
+import java.nio.file.DirectoryIteratorException;
+import java.nio.file.DirectoryStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,9 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import javax.inject.Inject;
 import javax.ws.rs.core.SecurityContext;
@@ -34,8 +36,6 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.SchemaChangeCallBack;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
@@ -60,10 +60,13 @@ import com.dremio.exec.store.dfs.FileCountTooLargeException;
 import com.dremio.exec.store.dfs.FileDatasetHandle;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.FormatPlugin;
 import com.dremio.exec.store.dfs.PhysicalDatasetUtils;
-import com.dremio.exec.store.dfs.RemoteIteratorWrapper;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.FileSystemUtils;
+import com.dremio.io.file.FilterDirectoryStream;
+import com.dremio.io.file.Path;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
@@ -83,6 +86,7 @@ import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.physicaldataset.proto.PhysicalDatasetConfig;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Iterators;
 
 /**
  * A resource focused on guessing, previewing and applying formats to files and folders.
@@ -170,14 +174,21 @@ public class FormatTools {
   }
 
   private FileFormat detectFileFormat(NamespaceKey key) {
-    final FileSystemPlugin plugin = getPlugin(key);
-    final FileSystemWrapper fs = plugin.createFS(securityContext.getUserPrincipal().getName());
+    final FileSystemPlugin<?> plugin = getPlugin(key);
+    FileSystem fs;
+    try {
+      fs = plugin.createFS(securityContext.getUserPrincipal().getName());
+    } catch (IOException ex) {
+      throw UserException.ioExceptionError(ex)
+        .message("Unable to read file with selected format.")
+        .build(logger);
+    }
     final Path path = FileSelection.getPathBasedOnFullPath(plugin.resolveTableNameToValidPath(key.getPathComponents()));
 
     // for now, existing rudimentary behavior that uses extension detection.
-    final FileStatus status;
+    final FileAttributes attributes;
     try {
-      status = fs.getFileStatus(path);
+      attributes = fs.getFileAttributes(path);
     } catch(IOException ex) {
       // we could return unknown but if there no files, what's the point.
       throw UserException.ioExceptionError(ex)
@@ -185,16 +196,14 @@ public class FormatTools {
         .build(logger);
     }
 
-    if(status.isFile()) {
+    if(attributes.isRegularFile()) {
       return asFormat(key, path, false);
     }
 
     // was something other than file.
-    try {
-      Iterator<FileStatus> iter = getFilesForFormatting(fs, path);
-      while(iter.hasNext()) {
-        FileStatus child = iter.next();
-        if(!child.isFile()) {
+    try (DirectoryStream<FileAttributes> files = getFilesForFormatting(fs, path)) {
+      for (FileAttributes child: files) {
+        if(!child.isRegularFile()) {
           continue;
         }
 
@@ -203,8 +212,12 @@ public class FormatTools {
 
       // if we fall through, we didn't find any files.
       throw UserException.ioExceptionError()
-      .message("No files were found.")
-      .build(logger);
+        .message("No files were found.")
+        .build(logger);
+    } catch (DirectoryIteratorException ex) {
+      throw UserException.ioExceptionError(ex.getCause())
+        .message("Unable to read file with selected format.")
+        .build(logger);
     } catch (IOException ex) {
       throw UserException.ioExceptionError(ex)
         .message("Unable to read file with selected format.")
@@ -213,17 +226,20 @@ public class FormatTools {
     }
   }
 
-  private Iterator<FileStatus> getFilesForFormatting(FileSystemWrapper fs, Path path) throws IOException, FileCountTooLargeException {
+  private DirectoryStream<FileAttributes> getFilesForFormatting(FileSystem fs, Path path) throws IOException, FileCountTooLargeException {
     final int maxFilesLimit = FileDatasetHandle.getMaxFilesLimit(context);
 
-    final Iterator<FileStatus> baseIterator = new RemoteIteratorWrapper<>(fs.getListRecursiveIterator(path, false));
+    final DirectoryStream<FileAttributes> baseIterator = FileSystemUtils.listRecursive(fs, path, NO_HIDDEN_FILES);
     if (maxFilesLimit <= 0) {
       return baseIterator;
     }
-    final Iterable<FileStatus> iterable = () -> baseIterator;
-    return StreamSupport.stream(iterable.spliterator(), false)
-      .limit(maxFilesLimit)
-      .iterator();
+
+    return new FilterDirectoryStream<FileAttributes>(baseIterator) {
+      @Override
+      public Iterator<FileAttributes> iterator() {
+        return Iterators.limit(super.iterator(), maxFilesLimit);
+      }
+    };
   }
 
   private static FileFormat asFormat(NamespaceKey key, Path path, boolean isFolder) {
@@ -248,14 +264,19 @@ public class FormatTools {
 
   public JobDataFragment previewData(FileFormat format, NamespacePath namespacePath, boolean useFormatLocation) {
     final NamespaceKey key = namespacePath.toNamespaceKey();
-    final FileSystemPlugin plugin = getPlugin(key);
-    final FileSystemWrapper fs = plugin.createFS(securityContext.getUserPrincipal().getName());
+    final FileSystemPlugin<?> plugin = getPlugin(key);
+    FileSystem fs;
+    try {
+      fs = plugin.createFS(securityContext.getUserPrincipal().getName());
+    } catch (IOException ex) {
+      throw new IllegalStateException("No files detected or unable to read data.", ex);
+    }
     final Path path = FileSelection.getPathBasedOnFullPath(plugin.resolveTableNameToValidPath(key.getPathComponents()));
 
     // for now, existing rudimentary behavior that uses extension detection.
-    final FileStatus status;
+    final FileAttributes attributes;
     try {
-      status = fs.getFileStatus(path);
+      attributes = fs.getFileAttributes(path);
     } catch(IOException ex) {
       // we could return unknown but if there no files, what's the point.
       throw new IllegalStateException("No files detected or unable to read data.", ex);
@@ -263,26 +284,27 @@ public class FormatTools {
 
     try {
 
-      if(status.isFile()) {
-        return getData(format, plugin, fs, new NextableSingleton<>(status));
+      if(attributes.isRegularFile()) {
+        return getData(format, plugin, fs, Collections.singleton(attributes).iterator());
       }
 
-      Iterator<FileStatus> iter = getFilesForFormatting(fs, path);
-      return getData(
-          format,
-          plugin,
-          fs,
-          new PredicateNextable<>(
-              () -> iter.hasNext() ? iter.next() : null,
-              f -> f.isFile()
-              )
-          );
+      try(DirectoryStream<FileAttributes> files = getFilesForFormatting(fs, path)) {
+        Iterator<FileAttributes> iter = files.iterator();
+        return getData(
+            format,
+            plugin,
+            fs,
+            Iterators.filter(iter, FileAttributes::isRegularFile)
+            );
+      }
+    } catch (DirectoryIteratorException ex) {
+      throw new RuntimeException(ex.getCause());
     } catch (Exception ex) {
       throw Throwables.propagate(ex);
     }
   }
 
-  private JobDataFragment getData(FileFormat format, FileSystemPlugin plugin, FileSystemWrapper filesystem, Nextable<? extends FileStatus> files) throws Exception {
+  private JobDataFragment getData(FileFormat format, FileSystemPlugin<?> plugin, FileSystem filesystem, Iterator<FileAttributes> files) throws Exception {
 
     final int minRecords = (int) context.getOptionManager().getOption(MIN_RECORDS);
     final long maxReadTime = context.getOptionManager().getOption(MAX_READTIME_MS);
@@ -318,16 +340,15 @@ public class FormatTools {
           records < targetRecords
           && !(records > minRecords && timer.elapsed(TimeUnit.MILLISECONDS) > maxReadTime)
           ) { // loop for each record reader.
-        FileStatus status = files.next();
-        if(status == null) {
+        if (!files.hasNext()) {
           break;
         }
-
+        FileAttributes attributes = files.next();
 
         try (
           // Reader can be closed since data that we're using will be transferred to allocator owned by us
           // when added to RecordBatchData.
-          RecordReader reader = formatPlugin.getRecordReader(opCtxt, filesystem, status)) {
+          RecordReader reader = formatPlugin.getRecordReader(opCtxt, filesystem, attributes)) {
 
           reader.setup(mutator);
 
@@ -431,65 +452,14 @@ public class FormatTools {
     }
   }
 
-  private final FileSystemPlugin getPlugin(NamespaceKey key) {
+  private final FileSystemPlugin<?> getPlugin(NamespaceKey key) {
     StoragePlugin plugin = catalogService.getSource(key.getRoot());
     if(plugin instanceof FileSystemPlugin) {
-      return (FileSystemPlugin) plugin;
+      return (FileSystemPlugin<?>) plugin;
     } else {
       throw UserException.validationError()
         .message("Source identified was invalid type. Only sources that can contain files or folders can detect a format.")
         .build(logger);
     }
   }
-
-  private interface Nextable<T> {
-    T next() throws IOException;
-  }
-
-  private static class PredicateNextable<T> implements Nextable<T> {
-
-    private final Nextable<T> delegate;
-    private final Predicate<T> predicate;
-
-    public PredicateNextable(Nextable<T> delegate, Predicate<T> predicate) {
-      super();
-      this.delegate = delegate;
-      this.predicate = predicate;
-    }
-
-    @Override
-    public T next() throws IOException {
-
-      T next = delegate.next();
-      while(next != null) {
-        if(predicate.test(next)) {
-          return next;
-        } else {
-          next = delegate.next();
-        }
-      }
-
-      return null;
-    }
-
-  }
-
-  private static class NextableSingleton<T> implements Nextable<T> {
-
-    public NextableSingleton(T singleValue) {
-      super();
-      this.singleValue = singleValue;
-    }
-
-    private T singleValue;
-
-    @Override
-    public T next() throws IOException {
-      T tmp = singleValue;
-      singleValue = null;
-      return tmp;
-    }
-
-  }
-
 }

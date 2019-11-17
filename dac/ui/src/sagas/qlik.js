@@ -16,7 +16,7 @@
 import { call, put, takeEvery, select, race, take } from 'redux-saga/effects';
 import qsocks from 'qsocks';
 
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 
 import * as Actions from 'actions/explore/download';
@@ -80,7 +80,7 @@ function doesDocumentExist(docName, docList) {
 
 export function santizeAppName(name) {
   // qlik app names cannot contain certain chars
-  return name.replace(/[\/\"\\\*\:\>\<]+/g, '_');
+  return name.replace(/[/"\\*:><]+/g, '_');
 }
 
 export function getUniqueAppName(docName, docList) {

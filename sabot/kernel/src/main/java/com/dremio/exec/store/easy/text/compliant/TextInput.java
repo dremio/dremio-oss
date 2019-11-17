@@ -33,19 +33,15 @@ package com.dremio.exec.store.easy.text.compliant;
 
 import java.io.EOFException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 
 import org.apache.arrow.memory.BoundsChecking;
 import org.apache.commons.io.ByteOrderMark;
-import org.apache.hadoop.fs.ByteBufferReadable;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.Seekable;
-import org.apache.hadoop.io.compress.CompressionInputStream;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.io.CompressedFSInputStream;
+import com.dremio.io.FSInputStream;
 import com.google.common.base.Preconditions;
-import com.univocity.parsers.common.Format;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
@@ -73,16 +69,12 @@ final class TextInput {
 
   private long streamPos;
 
-  private final Seekable seekable;
-  private final FSDataInputStream inputFS;
-  private final InputStream input;
+  private final FSInputStream input;
 
   private final ArrowBuf buffer;
   private final ByteBuffer underlyingBuffer;
   private final long bStart;
   private final long bStartMinus1;
-
-  private final boolean bufferReadable;
 
   /**
    * Whether there was a possible partial line separator on the previous
@@ -107,11 +99,10 @@ final class TextInput {
    * lineSeparator the sequence of characters that represent a newline, as defined in {@link Format#getLineSeparator()}
    * normalizedLineSeparator the normalized newline character (as defined in {@link Format#getNormalizedNewline()}) that is used to replace any lineSeparator sequence found in the input.
    */
-  public TextInput(TextParsingSettings settings, InputStream input, ArrowBuf readBuffer, long startPos, long endPos) {
+  public TextInput(TextParsingSettings settings, FSInputStream input, ArrowBuf readBuffer, long startPos, long endPos) {
     this.lineSeparator = settings.getNewLineDelimiter();
     byte normalizedLineSeparator = settings.getNormalizedNewLine();
-    Preconditions.checkArgument(input instanceof Seekable, "Text input only supports an InputStream that supports Seekable.");
-    boolean isCompressed = input instanceof CompressionInputStream ;
+    boolean isCompressed = input instanceof CompressedFSInputStream ;
     Preconditions.checkArgument(!isCompressed || startPos == 0, "Cannot use split on compressed stream.");
 
     // splits aren't allowed with compressed data.  The split length will be the compressed size which means we'll normally end prematurely.
@@ -120,16 +111,7 @@ final class TextInput {
     }
 
     this.input = input;
-    this.seekable = (Seekable) input;
     this.settings = settings;
-
-    if(input instanceof FSDataInputStream){
-      this.inputFS = (FSDataInputStream) input;
-      this.bufferReadable = inputFS.getWrappedStream() instanceof ByteBufferReadable;
-    }else{
-      this.inputFS = null;
-      this.bufferReadable = false;
-    }
 
     this.startPos = startPos;
     this.endPos = endPos;
@@ -150,7 +132,7 @@ final class TextInput {
   final void start() throws IOException {
     lineCount = 0;
     if(startPos > 0) {
-      seekable.seek(startPos);
+      input.setPosition(startPos);
     }
 
     updateBuffer();
@@ -191,29 +173,13 @@ final class TextInput {
    * @throws IOException
    */
   private void read() throws IOException {
-    if(bufferReadable){
-
-      if(remByte != -1){
-        for (int i = 0; i <= remByte; i++) {
-          underlyingBuffer.put(lineSeparator[i]);
-        }
-        remByte = -1;
+    if(remByte != -1){
+      for (int i = 0; i <= remByte; i++) {
+        underlyingBuffer.put(lineSeparator[i]);
       }
-      length = inputFS.read(underlyingBuffer);
-
-    }else{
-
-      byte[] b = new byte[underlyingBuffer.capacity()];
-      if(remByte != -1){
-        int remBytesNum = remByte + 1;
-        System.arraycopy(lineSeparator, 0, b, 0, remBytesNum);
-        length = input.read(b, remBytesNum, b.length - remBytesNum);
-        remByte = -1;
-      }else{
-        length = input.read(b);
-      }
-      underlyingBuffer.put(b);
+      remByte = -1;
     }
+    length = input.read(underlyingBuffer);
   }
 
 
@@ -222,7 +188,7 @@ final class TextInput {
    * @throws IOException
    */
   private void updateBuffer() throws IOException {
-    streamPos = seekable.getPos();
+    streamPos = input.getPosition();
     underlyingBuffer.clear();
 
     if(endFound || streamPos > endPos){

@@ -20,7 +20,7 @@ import Immutable from 'immutable';
 import Radium from 'radium';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
-import { TEXT, LIST } from 'constants/DataTypes';
+import { TEXT, LIST } from '@app/constants/DataTypes';
 import exploreUtils from 'utils/explore/exploreUtils';
 import { CELL_EXPANSION_HEADER } from 'uiTheme/radium/colors';
 import { withLocation } from 'containers/dremioLocation';

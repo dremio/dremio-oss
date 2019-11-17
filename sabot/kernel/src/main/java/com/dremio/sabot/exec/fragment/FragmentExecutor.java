@@ -18,13 +18,11 @@ package com.dremio.sabot.exec.fragment;
 import static com.dremio.sabot.exec.fragment.FragmentExecutorBuilder.PIPELINE_RES_GRP;
 import static com.dremio.sabot.exec.fragment.FragmentExecutorBuilder.WORK_QUEUE_RES_GRP;
 
-import java.security.PrivilegedAction;
 import java.security.PrivilegedExceptionAction;
 import java.util.Optional;
 import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.common.DeferredException;
 import com.dremio.common.ProcessExit;
@@ -46,13 +44,10 @@ import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.testing.ExecutionControls;
-import com.dremio.exec.util.ImpersonationUtil;
 import com.dremio.options.OptionManager;
-import com.dremio.sabot.driver.OperatorCreator;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.driver.Pipeline;
 import com.dremio.sabot.driver.PipelineCreator;
-import com.dremio.sabot.driver.UserDelegatingOperatorCreator;
 import com.dremio.sabot.exec.EventProvider;
 import com.dremio.sabot.exec.FragmentTicket;
 import com.dremio.sabot.exec.StateTransitionException;
@@ -104,7 +99,6 @@ public class FragmentExecutor {
   private final DeferredException deferredException;
 
   private final PlanFragmentFull fragment;
-  private final UserGroupInformation queryUserUgi;
   private final ClusterCoordinator clusterCoordinator;
   private final CachedFragmentReader reader;
   private final SharedResourceManager sharedResources;
@@ -172,7 +166,6 @@ public class FragmentExecutor {
       SpillService spillService) {
     super();
     this.name = QueryIdHelper.getExecutorThreadName(fragment.getHandle());
-    this.queryUserUgi = ImpersonationUtil.createProxyUgi(fragment.getMajor().getCredentials().getUserName());
     this.statusReporter = statusReporter;
     this.fragment = fragment;
     this.clusterCoordinator = clusterCoordinator;
@@ -237,7 +230,7 @@ public class FragmentExecutor {
       }
 
       // if cancellation is requested, that is always the top priority.
-      if (eventProvider.isCancelled()) {
+      if (cancelled.isDone()) {
         Optional<Throwable> failedReason = eventProvider.getFailedReason();
         if (failedReason.isPresent()) {
           // check if it was failed due to an external reason (eg. by heap monitor).
@@ -277,8 +270,7 @@ public class FragmentExecutor {
       }
 
       // pump the pipeline
-      // TODO: look at whether the doAs here is actually necessary.
-      taskState = queryUserUgi.doAs(pumper);
+      taskState = pumper.run();
 
       // if we've finished all work, let's wrap up.
       if(taskState == State.DONE){
@@ -362,7 +354,6 @@ public class FragmentExecutor {
     contextCreator.setFragmentOutputAllocator(outputAllocator);
 
     final PhysicalOperator rootOperator = reader.readFragment(fragment);
-    final OperatorCreator operatorCreator = new UserDelegatingOperatorCreator(contextInfo.getQueryUser(), opCreator);
     FunctionLookupContext functionLookupContextToUse = functionLookupContext;
     if (fragmentOptions.getOption(PlannerSettings.ENABLE_DECIMAL_V2)) {
       functionLookupContextToUse = decimalFunctionLookupContext;
@@ -370,7 +361,7 @@ public class FragmentExecutor {
     pipeline = PipelineCreator.get(
         new FragmentExecutionContext(major.getForeman(), sources, cancelled),
         buffers,
-        operatorCreator,
+        opCreator,
         contextCreator,
         functionLookupContextToUse,
         rootOperator,
@@ -620,7 +611,6 @@ public class FragmentExecutor {
     public void handle(OutOfBandMessage message) {
       requestActivate("out of band message");
       workQueue.put(() -> {
-        queryUserUgi.doAs((PrivilegedAction<Void>) () -> {
           try {
             if (!isSetup) {
               if (message.getIsOptional()) {
@@ -640,9 +630,6 @@ public class FragmentExecutor {
             //propagate the exception
             throw e;
           }
-
-          return null;
-        });
       });
     }
 

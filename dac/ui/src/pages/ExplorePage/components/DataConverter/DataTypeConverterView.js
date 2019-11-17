@@ -27,7 +27,7 @@ import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 import { formLabel } from 'uiTheme/radium/typography';
 
 import classNames from 'classnames';
-import { typeToIconType, BINARY, TEXT, INTEGER, FLOAT, DECIMAL, LIST, DATE, TIME, DATETIME, MAP, BOOLEAN } from 'constants/DataTypes';
+import { typeToIconType, BINARY, TEXT, INTEGER, FLOAT, DECIMAL, LIST, DATE, TIME, DATETIME, MAP, BOOLEAN } from '@app/constants/DataTypes';
 import SimpleButton from 'components/Buttons/SimpleButton';
 import {
   NoParamToBinary,

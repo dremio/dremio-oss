@@ -90,7 +90,7 @@ export default class AccelerationAggregation extends Component {
           reflections={reflections}
           layoutFields={aggregationReflections}
           activeTab='aggregation'
-          />
+        />
       </div>
     );
   }

@@ -73,7 +73,7 @@ class ExploreDragArea extends Component {
           <div ref={(wrapper) => {
             this.wrapper = wrapper;
           }}
-            className={dragContentCls} style={[dragAreaStyle, dragContentStyle]}>
+          className={dragContentCls} style={[dragAreaStyle, dragContentStyle]}>
             <div style={[columnStyle]}>
               {isEmpty ? this.renderEmpty() : children}
             </div>

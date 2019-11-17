@@ -16,8 +16,6 @@
 package com.dremio.plugins.s3.store;
 
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -25,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.reactivestreams.Subscriber;
 import org.reactivestreams.Subscription;
 
-import com.dremio.exec.store.dfs.async.AsyncByteReader;
+import com.dremio.io.AsyncByteReader;
 import com.google.common.base.Stopwatch;
 
 import io.netty.buffer.ByteBuf;
@@ -80,11 +78,6 @@ class S3AsyncByteReader implements AsyncByteReader {
       // exception
       logger.warn("Async read of {}.{} for length {} failed in {}ms when there are {} outstanding reads. Error {}", bucket, path, len, w.elapsed(TimeUnit.MILLISECONDS), numOutstanding, b);
     });
-  }
-
-  @Override
-  public List<ReaderStat> getStats() {
-    return new ArrayList<>();
   }
 
   /**

@@ -143,6 +143,7 @@ message QueryContextInformation {
   optional FragmentPriority priority = 4;
   optional int64 query_max_allocation = 5;
   optional bytes extra = 6;
+  optional exec.shared.QueryId last_query_id = 7;
 }
 
 message NodeQueryStatus {

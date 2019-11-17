@@ -18,6 +18,8 @@ package com.dremio.exec.util;
 import static java.lang.String.format;
 
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.DirectoryStream;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +27,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -40,24 +43,25 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.GlobFilter;
-import org.apache.hadoop.fs.Path;
 import org.apache.parquet.column.ColumnDescriptor;
 import org.apache.parquet.column.Dictionary;
+import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.io.api.Binary;
 
 import com.dremio.common.VM;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.cache.VectorAccessibleSerializable;
+import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.WritableBatch;
+import com.dremio.io.FSInputStream;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
+import com.dremio.io.file.PathFilters;
 import com.dremio.parquet.reader.ParquetDirectByteBufferAllocator;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -80,26 +84,16 @@ import com.google.common.collect.Sets;
 
 public class GlobalDictionaryBuilder {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(GlobalDictionaryBuilder.class);
-  private static GlobFilter PARQUET_FILES_FILTER;
+  private static final Predicate<Path> PARQUET_FILES_FILTER = PathFilters.endsWith(".parquet");
 
   public static final String DICTIONARY_TEMP_ROOT_PREFIX = "_tmp_dicts"; // dictionaries in flight
   public static final String DICTIONARY_ROOT_PREFIX = "_dicts"; // dictionaries
-  public static Pattern DICTIONARY_VERSION_PATTERN = Pattern.compile("^" + DICTIONARY_ROOT_PREFIX + "(\\d+)+$");
-  public static GlobFilter DICTIONARY_ROOT_FILTER;
+  public static final Pattern DICTIONARY_VERSION_PATTERN = Pattern.compile("^" + DICTIONARY_ROOT_PREFIX + "(\\d+)+$");
+  public static final Predicate<Path> DICTIONARY_ROOT_FILTER = PathFilters.startsWith(DICTIONARY_ROOT_PREFIX);
 
   public static final String DICTIONARY_FILES_EXTENSION = "dict";
-  public static GlobFilter DICTIONARY_FILES_FILTER;
-  public static Pattern DICTIONARY_FILES_PATTERN = Pattern.compile("_(.*?)." + DICTIONARY_FILES_EXTENSION);
-
-  static {
-    try {
-      DICTIONARY_FILES_FILTER = new GlobFilter("_*." + DICTIONARY_FILES_EXTENSION);
-      DICTIONARY_ROOT_FILTER = new GlobFilter(DICTIONARY_ROOT_PREFIX + "*");
-      PARQUET_FILES_FILTER = new GlobFilter("*.parquet");
-    } catch (IOException e) {
-      throw new ExceptionInInitializerError(e);
-    }
-  }
+  public static final Predicate<Path> DICTIONARY_FILES_FILTER = PathFilters.endsWith("." + DICTIONARY_FILES_EXTENSION);
+  public static final Pattern DICTIONARY_FILES_PATTERN = Pattern.compile("_(.*?)." + DICTIONARY_FILES_EXTENSION);
 
   public static String dictionaryFileName(String columnFullPath) {
     return format("_%s.%s", columnFullPath, DICTIONARY_FILES_EXTENSION);
@@ -110,11 +104,11 @@ public class GlobalDictionaryBuilder {
   }
 
   public static Path dictionaryFilePath(Path dictionaryRootDir, String columnFullPath) {
-    return new Path(dictionaryRootDir, dictionaryFileName(columnFullPath));
+    return dictionaryRootDir.resolve(dictionaryFileName(columnFullPath));
   }
 
   public static Path dictionaryFilePath(Path dictionaryRootDir, ColumnDescriptor columnDescriptor) {
-    return new Path(dictionaryRootDir, dictionaryFileName(columnDescriptor));
+    return dictionaryRootDir.resolve(dictionaryFileName(columnDescriptor));
   }
 
   public static String getColumnFullPath(String dictionaryFileName) {
@@ -132,19 +126,23 @@ public class GlobalDictionaryBuilder {
    * @throws IOException
    */
   public static long getDictionaryVersion(FileSystem fs, Path tableDir) throws IOException {
-    final FileStatus[] statuses = fs.listStatus(tableDir, DICTIONARY_ROOT_FILTER);
     long maxVersion = -1;
-    for (FileStatus status : statuses) {
-      if (status.isDirectory()) {
-        Matcher matcher = DICTIONARY_VERSION_PATTERN.matcher(status.getPath().getName());
-        if (matcher.find()) {
-          try {
-            final long version = Long.parseLong(matcher.group(1));
-            if (version > maxVersion) {
-              maxVersion = version;
-            }
-          } catch (NumberFormatException nfe) {
+    try (DirectoryStream<FileAttributes> stream = fs.list(tableDir, DICTIONARY_ROOT_FILTER)) {
+      for (FileAttributes attributes : stream) {
+        if (!attributes.isDirectory()) {
+          continue;
+        }
+        Matcher matcher = DICTIONARY_VERSION_PATTERN.matcher(attributes.getPath().getName());
+        if (!matcher.find()) {
+          continue;
+        }
+
+        try {
+          final long version = Long.parseLong(matcher.group(1));
+          if (version > maxVersion) {
+            maxVersion = version;
           }
+        } catch (NumberFormatException nfe) {
         }
       }
     }
@@ -156,7 +154,7 @@ public class GlobalDictionaryBuilder {
   }
 
   public static Path getDictionaryVersionedRootPath(FileSystem fs, Path tableDir, long version) throws IOException {
-    final Path dictionaryRootDir = new Path(tableDir, dictionaryRootDirName(version));
+    final Path dictionaryRootDir = tableDir.resolve(dictionaryRootDirName(version));
     if (version != -1 && fs.exists(dictionaryRootDir) && fs.isDirectory(dictionaryRootDir)) {
       return dictionaryRootDir;
     }
@@ -164,13 +162,13 @@ public class GlobalDictionaryBuilder {
   }
 
   private static Path createTempRootDir(FileSystem fs, Path tableDir, long version) throws IOException {
-    final Path tmpPath = new Path(tableDir, format("%s%d_%s", DICTIONARY_TEMP_ROOT_PREFIX, version, UUID.randomUUID().toString()));
+    final Path tmpPath = tableDir.resolve(format("%s%d_%s", DICTIONARY_TEMP_ROOT_PREFIX, version, UUID.randomUUID().toString()));
     fs.mkdirs(tmpPath);
     return tmpPath;
   }
 
   public static Path createDictionaryVersionedRootPath(FileSystem fs, Path tableDir, long nextVersion, Path tmpDictionaryRootPath) throws IOException {
-    final Path dictionaryRootDir = new Path(tableDir, dictionaryRootDirName(nextVersion));
+    final Path dictionaryRootDir = tableDir.resolve(dictionaryRootDirName(nextVersion));
     if (fs.exists(dictionaryRootDir)) {
       throw new IOException(format("Dictionary already exists for version: %d, path: %s", nextVersion, dictionaryRootDir));
     }
@@ -186,7 +184,7 @@ public class GlobalDictionaryBuilder {
 
 
   public static Path getDictionaryFile(FileSystem fs, Path dictRootDir, String columnFullPath) throws IOException {
-    Path f = new Path(dictRootDir, dictionaryFileName(columnFullPath));
+    Path f = dictRootDir.resolve(dictionaryFileName(columnFullPath));
     if (fs.exists(f)) {
       return f;
     }
@@ -203,8 +201,10 @@ public class GlobalDictionaryBuilder {
 
   public static Map<String, Path> listDictionaryFiles(FileSystem fs, Path dictRootDir) throws IOException {
     final Map<String, Path> files = Maps.newHashMap();
-    for (FileStatus fileStatus : fs.listStatus(dictRootDir, DICTIONARY_FILES_FILTER)) {
-      files.put(getColumnFullPath(fileStatus.getPath().getName()), fileStatus.getPath());
+    try(DirectoryStream<FileAttributes> stream = fs.list(dictRootDir, DICTIONARY_FILES_FILTER)) {
+      for (FileAttributes fileAttributes : stream) {
+        files.put(getColumnFullPath(fileAttributes.getPath().getName()), fileAttributes.getPath());
+      }
     }
     return files;
   }
@@ -227,7 +227,7 @@ public class GlobalDictionaryBuilder {
                                                Path dictionaryFile,
                                                BufferAllocator bufferAllocator) throws IOException {
     final VectorAccessibleSerializable vectorAccessibleSerializable = new VectorAccessibleSerializable(bufferAllocator);
-    try (final FSDataInputStream in = fs.open(dictionaryFile)) {
+    try (final FSInputStream in = fs.open(dictionaryFile)) {
       vectorAccessibleSerializable.readFromStream(in);
       return vectorAccessibleSerializable.get();
     }
@@ -235,6 +235,7 @@ public class GlobalDictionaryBuilder {
 
   /**
    * Updates existing global dictionaries for a parquet table.
+   * @param codecFactory compression codec factory
    * @param fs filesystem
    * @param tableDir root directory for given table that has parquet files
    * @param partitionDir newly added partition directory.
@@ -242,8 +243,7 @@ public class GlobalDictionaryBuilder {
    * @return GlobalDictionariesInfo that has dictionary versiom, root path and columns along with path to dictionary files.
    * @throws IOException
    */
-  public static GlobalDictionariesInfo updateGlobalDictionaries(FileSystem fs, Path tableDir, Path partitionDir, BufferAllocator bufferAllocator) throws IOException {
-    final FileStatus[] statuses = fs.listStatus(partitionDir, PARQUET_FILES_FILTER);
+  public static GlobalDictionariesInfo updateGlobalDictionaries(CompressionCodecFactory codecFactory, FileSystem fs, Path tableDir, Path partitionDir, BufferAllocator bufferAllocator) throws IOException {
     final Map<ColumnDescriptor, Path> globalDictionaries = Maps.newHashMap();
 
     final long dictionaryVersion = getDictionaryVersion(fs, tableDir);
@@ -251,7 +251,10 @@ public class GlobalDictionaryBuilder {
     final Path dictionaryRootDir = getDictionaryVersionedRootPath(fs, tableDir, dictionaryVersion);
     final Path tmpDictionaryRootDir = createTempRootDir(fs, tableDir, nextDictionaryVersion);
 
-    final Map<ColumnDescriptor, List<Dictionary>> allDictionaries = readLocalDictionaries(fs, statuses, bufferAllocator);
+    final Map<ColumnDescriptor, List<Dictionary>> allDictionaries;
+    try (final DirectoryStream<FileAttributes> stream = fs.list(partitionDir, PARQUET_FILES_FILTER)) {
+      allDictionaries = readLocalDictionaries(codecFactory, fs, stream, bufferAllocator);
+    }
 
     for (Map.Entry<ColumnDescriptor, List<Dictionary>> entry : allDictionaries.entrySet()) {
       final ColumnDescriptor columnDescriptor = entry.getKey();
@@ -281,16 +284,21 @@ public class GlobalDictionaryBuilder {
   /**
    * Builds a global dictionary for parquet table for BINARY or FIXED_LEN_BYTE_ARRAY column types.
    * It will remove exiting dictionaries if present and create new ones.
+   * @param codec compression codec factory
    * @param fs filesystem
    * @param tableDir root directory for given table that has parquet files
    * @param bufferAllocator memory allocator
    * @return GlobalDictionariesInfo that has dictionary version, root path and columns along with path to dictionary files.
    * @throws IOException
    */
-  public static GlobalDictionariesInfo createGlobalDictionaries(FileSystem fs, Path tableDir, BufferAllocator bufferAllocator) throws IOException {
-    final FileStatus[] statuses = fs.listStatus(tableDir, PARQUET_FILES_FILTER);
+  public static GlobalDictionariesInfo createGlobalDictionaries(CompressionCodecFactory codecFactory,
+      FileSystem fs, Path tableDir, BufferAllocator bufferAllocator) throws IOException {
     final Map<ColumnDescriptor, Path> globalDictionaries = Maps.newHashMap();
-    final Map<ColumnDescriptor, List<Dictionary>> allDictionaries = readLocalDictionaries(fs, statuses, bufferAllocator);
+    final Map<ColumnDescriptor, List<Dictionary>> allDictionaries;
+    try (final DirectoryStream<FileAttributes> stream = fs.list(tableDir, PARQUET_FILES_FILTER)) {
+      allDictionaries = readLocalDictionaries(codecFactory, fs, stream, bufferAllocator);
+    }
+
     final long dictionaryVersion = getDictionaryVersion(fs, tableDir) + 1;
     final Path tmpDictionaryRootDir = createTempRootDir(fs, tableDir, dictionaryVersion);
     logger.debug("Building global dictionaries for columns {} with version {}", allDictionaries.keySet(), dictionaryVersion);
@@ -307,14 +315,13 @@ public class GlobalDictionaryBuilder {
     return new GlobalDictionariesInfo(globalDictionaries, finalDictionaryRootDir,  dictionaryVersion);
   }
 
-  private static Map<ColumnDescriptor, List<Dictionary>> readLocalDictionaries(FileSystem fs, FileStatus[] statuses, BufferAllocator allocator) throws IOException{
+  private static Map<ColumnDescriptor, List<Dictionary>> readLocalDictionaries(CompressionCodecFactory codecFactory, FileSystem fs, Iterable<FileAttributes> files, BufferAllocator allocator) throws IOException{
     final Set<ColumnDescriptor> columnsToSkip = Sets.newHashSet(); // These columns are not dictionary encoded in at least one file.
     final Map<ColumnDescriptor, List<Dictionary>> allDictionaries = Maps.newHashMap();
-    final CodecFactory codecFactory = CodecFactory.createDirectCodecFactory(fs.getConf(), new ParquetDirectByteBufferAllocator(allocator), 0);
-    for (FileStatus status : statuses) {
-      logger.debug("Scanning file {}", status.getPath());
+    for (FileAttributes fileAttributes : files) {
+      logger.debug("Scanning file {}", fileAttributes.getPath());
       final Pair<Map<ColumnDescriptor, Dictionary>, Set<ColumnDescriptor>> localDictionaries = LocalDictionariesReader.readDictionaries(
-        fs, status.getPath(), codecFactory);
+        fs, fileAttributes.getPath(), codecFactory);
 
       // Skip columns which are not dictionary encoded
       for (ColumnDescriptor skippedColumn : localDictionaries.getRight()) {
@@ -338,7 +345,7 @@ public class GlobalDictionaryBuilder {
 
   private static void createDictionaryFile(FileSystem fs, Path dictionaryFile, ColumnDescriptor columnDescriptor, List<Dictionary> dictionaries,
                                            VectorContainer existingDict, BufferAllocator bufferAllocator) throws IOException {
-    try (final FSDataOutputStream out = fs.create(dictionaryFile, true)) {
+    try (final OutputStream out = fs.create(dictionaryFile, true)) {
       switch (columnDescriptor.getType()) {
         case INT32: {
           try (final VectorContainer dict = buildIntegerGlobalDictionary(dictionaries, existingDict, columnDescriptor, bufferAllocator)) {
@@ -525,7 +532,7 @@ public class GlobalDictionaryBuilder {
   }
 
 
-  public static void writeDictionary(FSDataOutputStream out,
+  public static void writeDictionary(OutputStream out,
                                      VectorAccessible input, int recordCount,
                                      BufferAllocator bufferAllocator) throws IOException {
     final WritableBatch writableBatch = WritableBatch.getBatchNoHVWrap(recordCount, input, false /* isSv2 */);
@@ -535,10 +542,12 @@ public class GlobalDictionaryBuilder {
 
   public static void main(String []args) {
     try (final BufferAllocator bufferAllocator = new RootAllocator(VM.getMaxDirectMemory())) {
-      final Path tableDir  = new Path(args[0]);
-      final FileSystem fs = tableDir.getFileSystem(new Configuration());
+      final Path tableDir  = Path.of(args[0]);
+      final Configuration conf = new Configuration();
+      final CompressionCodecFactory codecFactory = CodecFactory.createDirectCodecFactory(conf, new ParquetDirectByteBufferAllocator(bufferAllocator), 0);
+      final FileSystem fs = HadoopFileSystem.get(tableDir, conf);
       if (fs.exists(tableDir) && fs.isDirectory(tableDir)) {
-        Map<ColumnDescriptor, Path> dictionaryEncodedColumns = createGlobalDictionaries(fs, tableDir, bufferAllocator).getColumnsToDictionaryFiles();
+        Map<ColumnDescriptor, Path> dictionaryEncodedColumns = createGlobalDictionaries(codecFactory, fs, tableDir, bufferAllocator).getColumnsToDictionaryFiles();
         long version = getDictionaryVersion(fs, tableDir);
         Path dictionaryRootDir = getDictionaryVersionedRootPath(fs, tableDir, version);
         for (ColumnDescriptor columnDescriptor: dictionaryEncodedColumns.keySet()) {

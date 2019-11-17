@@ -17,7 +17,6 @@ import { combineReducers } from 'redux';
 
 import pinnedEntities from './pinnedEntities';
 import config from './config';
-import recentDatasets from './recentDatasets';
 import wiki from './wiki';
 import sidebarSize from './sidebarSize';
 import content from './content';
@@ -25,7 +24,6 @@ import content from './content';
 // todo move to modules
 export default combineReducers({
   config,
-  recentDatasets,
   wiki,
   sidebarSize,
   pinnedEntities,

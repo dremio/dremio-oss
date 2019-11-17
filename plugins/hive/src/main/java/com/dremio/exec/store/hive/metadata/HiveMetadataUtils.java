@@ -34,7 +34,9 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.hadoop.hive.common.StatsSetupConst;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -63,13 +65,11 @@ import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
-import org.apache.hadoop.mapred.Reporter;
 import org.apache.parquet.Strings;
 import org.slf4j.helpers.MessageFormatter;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.DateTimes;
-import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetSplitAffinity;
@@ -81,12 +81,13 @@ import com.dremio.connector.metadata.options.MaxLeafFieldCount;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TimedRunnable;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.store.dfs.FileSystemWrapperCreator;
 import com.dremio.exec.store.dfs.implicit.DecimalTools;
+import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
 import com.dremio.exec.store.hive.HiveClient;
 import com.dremio.exec.store.hive.HiveSchemaConverter;
 import com.dremio.exec.store.hive.HiveUtilities;
+import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
+import com.dremio.exec.store.hive.exec.apache.PathUtils;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.ColumnInfo;
 import com.dremio.hive.proto.HiveReaderProto.HivePrimitiveType;
@@ -160,10 +161,12 @@ public class HiveMetadataUtils {
   }
 
   public static InputFormat<?, ?> getInputFormat(Table table, final HiveConf hiveConf) {
-    final JobConf job = new JobConf(hiveConf);
-    final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, null);
-    job.setInputFormat(inputFormatClazz);
-    return job.getInputFormat();
+    try (final ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+      final JobConf job = new JobConf(hiveConf);
+      final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, null);
+      job.setInputFormat(inputFormatClazz);
+      return job.getInputFormat();
+    }
   }
 
   public static BatchSchema getBatchSchema(Table table, final HiveConf hiveConf) {
@@ -588,8 +591,8 @@ public class HiveMetadataUtils {
       try {
         long size = 0;
 
-        final Path path = orcSplit.getPath();
-        final Path root;
+        final org.apache.hadoop.fs.Path path = orcSplit.getPath();
+        final org.apache.hadoop.fs.Path root;
         final int bucket;
 
         // If the split has a base, extract the base file size, bucket and root path info.
@@ -606,10 +609,10 @@ public class HiveMetadataUtils {
           bucket = (int) orcSplit.getStart();
         }
 
-        final Path[] deltas = AcidUtils.deserializeDeltas(root, orcSplit.getDeltas());
+        final org.apache.hadoop.fs.Path[] deltas = AcidUtils.deserializeDeltas(root, orcSplit.getDeltas());
         // go through each delta directory and add the size of the delta file belonging to the bucket to total split size
-        for (Path delta : deltas) {
-          final Path deltaFile = AcidUtils.createBucketFile(delta, bucket);
+        for (org.apache.hadoop.fs.Path delta : deltas) {
+          final org.apache.hadoop.fs.Path deltaFile = AcidUtils.createBucketFile(delta, bucket);
           final FileSystem fs = deltaFile.getFileSystem(conf);
           final FileStatus fileStatus = fs.getFileStatus(deltaFile);
           size += fileStatus.getLen();
@@ -652,12 +655,12 @@ public class HiveMetadataUtils {
             .supportsOrcSplitFileIds(false)
             .build();
         } else if (scheme.regionMatches(true, 0, "wasb", 0, 4) ||
-            scheme.regionMatches(true, 0, "abfs", 0, 4) ||
-            scheme.regionMatches(true, 0, "wasbs", 0, 5) ||
-            scheme.regionMatches(true, 0, "abfss", 0, 5)) {
+          scheme.regionMatches(true, 0, "abfs", 0, 4) ||
+          scheme.regionMatches(true, 0, "wasbs", 0, 5) ||
+          scheme.regionMatches(true, 0, "abfss", 0, 5)) {
           /* DX-17365: Azure Storage does not support correct last modified times, Azure returns last modified times,
-          *  however, the timestamps returned are incorrect. They reference the folder's create time rather
-          *  that the folder content's last modified time. Please see Prototype.java for Azure storage fs uri schemes. */
+           *  however, the timestamps returned are incorrect. They reference the folder's create time rather
+           *  that the folder content's last modified time. Please see Prototype.java for Azure storage fs uri schemes. */
           return HiveStorageCapabilities.newBuilder()
             .supportsImpersonation(true)
             .supportsLastModifiedTime(false)
@@ -728,99 +731,100 @@ public class HiveMetadataUtils {
                                                        HiveConf hiveConf,
                                                        int partitionId,
                                                        int maxInputSplitsPerPartition) {
+    try (final ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+      final Table table = tableMetadata.getTable();
+      final Properties tableProperties = tableMetadata.getTableProperties();
+      final JobConf job = new JobConf(hiveConf);
+      final PartitionXattr partitionXattr;
 
-    final Table table = tableMetadata.getTable();
-    final Properties tableProperties = tableMetadata.getTableProperties();
-    final JobConf job = new JobConf(hiveConf);
-    final PartitionXattr partitionXattr;
+      List<InputSplit> inputSplits = Collections.emptyList();
+      HiveDatasetStats metastoreStats = null;
+      InputFormat<?, ?> format = null;
 
-    List<InputSplit> inputSplits = Collections.emptyList();
-    HiveDatasetStats metastoreStats = null;
-    InputFormat<?, ?> format = null;
+      if (null == partition) {
+        partitionXattr = getPartitionXattr(table, fromProperties(tableMetadata.getTableProperties()));
 
-    if (null == partition) {
-      partitionXattr = getPartitionXattr(table, fromProperties(tableMetadata.getTableProperties()));
+        final HiveStorageCapabilities tableStorageCapabilities = tableMetadata.getTableStorageCapabilities();
 
-      final HiveStorageCapabilities tableStorageCapabilities = tableMetadata.getTableStorageCapabilities();
+        final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, null);
+        job.setInputFormat(inputFormatClazz);
+        format = job.getInputFormat();
 
-      final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, null);
-      job.setInputFormat(inputFormatClazz);
-      format = job.getInputFormat();
+        final StorageDescriptor storageDescriptor = table.getSd();
+        if (inputPathExists(storageDescriptor, job)) {
+          configureJob(job, table, tableProperties, null, storageDescriptor);
+          inputSplits = getInputSplits(format, job);
+        }
 
-      final StorageDescriptor storageDescriptor = table.getSd();
-      if (inputPathExists(storageDescriptor, job)) {
-        configureJob(job, table, tableProperties, null, storageDescriptor);
-        inputSplits = getInputSplits(format, job);
-      }
+        if (shouldGenerateFileSystemUpdateKeys(tableStorageCapabilities, format)) {
+          final boolean generateFSUKeysForDirectoriesOnly =
+            shouldGenerateFSUKeysForDirectoriesOnly(tableStorageCapabilities, storageImpersonationEnabled);
+          final HiveReaderProto.FileSystemPartitionUpdateKey updateKey =
+            getFSBasedUpdateKey(table.getSd().getLocation(), job, isRecursive(tableProperties), generateFSUKeysForDirectoriesOnly, 0);
+          if (updateKey != null) {
+            metadataAccumulator.accumulateFileSystemPartitionUpdateKey(updateKey);
+          } else {
+            metadataAccumulator.setNotAllFSBasedPartitions();
+          }
+        }
 
-      if (shouldGenerateFileSystemUpdateKeys(tableStorageCapabilities, format)) {
-        final boolean generateFSUKeysForDirectoriesOnly =
-          shouldGenerateFSUKeysForDirectoriesOnly(tableStorageCapabilities, storageImpersonationEnabled);
-        final HiveReaderProto.FileSystemPartitionUpdateKey updateKey =
-          getFSBasedUpdateKey(table.getSd().getLocation(), job, isRecursive(tableProperties), generateFSUKeysForDirectoriesOnly, 0);
-        if (updateKey != null) {
-          metadataAccumulator.accumulateFileSystemPartitionUpdateKey(updateKey);
+        metadataAccumulator.accumulateReaderType(inputFormatClazz);
+        metastoreStats = getStatsFromProps(tableProperties);
+      } else {
+        final Properties partitionProperties = buildPartitionProperties(partition, table);
+        final HiveStorageCapabilities partitionStorageCapabilities = getHiveStorageCapabilities(partition.getSd());
+
+        final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, partition);
+        job.setInputFormat(inputFormatClazz);
+        format = job.getInputFormat();
+
+        final StorageDescriptor storageDescriptor = partition.getSd();
+        if (inputPathExists(storageDescriptor, job)) {
+          configureJob(job, table, tableProperties, partitionProperties, storageDescriptor);
+          inputSplits = getInputSplits(format, job);
+        }
+
+        if (shouldGenerateFileSystemUpdateKeys(partitionStorageCapabilities, format)) {
+          final boolean generateFSUKeysForDirectoriesOnly =
+            shouldGenerateFSUKeysForDirectoriesOnly(partitionStorageCapabilities, storageImpersonationEnabled);
+          final HiveReaderProto.FileSystemPartitionUpdateKey updateKey =
+            getFSBasedUpdateKey(partition.getSd().getLocation(), job, isRecursive(partitionProperties), generateFSUKeysForDirectoriesOnly, partitionId);
+          if (updateKey != null) {
+            metadataAccumulator.accumulateFileSystemPartitionUpdateKey(updateKey);
+          }
         } else {
           metadataAccumulator.setNotAllFSBasedPartitions();
         }
+
+        metadataAccumulator.accumulateReaderType(inputFormatClazz);
+        metadataAccumulator.accumulatePartitionHash(partition);
+        partitionXattr = metadataAccumulator.buildPartitionXattrDictionaries(partition, fromProperties(partitionProperties));
+
+        metastoreStats = getStatsFromProps(partitionProperties);
       }
 
-      metadataAccumulator.accumulateReaderType(inputFormatClazz);
-      metastoreStats = getStatsFromProps(tableProperties);
-    } else {
-      final Properties partitionProperties = buildPartitionProperties(partition, table);
-      final HiveStorageCapabilities partitionStorageCapabilities = getHiveStorageCapabilities(partition.getSd());
+      List<PartitionValue> partitionValues = getPartitionValues(table, partition);
 
-      final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, partition);
-      job.setInputFormat(inputFormatClazz);
-      format = job.getInputFormat();
-
-      final StorageDescriptor storageDescriptor = partition.getSd();
-      if (inputPathExists(storageDescriptor, job)) {
-        configureJob(job, table, tableProperties, partitionProperties, storageDescriptor);
-        inputSplits = getInputSplits(format, job);
-      }
-
-      if (shouldGenerateFileSystemUpdateKeys(partitionStorageCapabilities, format)) {
-        final boolean generateFSUKeysForDirectoriesOnly =
-          shouldGenerateFSUKeysForDirectoriesOnly(partitionStorageCapabilities, storageImpersonationEnabled);
-        final HiveReaderProto.FileSystemPartitionUpdateKey updateKey =
-          getFSBasedUpdateKey(partition.getSd().getLocation(), job, isRecursive(partitionProperties), generateFSUKeysForDirectoriesOnly, partitionId);
-        if (updateKey != null) {
-          metadataAccumulator.accumulateFileSystemPartitionUpdateKey(updateKey);
-        }
-      } else {
-        metadataAccumulator.setNotAllFSBasedPartitions();
-      }
-
-      metadataAccumulator.accumulateReaderType(inputFormatClazz);
-      metadataAccumulator.accumulatePartitionHash(partition);
-      partitionXattr = metadataAccumulator.buildPartitionXattrDictionaries(partition, fromProperties(partitionProperties));
-
-      metastoreStats = getStatsFromProps(partitionProperties);
+      return PartitionMetadata.newBuilder()
+        .partitionId(partitionId)
+        .partition(partition)
+        .partitionValues(partitionValues)
+        .inputSplitBatchIterator(
+          InputSplitBatchIterator.newBuilder()
+            .tableMetadata(tableMetadata)
+            .partition(partition)
+            .inputSplits(inputSplits)
+            .maxInputSplitsPerPartition(maxInputSplitsPerPartition)
+            .build())
+        .datasetSplitBuildConf(
+          DatasetSplitBuildConf.newBuilder()
+            .job(job)
+            .metastoreStats(metastoreStats)
+            .format(format)
+            .build())
+        .partitionXattr(partitionXattr)
+        .build();
     }
-
-    List<PartitionValue> partitionValues = getPartitionValues(table, partition);
-
-    return PartitionMetadata.newBuilder()
-      .partitionId(partitionId)
-      .partition(partition)
-      .partitionValues(partitionValues)
-      .inputSplitBatchIterator(
-        InputSplitBatchIterator.newBuilder()
-          .tableMetadata(tableMetadata)
-          .partition(partition)
-          .inputSplits(inputSplits)
-          .maxInputSplitsPerPartition(maxInputSplitsPerPartition)
-          .build())
-      .datasetSplitBuildConf(
-        DatasetSplitBuildConf.newBuilder()
-          .job(job)
-          .metastoreStats(metastoreStats)
-          .format(format)
-          .build())
-      .partitionXattr(partitionXattr)
-      .build();
   }
 
   private static List<InputSplit> getInputSplits(final InputFormat<?, ?> format, final JobConf job) {
@@ -924,7 +928,7 @@ public class HiveMetadataUtils {
     final Path rootLocation = new Path(partitionDir);
     try {
       // TODO: DX-16001 - make async configurable for Hive.
-      final FileSystemWrapper fs = FileSystemWrapperCreator.get(rootLocation, job, null);
+      final HadoopFileSystemWrapper fs = new HadoopFileSystemWrapper(rootLocation, job);
 
       if (fs.exists(rootLocation)) {
         final FileStatus rootStatus = fs.getFileStatus(rootLocation);
@@ -935,8 +939,9 @@ public class HiveMetadataUtils {
             .setIsDir(true)
             .build());
 
-          final List<FileStatus> statuses = isRecursive ? fs.listRecursive(rootLocation, false) : fs.list(rootLocation, false);
-          for (FileStatus fileStatus : statuses) {
+          final RemoteIterator<LocatedFileStatus> statuses = isRecursive ? fs.listFiles(rootLocation, true) : fs.listFiles(rootLocation, false);
+          while (statuses.hasNext()) {
+            LocatedFileStatus fileStatus = statuses.next();
             final Path filePath = fileStatus.getPath();
             if (fileStatus.isDirectory()) {
               cachedEntities.add(HiveReaderProto.FileSystemCachedEntity.newBuilder()
@@ -976,7 +981,7 @@ public class HiveMetadataUtils {
     final Path path = new Path(sd.getLocation());
     try {
       // TODO: DX-16001 - make async configurable for Hive.
-      final FileSystem fs = FileSystemWrapperCreator.get(path, job, null);
+      final HadoopFileSystemWrapper fs = new HadoopFileSystemWrapper(path, job);
       return fs.exists(path);
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -984,7 +989,7 @@ public class HiveMetadataUtils {
   }
 
   private static void addInputPath(StorageDescriptor sd, JobConf job) {
-    final Path path = new Path(sd.getLocation());
+    final org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(sd.getLocation());
     FileInputFormat.addInputPath(job, path);
   }
 
@@ -1113,7 +1118,7 @@ public class HiveMetadataUtils {
   }
 
   public static Class<? extends InputFormat> getInputFormatClass(final JobConf job, final Table table, final Partition partition) {
-    try {
+    try (final ContextClassLoaderSwapper cls = ContextClassLoaderSwapper.newInstance()) {
       if (partition != null) {
         if (partition.getSd().getInputFormat() != null) {
           return (Class<? extends InputFormat>) Class.forName(partition.getSd().getInputFormat());

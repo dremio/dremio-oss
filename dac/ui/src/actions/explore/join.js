@@ -18,7 +18,7 @@ import fullDatasetSchema from 'schemas/v2/fullDataset';
 import { constructFullPath } from 'utils/pathUtils';
 
 import { RSAA } from 'redux-api-middleware';
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 import { postDatasetOperation } from './dataset/common';
 
 export const UPDATE_JOIN_DATASET_VERSION = 'UPDATE_JOIN_DATASET_VERSION';

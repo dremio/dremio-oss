@@ -49,6 +49,13 @@ public class TestDDLAliases {
     parse("CREATE VDS MY_VDS AS SELECT * FROM SYS.OPTIONS");
   }
 
+  @Test //DX-17257
+  public void createVDSWithWhereRowIn() throws  SqlParseException
+  {
+    parse("CREATE VDS FILTERED_VDS AS SELECT * FROM SYS.OPTIONS WHERE ROW(col1, col2) in (ROW('aa', 'bb'))");
+  }
+
+
   @Test
   public void dropVDS() throws SqlParseException {
     parse("DROP VDS MY_VDS");

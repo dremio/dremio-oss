@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>3.3.2-201908142136370993-d60145d</version>
+    <version>4.0.4-201910212053580380-773b665</version>
   </parent>
 
   <artifactId>dremio-adls-plugin</artifactId>

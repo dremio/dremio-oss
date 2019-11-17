@@ -16,7 +16,11 @@
 import Immutable from 'immutable';
 
 import { RUN_TABLE_TRANSFORM_START } from 'actions/explore/dataset/common';
-import { LOAD_NEXT_ROWS_SUCCESS } from 'actions/explore/dataset/data';
+import {
+  LOAD_NEXT_ROWS_SUCCESS,
+  UPDATE_EXPLORE_JOB_PROGRESS,
+  INIT_EXPLORE_JOB_PROGRESS,
+  UPDATE_EXPLORE_JOB_RECORDS } from 'actions/explore/dataset/data';
 import { UPDATE_COLUMN_FILTER } from 'actions/explore/view';
 
 import table from './table';
@@ -140,4 +144,55 @@ describe('table', () => {
       expect(result.getIn(['tableData', 'columnFilter'])).to.equal('test');
     });
   });
+
+  describe('INIT_EXPLORE_JOB_PROGRESS', () => {
+    it('should set initial job Progress in state', () => {
+      const result = table(initialState, {
+        type: INIT_EXPLORE_JOB_PROGRESS,
+        isRun: true
+      });
+      const jobProgress = result.getIn(['tableData', 'jobProgress']);
+      expect(jobProgress.jobId).to.be.undefined;
+      expect(jobProgress.status).to.equal('STARTING');
+      expect(jobProgress.isRun).to.be.equal(true);
+      expect(jobProgress.startTime <= new Date().getTime()).to.be.true;
+    });
+  });
+
+  describe('UPDATE_EXPLORE_JOB_PROGRESS', () => {
+    it('should set job update in state', () => {
+      const result = table(initialState, {
+        type: UPDATE_EXPLORE_JOB_PROGRESS,
+        jobUpdate: {
+          id: 'abc',
+          state: 'COMPLETED',
+          startTime: 100,
+          endTime: 200
+        }
+      });
+      const jobProgress = result.getIn(['tableData', 'jobProgress']);
+      expect(jobProgress).to.eql({
+        jobId: 'abc',
+        status: 'COMPLETED',
+        startTime: 100,
+        endTime: 200
+      });
+    });
+  });
+
+  describe('UPDATE_EXPLORE_JOB_RECORDS', () => {
+    it('should set job records in state', () => {
+      let result = table(initialState, {
+        type: INIT_EXPLORE_JOB_PROGRESS
+      });
+      result = table(result, {
+        type: UPDATE_EXPLORE_JOB_RECORDS,
+        recordCount: 100
+      });
+      const jobProgress = result.getIn(['tableData', 'jobProgress']);
+      expect(jobProgress.status).to.equal('STARTING');
+      expect(jobProgress.recordCount).to.equal(100);
+    });
+  });
+
 });

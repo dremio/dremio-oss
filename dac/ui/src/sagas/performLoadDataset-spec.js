@@ -20,7 +20,7 @@ import { getLocation } from 'selectors/routing';
 import { updateViewState } from 'actions/resources';
 import { handleResumeRunDataset, DataLoadError } from 'sagas/runDataset';
 import { loadExistingDataset } from 'actions/explore/dataset/edit';
-import { getFullDataset } from '@app/selectors/explore';
+import {getExploreJobId, getFullDataset} from '@app/selectors/explore';
 import { newUntitled } from 'actions/explore/dataset/new';
 import { EXPLORE_TABLE_ID } from 'reducers/explore/view';
 import { focusSqlEditor } from '@app/actions/explore/view';
@@ -91,6 +91,7 @@ describe('performLoadDataset saga', () => {
       };
       next = gen.next(loadDatasetResponse);
       expect(next.value).to.be.eql(call(focusSqlEditorSaga));
+      next = gen.next();
       next = gen.next();
       expect(next.value).to.eql(call(loadTableData, datasetVersion));
       next = gen.next();
@@ -201,7 +202,11 @@ describe('performLoadDataset saga', () => {
         jobId: { id: jobId }
       });
 
-      next = loadTableDataGen.next(validDataset); //update viewstate
+      next = loadTableDataGen.next(validDataset); // get job id
+      expect(next.value).to.be.eql(select(getExploreJobId));
+      next = loadTableDataGen.next(jobId); //setExploreJobIdInProgress
+      next = loadTableDataGen.next(); //spawn jobUpdateWatchers
+      next = loadTableDataGen.next(); //update viewstate
     });
 
     afterEach(() => {

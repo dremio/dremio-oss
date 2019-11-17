@@ -18,8 +18,7 @@ package com.dremio.plugins.elastic;
 import java.util.List;
 
 import javax.inject.Provider;
-
-import org.hibernate.validator.constraints.NotEmpty;
+import javax.validation.constraints.NotEmpty;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.AuthenticationType;

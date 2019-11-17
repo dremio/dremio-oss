@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.parquet;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,6 +30,7 @@ import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.format.SchemaElement;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.ParquetFileWriter;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
@@ -310,5 +312,26 @@ public class ParquetReaderUtility {
       return (julianDay - JULIAN_DAY_NUMBER_FOR_UNIX_EPOCH) * DateTimeConstants.MILLIS_PER_DAY
           + nanosOfDay / NANOS_PER_MILLISECOND;
     }
+  }
+
+  /**
+   * Get the list of row group numbers for given file input split. Logic used here is same as how Hive's parquet input
+   * format finds the row group numbers for input split.
+   */
+  public static List<Integer> getRowGroupNumbersFromFileSplit(final long splitStart, final long splitLength,
+                                                               final ParquetMetadata footer) throws IOException {
+    final List<BlockMetaData> blocks = footer.getBlocks();
+    final List<Integer> rowGroupNums = Lists.newArrayList();
+
+    int i = 0;
+    for (final BlockMetaData block : blocks) {
+      final long firstDataPage = block.getColumns().get(0).getFirstDataPageOffset();
+      if (firstDataPage >= splitStart && firstDataPage < splitStart + splitLength) {
+        rowGroupNums.add(i);
+      }
+      i++;
+    }
+
+    return rowGroupNums;
   }
 }

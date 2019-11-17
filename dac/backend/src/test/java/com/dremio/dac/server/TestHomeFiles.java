@@ -25,6 +25,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.FileWriter;
+import java.nio.file.DirectoryStream;
 import java.util.List;
 import java.util.UUID;
 
@@ -33,10 +34,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.junit.Assert;
@@ -62,11 +59,16 @@ import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.file.File;
 import com.dremio.file.FilePath;
+import com.dremio.io.FSInputStream;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.options.OptionValue;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
@@ -111,21 +113,25 @@ public class TestHomeFiles extends BaseTestServer {
   }
 
   private void checkFileData(String location) throws Exception {
-    Path serverFileDirPath = new Path(location);
+    Path serverFileDirPath = Path.of(location);
     assertTrue(fs.exists(serverFileDirPath));
-    FileStatus[] statuses = fs.listStatus(serverFileDirPath);
-    assertEquals(1, statuses.length);
+    List<FileAttributes> files;
+    try (DirectoryStream<FileAttributes> stream = fs.list(serverFileDirPath)) {
+      files = Lists.newArrayList(stream);
+    }
+    assertEquals(1, files.size());
 
-    int fileSize = (int)statuses[0].getLen();
+    final FileAttributes attributes = files.get(0);
+    int fileSize = (int)attributes.size();
     final byte[] data = new byte[fileSize];
-    FSDataInputStream inputStream = fs.open(statuses[0].getPath());
+    FSInputStream inputStream = fs.open(attributes.getPath());
     org.apache.hadoop.io.IOUtils.readFully(inputStream, data, 0, fileSize);
     inputStream.close();
     assertEquals("{\"person_id\": 1, \"salary\": 10}", new String(data));
   }
 
   private void checkFileDoesNotExist(String location) throws Exception {
-    Path serverFileDirPath = new Path(location);
+    Path serverFileDirPath = Path.of(location);
     assertFalse(fs.exists(serverFileDirPath));
   }
 
@@ -159,7 +165,7 @@ public class TestHomeFiles extends BaseTestServer {
     checkFileData(file1StagedFormat.getLocation());
 
     // external query
-    String fileLocation = PathUtils.toDottedPath(new org.apache.hadoop.fs.Path(file1StagedFormat.getLocation()));
+    String fileLocation = PathUtils.toDottedPath(Path.of(file1StagedFormat.getLocation()));
     SqlQuery query = new SqlQuery(format("select * from table(%s.%s (%s)) limit 500",
       SqlUtils.quoteIdentifier(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), fileLocation, file1StagedFormat.toTableOptions()), SampleDataPopulator.DEFAULT_USER_NAME);
 
@@ -388,7 +394,7 @@ public class TestHomeFiles extends BaseTestServer {
       filePath = new FilePath(path);
     }
 
-    FSDataInputStream inputStream = FileSystem.getLocal(new Configuration()).open(inputFile);
+    FSInputStream inputStream = HadoopFileSystem.getLocal(new Configuration()).open(inputFile);
     FileSystem fs = homeFileStore.getFilesystemAndCreatePaths(null);
     Path stagingLocation = new HomeFileTool(homeFileStore, fs, "localhost").stageFile(filePath, extension, inputStream);
     Path finalLocation = new HomeFileTool(homeFileStore, fs, "localhost").saveFile(stagingLocation, filePath, extension);
@@ -425,16 +431,16 @@ public class TestHomeFiles extends BaseTestServer {
 
   private static void runTests(HomeFileConf homeFileStore) throws Exception {
     // text file
-    Path textFile = new Path(FileUtils.getResourceAsFile("/datasets/text/comma.txt").getAbsolutePath());
+    Path textFile = Path.of(FileUtils.getResourceAsFile("/datasets/text/comma.txt").getAbsolutePath());
     uploadFile(homeFileStore, textFile, "comma", "txt", new TextFileConfig().setFieldDelimiter(","), null);
 
-    Path csvFile = new Path(FileUtils.getResourceAsFile("/datasets/csv/comma.csv").getAbsolutePath());
+    Path csvFile = Path.of(FileUtils.getResourceAsFile("/datasets/csv/comma.csv").getAbsolutePath());
     uploadFile(homeFileStore, csvFile, "comma1", "csv", new TextFileConfig().setFieldDelimiter(","), null);
 
-    Path jsonFile = new Path(FileUtils.getResourceAsFile("/datasets/users.json").getAbsolutePath());
+    Path jsonFile = Path.of(FileUtils.getResourceAsFile("/datasets/users.json").getAbsolutePath());
     uploadFile(homeFileStore, jsonFile, "users", "json", new JsonFileConfig(), null);
 
-    Path excelFile = new Path(FileUtils.getResourceAsFile("/testfiles/excel.xlsx").getAbsolutePath());
+    Path excelFile = Path.of(FileUtils.getResourceAsFile("/testfiles/excel.xlsx").getAbsolutePath());
     uploadFile(homeFileStore, excelFile, "excel", "xlsx", new ExcelFileConfig(), null);
 
     // query files
@@ -460,7 +466,7 @@ public class TestHomeFiles extends BaseTestServer {
     final CatalogServiceImpl catalog = (CatalogServiceImpl) l(CatalogService.class);
     final SourceConfig config = catalog.getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME).getId().getClonedConfig();
     final ByteString oldConfig = config.getConfig();
-    final HomeFileConf nasHomeFileStore = new HomeFileConf(new Path("file:///" + BaseTestServer.folder1.getRoot().toString() + "/" + "testNASFileStore/").toString(), "localhost");
+    final HomeFileConf nasHomeFileStore = new HomeFileConf(Path.of("file:///" + BaseTestServer.folder1.getRoot().toString() + "/" + "testNASFileStore/").toString(), "localhost");
     nasHomeFileStore.getFilesystemAndCreatePaths("localhost");
     config.setConnectionConf(nasHomeFileStore);
     catalog.getSystemUserCatalog().updateSource(config);

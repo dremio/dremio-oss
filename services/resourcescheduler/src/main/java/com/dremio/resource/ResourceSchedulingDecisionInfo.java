@@ -32,6 +32,7 @@ public class ResourceSchedulingDecisionInfo {
   private UserBitShared.WorkloadClass workloadClass;
   private long schedulingStartTimeMs;  // Time when resource allocation started, in ms
   private long schedulingEndTimeMs;    // Time when resources were fully allocated, in ms
+  private String queueTag;
 
   private ResourceSchedulingProperties resourceSchedulingProperties;
 
@@ -128,5 +129,13 @@ public class ResourceSchedulingDecisionInfo {
 
   public void setSchedulingEndTimeMs(long schedulingEndTimeMs) {
     this.schedulingEndTimeMs = schedulingEndTimeMs;
+  }
+
+  public String getQueueTag() {
+    return queueTag;
+  }
+
+  public void setQueueTag(String queueTag) {
+    this.queueTag = queueTag;
   }
 }

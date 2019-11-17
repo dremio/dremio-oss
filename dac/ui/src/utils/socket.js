@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import invariant from 'invariant';
-import { WEB_SOCKET_URL } from 'constants/Api';
+import { WEB_SOCKET_URL } from '@app/constants/Api';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 import { addNotification, removeNotification } from 'actions/notification';
 import Immutable from 'immutable';
@@ -27,6 +27,8 @@ export const WS_MESSAGE_JOB_DETAILS = 'job-details';
 export const WS_MESSAGE_JOB_DETAILS_LISTEN = 'job-details-listen';
 export const WS_MESSAGE_JOB_PROGRESS = 'job-progress';
 export const WS_MESSAGE_JOB_PROGRESS_LISTEN = 'job-progress-listen';
+export const WS_MESSAGE_JOB_RECORDS = 'job-records';
+export const WS_MESSAGE_JOB_RECORDS_LISTEN = 'job-records-listen';
 
 export const WS_CONNECTION_OPEN = 'WS_CONNECTION_OPEN';
 export const WS_CONNECTION_CLOSE = 'WS_CONNECTION_CLOSE';
@@ -79,20 +81,20 @@ export class Socket {
     if (this._socket.readyState === WebSocket.CLOSED) {
       this._createConnection();
     }
-  }
+  };
 
   _handleConnectionError = (e) => {
     console.error('SOCKET CONNECTION ERROR', e);
     this._failureCount++;
     if (this._failureCount === 6) this.dispatch(addNotification(Immutable.Map({code: WS_CLOSED, messageType: WS_CLOSED}), 'error'));
-  }
+  };
 
   _handleConnectionClose = () => {
     console.info('SOCKET CONNECTION CLOSE');
     setTimeout(() => { // defer because can't dispatch inside a reducer
       this.dispatch({type: WS_CONNECTION_CLOSE});
     });
-  }
+  };
 
   _handleConnectionEstablished = () => {
     console.info('SOCKET CONNECTION OPEN');
@@ -106,7 +108,7 @@ export class Socket {
     for (let i = 0; i < keys.length; i++) {
       this._sendMessage(this._listenMessages[keys[i]].message);
     }
-  }
+  };
 
   _handleMessage = (e) => {
     try {
@@ -120,11 +122,11 @@ export class Socket {
     } catch (error) {
       console.error('SOCKET CONNECTION MESSAGE HANDLING ERROR', error);
     }
-  }
+  };
 
   _ping = () => {
     this._sendMessage({type: WS_MESSAGE_PING, payload: {}});
-  }
+  };
 
   sendListenMessage(message, forceSend) {
     const messageKey = message.type + '-' + message.payload.id;
@@ -152,48 +154,50 @@ export class Socket {
     }
   }
 
-  startListenToJobChange(jobId, forceSend) {
+  _startListenToJob = (jobId, type, forceSend) => {
     invariant(jobId, `Must provide jobId to listen to. Received ${jobId}`);
     const message = {
-      type: WS_MESSAGE_JOB_DETAILS_LISTEN,
+      type,
       payload: {
         id: jobId
       }
     };
     this.sendListenMessage(message, forceSend);
+  };
+
+  _stopListenToJob = (jobId, type, forceSend) => {
+    invariant(jobId, `Must provide jobId to listen to. Received ${jobId}`);
+    const message = {
+      type,
+      payload: {
+        id: jobId
+      }
+    };
+    this.stopListenMessage(message, forceSend);
+  };
+
+  startListenToJobChange(jobId, forceSend) {
+    this._startListenToJob(jobId, WS_MESSAGE_JOB_DETAILS_LISTEN, forceSend);
   }
 
   stopListenToJobChange(jobId) {
-    invariant(jobId, `Must provide jobId to stop listen to. Received ${jobId}`);
-    const message = {
-      type: WS_MESSAGE_JOB_DETAILS_LISTEN,
-      payload: {
-        id: jobId
-      }
-    };
-    this.stopListenMessage(message);
+    this._stopListenToJob(jobId, WS_MESSAGE_JOB_DETAILS_LISTEN);
   }
 
   startListenToJobProgress(jobId, forceSend) {
-    invariant(jobId, `Must provide jobId to listen to. Received ${jobId}`);
-    const message = {
-      type: WS_MESSAGE_JOB_PROGRESS_LISTEN,
-      payload: {
-        id: jobId
-      }
-    };
-    this.sendListenMessage(message, forceSend);
+    this._startListenToJob(jobId, WS_MESSAGE_JOB_PROGRESS_LISTEN, forceSend);
   }
 
   stopListenToJobProgress(jobId) {
-    invariant(jobId, `Must provide jobId to stop listen to. Received ${jobId}`);
-    const message = {
-      type: WS_MESSAGE_JOB_PROGRESS_LISTEN,
-      payload: {
-        id: jobId
-      }
-    };
-    this.stopListenMessage(message);
+    this._stopListenToJob(jobId, WS_MESSAGE_JOB_PROGRESS_LISTEN);
+  }
+
+  startListenToJobRecords(jobId) {
+    this._startListenToJob(jobId, WS_MESSAGE_JOB_RECORDS_LISTEN, true);
+  }
+
+  stopListenToJobRecords(jobId) {
+    this._stopListenToJob(jobId, WS_MESSAGE_JOB_RECORDS_LISTEN);
   }
 
   _sendMessage(message) {

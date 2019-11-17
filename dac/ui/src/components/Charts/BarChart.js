@@ -22,7 +22,7 @@ import c3 from 'c3';
 import 'c3/c3.css';
 import $ from 'jquery';
 
-import { isDateType, dateTypeToFormat, TIME, FLOAT, DECIMAL, DATE, DATETIME } from 'constants/DataTypes';
+import { isDateType, dateTypeToFormat, TIME, FLOAT, DECIMAL, DATE, DATETIME } from '@app/constants/DataTypes';
 import ChartTooltip from './ChartTooltip';
 
 const BAR_CHART_HEIGHT = 108;

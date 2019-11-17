@@ -21,6 +21,7 @@
   @gray: #aaa;
   #grid-page {
     background-color: #f4f4f4;
+    display: flex;
 
     .fixed-data-table .public_fixedDataTable_header, .fixed-data-table .public_fixedDataTable_hasBottomBorder {
       border-color: #E8E8E8;
@@ -70,11 +71,6 @@
       z-index: 99;
     }
 
-    .grid-wrap {
-      display: flex;
-      flex-grow: 1;
-      min-height: 0; //to not allow chidlren overflow current container
-    }
     .table-control-wrap .selected-text {
       background: #F2F2F2;
       position: fixed;

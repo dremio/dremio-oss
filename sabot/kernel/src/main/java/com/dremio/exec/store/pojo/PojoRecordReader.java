@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.vector.BaseValueVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.calcite.rel.type.RelDataType;
 
@@ -49,22 +50,25 @@ import com.google.common.collect.Lists;
 
 public class PojoRecordReader<T> extends AbstractRecordReader implements Iterable<T> {
 
+  private static final int DEFAULT_BATCH_SIZE  = BaseValueVector.INITIAL_VALUE_ALLOCATION;
   private final Class<T> pojoClass;
   private final List<T> pojoObjects;
   private PojoWriter[] writers;
-  private boolean doCurrent;
   private T currentPojo;
+  private final int batchSize;
 
   private Iterator<T> currentIterator;
 
   public PojoRecordReader(Class<T> pojoClass, Iterator<T> iterator) {
-    this(pojoClass, iterator, null);
+    this(pojoClass, iterator, null, DEFAULT_BATCH_SIZE);
   }
 
-  public PojoRecordReader(Class<T> pojoClass, Iterator<T> iterator, List<SchemaPath> columns) {
+  public PojoRecordReader(Class<T> pojoClass, Iterator<T> iterator, List<SchemaPath> columns,
+                          int batchSize) {
     super(null, columns);
     this.pojoClass = pojoClass;
     this.pojoObjects = ImmutableList.copyOf(iterator);
+    this.batchSize = batchSize;
   }
 
   @Override
@@ -146,12 +150,8 @@ public class PojoRecordReader<T> extends AbstractRecordReader implements Iterabl
     //injector.injectPause(operatorContext.getExecutionControls(), "read-next", logger);
     try {
       int i =0;
-      while (doCurrent || currentIterator.hasNext()) {
-        if (doCurrent) {
-          doCurrent = false;
-        } else {
-          currentPojo = currentIterator.next();
-        }
+      while (currentIterator.hasNext() && i < batchSize) {
+        currentPojo = currentIterator.next();
 
         if (!allocated) {
           allocate();

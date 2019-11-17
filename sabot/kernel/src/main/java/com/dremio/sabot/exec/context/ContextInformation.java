@@ -16,6 +16,7 @@
 package com.dremio.sabot.exec.context;
 
 import com.dremio.exec.context.AdditionalContext;
+import com.dremio.exec.proto.UserBitShared.QueryId;
 
 /**
  * Provides query context information (such as query start time, query user, default schema etc.) for UDFs.
@@ -41,6 +42,11 @@ public interface ContextInformation {
    * @return Time zone.
    */
   int getRootFragmentTimeZone();
+
+  /**
+   * @return Last Query ID
+   */
+  QueryId getLastQueryId();
 
   void registerAdditionalInfo(AdditionalContext object);
 

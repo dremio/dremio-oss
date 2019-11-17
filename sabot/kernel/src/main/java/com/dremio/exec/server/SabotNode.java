@@ -43,7 +43,6 @@ import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.exec.util.GuavaPatcher;
-import com.dremio.exec.work.RunningQueryProvider;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.exec.work.protector.UserWorker;
@@ -62,8 +61,10 @@ import com.dremio.sabot.rpc.CoordToExecHandler;
 import com.dremio.sabot.rpc.ExecToCoordHandler;
 import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.sabot.task.TaskPool;
+import com.dremio.security.CredentialsService;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.BindingProvider;
+import com.dremio.service.DirectProvider;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.commandpool.CommandPoolFactory;
@@ -207,7 +208,6 @@ public class SabotNode implements AutoCloseable {
         registry.provider(UserServer.class),
         registry.provider(MaterializationDescriptorProvider.class),
         registry.provider(QueryObserverFactory.class),
-        registry.provider(RunningQueryProvider.class),
         registry.provider(AccelerationManager.class),
         registry.provider(AccelerationListManager.class),
         registry.provider(NamespaceService.Factory.class),
@@ -217,6 +217,8 @@ public class SabotNode implements AutoCloseable {
         null,
         registry.provider(SpillService.class),
         registry.provider(ConnectionReader.class),
+        CredentialsService::new,
+        DirectProvider.wrap(JobResultSchemaProvider.NOOP),
         allRoles
         ));
 

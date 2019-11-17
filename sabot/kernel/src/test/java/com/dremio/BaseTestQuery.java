@@ -19,11 +19,13 @@ import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.PARQUET
 import static java.lang.String.format;
 import static org.junit.Assert.fail;
 
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
+import java.nio.file.DirectoryStream;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -34,13 +36,8 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.GlobFilter;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IOUtils;
 import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -59,6 +56,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.exception.SchemaChangeException;
+import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
@@ -73,6 +71,11 @@ import com.dremio.exec.server.SabotNode;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.exec.util.VectorUtil;
 import com.dremio.exec.work.user.LocalQueryExecutor;
+import com.dremio.io.FSInputStream;
+import com.dremio.io.file.FileAttributes;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
+import com.dremio.io.file.PathFilters;
 import com.dremio.options.OptionValidator;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.DoubleValidator;
@@ -134,7 +137,10 @@ public class BaseTestQuery extends ExecTest {
       }
 
       void replace(BindingCreator bindingCreator) {
-        bindingCreator.replace(iface, impl);
+        boolean result = bindingCreator.bindIfUnbound(iface, impl);
+        if (!result) {
+          bindingCreator.replace(iface, impl);
+        }
       }
     }
     private final Set<Holder<?>> registry = new HashSet<>();
@@ -229,7 +235,7 @@ public class BaseTestQuery extends ExecTest {
   public static void setupDefaultTestCluster() throws Exception {
     config = SabotConfig.create(TEST_CONFIGURATIONS);
     openClient();
-    localFs = FileSystem.getLocal(new Configuration());
+    localFs = HadoopFileSystem.getLocal(new Configuration());
     // turns on the verbose errors in tests
     // sever side stacktraces are added to the message before sending back to the client
     setSessionOption(ExecConstants.ENABLE_VERBOSE_ERRORS_KEY, "true");
@@ -323,6 +329,15 @@ public class BaseTestQuery extends ExecTest {
     runSQL("ALTER SYSTEM SET " + SqlUtils.QUOTE + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + SqlUtils.QUOTE + " = " + enabled);
   }
 
+
+  private static void closeCurrentClient() {
+      Preconditions.checkState(nodes != null && nodes[0] != null, "Nodes are not setup.");
+      if (client != null) {
+        client.close();
+        client = null;
+      }
+  }
+
   /**
    * Close the current <i>client</i> and open a new client using the given <i>properties</i>. All tests executed
    * after this method call use the new <i>client</i>.
@@ -330,12 +345,7 @@ public class BaseTestQuery extends ExecTest {
    * @param properties
    */
   public static void updateClient(Properties properties) throws Exception {
-    Preconditions.checkState(nodes != null && nodes[0] != null, "Nodes are not setup.");
-    if (client != null) {
-      client.close();
-      client = null;
-    }
-
+    closeCurrentClient();
     client = QueryTestUtil.createClient(config, clusterCoordinator, MAX_WIDTH_PER_NODE, properties);
   }
 
@@ -469,14 +479,15 @@ public class BaseTestQuery extends ExecTest {
   }
 
   // run query with in CTAS (json table) and read CTAS output in bytes[].
-  public static FileStatus testAndGetResult(final String query, final String testName) throws Exception {
+  public static FileAttributes testAndGetResult(final String query, final String testName) throws Exception {
     final String tableName = format("%s%d", testName, random.nextInt(100000));
     final String ctasQuery = format("CREATE TABLE dfs_test.%s STORE AS (type => 'json', prettyPrint => false) WITH SINGLE WRITER AS %s", tableName, query);
-    final Path tableDir = new Path(getDfsTestTmpSchemaLocation(), tableName);
+    final Path tableDir = Path.of(getDfsTestTmpSchemaLocation()).resolve(tableName);
     test(ctasQuery);
       // find file
-    final FileStatus fileStatus = localFs.listStatus(tableDir, new GlobFilter("*.json"))[0];
-    return fileStatus;
+    try (DirectoryStream<FileAttributes> statuses = localFs.list(tableDir, PathFilters.endsWith(".json"))) {
+      return statuses.iterator().next();
+    }
   }
 
   public static AutoCloseable withOption(final BooleanValidator validator, boolean value) throws Exception{
@@ -763,11 +774,11 @@ public class BaseTestQuery extends ExecTest {
     return formattedResults.toString();
   }
 
-  public static boolean compareFiles(FileStatus f1, FileStatus f2) throws Exception {
-    byte[] original = new byte[(int)f1.getLen()];
-    byte[] withDict = new byte[(int)f2.getLen()];
+  public static boolean compareFiles(FileAttributes f1, FileAttributes f2) throws Exception {
+    byte[] original = new byte[(int)f1.size()];
+    byte[] withDict = new byte[(int)f2.size()];
 
-    try (FSDataInputStream in1 = localFs.open(f1.getPath()); FSDataInputStream in2 = localFs.open(f2.getPath());) {
+    try (FSInputStream in1 = localFs.open(f1.getPath()); FSInputStream in2 = localFs.open(f2.getPath());) {
       IOUtils.readFully(in1, original, 0, original.length);
       IOUtils.readFully(in2, withDict, 0, withDict.length);
     }
@@ -785,9 +796,9 @@ public class BaseTestQuery extends ExecTest {
 
   public static void validateResults(final String query, final String tag) throws Exception {
     disableGlobalDictionary();
-    final FileStatus original = testAndGetResult(query, tag);
+    final FileAttributes original = testAndGetResult(query, tag);
     enableGlobalDictionary();
-    FileStatus withDict = testAndGetResult(query, tag);
+    FileAttributes withDict = testAndGetResult(query, tag);
     // read file
     final boolean diff = compareFiles(original, withDict);
     if (!diff) {
@@ -800,18 +811,18 @@ public class BaseTestQuery extends ExecTest {
 
   public static void validateResultsOutOfOrder(final String query, final String tag) throws Exception {
     disableGlobalDictionary();
-    final FileStatus original = testAndGetResult(query, tag);
+    final FileAttributes original = testAndGetResult(query, tag);
     enableGlobalDictionary();
-    FileStatus withDict = testAndGetResult(query, tag);
+    FileAttributes withDict = testAndGetResult(query, tag);
     boolean diff = false;
     final HashMap<String, Void> lines = new HashMap<>();
-    try (FSDataInputStream in1 = localFs.open(original.getPath())) {
+    try (DataInputStream in1 = new DataInputStream(localFs.open(original.getPath()))) {
       String line = null;
       while ((line = in1.readLine()) != null) {
         lines.put(line, null);
       }
     }
-    try (FSDataInputStream in2 = localFs.open(withDict.getPath())) {
+    try (DataInputStream in2 = new DataInputStream(localFs.open(withDict.getPath()))) {
       String line = null;
       while ((line = in2.readLine()) != null) {
         if(!lines.containsKey(line)) {

@@ -29,7 +29,8 @@ class AdminMapper {
         status: node.status,
         isCoordinator: node.isCoordinator,
         isExecutor: node.isExecutor,
-        isBlacklisted: node.isBlacklisted
+        isBlacklisted: node.isBlacklisted,
+        nodeTag: node.nodeTag
       };
     });
   }

@@ -19,13 +19,12 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.hadoop.fs.Path;
-
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.record.VectorContainer;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.collect.Maps;
 
@@ -33,14 +32,14 @@ public class GlobalDictionaries implements AutoCloseable {
   private final Map<String, VectorContainer> dictionaries; // key is full column path (dotted)
 
   public static GlobalDictionaries create(OperatorContext context,
-                                          FileSystemWrapper fs,
+                                          FileSystem fs,
                                           List<GlobalDictionaryFieldInfo> globalDictionaryColumns) throws ExecutionSetupException {
     if (globalDictionaryColumns != null && !globalDictionaryColumns.isEmpty()) {
       final Map<String, VectorContainer> dictionaries = Maps.newHashMap();
       context.getStats().startProcessing();
       try {
         for (GlobalDictionaryFieldInfo field : globalDictionaryColumns) {
-          dictionaries.put(field.getFieldName(), ParquetFormatPlugin.loadDictionary(fs, new Path(field.getDictionaryPath()), context.getAllocator()));
+          dictionaries.put(field.getFieldName(), ParquetFormatPlugin.loadDictionary(fs, Path.of(field.getDictionaryPath()), context.getAllocator()));
         }
         return new GlobalDictionaries(dictionaries);
       } catch (IOException ioe) {

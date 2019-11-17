@@ -17,6 +17,7 @@ package com.dremio.exec.planner.logical;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptRuleOperand;
 import org.apache.calcite.rel.core.Filter;
 import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.logical.LogicalFilter;
@@ -25,6 +26,7 @@ import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql2rel.CorrelationReferenceFinder;
+import org.apache.calcite.tools.RelBuilderFactory;
 
 import com.dremio.service.Pointer;
 
@@ -34,18 +36,17 @@ import com.dremio.service.Pointer;
  */
 public final class SimpleFilterJoinRule extends FilterJoinRule {
 
-  public static final SimpleFilterJoinRule CALCITE_INSTANCE = new SimpleFilterJoinRule();
+  public static final SimpleFilterJoinRule CALCITE_INSTANCE = new SimpleFilterJoinRule(
+      RelOptRule.operand(LogicalFilter.class, RelOptRule.operand(LogicalJoin.class, RelOptRule.any())),
+      "SimpleFilterJoinRuleCrel:filter",
+      DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+  public static final SimpleFilterJoinRule LOGICAL_INSTANCE = new SimpleFilterJoinRule(
+          RelOptRule.operand(FilterRel.class, RelOptRule.operand(JoinRel.class, RelOptRule.any())),
+          "SimpleFilterJoinRuleDrel:filter",
+          DremioRelFactories.LOGICAL_BUILDER);
 
-  private SimpleFilterJoinRule() {
-    super(
-        RelOptRule.operand(LogicalFilter.class,
-            RelOptRule.operand(LogicalJoin.class,
-                RelOptRule.any())),
-        "SimpleFilterJoinRule:filter",
-        true,
-        DremioRelFactories.CALCITE_LOGICAL_BUILDER,
-        FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM
-    );
+  private SimpleFilterJoinRule(RelOptRuleOperand operand, String id, RelBuilderFactory relBuilderFactory) {
+    super(operand, id, true, relBuilderFactory, FilterJoinRulesUtil.EQUAL_IS_NOT_DISTINCT_FROM);
   }
 
   @Override

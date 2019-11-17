@@ -14,14 +14,26 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
-import ExportMenu from './ExportMenu';
+import localStorageUtils from '@app/utils/storageUtils/localStorageUtils.js';
+import { ExportMenu } from './ExportMenu';
 
 describe('ExportMenu', () => {
   let minimalProps;
   let commonProps;
+
+  before(() => {
+    sinon.stub(localStorageUtils, 'getAuthToken').returns('test_token');
+  });
+
+  after(() => {
+    localStorageUtils.getAuthToken.restore();
+  });
+
   beforeEach(() => {
     minimalProps = {
-      action: sinon.spy()
+      action: sinon.spy(),
+      jobId: 'abc123',
+      addNotification: sinon.spy()
     };
     commonProps = {
       ...minimalProps,
@@ -44,10 +56,9 @@ describe('ExportMenu', () => {
       expect(wrapper.find('MenuItem')).to.have.length(3);
     });
 
-    it('should call action when menu item is clicked', () => {
+    it('should render menu item with href', () => {
       const menuItem = wrapper.find('MenuItem').at(0);
-      menuItem.simulate('click');
-      expect(commonProps.action).to.be.calledWith({ label: 'JSON', name: 'JSON'});
+      expect(menuItem.props().href).to.equal('///apiv2/job/abc123/download?downloadFormat=JSON&Authorization=test_token');
     });
 
     it('should render appropriate menu item label', () => {
@@ -64,6 +75,13 @@ describe('ExportMenu', () => {
       expect(getCsvMenuItem().props().disabled).to.be.true;
       getCsvMenuItem().simulate('click');
       expect(commonProps.action).to.be.not.called;
+    });
+
+    it('should render disabled menu items when sql has changed', () => {
+      const getCsvMenuItem = () => wrapper.find('MenuItem').at(1);
+      expect(getCsvMenuItem().props().disabled).to.be.false;
+      wrapper.setProps({ datasetSql: 'select * from a', currentSql: 'select * from b'});
+      expect(getCsvMenuItem().props().disabled).to.be.true;
     });
   });
 });

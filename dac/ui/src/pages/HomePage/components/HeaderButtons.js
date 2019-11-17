@@ -22,7 +22,7 @@ import { injectIntl } from 'react-intl';
 
 import config from 'dyn-load/utils/config';
 import Art from 'components/Art';
-import { ENTITY_TYPES } from 'constants/Constants';
+import { ENTITY_TYPES } from '@app/constants/Constants';
 
 import HeaderButtonsMixin from 'dyn-load/pages/HomePage/components/HeaderButtonsMixin';
 import { RestrictedArea } from '@app/components/Auth/RestrictedArea';

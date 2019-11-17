@@ -47,8 +47,8 @@ public class TestHDFSStoragePlugin extends DremioTest {
 
     SabotContext context = mock(SabotContext.class);
     when(context.getClasspathScan()).thenReturn(DremioTest.CLASSPATH_SCAN_RESULT);
-    final FileSystemWrapperCreator fileSystemWrapperCreator = FileSystemWrapperCreator.DEFAULT_INSTANCE;
-    when(context.getFileSystemWrapperCreator()).thenReturn(fileSystemWrapperCreator);
+    final FileSystemWrapper fileSystemWrapper = (fs, storageId, pluginConf, operatorContext, enableAsync, isMetadataEnabled) -> fs;
+    when(context.getFileSystemWrapper()).thenReturn(fileSystemWrapper);
 
     Provider<StoragePluginId> idProvider = () -> { return new StoragePluginId(null, conf, null); };
     try(HDFSStoragePlugin fileSystemPlugin = new HDFSStoragePlugin(conf, context, "test-plugin", idProvider)) {

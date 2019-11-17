@@ -74,8 +74,8 @@ describe('TextFormatForm', () => {
       expect(fieldDelimiter.onChange).to.be.calledWith('\t');
       fieldDelimiter.onChange.reset();
 
-      onDelimiterChange('\"');
-      expect(fieldDelimiter.onChange).to.be.calledWith('\"');
+      onDelimiterChange('"');
+      expect(fieldDelimiter.onChange).to.be.calledWith('"');
       fieldDelimiter.onChange.reset();
 
       onDelimiterChange('\\u0000');

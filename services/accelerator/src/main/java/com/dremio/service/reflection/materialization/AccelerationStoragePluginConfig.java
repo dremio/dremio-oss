@@ -22,8 +22,6 @@ import java.util.List;
 
 import javax.inject.Provider;
 
-import org.apache.hadoop.fs.Path;
-
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
@@ -31,6 +29,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
+import com.dremio.io.file.Path;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.reflection.ReflectionServiceImpl;
 import com.google.common.collect.ImmutableList;
@@ -43,6 +42,8 @@ import io.protostuff.Tag;
 @SourceType( value = "ACCELERATION", configurable = false)
 public class AccelerationStoragePluginConfig extends FileSystemConf<AccelerationStoragePluginConfig, AccelerationStoragePlugin> {
 
+  private static final int MAX_CACHE_SPACE_PERCENT = 100;
+
   @Tag(1)
   public String connection;
 
@@ -52,10 +53,16 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
   @Tag(3)
   public boolean enableAsync = true;
 
+  @Tag(4)
+  public boolean enableCaching = false;
+
+  @Tag(5)
+  public int maxCacheSpacePercent = MAX_CACHE_SPACE_PERCENT;
+
   public AccelerationStoragePluginConfig() {
   }
 
-  public AccelerationStoragePluginConfig(URI path, boolean enableAsync) {
+  public AccelerationStoragePluginConfig(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent) {
     if(path.getAuthority() != null) {
       connection = path.getScheme() + "://" + path.getAuthority() + "/";
     } else {
@@ -66,6 +73,8 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
       this.path = storagePath;
     }
     this.enableAsync = enableAsync;
+    this.enableCaching = enableCaching;
+    this.maxCacheSpacePercent = maxCacheSpacePercent;
   }
 
   @Override
@@ -80,7 +89,7 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
 
   @Override
   public Path getPath() {
-    return new Path(path);
+    return Path.of(path);
   }
 
   @Override
@@ -103,14 +112,9 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
     return SchemaMutability.SYSTEM_TABLE;
   }
 
-  @Override
-  public List<String> getConnectionUniqueProperties() {
-    return ImmutableList.of();
-  }
-
-  public static SourceConfig create(URI path, boolean enableAsync) {
+  public static SourceConfig create(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent) {
     SourceConfig conf = new SourceConfig();
-    AccelerationStoragePluginConfig connection = new AccelerationStoragePluginConfig(path, enableAsync);
+    AccelerationStoragePluginConfig connection = new AccelerationStoragePluginConfig(path, enableAsync, enableCaching, maxCacheSpacePercent);
     conf.setConnectionConf(connection);
     conf.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
     conf.setName(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
@@ -125,5 +129,22 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
   @Override
   public boolean isAsyncEnabled() {
     return enableAsync;
+  }
+
+  @Override
+  public CacheProperties getCacheProperties() {
+    return new CacheProperties() {
+      @Override
+      public boolean isCachingEnabled() {
+        return enableCaching;
+      }
+
+      @Override
+      public int cacheMaxSpaceLimitPct() {
+        maxCacheSpacePercent = (maxCacheSpacePercent > MAX_CACHE_SPACE_PERCENT) ?
+          MAX_CACHE_SPACE_PERCENT : maxCacheSpacePercent;
+        return maxCacheSpacePercent;
+      }
+    };
   }
 }

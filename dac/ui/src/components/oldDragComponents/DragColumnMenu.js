@@ -70,7 +70,7 @@ export default class DragColumnMenu extends Component {
         onDragEnd={this.props.onDragEnd}
         key={item.get('name')}
         dragType={this.props.dragType}/>
-      )
+    )
     );
   }
 

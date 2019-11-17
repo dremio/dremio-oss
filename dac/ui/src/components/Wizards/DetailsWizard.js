@@ -35,7 +35,7 @@ import { transformPeek } from 'actions/explore/dataset/peek';
 import { getExploreState, getImmutableTable } from 'selectors/explore';
 import { getViewState } from 'selectors/resources';
 
-import { CUSTOM_JOIN } from 'constants/explorePage/joinTabs';
+import { CUSTOM_JOIN } from '@app/constants/explorePage/joinTabs';
 import CalculatedFieldContent from './DetailsWizard/CalculatedFieldContent';
 import TransformContent from './DetailsWizard/TransformContent';
 import ConvertTrimContent from './DetailsWizard/ConvertTrimContent';

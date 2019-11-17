@@ -28,7 +28,6 @@ import { page } from 'uiTheme/radium/general';
 
 import QlikStateModal from '../ExplorePage/components/modals/QlikStateModal';
 import MainHeader from './../../components/MainHeader';
-import RecentDatasets from './subpages/RecentDatasets/RecentDatasets';
 import LeftTree from './components/LeftTree';
 import './HomePage.less';
 
@@ -78,25 +77,6 @@ class HomePage extends Component {
     });
   }
 
-  getCenterContent() {
-    return this.context.location.pathname.match('/spaces/recent')
-      ? this.getRecentDatasetsContent()
-      : '';
-  }
-
-  getRecentDatasetsContent() {
-    return (
-      <div className='page-content'>
-        <LeftTree
-          sources={this.props.sources}
-          pageType='recent'
-          className='col-lg-2 col-md-3'
-        />
-        <RecentDatasets/>
-      </div>
-    );
-  }
-
   getUser() {
     const { userInfo } = this.props;
     return userInfo && userInfo.size > 0 ? `@${userInfo.get('homeConfig').get('owner')}` : '';
@@ -116,7 +96,6 @@ class HomePage extends Component {
             className='col-lg-2 col-md-3'/>
           {this.props.children}
         </div>
-        {this.getCenterContent()}
         <QlikStateModal />
       </div>
     );

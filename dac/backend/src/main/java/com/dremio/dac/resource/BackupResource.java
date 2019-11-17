@@ -25,7 +25,6 @@ import javax.ws.rs.Path;
 import javax.ws.rs.core.SecurityContext;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
@@ -34,6 +33,8 @@ import com.dremio.dac.util.BackupRestoreUtil;
 import com.dremio.dac.util.BackupRestoreUtil.BackupStats;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.exec.hadoop.HadoopFileSystem;
+import com.dremio.io.file.FileSystem;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 
@@ -65,8 +66,8 @@ public class BackupResource {
       throw new IllegalArgumentException("backups are created only on master node.");
     }
 
-    final org.apache.hadoop.fs.Path backupDirPath = new org.apache.hadoop.fs.Path(backupDir);
-    final FileSystem fs = backupDirPath.getFileSystem(new Configuration());
+    final com.dremio.io.file.Path backupDirPath = com.dremio.io.file.Path.of(backupDir);
+    final FileSystem fs = HadoopFileSystem.get(backupDirPath, new Configuration());
     // Checking if directory already exists and that the daemon can access it
     BackupRestoreUtil.checkOrCreateDirectory(fs, backupDirPath);
     return BackupRestoreUtil.createBackup(fs, backupDirPath, (LocalKVStoreProvider) kvStoreProvider, fileStore.get().getConf());

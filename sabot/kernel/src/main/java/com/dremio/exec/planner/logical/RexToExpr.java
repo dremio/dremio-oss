@@ -850,6 +850,10 @@ public class RexToExpr {
         if (isLiteralNull(literal)) {
           return NullExpression.INSTANCE;
         }
+      case VARBINARY:
+        if (isLiteralNull(literal)) {
+          return createNullExpr(MinorType.VARBINARY);
+        }
       default:
         throw new UnsupportedOperationException(String.format("Unable to convert the value of %s and type %s to a Dremio constant expression.", literal, literal.getType().getSqlTypeName()));
       }

@@ -17,13 +17,16 @@ import { Component } from 'react';
 
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
+import { get } from 'lodash/object';
 
 import FormUtils from 'utils/FormUtils/FormUtils';
 
-import { FieldWithError, TextField, Radio } from 'components/Fields';
+import { FieldWithError, Radio, TextField } from 'components/Fields';
 
 import { rowOfInputsSpacing, rowOfRadio } from '@app/uiTheme/less/forms.less';
 import { flexContainer, flexElementAuto } from '@app/uiTheme/less/layout.less';
+
+const { CONFIG_PROP_NAME, addFormPrefixToPropName } = FormUtils;
 
 const DEFAULT_TEXT_FIELDS = [
   {propName: 'username', label: 'Username', errMsg: 'Username is required unless you choose no authentication.'},
@@ -34,25 +37,39 @@ const DEFAULT_RADIO_OPTIONS = [
   { label: 'No Authentication', option: 'ANONYMOUS' },
   { label: 'Master Credentials', option: 'MASTER' }
 ];
+export const AUTHENTICATION_TYPE_FIELD = addFormPrefixToPropName('authenticationType');
+export const USER_NAME_FIELD = addFormPrefixToPropName('username');
+export const PASSWORD_FIELD = addFormPrefixToPropName('password');
+export const SECRET_RESOURCE_URL_FIELD = addFormPrefixToPropName('secretResourceUrl');
 
 function validate(values, elementConfig) {
-  let errors = {config: {}};
+  let errors = { [CONFIG_PROP_NAME]: {}};
   const textFields = (elementConfig && elementConfig.textFields) ? elementConfig.textFields : DEFAULT_TEXT_FIELDS;
+  const isMasterAuth = get(values, AUTHENTICATION_TYPE_FIELD) === 'MASTER';
+
+  const hasSecretResourceUrl = !!get(values, SECRET_RESOURCE_URL_FIELD);
 
   errors = textFields.reduce((accumulator, textField) => {
-    if (values.config.authenticationType === 'MASTER' && !values.config[textField.propName]) {
-      accumulator.config[textField.propName] = textField.errMsg || `${textField.label} is required unless you choose no authentication`;
+    if (isMasterAuth && !values[CONFIG_PROP_NAME][textField.propName]) {
+      // password is not required if secretResourceUrl is set
+      if (textField.propName === 'password' && hasSecretResourceUrl) {
+        return;
+      }
+
+      accumulator[CONFIG_PROP_NAME][textField.propName] = textField.errMsg || `${textField.label} is required unless you choose no authentication`;
     }
     return accumulator;
   }, errors);
   return errors;
 }
 
+// credentials is not configurable
+const FIELDS = [AUTHENTICATION_TYPE_FIELD, USER_NAME_FIELD, PASSWORD_FIELD];
+
 export default class Credentials extends Component {
 
   static getFields() {
-    // credentials is not configurable
-    return ['config.authenticationType', 'config.username', 'config.password'];
+    return FIELDS;
   }
 
   static getValidators(elementConfig) {
@@ -71,33 +88,33 @@ export default class Credentials extends Component {
   }
 
   render() {
-    const {fields, elementConfig} = this.props;
-    const {config: {authenticationType}} = fields;
-    const textFields = (elementConfig && elementConfig.textFields) ? elementConfig.textFields : DEFAULT_TEXT_FIELDS;
-    const radioOptions = (elementConfig && elementConfig.radioOptions) ? elementConfig.radioOptions : DEFAULT_RADIO_OPTIONS;
+    const {fields} = this.props;
+    const authenticationTypeField = get(fields, AUTHENTICATION_TYPE_FIELD);
+    const textFields = this.getTextFields();
+    const radioOptions = this.getRadioOptions();
     return (
       <div>
         {radioOptions &&
-          <div className={classNames(rowOfInputsSpacing, rowOfRadio)}>
-            {radioOptions.map((option, index) => {
-              return (
-                <Radio radioValue={option.option}
-                       key={index}
-                       label={option.label}
-                       {...authenticationType}/>
-              );
-            })}
-          </div>
+        <div className={classNames(rowOfInputsSpacing, rowOfRadio)}>
+          {radioOptions.map((option, index) => {
+            return (
+              <Radio radioValue={option.option}
+                key={index}
+                label={option.label}
+                {...authenticationTypeField}/>
+            );
+          })}
+        </div>
         }
         <div className={classNames(rowOfInputsSpacing, flexContainer)}>
           {
             textFields.map((textField, index) => {
-              const field = FormUtils.getFieldByComplexPropName(fields, `config.${textField.propName}`);
+              const field = FormUtils.getFieldByComplexPropName(fields, addFormPrefixToPropName(textField.propName));
               const type = (textField.secure) ? {type: 'password'} : {};
               return (
                 <FieldWithError errorPlacement='bottom' label={textField.label} key={index} {...field} className={flexElementAuto}>
                   <TextField style={{width: '100%'}} {...type} {...field} key={index}
-                             disabled={authenticationType.value !== 'MASTER'} {...field}/>
+                    disabled={authenticationTypeField.value === 'ANONYMOUS'} {...field}/>
                 </FieldWithError>
               );
             })
@@ -105,5 +122,17 @@ export default class Credentials extends Component {
         </div>
       </div>
     );
+  }
+
+  getTextFields() {
+    const {elementConfig} = this.props;
+
+    return (elementConfig && elementConfig.textFields) ? elementConfig.textFields : DEFAULT_TEXT_FIELDS;
+  }
+
+  getRadioOptions() {
+    const {elementConfig} = this.props;
+
+    return (elementConfig && elementConfig.radioOptions) ? elementConfig.radioOptions : DEFAULT_RADIO_OPTIONS;
   }
 }

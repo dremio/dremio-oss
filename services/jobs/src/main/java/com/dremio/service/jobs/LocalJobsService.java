@@ -17,6 +17,7 @@ package com.dremio.service.jobs;
 
 import static com.dremio.common.utils.Protos.listNotNull;
 import static com.dremio.service.job.proto.JobState.ENQUEUED;
+import static com.dremio.service.job.proto.JobState.PLANNING;
 import static com.dremio.service.job.proto.JobState.STARTING;
 import static com.dremio.service.job.proto.QueryType.UI_INITIAL_PREVIEW;
 import static com.dremio.service.jobs.JobIndexKeys.ALL_DATASETS;
@@ -86,14 +87,11 @@ import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.KVStoreProvider.DocumentWriter;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.SearchQueryUtils;
-import com.dremio.datastore.SearchTypes.SearchFieldSorting;
 import com.dremio.datastore.SearchTypes.SearchQuery;
-import com.dremio.datastore.SearchTypes.SortOrder;
 import com.dremio.datastore.Serializer;
 import com.dremio.datastore.StoreBuildingFactory;
 import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.StringSerializer;
-import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.RootSchemaFinder;
@@ -125,6 +123,7 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.serialization.InstanceSerializer;
 import com.dremio.exec.serialization.ProtoSerializer;
+import com.dremio.exec.server.JobResultSchemaProvider;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
@@ -196,7 +195,7 @@ import io.protostuff.ByteString;
 /**
  * Submit and monitor jobs from DAC.
  */
-public class LocalJobsService implements JobsService {
+public class LocalJobsService implements JobsService, JobResultSchemaProvider {
   private static final Logger logger = LoggerFactory.getLogger(LocalJobsService.class);
   private static final Logger QUERY_LOGGER = LoggerFactory.getLogger("query.logger");
 
@@ -217,12 +216,6 @@ public class LocalJobsService implements JobsService {
   private static final String LOCAL_TASK_LEADER_NAME = "localjobsclean";
 
   private static final String LOCAL_ONE_TIME_TASK_LEADER_NAME = "localjobsabandon";
-
-  // Sort by descending order of start time. (recently submitted jobs come on top)
-  private static final List<SearchFieldSorting> DEFAULT_SORTER = ImmutableList.of(
-      START_TIME.toSortField(SortOrder.DESCENDING),
-      END_TIME.toSortField(SortOrder.DESCENDING),
-      JOBID.toSortField(SortOrder.DESCENDING));
 
   private final Provider<LocalQueryExecutor> queryExecutor;
   private final Provider<SabotContext> contextProvider;
@@ -376,6 +369,7 @@ public class LocalJobsService implements JobsService {
         final JobAttempt lastAttempt = attempts.get(numAttempts - 1);
         // .. check again; the index may not be updated, but the store maybe
         if (JobsServiceUtil.isNonFinalState(lastAttempt.getState())) {
+          logger.debug("failing abandoned job {}", lastAttempt.getInfo().getJobId().getId());
           final JobAttempt newLastAttempt = lastAttempt.setState(JobState.FAILED)
               .setInfo(lastAttempt.getInfo()
                   .setFinishTime(System.currentTimeMillis())
@@ -409,16 +403,20 @@ public class LocalJobsService implements JobsService {
 
   @Override
   public void registerListener(JobId jobId, ExternalStatusListener listener) {
-    final QueryListener queryListener = runningJobs.get(jobId);
-    if (queryListener != null) {
-      queryListener.listeners.register(listener);
-      return;
-    }
-
     final Job job;
     try {
-      job = getJob(jobId);
-      listener.queryCompleted(job);
+      final GetJobRequest request = GetJobRequest.newBuilder()
+          .setJobId(jobId)
+          .build();
+      job = getJob(request);
+
+      final QueryListener queryListener = runningJobs.get(jobId);
+      if (queryListener != null) {
+        queryListener.listeners.register(listener);
+        listener.profileUpdated(job);
+      } else {
+        listener.queryCompleted(job);
+      }
     } catch (JobNotFoundException e) {
       throw UserException.validationError()
           .message("Status requested for unknown job %s.", jobId.getId())
@@ -454,7 +452,7 @@ public class LocalJobsService implements JobsService {
             .setFailIfNonEmptySent(!QueryTypeUtils.isQueryFromUI(queryType))
             .setUsername(jobRequest.getUsername())
             .setSqlContext(jobRequest.getSqlQuery().getContext())
-            .setInternalSingleThreaded(queryType == UI_INITIAL_PREVIEW)
+            .setInternalSingleThreaded(queryType == UI_INITIAL_PREVIEW || jobRequest.runInSingleThread())
             .setQueryResultsStorePath(storageName)
             .setAllowPartitionPruning(queryType != QueryType.ACCELERATOR_EXPLAIN)
             .setExposeInternalSources(QueryTypeUtils.isInternal(queryType))
@@ -544,28 +542,21 @@ public class LocalJobsService implements JobsService {
   }
 
   @Override
-  public Job getJob(final JobId jobId) throws JobNotFoundException {
-    QueryListener listener = runningJobs.get(jobId);
-    if (listener != null) {
-      return listener.getJob();
+  public Job getJob(GetJobRequest request) throws JobNotFoundException {
+    JobId jobId = request.getJobId();
+    if (!request.isFromStore()) {
+      QueryListener listener = runningJobs.get(jobId);
+      if (listener != null) {
+        return listener.getJob();
+      }
     }
 
-    return getJobFromStore(jobId);
-  }
-
-  @Override
-  public Job getJobFromStore(JobId jobId) throws JobNotFoundException {
     JobResult jobResult = store.get(jobId);
     if (jobResult == null) {
       throw new JobNotFoundException(jobId);
     }
 
     return new Job(jobId, jobResult, jobResultsStore);
-  }
-
-  @Override
-  public Job getJob(JobId jobId, String userName) throws JobNotFoundException {
-    return getJob(jobId);
   }
 
   @VisibleForTesting
@@ -637,42 +628,8 @@ public class LocalJobsService implements JobsService {
   }
 
   @Override
-  public Iterable<Job> getJobsForDataset(final NamespaceKey datasetPath, int limit){
-    return getJobsForDataset(datasetPath, null, limit);
-  }
-
-  @Override
-  public Iterable<Job> getJobsForDataset(final NamespaceKey datasetPath, final DatasetVersion version, int limit){
-    FindByCondition condition = new FindByCondition()
-        .setCondition(getFilter(datasetPath, version, null))
-        .setLimit(limit)
-        .addSortings(DEFAULT_SORTER);
-    return findJobs(condition);
-  }
-
-  @Override
-  public Iterable<Job> getJobsForDataset(final NamespaceKey datasetPath, final DatasetVersion version, String user,
-                                         int limit){
-    FindByCondition condition = new FindByCondition()
-      .setCondition(getFilter(datasetPath, version, user))
-      .setLimit(limit)
-      .addSortings(DEFAULT_SORTER);
-    return findJobs(condition);
-  }
-
-  @Override
-  public Iterable<Job> getAllJobs(String filterString, String sortColumn, SortOrder sortOrder, int offset, int limit, String userName) {
-    FindByCondition condition = new FindByCondition()
-      .setOffset(offset)
-      .setLimit(limit)
-      .addSortings(buildSorter(sortColumn, sortOrder))
-      .setCondition(filterString, JobIndexKeys.MAPPING);
-
-    return findJobs(condition);
-  }
-
-  protected Iterable<Job> findJobs(FindByCondition condition) {
-    return toJobs(store.find(condition));
+  public Iterable<Job> searchJobs(SearchJobsRequest request) {
+    return toJobs(store.find(request.getCondition()));
   }
 
   @Override
@@ -684,7 +641,7 @@ public class LocalJobsService implements JobsService {
         .setCondition(query)
         .setLimit(limit);
 
-    return findJobs(condition);
+    return toJobs(store.find(condition));
   }
 
   private Iterable<Job> toJobs(final Iterable<Entry<JobId, JobResult>> entries) {
@@ -711,6 +668,22 @@ public class LocalJobsService implements JobsService {
     }
 
     return SearchQueryUtils.and(builder.build());
+  }
+
+  @Override
+  public java.util.Optional<BatchSchema> getResultSchema(String jobId, String username) {
+    try {
+      final Job job = getJob(GetJobRequest.newBuilder()
+          .setJobId(new JobId(jobId))
+          .setUserName(username)
+          .build());
+      if (job.isCompleted()) {
+        return java.util.Optional.of(BatchSchema.deserialize(job.getJobAttempt().getInfo().getBatchSchema()));
+      } // else, fall through
+    } catch (JobNotFoundException ignored) {
+      // fall through
+    }
+    return java.util.Optional.empty();
   }
 
   private static class JobConverter implements KVStoreProvider.DocumentConverter<JobId, JobResult> {
@@ -1221,8 +1194,8 @@ public class LocalJobsService implements JobsService {
   @VisibleForTesting
   Iterable<Job> getAllJobs(){
     FindByCondition condition = new FindByCondition();
-    condition.addSortings(DEFAULT_SORTER);
-    return findJobs(condition);
+    condition.addSortings(SearchJobsRequest.DEFAULT_SORTER);
+    return toJobs(store.find(condition));
   }
 
   @VisibleForTesting
@@ -1271,6 +1244,11 @@ public class LocalJobsService implements JobsService {
     }
 
     @Override
+    public void recordsProcessed(long recordCount) {
+      externalListenerManager.reportRecordCount(job, recordCount);
+    }
+
+    @Override
     public void queryStarted(UserRequest query, String user) {
       job.getJobAttempt().setState(ENQUEUED);
       job.getJobAttempt().getInfo().setRequestType(query.getRequestType());
@@ -1293,6 +1271,20 @@ public class LocalJobsService implements JobsService {
       jobInfo.setCommandPoolWaitMillis(currentWait + waitInMillis);
 
       storeJob(job);
+
+      if (externalListenerManager != null) {
+        externalListenerManager.queryUpdate(job);
+      }
+    }
+
+    @Override
+    public void planStart(String rawPlan) {
+      job.getJobAttempt().setState(PLANNING);
+      storeJob(job);
+
+      if (externalListenerManager != null) {
+        externalListenerManager.queryUpdate(job);
+      }
     }
 
     @Override
@@ -1618,7 +1610,10 @@ public class LocalJobsService implements JobsService {
   @Override
   public QueryProfile getProfile(JobId jobId, int attempt) throws JobNotFoundException {
 
-    Job job = getJob(jobId);
+    GetJobRequest request = GetJobRequest.newBuilder()
+      .setJobId(jobId)
+      .build();
+    Job job = getJob(request);
     final AttemptId attemptId = new AttemptId(JobsServiceUtil.getJobIdAsExternalId(jobId), attempt);
     if(jobIsDone(job.getJobAttempt())){
       return profileStore.get(attemptId);
@@ -1657,7 +1652,10 @@ public class LocalJobsService implements JobsService {
     }
 
     // now remote...
-    final Job job = getJob(jobId);
+    GetJobRequest request = GetJobRequest.newBuilder()
+      .setJobId(jobId)
+      .build();
+    final Job job = getJob(request);
     NodeEndpoint endpoint = job.getJobAttempt().getEndpoint();
     if(endpoint.equals(identity)){
       throw new JobWarningException(jobId, "Unable to cancel job started on current node. It may have completed before cancellation was requested.");
@@ -1677,17 +1675,6 @@ public class LocalJobsService implements JobsService {
       throw new JobWarningException(jobId, String.format("Unable to cancel job on node %s.", endpoint.getAddress()));
     }
 
-  }
-
-  protected static List<SearchFieldSorting> buildSorter(final String shortKey, final SortOrder order) {
-    if (shortKey != null) {
-      final IndexKey key = JobIndexKeys.MAPPING.getKey(shortKey);
-      if(key == null || !key.isSorted()){
-        throw UserException.functionError().message("Unable to sort by field {}.", shortKey).build(logger);
-      }
-      return ImmutableList.of(key.toSortField(order));
-    }
-    return DEFAULT_SORTER;
   }
 
   /**

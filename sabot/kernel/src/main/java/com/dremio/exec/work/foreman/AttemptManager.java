@@ -250,6 +250,13 @@ public class AttemptManager implements Runnable {
     }
   }
 
+  /**
+   * Publish query progress.
+   */
+  public void publishProgress() {
+    queryManager.publishProgress();
+  }
+
   public void updateStatus(FragmentStatus status) {
     queryManager.getFragmentStatusListener().statusUpdate(status);
   }
@@ -523,6 +530,9 @@ public class AttemptManager implements Runnable {
     public void close() {
       Preconditions.checkState(!isClosed);
       Preconditions.checkState(resultState != null);
+
+      // publish progress for this attempt
+      queryManager.publishProgress();
 
       // to track how long the query takes
       queryManager.markEndTime();

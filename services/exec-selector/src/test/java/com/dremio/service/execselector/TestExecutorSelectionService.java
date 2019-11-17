@@ -83,7 +83,7 @@ public class TestExecutorSelectionService {
     }
 
     @Override
-    public ExecutorSelectionHandle getExecutors(int desiredNumExecutors) {
+    public ExecutorSelectionHandle getExecutors(int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
       return new ExecutorSelectionHandleImpl(executors);
     }
 

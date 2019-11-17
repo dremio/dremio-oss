@@ -99,7 +99,7 @@ export default class ReplaceValues extends Component {
         placeholder={la('Search values…')}
         value={this.state.filter}
         onChange={this.handleFilter}
-        />
+      />
       : null;
   }
 
@@ -110,7 +110,7 @@ export default class ReplaceValues extends Component {
         options={values.toJS()}
         field={fields.replaceValues}
         style={styles.valuesList}
-        />
+      />
       : <div style={styles.notFound}>{la('Not found')}</div>;
   }
 

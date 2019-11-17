@@ -42,9 +42,11 @@ import com.dremio.exec.util.MemoryAllocationUtilities;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
+import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.resource.ResourceSet;
 import com.dremio.resource.basic.BasicResourceConstants;
 import com.dremio.resource.basic.QueueType;
+import com.dremio.service.execselector.ExecutorSelectionContext;
 import com.dremio.service.execselector.ExecutorSelectionHandle;
 import com.dremio.service.execselector.ExecutorSelectionHandleImpl;
 import com.dremio.service.execselector.ExecutorSelectionService;
@@ -59,11 +61,13 @@ class ExecutionPlanCreator {
     final QueryContext queryContext,
     AttemptObserver observer,
     final PhysicalPlan plan,
-    ExecutorSelectionService executorSelectionService) throws ExecutionSetupException {
+    ExecutorSelectionService executorSelectionService,
+    ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) throws ExecutionSetupException {
 
     final Root rootOperator = plan.getRoot();
     final Fragment rootFragment = rootOperator.accept(MakeFragmentsVisitor.INSTANCE, null);
-    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer, executorSelectionService);
+    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer, executorSelectionService,
+      resourceSchedulingDecisionInfo);
 
     observer.planParallelStart();
     final Stopwatch stopwatch = Stopwatch.createStarted();
@@ -146,7 +150,7 @@ class ExecutionPlanCreator {
     // Executor selection service whose only purpose is to return 'endpoints'
     ExecutorSelectionService executorSelectionService = new ExecutorSelectionService() {
       @Override
-      public ExecutorSelectionHandle getExecutors(int desiredNumExecutors) {
+      public ExecutorSelectionHandle getExecutors(int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
         return new ExecutorSelectionHandleImpl(endpoints);
       }
 

@@ -140,16 +140,16 @@ export class FinderNavItem extends Component {
     return (
       <li className={itemClass} style={[disabled && styles.disabled, style]} onContextMenu={this.handleRightClick}>
         {
-            entityType === ENTITY_TYPES.space ?
-              <FinderNavItemV3 entityId={id} /> :
-              (
-                <EntityLink entityId={id} activeClassName='active' className='finder-nav-item-link'>
-                  <EntityIcon entityId={id} />
-                  <EllipsedText text={name} style={{marginRight: 5}} />
-                  <ContainerDatasetCount count={numberOfDatasets} isBounded={datasetCountBounded} />
-                  {id && <ResourcePin entityId={id} />}
-                </EntityLink>
-              )
+          entityType === ENTITY_TYPES.space ?
+            <FinderNavItemV3 entityId={id} /> :
+            (
+              <EntityLink entityId={id} activeClassName='active' className='finder-nav-item-link'>
+                <EntityIcon entityId={id} />
+                <EllipsedText text={name} style={{marginRight: 5}} />
+                <ContainerDatasetCount count={numberOfDatasets} isBounded={datasetCountBounded} />
+                {id && <ResourcePin entityId={id} />}
+              </EntityLink>
+            )
         }
         {this.hasMenu() && this.state.menuOpen &&
           <Popover

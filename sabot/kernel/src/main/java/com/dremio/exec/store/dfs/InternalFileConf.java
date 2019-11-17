@@ -16,19 +16,20 @@
 package com.dremio.exec.store.dfs;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.List;
 
 import javax.inject.Provider;
-
-import org.apache.hadoop.fs.Path;
 
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.io.file.Path;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.google.common.collect.ImmutableList;
+import com.google.common.base.Supplier;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 
 import io.protostuff.Tag;
@@ -62,7 +63,7 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
 
   @Override
   public Path getPath() {
-    return new Path(path);
+    return Path.of(path);
   }
 
   @Override
@@ -86,11 +87,6 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
   }
 
   @Override
-  public List<String> getConnectionUniqueProperties() {
-    return ImmutableList.of();
-  }
-
-  @Override
   public FileSystemPlugin<InternalFileConf> newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new FileSystemPlugin<>(this, context, name, pluginIdProvider);
   }
@@ -98,7 +94,7 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
   public InternalFileConf() {
   }
 
-  public InternalFileConf(String connection, String path, boolean enableImpersonation, List<Property> propertyList,
+  InternalFileConf(String connection, String path, boolean enableImpersonation, List<Property> propertyList,
                           SchemaMutability mutability, boolean enableAsync) {
     this.connection = connection;
     this.path = path;
@@ -106,28 +102,6 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
     this.propertyList = propertyList;
     this.mutability = mutability;
     this.enableAsync = enableAsync;
-  }
-
-  public InternalFileConf(String connection, String path) {
-    this(connection, path, false, ImmutableList.<Property>of(), SchemaMutability.ALL, true);
-  }
-
-  public static SourceConfig create(
-      String name,
-      String connection,
-      String path,
-      boolean enableImpersonation,
-      List<Property> properties,
-      SchemaMutability mutability,
-      MetadataPolicy policy,
-      boolean enableAsync
-      ) {
-    SourceConfig conf = new SourceConfig();
-    InternalFileConf fc = new InternalFileConf(connection, path, enableImpersonation, properties, mutability, enableAsync);
-    conf.setConnectionConf(fc);
-    conf.setMetadataPolicy(policy);
-    conf.setName(name);
-    return conf;
   }
 
   public static SourceConfig create(
@@ -165,5 +139,19 @@ public class InternalFileConf extends FileSystemConf<InternalFileConf, FileSyste
   @Override
   public boolean isAsyncEnabled() {
     return enableAsync;
+  }
+
+  private final transient Supplier<URI> uri = new Supplier<URI>() {
+    @Override
+    public URI get() {
+      try {
+        return new URI(connection);
+      } catch (URISyntaxException e) {
+        throw Throwables.propagate(e);
+      }
+    }};
+
+  public boolean isPdfsBased() {
+    return uri.get().getScheme().equals("pdfs");
   }
 }

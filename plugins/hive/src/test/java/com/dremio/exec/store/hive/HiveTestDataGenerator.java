@@ -32,23 +32,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.dremio.exec.ExecConstants;
-
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
+import org.apache.hadoop.hive.metastore.MetaStoreUtils;
 import org.apache.hadoop.hive.ql.Driver;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hadoop.hive.serde.serdeConstants;
 
 import com.dremio.BaseTestQuery;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ManagedStoragePlugin;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.impersonation.hive.BaseTestHiveImpersonation;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.collect.Maps;
 import com.google.common.io.Resources;
@@ -56,12 +57,18 @@ import com.google.common.io.Resources;
 public class HiveTestDataGenerator {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveTestDataGenerator.class);
 
-  private static final String HIVE_TEST_PLUGIN_NAME = "hive";
+  public static final String HIVE_TEST_PLUGIN_NAME = "hive";
+  public static final String HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE = "hive plugin name with whitespace";
+
   private static HiveTestDataGenerator instance;
 
   private final String dbDir;
   private final String whDir;
   private final Map<String, String> config;
+
+  // Metastore server port
+  private final int port;
+
 
   public static synchronized HiveTestDataGenerator getInstance() throws Exception {
     if (instance == null) {
@@ -76,14 +83,19 @@ public class HiveTestDataGenerator {
     return instance;
   }
 
-  private HiveTestDataGenerator(final String dbDir, final String whDir) {
+  private HiveTestDataGenerator(final String dbDir, final String whDir) throws Exception {
     this.dbDir = dbDir;
     this.whDir = whDir;
 
+    final HiveConf conf = new HiveConf();
+
+    HiveConf.setBoolVar(conf, HiveConf.ConfVars.METASTORE_SCHEMA_VERIFICATION, false);
+    HiveConf.setBoolVar(conf, HiveConf.ConfVars.METASTORE_AUTO_CREATE_ALL, true);
+    HiveConf.setVar(conf, HiveConf.ConfVars.METASTOREWAREHOUSE, whDir);
+    HiveConf.setVar(conf, HiveConf.ConfVars.METASTORECONNECTURLKEY, String.format("jdbc:derby:;databaseName=%s;create=true", dbDir));
+    port = MetaStoreUtils.startMetaStore(conf);
+
     config = Maps.newHashMap();
-    config.put("hive.metastore.uris", "");
-    config.put("javax.jdo.option.ConnectionURL", String.format("jdbc:derby:;databaseName=%s;create=true", dbDir));
-    config.put("hive.metastore.warehouse.dir", whDir);
     config.put(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
   }
 
@@ -95,10 +107,12 @@ public class HiveTestDataGenerator {
    * Add Hive test storage plugin to the given plugin registry.
    * @throws Exception
    */
-  public void addHiveTestPlugin(final CatalogService pluginRegistry) throws Exception {
+  public void addHiveTestPlugin(final String pluginName, final CatalogService pluginRegistry) throws Exception {
     SourceConfig sc = new SourceConfig();
-    sc.setName(HIVE_TEST_PLUGIN_NAME);
-    HiveStoragePluginConfig conf = BaseTestHiveImpersonation.createHiveStoragePlugin(config);
+    sc.setName(pluginName);
+    Hive2StoragePluginConfig conf = BaseTestHiveImpersonation.createHiveStoragePlugin(config);
+    conf.hostname = "localhost";
+    conf.port = port;
     sc.setType(conf.getType());
     sc.setConfig(conf.toBytesString());
     sc.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
@@ -113,7 +127,7 @@ public class HiveTestDataGenerator {
    */
   public void updatePluginConfig(final CatalogService pluginRegistry, Map<String, String> configOverride)
       throws Exception {
-    HiveStoragePlugin storagePlugin = (HiveStoragePlugin) pluginRegistry.getSource(HIVE_TEST_PLUGIN_NAME);
+    StoragePlugin storagePlugin = pluginRegistry.getSource(HIVE_TEST_PLUGIN_NAME);
     if (storagePlugin == null) {
       throw new Exception(
           "Hive test storage plugin doesn't exist. Add a plugin using addHiveTestPlugin()");
@@ -121,7 +135,7 @@ public class HiveTestDataGenerator {
 
     ManagedStoragePlugin msp = ((CatalogServiceImpl) pluginRegistry).getManagedSource(HIVE_TEST_PLUGIN_NAME);
     SourceConfig newSC = msp.getId().getClonedConfig();
-    HiveStoragePluginConfig conf = msp.getId().<HiveStoragePluginConfig>getConnectionConf().clone();
+    Hive2StoragePluginConfig conf = (Hive2StoragePluginConfig) msp.getId().<Hive2StoragePluginConfig>getConnectionConf().clone();
 
     List<Property> updated = new ArrayList<>();
     for(Entry<String, String> prop : configOverride.entrySet()) {
@@ -142,9 +156,9 @@ public class HiveTestDataGenerator {
   /**
    * Delete the Hive test plugin from registry.
    */
-  public void deleteHiveTestPlugin(final CatalogService pluginRegistry) {
+  public void deleteHiveTestPlugin(final String pluginName, final CatalogService pluginRegistry) {
     CatalogServiceImpl impl = (CatalogServiceImpl) pluginRegistry;
-    ManagedStoragePlugin msp = impl.getManagedSource(HIVE_TEST_PLUGIN_NAME);
+    ManagedStoragePlugin msp = impl.getManagedSource(pluginName);
     impl.getSystemUserCatalog().deleteSource(msp.getId().getConfig());
   }
 
@@ -163,16 +177,14 @@ public class HiveTestDataGenerator {
   private HiveConf newHiveConf() {
     HiveConf conf = new HiveConf(SessionState.class);
 
-    conf.set(ConfVars.METASTORECONNECTURLKEY.varname, String.format("jdbc:derby:;databaseName=%s;create=true", dbDir));
+    HiveConf.setVar(conf, ConfVars.METASTOREURIS, "thrift://localhost:" + port);
     conf.set(FileSystem.FS_DEFAULT_NAME_KEY, "file:///");
-    conf.set(ConfVars.METASTOREWAREHOUSE.varname, whDir);
+    HiveConf.setVar(conf, ConfVars.METASTOREWAREHOUSE, whDir);
     conf.set("mapred.job.tracker", "local");
-    conf.set(ConfVars.SCRATCHDIR.varname,  getTempDir("scratch_dir"));
-    conf.set(ConfVars.LOCALSCRATCHDIR.varname, getTempDir("local_scratch_dir"));
-    conf.set(ConfVars.DYNAMICPARTITIONINGMODE.varname, "nonstrict");
-    conf.set(ConfVars.METASTORE_SCHEMA_VERIFICATION.varname, "false");
-    conf.set(ConfVars.METASTORE_AUTO_CREATE_ALL.varname, "true");
-    conf.set(ConfVars.HIVE_CBO_ENABLED.varname, "false");
+    HiveConf.setVar(conf, ConfVars.SCRATCHDIR,  getTempDir("scratch_dir"));
+    HiveConf.setVar(conf, ConfVars.LOCALSCRATCHDIR, getTempDir("local_scratch_dir"));
+    HiveConf.setVar(conf, ConfVars.DYNAMICPARTITIONINGMODE, "nonstrict");
+    HiveConf.setBoolVar(conf, ConfVars.HIVE_CBO_ENABLED, false);
 
     return conf;
 
@@ -182,11 +194,25 @@ public class HiveTestDataGenerator {
     return new Driver(conf);
   }
 
+  private void logVersion(Driver hiveDriver) throws Exception {
+    hiveDriver.run("SELECT VERSION()");
+    hiveDriver.resetFetch();
+    hiveDriver.setMaxRows(1);
+    List<String> result = new ArrayList<>();
+    hiveDriver.getResults(result);
+
+    for (String values : result) {
+      System.out.println("Test Hive instance version: " + values);
+    }
+  }
+
   private void generateTestData() throws Exception {
     HiveConf conf = newHiveConf();
     SessionState ss = new SessionState(conf);
     SessionState.start(ss);
     Driver hiveDriver = getHiveDriver(conf);
+
+//    logVersion(hiveDriver);
 
     // generate (key, value) test data
     String testDataFile = generateTestDataFile(5, "dremio-hive-test");
@@ -619,7 +645,7 @@ public class HiveTestDataGenerator {
     String table = source + "_to_" + destination + "_orc_ext";
     String sourcetable = source + "_orc";
     String ext_table = "CREATE EXTERNAL TABLE IF NOT EXISTS " + table +
-      " (col1 "+ destination + desttypeargs +") STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + sourcetable + "'";
+      " (col1 "+ destination + desttypeargs +") STORED AS ORC LOCATION 'file://" + this.getWhDir() + "/" + sourcetable + "'";
     executeQuery(hiveDriver, ext_table);
   }
   private void createFieldSizeLimitTables(final Driver hiveDriver, final String table) throws Exception {
@@ -658,7 +684,7 @@ public class HiveTestDataGenerator {
     String createArrayDataTable = "CREATE TABLE " + table + "_array_data" + " (col1 int)";
     String insertArrayData = "INSERT INTO TABLE " + table + "_array_data" + " VALUES(90)";
     String insertParquetData = "INSERT INTO TABLE " + table + " SELECT col1, array(col1) FROM " + table + "_array_data";
-    String createParquetExtTable = "CREATE EXTERNAL TABLE " + table + "_ext" + " (col1 int) STORED AS PARQUET LOCATION 'FILE://" + this.getWhDir() + "/" + table + "'";
+    String createParquetExtTable = "CREATE EXTERNAL TABLE " + table + "_ext" + " (col1 int) STORED AS PARQUET LOCATION 'file://" + this.getWhDir() + "/" + table + "'";
     executeQuery(hiveDriver, createParqetTableCmd);
     executeQuery(hiveDriver, createArrayDataTable);
     executeQuery(hiveDriver, insertArrayData);
@@ -965,11 +991,11 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, intsert_datatable);
     String exttable = table + "_ext";
     String ext_table = "CREATE EXTERNAL TABLE IF NOT EXISTS " + exttable +
-      " (col1 decimal(25,2), col2 string, col3 varchar(32))" + "STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + table + "'";
+      " (col1 decimal(25,2), col2 string, col3 varchar(32))" + "STORED AS ORC LOCATION 'file://" + this.getWhDir() + "/" + table + "'";
     executeQuery(hiveDriver, ext_table);
     String exttable2 = table + "_ext_2";
     String ext_table2 = "CREATE EXTERNAL TABLE IF NOT EXISTS " + exttable2 +
-      " (col1 decimal(2,2), col2 decimal(16,7), col3 decimal(4,1))" + "STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + table + "'";
+      " (col1 decimal(2,2), col2 decimal(16,7), col3 decimal(4,1))" + "STORED AS ORC LOCATION 'file://" + this.getWhDir() + "/" + table + "'";
     executeQuery(hiveDriver, ext_table2);
 
     String tablerev = table + "_rev";
@@ -979,7 +1005,7 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, intsert_datatable_rev);
     String exttable_rev = tablerev + "_ext";
     String ext_table_rev = "CREATE EXTERNAL TABLE IF NOT EXISTS " + exttable_rev +
-      " (col1 decimal(3,2), col2 decimal(5,2), col3 decimal(5,2))" + "STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + tablerev + "'";
+      " (col1 decimal(3,2), col2 decimal(5,2), col3 decimal(5,2))" + "STORED AS ORC LOCATION 'file://" + this.getWhDir() + "/" + tablerev + "'";
     executeQuery(hiveDriver, ext_table_rev);
 
   }
@@ -997,7 +1023,7 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insert_datatableorc);
     String exttable = table + "_orc_ext";
     String ext_table = "CREATE EXTERNAL TABLE IF NOT EXISTS " + exttable +
-      " (col1 string)" + "STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + table + "_orc" + "'";
+      " (col1 string)" + "STORED AS ORC LOCATION 'file://" + this.getWhDir() + "/" + table + "_orc" + "'";
     executeQuery(hiveDriver, ext_table);
   }
 
@@ -1014,7 +1040,7 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insert_datatableorc);
     String exttable = table + "_orc_ext";
     String ext_table = "CREATE EXTERNAL TABLE IF NOT EXISTS " + exttable +
-      " (col1 string)" + "STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + table + "_orc" + "'";
+      " (col1 string)" + "STORED AS ORC LOCATION 'file://" + this.getWhDir() + "/" + table + "_orc" + "'";
     executeQuery(hiveDriver, ext_table);
   }
 
@@ -1025,7 +1051,7 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insert_datatable);
     String exttable = table + "_ext";
     String ext_table = "CREATE EXTERNAL TABLE IF NOT EXISTS " + exttable +
-      " (col1 int, col2 int, col3 int, col4 int)" + "STORED AS ORC LOCATION 'FILE://" + this.getWhDir() + "/" + table + "'";
+      " (col1 int, col2 int, col3 int, col4 int)" + "STORED AS ORC LOCATION 'file://" + this.getWhDir() + "/" + table + "'";
     executeQuery(hiveDriver, ext_table);
   }
 

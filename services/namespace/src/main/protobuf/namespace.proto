@@ -15,7 +15,7 @@
  */
 package com.dremio.service.namespace.namespace.proto;
 
-option java_package = "com.dremio.service.namespace.proto";
+option java_package = "com.dremio.service.namespace.protostuff";
 option optimize_for = SPEED;
 option java_outer_classname = "NamespaceProtobuf";
 

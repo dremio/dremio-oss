@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>3.3.2-201908142136370993-d60145d</version>
+    <version>4.0.4-201910212053580380-773b665</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -33,9 +33,16 @@
     <dremio.distribution.name>dremio-oss</dremio.distribution.name>
     <dremio.distribution.directory>${project.build.directory}/${dremio.distribution.name}-${project.version}/${dremio.distribution.name}-${project.version}</dremio.distribution.directory>
     <dremio.distribution.resources.directory>${project.build.directory}/distribution-resources</dremio.distribution.resources.directory>
+    <dremio.hive.plugin-group-id>com.dremio.plugins</dremio.hive.plugin-group-id>
+    <dremio.hive.plugin-artifact-id-prefix>dremio</dremio.hive.plugin-artifact-id-prefix>
   </properties>
 
   <dependencies>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-dac-daemon</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <dependency>
       <groupId>com.dremio.distribution</groupId>
       <artifactId>dremio-distribution-resources</artifactId>
@@ -60,11 +67,6 @@
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-dac-backend</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.dremio</groupId>
-      <artifactId>dremio-dac-daemon</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -135,8 +137,19 @@
       <artifactId>hadoop-common</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.amazonaws</groupId>
+      <artifactId>aws-java-sdk-dynamodb</artifactId>
+      <version>${aws-sdk.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-aws</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-bundle</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -166,17 +179,29 @@
 
     <dependency>
       <groupId>com.dremio.plugins</groupId>
-      <artifactId>dremio-hive-plugin</artifactId>
+      <artifactId>dremio-hive-plugin-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${dremio.hive.plugin-group-id}</groupId>
+      <artifactId>${dremio.hive.plugin-artifact-id-prefix}-hive2-plugin-launcher</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${dremio.hive.plugin-group-id}</groupId>
+      <artifactId>${dremio.hive.plugin-artifact-id-prefix}-hive2-plugin</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>*</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.dremio.plugins</groupId>
-      <artifactId>dremio-hbase-plugin</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-core</artifactId>
-        </exclusion>
-      </exclusions>
+      <artifactId>dremio-hive-function-registry</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <dependency>
@@ -188,7 +213,7 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-winutils</artifactId>
-      <version>2.7.1</version>
+      <version>3.2.0</version>
       <type>zip</type>
     </dependency>
 
@@ -354,6 +379,14 @@
                       </sources>
                     </mapping>
                     <mapping>
+                      <directory>/opt/dremio/plugins</directory>
+                      <sources>
+                        <source>
+                          <location>${dremio.distribution.directory}/plugins</location>
+                        </source>
+                      </sources>
+                    </mapping>
+                    <mapping>
                       <directory>/opt/dremio/share/dremio</directory>
                       <sources>
                         <source>
@@ -488,18 +521,19 @@ exit 0
       </activation>
       <dependencies>
         <dependency>
-          <groupId>com.dremio.plugins</groupId>
-          <artifactId>dremio-adls-plugin</artifactId>
+          <groupId>${dremio.hive.plugin-group-id}</groupId>
+          <artifactId>${dremio.hive.plugin-artifact-id-prefix}-hive3-plugin</artifactId>
           <version>${project.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
         <dependency>
-          <groupId>com.dremio.plugins</groupId>
-          <artifactId>dremio-azure-storage-plugin</artifactId>
-          <version>${project.version}</version>
-        </dependency>  
-        <dependency>
-          <groupId>com.dremio.plugins</groupId>
-          <artifactId>dremio-s3-plugin</artifactId>
+          <groupId>${dremio.hive.plugin-group-id}</groupId>
+          <artifactId>${dremio.hive.plugin-artifact-id-prefix}-hive3-plugin-launcher</artifactId>
           <version>${project.version}</version>
         </dependency>
       </dependencies>
@@ -514,6 +548,8 @@ exit 0
       </activation>
       <properties>
         <dremio.distribution.name>dremio-community</dremio.distribution.name>
+        <dremio.hive.plugin-artifact-id-prefix>dremio-ce</dremio.hive.plugin-artifact-id-prefix>
+        <dremio.hive.plugin-group-id>com.dremio.community.plugins</dremio.hive.plugin-group-id>
       </properties>
     </profile>
   </profiles>

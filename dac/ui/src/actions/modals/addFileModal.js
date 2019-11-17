@@ -15,7 +15,7 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 
 import fileSchema from 'schemas/file';
 import fileFormatSchema from 'schemas/fileFormat';
@@ -55,26 +55,6 @@ export const uploadFileToPath = (file, fileConfig, extension, viewId) => (dispat
   });
 };
 
-export const LOAD_FILE_FORMAT_REQUEST = 'LOAD_FILE_FORMAT_REQUEST';
-export const LOAD_FILE_FORMAT_SUCCESS = 'LOAD_FILE_FORMAT_SUCCESS';
-export const LOAD_FILE_FORMAT_FAILURE = 'LOAD_FILE_FORMAT_FAILURE';
-
-export function loadFileFormat(formatUrl, viewId) {
-  const meta = {
-    viewId
-  };
-  return {
-    [RSAA]: {
-      types: [
-        {type: LOAD_FILE_FORMAT_REQUEST, meta},
-        schemaUtils.getSuccessActionTypeWithSchema(LOAD_FILE_FORMAT_SUCCESS, fileFormatSchema, meta),
-        {type: LOAD_FILE_FORMAT_FAILURE, meta}],
-      method: 'GET',
-      endpoint: `${API_URL_V2}${formatUrl}`
-    }
-  };
-}
-
 export const FILE_FORMAT_PREVIEW_REQUEST = 'FILE_FORMAT_PREVIEW_REQUEST';
 export const FILE_FORMAT_PREVIEW_SUCCESS = 'FILE_FORMAT_PREVIEW_SUCCESS';
 export const FILE_FORMAT_PREVIEW_FAILURE = 'FILE_FORMAT_PREVIEW_FAILURE';
@@ -104,6 +84,43 @@ export function resetFileFormatPreview() {
   return {type: RESET_FILE_FORMAT_PREVIEW};
 }
 
+
+//=== Load and Save file format group of cancellable actions
+// _SAVE_REQUEST can cancel _LOAD_REQUEST
+// save is not cancellable and blocks the UI until it completes
+
+const loadAndSaveGroupName = 'FILE_FORMAT_LOAD_AND_SAVE_GROUP';
+
+export const FILE_FORMAT_LOAD_REQUEST = 'FILE_FORMAT_LOAD_REQUEST';
+export const FILE_FORMAT_LOAD_SUCCESS = 'FILE_FORMAT_LOAD_SUCCESS';
+export const FILE_FORMAT_LOAD_FAILURE = 'FILE_FORMAT_LOAD_FAILURE';
+
+export function loadFileFormat(formatUrl, viewId) {
+  const abortController = new AbortController(); // eslint-disable-line no-undef
+  const meta = {
+    viewId
+  };
+  const abortInfo = apiUtils.getAbortInfo(loadAndSaveGroupName);
+  const nonAbortableMeta = {...meta, abortInfo};
+  // if AbortController is supported by browser/polyfill, then use it in meta and add options signal to fetch
+  const abortableMeta = { ...meta, abortInfo: {...abortInfo, abortController}};
+  const rsaa = {
+    types: [
+      {type: FILE_FORMAT_LOAD_REQUEST, meta: abortableMeta},
+      schemaUtils.getSuccessActionTypeWithSchema(FILE_FORMAT_LOAD_SUCCESS, fileFormatSchema, nonAbortableMeta),
+      {type: FILE_FORMAT_LOAD_FAILURE, meta: nonAbortableMeta}],
+    method: 'GET',
+    endpoint: `${API_URL_V2}${formatUrl}`
+  };
+  if (abortController) {
+    rsaa.options = {signal: abortController.signal};
+  }
+
+  return {
+    [RSAA]: rsaa
+  };
+}
+
 export const FILE_FORMAT_SAVE_REQUEST = 'FILE_FORMAT_SAVE_REQUEST';
 export const FILE_FORMAT_SAVE_SUCCESS = 'FILE_FORMAT_SAVE_SUCCESS';
 export const FILE_FORMAT_SAVE_FAILURE = 'FILE_FORMAT_SAVE_FAILURE';
@@ -113,10 +130,13 @@ export function saveFileFormat(resourcePath, values, viewId) {
     viewId,
     invalidateViewIds: ['HomeContents']
   };
+  const abortInfo = apiUtils.getAbortInfo(loadAndSaveGroupName);
+  const nonAbortableMeta = {...meta, abortInfo};
+
   return {
     [RSAA]: {
       types: [
-        {type: FILE_FORMAT_SAVE_REQUEST, meta},
+        {type: FILE_FORMAT_SAVE_REQUEST, meta: nonAbortableMeta},
         {type: FILE_FORMAT_SAVE_SUCCESS, meta},
         {type: FILE_FORMAT_SAVE_FAILURE, meta}
       ],
@@ -127,6 +147,7 @@ export function saveFileFormat(resourcePath, values, viewId) {
     }
   };
 }
+//=== end of Load and Save file format group
 
 export const UPLOAD_FINISH_REQUEST = 'UPLOAD_FINISH_REQUEST';
 export const UPLOAD_FINISH_SUCCESS = 'UPLOAD_FINISH_SUCCESS';

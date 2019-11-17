@@ -18,7 +18,7 @@ import { replace, push } from 'react-router-redux';
 import Immutable from 'immutable';
 import { normalize } from 'normalizr';
 
-import { API_URL_V2 } from 'constants/Api';
+import { API_URL_V2 } from '@app/constants/Api';
 import param from 'jquery-param';
 
 import schemaUtils from 'utils/apiUtils/schemaUtils';
@@ -135,7 +135,7 @@ export const JOB_DETAILS_REQUEST = 'JOB_DETAILS_REQUEST';
 export const JOB_DETAILS_SUCCESS = 'JOB_DETAILS_SUCCESS';
 export const JOB_DETAILS_FAILURE = 'JOB_DETAILS_FAILURE';
 
-function fetchJobDetails(jobId, viewId) {
+export function loadJobDetails(jobId, viewId) {
   const meta = { jobId, viewId };
   return {
     [RSAA]:{
@@ -145,14 +145,8 @@ function fetchJobDetails(jobId, viewId) {
         {type: JOB_DETAILS_FAILURE, meta}
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}/job/${jobId}/details`
+      endpoint: `${API_URL_V2}/job/${encodeURIComponent(jobId)}/details`
     }
-  };
-}
-
-export function loadJobDetails(jobId, viewId) {
-  return (dispatch) => {
-    return dispatch(fetchJobDetails(jobId, viewId));
   };
 }
 

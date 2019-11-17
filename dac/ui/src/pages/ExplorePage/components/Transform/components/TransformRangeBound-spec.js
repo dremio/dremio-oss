@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
-import { INTEGER } from 'constants/DataTypes';
+import { INTEGER } from '@app/constants/DataTypes';
 import TransformRangeBound from './TransformRangeBound';
 
 describe('TransformRangeBound', () => {

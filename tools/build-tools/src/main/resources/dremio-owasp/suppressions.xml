@@ -44,37 +44,6 @@
    <cpe>cpe:/a:apache:zookeeper</cpe>
 </suppress>
 
-<!-- DB2 -->
-<suppress>
-   <notes><![CDATA[
-   unrelated security issues because of version mismatch between server and driver
-   ]]></notes>
-   <gav regex="true">^com\.dremio\.jdbc:db2jcc4:.*$</gav>
-   <cve>CVE-2007-2582</cve>
-   <cve>CVE-2007-3676</cve>
-   <cve>CVE-2007-5090</cve>
-   <cve>CVE-2007-5652</cve>
-   <cve>CVE-2008-0699</cve>
-   <cve>CVE-2008-1998</cve>
-   <cve>CVE-2008-3958</cve>
-   <cve>CVE-2008-3959</cve>
-   <cve>CVE-2008-4691</cve>
-   <cve>CVE-2008-4692</cve>
-   <cve>CVE-2008-4693</cve>
-   <cve>CVE-2009-1239</cve>
-   <cve>CVE-2009-1905</cve>
-   <cve>CVE-2009-2858</cve>
-   <cve>CVE-2009-2859</cve>
-   <cve>CVE-2009-2860</cve>
-   <cve>CVE-2010-1560</cve>
-   <cve>CVE-2011-0731</cve>
-   <cve>CVE-2011-0757</cve>
-   <cve>CVE-2011-1373</cve>
-   <cve>CVE-2011-1846</cve>
-   <cve>CVE-2011-1847</cve>
-   <cve>CVE-2012-3324</cve>
-</suppress>
-
 <!-- Google Cloud Storage -->
 <suppress>
    <notes><![CDATA[

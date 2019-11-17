@@ -36,8 +36,6 @@ import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.TransferPair;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTimeConstants;
 
 import com.dremio.common.AutoCloseables;
@@ -53,8 +51,9 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.parquet.ParquetFormatPlugin;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.google.common.collect.Lists;
@@ -146,9 +145,9 @@ public class DictionaryLookupOperator implements SingleInputOperator {
     final StoragePluginId id = config.getDictionaryEncodedFields().get(fieldName).getStoragePluginId();
     final StoragePlugin storagePlugin = config.getCatalogService().getSource(id);
     if (storagePlugin instanceof FileSystemPlugin) {
-      final FileSystemPlugin fsPlugin = (FileSystemPlugin) storagePlugin;
-      final FileSystem fs = FileSystemWrapper.get(fsPlugin.getFsConf());
-      return ParquetFormatPlugin.loadDictionary(fs, new Path(config.getDictionaryEncodedFields().get(fieldName).getDictionaryPath()), context.getAllocator());
+      final FileSystemPlugin<?> fsPlugin = (FileSystemPlugin<?>) storagePlugin;
+      final FileSystem fs = fsPlugin.createFS(config.getProps().getUserName(), context);
+      return ParquetFormatPlugin.loadDictionary(fs, Path.of(config.getDictionaryEncodedFields().get(fieldName).getDictionaryPath()), context.getAllocator());
     } else {
       throw new ExecutionSetupException(format("Storage plugin %s is not a filesystem plugin", id.getName()));
     }

@@ -64,6 +64,14 @@ public class CachingCatalog extends DelegatingCatalog {
   }
 
   @Override
+  public DremioTable getTableNoColumnCount(NamespaceKey key) {
+    if (!tablesByNamespaceKey.containsKey(key)) {
+      return putTable(key, super.getTableNoColumnCount(key));
+    }
+    return tablesByNamespaceKey.get(key);
+  }
+
+  @Override
   public void updateView(final NamespaceKey key, View view, NamespaceAttribute... attributes) throws IOException {
     tablesByNamespaceKey.remove(key);
     super.updateView(key, view, attributes);

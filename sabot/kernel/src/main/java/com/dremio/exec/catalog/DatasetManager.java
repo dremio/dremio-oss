@@ -187,7 +187,8 @@ class DatasetManager {
 
   public DremioTable getTable(
       NamespaceKey key,
-      MetadataRequestOptions options
+      MetadataRequestOptions options,
+      boolean ignoreColumnCount
       ){
 
     final ManagedStoragePlugin plugin;
@@ -204,7 +205,7 @@ class DatasetManager {
 
       // if we have a plugin and the info isn't a vds (this happens in home, where VDS are intermingled with plugin datasets).
       if(config == null || config.getType() != DatasetType.VIRTUAL_DATASET) {
-        return getTableFromPlugin(key, config, plugin, options);
+        return getTableFromPlugin(key, config, plugin, options, ignoreColumnCount);
       }
     }
 
@@ -233,7 +234,7 @@ class DatasetManager {
 
     NamespaceKey key = new NamespaceKey(config.getFullPathList());
 
-    return getTable(key, options);
+    return getTable(key, options, false);
   }
 
   private NamespaceTable getTableFromNamespace(NamespaceKey key, DatasetConfig datasetConfig, ManagedStoragePlugin plugin,
@@ -253,7 +254,8 @@ class DatasetManager {
       NamespaceKey key,
       DatasetConfig datasetConfig,
       ManagedStoragePlugin plugin,
-      MetadataRequestOptions options
+      MetadataRequestOptions options,
+      boolean ignoreColumnCount
   ) {
 
     // Figure out the user we want to access the source with.  If the source supports impersonation we allow it to
@@ -296,6 +298,9 @@ class DatasetManager {
     final DatasetRetrievalOptions retrievalOptions = plugin.getDefaultRetrievalOptions()
         .toBuilder()
         .setIgnoreAuthzErrors(schemaConfig.getIgnoreAuthErrors())
+        .setMaxMetadataLeafColumns(
+          (ignoreColumnCount) ? Integer.MAX_VALUE : plugin.getDefaultRetrievalOptions().maxMetadataLeafColumns()
+        )
         .build();
 
     final Optional<DatasetHandle> handle;
@@ -323,7 +328,7 @@ class DatasetManager {
           // if the dataset config is complete and unexpired, we'll recurse because we don't need the just retrieved
           // SourceTableDefinition. Since they're lazy, little harm done.
           // Otherwise, we'll fall through and use the found accessor.
-          return getTableFromPlugin(canonicalKey, datasetConfig, plugin, options);
+          return getTableFromPlugin(canonicalKey, datasetConfig, plugin, options, ignoreColumnCount);
         }
       } catch (NamespaceException e) {
         // ignore, we'll fall through.

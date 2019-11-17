@@ -42,11 +42,12 @@ import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
+import com.dremio.exec.store.hive.exec.apache.HadoopFileSystemWrapper;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -65,8 +66,10 @@ public class HiveTextReader extends HiveAbstractReader {
   public HiveTextReader(final HiveTableXattr tableAttr, final SplitAndPartitionInfo split,
       final List<SchemaPath> projectedColumns, final OperatorContext context, final JobConf jobConf,
       final SerDe tableSerDe, final StructObjectInspector tableOI, final SerDe partitionSerDe,
-      final StructObjectInspector partitionOI, final ScanFilter filter, final Collection<List<String>> referencedTables) {
-    super(tableAttr, split, projectedColumns, context, jobConf, tableSerDe, tableOI, partitionSerDe, partitionOI, filter, referencedTables);
+      final StructObjectInspector partitionOI, final ScanFilter filter, final Collection<List<String>> referencedTables,
+      final UserGroupInformation readerUgi) {
+    super(tableAttr, split, projectedColumns, context, jobConf, tableSerDe, tableOI, partitionSerDe, partitionOI, filter,
+      referencedTables, readerUgi);
 
   }
 
@@ -76,7 +79,7 @@ public class HiveTextReader extends HiveAbstractReader {
       reader = jobConf.getInputFormat().getRecordReader(inputSplit, jobConf, Reporter.NULL);
     }
     catch(FSError e) {
-      throw FileSystemWrapper.propagateFSError(e);
+      throw HadoopFileSystemWrapper.propagateFSError(e);
     }
 
     if(logger.isTraceEnabled()) {
@@ -122,7 +125,7 @@ public class HiveTextReader extends HiveAbstractReader {
         }
       }
       catch(FSError e) {
-        throw FileSystemWrapper.propagateFSError(e);
+        throw HadoopFileSystemWrapper.propagateFSError(e);
       }
       if (skipRecordsInspector.doSkipHeader(recordCount++)) {
         continue;
@@ -292,7 +295,7 @@ public class HiveTextReader extends HiveAbstractReader {
         reader.close();
       }
       catch(FSError e) {
-        throw FileSystemWrapper.propagateFSError(e);
+        throw HadoopFileSystemWrapper.propagateFSError(e);
       }
       reader = null;
     }

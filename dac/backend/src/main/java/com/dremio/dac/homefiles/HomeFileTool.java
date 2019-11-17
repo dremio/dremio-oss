@@ -19,14 +19,12 @@ import static java.lang.String.format;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.UUID;
 
 import javax.inject.Inject;
 
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.IOUtils;
+import org.apache.commons.io.IOUtils;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.utils.PathUtils;
@@ -34,8 +32,9 @@ import com.dremio.config.DremioConfig;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.file.FilePath;
+import com.dremio.io.file.FileSystem;
+import com.dremio.io.file.Path;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.annotations.VisibleForTesting;
@@ -103,7 +102,7 @@ public class HomeFileTool {
    * @return
    */
   private Path filePath(Path parent, String fileName) throws IOException {
-    return FileSystemWrapper.canonicalizePath(fs,  new Path(parent, fileName));
+    return fs.canonicalizePath(parent.resolve(fileName));
   }
 
   private Path getUploadLocation(FilePath filePath, String extension) {
@@ -121,13 +120,15 @@ public class HomeFileTool {
   public Path stageFile(FilePath filePath, String extension, InputStream input) throws IOException {
     final Path stagingLocation = getStagingLocation(filePath, extension);
     fs.mkdirs(stagingLocation, HomeFileSystemStoragePlugin.DEFAULT_PERMISSIONS);
-    final FSDataOutputStream output = fs.create(filePath(stagingLocation, format("%s.%s", filePath.getFileName().getName(), extension)), true);
-    IOUtils.copyBytes(input, output, 1024, true);
+    try (final InputStream is = input;
+        final OutputStream output = fs.create(filePath(stagingLocation, format("%s.%s", filePath.getFileName().getName(), extension)), true)) {
+      IOUtils.copy(is, output);
+    }
     return fs.makeQualified(stagingLocation);
   }
 
   public Path saveFile(String stagingLocation, FilePath filePath, FileType fileType) throws IOException {
-    return saveFile(new Path(stagingLocation), filePath, FileFormat.getExtension(fileType));
+    return saveFile(Path.of(stagingLocation), filePath, FileFormat.getExtension(fileType));
   }
 
   /**
@@ -151,7 +152,7 @@ public class HomeFileTool {
    */
   public void deleteFile(String fileLocation) throws IOException {
     if (fileLocation != null) {
-      fs.delete(new Path(fileLocation), true);
+      fs.delete(Path.of(fileLocation), true);
     }
   }
 
@@ -162,7 +163,7 @@ public class HomeFileTool {
    * @throws IOException
    */
   public boolean deleteHomeAndContents(String userHome) throws IOException {
-    final Path homePath = new Path(config.getInnerUploads(), userHome);
+    final Path homePath = config.getInnerUploads().resolve(userHome);
     if (fs.exists(homePath)) {
       return fs.delete(homePath, true);
     }

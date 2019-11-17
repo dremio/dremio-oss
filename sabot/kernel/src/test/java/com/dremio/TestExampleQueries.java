@@ -57,6 +57,18 @@ public class TestExampleQueries extends PlanTestBase {
     testNoResult("ALTER SESSION RESET ALL");
   }
 
+
+  @Test
+  public void nullBinaryLiteral() throws Exception {
+    String sql = "select cast(null as varbinary(10)) as a";
+    testBuilder()
+      .sqlQuery(sql)
+      .unOrdered()
+      .baselineColumns("a")
+      .baselineValues(null)
+      .go();
+  }
+
   @Test
   public void stringLiteralFilter() throws Exception {
     String sql = "WITH t1 \n" +
@@ -456,8 +468,8 @@ public class TestExampleQueries extends PlanTestBase {
         + "from cp.\"customer.json\" group by customer_region_id, fname) as sq(x, y, z) where coalesce(x, 100) = 10";
     testPlanMatchingPatterns(query, new String[] {
         "Filter\\(condition=\\[CASE\\(IS NOT NULL\\(\\$1\\), =\\(\\$1, 10\\), false\\)\\]\\)",
-        "Agg\\(group=\\[\\{0, 1\\}\\], agg\\#0=\\[\\SUM\\(\\$2\\)\\], agg\\#1=\\[COUNT\\(\\$2\\)\\]\\)",
-        "Project\\(customer_region_id=\\[\\$0\\], fname=\\[\\$1\\], EXPR\\$2=\\[\\/\\(CAST\\(\\$2\\):DOUBLE, \\$3\\)\\]\\)" },
+        "Agg\\(group=\\[\\{0, 1\\}\\], agg\\#0=\\[.?SUM.?\\(\\$2\\)\\], agg\\#1=\\[COUNT\\(\\$2\\)\\]\\)",
+        "Project\\(customer_region_id=\\[\\$0\\], fname=\\[\\$1\\], EXPR\\$2=(?:\\[\\/\\(CAST\\(\\$2\\):DOUBLE, \\$3\\)\\]|\\[\\/\\(CAST\\(CASE\\(\\=\\(\\$3, 0\\), null, \\$2\\)\\)\\:DOUBLE, \\$3\\)\\])\\)" },
         null);
   }
 
@@ -1772,7 +1784,7 @@ public class TestExampleQueries extends PlanTestBase {
    */
   @Test
   public void ensureThatStackedConversionsWork() throws Exception {
-    try(AutoCloseable c = withOption(PlannerSettings.NLJOIN_FOR_SCALAR, false) ) {
+    try (AutoCloseable c = withOption(PlannerSettings.NLJOIN_FOR_SCALAR, false)) {
 
       test(
         "create table dfs_test.zip as " +
@@ -1818,7 +1830,25 @@ public class TestExampleQueries extends PlanTestBase {
           "INNER JOIN dfs_test.lookup AS join_lookup ON nested_2.newID < join_lookup.id\n"
       );
     }
+  }
 
+  @Test
+  public void testLeftJoinNoAlias() throws Exception {
+    test(
+      "select * \n" +
+      "  from cp.\"tpch/lineitem.parquet\" \n" +
+      "    left outer join cp.\"tpch/customer.parquet\" c \n" +
+      "      on \"tpch/lineitem.parquet\".l_orderkey = c.c_custkey\n");
+  }
 
+  @Test
+  public void testLeftSubstring() throws Exception {
+    testBuilder()
+      .sqlQuery("select left('1234', 2) as l")
+      .unOrdered()
+      .baselineColumns("l")
+      .baselineValues("12")
+      .build()
+      .run();
   }
 }

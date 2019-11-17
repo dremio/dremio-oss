@@ -110,7 +110,10 @@ public class TestJobMetadataCollection extends BaseTestServer {
 
 
   private JobDetailsUI getDetails(QueryId id) throws JobNotFoundException {
-    return JobDetailsUI.of(jobs.getJob(toId(id)));
+    GetJobRequest request = GetJobRequest.newBuilder()
+      .setJobId(toId(id))
+      .build();
+    return JobDetailsUI.of(jobs.getJob(request));
   }
 
   private JobId toId(QueryId id){

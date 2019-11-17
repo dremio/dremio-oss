@@ -19,8 +19,8 @@ import pureRender from 'pure-render-decorator';
 
 import PropTypes from 'prop-types';
 
-import { TEXT } from 'constants/DataTypes';
-import { REPLACEABLE_TYPES } from 'constants/columnTypeGroups';
+import { TEXT } from '@app/constants/DataTypes';
+import { REPLACEABLE_TYPES } from '@app/constants/columnTypeGroups';
 
 import ColumnMenuItem from './../ColumnMenus/ColumnMenuItem';
 

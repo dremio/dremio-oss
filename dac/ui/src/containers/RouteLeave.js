@@ -321,7 +321,7 @@ export const withRouteLeaveEvent = (ComponentToWrap) => {
               router={this.props.router}
               doChangesCheck={doChangesCheck}
             >
-              <ComponentToWrap key='component' {...this.props} />;
+              <ComponentToWrap key='component' {...this.props} />
             </RouteLeaveEventView>
           )
         }
@@ -339,7 +339,7 @@ export const withRouteLeaveSubscription = (ComponentToWrap, /* optional */ field
     renderFn = ({
       addCallback,
       doChangesCheck
-     }) => {
+    }) => {
       const newProps = {
         ...this.props,
         [fieldName || 'addHasChangesHook']: addCallback,

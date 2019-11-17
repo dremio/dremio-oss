@@ -32,6 +32,7 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
+import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
 import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
@@ -62,23 +63,25 @@ class ScanWithDremioReader {
       final HiveConf hiveConf,
       final FragmentExecutionContext fragmentExecContext,
       final OperatorContext context,
-      final HiveSubScan config,
+      final HiveProxyingSubScan config,
       final HiveTableXattr tableXattr,
       final CompositeReaderConfig compositeReader,
       final UserGroupInformation readerUGI) {
-    final JobConf jobConf = new JobConf(hiveConf);
-
-    final OptionManager options = context.getOptions();
-    final boolean vectorize = options.getOption(ExecConstants.PARQUET_READER_VECTORIZE);
-    final boolean enableDetailedTracing = options.getOption(ExecConstants.ENABLED_PARQUET_TRACING);
-    final ParquetReaderFactory readerFactory = UnifiedParquetReader.getReaderFactory(context.getConfig());
-
-    if(config.getSplits().isEmpty()) {
-      return new ScanOperator(config, context, Iterators.singletonIterator(new EmptyRecordReader()), readerUGI);
-    }
 
     Iterable<RecordReader> readers = null;
-    try {
+
+    try (ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+      final JobConf jobConf = new JobConf(hiveConf);
+
+      final OptionManager options = context.getOptions();
+      final boolean vectorize = options.getOption(ExecConstants.PARQUET_READER_VECTORIZE);
+      final boolean enableDetailedTracing = options.getOption(ExecConstants.ENABLED_PARQUET_TRACING);
+      final ParquetReaderFactory readerFactory = UnifiedParquetReader.getReaderFactory(context.getConfig());
+
+      if(config.getSplits().isEmpty()) {
+        return new ScanOperator(config, context, Iterators.singletonIterator(new EmptyRecordReader()));
+      }
+
       final UserGroupInformation currentUGI = UserGroupInformation.getCurrentUser();
       final List<HiveParquetSplit> sortedSplits = Lists.newArrayList();
 
@@ -129,7 +132,8 @@ class ScanWithDremioReader {
                   config.getReferencedTables(),
                   vectorize,
                   config.getFullSchema(),
-                  enableDetailedTracing
+                  enableDetailedTracing,
+                  readerUGI
               );
               return compositeReader.wrapIfNecessary(context.getAllocator(), innerReader, hiveParquetSplit.getDatasetSplit());
             }
@@ -137,7 +141,7 @@ class ScanWithDremioReader {
 
         }});
 
-      return new ScanOperator(config, context, readers.iterator(), readerUGI);
+      return new ScanOperator(config, context, readers.iterator());
 
     } catch (final Exception e) {
       if(readers != null) {

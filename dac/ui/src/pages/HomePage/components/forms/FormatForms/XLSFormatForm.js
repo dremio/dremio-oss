@@ -38,7 +38,7 @@ export default class XLSFormatForm extends Component {
       disabled,
       intl,
       fields: { XLS: { extractHeader, hasMergedCells, sheetName }}
-      } = this.props;
+    } = this.props;
 
     return (
       <div>

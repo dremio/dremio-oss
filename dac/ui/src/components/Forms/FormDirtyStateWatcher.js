@@ -75,7 +75,7 @@ export default function FormDirtyStateWatcher(Form) {
         const currentValue = nextProps.values[field];
         const initialValue = get(nextProps.initialValuesForDirtyStateWatcher, field, []); // fallback for creation forms
         return !areFieldsEqual(this._removeKeysWithUndefinedValue(currentValue),
-                               this._removeKeysWithUndefinedValue(initialValue));
+          this._removeKeysWithUndefinedValue(initialValue));
       });
     }
 

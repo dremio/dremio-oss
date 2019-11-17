@@ -53,8 +53,8 @@ export const getExplorePageLocationChangePredicate = prevRouteState => (action) 
   };
 
   const {
-      newRouteState
-    } = action;
+    newRouteState
+  } = action;
   const oldLocation = prevRouteState.location;
   const newLocation = newRouteState.location;
 

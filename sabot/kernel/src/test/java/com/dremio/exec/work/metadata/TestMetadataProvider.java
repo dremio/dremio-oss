@@ -140,9 +140,10 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<SchemaMetadata> schemas = resp.getSchemasList();
-    assertEquals(1, schemas.size());
+    assertEquals(2, schemas.size());
 
     verifySchema("sys", schemas.get(0));
+    verifySchema("sys.cache", schemas.get(1));
   }
 
   @Test
@@ -188,7 +189,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(19, tables.size());
+    assertEquals(23, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -209,6 +210,10 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "slicing_threads", iterator.next());
     verifyTable("sys", "threads", iterator.next());
     verifyTable("sys", "version", iterator.next());
+    verifyTable("sys.cache", "datasets", iterator.next());
+    verifyTable("sys.cache", "mount_points", iterator.next());
+    verifyTable("sys.cache", "objects", iterator.next());
+    verifyTable("sys.cache", "storage_plugins", iterator.next());
   }
 
   @Test
@@ -233,7 +238,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(18, tables.size());
+    assertEquals(22, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -254,6 +259,10 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "slicing_threads", iterator.next());
     verifyTable("sys", "threads", iterator.next());
     verifyTable("sys", "version", iterator.next());
+    verifyTable("sys.cache", "datasets", iterator.next());
+    verifyTable("sys.cache", "mount_points", iterator.next());
+    verifyTable("sys.cache", "objects", iterator.next());
+    verifyTable("sys.cache", "storage_plugins", iterator.next());
   }
 
   @Test
@@ -265,7 +274,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(10, tables.size());
+    assertEquals(13, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -278,6 +287,9 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "options", iterator.next());
     verifyTable("sys", "reflections", iterator.next());
     verifyTable("sys", "version", iterator.next());
+    verifyTable("sys.cache", "mount_points", iterator.next());
+    verifyTable("sys.cache", "objects", iterator.next());
+    verifyTable("sys.cache", "storage_plugins", iterator.next());
   }
 
   @Test
@@ -306,7 +318,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     assertEquals(RequestStatus.OK, resp1.getStatus());
 
     final List<ColumnMetadata> columns1 = resp1.getColumnsList();
-    assertEquals(162, columns1.size());
+    assertEquals(192, columns1.size());
     assertTrue("incremental update column shouldn't be returned",
       columns1.stream().noneMatch(input -> input.getColumnName().equals(IncrementalUpdateUtils.UPDATE_COLUMN)));
   }
@@ -320,7 +332,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<ColumnMetadata> columns = resp.getColumnsList();
-    assertEquals(16, columns.size());
+    assertEquals(21, columns.size());
 
 
     Iterator<ColumnMetadata> iterator = columns.iterator();
@@ -342,6 +354,11 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyColumn("sys", "services", "fabric_port", iterator.next());
     verifyColumn("sys", "slicing_threads", "fabric_port", iterator.next());
     verifyColumn("sys", "threads", "fabric_port", iterator.next());
+    verifyColumn("sys.cache", "datasets", "storage_plugin_name", iterator.next());
+    verifyColumn("sys.cache", "mount_points", "mount_point_path", iterator.next());
+    verifyColumn("sys.cache", "mount_points", "mount_point_id", iterator.next());
+    verifyColumn("sys.cache", "storage_plugins", "storage_plugin_name", iterator.next());
+    verifyColumn("sys.cache", "storage_plugins", "storage_plugin_id", iterator.next());
   }
 
   @Test

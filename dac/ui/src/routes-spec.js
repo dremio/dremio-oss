@@ -39,7 +39,7 @@ describe('routes', () => {
             {getSourceRoute(rootType, renderLink)}
           </Route>
         </Router>
-        );
+      );
 
       expect(isLinkActive(wrapper)).to.equal(true);
     });
@@ -51,7 +51,7 @@ describe('routes', () => {
             {getSourceRoute(rootType, renderLink)}
           </Route>
         </Router>
-        );
+      );
 
       expect(isLinkActive(wrapper)).to.equal(true);
     });
@@ -64,7 +64,7 @@ describe('routes', () => {
             {getSourceRoute(otherRootName, renderLink)}
           </Route>
         </Router>
-        );
+      );
 
       expect(isLinkActive(wrapper)).to.equal(false);
     });

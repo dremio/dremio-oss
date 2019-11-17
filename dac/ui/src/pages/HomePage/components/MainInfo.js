@@ -32,7 +32,7 @@ import BreadCrumbs from 'components/BreadCrumbs';
 import { getRootEntityType } from 'utils/pathUtils';
 import SettingsBtn from 'components/Buttons/SettingsBtn';
 import FontIcon from 'components/Icon/FontIcon';
-import { ENTITY_TYPES } from 'constants/Constants';
+import { ENTITY_TYPES } from '@app/constants/Constants';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 import Art from '@app/components/Art';
 import { TagsAlert } from '@app/pages/HomePage/components/TagsAlert';
@@ -184,7 +184,7 @@ export class MainInfoView extends Component {
           {btnType.label}
         </button>
       </Link>),
-      this.getSettingsBtnByType(<DatasetMenu entity={item} entityType={entityType} />, item)
+    this.getSettingsBtnByType(<DatasetMenu entity={item} entityType={entityType} />, item)
     ];
   }
 

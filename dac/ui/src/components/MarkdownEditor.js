@@ -21,6 +21,7 @@ import { debounce } from 'lodash';
 import SimpleMDE from 'simplemde';
 import 'simplemde/dist/simplemde.min.css';
 import '@app/components/markedjsOverrides.js';
+import { withErrorBoundary } from '@app/components/ErrorBoundary';
 import {
   editor as editorCls,
   readMode as readModeCls,
@@ -269,7 +270,7 @@ export class MarkdownEditorView extends PureComponent {
       readMode
     } = this.props;
 
-     // we will track a scroll only in a readMode. It is needed for rare use case. It does not make sense to run the calculation in other case to not overkill widget preformance
+    // we will track a scroll only in a readMode. It is needed for rare use case. It does not make sense to run the calculation in other case to not overkill widget preformance
     if (!readMode || !onReadModeHasScrollChanged || !this.editor) {
       return;
     }
@@ -343,7 +344,7 @@ export class MarkdownEditorView extends PureComponent {
     // not displayed on the ui, but have to add
     buttons.push('preview', 'fullscreen', 'side-by-side');
 
-      //custom buttons, that are added to the right of the toolbar. Put buttons in reverse order, as floating is applied
+    //custom buttons, that are added to the right of the toolbar. Put buttons in reverse order, as floating is applied
     if (onCancelClick) {
       buttons.push({
         name: customMenus.cancel,
@@ -374,9 +375,11 @@ export class MarkdownEditorView extends PureComponent {
     return (
       <div
         className={classNames(editorCls, readMode && readModeCls, fitToContainer && fitToParentCls, className)}
-        >
+      >
         <textarea id={this._id} />
       </div>
     );
   }
 }
+
+export default withErrorBoundary(MarkdownEditorView);

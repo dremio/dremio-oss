@@ -20,11 +20,12 @@ import { makeUncachebleURL } from 'ie11.js';
 
 import spaceSchema from 'dyn-load/schemas/space';
 
-import { API_URL_V2, API_URL_V3 } from 'constants/Api';
+import { API_URL_V3 } from '@app/constants/Api';
 
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import actionUtils from 'utils/actionUtils/actionUtils';
 import { addDetailsForSpacesUrl } from 'dyn-load/actions/resources/spacesMixin';
+import FormUtils from 'dyn-load/utils/FormUtils/FormUtils';
 
 export const SPACES_LIST_LOAD_START = 'SPACES_LIST_LOAD_START';
 export const SPACES_LIST_LOAD_SUCCESS = 'SPACES_LIST_LOAD_SUCCESS';
@@ -46,12 +47,11 @@ export function loadSpaceListData() {
   };
 }
 
-export const ADD_NEW_SPACE_START = 'ADD_NEW_SPACE_START';
-export const ADD_NEW_SPACE_SUCCESS = 'ADD_NEW_SPACE_SUCCESS';
-export const ADD_NEW_SPACE_FAILURE = 'ADD_NEW_SPACE_FAILURE';
+export const SAVE_SPACE_START = 'SAVE_SPACE_START';
+export const SAVE_SPACE_SUCCESS = 'SAVE_SPACE_SUCCESS';
+export const SAVE_SPACE_FAILURE = 'SAVE_SPACE_FAILURE';
 
-function putSpace(space, isCreate) {
-
+function saveSpace(values, isCreate) {
   const meta = {
     invalidateViewIds: [ALL_SPACES_VIEW_ID], // cause data reload. See SpacesLoader
     mergeEntities: true,
@@ -60,33 +60,40 @@ function putSpace(space, isCreate) {
       level: 'success'
     }
   };
+  // AccessControlsListSection mutates submit values to include "userControls" and
+  // "groupControls" instead of "users" and "groups", expected in V3 /catalog/ API.
+  const space = FormUtils.makeSpaceFromFormValues(values);
+
+  let endPoint = `${API_URL_V3}/catalog`;
+  if (!isCreate) {
+    endPoint = `${endPoint}/${encodeURIComponent(space.id)}`;
+  }
+
   return {
     [RSAA]: {
       types: [
-        ADD_NEW_SPACE_START,
-        schemaUtils.getSuccessActionTypeWithSchema(ADD_NEW_SPACE_SUCCESS, spaceSchema, meta),
-        ADD_NEW_SPACE_FAILURE
+        SAVE_SPACE_START,
+        schemaUtils.getSuccessActionTypeWithSchema(SAVE_SPACE_SUCCESS, spaceSchema, meta),
+        SAVE_SPACE_FAILURE
       ],
-      method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
+      method: isCreate ? 'POST' : 'PUT',
       body: JSON.stringify(space),
-      endpoint: `${API_URL_V2}/space/${encodeURIComponent(space.name)}`
+      endpoint: endPoint
     }
   };
 }
 
 export function createNewSpace(values) {
-  return putSpace(values, true);
+  return saveSpace(values, true);
 }
 
 export function updateSpace(values) {
-  return putSpace(values, false);
+  return saveSpace(values, false);
 }
 
 export const REMOVE_SPACE_START = 'REMOVE_SPACE_START';
 export const REMOVE_SPACE_SUCCESS = 'REMOVE_SPACE_SUCCESS';
 export const REMOVE_SPACE_FAILURE = 'REMOVE_SPACE_FAILURE';
-
 
 export function removeSpace(spaceId, spaceVersion) {
   const meta = {

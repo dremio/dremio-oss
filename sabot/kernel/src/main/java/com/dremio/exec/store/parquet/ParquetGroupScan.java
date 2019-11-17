@@ -102,6 +102,7 @@ public class ParquetGroupScan extends AbstractGroupScan {
         .setFileLength(fullXAttr.getUpdateKey().getLength())
         .setStart(fullXAttr.getStart())
         .setLength(fullXAttr.getLength())
+        .setLastModificationTime(fullXAttr.getUpdateKey().getLastModificationTime())
         .setRowGroupIndex(fullXAttr.getRowGroupIndex())
         .build();
   }

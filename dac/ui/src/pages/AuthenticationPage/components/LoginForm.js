@@ -89,42 +89,42 @@ export class LoginForm extends Component {
 
     return (
       <InnerComplexForm
-      {...this.props}
-      style={styles.form}
-      onSubmit={this.submit}>
+        {...this.props}
+        style={styles.form}
+        onSubmit={this.submit}>
         <div style={styles.fieldsRow}>
           <FieldWithError
-          {...userName}
-          errorPlacement='top'
-          label={la('Username')}
-          labelStyle={styles.label}
-          style={{...formLabel, ...styles.field}}>
-            <TextField
             {...userName}
-            initialFocus
-            style={styles.input}/>
+            errorPlacement='top'
+            label={la('Username')}
+            labelStyle={styles.label}
+            style={{...formLabel, ...styles.field}}>
+            <TextField
+              {...userName}
+              initialFocus
+              style={styles.input}/>
           </FieldWithError>
           <FieldWithError
-          {...password}
-          errorPlacement='top'
-          label={la('Password')}
-          labelStyle={styles.label}
-          style={{...formLabel, ...styles.field}}>
-            <TextField
             {...password}
-            type='password'
-            style={styles.input}/>
+            errorPlacement='top'
+            label={la('Password')}
+            labelStyle={styles.label}
+            style={{...formLabel, ...styles.field}}>
+            <TextField
+              {...password}
+              type='password'
+              style={styles.input}/>
           </FieldWithError>
         </div>
         <div style={styles.submitWrapper}>
           <Button
-          type={ButtonTypes.NEXT}
-          key='details-wizard-next'
-          style={{marginBottom: 0}}
-          text={la('Log In')}/>
+            type={ButtonTypes.NEXT}
+            key='details-wizard-next'
+            style={{marginBottom: 0}}
+            text={la('Log In')}/>
           <Spinner
-          iconStyle={styles.spinnerIcon}
-          style={{display: viewState.get('isInProgress') ? 'block' : 'none', ...styles.spinner}}/>
+            iconStyle={styles.spinnerIcon}
+            style={{display: viewState.get('isInProgress') ? 'block' : 'none', ...styles.spinner}}/>
           {false && <div style={styles.link}>
             <Link to='#'>{la('Forgot your password?')}</Link>
           </div>}
@@ -149,7 +149,7 @@ export default compose(
     loginUser
   }),
   withRouter,
-  LoginFormMixin,
+  LoginFormMixin
 )(LoginForm);
 
 const styles = {

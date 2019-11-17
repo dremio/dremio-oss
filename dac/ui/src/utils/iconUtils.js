@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { DATASET_TYPES_TO_ICON_TYPES } from 'constants/datasetTypes';
+import { DATASET_TYPES_TO_ICON_TYPES } from '@app/constants/datasetTypes';
 import { formatMessage } from './locale';
 
 const FILE_TYPES_TO_ICON_TYPES = {

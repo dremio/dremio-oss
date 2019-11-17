@@ -15,7 +15,6 @@
  */
 package com.dremio.datastore.indexed;
 
-import static com.dremio.datastore.MetricUtils.COLLECT_METRICS;
 import static java.lang.String.format;
 
 import java.io.File;
@@ -44,9 +43,7 @@ import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.BytesRef;
 
-import com.codahale.metrics.MetricRegistry;
 import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.MetricUtils;
 import com.dremio.datastore.WarningTimer;
 import com.dremio.datastore.indexed.CommitWrapper.CommitCloser;
 import com.dremio.metrics.Metrics;
@@ -196,6 +193,8 @@ public class LuceneSearchIndex implements AutoCloseable {
   private final BaseDirectory directory;
   private final SearcherManager searcherManager;
   private final String name;
+  private final String liveRecordsMetricName;
+  private final String deletedRecordsMetricsName;
 
   private volatile boolean reindexing = false;
 
@@ -247,16 +246,10 @@ public class LuceneSearchIndex implements AutoCloseable {
       throw Throwables.propagate(ex);
     }
 
-    if (COLLECT_METRICS) {
-      registerMetrics();
-    }
-  }
-
-  private void registerMetrics() {
-    Metrics.getInstance().registerAll(new MetricUtils.MetricSetBuilder(MetricRegistry.name(METRIC_PREFIX, name))
-      .gauge("live-records", () -> (long) getLiveRecords())
-      .gauge("deleted-records", () -> (long) getDeletedRecords())
-      .build());
+    liveRecordsMetricName = Metrics.join(METRIC_PREFIX, name, "live-records");
+    deletedRecordsMetricsName = Metrics.join(METRIC_PREFIX, name, "deleted-records");
+    Metrics.newGauge(liveRecordsMetricName, this::getLiveRecords);
+    Metrics.newGauge(deletedRecordsMetricsName, this::getDeletedRecords);
   }
 
   private void checkIfChanged() {
@@ -414,12 +407,9 @@ public class LuceneSearchIndex implements AutoCloseable {
 
   @Override
   public void close() throws IOException {
-    if (COLLECT_METRICS) {
-      MetricUtils.removeAllMetricsThatStartWith(MetricRegistry.name(METRIC_PREFIX, name));
-    }
-
     committerThread.close();
-
+    Metrics.unregister(deletedRecordsMetricsName);
+    Metrics.unregister(liveRecordsMetricName);
     // commit will fail if writer is closed
     if (writer.isOpen()) {
       // flush first

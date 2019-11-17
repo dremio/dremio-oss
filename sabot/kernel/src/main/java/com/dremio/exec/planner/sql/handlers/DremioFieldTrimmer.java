@@ -28,20 +28,28 @@ import java.util.stream.StreamSupport;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Correlate;
+import org.apache.calcite.rel.core.CorrelationId;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Window;
 import org.apache.calcite.rel.core.Window.RexWinAggCall;
 import org.apache.calcite.rel.logical.LogicalWindow;
+import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.rules.MultiJoin;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rel.type.RelDataTypeFieldImpl;
 import org.apache.calcite.rel.type.RelRecordType;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexCorrelVariable;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -50,6 +58,7 @@ import org.apache.calcite.rex.RexVisitor;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.rex.RexWindowBound;
 import org.apache.calcite.sql.SqlAggFunction;
+import org.apache.calcite.sql2rel.CorrelationReferenceFinder;
 import org.apache.calcite.sql2rel.RelFieldTrimmer;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.util.ImmutableBitSet;
@@ -73,15 +82,161 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioFieldTrimmer.class);
 
   private final RelBuilder builder;
+  private final boolean isRelPlanning;
 
-  public static DremioFieldTrimmer of(RelOptCluster cluster) {
+  public static DremioFieldTrimmer of(RelOptCluster cluster, boolean isRelPlanning) {
     RelBuilder builder = DremioRelFactories.CALCITE_LOGICAL_BUILDER.create(cluster, null);
-    return new DremioFieldTrimmer(builder);
+    return new DremioFieldTrimmer(builder, isRelPlanning);
   }
 
-  private DremioFieldTrimmer(RelBuilder builder) {
+  private DremioFieldTrimmer(RelBuilder builder, boolean isRelPlanning) {
     super(null, builder);
     this.builder = builder;
+    this.isRelPlanning = isRelPlanning;
+  }
+
+  // Override this method to make CorrelVariable have updated field list after trimming subtree under correlate rel
+  @Override
+  protected TrimResult result(RelNode r, final Mapping mapping) {
+    final RexBuilder rexBuilder = builder.getRexBuilder();
+    for (final CorrelationId correlation : r.getVariablesSet()) {
+      r = r.accept(
+              new CorrelationReferenceFinder() {
+                protected RexNode handle(RexFieldAccess fieldAccess) {
+                  final RexCorrelVariable v =
+                          (RexCorrelVariable) fieldAccess.getReferenceExpr();
+                  if (v.id.equals(correlation)) {
+                    final int old = fieldAccess.getField().getIndex();
+                    final int new_ = mapping.getTarget(old);
+                    final RelDataTypeFactory.Builder typeBuilder =
+                            builder.getTypeFactory().builder();
+                    for (IntPair pair : mapping) {
+                      if (pair.source < v.getType().getFieldCount()) {
+                        typeBuilder.add(v.getType().getFieldList().get(pair.source));
+                      }
+                    }
+                    final RexNode newV =
+                            rexBuilder.makeCorrel(typeBuilder.build(), v.id);
+                    if (old != new_) {
+                      return rexBuilder.makeFieldAccess(newV, new_);
+                    }
+                  }
+                  return fieldAccess;
+                }
+              });
+    }
+    return new TrimResult(r, mapping);
+  }
+
+  /**
+   * Variant of {@link #trimFields(RelNode, ImmutableBitSet, Set)} for {@link com.dremio.exec.planner.logical.CorrelateRel}.
+   */
+  public TrimResult trimFields(
+          Correlate correlate,
+          ImmutableBitSet fieldsUsed,
+          Set<RelDataTypeField> extraFields) {
+    final RelDataType rowType = correlate.getRowType();
+    final int fieldCount = rowType.getFieldCount();
+    final ImmutableBitSet.Builder inputBitSet = ImmutableBitSet.builder();
+    final List<RelNode> newInputs = new ArrayList<>(2);
+    final RelMetadataQuery mq = correlate.getCluster().getMetadataQuery();
+    final List<Mapping> inputMappings = new ArrayList<>();
+    int newFieldCount = 0;
+
+    // add all used fields including columns used by correlation
+    inputBitSet.addAll(fieldsUsed);
+    int changeCount = 0;
+    inputBitSet.addAll(correlate.getRequiredColumns());
+
+    final ImmutableBitSet fieldsUsedPlus = inputBitSet.build();
+
+    // trim left and right by setting up ImmutableBitSet for each input
+    // and add mappings from the result
+    int offset = 0;
+    for (RelNode input : correlate.getInputs()) {
+      final RelDataType inputRowCount = input.getRowType();
+      final int inputFieldCount = inputRowCount.getFieldCount();
+      ImmutableBitSet.Builder inputFieldsUsed = ImmutableBitSet.builder();
+      for (int bit : fieldsUsedPlus) {
+        if (bit >= offset && bit < offset + inputFieldCount) {
+          inputFieldsUsed.set(bit - offset);
+        }
+      }
+
+      // add collation
+      final ImmutableList<RelCollation> collations = mq.collations(input);
+      for (RelCollation collation : collations) {
+        for (RelFieldCollation fieldCollation : collation.getFieldCollations()) {
+          inputFieldsUsed.set(fieldCollation.getFieldIndex());
+        }
+      }
+
+      TrimResult trimResult = dispatchTrimFields(input, inputFieldsUsed.build(), extraFields);
+      newInputs.add(trimResult.left);
+      if (trimResult.left != input) {
+        ++changeCount;
+      }
+
+      final Mapping inputMapping = trimResult.right;
+      inputMappings.add(inputMapping);
+
+      offset += inputFieldCount;
+      newFieldCount += inputMapping.getTargetCount();
+    }
+
+    Mapping mapping =
+            Mappings.create(
+                    MappingType.INVERSE_SURJECTION,
+                    fieldCount,
+                    newFieldCount);
+
+    offset = 0;
+    int newOffset = 0;
+    // build mappings for this correlate rel using trim results for its children
+    for (int i = 0; i < inputMappings.size(); i++) {
+      Mapping inputMapping = inputMappings.get(i);
+      for (IntPair pair : inputMapping) {
+        mapping.set(pair.source + offset, pair.target + newOffset);
+      }
+      offset += inputMapping.getSourceCount();
+      newOffset += inputMapping.getTargetCount();
+    }
+
+    if (changeCount == 0 && mapping.isIdentity()) {
+      // no remapping required, return original one
+      return result(correlate, Mappings.createIdentity(fieldCount));
+    }
+
+    // build a new correlate rel
+    builder.push(newInputs.get(0));
+    builder.push(newInputs.get(1));
+    final ImmutableBitSet.Builder newRequiredField = ImmutableBitSet.builder();
+    for (int bit : correlate.getRequiredColumns()) {
+      newRequiredField.set(inputMappings.get(0).getTarget(bit));
+    }
+
+
+    List<RexNode> requiredNodes =
+      newRequiredField.build().asList().stream()
+                    .map(ord -> builder.getRexBuilder().makeInputRef(correlate, ord))
+                    .collect(Collectors.toList());
+    builder.correlate(correlate.getJoinType(), correlate.getCorrelationId(), requiredNodes);
+    RelNode newCorrelate = builder.build();
+    for (final CorrelationId correlation : newCorrelate.getVariablesSet()) {
+      newCorrelate.accept(
+              new CorrelationReferenceFinder() {
+                protected RexNode handle(RexFieldAccess fieldAccess) {
+                  int ind = fieldAccess.getField().getIndex();
+                  final RexCorrelVariable v =
+                          (RexCorrelVariable) fieldAccess.getReferenceExpr();
+                  if (v.id.equals(correlation)) {
+                    RelDataTypeField field = fieldAccess.getField();
+                  }
+                  return fieldAccess;
+                }
+              });
+    }
+    return result(newCorrelate, mapping);
   }
 
   /**
@@ -137,15 +292,26 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
   @Override
   public TrimResult trimFields(Project project, ImmutableBitSet fieldsUsed, Set<RelDataTypeField> extraFields) {
     int count = FlattenVisitors.count(project.getProjects());
-    if(count == 0) {
-      return super.trimFields(project, fieldsUsed, extraFields);
-    }
-
-    // start by trimming based on super.
-
 
     // if there are no flatten, trim is fine.
     TrimResult result = super.trimFields(project, fieldsUsed, extraFields);
+
+    // if it is rel planning mode, removing top project would generate wrong sql query.
+    // make sure to have a top project after trimming
+    if (isRelPlanning && !(result.left instanceof Project)) {
+      List<RexNode> identityProject = new ArrayList<>();
+      for (int i = 0; i < result.left.getRowType().getFieldCount(); i++) {
+        identityProject.add(new RexInputRef(i, result.left.getRowType().getFieldList().get(i).getType()));
+      }
+      builder.push(result.left);
+      result = result(builder.project(identityProject, result.left.getRowType().getFieldNames(), true).build(), result.right);
+    }
+
+    if(count == 0) {
+      return result;
+    }
+
+    // start by trimming based on super.
 
     if(result.left.getRowType().getFieldCount() != fieldsUsed.cardinality()) {
       // we got a partial trim, which we don't handle. Skip the optimization.

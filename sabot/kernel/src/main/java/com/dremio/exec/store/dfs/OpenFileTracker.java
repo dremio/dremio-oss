@@ -15,8 +15,9 @@
  */
 package com.dremio.exec.store.dfs;
 
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.Path;
+
+import com.dremio.io.FSInputStream;
+import com.dremio.io.file.Path;
 
 /**
  * Interface to track opening and closing of files.
@@ -25,11 +26,11 @@ public interface OpenFileTracker {
   /**
    * Add new file location and {@link FSDataInputStream} to list.
    */
-  public void fileOpened(Path path, FSDataInputStream fsDataInputStream);
+  public void fileOpened(Path path, FSInputStream fsDataInputStream);
 
   /**
    * Remove the given {@link FSDataInputStream} from opened file list.
    * @param fsDataInputStream
    */
-  public void fileClosed(FSDataInputStream fsDataInputStream);
+  public void fileClosed(FSInputStream fsDataInputStream);
 }

@@ -77,9 +77,10 @@ class DataLakeG2Client {
       String filesystem,
       String path,
       long startInclusive,
-      long endExclusive) throws Exception {
+      long endExclusive,
+      String version) throws Exception {
     String range = String.format("bytes=%d-%d", startInclusive, endExclusive - 1);
     return Utility.addErrorWrappingToSingle(
-        client.generatedPaths().readWithRestResponseAsync(Context.NONE, filesystem, path, range, null, null, null, null, null, null, null, null));
+        client.generatedPaths().readWithRestResponseAsync(Context.NONE, filesystem, path, range, null, null, null, null, version, null, null, null));
   }
 }

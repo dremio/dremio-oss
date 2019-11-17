@@ -56,6 +56,7 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
+import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
 import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
@@ -155,37 +156,36 @@ class ScanWithHiveReader {
       throws NoSuchMethodException {
     return clazz.getConstructor(HiveTableXattr.class, SplitAndPartitionInfo.class, List.class, OperatorContext.class,
                                 JobConf.class, SerDe.class, StructObjectInspector.class, SerDe.class, StructObjectInspector.class,
-                                ScanFilter.class, Collection.class);
+                                ScanFilter.class, Collection.class, UserGroupInformation.class);
   }
 
   static ProducerOperator createProducer(
       final HiveConf hiveConf,
       final FragmentExecutionContext fragmentExecContext,
       final OperatorContext context,
-      final HiveSubScan config,
+      final HiveProxyingSubScan config,
       final HiveTableXattr tableXattr,
       final CompositeReaderConfig compositeReader,
       final UserGroupInformation readerUGI){
 
     if(config.getSplits().isEmpty()) {
-      return new ScanOperator(config, context, Iterators.singletonIterator(new EmptyRecordReader()), readerUGI);
+      return new ScanOperator(config, context, Iterators.singletonIterator(new EmptyRecordReader()));
     }
 
     Iterable<RecordReader> readers = null;
 
     try {
-      final UserGroupInformation currentUGI = UserGroupInformation.getCurrentUser();
       readers = FluentIterable.from(config.getSplits()).transform(new Function<SplitAndPartitionInfo, RecordReader>(){
 
         @Override
         public RecordReader apply(final SplitAndPartitionInfo split) {
-          return currentUGI.doAs(new PrivilegedAction<RecordReader>() {
+          return readerUGI.doAs(new PrivilegedAction<RecordReader>() {
             @Override
             public RecordReader run() {
-              try {
+              try (ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
                 final HiveSplitXattr splitAttr = HiveSplitXattr.parseFrom(split.getDatasetSplitInfo().getExtendedProperty());
                 final RecordReader innerReader = getRecordReader(splitAttr, tableXattr,
-                  context, hiveConf, split, compositeReader, config);
+                  context, hiveConf, split, compositeReader, config, readerUGI);
                 return compositeReader.wrapIfNecessary(context.getAllocator(), innerReader, split);
               } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -193,7 +193,7 @@ class ScanWithHiveReader {
             }
           });
         }});
-      return new ScanOperator(config, context, readers.iterator(), readerUGI);
+      return new ScanOperator(config, context, readers.iterator());
     } catch (Exception e) {
       AutoCloseables.close(e, readers);
       throw Throwables.propagate(e);
@@ -202,7 +202,8 @@ class ScanWithHiveReader {
 
   private static RecordReader getRecordReader(HiveSplitXattr splitXattr, HiveTableXattr tableXattr,
                                               OperatorContext context, HiveConf hiveConf,
-                                              SplitAndPartitionInfo split, CompositeReaderConfig compositeReader, HiveSubScan config)
+                                              SplitAndPartitionInfo split, CompositeReaderConfig compositeReader,
+                                              HiveProxyingSubScan config, UserGroupInformation readerUgi)
     throws Exception {
 
     final JobConf baseJobConf = new JobConf(hiveConf);
@@ -285,7 +286,7 @@ class ScanWithHiveReader {
 
     return readerCtor.newInstance(tableXattr, split,
         compositeReader.getInnerColumns(), context, jobConf, tableSerDe, tableOI, partitionSerDe,
-        partitionOI, config.getFilter(), config.getReferencedTables());
+        partitionOI, config.getFilter(), config.getReferencedTables(), readerUgi);
   }
 
   private static boolean hasDeltas(OrcSplit orcSplit) throws IOException {

@@ -16,7 +16,6 @@
 package com.dremio.plugins.elastic;
 
 import static com.dremio.TestBuilder.mapOf;
-import static com.dremio.exec.util.ImpersonationUtil.getProcessUserName;
 import static java.lang.String.format;
 import static org.junit.Assert.assertEquals;
 
@@ -33,6 +32,8 @@ import org.junit.Test;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.CloseableByteBuf;
 import com.dremio.common.DeferredException;
+import com.dremio.common.utils.protos.ExternalIdHelper;
+import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
@@ -46,16 +47,15 @@ import com.dremio.exec.proto.UserProtos.SubmissionSource;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.work.AttemptId;
-import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.user.LocalExecutionConfig;
 import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
 import com.dremio.proto.model.attempts.AttemptReason;
-import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.google.common.base.StandardSystemProperty;
 import com.google.common.collect.FluentIterable;
 
 import io.netty.buffer.ByteBuf;
@@ -502,7 +502,7 @@ public class ITTestLimit extends ElasticBaseTestQuery {
     LocalExecutionConfig config = LocalExecutionConfig.newBuilder()
       .setEnableLeafLimits(false)
       .setFailIfNonEmptySent(false)
-      .setUsername(getProcessUserName())
+      .setUsername(StandardSystemProperty.USER_NAME.value())
       .setSqlContext(Collections.<String>emptyList())
       .setInternalSingleThreaded(false)
       .setQueryResultsStorePath(format("%s.\"%s\"", TEMP_SCHEMA, "elasticLimitOne"))

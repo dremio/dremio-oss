@@ -64,7 +64,7 @@ class SortMultiplyContent extends Component {
             columns={this.props.columns}
             fields={this.props.fields}
             location={this.context.location}
-        />
+          />
           <DefaultWizardFooter
             {...this.props}
             onCancel={this.props.cancel}

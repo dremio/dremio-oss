@@ -18,7 +18,7 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
 import { Radio, TextField, DateInput } from 'components/Fields';
-import { isDateType } from 'constants/DataTypes';
+import { isDateType } from '@app/constants/DataTypes';
 import { rowOfInputsSpacing } from '@app/uiTheme/less/forms.less';
 import { sectionMargin } from '@app/uiTheme/less/layout.less';
 
@@ -52,12 +52,12 @@ export default class Exact extends Component {
     return isDateType(columnType)
       ? (
         <DateInput type={columnType} {...replaceValues} disabled={replaceNull.value} />
-    )
-    : <TextField
-      type='number'
-      disabled={replaceNull.value}
-      style={styles.input}
-      {...replaceValues}
+      )
+      : <TextField
+        type='number'
+        disabled={replaceNull.value}
+        style={styles.input}
+        {...replaceValues}
       />;
   }
 

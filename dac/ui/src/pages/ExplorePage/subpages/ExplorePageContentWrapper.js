@@ -26,7 +26,7 @@ import DetailsWizard from 'components/Wizards/DetailsWizard';
 import { HISTORY_PANEL_SIZE } from 'uiTheme/radium/sizes';
 import { WHITE } from 'uiTheme/radium/colors.js';
 
-import { RECOMMENDED_JOIN } from 'constants/explorePage/joinTabs';
+import { RECOMMENDED_JOIN } from '@app/constants/explorePage/joinTabs';
 import { Wiki } from '@app/pages/ExplorePage/components/Wiki/Wiki';
 import { PageTypes, pageTypesProp } from '@app/pages/ExplorePage/pageTypes';
 import { getDatasetEntityId } from '@app/selectors/explore';

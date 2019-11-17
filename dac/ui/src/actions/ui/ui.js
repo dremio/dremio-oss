@@ -13,15 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export const UPDATE_GRID_SIZES = 'UPDATE_GRID_SIZES';
-
-export function updateGridSizes(sizes) {
-  return (dispatch) => {
-    const action = { type: UPDATE_GRID_SIZES, sizes };
-    dispatch(action);
-  };
-}
-
 export const UPDATE_RIGHT_PANEL_VISIBILITY = 'UPDATE_RIGHT_PANEL_VISIBILITY';
 export function updateRightTreeVisibility(isVisible) {
   return (dispatch) => {

@@ -215,10 +215,10 @@ export default class Message extends Component {
     case 'REFLECTION_LOST_FIELDS':
       return <span>{la('Review changes.')}</span>;
     default:
-      {
-        const asLocKey = `Message.Code.${code}.Message`;
-        if (haveLocKey(asLocKey)) return <FormattedMessage id={asLocKey} />;
-      }
+    {
+      const asLocKey = `Message.Code.${code}.Message`;
+      if (haveLocKey(asLocKey)) return <FormattedMessage id={asLocKey} />;
+    }
     }
   }
 
@@ -231,10 +231,10 @@ export default class Message extends Component {
     case 'MATERIALIZATION_FAILURE':
       return RENDER_NO_DETAILS; // job link has all the needed info
     default:
-      {
-        const asLocKey = `Message.Code.${code}.Details`;
-        if (haveLocKey(asLocKey)) return <FormattedMessage id={asLocKey} />;
-      }
+    {
+      const asLocKey = `Message.Code.${code}.Details`;
+      if (haveLocKey(asLocKey)) return <FormattedMessage id={asLocKey} />;
+    }
     }
   }
 

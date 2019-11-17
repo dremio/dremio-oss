@@ -43,12 +43,11 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.hadoop.fs.Path;
-
 import com.dremio.datastore.WarningTimer;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.work.user.SubstitutionSettings;
+import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.proto.model.UpdateId;
 import com.dremio.service.job.proto.JobAttempt;
@@ -56,6 +55,7 @@ import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.MaterializationSummary;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.GetJobRequest;
 import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobException;
 import com.dremio.service.jobs.JobNotFoundException;
@@ -327,7 +327,11 @@ public class ReflectionManager implements Runnable {
 
     Job job;
     try {
-      job = jobsService.getJobFromStore(entry.getRefreshJobId());
+      GetJobRequest request = GetJobRequest.newBuilder()
+        .setJobId(entry.getRefreshJobId())
+        .setFromStore(true)
+        .build();
+      job = jobsService.getJob(request);
     } catch (JobNotFoundException e) {
       // something's wrong, a refreshing entry means we already submitted a job and we should be able to retrieve it.
       // let's handle this as a failure to avoid hitting an infinite loop trying to handle this reflection entry
@@ -693,18 +697,18 @@ public class ReflectionManager implements Runnable {
     // start compaction job
     final String sql = String.format("COMPACT MATERIALIZATION \"%s\".\"%s\" AS '%s'", entry.getId().getId(), materialization.getId().getId(), newMaterialization.getId().getId());
 
-    final Job compactionJob = submitRefreshJob(jobsService, namespaceService, entry, materialization, sql,
+    final JobId compactionJobId = submitRefreshJob(jobsService, namespaceService, entry, materialization, sql,
       new WakeUpManagerWhenJobDone(wakeUpCallback, "compaction job done"));
 
     newMaterialization
-      .setInitRefreshJobId(compactionJob.getJobId().getId());
+      .setInitRefreshJobId(compactionJobId.getId());
     materializationStore.save(newMaterialization);
 
     entry.setState(COMPACTING)
-      .setRefreshJobId(compactionJob.getJobId());
+      .setRefreshJobId(compactionJobId);
     reflectionStore.save(entry);
 
-    logger.debug("started job {} to compact materialization {} as {}", compactionJob.getJobId().getId(), getId(materialization), newMaterialization.getId().getId());
+    logger.debug("started job {} to compact materialization {} as {}", compactionJobId.getId(), getId(materialization), newMaterialization.getId().getId());
     return true;
   }
 
@@ -781,14 +785,14 @@ public class ReflectionManager implements Runnable {
     final String sql = String.format("LOAD MATERIALIZATION METADATA \"%s\".\"%s\"",
       materialization.getReflectionId().getId(), materialization.getId().getId());
 
-    final Job job = submitRefreshJob(jobsService, namespaceService, entry, materialization, sql,
+    final JobId jobId = submitRefreshJob(jobsService, namespaceService, entry, materialization, sql,
       new WakeUpManagerWhenJobDone(wakeUpCallback, "metadata refresh job done"));
 
     entry.setState(METADATA_REFRESH)
-      .setRefreshJobId(job.getJobId());
+      .setRefreshJobId(jobId);
     reflectionStore.save(entry);
 
-    logger.debug("started job {} to load materialization metadata {}", job.getJobId().getId(), getId(materialization));
+    logger.debug("started job {} to load materialization metadata {}", jobId.getId(), getId(materialization));
   }
 
   private void startRefresh(ReflectionEntry entry) {

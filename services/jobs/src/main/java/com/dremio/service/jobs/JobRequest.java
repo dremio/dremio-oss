@@ -51,6 +51,7 @@ public final class JobRequest {
   private final SubstitutionSettings substitutionSettings;
   /** if set to true, query is not going to be scheduled on a separate thread */
   private final boolean runInSameThread;
+  private final boolean runInSingleThread;
 
   private JobRequest(RequestType requestType,
                      SqlQuery sqlQuery,
@@ -62,7 +63,8 @@ public final class JobRequest {
                      String fileName,
                      MaterializationSummary materializationSummary,
                      SubstitutionSettings substitutionSettings,
-                     boolean runInSameThread) {
+                     boolean runInSameThread,
+                     boolean runInSingleThread) {
     this.requestType = requestType;
 
     this.sqlQuery = sqlQuery;
@@ -77,6 +79,7 @@ public final class JobRequest {
     this.materializationSummary = materializationSummary;
     this.substitutionSettings = substitutionSettings;
     this.runInSameThread = runInSameThread;
+    this.runInSingleThread = runInSingleThread;
   }
 
   public SqlQuery getSqlQuery() {
@@ -105,6 +108,10 @@ public final class JobRequest {
 
   public boolean runInSameThread() {
     return runInSameThread;
+  }
+
+  public boolean runInSingleThread() {
+    return runInSingleThread;
   }
 
   JobInfo asJobInfo(final JobId jobId, final String inSpace) {
@@ -151,12 +158,14 @@ public final class JobRequest {
     private MaterializationSummary materializationSummary;
     private SubstitutionSettings substitutionSettings;
     private boolean runInSameThread;
+    private boolean runInSingleThread;
 
-    private Builder(String downloadId, String fileName) {
+    private Builder(String downloadId, String fileName, boolean runInSingleThread) {
       this.requestType = RequestType.DOWNLOAD;
       this.downloadId = downloadId;
       this.fileName = fileName;
       this.queryType = QueryType.UI_EXPORT;
+      this.runInSingleThread = runInSingleThread;
     }
 
     private Builder(MaterializationSummary materializationSummary,
@@ -284,7 +293,8 @@ public final class JobRequest {
           fileName,
           materializationSummary,
           substitutionSettings,
-          runInSameThread);
+          runInSameThread,
+          runInSingleThread);
     }
   }
 
@@ -305,8 +315,9 @@ public final class JobRequest {
    * @return new builder
    */
   public static Builder newDownloadJobBuilder(String downloadId,
-                                              String fileName) {
-    return new Builder(downloadId, fileName);
+                                              String fileName,
+                                              boolean runInSingleThread) {
+    return new Builder(downloadId, fileName, runInSingleThread);
   }
 
   /**
