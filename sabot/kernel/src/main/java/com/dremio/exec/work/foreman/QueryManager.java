@@ -529,6 +529,10 @@ class QueryManager {
     endTime = System.currentTimeMillis();
   }
 
+  long getTime() {
+    return Math.max(0, endTime - startTime);
+  }
+
   /**
    * Internal class used to track the number of pending completion messages required from particular node. This allows
    * to know for each node that is part of this query, what portion of fragments are still outstanding. In the case that

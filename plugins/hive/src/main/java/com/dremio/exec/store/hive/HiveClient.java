@@ -25,12 +25,14 @@ import java.util.List;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
-import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
 import org.apache.hadoop.hive.metastore.TableType;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.metadata.Hive;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.shims.Utils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.thrift.TException;
@@ -50,7 +52,7 @@ public class HiveClient implements AutoCloseable {
 
   final HiveConf hiveConf;
 
-  HiveMetaStoreClient client;
+  IMetaStoreClient client;
 
   /**
    * Create a HiveMetaStoreClient for cases where:
@@ -136,13 +138,13 @@ public class HiveClient implements AutoCloseable {
    * @throws MetaException
    */
   public static HiveClient createClient(final HiveConf hiveConf)
-      throws MetaException {
+      throws MetaException, HiveException {
     final HiveClient hiveClient = new HiveClient(hiveConf);
     hiveClient.connect();
     return hiveClient;
   }
 
-  HiveClient(final HiveConf hiveConf) throws MetaException {
+  HiveClient(final HiveConf hiveConf) throws MetaException, HiveException {
     this.hiveConf = hiveConf;
   }
 
@@ -157,7 +159,7 @@ public class HiveClient implements AutoCloseable {
             @Override
             public Void run() throws Exception {
               try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
-                client = new HiveMetaStoreClient(hiveConf);
+                client = Hive.get(hiveConf).getMSC();
               }
               return null;
             }
@@ -176,7 +178,7 @@ public class HiveClient implements AutoCloseable {
   public List<String> getDatabases(boolean ignoreAuthzErrors) throws TException{
     return doCommand(new RetryableClientCommand<List<String>>(){
       @Override
-      public List<String> run(HiveMetaStoreClient client) throws TException {
+      public List<String> run(IMetaStoreClient client) throws TException {
         return client.getAllDatabases();
       }});
   }
@@ -185,7 +187,7 @@ public class HiveClient implements AutoCloseable {
     try {
       return doCommand(new RetryableClientCommand<Boolean>(){
         @Override
-        public Boolean run(HiveMetaStoreClient client) throws TException {
+        public Boolean run(IMetaStoreClient client) throws TException {
           return client.getDatabase(dbName) != null;
         }});
     } catch (NoSuchObjectException e) {
@@ -199,7 +201,7 @@ public class HiveClient implements AutoCloseable {
   public List<String> getTableNames(final String dbName, boolean ignoreAuthzErrors) throws TException{
     return doCommand(new RetryableClientCommand<List<String>>(){
       @Override
-      public List<String> run(HiveMetaStoreClient client) throws TException {
+      public List<String> run(IMetaStoreClient client) throws TException {
         return client.getAllTables(dbName);
       }});
   }
@@ -216,7 +218,7 @@ public class HiveClient implements AutoCloseable {
   private Table getTableWithoutTableTypeChecking(final String dbName, final String tableName, boolean ignoreAuthzErrors) throws TException{
     return doCommand(new RetryableClientCommand<Table>(){
       @Override
-      public Table run(HiveMetaStoreClient client) throws TException {
+      public Table run(IMetaStoreClient client) throws TException {
         try{
           return client.getTable(dbName, tableName);
         }catch(NoSuchObjectException e){
@@ -250,7 +252,7 @@ public class HiveClient implements AutoCloseable {
   public List<Partition> getPartitionsByName(final String dbName, final String tableName, final List<String> partitionNames) throws TException {
     return doCommand(new RetryableClientCommand<List<Partition>>() {
       @Override
-      public List<Partition> run(HiveMetaStoreClient client) throws TException {
+      public List<Partition> run(IMetaStoreClient client) throws TException {
         logger.trace("Database '{}', table '{}', Begin retrieval of partitions by name using batch size '{}'", dbName, tableName, partitionNames.size());
 
         try {
@@ -280,7 +282,7 @@ public class HiveClient implements AutoCloseable {
   public List<String> getPartitionNames(final String dbName, final String tableName) throws TException {
     return doCommand(new RetryableClientCommand<List<String>>() {
       @Override
-      public List<String> run(HiveMetaStoreClient client) throws TException {
+      public List<String> run(IMetaStoreClient client) throws TException {
         try {
           final List<String> allPartitionNames = client.listPartitionNames(dbName, tableName, (short) -1);
 
@@ -304,14 +306,14 @@ public class HiveClient implements AutoCloseable {
   String getDelegationToken(final String proxyUser) throws TException {
     return doCommand(new RetryableClientCommand<String>() {
       @Override
-      public String run(HiveMetaStoreClient client) throws TException {
+      public String run(IMetaStoreClient client) throws TException {
         return client.getDelegationToken(proxyUser, HiveImpersonationUtil.getProcessUserName());
       }
     });
   }
 
   private interface RetryableClientCommand<T> {
-    T run(HiveMetaStoreClient client) throws TException;
+    T run(IMetaStoreClient client) throws TException;
   }
 
   private synchronized <T> T doCommand(RetryableClientCommand<T> cmd) throws TException{

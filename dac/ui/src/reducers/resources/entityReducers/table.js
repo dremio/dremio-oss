@@ -37,13 +37,15 @@ export default function table(state, action) {
     return state;
   case LOAD_NEXT_ROWS_SUCCESS: {
     const { rows, columns } = action.payload;
-    const { offset } = action.meta;
-    const oldRows = state.getIn(['tableData', action.meta.datasetVersion, 'rows']) || Immutable.List();
+    const { offset, datasetVersion } = action.meta;
+    const oldRows = state.getIn(['tableData', datasetVersion, 'rows']) || Immutable.List();
+    const outputRecords = state.getIn(['tableData', datasetVersion, 'outputRecords']);
     return state.mergeIn(
-      ['tableData', action.meta.datasetVersion],
+      ['tableData', datasetVersion],
       {
         rows: oldRows.splice(offset, oldRows.size, ...Immutable.fromJS(rows)),
-        columns
+        columns,
+        outputRecords
       }
     );
   }
@@ -65,20 +67,35 @@ export default function table(state, action) {
     });
   }
   case UPDATE_EXPLORE_JOB_PROGRESS: {
+    const {jobUpdate} = action;
+    // set jobProgress changes in state.tableData
     const jobProgress = state.getIn(['tableData', 'jobProgress']);
-    return state.setIn(['tableData', 'jobProgress'], {
+    const haveChange = !jobProgress
+      || jobProgress.jobId !== jobUpdate.id
+      || jobProgress.status !== jobUpdate.state
+      || jobProgress.startTime !== jobUpdate.startTime
+      || (jobProgress.endTime && jobProgress.endTime !== jobUpdate.endTime)
+      || jobProgress.datasetVersion !== jobUpdate.datasetVersion;
+    const newState = (haveChange) ? state.setIn(['tableData', 'jobProgress'], {
       ...jobProgress,
-      jobId: action.jobUpdate.id,
-      status: action.jobUpdate.state,
-      startTime: action.jobUpdate.startTime,
-      endTime: action.jobUpdate.endTime
-    });
+      jobId: jobUpdate.id,
+      status: jobUpdate.state,
+      startTime: jobUpdate.startTime,
+      endTime: jobUpdate.endTime,
+      datasetVersion: jobUpdate.datasetVersion
+    }) : state;
+    // set outputRecords in state.tableData[version]
+    if (jobUpdate.outputRecords && jobUpdate.datasetVersion) {
+      return newState.setIn(['tableData', jobUpdate.datasetVersion, 'outputRecords'], jobUpdate.outputRecords);
+    }
+    return newState;
   }
   case SET_EXPLORE_JOBID_IN_PROGRESS: {
     const jobProgress = state.getIn(['tableData', 'jobProgress']);
     return state.setIn(['tableData', 'jobProgress'], {
       ...jobProgress,
-      jobId: action.jobId
+      jobId: action.jobId,
+      datasetVersion: action.datasetVersion
     });
   }
   case UPDATE_EXPLORE_JOB_RECORDS: {

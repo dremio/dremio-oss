@@ -59,10 +59,11 @@ import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
+import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.CatalogServiceImpl.UpdateType;
 import com.dremio.exec.catalog.DatasetMetadataAdapter;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.CatalogService.UpdateType;
 import com.dremio.exec.store.hive.Hive3PluginOptions;
 import com.dremio.exec.store.hive.HiveImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
@@ -1141,7 +1142,7 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void testReadSignatures() throws Exception {
-    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
+    ((CatalogServiceImpl) getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
     NamespaceService ns = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
     assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.db1.kv_db1")))).size());
     assertEquals(2, getCachedEntities(ns.getDataset(new NamespaceKey(PathUtils.parseFullPath("hive.db1.avro")))).size());
@@ -1171,14 +1172,14 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void testCheckReadSignatureValid() throws Exception {
-    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
+    ((CatalogServiceImpl) getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
     testCheckReadSignature(new EntityPath(ImmutableList.of("hive", "db1", "kv_db1")), SupportsReadSignature.MetadataValidity.VALID);
     testCheckReadSignature(new EntityPath(ImmutableList.of("hive", "default", "partition_with_few_schemas")), SupportsReadSignature.MetadataValidity.VALID);
   }
 
   @Test
   public void testCheckReadSignatureInvalid() throws Exception {
-    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
+    ((CatalogServiceImpl) getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
     new File(hiveTest.getWhDir() + "/db1.db/kv_db1", "000000_0").setLastModified(System.currentTimeMillis());
 
     File newFile = new File(hiveTest.getWhDir() + "/partition_with_few_schemas/c=1/d=1/e=1/", "empty_file");
@@ -1194,7 +1195,7 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void testCheckHasPermission() throws Exception {
-    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
+    ((CatalogServiceImpl) getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
     NamespaceService ns = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
 
 
@@ -1242,7 +1243,7 @@ public class ITHiveStorage extends HiveTestBase {
         .getNamespaceService(SystemUser.SYSTEM_USERNAME)
         .getAllDatasets(new NamespaceKey("hive")));
 
-    getSabotContext().getCatalogService().refreshSource(
+    ((CatalogServiceImpl) getSabotContext().getCatalogService()).refreshSource(
       new NamespaceKey("hive"),
       new MetadataPolicy()
         .setAuthTtlMs(0l)
@@ -1258,7 +1259,7 @@ public class ITHiveStorage extends HiveTestBase {
     // create an empty table
     hiveTest.executeDDL("CREATE TABLE IF NOT EXISTS foo_bar(a INT, b STRING)");
 
-    getSabotContext().getCatalogService().refreshSource(
+    ((CatalogServiceImpl) getSabotContext().getCatalogService()).refreshSource(
       new NamespaceKey("hive"),
       new MetadataPolicy()
         .setAuthTtlMs(0l)
@@ -1295,7 +1296,7 @@ public class ITHiveStorage extends HiveTestBase {
     // drop table
     hiveTest.executeDDL("DROP TABLE foo_bar");
 
-    getSabotContext().getCatalogService().refreshSource(
+    ((CatalogServiceImpl) getSabotContext().getCatalogService()).refreshSource(
       new NamespaceKey("hive"),
       new MetadataPolicy()
       .setAuthTtlMs(0l)

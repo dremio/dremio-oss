@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive3-plugin-parent</artifactId>
-    <version>4.0.4-201910212053580380-773b665</version>
+    <version>4.0.5-201911202046080257-19b10938</version>
   </parent>
 
   <artifactId>dremio-hive3-plugin</artifactId>
@@ -34,7 +34,7 @@
 
     <test.source.dir>${project.build.directory}/generated-test-sources</test.source.dir>
 
-    <hadoop.version>3.2.0-dremio-201909041046110436-7295d98</hadoop.version>
+    <hadoop.version>3.2.0-dremio-201911062242240641-139525f</hadoop.version>
     <azure-storage.version>8.3.0</azure-storage.version>
     <azure-datalake.version>2.3.3-201901300025380807-2bdda72</azure-datalake.version>
     <hadoop-azure.version>${hadoop.version}</hadoop-azure.version>

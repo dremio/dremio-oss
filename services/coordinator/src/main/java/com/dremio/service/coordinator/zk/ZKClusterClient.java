@@ -178,7 +178,11 @@ class ZKClusterClient implements com.dremio.service.Service {
   }
 
   public DistributedSemaphore getSemaphore(String name, int maximumLeases) {
-    return new ZkDistributedSemaphore(curator, "/" + clusterId + "/semaphore/" + name, maximumLeases);
+    try {
+      return new ZkDistributedSemaphore(curator, "/" + clusterId + "/semaphore/" + name, maximumLeases);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public Iterable<String> getServiceNames() throws Exception {

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.work.foreman;
 
+import java.time.Duration;
 import java.util.Set;
 
 import com.dremio.common.EventProcessor;
@@ -62,6 +63,10 @@ import com.dremio.service.Pointer;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.execselector.ExecutorSelectionService;
+import com.dremio.telemetry.api.metrics.Counter;
+import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.telemetry.api.metrics.Metrics.ResetType;
+import com.dremio.telemetry.api.metrics.TopMonitor;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 
@@ -87,6 +92,12 @@ import io.netty.util.internal.OutOfDirectMemoryError;
 public class AttemptManager implements Runnable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AttemptManager.class);
   private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(AttemptManager.class);
+
+  private static final TopMonitor LONG_QUERIES = Metrics.newTopReporter(Metrics.join("jobs","long_running"), 25, Duration.ofSeconds(10), ResetType.PERIODIC_DECAY);
+  private static final Counter RUN_15M = Metrics.newCounter(Metrics.join("jobs", "active_15m"), ResetType.PERIODIC_15M);
+  private static final Counter RUN_1D = Metrics.newCounter(Metrics.join("jobs", "active_1d"), ResetType.PERIODIC_15M);
+  private static final Counter FAILED_15M = Metrics.newCounter(Metrics.join("jobs", "failed_15m"), ResetType.PERIODIC_15M);
+  private static final Counter FAILED_1D = Metrics.newCounter(Metrics.join("jobs", "failed_1d"), ResetType.PERIODIC_1D);
 
   private final AttemptId attemptId;
   private final QueryId queryId;
@@ -157,6 +168,9 @@ public class AttemptManager implements Runnable {
     if(options != null){
       options.applyOptions(optionManager);
     }
+
+    RUN_15M.increment();
+    RUN_1D.increment();
 
     this.queryManager = new QueryManager(queryId, this.queryContext, this.tunnelCreator, new CompletionListenerImpl(), prepareId,
       observers, optionManager.getOption(PlannerSettings.VERBOSE_PROFILE),
@@ -467,6 +481,8 @@ public class AttemptManager implements Runnable {
       Preconditions.checkState(!isClosed);
       Preconditions.checkState(resultState == null);
 
+      FAILED_15M.increment();
+      FAILED_1D.increment();
       resultState = QueryState.FAILED;
       resultException = exception;
     }
@@ -537,6 +553,9 @@ public class AttemptManager implements Runnable {
       // to track how long the query takes
       queryManager.markEndTime();
 
+      if(queryRequest.getDescription() != null) {
+        LONG_QUERIES.update(queryManager.getTime(), () -> queryRequest.getDescription());
+      }
       logger.debug(queryIdString + ": cleaning up.");
       injector.injectPause(queryContext.getExecutionControls(), "foreman-cleanup", logger);
 

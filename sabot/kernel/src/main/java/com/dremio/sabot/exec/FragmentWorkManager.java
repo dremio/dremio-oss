@@ -41,7 +41,6 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.work.SafeExit;
 import com.dremio.exec.work.WorkStats;
-import com.dremio.metrics.Metrics;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
@@ -58,6 +57,7 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.users.SystemUser;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
+import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
@@ -242,6 +242,7 @@ public class FragmentWorkManager implements Service, SafeExit {
   @Override
   public void start() {
 
+    Metrics.newGauge(Metrics.join("fragments","active"), () -> fragmentExecutors.size());
     bitContext = dbContext.get();
 
     this.executor = Executors.newCachedThreadPool();
@@ -313,8 +314,8 @@ public class FragmentWorkManager implements Service, SafeExit {
     }
 
     final String prefix = "rpc";
-    Metrics.newGauge(prefix + "bit.data.current", allocator::getAllocatedMemory);
-    Metrics.newGauge(prefix + "bit.data.peak", allocator::getPeakMemoryAllocation);
+    Metrics.newGauge(Metrics.join(prefix, "bit.data.current"), allocator::getAllocatedMemory);
+    Metrics.newGauge(Metrics.join(prefix, "bit.data.peak"), allocator::getPeakMemoryAllocation);
   }
 
   public class ExecConnectionCreator {

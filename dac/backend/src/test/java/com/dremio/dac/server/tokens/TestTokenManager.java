@@ -51,6 +51,8 @@ public class TestTokenManager {
     final SabotContext sabotContext = mock(SabotContext.class);
     SystemOptionManager systemOptionManager = mock(SystemOptionManager.class);
     when(sabotContext.getOptionManager()).thenReturn(systemOptionManager);
+    when(systemOptionManager.getOption("token.expiration.min")).thenReturn(OptionValue.createOption
+      (OptionValue.Kind.LONG, OptionValue.OptionType.SYSTEM, "token.expiration.min","30"));
     when(systemOptionManager.getOption("token.release.leadership.ms")).thenReturn(OptionValue.createOption
       (OptionValue.Kind.LONG, OptionValue.OptionType.SYSTEM, "token.release.leadership.ms","144000000"));
 

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>4.0.4-201910212053580380-773b665</version>
+    <version>4.0.5-201911202046080257-19b10938</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -38,6 +38,14 @@
   </properties>
 
   <dependencies>
+
+    <!-- Necessary to pick up the class path for the telemetry config   -->
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-telemetry-impl</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-dac-daemon</artifactId>
@@ -180,6 +188,11 @@
     <dependency>
       <groupId>com.dremio.plugins</groupId>
       <artifactId>dremio-hive-plugin-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-hive2-plugin-launcher</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -530,6 +543,11 @@ exit 0
               <artifactId>*</artifactId>
             </exclusion>
           </exclusions>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-hive3-plugin-launcher</artifactId>
+          <version>${project.version}</version>
         </dependency>
         <dependency>
           <groupId>${dremio.hive.plugin-group-id}</groupId>

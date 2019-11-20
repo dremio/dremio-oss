@@ -24,8 +24,8 @@ import org.junit.rules.TestRule;
 
 import com.dremio.TestBuilder;
 import com.dremio.common.util.TestTools;
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.CatalogService.UpdateType;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Strings;
@@ -42,7 +42,7 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
 
   @Before
   public void ensureFullMetadataRead() throws NamespaceException{
-    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
+    ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
   }
 
   @Test
@@ -156,6 +156,7 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "field_size_limit_test_orc")
         .baselineValues("hive.default", "parqschematest_table")
         .baselineValues("hive.default", "orc_strings")
+        .baselineValues("hive.default", "orc_strings_complex")
         .baselineValues("hive.default", "timestamptostring")
         .baselineValues("hive.default", "timestamptostring_orc")
         .baselineValues("hive.default", "timestamptostring_orc_ext")

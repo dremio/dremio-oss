@@ -31,7 +31,6 @@ import org.apache.hadoop.hive.ql.session.SessionState;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 
@@ -48,8 +47,6 @@ import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.HIVE_SERVER2_ENABLE_
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTOREURIS;
 import static org.apache.hadoop.hive.conf.HiveConf.ConfVars.METASTORE_EXECUTE_SET_UGI;
 
-// DX-18454: ignoring tests due to jetty version mismatch with Hadoop 3.2
-@Ignore
 public class ITSqlStdBasedAuthorization extends BaseTestHiveImpersonation {
 
   @ClassRule

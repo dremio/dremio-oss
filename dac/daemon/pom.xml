@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>4.0.4-201910212053580380-773b665</version>
+    <version>4.0.5-201911202046080257-19b10938</version>
   </parent>
 
   <artifactId>dremio-dac-daemon</artifactId>
@@ -259,9 +259,9 @@
           <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>com.dremio.jdbc</groupId>
-          <artifactId>redshift-jdbc-42-no-awssdk</artifactId>
-          <version>1.2.16.1027</version>
+          <groupId>com.amazon.redshift</groupId>
+          <artifactId>redshift-jdbc42-no-awssdk</artifactId>
+          <version>1.2.34.1058</version>
         </dependency>
         <dependency>
           <groupId>com.dremio.jdbc</groupId>

@@ -60,6 +60,13 @@ export function getJobProgress(state) {
   return entities.getIn(['tableData', 'jobProgress']) || null;
 }
 
+export function getJobOutputRecords(state) {
+  const jobProgress = getJobProgress(state);
+  const datasetVersion = jobProgress && jobProgress.datasetVersion;
+  const tableData = getTableDataRaw(state, datasetVersion);
+  return tableData && tableData.get('outputRecords');
+}
+
 export function getPeekData(state, previewVersion) {
   const { entities } = state.resources;
   return entities.getIn(['previewTable', previewVersion])  || emptyTable;
@@ -249,7 +256,7 @@ export const getJoinTable = createSelector(
 export const getTableColumns = createSelector(
   [ getTableData ],
   table => {
-    return table.get('columns');
+    return table.get('columns') || emptyTable.get('columns');
   }
 );
 

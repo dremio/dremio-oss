@@ -49,6 +49,7 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.datastore.KVStoreProvider;
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.server.SabotContext;
@@ -130,7 +131,7 @@ public class TestResource {
 
   public void refreshNow(String...sources) throws NamespaceException {
     for(String source : sources) {
-      context.getCatalogService().refreshSource(new NamespaceKey(source), CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
+      ((CatalogServiceImpl) context.getCatalogService()).refreshSource(new NamespaceKey(source), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
     }
   }
 

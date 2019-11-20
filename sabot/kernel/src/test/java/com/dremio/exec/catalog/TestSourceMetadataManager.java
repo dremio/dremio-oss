@@ -93,25 +93,25 @@ public class TestSourceMetadataManager {
     when(sp.getDatasetHandle(any(), any()))
         .thenReturn(Optional.empty());
 
-    ManagedStoragePlugin msp = mock(ManagedStoragePlugin.class);
-    when(msp.getName())
-        .thenReturn(new NamespaceKey("joker"));
-    when(msp.unwrap(any()))
+    ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
+    when(msp.getMetadata())
         .thenReturn(sp);
     when(msp.getMetadataPolicy())
         .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
     when(msp.getMaxMetadataColumns())
       .thenReturn(MAX_COLUMNS);
+    when(msp.getNamespaceService())
+      .thenReturn(ns);
 
     //noinspection unchecked
     SourceMetadataManager manager = new SourceMetadataManager(
+        new NamespaceKey("joker"),
         mock(SchedulerService.class),
         true,
-        ns,
         mock(KVStore.class),
         msp,
-        optionManager
-    );
+        optionManager,
+        CatalogServiceMonitor.DEFAULT);
 
     assertEquals(Catalog.UpdateStatus.DELETED,
         manager.refreshDataset(new NamespaceKey(""), DatasetRetrievalOptions.DEFAULT));
@@ -132,25 +132,26 @@ public class TestSourceMetadataManager {
     when(sp.getDatasetHandle(any(), any()))
         .thenReturn(Optional.empty());
 
-    ManagedStoragePlugin msp = mock(ManagedStoragePlugin.class);
-    when(msp.getName())
-        .thenReturn(new NamespaceKey("joker"));
-    when(msp.unwrap(any()))
+    ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
+    when(msp.getMetadata())
         .thenReturn(sp);
     when(msp.getMetadataPolicy())
         .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
     when(msp.getMaxMetadataColumns())
       .thenReturn(MAX_COLUMNS);
+    when(msp.getNamespaceService())
+      .thenReturn(ns);
 
     //noinspection unchecked
     SourceMetadataManager manager = new SourceMetadataManager(
+        new NamespaceKey("joker"),
         mock(SchedulerService.class),
         true,
-        ns,
         mock(KVStore.class),
         msp,
-        optionManager
-    );
+        optionManager,
+        CatalogServiceMonitor.DEFAULT);
+
 
     assertEquals(Catalog.UpdateStatus.UNCHANGED,
         manager.refreshDataset(new NamespaceKey(""),
@@ -178,25 +179,25 @@ public class TestSourceMetadataManager {
     when(sp.getDatasetHandle(any(), any()))
         .thenReturn(Optional.empty());
 
-    ManagedStoragePlugin msp = mock(ManagedStoragePlugin.class);
-    when(msp.getName())
-        .thenReturn(new NamespaceKey("joker"));
-    when(msp.unwrap(any()))
+    ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
+    when(msp.getMetadata())
         .thenReturn(sp);
     when(msp.getMetadataPolicy())
         .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
     when(msp.getMaxMetadataColumns())
       .thenReturn(MAX_COLUMNS);
+    when(msp.getNamespaceService())
+      .thenReturn(ns);
 
     //noinspection unchecked
     SourceMetadataManager manager = new SourceMetadataManager(
+        new NamespaceKey("joker"),
         mock(SchedulerService.class),
         true,
-        ns,
         mock(KVStore.class),
         msp,
-        optionManager
-    );
+        optionManager,
+        CatalogServiceMonitor.DEFAULT);
 
     assertEquals(Catalog.UpdateStatus.DELETED,
         manager.refreshDataset(new NamespaceKey(""), DatasetRetrievalOptions.DEFAULT));
@@ -216,25 +217,25 @@ public class TestSourceMetadataManager {
     when(sp.getDatasetHandle(any(), any()))
         .thenReturn(Optional.empty());
 
-    ManagedStoragePlugin msp = mock(ManagedStoragePlugin.class);
-    when(msp.getName())
-        .thenReturn(new NamespaceKey("joker"));
-    when(msp.unwrap(any()))
+    ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
+    when(msp.getMetadata())
         .thenReturn(sp);
     when(msp.getMetadataPolicy())
         .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
     when(msp.getMaxMetadataColumns())
-      .thenReturn(MAX_COLUMNS);
+        .thenReturn(MAX_COLUMNS);
+    when(msp.getNamespaceService())
+        .thenReturn(ns);
 
     //noinspection unchecked
     SourceMetadataManager manager = new SourceMetadataManager(
+        new NamespaceKey("joker"),
         mock(SchedulerService.class),
         true,
-        ns,
         mock(KVStore.class),
         msp,
-        optionManager
-    );
+        optionManager,
+        CatalogServiceMonitor.DEFAULT);
 
     assertEquals(Catalog.UpdateStatus.UNCHANGED,
         manager.refreshDataset(new NamespaceKey(""),
@@ -256,7 +257,7 @@ public class TestSourceMetadataManager {
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
     DatasetHandle handle = () -> new EntityPath(Lists.newArrayList("one"));
     when(sp.getDatasetHandle(any(), any()))
-        .thenReturn((Optional) Optional.of(handle));
+        .thenReturn(Optional.of(handle));
     when(sp.provideSignature(any(), any()))
         .thenReturn(BytesOutput.NONE);
 
@@ -270,24 +271,24 @@ public class TestSourceMetadataManager {
     when(sp.validateMetadata(any(), any(), any()))
         .thenReturn(SupportsReadSignature.MetadataValidity.VALID);
 
-    ManagedStoragePlugin msp = mock(ManagedStoragePlugin.class);
-    when(msp.getName())
-        .thenReturn(new NamespaceKey("joker"));
-    when(msp.unwrap(any()))
+    ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
+    when(msp.getMetadata())
         .thenReturn(sp);
     when(msp.getMetadataPolicy())
         .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
     when(msp.getMaxMetadataColumns())
         .thenReturn(MAX_COLUMNS);
+    when(msp.getNamespaceService()).thenReturn(ns);
 
     //noinspection unchecked
     SourceMetadataManager manager = new SourceMetadataManager(
+        new NamespaceKey("joker"),
         mock(SchedulerService.class),
         true,
-        ns,
         mock(KVStore.class),
         msp,
-        optionManager
+        optionManager,
+        CatalogServiceMonitor.DEFAULT
     );
 
     manager.refreshDataset(new NamespaceKey(""),
@@ -308,7 +309,7 @@ public class TestSourceMetadataManager {
 
     DatasetHandle handle = () -> new EntityPath(Lists.newArrayList("one"));
     when(sp.getDatasetHandle(any(), any()))
-        .thenReturn((Optional) Optional.of(handle));
+        .thenReturn(Optional.of(handle));
     when(sp.listPartitionChunks(any(), any()))
         .thenReturn(Collections::emptyIterator);
 
@@ -318,22 +319,23 @@ public class TestSourceMetadataManager {
         .when(sp)
         .getDatasetMetadata(eq(handle), any(PartitionChunkListing.class), any());
 
-    ManagedStoragePlugin msp = mock(ManagedStoragePlugin.class);
-    when(msp.getName())
-        .thenReturn(new NamespaceKey("joker"));
-    when(msp.unwrap(any()))
+    ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
+    when(msp.getMetadata())
         .thenReturn(sp);
     when(msp.getMetadataPolicy())
         .thenReturn(new MetadataPolicy());
+    when(msp.getNamespaceService())
+        .thenReturn(ns);
 
     //noinspection unchecked
     SourceMetadataManager manager = new SourceMetadataManager(
+        new NamespaceKey("joker"),
         mock(SchedulerService.class),
         true,
-        ns,
         mock(KVStore.class),
         msp,
-        optionManager
+        optionManager,
+        CatalogServiceMonitor.DEFAULT
     );
 
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION,

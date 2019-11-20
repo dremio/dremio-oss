@@ -15,12 +15,14 @@
  */
 package com.dremio.service.coordinator.local;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.UUID;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -194,19 +196,35 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
 
   private class LocalSemaphore implements DistributedSemaphore {
     private final Semaphore semaphore;
+    private final int size;
     private final LocalLease singleLease = new LocalLease(1);
+    private final Map<UpdateListener, Void> listeners = Collections.synchronizedMap(new WeakHashMap<UpdateListener, Void>());
 
     LocalSemaphore(final int size) {
-      semaphore = new Semaphore(size);
+      this.semaphore = new Semaphore(size);
+      this.size = size;
+    }
+
+    @Override
+    public boolean hasOutstandingPermits() {
+      return semaphore.availablePermits() < size;
     }
 
     @Override
     public DistributedLease acquire(int permits, long timeout, TimeUnit timeUnit) throws Exception {
       Preconditions.checkArgument(permits > 0, "permits must be a positive integer");
+      update();
       if (!semaphore.tryAcquire(permits, timeout, timeUnit)) {
         return null;
       } else {
         return permits == 1 ? singleLease : new LocalLease(permits);
+      }
+    }
+
+    private void update() {
+      Collection<UpdateListener> col = new ArrayList<>(listeners.keySet());
+      for(UpdateListener l : col) {
+        l.updated();
       }
     }
 
@@ -220,7 +238,19 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
       @Override
       public void close() throws Exception {
         semaphore.release(permits);
+        update();
       }
+    }
+
+    @Override
+    public void registerUpdateListener(UpdateListener listener) {
+      listeners.put(() -> {
+        try {
+        listener.updated();
+        } catch (Exception e) {
+          logger.warn("Exception occurred while notifying listener.", e);
+        }
+      }, null);
     }
   }
 

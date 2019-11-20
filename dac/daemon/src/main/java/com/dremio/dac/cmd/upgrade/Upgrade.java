@@ -199,7 +199,7 @@ public class Upgrade {
       final LogicalPlanPersistence lpPersistence = new LogicalPlanPersistence(sabotConfig, classpathScan);
       final ConnectionReader connectionReader = ConnectionReader.of(classpathScan, sabotConfig);
 
-      final UpgradeContext context = new UpgradeContext(storeProvider, lpPersistence, connectionReader);
+      final UpgradeContext context = new UpgradeContext(storeProvider, lpPersistence, connectionReader, classpathScan);
 
       for (UpgradeTask task : tasksToRun) {
         AdminLogger.log(task.toString());

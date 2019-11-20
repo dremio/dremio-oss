@@ -137,7 +137,7 @@ export function* loadTableData(datasetVersion, forceReload) {
   log('loading is about to start');
 
   try {
-    yield put(setExploreJobIdInProgress(jobId));
+    yield put(setExploreJobIdInProgress(jobId, datasetVersion));
     yield spawn(jobUpdateWatchers, jobId); // start listening for job status updates including record counts
     yield put(updateViewState(EXPLORE_TABLE_ID, {
       isInProgress: true,

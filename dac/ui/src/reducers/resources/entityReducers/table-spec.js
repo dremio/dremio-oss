@@ -20,8 +20,9 @@ import {
   LOAD_NEXT_ROWS_SUCCESS,
   UPDATE_EXPLORE_JOB_PROGRESS,
   INIT_EXPLORE_JOB_PROGRESS,
-  UPDATE_EXPLORE_JOB_RECORDS } from 'actions/explore/dataset/data';
-import { UPDATE_COLUMN_FILTER } from 'actions/explore/view';
+  SET_EXPLORE_JOBID_IN_PROGRESS,
+  UPDATE_EXPLORE_JOB_RECORDS } from '@app/actions/explore/dataset/data';
+import { UPDATE_COLUMN_FILTER } from '@app/actions/explore/view';
 
 import table from './table';
 
@@ -160,14 +161,16 @@ describe('table', () => {
   });
 
   describe('UPDATE_EXPLORE_JOB_PROGRESS', () => {
-    it('should set job update in state', () => {
+    it('should set initial job update in state', () => {
       const result = table(initialState, {
         type: UPDATE_EXPLORE_JOB_PROGRESS,
         jobUpdate: {
           id: 'abc',
           state: 'COMPLETED',
           startTime: 100,
-          endTime: 200
+          endTime: 200,
+          outputRecords: 100,
+          datasetVersion: '12345'
         }
       });
       const jobProgress = result.getIn(['tableData', 'jobProgress']);
@@ -175,8 +178,77 @@ describe('table', () => {
         jobId: 'abc',
         status: 'COMPLETED',
         startTime: 100,
-        endTime: 200
+        endTime: 200,
+        datasetVersion: '12345'
       });
+    });
+    it('should set outputRecords in state', () => {
+      const result = table(initialState, {
+        type: UPDATE_EXPLORE_JOB_PROGRESS,
+        jobUpdate: {
+          id: 'abc',
+          state: 'COMPLETED',
+          startTime: 100,
+          endTime: 200,
+          outputRecords: 100,
+          datasetVersion: '12345'
+        }
+      });
+      const records = result.getIn(['tableData', '12345', 'outputRecords']);
+      expect(records).to.equal(100);
+    });
+    it('should ignore job update if there is no change', () => {
+      let prevState = Immutable.fromJS({});
+      prevState = prevState.setIn(['tableData', 'jobProgress'], {
+        jobId: 'abc', status: 'RUNNING', startTime: 100, datasetVersion: '12345'
+      });
+      const result = table(prevState, {
+        type: UPDATE_EXPLORE_JOB_PROGRESS,
+        jobUpdate: {
+          id: 'abc',
+          state: 'RUNNING',
+          startTime: 100,
+          datasetVersion: '12345'
+        }
+      });
+      expect(result).to.equal(prevState);
+    });
+    it('should update jobProgress if there is change in payload', () => {
+      let prevState = Immutable.fromJS({});
+      prevState = prevState.setIn(['tableData', 'jobProgress'], {
+        jobId: 'abc', status: 'RUNNING', startTime: 100, datasetVersion: '12345'
+      });
+      const jobProgress = table(prevState, {
+        type: UPDATE_EXPLORE_JOB_PROGRESS,
+        jobUpdate: {
+          id: 'abc',
+          state: 'COMPLETED',
+          startTime: 100,
+          endTime: 200,
+          outputRecords: 100,
+          datasetVersion: '12345'
+        }
+      });
+      expect(jobProgress.getIn(['tableData', 'jobProgress'])).to.eql({
+        jobId: 'abc',
+        status: 'COMPLETED',
+        startTime: 100,
+        endTime: 200,
+        datasetVersion: '12345'
+      });
+    });
+  });
+
+  describe('SET_EXPLORE_JOBID_IN_PROGRESS', () => {
+    it('should set job id and version in jobProgress', () => {
+      const result = table(initialState, {
+        type: SET_EXPLORE_JOBID_IN_PROGRESS,
+        jobId: 'abc',
+        datasetVersion: '12345'
+      });
+      const jobProgress = result.getIn(['tableData', 'jobProgress']);
+      expect(jobProgress.jobId).to.equal('abc');
+      expect(jobProgress.datasetVersion).to.equal('12345');
     });
   });
 

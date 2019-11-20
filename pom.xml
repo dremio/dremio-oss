@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>4.0.4-201910212053580380-773b665</version>
+  <version>4.0.5-201911202046080257-19b10938</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,7 +38,7 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.15.0-20190910102040-d7d65fea23-dremio</arrow.version>
+    <arrow.version>0.15.0-20191119110415-64f79cb5ce-dremio</arrow.version>
     <avatica.version>1.11.0</avatica.version>
     <calcite.version>1.16.0-201909031936280585-3f76472</calcite.version>
     <derby.version>10.14.2.0</derby.version>
@@ -49,9 +49,9 @@
     <!-- Currently Hive storage plugin only supports Apache Hive 1.2 or vendor
       specific variants of the Apache Hive 1.2. If the version is changed, make
       sure the jars and their dependencies are updated. -->
-    <hive.version>2.1.1-dremio-201908200647000054-61ee9c8</hive.version>
+    <hive.version>2.1.1-dremio-201909161537170757-9d964f7</hive.version>
     <hbase.version>2.2.0</hbase.version>
-    <hadoop.version>3.2.0-dremio-201909041046110436-7295d98</hadoop.version>
+    <hadoop.version>3.2.0-dremio-201911062242240641-139525f</hadoop.version>
     <hsqldb.version>2.3.1</hsqldb.version>
     <jackson.version>2.9.9.20190807</jackson.version>
     <jersey.version>2.25.1</jersey.version>
@@ -98,8 +98,6 @@
     <!-- Default intercom app id -->
     <dremio.ui.intercom.appid>z8apq4co</dremio.ui.intercom.appid>
     <npm.registry.url>https://registry.npmjs.org</npm.registry.url>
-    <nvd.cvebase.url>https://nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-%d.json.gz</nvd.cvebase.url>
-    <nvd.cvemodified.url>https://nvd.nist.gov/feeds/json/cve/1.0/nvdcve-1.0-modified.json.gz</nvd.cvemodified.url>
     <dremio.mapr.distribution>nonmapr</dremio.mapr.distribution>
     <dremio.release>false</dremio.release>
     <!--
@@ -793,7 +791,7 @@ limitations under the License.
         <plugin>
           <groupId>org.owasp</groupId>
           <artifactId>dependency-check-maven</artifactId>
-          <version>5.0.0</version>
+          <version>5.2.2</version>
           <dependencies>
             <dependency>
               <groupId>com.dremio.tools</groupId>
@@ -2840,6 +2838,10 @@ limitations under the License.
     <repository>
       <id>dremio-public</id>
       <url>https://maven.dremio.com/public/</url>
+    </repository>
+    <repository>
+      <id>redshift</id>
+      <url>https://s3.amazonaws.com/redshift-maven-repository/release</url>
     </repository>
   </repositories>
 </project>

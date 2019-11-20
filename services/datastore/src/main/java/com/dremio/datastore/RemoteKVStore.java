@@ -25,10 +25,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.metrics.Metrics;
-import com.dremio.metrics.Metrics.ResetType;
-import com.dremio.metrics.Timer;
-import com.dremio.metrics.Timer.TimerContext;
+import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.telemetry.api.metrics.Metrics.ResetType;
+import com.dremio.telemetry.api.metrics.Timer;
+import com.dremio.telemetry.api.metrics.Timer.TimerContext;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;

@@ -50,7 +50,7 @@ import com.dremio.common.DeferredException;
 import com.dremio.datastore.CoreStoreProviderImpl.ForcedMemoryMode;
 import com.dremio.datastore.RocksDBStore.BlobNotFoundException;
 import com.dremio.datastore.RocksDBStore.RocksBlobManager;
-import com.dremio.metrics.Metrics;
+import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;

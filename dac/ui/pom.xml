@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>4.0.4-201910212053580380-773b665</version>
+    <version>4.0.5-201911202046080257-19b10938</version>
   </parent>
 
   <artifactId>dremio-dac-ui</artifactId>

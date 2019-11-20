@@ -15,6 +15,10 @@
  */
 package com.dremio.provision.service;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
 import com.dremio.provision.ClusterConfig;
 import com.dremio.provision.ClusterEnriched;
 import com.dremio.provision.ClusterId;
@@ -121,5 +125,29 @@ public interface ProvisioningService extends Service {
    * @throws ProvisioningHandlingException
    */
   Iterable<ClusterEnriched> getClusterInfoByTypeByState(ClusterType type, ClusterState state) throws ProvisioningHandlingException;
+
+  /**
+   * Given a name, start the cluster(s) if they can be started.
+   * @param name The name of the cluster.
+   * @return A future that notifies when the cluster is up or throws ActionDisallowed, NoClusterException as appropriate.
+   */
+  CompletableFuture<Void> startCluster(String name);
+
+  /**
+   * Stop the collection of clusterIds if possible. No exceptions are thrown if the stop is disallowed.
+   */
+  void stopClusters(Collection<ClusterId> clusters);
+
+  public List<ClusterId> getRunningStoppableClustersByName(String name);
+
+  /**
+   * Exception that identifies an action that is not allowed.
+   */
+  public static class ActionDisallowed extends RuntimeException{}
+
+  /**
+   * Exception that identifies no cluster exists with provided name
+   */
+  public static class NoClusterException extends RuntimeException{}
 
 }

@@ -92,7 +92,7 @@ public class SimpleUserService implements UserService {
   private final AtomicBoolean anyUserFound = new AtomicBoolean();
 
   @Inject
-  public SimpleUserService(KVStoreProvider kvStoreProvider) throws IOException {
+  public SimpleUserService(KVStoreProvider kvStoreProvider) {
     this.userStore = kvStoreProvider.getStore(UserGroupStoreBuilder.class);
   }
 

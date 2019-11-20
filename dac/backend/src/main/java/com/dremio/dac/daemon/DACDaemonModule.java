@@ -157,7 +157,7 @@ public class DACDaemonModule implements DACModule {
     final boolean isMasterless = config.isMasterlessEnabled();
     final boolean embeddedZookeeper = config.getBoolean(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL);
 
-    bootstrapRegistry.bindSelf(new BootStrapContext(config, scanResult));
+    bootstrapRegistry.bindSelf(new BootStrapContext(config, scanResult, bootstrapRegistry));
 
     // Start cluster coordinator before all other services so that non master nodes can poll for master status
     if (dacConfig.getClusterMode() == ClusterMode.LOCAL) {

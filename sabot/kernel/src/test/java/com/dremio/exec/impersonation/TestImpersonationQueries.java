@@ -30,7 +30,6 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserRemoteException;
@@ -46,8 +45,6 @@ import com.google.common.collect.Maps;
  * Test queries involving direct impersonation and multilevel impersonation including join queries where each side is
  * a nested view.
  */
-// DX-18454: ignoring tests due to jetty version mismatch with Hadoop 3.2
-@Ignore
 public class TestImpersonationQueries extends BaseTestImpersonation {
   @BeforeClass
   public static void setup() throws Exception {

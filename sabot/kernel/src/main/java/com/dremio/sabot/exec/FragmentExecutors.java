@@ -48,7 +48,6 @@ import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.UserRpcException;
-import com.dremio.metrics.Metrics;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.FragmentWorkManager.ExitCallback;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
@@ -99,8 +98,6 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     this.pool = pool;
     this.evictionDelayMillis = TimeUnit.SECONDS.toMillis(
       options.getOption(ExecConstants.FRAGMENT_CACHE_EVICTION_DELAY_S));
-
-    Metrics.newGauge("dremio.exec.work.running_fragments", this::size);
 
     initEvictionThread(evictionDelayMillis);
   }

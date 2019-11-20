@@ -47,7 +47,7 @@ export class NewQueryButton extends Component {
   }
 
   static contextTypes = {
-    username: PropTypes.string.isRequired,
+    username: PropTypes.string,
     router: PropTypes.object.isRequired
   };
 

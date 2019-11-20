@@ -278,20 +278,31 @@ public class PathUtils {
 
   /**
    * Make sure the <i>givenPath</i> refers to an entity under the given <i>basePath</i>. Idea is to avoid using ".." to
-   * refer entities outside the ba
+   * refer entities outside the basePath.
    * @param basePath
    * @param givenPath
    */
   public static void verifyNoAccessOutsideBase(Path basePath, Path givenPath) {
-    final String basePathNormalized = Path.withoutSchemeAndAuthority(basePath).toString();
-    final String givenPathNormalized = Path.withoutSchemeAndAuthority(givenPath).toString();
-    if (!Paths.get(givenPathNormalized).startsWith(Paths.get(basePathNormalized))) {
+    if (!checkNoAccessOutsideBase(basePath, givenPath)) {
       throw UserException.permissionError()
           .message("Not allowed to access files outside of the source root")
-          .addContext("Source root", basePathNormalized)
-          .addContext("Requested to path", givenPathNormalized)
+          .addContext("Source root", Path.withoutSchemeAndAuthority(basePath).toString())
+          .addContext("Requested to path", Path.withoutSchemeAndAuthority(givenPath).toString())
           .build(logger);
     }
+  }
+
+  /**
+   * Checks if <i>givenPath</i> refers to an entity under the given <i>basePath</i>. Idea is to avoid using ".." to
+   * refer entities outside the basePath.
+   * @param basePath
+   * @param givenPath
+   * @return boolean indicating if the givenPath is valid or not relative to the basePath
+   */
+  public static boolean checkNoAccessOutsideBase(Path basePath, Path givenPath) {
+    final String basePathNormalized = Path.withoutSchemeAndAuthority(basePath).toString();
+    final String givenPathNormalized = Path.withoutSchemeAndAuthority(givenPath).toString();
+    return (Paths.get(givenPathNormalized).startsWith(Paths.get(basePathNormalized)));
   }
 
   /**

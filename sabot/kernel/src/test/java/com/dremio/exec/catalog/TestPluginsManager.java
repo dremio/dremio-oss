@@ -32,6 +32,7 @@ import javax.inject.Provider;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
@@ -64,6 +65,7 @@ import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.scheduler.Cancellable;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
+import com.dremio.service.users.SystemUser;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
@@ -91,6 +93,8 @@ public class TestPluginsManager {
         true
     );
     final NamespaceService mockNamespaceService = mock(NamespaceService.class);
+    when(mockNamespaceService.getAllDatasets(Mockito.anyObject())).thenReturn(Collections.emptyList());
+
     final DatasetListingService mockDatasetListingService = mock(DatasetListingService.class);
     final SabotConfig sabotConfig = SabotConfig.create();
     sabotContext = mock(SabotContext.class);
@@ -130,7 +134,7 @@ public class TestPluginsManager {
     schedulerService = mock(SchedulerService.class);
     mockScheduleInvocation();
     plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService,
-        ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig));
+        ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), CatalogServiceMonitor.DEFAULT);
     plugins.start();
   }
 
@@ -200,7 +204,7 @@ public class TestPluginsManager {
             .thenReturn(Optional.empty());
 
         when(mockStoragePlugin.getDatasetHandle(eq(ENTITY_PATH)))
-            .thenReturn((Optional) Optional.of(DATASET_HANDLE));
+            .thenReturn(Optional.of(DATASET_HANDLE));
 
         when(mockStoragePlugin.getState())
             .thenReturn(SourceState.GOOD);
@@ -222,7 +226,6 @@ public class TestPluginsManager {
 
   @Test
   public void permissionCacheShouldClearOnReplace() throws Exception {
-    final NamespaceKey sourceKey = new NamespaceKey(INSPECTOR);
     final SourceConfig inspectorConfig = new SourceConfig()
         .setType(INSPECTOR)
         .setName(INSPECTOR)
@@ -233,10 +236,8 @@ public class TestPluginsManager {
 
     // create one; lock required
     final ManagedStoragePlugin plugin;
-    try (AutoCloseable ignored = plugins.writeLock()) {
-      plugin = plugins.create(inspectorConfig);
-      plugin.startAsync().checkedGet();
-    }
+    plugin = plugins.create(inspectorConfig, SystemUser.SYSTEM_USERNAME);
+    plugin.startAsync().get();
 
     final SchemaConfig schemaConfig = mock(SchemaConfig.class);
     when(schemaConfig.getUserName()).thenReturn("user");
@@ -252,7 +253,7 @@ public class TestPluginsManager {
         .setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY)
         .setConfig(new Inspector(false).toBytesString());
 
-    plugin.replacePlugin(newConfig, sabotContext, 1000);
+    plugin.replacePluginWithLock(newConfig, 1000, false);
 
     // will throw if the cache has been cleared
     boolean threw = false;

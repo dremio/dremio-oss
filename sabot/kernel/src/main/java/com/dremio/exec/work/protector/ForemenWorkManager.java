@@ -74,6 +74,7 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.execselector.ExecutorSelectionService;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
+import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
@@ -141,6 +142,9 @@ public class ForemenWorkManager implements Service, SafeExit {
 
   @Override
   public void start() throws Exception {
+
+    Metrics.newGauge(Metrics.join("jobs","active"), () -> externalIdToForeman.size());
+
     coordinator = coord.get();
     coordinator.getServiceSet(ClusterCoordinator.Role.EXECUTOR).addNodeStatusListener(nodeListener);
     tunnelCreator = new CoordToExecTunnelCreator(fabric.get().getProtocol(Protocols.COORD_TO_EXEC));

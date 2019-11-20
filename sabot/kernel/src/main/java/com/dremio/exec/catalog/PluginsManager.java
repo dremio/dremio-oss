@@ -15,57 +15,48 @@
  */
 package com.dremio.exec.catalog;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
-
-import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.concurrent.AutoCloseableLock;
-import com.dremio.common.concurrent.WithAutoCloseableLock;
 import com.dremio.concurrent.Runnables;
 import com.dremio.datastore.KVStore;
-import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.util.DebugCheck;
+import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.listing.DatasetListingService;
+import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.SourceStatus;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
+import com.dremio.service.scheduler.Cancellable;
+import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.CheckedFuture;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.collect.Iterables;
 
 /**
  * Manages the creation, deletion and retrieval of storage plugins.
  *
- * Also responsible for starting up any existing sources known upon startup. After initial startup,
- * all changes are driven externally.
- *
- * Locking: We have a global ReentrantReadWriteLock for addition and removal. Addition and removal
- * should be done quickly (for example, plugin start should not be done under the global write
- * lock). operations. Any in-place update of an existing source must have both the read lock here
- * plus a lock on the ManagedStoragePlugin.
  */
 class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
 
@@ -74,28 +65,35 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
   private final ConnectionReader reader;
   private final SabotContext context;
   private final SchedulerService scheduler;
+  private final CloseableThreadPool executor = new CloseableThreadPool("source-management");
   private final DatasetListingService datasetListing;
   private final ConcurrentHashMap<String, ManagedStoragePlugin> plugins = new ConcurrentHashMap<>();
-  private final ReadLock readLock;
-  private final WriteLock writeLock;
   private final long startupWait;
   private final KVStore<NamespaceKey, SourceInternalData> sourceDataStore;
+  private final CatalogServiceMonitor monitor;
+  private Cancellable refresher;
+  private final NamespaceService systemNamespace;
 
   public PluginsManager(
       SabotContext context,
       KVStore<NamespaceKey, SourceInternalData> sourceDataStore,
       SchedulerService scheduler,
-      ConnectionReader reader
+      ConnectionReader reader,
+      CatalogServiceMonitor monitor
       ) {
     this.reader = reader;
     this.sourceDataStore = sourceDataStore;
     this.context = context;
+    this.systemNamespace = context.getNamespaceService(SystemUser.SYSTEM_USERNAME);
     this.scheduler = scheduler;
     this.datasetListing = context.getDatasetListing();
-    ReentrantReadWriteLock rwlock = new ReentrantReadWriteLock();
-    readLock = rwlock.readLock();
-    writeLock = rwlock.writeLock();
     this.startupWait = DebugCheck.IS_DEBUG ? TimeUnit.DAYS.toMillis(365) : context.getOptionManager().getOption(CatalogOptions.STARTUP_WAIT_MAX);
+    this.monitor = monitor;
+
+    // for coordinator, ensure catalog synchronization.
+    if(context.getRoles().contains(Role.COORDINATOR)) {
+      refresher = scheduler.schedule(Schedule.Builder.everyMillis(CatalogServiceImpl.CATALOG_SYNC).build(), Runnables.combo(new Refresher()));
+    }
   }
 
   ConnectionReader getReader() {
@@ -110,92 +108,141 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
       }}).toSet());
   }
 
-  @SuppressWarnings("resource")
-  public AutoCloseableLock readLock() {
-    return new AutoCloseableLock(readLock).open();
+
+  /**
+   * Automatically synchronizing sources regularily
+   */
+  private class Refresher implements Runnable {
+
+    @Override
+    public void run() {
+      try {
+        synchronizeSources();
+      } catch (Exception ex) {
+        logger.warn("Failure while synchronizing sources.");
+      }
+    }
+
+    @Override
+    public String toString() {
+      return "catalog-source-synchronization";
+    }
   }
 
-  @SuppressWarnings("resource")
-  public AutoCloseableLock writeLock() {
-    return new AutoCloseableLock(writeLock).open();
+  Iterable<ManagedStoragePlugin> managed() {
+    return plugins.values();
   }
 
   /**
    * Create a new managed storage plugin. Requires the PluginManager.writeLock() to be held.
    * @param config The configuration to create.
    * @return The newly created managed storage plugin. If a plugin with the provided name already exists, does nothing and returns null.
+   * @throws Exception
+   * @throws TimeoutException
    */
-  public ManagedStoragePlugin create(SourceConfig config) {
-    Preconditions.checkArgument(writeLock.isHeldByCurrentThread(), "You must have the write lock before creating a source.");
+  public ManagedStoragePlugin create(SourceConfig config, String userName, NamespaceAttribute... attributes) throws TimeoutException, Exception {
     if(hasPlugin(config.getName())) {
-      return null;
+      throw new SourceAlreadyExistsException();
     }
 
     ManagedStoragePlugin plugin = newPlugin(config);
-    plugins.put(c(config.getName()), plugin);
-    return plugin;
+    plugin.createSource(config, userName, attributes);
+
+    // use concurrency features of concurrent hash map to avoid locking.
+    ManagedStoragePlugin existing = plugins.putIfAbsent(c(config.getName()), plugin);
+
+    if (existing == null) {
+      return plugin;
+    }
+
+    final SourceAlreadyExistsException e = new SourceAlreadyExistsException();
+    try {
+      // this happened in time with someone else.
+      plugin.close();
+    } catch (Exception ex) {
+      e.addSuppressed(ex);
+    }
+
+    throw e;
   }
 
-  public Iterable<ManagedStoragePlugin> managed() {
-    return plugins.values();
-  }
-
+  /**
+   *
+   * @throws NamespaceException
+   */
   public void start() throws NamespaceException {
 
-    // hold write lock for life of startup.
-    try (AutoCloseableLock l = writeLock()) {
-      ImmutableMap.Builder<String, CheckedFuture<SourceState, Exception>> futuresBuilder = ImmutableMap.builder();
-      for (SourceConfig source : datasetListing.getSources(SystemUser.SYSTEM_USERNAME)) {
-        ManagedStoragePlugin plugin = newPlugin(source);
+    // Since this is run inside the system startup, no one should be able to interact with it until we've already
+    // started everything. Thus no locking is necessary.
 
-        futuresBuilder.put(source.getName(), plugin.startAsync());
-        plugins.put(c(source.getName()), plugin);
-      }
+    ImmutableMap.Builder<String, CompletableFuture<SourceState>> futuresBuilder = ImmutableMap.builder();
+    for (SourceConfig source : datasetListing.getSources(SystemUser.SYSTEM_USERNAME)) {
+      ManagedStoragePlugin plugin = newPlugin(source);
 
-      Map<String, CheckedFuture<SourceState, Exception>> futures = futuresBuilder.build();
-      try {
-        // wait STARTUP_WAIT_MILLIS or until all plugins have started/failed to start.
-        Futures.successfulAsList(futures.values()).get(startupWait, TimeUnit.MILLISECONDS);
-      } catch (InterruptedException | ExecutionException | TimeoutException e) {
-        // ignore.
-      }
+      futuresBuilder.put(source.getName(), plugin.startAsync());
+      plugins.put(c(source.getName()), plugin);
+    }
 
-      final StringBuilder sb = new StringBuilder();
+    Map<String, CompletableFuture<SourceState>> futures = futuresBuilder.build();
+    final CompletableFuture<Void> futureWait = CompletableFuture.allOf(futures.values().toArray(new CompletableFuture[futures.size()]));
+    try {
+      // wait STARTUP_WAIT_MILLIS or until all plugins have started/failed to start.
+      futureWait.get(startupWait, TimeUnit.MILLISECONDS);
+    } catch (Exception e) {
+      // ignore since we're going to evaluate individually below.
+    }
 
-      int count = 0;
-      sb.append("Result of storage plugin startup: \n");
-      for(final ManagedStoragePlugin p : plugins.values()) {
-        count++;
-        String name = p.getName().getRoot();
-        final CheckedFuture<SourceState, Exception> future = futures.get(name);
-        Preconditions.checkNotNull(future, "Unexpected failure to retrieve source %s from available futures %s.", name, futures.keySet());
-        if(future.isDone()) {
-          try {
-            SourceState state = future.checkedGet();
-            p.initiateMetadataRefresh();
-            String result = state.getStatus() == SourceStatus.bad ? "started in bad state" : "success";
-            sb.append(String.format("\t%s: %s (%dms). %s\n", name, result, p.getStartupTime(), state));
-          }catch (Exception ex) {
-            logger.error("Failure while starting plugin {} after {}ms.", p.getName(), p.getStartupTime(), ex);
-            sb.append(String.format("\t%s: failed (%dms). %s\n", name, p.getStartupTime(), p.getState()));
-            p.initiateFixFailedStartTask();
-          }
-        } else {
-          // not finished, let's get a log entry later.
-          future.addListener(Runnables.combo(new LateSourceRunnable(future, p)), MoreExecutors.directExecutor());
-          sb.append(String.format("\t%s: pending.\n", name));
+    final StringBuilder sb = new StringBuilder();
+
+    int count = 0;
+    sb.append("Result of storage plugin startup: \n");
+    for(final ManagedStoragePlugin p : plugins.values()) {
+      count++;
+      String name = p.getName().getRoot();
+      final CompletableFuture<SourceState> future = futures.get(name);
+      Preconditions.checkNotNull(future, "Unexpected failure to retrieve source %s from available futures %s.", name, futures.keySet());
+      if(future.isDone()) {
+        try {
+          SourceState state = future.get();
+          String result = state.getStatus() == SourceStatus.bad ? "started in bad state" : "success";
+          sb.append(String.format("\t%s: %s (%dms). %s\n", name, result, p.getStartupTime(), state));
+        }catch (Exception ex) {
+          logger.error("Failure while starting plugin {} after {}ms.", p.getName(), p.getStartupTime(), ex);
+          sb.append(String.format("\t%s: failed (%dms). %s\n", name, p.getStartupTime(), p.getState()));
+          p.initiateFixFailedStartTask();
         }
-
+      } else {
+        // not finished, let's get a log entry later.
+        future.thenRun(Runnables.combo(new LateSourceRunnable(future, p)));
+        sb.append(String.format("\t%s: pending.\n", name));
       }
 
-      if(count > 0) {
-        logger.info(sb.toString());
-      }
+    }
+
+    if(count > 0) {
+      logger.info(sb.toString());
     }
 
   }
 
+  private ManagedStoragePlugin newPlugin(SourceConfig config) {
+    final boolean isVirtualMaster = context.isMaster() ||
+      (context.getDremioConfig().isMasterlessEnabled() && context.isCoordinator());
 
+    final ManagedStoragePlugin msp = new ManagedStoragePlugin(
+        context,
+        executor,
+        isVirtualMaster,
+        scheduler,
+        context.getNamespaceService(SystemUser.SYSTEM_USERNAME),
+        sourceDataStore,
+        config,
+        context.getOptionManager(),
+        reader,
+        monitor.forPlugin(config.getName())
+        );
+    return msp;
+  }
 
   /**
    * Runnable that is used to finish startup for sources that aren't completed starting up within
@@ -203,10 +250,10 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
    */
   private final class LateSourceRunnable implements Runnable {
 
-    private final CheckedFuture<SourceState, Exception> future;
+    private final CompletableFuture<SourceState> future;
     private final ManagedStoragePlugin plugin;
 
-    public LateSourceRunnable(CheckedFuture<SourceState, Exception> future, ManagedStoragePlugin plugin) {
+    public LateSourceRunnable(CompletableFuture<SourceState> future, ManagedStoragePlugin plugin) {
       this.future = future;
       this.plugin = plugin;
     }
@@ -214,8 +261,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     @Override
     public void run() {
       try {
-        SourceState state = future.checkedGet();
-        plugin.initiateMetadataRefresh();
+        SourceState state = future.get();
         String result = state.getStatus() == SourceStatus.bad ? "started in bad state" : "started sucessfully";
         logger.info("Plugin {} {} after {}ms. Current status: {}", plugin.getName(), result, plugin.getStartupTime(), state);
       } catch (Exception ex) {
@@ -264,107 +310,119 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     return plugins.containsKey(c(name));
   }
 
-  /**
-   * Delete a source. Need to grab the write lock for the plugin manager and then the write lock for the plugin (if exists) to ensure no changes are conflicting.
-   *
-   * @param config
-   * @return true if the source was deleted. False if the source doesn't exist or the source's config doesn't match.
-   */
-  public boolean deleteSource(SourceConfig config) {
-    logger.debug("Deleting source [{}]", config.getName());
-    try(AutoCloseableLock l = writeLock()){
-      ManagedStoragePlugin plugin = plugins.get(c(config.getName()));
-      if(plugin == null) {
-        return false;
+  public ManagedStoragePlugin getSynchronized(SourceConfig pluginConfig) throws Exception {
+    while(true) {
+      ManagedStoragePlugin plugin = plugins.get(c(pluginConfig.getName()));
+
+      if(plugin != null) {
+        plugin.synchronizeSource(pluginConfig);
+        return plugin;
       }
 
-      try(AutoCloseableLock l2 = plugin.writeLock()) {
-        if(!plugin.matches(config)) {
-          return false;
-        }
-        plugins.remove(c(config.getName()));
+      plugin = newPlugin(pluginConfig);
+      plugin.replacePluginWithLock(pluginConfig, createWaitMillis(), true);
 
-        try {
-          plugin.close();
-        } catch(Exception ex) {
-          logger.warn("Exception while shutting down source.", ex);
-        }
-        return true;
+      // grab write lock before putting in map so we can finish starting.
+      ManagedStoragePlugin existing = plugins.putIfAbsent(c(pluginConfig.getName()), plugin);
+
+      if (existing == null) {
+        return plugin;
+      }
+      try {
+        // this happened in time with someone else.
+        plugin.close();
+      } catch (Exception ex) {
+        logger.debug("Exception while closing concurrently created plugin.", ex);
       }
     }
+  }
+
+  private long createWaitMillis() {
+    if(DebugCheck.IS_DEBUG) {
+      return TimeUnit.DAYS.toMillis(365);
+    }
+    return context.getOptionManager().getOption(CatalogOptions.STORAGE_PLUGIN_CREATE_MAX);
+  }
+
+  /**
+   * Remove a source by grabbing the write lock and then removing from the map
+   * @param config The config of the source to dete.
+   * @return True if the source matched and was removed.
+   */
+  public boolean closeAndRemoveSource(SourceConfig config) {
+    final String name = config.getName();
+    logger.debug("Deleting source [{}]", name);
+
+    ManagedStoragePlugin plugin = plugins.get(c(name));
+
+    if(plugin == null) {
+      return true;
+    }
+
+    try {
+      return plugin.close(config, s -> plugins.remove(c(name)));
+    } catch(Exception ex) {
+      logger.info("Exception while shutting down source.", ex);
+      return true;
+    }
+
   }
 
   public ManagedStoragePlugin get(String name) {
-    try(AutoCloseableLock l = readLock()) {
-      return plugins.get(c(name));
-    }
+    return plugins.get(c(name));
   }
+
 
   /**
-   * Gets the plugin (if it exists) along with write lock on it. It also cancels the metadata refresh thread of
-   * the plugin if it is running.
-   * @param name
-   * @return
+   * For each source, synchronize the sources definition to the namespace.
    */
-  WithAutoCloseableLock<ManagedStoragePlugin> getWithPluginWriteLock(String name) {
-    try(AutoCloseableLock l = readLock()) {
-      ManagedStoragePlugin p = plugins.get(c(name));
-      if(p == null) {
-        return null;
+  @VisibleForTesting
+  void synchronizeSources() {
+    logger.trace("Running scheduled source synchronization");
+
+    // first collect up all the current source configs.
+    final Map<String, SourceConfig> configs = FluentIterable.from(plugins.values()).transform(new Function<ManagedStoragePlugin, SourceConfig>(){
+
+      @Override
+      public SourceConfig apply(ManagedStoragePlugin input) {
+        return input.getConfig();
+      }}).uniqueIndex(new Function<SourceConfig, String>(){
+
+        @Override
+        public String apply(SourceConfig input) {
+          return input.getName();
+        }});
+
+    // second, for each source, synchronize to latest state
+    final Set<String> names = getSourceNameSet();
+    for(SourceConfig config : systemNamespace.getSources()) {
+      names.remove(config.getName());
+      try {
+        getSynchronized(config);
+      } catch (Exception ex) {
+        logger.warn("Failure updating source [{}] during scheduled updates.", config, ex);
       }
-
-      // we can't acquire a writeLock on plugin unless the refresh thread is exited which holds the writeLock
-      p.cancelMetadataRefreshTask();
-      return new WithAutoCloseableLock<>(p.writeLock(), p);
-    }
-  }
-
-  static class IdProvider implements Provider<StoragePluginId> {
-    private ManagedStoragePlugin plugin;
-
-    public IdProvider() {
-      super();
     }
 
-    public IdProvider(ManagedStoragePlugin plugin) {
-      super();
-      this.plugin = plugin;
-    }
-
-    @Override
-    public StoragePluginId get() {
-      if(plugin == null) {
-        throw new IllegalStateException("Need to start plugin before attempting to retrieve plugin id.");
+    // third, delete everything that wasn't found, assuming it matches what we originally searched.
+    for(String name : names) {
+      SourceConfig originalConfig = configs.get(name);
+      if(originalConfig != null) {
+        try {
+          this.closeAndRemoveSource(originalConfig);
+        } catch (Exception e) {
+          logger.warn("Failure while deleting source [{}] during source synchronization.", originalConfig.getName(), e);
+        }
       }
-      return plugin.getId();
     }
-  }
-
-  private ManagedStoragePlugin newPlugin(SourceConfig config) {
-    final ConnectionConf<?, ?> connectionConf = reader.getConnectionConf(config);
-    final IdProvider provider = new IdProvider();
-    final StoragePlugin plugin = connectionConf.newPlugin(context, config.getName(), provider);
-    final boolean isVirtualMaster = context.isMaster() ||
-      (context.getDremioConfig().isMasterlessEnabled() && context.isCoordinator());
-
-    final ManagedStoragePlugin msp = new ManagedStoragePlugin(
-        context,
-        isVirtualMaster,
-        scheduler,
-        context.getNamespaceService(SystemUser.SYSTEM_USERNAME),
-        sourceDataStore,
-        config,
-        connectionConf,
-        plugin,
-        context.getOptionManager(),
-        reader
-        );
-    provider.plugin = msp;
-    return msp;
   }
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(plugins.values());
+    if(refresher != null) {
+      refresher.cancel(false);
+    }
+
+    AutoCloseables.close(Iterables.concat(Collections.singleton(executor), plugins.values()));
   }
 }

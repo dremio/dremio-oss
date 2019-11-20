@@ -90,15 +90,15 @@ export class TableControls extends Component {
         }
       }
     });
-  }
+  };
 
   groupBy = () => {
     this.navigateToTransformWizard({ detailType: 'GROUP_BY', column: '' });
-  }
+  };
 
   join = () => {
     this.navigateToTransformWizard({ detailType: 'JOIN', column: '', location: this.context.location });
-  }
+  };
 
   preventTooltipHide() {
     clearTimeout(this.timer);
@@ -127,11 +127,12 @@ function mapStateToProps(state, props) {
   const location = state.routing.locationBeforeTransitions || {};
   const datasetVersion = props.dataset.get('datasetVersion');
   const explorePageState = getExploreState(state);
+  const tableColumns = getTableColumns(state, datasetVersion, location);
 
   return {
     currentSql: explorePageState.view.currentSql,
     queryContext: explorePageState.view.queryContext,
-    defaultColumnName: getTableColumns(state, datasetVersion, location).getIn([0, 'name']),
+    defaultColumnName: tableColumns && tableColumns.getIn([0, 'name']) || '',
     approximate: getApproximate(state, datasetVersion)
   };
 }

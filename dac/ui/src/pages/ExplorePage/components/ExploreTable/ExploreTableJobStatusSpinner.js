@@ -77,6 +77,7 @@ const styles = {
   },
   iconSpinner: {
     width: 28,
-    height: 28
+    height: 28,
+    marginRight: -3
   }
 };

@@ -258,7 +258,7 @@ public class TestUpgrade extends DremioTest {
   }
 
   private UpgradeContext tasksExecutor(Version kvStoreVersion, List<UpgradeTask> tasks) throws Exception {
-    final UpgradeContext context = new UpgradeContext(kvstore, null, null);
+    final UpgradeContext context = new UpgradeContext(kvstore, null, null, null);
     List<UpgradeTask> tasksToRun = new ArrayList<>();
     for(UpgradeTask task: tasks) {
       if (upgradeStore.isUpgradeTaskCompleted(task.getTaskUUID())) {

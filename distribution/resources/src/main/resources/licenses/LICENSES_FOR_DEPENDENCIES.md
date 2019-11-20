@@ -36,25 +36,25 @@
 |Apache Drill                                                |                    |Apache 2.0          |
 |Apache Groovy                                               |2.4.4               |Apache 2.0          |
 |Apache Hadoop Amazon Web Services support                   |2.8.3               |Apache 2.0          |
-|Apache Hadoop Amazon Web Services support                   |3.2.0-dremio-201909041046110436-7295d98|Apache 2.0          |
+|Apache Hadoop Amazon Web Services support                   |3.2.0-dremio-201911062242240641-139525f|Apache 2.0          |
 |Apache Hadoop Annotations                                   |2.8.3               |Apache 2.0          |
-|Apache Hadoop Annotations                                   |3.2.0-dremio-201909041046110436-7295d98|Apache 2.0          |
+|Apache Hadoop Annotations                                   |3.2.0-dremio-201911062242240641-139525f|Apache 2.0          |
 |Apache Hadoop Auth                                          |2.5.1               |Apache 2.0          |
 |Apache Hadoop Auth                                          |2.8.3               |Apache 2.0          |
-|Apache Hadoop Auth                                          |3.2.0-dremio-201909041046110436-7295d98|Apache 2.0          |
+|Apache Hadoop Auth                                          |3.2.0-dremio-201911062242240641-139525f|Apache 2.0          |
 |Apache Hadoop Azure Data Lake support                       |2.8.3               |Apache 2.0          |
-|Apache Hadoop Azure Data Lake support                       |3.2.0-dremio-201909041046110436-7295d98|Apache 2.0          |
+|Apache Hadoop Azure Data Lake support                       |3.2.0-dremio-201911062242240641-139525f|Apache 2.0          |
 |Apache Hadoop Azure support                                 |2.8.5-dremio-r2-154a6398c1949158585a5f60549b3bb99789976a|Apache 2.0          |
 |Apache Hadoop Azure support                                 |3.2.0               |Apache 2.0          |
 |Apache Hadoop Client                                        |2.8.3               |Apache 2.0          |
-|Apache Hadoop Client                                        |3.2.0-dremio-201909041046110436-7295d98|Apache 2.0          |
+|Apache Hadoop Client                                        |3.2.0-dremio-201911062242240641-139525f|Apache 2.0          |
 |Apache Hadoop Common                                        |2.8.3               |Apache 2.0          |
-|Apache Hadoop Common                                        |3.2.0-dremio-201909041046110436-7295d98|Apache 2.0          |
+|Apache Hadoop Common                                        |3.2.0-dremio-201911062242240641-139525f|Apache 2.0          |
 |Apache Hadoop Distributed Copy                              |2.8.5               |Apache 2.0          |
 |Apache Hadoop HDFS                                          |2.8.3               |Apache 2.0          |
-|Apache Hadoop HDFS                                          |3.2.0-dremio-201909041046110436-7295d98|Apache 2.0          |
+|Apache Hadoop HDFS                                          |3.2.0-dremio-201911062242240641-139525f|Apache 2.0          |
 |Apache Hadoop HDFS Client                                   |2.8.3               |Apache 2.0          |
-|Apache Hadoop HDFS Client                                   |3.2.0-dremio-201909041046110436-7295d98|Apache 2.0          |
+|Apache Hadoop HDFS Client                                   |3.2.0-dremio-201911062242240641-139525f|Apache 2.0          |
 |Apache Hadoop MapReduce Core                                |2.5.1               |Apache 2.0          |
 |Apache Hadoop YARN Common                                   |2.5.1               |Apache 2.0          |
 |Apache HBase - Annotations                                  |1.1.3               |Apache 2.0          |
@@ -317,19 +317,19 @@
 |hadoop-mapreduce-client-app                                 |2.8.3               |Apache 2.0          |
 |hadoop-mapreduce-client-app                                 |3.2.0               |Apache 2.0          |
 |hadoop-mapreduce-client-common                              |2.8.3               |Apache 2.0          |
-|hadoop-mapreduce-client-common                              |3.2.0-dremio-201909041046110436-7295d98|Apache 2.0          |
+|hadoop-mapreduce-client-common                              |3.2.0-dremio-201911062242240641-139525f|Apache 2.0          |
 |hadoop-mapreduce-client-core                                |2.8.3               |Apache 2.0          |
-|hadoop-mapreduce-client-core                                |3.2.0-dremio-201909041046110436-7295d98|Apache 2.0          |
+|hadoop-mapreduce-client-core                                |3.2.0-dremio-201911062242240641-139525f|Apache 2.0          |
 |hadoop-mapreduce-client-jobclient                           |2.8.3               |Apache 2.0          |
-|hadoop-mapreduce-client-jobclient                           |3.2.0-dremio-201909041046110436-7295d98|Apache 2.0          |
+|hadoop-mapreduce-client-jobclient                           |3.2.0-dremio-201911062242240641-139525f|Apache 2.0          |
 |hadoop-mapreduce-client-shuffle                             |2.8.3               |Apache 2.0          |
 |hadoop-winutils                                             |3.2.0               |Apache 2.0          |
 |hadoop-yarn-api                                             |2.8.3               |Apache 2.0          |
-|hadoop-yarn-api                                             |3.2.0-dremio-201909041046110436-7295d98|Apache 2.0          |
+|hadoop-yarn-api                                             |3.2.0-dremio-201911062242240641-139525f|Apache 2.0          |
 |hadoop-yarn-client                                          |2.8.3               |Apache 2.0          |
-|hadoop-yarn-client                                          |3.2.0-dremio-201909041046110436-7295d98|Apache 2.0          |
+|hadoop-yarn-client                                          |3.2.0-dremio-201911062242240641-139525f|Apache 2.0          |
 |hadoop-yarn-common                                          |2.8.3               |Apache 2.0          |
-|hadoop-yarn-common                                          |3.2.0-dremio-201909041046110436-7295d98|Apache 2.0          |
+|hadoop-yarn-common                                          |3.2.0-dremio-201911062242240641-139525f|Apache 2.0          |
 |hadoop-yarn-server-common                                   |2.8.3               |Apache 2.0          |
 |hadoop-yarn-server-common                                   |3.2.0               |Apache 2.0          |
 |hadoop-yarn-server-nodemanager                              |2.8.3               |Apache 2.0          |
@@ -736,7 +736,7 @@
 |readable-stream                                             |3.1.1               |MIT                 |
 |recompose                                                   |0.30.0              |MIT                 |
 |redbox-react                                                |1.5.0               |MIT                 |
-|Redshift                                                    |1.2.16.1027         |Amazon Redshift JDBC Driver License|
+|Redshift                                                    |1.2.34.1058         |Amazon Redshift JDBC Driver License|
 |redux                                                       |4.0.1               |MIT                 |
 |redux-api-middleware                                        |2.3.0               |MIT                 |
 |redux-auth-wrapper                                          |1.1.0               |MIT                 |

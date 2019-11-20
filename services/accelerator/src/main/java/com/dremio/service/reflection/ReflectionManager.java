@@ -89,6 +89,7 @@ import com.dremio.service.reflection.store.ExternalReflectionStore;
 import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionEntriesStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
+import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -132,6 +133,7 @@ public class ReflectionManager implements Runnable {
   private final Supplier<ExpansionHelper> expansionHelper;
   private final Path accelerationBasePath;
 
+  private volatile EntryCounts lastStats = new EntryCounts();
   private long lastWakeupTime;
 
   ReflectionManager(SabotContext sabotContext, JobsService jobsService, NamespaceService namespaceService, OptionManager optionManager,
@@ -153,6 +155,11 @@ public class ReflectionManager implements Runnable {
     this.reflectionsToUpdate = Preconditions.checkNotNull(reflectionsToUpdate, "reflections to update required");
     this.wakeUpCallback = Preconditions.checkNotNull(wakeUpCallback, "wakeup callback required");
     this.expansionHelper = Preconditions.checkNotNull(expansionHelper, "sqlConvertSupplier required");
+
+    Metrics.newGauge(Metrics.join("reflections", "unknown"), () -> ReflectionManager.this.lastStats.unknown);
+    Metrics.newGauge(Metrics.join("reflections", "failed"), () -> ReflectionManager.this.lastStats.failed);
+    Metrics.newGauge(Metrics.join("reflections", "active"), () -> ReflectionManager.this.lastStats.active);
+    Metrics.newGauge(Metrics.join("reflections", "refreshing"), () -> ReflectionManager.this.lastStats.refreshing);
 
     final FileSystemPlugin accelerationPlugin = sabotContext.getCatalogService()
       .getSource(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
@@ -258,14 +265,17 @@ public class ReflectionManager implements Runnable {
     final long noDependencyRefreshPeriodMs = optionManager.getOption(ReflectionOptions.NO_DEPENDENCY_REFRESH_PERIOD_SECONDS) * 1000;
 
     Iterable<ReflectionEntry> entries = reflectionStore.find();
+    final EntryCounts ec = new EntryCounts();
     for (ReflectionEntry entry : entries) {
       try {
-        handleEntry(entry, noDependencyRefreshPeriodMs);
+        handleEntry(entry, noDependencyRefreshPeriodMs, ec);
       } catch (Exception e) {
+        ec.unknown++;
         logger.error("Couldn't handle reflection entry {}", entry.getId().getId(), e);
         reportFailure(entry, entry.getState());
       }
     }
+    this.lastStats = ec;
   }
 
   private void handleDeletedDatasets() {
@@ -280,28 +290,43 @@ public class ReflectionManager implements Runnable {
     }
   }
 
-  private void handleEntry(ReflectionEntry entry, final long noDependencyRefreshPeriodMs) {
+  /**
+   * Small class that stores the results of reflection entry review
+   */
+  private final class EntryCounts {
+    private long failed;
+    private long refreshing;
+    private long active;
+    private long unknown;
+  }
+
+  private void handleEntry(ReflectionEntry entry, final long noDependencyRefreshPeriodMs, EntryCounts counts) {
     final ReflectionState state = entry.getState();
     switch (state) {
       case FAILED:
+        counts.failed++;
         // do nothing
         //TODO filter out those when querying the reflection store
         break;
       case REFRESHING:
       case METADATA_REFRESH:
       case COMPACTING:
+        counts.refreshing++;
         handleRefreshingEntry(entry);
         break;
       case UPDATE:
+        counts.refreshing++;
         deprecateMaterializations(entry);
         startRefresh(entry);
         break;
       case ACTIVE:
         if (!dependencyManager.shouldRefresh(entry, noDependencyRefreshPeriodMs)) {
+          counts.active++;
           // only refresh ACTIVE reflections when they are due for refresh
           break;
         }
       case REFRESH:
+        counts.refreshing++;
         logger.info("reflection {} is due for refresh", getId(entry));
         startRefresh(entry);
         break;

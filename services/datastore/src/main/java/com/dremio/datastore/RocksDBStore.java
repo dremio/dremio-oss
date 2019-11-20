@@ -56,7 +56,7 @@ import com.dremio.common.DeferredException;
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.datastore.rocks.Rocks.BlobPointer;
 import com.dremio.datastore.rocks.Rocks.BlobPointer.Codec;
-import com.dremio.metrics.Metrics;
+import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -418,7 +418,7 @@ class RocksDBStore implements ByteStore {
         // We cannot ensure that all write locks can be acquired, so a best attempt must be made.
         // If lock is still held after waiting 3 seconds, continue with the lock acquisition and close.
         // Note: The data from the concurrent write cannot be guaranteed to be persisted on restart.
-        if (exclusiveLocks[i].tryOpen(3L, TimeUnit.SECONDS) != null) {
+        if (exclusiveLocks[i].tryOpen(3L, TimeUnit.SECONDS).isPresent()) {
           acquiredLocks.add(exclusiveLocks[i]);
         }
       } catch (InterruptedException e) {

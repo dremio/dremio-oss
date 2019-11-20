@@ -26,7 +26,7 @@ import Spinner from 'components/Spinner';
 
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
 import Button from 'components/Buttons/Button';
-import { InnerComplexForm, connectComplexForm } from 'components/Forms/connectComplexForm';
+import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm';
 import FieldWithError from 'components/Fields/FieldWithError.js';
 import TextField from 'components/Fields/TextField.js';
 import { getViewState } from 'selectors/resources';
@@ -59,7 +59,7 @@ export class LoginForm extends Component {
   }
 
   render() {
-    const { viewState, location } = this.props;
+    const { viewState } = this.props;
 
     return (
       <div id='login-form' style={[styles.base]}>
@@ -75,11 +75,6 @@ export class LoginForm extends Component {
         >
           {this.renderForm()}
         </ViewStateWrapper>
-        <div className='largerFontSize' style={{textAlign: 'right'}}>
-          <Link to={{ ...location, state: { modal: 'AboutModal' }}}>
-            {la('About Dremio')}
-          </Link>
-        </div>
       </div>
     );
   }

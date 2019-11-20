@@ -18,15 +18,20 @@ package com.dremio.provision.service;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 import javax.inject.Provider;
 
+import org.apache.arrow.util.AutoCloseables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +45,7 @@ import com.dremio.datastore.Serializer;
 import com.dremio.datastore.StoreBuildingFactory;
 import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.VersionExtractor;
+import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterConfig;
 import com.dremio.provision.ClusterEnriched;
@@ -76,6 +82,7 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
   private final NodeProvider executionNodeProvider;
   private final ScanResult classpathScan;
   private final Provider<KVStoreProvider> kvStoreProvider;
+  private final CloseableThreadPool pool = new CloseableThreadPool("start-executor");
 
   private KVStore<ClusterId, Cluster> store;
 
@@ -364,7 +371,7 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
 
   @Override
   public void close() throws Exception {
-    // noop
+    AutoCloseables.close(pool);
   }
 
   @Override
@@ -494,6 +501,85 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     cluster.setClusterConfig(clusterConfig);
 
     return cluster;
+  }
+
+  private List<Cluster> findClusters(Optional<Collection<ClusterId>> id, String name) {
+    List<Cluster> clusters = new ArrayList<>();
+
+    if(id.isPresent()) {
+      return store.get(new ArrayList<>(id.get()));
+    } else {
+      for(Entry<ClusterId, Cluster> e : store.find()) {
+        if(name.equals(e.getValue().getClusterConfig().getName())) {
+          clusters.add(e.getValue());
+        }
+      }
+    }
+
+    if(clusters.isEmpty()) {
+      throw new ProvisioningService.NoClusterException();
+    }
+
+    return clusters;
+  }
+
+  private CompletableFuture<Void> doAction(Optional<Collection<ClusterId>> ids, String name, ConsumerEx<ClusterId, Exception> action, ClusterState desiredState) {
+    try {
+      final List<Cluster> clusters = findClusters(ids, name);
+      return CompletableFuture.allOf(
+          clusters.stream()
+          .map(c -> createFuture(action, desiredState, c, name))
+          .collect(Collectors.toList())
+          .toArray(new CompletableFuture[0]));
+    } catch (Exception ex) {
+      CompletableFuture<Void> cf = new CompletableFuture<>();
+      cf.completeExceptionally(ex);
+      return cf;
+    }
+  }
+
+  private final CompletableFuture<Void> createFuture(ConsumerEx<ClusterId, Exception> action, ClusterState desiredState, Cluster initialCluster, String name) {
+    return CompletableFuture.runAsync(() -> {
+      try {
+        Cluster cluster = initialCluster;
+        if(cluster.getState() == desiredState) {
+          return;
+        }
+        ClusterId id = cluster.getId();
+        logger.info("Applying action {} on cluster '{}'.", desiredState.name(), name);
+        action.run(id);
+        int i = 0;
+        while(i < 300) {
+          cluster = store.get(id);
+          if(cluster.getState() == desiredState) {
+            logger.info("Action {} on cluster '{}' completed.", desiredState.name(), name);
+            return;
+          }
+          Thread.sleep(1000);
+          i++;
+        }
+        logger.info("Failed to {} cluster '{}' within 5 minutes.", desiredState.name(), name);
+        return;
+      } catch (RuntimeException ex) {
+        throw ex;
+      } catch (Exception ex) {
+        throw new RuntimeException(ex);
+      }
+    }, e -> pool.submit(e));
+  }
+
+  @Override
+  public CompletableFuture<Void> startCluster(String name) {
+    return doAction(Optional.absent(), name, id -> startCluster(id), ClusterState.RUNNING);
+  }
+
+  @Override
+  public void stopClusters(Collection<ClusterId> clusters) {
+    doAction(Optional.fromNullable(clusters), null, id -> stopCluster(id), ClusterState.STOPPED);
+  }
+
+  private interface ConsumerEx<C, T extends Throwable> {
+    public void run(C toConsume) throws T;
   }
 
   @VisibleForTesting
@@ -655,5 +741,22 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     public void setTag(final Cluster value, final String tag) {
       value.getClusterConfig().setTag(tag);
     }
+  }
+
+  @Override
+  public List<ClusterId> getRunningStoppableClustersByName(String name) {
+    List<ClusterId> ids = new ArrayList<>();
+    for(Entry<ClusterId, Cluster> c : store.find()) {
+      Cluster cluster = c.getValue();
+      if(!name.equals(cluster.getClusterConfig().getName())) {
+        continue;
+      }
+
+      if(cluster.getState() == ClusterState.RUNNING) {
+        // TODO: Check if the cluster can be stopped.
+        ids.add(c.getKey());
+      }
+    }
+    return ids;
   }
 }

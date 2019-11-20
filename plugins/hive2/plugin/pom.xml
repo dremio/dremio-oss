@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive2-plugin-parent</artifactId>
-    <version>4.0.4-201910212053580380-773b665</version>
+    <version>4.0.5-201911202046080257-19b10938</version>
   </parent>
 
   <artifactId>dremio-hive2-plugin</artifactId>
@@ -1260,7 +1260,12 @@
         </property>
       </activation>
       <dependencies>
-        <dependency>
+      <dependency>
+        <groupId>com.amazonaws.glue</groupId>
+        <artifactId>aws-glue-datacatalog-hive2-client</artifactId>
+        <version>1.10.0-201909182150580144-c83f2cb</version>
+      </dependency>      
+      <dependency>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-mapreduce-client-app</artifactId>
           <version>${hadoop.version}</version>

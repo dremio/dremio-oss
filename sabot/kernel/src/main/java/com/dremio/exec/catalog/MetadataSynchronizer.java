@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
 
 import com.dremio.common.collections.Tuple;
@@ -66,7 +65,6 @@ public class MetadataSynchronizer {
   private final NamespaceKey sourceKey;
   private final SourceMetadata sourceMetadata;
   private final DatasetSaver saver;
-  private final BooleanSupplier cancelWork;
   private final DatasetRetrievalOptions options;
 
   private final UpdateMode updateMode;
@@ -81,14 +79,12 @@ public class MetadataSynchronizer {
       SourceMetadata sourceMetadata,
       MetadataPolicy metadataPolicy,
       DatasetSaver saver,
-      BooleanSupplier cancelWork,
       DatasetRetrievalOptions options
   ) {
     this.systemNamespace = Preconditions.checkNotNull(systemNamespace);
     this.sourceKey = Preconditions.checkNotNull(sourceKey);
     this.sourceMetadata = Preconditions.checkNotNull(sourceMetadata);
     this.saver = saver;
-    this.cancelWork = cancelWork;
     this.options = options;
 
     this.updateMode = metadataPolicy.getDatasetUpdateMode();
@@ -115,7 +111,6 @@ public class MetadataSynchronizer {
    * @return status
    */
   public SyncStatus go() {
-    boolean refreshed = false;
 
     final Stopwatch stopwatch = Stopwatch.createStarted();
     try {
@@ -135,6 +130,8 @@ public class MetadataSynchronizer {
 
       // 3. delete all the orphaned datasets
       deleteOrphanedDatasets();
+    } catch (ManagedStoragePlugin.StoragePluginChanging e) {
+      syncStatus.setInterrupted(true);
     } catch (Exception e) {
       logger.warn("Source '{}' sync failed unexpectedly. Will try again later", sourceKey, e);
     } finally {
@@ -151,7 +148,6 @@ public class MetadataSynchronizer {
       }
     }
 
-    syncStatus.setInterrupted(cancelWork.getAsBoolean());
     return syncStatus;
   }
 
@@ -173,12 +169,6 @@ public class MetadataSynchronizer {
     try (DatasetHandleListing datasetListing = getDatasetHandleListing(options.asGetDatasetOptions(null))) {
       final Iterator<? extends DatasetHandle> iterator = datasetListing.iterator();
       while (true) {
-        if (cancelWork.getAsBoolean()) {
-          logger.info("Source '{}' sync aborted. At least {} more pending updates", sourceKey,
-              existingDatasets.size());
-          syncStatus.setInterrupted(true);
-          return;
-        }
 
         if (!iterator.hasNext()) {
           break;
@@ -335,11 +325,6 @@ public class MetadataSynchronizer {
   private void deleteOrphanFolders() {
     logger.trace("Source '{}' deleting orphan folders", sourceKey);
     for (NamespaceKey toBeDeleted : existingDatasets) {
-      if (cancelWork.getAsBoolean()) {
-        logger.info("Source '{}' sync aborted. At least {} more pending updates", sourceKey,
-            existingDatasets.size());
-        return;
-      }
 
       final Iterator<NamespaceKey> ancestors = getAncestors(toBeDeleted);
 
@@ -375,14 +360,7 @@ public class MetadataSynchronizer {
       return;
     }
 
-    boolean deleted = false;
-
     for (NamespaceKey toBeDeleted : existingDatasets) {
-      if (cancelWork.getAsBoolean()) {
-        logger.info("Source '{}' sync aborted. At least {} more pending updates", sourceKey,
-            existingDatasets.size());
-        return;
-      }
 
       final DatasetConfig datasetConfig;
       try {
