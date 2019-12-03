@@ -20,6 +20,7 @@ import static java.util.Arrays.asList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
@@ -27,6 +28,8 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.calcite.tools.RuleSet;
+import org.apache.calcite.tools.RuleSets;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
@@ -37,6 +40,7 @@ import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
+import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.substitution.DefaultSubstitutionProviderFactory;
 import com.dremio.exec.planner.acceleration.substitution.SubstitutionProviderFactory;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -192,6 +196,13 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
 
   public SubstitutionProviderFactory getSubstitutionProviderFactory() {
     return substitutionProviderFactory;
+  }
+
+  public RuleSet getInjectedRules(PlannerPhase phase) {
+    return RuleSets.ofList(sabotContext.getInjectedRulesFactories()
+        .stream()
+        .flatMap(rf -> rf.getRules(phase, queryOptions).stream())
+        .collect(Collectors.toList()));
   }
 
   @Override

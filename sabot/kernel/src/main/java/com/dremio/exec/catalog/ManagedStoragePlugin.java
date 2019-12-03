@@ -90,7 +90,6 @@ import com.google.common.primitives.Ints;
 public class ManagedStoragePlugin implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ManagedStoragePlugin.class);
 
-  private static final SourceState MUTATING = SourceState.badState("Source is not currently available.");
   private final String name;
   private final SabotContext context;
   private final ConnectionReader reader;
@@ -659,7 +658,6 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
-
   public UpdateStatus refreshDataset(NamespaceKey key, DatasetRetrievalOptions retrievalOptions) {
     try(AutoCloseableLock l = readLock()) {
       checkState();
@@ -756,8 +754,8 @@ public class ManagedStoragePlugin implements AutoCloseable {
         }
       } catch(Exception ex) {
         logger.debug("Failed to start plugin while trying to refresh state, error:", ex);
-        this.state = MUTATING;
-        return MUTATING;
+        this.state = SourceState.NOT_AVAILABLE;
+        return SourceState.NOT_AVAILABLE;
       }
     }, executor);
   }
@@ -799,7 +797,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
      * (2) current plugin is non-null but new and existing
      *     connection configurations don't match.
      */
-    this.state = MUTATING;
+    this.state = SourceState.NOT_AVAILABLE;
 
     // hold the old plugin until we successfully replace it.
     final SourceConfig oldConfig = sourceConfig;
@@ -821,7 +819,11 @@ public class ManagedStoragePlugin implements AutoCloseable {
     } catch(Exception ex) {
       // the update failed, go back to previous state.
       this.plugin = oldPlugin;
-      setLocals(oldConfig);
+      try {
+        setLocals(oldConfig);
+      } catch (Exception e) {
+        ex.addSuppressed(e);
+      }
       throw ex;
     }
   }

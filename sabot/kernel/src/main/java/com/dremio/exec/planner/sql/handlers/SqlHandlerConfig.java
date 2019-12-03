@@ -58,6 +58,7 @@ public class SqlHandlerConfig {
 
   public RuleSet getRules(PlannerPhase phase) {
     return PlannerPhase.mergedRuleSets(
+        context.getInjectedRules(phase),
         phase.getRules(context),
         context.getCatalogService().getStorageRules(context, phase));
   }

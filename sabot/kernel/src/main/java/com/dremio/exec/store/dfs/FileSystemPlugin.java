@@ -330,6 +330,9 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
 
   @Override
   public SourceState getState() {
+    if (systemUserFS == null) {
+      return SourceState.NOT_AVAILABLE;
+    }
     if (!systemUserFS.isPdfs()) {
       try {
         systemUserFS.list(config.getPath());

@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.expr.fn.hll.HyperLogLog;
+import com.dremio.exec.expr.fn.impl.GeoFunctions;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
@@ -107,6 +108,10 @@ public class SqlOperatorSerializer<T extends SqlOperator> extends FieldSerialize
       put(HyperLogLog.HLL_DECODE);
       put(HyperLogLog.HLL_MERGE);
       put(HyperLogLog.NDV);
+      put(GeoFunctions.GEO_DISTANCE);
+      put(GeoFunctions.GEO_NEARBY);
+      put(GeoFunctions.GEO_BEYOND);
+
     }
 
     private static final void put(SqlOperator operator) {

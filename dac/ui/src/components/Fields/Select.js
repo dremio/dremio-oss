@@ -50,16 +50,17 @@ export default class Select extends PureComponent {
     valueField: 'option'
   };
 
-  state = { anchorEl: null }
+  state = { anchorEl: null };
 
   getButtonLabel(value) {
     const {
       items,
-      selectedValueRenderer
+      selectedValueRenderer,
+      comparator
     } = this.props;
 
     const current = items.find(item => {
-      return this.props.comparator(value, this.getValue(item));
+      return comparator(value, this.getValue(item));
     });
     if (!current) {
       return '';
@@ -73,7 +74,7 @@ export default class Select extends PureComponent {
   handleChange = (closeDDFn, e, value) => {
     closeDDFn();
     this.props.onChange && this.props.onChange(value);
-  }
+  };
 
   getValue(item) {
     return get(item, this.props.valueField, item.label);

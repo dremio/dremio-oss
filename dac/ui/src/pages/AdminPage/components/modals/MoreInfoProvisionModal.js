@@ -19,7 +19,7 @@ import { connect } from 'react-redux';
 import Immutable from 'immutable';
 
 import Modal from 'components/Modals/Modal';
-import { getEntity } from 'selectors/resources';
+import { getProvision } from '@app/selectors/provision';
 
 import ProvisionInfoTable from '../../subpages/Provisioning/components/ProvisionInfoTable';
 
@@ -51,7 +51,7 @@ export class MoreInfoProvisionModal extends Component {
 }
 
 const mapStateToProps = (state, ownProps) => ({
-  provision: getEntity(state, ownProps.entityId, 'provision')
+  provision: getProvision(state, ownProps.entityId)
 });
 
 export default connect(mapStateToProps)(MoreInfoProvisionModal);

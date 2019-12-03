@@ -69,7 +69,7 @@ public class PlannerSettings implements Context{
   public static final LongValidator PLANNER_MEMORY_LIMIT = new RangeLongValidator("planner.memory_limit",
     0L, Long.MAX_VALUE, DEFAULT_MAX_OFF_HEAP_ALLOCATION_IN_BYTES);
 
-
+  public static final DoubleValidator MUX_USE_THRESHOLD = new RangeDoubleValidator("planner.mux.use_threshold", 0, Double.MAX_VALUE, 1200.0d);
   public static final BooleanValidator FLATTEN_FILTER = new BooleanValidator("planner.enable_filter_flatten_pushdown", false /** disabled until DX-7987 is resolved **/);
   public static final BooleanValidator CONSTANT_FOLDING = new BooleanValidator("planner.enable_constant_folding", true);
   public static final BooleanValidator EXCHANGE = new BooleanValidator("planner.disable_exchanges", false);
@@ -97,11 +97,12 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator HASH_JOIN_SWAP = new BooleanValidator("planner.enable_hashjoin_swap", true);
   public static final OptionValidator HASH_JOIN_SWAP_MARGIN_FACTOR = new RangeDoubleValidator("planner.join.hash_join_swap_margin_factor", 0, 100, 10d);
   public static final LongValidator STREAM_AGG_MAX_GROUP = new PositiveLongValidator("planner.streamagg.max_group_key", Long.MAX_VALUE, 64);
+  public static final BooleanValidator STREAM_AGG_WITH_GROUPS = new BooleanValidator("planner.streamagg.allow_grouping", false);
   public static final String ENABLE_DECIMAL_DATA_TYPE_KEY = "planner.enable_decimal_data_type";
   public static final BooleanValidator TRANSITIVE_FILTER_JOIN_PUSHDOWN = new BooleanValidator("planner.filter.transitive_pushdown", true);
   public static final BooleanValidator ENABLE_TRANSPOSE_PROJECT_FILTER_LOGICAL = new BooleanValidator("planner.experimental.tpf_logical", false);
   public static final BooleanValidator ENABLE_PROJECT_CLEANUP_LOGICAL = new BooleanValidator("planner.experimental.pclean_logical", false);
-  public static final BooleanValidator ENABLE_CROSS_JOIN = new BooleanValidator("planner.experimental.cross_join", false);
+  public static final BooleanValidator ENABLE_CROSS_JOIN = new BooleanValidator("planner.enable_cross_join", true);
   public static final BooleanValidator ENABLE_DECIMAL_DATA_TYPE = new BooleanValidator
     (ENABLE_DECIMAL_DATA_TYPE_KEY, true);
   public static final BooleanValidator HEP_OPT = new BooleanValidator("planner.enable_hep_opt", true);
@@ -119,6 +120,12 @@ public class PlannerSettings implements Context{
   public static final RangeLongValidator OUTPUT_LIMIT_SIZE  = new RangeLongValidator("planner.output_limit_size", 1, Long.MAX_VALUE, 1_000_000);
 
   public static final BooleanValidator VDS_AUTO_FIX = new BooleanValidator("validator.enable_vds_autofix", true);
+
+  public static final BooleanValidator NLJ_PUSHDOWN = new BooleanValidator("planner.nlj.expression_pushdown", true);
+
+  public static final BooleanValidator REDUCE_ALGEBRAIC_EXPRESSIONS = new BooleanValidator("planner.reduce_algebraic_expressions", true);
+
+  public static final BooleanValidator ENABlE_PROJCT_NLJ_MERGE = new BooleanValidator("planner.nlj.enable_project_merge", true);
 
   public static final String ENABLE_DECIMAL_V2_KEY = "planner" +
     ".enable_decimal_v2";
@@ -193,7 +200,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator ENABLE_EXPERIMENTAL_BUSHY_JOIN_OPTIMIZER = new BooleanValidator("planner.experimental.enable_bushy_join_optimizer", false);
 
   public static final DoubleValidator FILTER_MIN_SELECTIVITY_ESTIMATE_FACTOR =
-      new RangeDoubleValidator("planner.filter.min_selectivity_estimate_factor", 0.0, 1.0, 0.0d);
+      new RangeDoubleValidator("planner.filter.min_selectivity_estimate_factor", 0.0, 1.0, 0.5d);
   public static final DoubleValidator FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR =
       new RangeDoubleValidator("planner.filter.max_selectivity_estimate_factor", 0.0, 1.0, 1.0d);
 

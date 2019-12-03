@@ -22,15 +22,17 @@ import { connect } from 'react-redux';
 import { loadProvision, removeProvision, openAddProvisionModal, openEditProvisionModal, editProvision }
   from 'actions/resources/provisioning';
 import { showConfirmationDialog } from 'actions/confirmation';
+import { addNotification } from '@app/actions/notification';
 import { getViewState } from 'selectors/resources';
 import { getAllProvisions } from 'selectors/provision';
-import { PROVISION_MANAGERS } from '@app/constants/provisioningPage/provisionManagers';
+import { PROVISION_MANAGERS } from 'dyn-load/constants/provisioningPage/provisionManagers';
 import Header from 'pages/AdminPage/components/Header';
 import ViewStateWrapper from 'components/ViewStateWrapper';
 import Button from 'components/Buttons/Button';
 import * as ButtonTypes from 'components/Buttons/ButtonTypes';
 import { formDescription } from 'uiTheme/radium/typography';
 import { page, pageContent } from 'uiTheme/radium/general';
+import ApiUtils from 'utils/apiUtils/apiUtils';
 
 import ClusterListView from './ClusterListView';
 import SelectClusterType from './SelectClusterType';
@@ -48,16 +50,17 @@ export class ProvisioningPage extends Component {
     openAddProvisionModal: PropTypes.func,
     openEditProvisionModal: PropTypes.func,
     showConfirmationDialog: PropTypes.func,
+    addNotification: PropTypes.func,
     editProvision: PropTypes.func
   };
 
   state = {
     showProvisionList: false
-  }
+  };
 
-  pollId = 0
+  pollId = 0;
 
-  _isUnmounted = false
+  _isUnmounted = false;
 
   componentWillMount() {
     this.startPollingProvisionData(true);
@@ -69,10 +72,16 @@ export class ProvisioningPage extends Component {
   }
 
   removeProvision = (entity) => {
-    this.props.removeProvision(entity.get('id'), VIEW_ID).then(() => {
-      this.props.loadProvision('yarn', VIEW_ID);
+    ApiUtils.attachFormSubmitHandlers(
+      this.props.removeProvision(entity.get('id'), VIEW_ID)
+    ).then(() => {
+      this.props.loadProvision(null, VIEW_ID);
+    }).catch(e => {
+      const message = e &&  e._error && e._error.message;
+      const errorMessage = message && message.get('errorMessage') || la('Failed to remove provision');
+      this.props.addNotification(<span>{errorMessage}</span>, 'error');
     });
-  }
+  };
 
   handleRemoveProvision = (entity) => {
     this.props.showConfirmationDialog({
@@ -81,7 +90,7 @@ export class ProvisioningPage extends Component {
       confirmText: la('Remove'),
       confirm: () => this.removeProvision(entity)
     });
-  }
+  };
 
   handleStopProvision = (confirmCallback) => {
     this.props.showConfirmationDialog({
@@ -94,7 +103,7 @@ export class ProvisioningPage extends Component {
       confirmText: la('Stop Cluster'),
       confirm: confirmCallback
     });
-  }
+  };
 
   // todo: consolidate with handleEditProvision
   handleChangeProvisionState = (desiredState, entity, viewId) => {
@@ -115,19 +124,19 @@ export class ProvisioningPage extends Component {
     } else {
       commitChange();
     }
-  }
+  };
 
   handleEditProvision = (entity) => {
     this.props.openEditProvisionModal(entity.get('id'), entity.get('clusterType'));
-  }
+  };
 
   openAddProvisionModal = () => {
     this.props.openAddProvisionModal(null);
-  }
+  };
 
   handleSelectClusterType = (clusterType) => {
     this.props.openAddProvisionModal(clusterType);
-  }
+  };
 
   stopPollingProvisionData() {
     clearTimeout(this.pollId);
@@ -140,8 +149,8 @@ export class ProvisioningPage extends Component {
         this.pollId = setTimeout(this.startPollingProvisionData, PROVISION_POLL_INTERVAL);
       }
     };
-    this.props.loadProvision('yarn', VIEW_ID).then(pollAgain, pollAgain);
-  }
+    this.props.loadProvision(null, VIEW_ID).then(pollAgain, pollAgain);
+  };
 
   renderContent(isInFirstLoad) {
     const { viewState, provisions } = this.props;
@@ -207,6 +216,7 @@ export default connect(mapStateToProps, {
   openAddProvisionModal,
   openEditProvisionModal,
   showConfirmationDialog,
+  addNotification,
   editProvision
 })(ProvisioningPage);
 

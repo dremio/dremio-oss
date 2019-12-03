@@ -91,65 +91,42 @@ describe('YarnForm', () => {
     });
   });
 
-  describe('#getIsRestartRequired', () => {
-    let wrapper, instance;
-    beforeEach(() => {
-      wrapper = shallow(<YarnForm {...minimalProps}/>);
-      instance = wrapper.instance();
-    });
-
-    it('return false if not edit mode', () => {
-      expect(instance.getIsRestartRequired()).to.be.false;
-    });
-    it('return false if currentState is not RUNNING', () => {
-      wrapper.setProps({provision: Immutable.fromJS({currentState: 'STOPPED'})});
-      expect(instance.getIsRestartRequired()).to.be.false;
-    });
-    it('return false if there is nothing dirty', () => {
-      wrapper.setProps({provisionId: 'foo'});
-      expect(instance.getIsRestartRequired()).to.be.false;
-    });
-    it('return true if any children dirty', () => {
-      wrapper.setProps({provision: Immutable.fromJS({id: 'foo', currentState: 'RUNNING'})});
-      wrapper.setProps({dirty: true});
-      expect(instance.getIsRestartRequired()).to.be.true;
-    });
-  });
-
   describe('#mapToFormFields', () => {
     it('should generate appropriate form fields from provision entity', () => {
       const provision = Immutable.fromJS({
-        memoryMB: 1200,
         clusterType: 'YARN',
-        virtualCoreCount: 1,
         dynamicConfig: {
           containerCount: 2
         },
-        subPropertyList: [
-          {
-            key: 'yarn.resourcemanager.hostname',
-            value: 'localhost',
-            type: 'type'
-          },
-          {
-            key: 'fs.defaultFS',
-            value: 'hdfs://localhost',
-            type: 'type'
-          },
-          {
-            key: 'paths.spilling',
-            value: JSON.stringify(['/path1', '/path2']),
-            type: 'type'
-          },
-          {
-            key: 'services.node-tag',
-            value: 'tag',
-            type: 'type'
-          }
-        ]
+        yarnProps: {
+          memoryMB: 1200,
+          virtualCoreCount: 1,
+          subPropertyList: [
+            {
+              key: 'yarn.resourcemanager.hostname',
+              value: 'localhost',
+              type: 'type'
+            },
+            {
+              key: 'fs.defaultFS',
+              value: 'hdfs://localhost',
+              type: 'type'
+            },
+            {
+              key: 'paths.spilling',
+              value: JSON.stringify(['/path1', '/path2']),
+              type: 'type'
+            },
+            {
+              key: 'services.node-tag',
+              value: 'tag',
+              type: 'type'
+            }
+          ]
+        }
       });
 
-      expect(YarnForm.mapToFormFields(provision)).to.be.eql({
+      expect(YarnForm.getInitValuesFromProvision(provision)).to.be.eql({
         clusterType: 'YARN',
         dynamicConfig: {
           containerCount: 2
@@ -160,66 +137,72 @@ describe('YarnForm', () => {
         spillDirectories: ['/path1', '/path2'],
         nodeTag: 'tag',
         resourceManagerHost: 'localhost',
-        subPropertyList: [
-          {
-            key: 'yarn.resourcemanager.hostname',
-            value: 'localhost',
-            type: 'type'
-          },
-          {
-            key: 'fs.defaultFS',
-            value: 'hdfs://localhost',
-            type: 'type'
-          },
-          {
-            key: 'paths.spilling',
-            value: JSON.stringify(['/path1', '/path2']),
-            type: 'type'
-          },
-          {
-            key: 'services.node-tag',
-            value: 'tag',
-            type: 'type'
-          }
-        ],
         virtualCoreCount: 1
       });
     });
   });
 
-  describe('#normalizeValues', () => {
-    it('should return value to be submitted as entity', () => {
-      const wrapper = shallow(<YarnForm {...minimalProps}/>);
-      const instance = wrapper.instance();
-      const values = {
+  describe('#prepareValuesForSave', () => {
+    let values, instance;
+    beforeEach(() => {
+      values = {
         clusterType: 'YARN',
         dynamicConfig: {
           containerCount: 2
         },
+        nodeTag: 'Y-Name',
         memoryMB: '1.17',
         namenodeHost: 'hdfs://localhost',
         propertyList: [],
+        spillDirectories: ['file:///v/l/drem'],
         resourceManagerHost: 'localhost',
-        virtualCoreCount: 1
+        virtualCoreCount: 1,
+        distroType: 'APACHE',
+        queue: 'q',
+        isSecure: true
       };
-      expect(instance.normalizeValues(values)).to.be.eql({
-        clusterType: 'YARN',
-        dynamicConfig: {
-          containerCount: 2
-        },
-        memoryMB: 1198.08,
-        subPropertyList: [
+      const wrapper = shallow(<YarnForm {...minimalProps}/>);
+      instance = wrapper.instance();
+    });
+
+    it('should map values w/o propertyList into entity', () => {
+      const result = instance.prepareValuesForSave(values);
+      expect(result.clusterType).to.equal('YARN');
+      expect(result.name).to.equal('Y-Name');
+      expect(result.dynamicConfig).to.eql({ containerCount: 2 });
+      expect(result.awsProps).to.be.null;
+      expect(result.yarnProps.memoryMB).to.equal(1198.08);
+      expect(result.yarnProps.virtualCoreCount).to.equal(1);
+      expect(result.yarnProps.distroType).to.equal('APACHE');
+      expect(result.yarnProps.isSecure).to.equal(true);
+      expect(result.yarnProps.queue).to.equal('q');
+
+      expect(result.yarnProps.subPropertyList.slice(0, 4)).to.eql(
+        [
+          {
+            key: 'yarn.resourcemanager.hostname',
+            value: 'localhost'
+          },
           {
             key: 'fs.defaultFS',
             value: 'hdfs://localhost'
           },
           {
-            key: 'yarn.resourcemanager.hostname',
-            value: 'localhost'
+            key: 'services.node-tag',
+            value: 'Y-Name'
+          },
+          {
+            key: 'paths.spilling',
+            value: '["file:///v/l/drem"]'
           }
-        ],
-        virtualCoreCount: 1
-      });
+        ]
+      );
+    });
+    it('should map values with propertyList into entity', () => {
+      const propListEntry = {name: 'a', value: 'v', type: 'JAVA_PROP'};
+      const result = instance.prepareValuesForSave({...values, propertyList: [propListEntry]});
+      const subPropertyList = result.yarnProps.subPropertyList;
+      expect(subPropertyList[subPropertyList.length - 1]).to.eql({key: 'a', value: 'v', type: 'JAVA_PROP'});
     });
   });
 

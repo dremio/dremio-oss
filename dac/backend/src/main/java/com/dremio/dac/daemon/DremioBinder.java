@@ -15,12 +15,13 @@
  */
 package com.dremio.dac.daemon;
 
+import java.util.function.Supplier;
+
 import javax.inject.Inject;
 import javax.ws.rs.core.SecurityContext;
 
-import org.glassfish.hk2.api.Factory;
-import org.glassfish.hk2.utilities.binding.AbstractBinder;
-import org.glassfish.hk2.utilities.binding.ServiceBindingBuilder;
+import org.glassfish.jersey.internal.inject.AbstractBinder;
+import org.glassfish.jersey.internal.inject.ClassBinding;
 import org.glassfish.jersey.process.internal.RequestScoped;
 
 import com.dremio.dac.explore.QueryExecutor;
@@ -91,14 +92,14 @@ public class DremioBinder extends AbstractBinder {
     bindFactory(CatalogFactory.class).proxy(true).in(RequestScoped.class).to(Catalog.class);
   }
 
-  private <T> ServiceBindingBuilder<T> bindToSelf(Class<T> serviceType) {
+  private <T> ClassBinding<T> bindToSelf(Class<T> serviceType) {
     return bind(serviceType).to(serviceType);
   }
 
   /**
    * Factory for Catalog creation.
    */
-  public static class CatalogFactory implements Factory<Catalog> {
+  public static class CatalogFactory implements Supplier<Catalog> {
     private final CatalogService catalogService;
     private final SecurityContext context;
 
@@ -110,13 +111,8 @@ public class DremioBinder extends AbstractBinder {
     }
 
     @Override
-    @RequestScoped
-    public Catalog provide() {
+    public Catalog get() {
       return catalogService.getCatalog(SchemaConfig.newBuilder(context.getUserPrincipal().getName()).build());
-    }
-
-    @Override
-    public void dispose(Catalog catalog) {
     }
   }
 
@@ -124,7 +120,7 @@ public class DremioBinder extends AbstractBinder {
    * A factory for OptionManager to be used for DI
    * (and avoid passing directly SabotContext...)
    */
-  public static class OptionManagerFactory implements Factory<OptionManager> {
+  public static class OptionManagerFactory implements Supplier<OptionManager> {
     private final SabotContext context;
 
     @Inject
@@ -133,12 +129,8 @@ public class DremioBinder extends AbstractBinder {
     }
 
     @Override
-    public OptionManager provide() {
+    public OptionManager get() {
       return context.getOptionManager();
-    }
-
-    @Override
-    public void dispose(OptionManager instance) {
     }
   }
 }

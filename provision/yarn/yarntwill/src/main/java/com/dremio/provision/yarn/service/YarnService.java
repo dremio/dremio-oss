@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.nodes.NodeProvider;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.options.OptionManager;
 import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterEnriched;
 import com.dremio.provision.ClusterState;
@@ -53,6 +54,7 @@ import com.dremio.provision.ClusterType;
 import com.dremio.provision.Container;
 import com.dremio.provision.Containers;
 import com.dremio.provision.DistroType;
+import com.dremio.provision.ImmutableContainers;
 import com.dremio.provision.Property;
 import com.dremio.provision.RunId;
 import com.dremio.provision.service.ProvisioningDefaultsConfigurator;
@@ -64,6 +66,7 @@ import com.dremio.provision.yarn.DacDaemonYarnApplication;
 import com.dremio.provision.yarn.YarnController;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
 /**
@@ -88,7 +91,7 @@ public class YarnService implements ProvisioningServiceDelegate {
     ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY
     );
 
-  public YarnService(DremioConfig config, ProvisioningStateListener stateListener, NodeProvider executionNodeProvider) {
+  public YarnService(DremioConfig config, ProvisioningStateListener stateListener, NodeProvider executionNodeProvider, OptionManager options) {
     this(stateListener, new YarnController(config), executionNodeProvider);
   }
 
@@ -212,21 +215,22 @@ public class YarnService implements ProvisioningServiceDelegate {
         }
       }
 
-      Containers containers = new Containers();
-      clusterEnriched.setRunTimeInfo(containers);
+      ImmutableContainers.Builder containers = Containers.builder();
 
       List<Container> runningList = new ArrayList<>();
       List<Container> disconnectedList = new ArrayList<>();
-      clusterEnriched.getRunTimeInfo().setRunningList(runningList);
-      clusterEnriched.getRunTimeInfo().setDisconnectedList(disconnectedList);
 
       for (TwillRunResources runResource : runResources) {
-        Container container = new Container();
-        container.setContainerId(runResource.getContainerId());
-        container.setContainerPropertyList(new ArrayList<Property>());
-        container.getContainerPropertyList().add(new Property("host", runResource.getHost()));
-        container.getContainerPropertyList().add(new Property("memoryMB", "" + runResource.getMemoryMB()));
-        container.getContainerPropertyList().add(new Property("virtualCoreCount", "" + runResource.getVirtualCores()));
+        Container container = Container.builder()
+            .setContainerId(runResource.getContainerId())
+            .setContainerPropertyList(
+                ImmutableList.<Property>of(
+                    new Property("host", runResource.getHost()),
+                    new Property("memoryMB", "" + runResource.getMemoryMB()),
+                    new Property("virtualCoreCount", "" + runResource.getVirtualCores())
+                    )
+                )
+            .build();
         if(activeContainerIds.contains(runResource.getContainerId())) {
           runningList.add(container);
         } else {
@@ -237,13 +241,18 @@ public class YarnService implements ProvisioningServiceDelegate {
       if (yarnDelta > 0) {
 
         // pending
-        clusterEnriched.getRunTimeInfo().setPendingCount(yarnDelta);
+        containers.setPendingCount(yarnDelta);
       } else if (yarnDelta < 0) {
         // decomissioning kind of
-        clusterEnriched.getRunTimeInfo().setDecommissioningCount(Math.abs(yarnDelta));
+        containers.setDecommissioningCount(Math.abs(yarnDelta));
       }
 
-      clusterEnriched.getRunTimeInfo().setProvisioningCount(disconnectedList.size());
+      containers.setProvisioningCount(disconnectedList.size());
+
+      containers.setRunningList(runningList);
+      containers.setDisconnectedList(disconnectedList);
+      clusterEnriched.setRunTimeInfo(containers.build());
+
 
     }
     return clusterEnriched;

@@ -115,6 +115,8 @@ public abstract class AsyncCommand implements CommandRunner<Void> {
     final double planCost = plan.getCost();
     ResourceSchedulingProperties resourceSchedulingProperties = new ResourceSchedulingProperties();
     resourceSchedulingProperties.setQueryCost(planCost);
+    resourceSchedulingProperties.setRoutingQueue(context.getSession().getRoutingQueue());
+    resourceSchedulingProperties.setRoutingTag(context.getSession().getRoutingTag());
     resourceSchedulingProperties.setQueryType(Utilities.getHumanReadableWorkloadType(context.getWorkloadType()));
 
     long startTimeMs = System.currentTimeMillis();

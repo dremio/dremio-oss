@@ -199,142 +199,129 @@ public class HiveMetadataUtils {
     }
   }
 
-  private static List<ColumnInfo> buildColumnInfo(final Table table, final InputFormat<?, ?> format) {
-    final List<ColumnInfo> columnInfos = new ArrayList<>();
+  private static List<ColumnInfo> buildColumnInfo(final Table table) {
+    final List<ColumnInfo> columnInfos  = new ArrayList<>();
     for (FieldSchema hiveField : table.getSd().getCols()) {
       final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType());
-      Field f = HiveSchemaConverter.getArrowFieldFromHiveType(hiveField.getName(), typeInfo, format);
-      if (f != null) {
-        columnInfos.add(getColumnInfo(typeInfo));
+      if (typeInfo.getCategory() == Category.PRIMITIVE) {
+        final PrimitiveTypeInfo primitiveTypeInfo = (PrimitiveTypeInfo) typeInfo;
+        switch (primitiveTypeInfo.getPrimitiveCategory()) {
+          case BOOLEAN:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.BOOLEAN)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case BYTE:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.BYTE)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case SHORT:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.SHORT)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case INT:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.INT)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case LONG:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.LONG)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case FLOAT:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.FLOAT)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case DOUBLE:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.DOUBLE)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case DATE:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.DATE)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case TIMESTAMP:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.TIMESTAMP)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case BINARY:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.BINARY)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case DECIMAL:
+            final DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) primitiveTypeInfo;
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.DECIMAL)
+              .setPrecision(decimalTypeInfo.getPrecision())
+              .setScale(decimalTypeInfo.getScale())
+              .build());
+            break;
+
+          case STRING:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.STRING)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case VARCHAR:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.VARCHAR)
+              .setPrecision(0)
+              .setScale(0)
+              .build());
+            break;
+
+          case CHAR:
+            columnInfos.add(ColumnInfo.newBuilder()
+              .setPrimitiveType(HivePrimitiveType.CHAR)
+              .setPrecision(((CharTypeInfo) typeInfo).getLength())
+              .setScale(0)
+              .build());
+            break;
+        }
       }
     }
     return columnInfos;
-  }
-
-  private static ColumnInfo getColumnInfo(final TypeInfo typeInfo) {
-    if (typeInfo.getCategory() == Category.PRIMITIVE) {
-      final PrimitiveTypeInfo primitiveTypeInfo = (PrimitiveTypeInfo) typeInfo;
-      switch (primitiveTypeInfo.getPrimitiveCategory()) {
-        case BOOLEAN:
-          return ColumnInfo.newBuilder()
-            .setPrimitiveType(HivePrimitiveType.BOOLEAN)
-            .setPrecision(0)
-            .setScale(0)
-            .setIsPrimitive(true)
-            .build();
-
-        case BYTE:
-          return ColumnInfo.newBuilder()
-            .setPrimitiveType(HivePrimitiveType.BYTE)
-            .setPrecision(0)
-            .setScale(0)
-            .setIsPrimitive(true)
-            .build();
-
-        case SHORT:
-          return ColumnInfo.newBuilder()
-            .setPrimitiveType(HivePrimitiveType.SHORT)
-            .setPrecision(0)
-            .setScale(0)
-            .setIsPrimitive(true)
-            .build();
-
-        case INT:
-          return ColumnInfo.newBuilder()
-            .setPrimitiveType(HivePrimitiveType.INT)
-            .setPrecision(0)
-            .setScale(0)
-            .setIsPrimitive(true)
-            .build();
-
-        case LONG:
-          return ColumnInfo.newBuilder()
-            .setPrimitiveType(HivePrimitiveType.LONG)
-            .setPrecision(0)
-            .setScale(0)
-            .setIsPrimitive(true)
-            .build();
-
-        case FLOAT:
-          return ColumnInfo.newBuilder()
-            .setPrimitiveType(HivePrimitiveType.FLOAT)
-            .setPrecision(0)
-            .setScale(0)
-            .setIsPrimitive(true)
-            .build();
-
-        case DOUBLE:
-          return ColumnInfo.newBuilder()
-            .setPrimitiveType(HivePrimitiveType.DOUBLE)
-            .setPrecision(0)
-            .setScale(0)
-            .setIsPrimitive(true)
-            .build();
-
-        case DATE:
-          return ColumnInfo.newBuilder()
-            .setPrimitiveType(HivePrimitiveType.DATE)
-            .setPrecision(0)
-            .setScale(0)
-            .setIsPrimitive(true)
-            .build();
-
-        case TIMESTAMP:
-          return ColumnInfo.newBuilder()
-            .setPrimitiveType(HivePrimitiveType.TIMESTAMP)
-            .setPrecision(0)
-            .setScale(0)
-            .setIsPrimitive(true)
-            .build();
-
-        case BINARY:
-          return ColumnInfo.newBuilder()
-            .setPrimitiveType(HivePrimitiveType.BINARY)
-            .setPrecision(0)
-            .setScale(0)
-            .setIsPrimitive(true)
-            .build();
-
-        case DECIMAL:
-          final DecimalTypeInfo decimalTypeInfo = (DecimalTypeInfo) primitiveTypeInfo;
-          return ColumnInfo.newBuilder()
-            .setPrimitiveType(HivePrimitiveType.DECIMAL)
-            .setPrecision(decimalTypeInfo.getPrecision())
-            .setScale(decimalTypeInfo.getScale())
-            .setIsPrimitive(true)
-            .build();
-
-        case STRING:
-          return ColumnInfo.newBuilder()
-            .setPrimitiveType(HivePrimitiveType.STRING)
-            .setPrecision(0)
-            .setScale(0)
-            .setIsPrimitive(true)
-            .build();
-
-        case VARCHAR:
-          return ColumnInfo.newBuilder()
-            .setPrimitiveType(HivePrimitiveType.VARCHAR)
-            .setPrecision(0)
-            .setScale(0)
-            .setIsPrimitive(true)
-            .build();
-
-        case CHAR:
-          return ColumnInfo.newBuilder()
-            .setPrimitiveType(HivePrimitiveType.CHAR)
-            .setPrecision(((CharTypeInfo) typeInfo).getLength())
-            .setScale(0)
-            .setIsPrimitive(true)
-            .build();
-      }
-    }
-
-    return ColumnInfo.newBuilder()
-      .setPrecision(0)
-      .setScale(0)
-      .setIsPrimitive(false)
-      .build();
   }
 
   public static TableMetadata getTableMetadata(final HiveClient client,
@@ -364,7 +351,7 @@ public class HiveMetadataUtils {
       HiveMetadataUtils.checkLeafFieldCounter(fields.size(), maxMetadataLeafColumns, schemaComponents.getTableName());
       final BatchSchema batchSchema = BatchSchema.newBuilder().addFields(fields).build();
 
-      final List<ColumnInfo> columnInfos = buildColumnInfo(table, format);
+      final List<ColumnInfo> columnInfos = buildColumnInfo(table);
 
       final TableMetadata tableMetadata = TableMetadata.newBuilder()
         .table(table)

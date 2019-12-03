@@ -17,16 +17,14 @@ package com.dremio.sabot.op.join.nlje;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.IntFunction;
 
 import javax.inject.Named;
 
-import org.apache.arrow.memory.BufferAllocator;
-import org.apache.arrow.vector.BitVectorHelper;
 import org.apache.arrow.vector.complex.FieldIdUtil2;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CastExpression;
@@ -50,11 +48,9 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.TypedFieldId;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
-import com.dremio.sabot.op.join.nlje.EvaluatingJoinMatcher.MatchState;
 import com.google.common.collect.Lists;
 import com.sun.codemodel.JExpr;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /**
@@ -68,45 +64,30 @@ public abstract class MatchGenerator implements AutoCloseable {
 
   private static TemplateClassDefinition<MatchGenerator> TEMPLATE_DEFINITION = new TemplateClassDefinition<MatchGenerator>(MatchGenerator.class, MatchGenerator.class);
 
-  final static int PROBE_OUTPUT_SIZE = 2;
-  final static int BUILD_OUTPUT_SIZE = 4;
-  private final int BITS_PER_BYTE = 8;
-  private ArrowBuf buildOutput;
-  private ArrowBuf probeOutput;
-  // private ArrowBuf buildMatchVector;
-  private ArrowBuf probeMatchVector;
+  private MatchedVector probeMatchVector;
   private boolean maintainMatches;
 
-  public void setup(BufferAllocator allocator, FunctionContext context, VectorAccessible probeBatch, VectorAccessible buildBatch, int outputCapacity, boolean maintainMatches) throws Exception {
-    this.maintainMatches = maintainMatches;
-    allocate(allocator, outputCapacity);
+  public void setup(
+      Optional<MatchedVector> probeMatchVector,
+      FunctionContext context,
+      VectorAccessible probeBatch,
+      VectorAccessible buildBatch,
+      int outputCapacity
+      ) throws Exception {
+    this.maintainMatches = probeMatchVector.isPresent();
+    if(maintainMatches) {
+      this.probeMatchVector = probeMatchVector.get();
+    }
     doSetup(context, probeBatch, buildBatch);
   }
 
-  private void allocate(BufferAllocator allocator, int outputCapacity) throws Exception {
-    try(RollbackCloseable rbc = new RollbackCloseable()) {
-      buildOutput = rbc.add(allocator.buffer(outputCapacity * BUILD_OUTPUT_SIZE));
-      // buildMatchVector = rbc.add(allocator.buffer(outputCapacity / BITS_PER_BYTE));
-      // buildMatchVector.setZero(0, buildMatchVector.capacity());
-
-      probeOutput = rbc.add(allocator.buffer(outputCapacity * PROBE_OUTPUT_SIZE));
-
-      if(maintainMatches) {
-        probeMatchVector = rbc.add(allocator.buffer(outputCapacity / BITS_PER_BYTE));
-        probeMatchVector.setZero(0, probeMatchVector.capacity());
-      }
-
-      rbc.commit();
-    }
-  }
-
-  public void clearProbeValidity() {
+  public void clearProbeValidity(int size) {
     if(probeMatchVector != null) {
-      probeMatchVector.setZero(0, probeMatchVector.capacity());
+      probeMatchVector.zero(size);
     }
   }
 
-  public ArrowBuf getProbeMatchVector() {
+  public MatchedVector getProbeMatchVector() {
     return probeMatchVector;
   }
 
@@ -118,13 +99,54 @@ public abstract class MatchGenerator implements AutoCloseable {
    * @param buildBatchCount
    * @return
    */
-  public MatchState tryMatch(MatchState offsetState, final int buildBatchCount) {
-    final long buildOutputAddr = buildOutput.memoryAddress();
-    final long probeOutputAddr = probeOutput.memoryAddress();
+  public VectorRange tryMatch(DualRange input, VectorRange output) {
+    if(input.isIndexRange()) {
+      return tryMatch(input.asIndexRange(), output);
+    } else {
+      return tryMatch(input.asVectorRange(), output);
+    }
+  }
+
+  private VectorRange tryMatch(VectorRange input, VectorRange output) {
+    final long buildOutputAddr = output.getBuildOffsets4();
+    final long probeOutputAddr = output.getProbeOffsets2();
+    long buildInputAddr = input.getBuildOffsets4();
+    long probeInputAddr = input.getProbeOffsets2();
+    final MatchedVector probeMatchVector = this.probeMatchVector;
+    final boolean maintainMatches = this.maintainMatches;
+    int outputIndex = 0;
+    final int count = input.getCurrentOutputCount();
+    final IntRange currentInput = input.getCurrentOutputRange();
+    final int end = currentInput.end;
+    for (int i = currentInput.start; i < end; i++) {
+      final int compoundBuildIndex = PlatformDependent.getInt(buildInputAddr + i * 4);
+      final short probeIndex = PlatformDependent.getShort(probeInputAddr + i * 2);
+      if (doEval(probeIndex, compoundBuildIndex)) {
+
+        if (maintainMatches) {
+          // mark matching probe keys.
+          probeMatchVector.mark(probeIndex);
+        }
+
+        // write output indices
+        VectorRange.set(probeOutputAddr, buildOutputAddr, outputIndex, probeIndex, compoundBuildIndex);
+        // increment output.
+        outputIndex++;
+      }
+    }
+
+    return output.resetRecordsFound(outputIndex);
+  }
+
+  private VectorRange tryMatch(IndexRange offsetState, VectorRange output) {
+    final long buildOutputAddr = output.getBuildOffsets4();
+    final long probeOutputAddr = output.getProbeOffsets2();
     final int probeStart = offsetState.getProbeStart();
     final int probeEnd = offsetState.getProbeEnd();
     final int buildBatchIndex = offsetState.getBuildBatchIndex();
+    final int buildBatchCount = offsetState.getBuildBatchCount();
 
+    final MatchedVector probeMatchVector = this.probeMatchVector;
     final boolean maintainMatches = this.maintainMatches;
     int outputIndex = 0;
     for (int probeIndex = probeStart; probeIndex < probeEnd; probeIndex++) {
@@ -134,12 +156,11 @@ public abstract class MatchGenerator implements AutoCloseable {
 
           if (maintainMatches) {
             // mark matching probe keys.
-            BitVectorHelper.setValidityBit(probeMatchVector, probeIndex, 1);
+            probeMatchVector.mark(probeIndex);
           }
 
           // write output indices
-          PlatformDependent.putShort(probeOutputAddr + outputIndex * PROBE_OUTPUT_SIZE, (short) probeIndex);
-          PlatformDependent.putInt(buildOutputAddr + outputIndex * BUILD_OUTPUT_SIZE, compoundBuildIndex);
+          VectorRange.set(probeOutputAddr, buildOutputAddr, outputIndex, (short) probeIndex, compoundBuildIndex);
 
           // increment output.
           outputIndex++;
@@ -147,8 +168,9 @@ public abstract class MatchGenerator implements AutoCloseable {
       }
     }
 
-    return offsetState.withOutputCount(outputIndex);
+    return output.resetRecordsFound(outputIndex);
   }
+
 
   public abstract void doSetup(
       @Named("context") FunctionContext context,
@@ -309,15 +331,8 @@ public abstract class MatchGenerator implements AutoCloseable {
     }
   }
 
-  public long getProbeOutputAddress() {
-    return probeOutput.memoryAddress();
-  }
-
-  public long getBuildOutputAddress() {
-    return buildOutput.memoryAddress();
-  }
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(probeMatchVector, probeOutput, buildOutput);
+    AutoCloseables.close(probeMatchVector);
   }
 }

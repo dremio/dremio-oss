@@ -16,9 +16,28 @@
 import { RSAA } from 'redux-api-middleware';
 import { push } from 'react-router-redux';
 
-import { API_URL_V2 } from '@app/constants/Api';
+import {API_URL_V2} from '@app/constants/Api';
 import provisionSchema from 'schemas/provision';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
+
+
+export const LOAD_AWS_DEFAULTS_START = 'LOAD_AWS_DEFAULTS_START';
+export const LOAD_AWS_DEFAULTS_SUCCESS = 'LOAD_AWS_DEFAULTS_SUCCESS';
+export const LOAD_AWS_DEFAULTS_FAILURE = 'LOAD_AWS_DEFAULTS_FAILURE';
+
+export const loadAwsDefaults = () => {
+  return {
+    [RSAA]: {
+      types: [
+        LOAD_AWS_DEFAULTS_START,
+        LOAD_AWS_DEFAULTS_SUCCESS,
+        LOAD_AWS_DEFAULTS_FAILURE
+      ],
+      method: 'GET',
+      endpoint: `${API_URL_V2}/provision/aws/defaults`
+    }
+  };
+};
 
 export const LOAD_PROVISIONING_START = 'LOAD_PROVISIONING_START';
 export const LOAD_PROVISIONING_SUCCESS = 'LOAD_PROVISIONING_SUCCESS';

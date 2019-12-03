@@ -332,8 +332,6 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insert2);
     executeQuery(hiveDriver, insert3);
 
-    createOrcStringTableWithComplexTypes(hiveDriver);
-
     final String[][] typeconversinoTables = {
       {"tinyint", "", "90"},
       {"smallint", "", "90"},
@@ -643,20 +641,6 @@ public class HiveTestDataGenerator {
 
     return file.getPath();
   }
-
-  private void createOrcStringTableWithComplexTypes(final Driver hiveDriver) {
-    final String orcStringsTable = "create table orc_strings_complex (list_col array<int>, " +
-      "struct_col struct<f1: int>, map_col map<int, int>, key int, country_char25 CHAR(25), " +
-      "country_string string, country_varchar VARCHAR(1000), continent_char25 CHAR(25)) stored as orc";
-    final String insert1 = "insert into orc_strings_complex select array(1), named_struct('f1', 1), map(1,1), 1, 'INDIA', 'CHINA', 'NEPAL', 'ASIA'";
-    final String insert2 = "insert into orc_strings_complex select array(1), named_struct('f1', 1), map(1,1), 2, 'INDONESIA', 'THAILAND', 'SINGAPORE', 'ASIA'";
-    final String insert3 = "insert into orc_strings_complex select array(1), named_struct('f1', 1), map(1,1), 3, 'FRANCE', 'ITALY', 'ROMANIA', 'EUROPE'";
-    executeQuery(hiveDriver, orcStringsTable);
-    executeQuery(hiveDriver, insert1);
-    executeQuery(hiveDriver, insert2);
-    executeQuery(hiveDriver, insert3);
-  }
-
   private void createTypeConversionSourceTable(final Driver hiveDriver, final String source, final String sourcetypeargs, final String value) throws Exception {
     String table = source + "_orc";
     String datatable = "CREATE TABLE IF NOT EXISTS " + table + " (col1 " + source + sourcetypeargs + ") STORED AS ORC";

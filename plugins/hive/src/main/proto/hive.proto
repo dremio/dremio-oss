@@ -54,7 +54,6 @@ message ColumnInfo {
   optional HivePrimitiveType primitive_type = 1;
   optional int32 precision = 2;
   optional int32 scale = 3;
-  optional bool is_primitive = 4;
 }
 
 message HiveTableXattr {

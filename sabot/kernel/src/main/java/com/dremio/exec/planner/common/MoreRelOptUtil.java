@@ -28,6 +28,7 @@ import java.util.function.Predicate;
 import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptUtil;
+import org.apache.calcite.plan.hep.HepRelVertex;
 import org.apache.calcite.plan.volcano.RelSubset;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelShuttleImpl;
@@ -58,6 +59,8 @@ import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.rex.RexVisitorImpl;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.validate.SqlValidatorUtil;
 import org.apache.calcite.util.ImmutableBitSet;
@@ -372,6 +375,18 @@ public final class MoreRelOptUtil {
       }
     }
     return true;
+  }
+
+  public static class VertexRemover extends StatelessRelShuttleImpl {
+
+    @Override
+    public RelNode visit(RelNode other) {
+      if (other instanceof HepRelVertex) {
+        return super.visit(((HepRelVertex) other).getCurrentRel());
+      } else {
+        return super.visit(other);
+      }
+    }
   }
 
   public static class SubsetRemover extends StatelessRelShuttleImpl {
@@ -751,6 +766,55 @@ public final class MoreRelOptUtil {
 
     Preconditions.checkNotNull(node);
     return node;
+  }
+
+  public static List<RexNode> identityProjects(RelDataType type, ImmutableBitSet selectedColumns) {
+    List<RexNode> projects = new ArrayList<>();
+    if (selectedColumns == null) {
+      selectedColumns = ImmutableBitSet.range(type.getFieldCount());
+    }
+    for (Pair<Integer,RelDataTypeField> pair : Pair.zip(selectedColumns, type.getFieldList())) {
+      projects.add(new RexInputRef(pair.left, pair.right.getType()));
+    }
+    return projects;
+  }
+
+  public static boolean isNegative(RexLiteral literal) {
+    Double d = literal.getValueAs(Double.class);
+    return d < 0;
+  }
+
+  public static SqlOperator op(SqlKind kind) {
+    switch (kind) {
+    case IS_FALSE:
+      return SqlStdOperatorTable.IS_FALSE;
+    case IS_TRUE:
+      return SqlStdOperatorTable.IS_TRUE;
+    case IS_UNKNOWN:
+      return SqlStdOperatorTable.IS_UNKNOWN;
+    case IS_NULL:
+      return SqlStdOperatorTable.IS_NULL;
+    case IS_NOT_FALSE:
+      return SqlStdOperatorTable.IS_NOT_FALSE;
+    case IS_NOT_TRUE:
+      return SqlStdOperatorTable.IS_NOT_TRUE;
+    case IS_NOT_NULL:
+      return SqlStdOperatorTable.IS_NOT_NULL;
+    case EQUALS:
+      return SqlStdOperatorTable.EQUALS;
+    case NOT_EQUALS:
+      return SqlStdOperatorTable.NOT_EQUALS;
+    case LESS_THAN:
+      return SqlStdOperatorTable.LESS_THAN;
+    case GREATER_THAN:
+      return SqlStdOperatorTable.GREATER_THAN;
+    case LESS_THAN_OR_EQUAL:
+      return SqlStdOperatorTable.LESS_THAN_OR_EQUAL;
+    case GREATER_THAN_OR_EQUAL:
+      return SqlStdOperatorTable.GREATER_THAN_OR_EQUAL;
+    default:
+      throw new AssertionError(kind);
+    }
   }
 
   /**

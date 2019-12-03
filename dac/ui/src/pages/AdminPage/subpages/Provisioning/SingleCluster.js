@@ -17,17 +17,23 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { connect } from 'react-redux';
-import ViewStateWrapper from 'components/ViewStateWrapper';
-import { getViewState } from 'selectors/resources';
-import FontIcon from 'components/Icon/FontIcon';
-import NumberFormatUtils from 'utils/numberFormatUtils';
-import Message from 'components/Message';
+
+import { getViewState } from '@app/selectors/resources';
+import ViewStateWrapper from '@app/components/ViewStateWrapper';
+import FontIcon from '@app/components/Icon/FontIcon';
+import Message from '@app/components/Message';
+import NumberFormatUtils from '@app/utils/numberFormatUtils';
+import timeUtils from '@app/utils/timeUtils';
+import { AWS_REGION_OPTIONS } from '@app/constants/provisioningPage/provisioningConstants';
+import SingleClusterMixin from 'dyn-load/pages/AdminPage/subpages/Provisioning/SingleClusterMixin';
+
 import ClusterWorkers from './ClusterWorkers';
 
 
 const YARN_HOST_PROPERTY = 'yarn.resourcemanager.hostname';
 const YARN_NODE_TAG_PROPERTY = 'services.node-tag';
 
+@SingleClusterMixin
 export class SingleCluster extends Component {
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map),
@@ -38,17 +44,17 @@ export class SingleCluster extends Component {
   };
 
   getClusterCPUCores() {
-    return this.props.entity.get('virtualCoreCount');
+    return this.props.entity.getIn(['yarnProps', 'virtualCoreCount']);
   }
 
   getClusterSubProperty(propName) {
-    const subProperty = this.props.entity.get('subPropertyList')
+    const subProperty = this.props.entity.getIn(['yarnProps', 'subPropertyList'])
       .find((i) => i.get('key') === propName);
     return subProperty && subProperty.get('value');
   }
 
   getClusterRAM() {
-    return NumberFormatUtils.roundNumberField(this.props.entity.get('memoryMB') / 1024);
+    return NumberFormatUtils.roundNumberField(this.props.entity.getIn(['yarnProps', 'memoryMB']) / 1024);
   }
 
   getWorkerInfoTitle() {
@@ -58,11 +64,13 @@ export class SingleCluster extends Component {
     return (
       <span>
         {hostName}
-        <span style={{padding: '0 .5em'}}>|</span>
+        {this.getVerticalDivider()}
         {cores} {cores === 1 ? la('core') : la('cores')}, {memory}{'GB'} {la('memory per worker')}
       </span>
     );
   }
+
+  getVerticalDivider = () => <span style={{padding: '0 .5em'}}>|</span>;
 
   getIsInReadOnlyState() {
     const { entity } = this.props;
@@ -84,17 +92,58 @@ export class SingleCluster extends Component {
           style={{marginBottom: 10}}
           messageType='error'
           message={message}
-          isDismissable={false}
+          isDismissable
         />
       );
     }
     return null;
   }
 
+  renderRuntimeStatus() {
+    const { entity } = this.props;
+    if (entity.get('clusterType') !== 'EC2') return null;
+
+    const stateForTime = 'Start'; //TODO TBD
+    const timeValue = entity.get('timestamp'); //TODO TBD
+    const region = entity.getIn(['awsProps', 'connectionProps', 'endpoint'])
+      || this.getRegionLabel(entity.getIn(['awsProps', 'connectionProps', 'region']))
+      || la('Invalid region');
+    const extraPart = this.renderExtraRuntimeStatus(entity); //defined in mixin
+    return (
+      <div style={styles.runtimeStatus}>
+        <span>
+          {la('AWS Region: ')}{region}
+          {extraPart}
+        </span>
+        {timeValue &&
+        <span style={styles.runtimeTime}>
+          {`${stateForTime} Time: `}
+          {timeUtils.formatTime(timeValue)}
+        </span>
+        }
+      </div>
+    );
+  }
+
+  getRegionLabel = region => {
+    const option = AWS_REGION_OPTIONS.find(r => r.value === region);
+    return option && option.label;
+  };
+
+  isYarn = entity => {
+    return entity.get('clusterType') === 'YARN';
+  };
+
+  getClusterName = entity => {
+    return entity.get('name')
+      || this.isYarn(entity) && this.getClusterSubProperty(YARN_NODE_TAG_PROPERTY)
+      || entity.get('clusterType');
+  };
+
   render() {
     const { entity, editProvision, viewState } = this.props;
-    const clusterInfo = this.getWorkerInfoTitle();
-    const clusterName = this.getClusterSubProperty(YARN_NODE_TAG_PROPERTY) || entity.get('clusterType');
+    const clusterInfo = this.isYarn(entity) && this.getWorkerInfoTitle() || null;
+    const clusterName = this.getClusterName(entity);
 
     return (
       <div style={styles.base}>
@@ -122,6 +171,7 @@ export class SingleCluster extends Component {
               }
             </span>
           </div>
+          {this.renderRuntimeStatus()}
           <ClusterWorkers
             viewId={viewState.get('viewId')}
             entity={entity}
@@ -158,5 +208,13 @@ const styles = {
   },
   titleActions: {
     marginLeft: 10
+  },
+  runtimeStatus: {
+    color: '#9a9a9a',
+    width: 614,
+    marginTop: -5,
+    marginBottom: 10,
+    display: 'flex',
+    justifyContent: 'space-between'
   }
 };

@@ -15,7 +15,10 @@
  */
 package com.dremio.sabot.op.join.nlje;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -23,22 +26,27 @@ import java.util.stream.StreamSupport;
 import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.FieldVector;
+import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.util.TransferPair;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.FunctionCall;
 import com.dremio.exec.physical.config.NestedLoopJoinPOP;
 import com.dremio.exec.planner.physical.NestedLoopJoinPrel;
 import com.dremio.exec.record.ExpandableHyperContainer;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.MetricDef;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
 import com.dremio.sabot.op.copier.FieldBufferCopier4;
 import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.dremio.sabot.op.spi.DualInputOperator;
+import com.dremio.service.Pointer;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.ImmutableMap;
 
 /**
  * An enhanced implementation of NLJ that is vectorized and supports evaluating an expression.
@@ -54,6 +62,12 @@ import com.google.common.base.Stopwatch;
  */
 public class NLJEOperator implements DualInputOperator {
 
+  //TODO: remove static map.
+  private final static Map<String, String> VECTOR_MAP = ImmutableMap.<String, String>builder()
+      .put("geo_nearby", "com.dremio.joust.geo.NearbyBeyond")
+      .put("geo_beyond", "com.dremio.joust.geo.NearbyBeyond")
+      .put("all", "com.dremio.sabot.op.join.nlje.AllVectorFunction").build();
+
   private final OperatorContext context;
   private final JoinRelType joinType;
   private final NestedLoopJoinPOP config;
@@ -61,6 +75,7 @@ public class NLJEOperator implements DualInputOperator {
   private State state = State.NEEDS_SETUP;
 
   private VectorAccessible buildIncoming;
+
   private VectorAccessible probeIncoming;
   private ExpandableHyperContainer build;
   private VectorContainer output;
@@ -68,6 +83,7 @@ public class NLJEOperator implements DualInputOperator {
   private long buildRecords;
 
   private List<FieldVector> probeInputVectors;
+  private List<FieldVector> probeInputVectorsUsed;
   private List<FieldVector> probeOutputVectors;
   private List<FieldVector> buildOutputVectors;
   private List<TransferPair> probeOutputTransfers;
@@ -100,23 +116,41 @@ public class NLJEOperator implements DualInputOperator {
   public VectorAccessible setup(VectorAccessible left, VectorAccessible right) throws Exception {
     this.probeIncoming = left;
     this.buildIncoming = right;
-    this.build = new ExpandableHyperContainer(context.getAllocator(), right.getSchema());
     this.output = new VectorContainer();
+    this.build = new ExpandableHyperContainer(context.getAllocator(), right.getSchema());
+
+    Set<Integer> buildProjected = config.getBuildProjected();
+    Set<Integer> probeProjected = config.getProbeProjected();
 
     List<FieldVector> buildIncomingVectors = (List<FieldVector>) StreamSupport.stream(buildIncoming.spliterator(), false).map(w -> w.getValueVector()).collect(Collectors.toList());
-    buildOutputVectors = buildIncomingVectors.stream()
-        .map(v -> (FieldVector) v.getTransferPair(context.getAllocator()).getTo())
-        .collect(Collectors.toList());
-    buildOutputVectors.forEach(v -> output.add(v));
-
     probeInputVectors = (List<FieldVector>) StreamSupport.stream(probeIncoming.spliterator(), false).map(w -> w.getValueVector()).collect(Collectors.toList());
-    probeOutputTransfers = probeInputVectors.stream()
-        .map(v -> v.getTransferPair(context.getAllocator()))
-        .collect(Collectors.toList());
-    probeOutputVectors = probeOutputTransfers.stream()
-        .map(v -> (FieldVector) v.getTo())
-        .collect(Collectors.toList());
-    probeOutputVectors.forEach(v -> output.add(v));
+
+    int probeSize = probeInputVectors.size();
+    int buildSize = buildIncomingVectors.size();
+
+    buildOutputVectors = new ArrayList<>();
+    probeOutputVectors = new ArrayList<>();
+    probeOutputTransfers = new ArrayList<>();
+    probeInputVectorsUsed = new ArrayList<>();
+
+    for (int i = 0 ; i < buildSize ; i++) {
+      if (buildProjected.contains(i)) {
+        FieldVector v = (FieldVector) buildIncomingVectors.get(i).getTransferPair(context.getAllocator()).getTo();
+        buildOutputVectors.add(v);
+        output.add(v);
+      }
+    }
+
+    for (int i = 0 ; i < probeSize ; i++) {
+      if (probeProjected.contains(i)) {
+        probeInputVectorsUsed.add(probeInputVectors.get(i));
+        TransferPair pair = probeInputVectors.get(i).getTransferPair(context.getAllocator());
+        probeOutputTransfers.add(pair);
+        FieldVector v = (FieldVector) pair.getTo();
+        probeOutputVectors.add((FieldVector) pair.getTo());
+        output.add(v);
+      }
+    }
 
     this.output.buildSchema();
     state = State.CAN_CONSUME_R;
@@ -137,6 +171,33 @@ public class NLJEOperator implements DualInputOperator {
     buildRecords += records;
   }
 
+  private DualRange getInitialMatchState() throws Exception {
+    final int targetGenerateAtOnce = (int) context.getOptions().getOption(NestedLoopJoinPrel.OUTPUT_COUNT);
+    VectorWrapper<?> wrapper = build.iterator().next();
+    ValueVector[] vectors = wrapper.getValueVectors();
+    int[] counts = new int[vectors.length];
+    int maxBuildCount = 0;
+    for(int i = 0; i < vectors.length; i++) {
+      counts[i] = vectors[i].getValueCount();
+      maxBuildCount = Math.max(maxBuildCount, counts[i]);
+    }
+    if(config.getVectorOp() == null) {
+      return new IndexRange(targetGenerateAtOnce, counts);
+    } else {
+      return getVectorRange((FunctionCall) config.getVectorOp(), targetGenerateAtOnce, counts);
+    }
+  }
+
+  private DualRange getVectorRange(FunctionCall expression, int targetGenerateAtOnce, int[] batchCounts) throws Exception {
+    String factoryName = VECTOR_MAP.get(expression.getName());
+    if(factoryName == null) {
+      throw new UnsupportedOperationException("Unknown vector operation " + expression.getName());
+    }
+
+    DualRangeFunctionFactory factory = (DualRangeFunctionFactory) Class.forName(factoryName).newInstance();
+    return factory.create(context.getAllocator(), probeIncoming, build, context.getTargetBatchSize(), targetGenerateAtOnce, batchCounts, expression);
+  }
+
   @SuppressWarnings("unchecked")
   @Override
   public void noMoreToConsumeRight() throws Exception {
@@ -149,11 +210,17 @@ public class NLJEOperator implements DualInputOperator {
       this.joinMatcher = new StraightThroughMatcher(output, probeOutputTransfers);
     } else {
       Stopwatch watch = Stopwatch.createStarted();
-      List<FieldVector[]> buildInputVectors = (List<FieldVector[]>) (Object) StreamSupport.stream(build.spliterator(), false).map(w -> w.getValueVectors()).collect(Collectors.toList());
+      Pointer<Integer> ind = new Pointer<Integer>(-1);
+      List<FieldVector[]> buildInputVectorsUsed = (List<FieldVector[]>) (Object) StreamSupport.stream(build.spliterator(), false).map(w -> {
+        ind.value++;
+        return w.getValueVectors();
+      }).filter(v -> config.getBuildProjected().contains(ind.value)).collect(Collectors.toList());
+      final int targetGenerateAtOnce = (int) context.getOptions().getOption(NestedLoopJoinPrel.OUTPUT_COUNT);
       this.joinMatcher = new EvaluatingJoinMatcher(context, probeIncoming, build,
-          (int) context.getOptions().getOption(NestedLoopJoinPrel.OUTPUT_COUNT),
-          FieldBufferCopier.getCopiers(probeInputVectors, probeOutputVectors),
-          FieldBufferCopier4.getFourByteCopiers(buildInputVectors, buildOutputVectors),
+          targetGenerateAtOnce,
+          getInitialMatchState(),
+          FieldBufferCopier.getCopiers(probeInputVectorsUsed, probeOutputVectors),
+          FieldBufferCopier4.getFourByteCopiers(buildInputVectorsUsed, buildOutputVectors),
           joinType
           );
       context.getStats().setLongStat(Metric.COMPILE_NANOS, watch.elapsed(TimeUnit.NANOSECONDS));

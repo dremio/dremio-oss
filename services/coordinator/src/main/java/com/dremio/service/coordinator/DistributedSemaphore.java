@@ -52,8 +52,10 @@ public interface DistributedSemaphore {
    * Register a listener that is updated every time this semaphore changes.
    *
    * This is a weak registration. If the requester no longer exists, the semaphore won't a reference to the listener.
+   *
+   * return true if successfully registered listener
    */
-  void registerUpdateListener(UpdateListener listener);
+  boolean registerUpdateListener(UpdateListener listener);
 
   /**
    * Listener for when a semaphore has changed state.

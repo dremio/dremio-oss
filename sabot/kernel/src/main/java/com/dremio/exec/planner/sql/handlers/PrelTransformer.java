@@ -99,6 +99,7 @@ import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.explain.PrelSequencer;
+import com.dremio.exec.planner.physical.visitor.AddProjectOnPartialJoinVisitor;
 import com.dremio.exec.planner.physical.visitor.ComplexToJsonPrelVisitor;
 import com.dremio.exec.planner.physical.visitor.ExcessiveExchangeIdentifier;
 import com.dremio.exec.planner.physical.visitor.FinalColumnReorderer;
@@ -317,13 +318,15 @@ public class PrelTransformer {
 
     Rel convertedRelNode = convertToDrel(config, relNode);
 
+    final DremioFieldTrimmer trimmer = DremioFieldTrimmer.of(DremioRelFactories.LOGICAL_BUILDER.create(convertedRelNode.getCluster(), null));
+    Rel trimmedRelNode = (Rel) trimmer.trim(convertedRelNode);
+
     // Put a non-trivial topProject to ensure the final output field name is preserved, when necessary.
-    convertedRelNode = addRenamedProject(config, convertedRelNode, validatedRowType);
+    trimmedRelNode = addRenamedProject(config, trimmedRelNode, validatedRowType);
 
-    convertedRelNode = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(),
-        config.getContext(), convertedRelNode);
-
-    return new ScreenRel(convertedRelNode.getCluster(), convertedRelNode.getTraitSet(), convertedRelNode);
+    trimmedRelNode = SqlHandlerUtil.storeQueryResultsIfNeeded(config.getConverter().getParserConfig(),
+        config.getContext(), trimmedRelNode);
+    return new ScreenRel(trimmedRelNode.getCluster(), trimmedRelNode.getTraitSet(), trimmedRelNode);
   }
 
   /**
@@ -538,25 +541,22 @@ public class PrelTransformer {
     Prel phyRelNode;
     try {
       final Stopwatch watch = Stopwatch.createStarted();
-      // System.setProperty("calcite.debug", "true");
-      final RelNode relNode = transform(config, PlannerType.VOLCANO, PlannerPhase.PHYSICAL, drel, traits, true);
-      // System.clearProperty("calcite.debug");
-      // PrintWriter pw = new PrintWriter(System.out);
-      //((VolcanoPlanner)drel.getCluster().getPlanner()).dump(pw);
-      // pw.flush();
+      final RelNode prel1 = transform(config, PlannerType.VOLCANO, PlannerPhase.PHYSICAL, drel, traits, true);
 
-      phyRelNode = (Prel) relNode.accept(new PrelFinalizer());
+      final RelNode prel2 = transform(config, PlannerType.HEP_AC, PlannerPhase.PHYSICAL_HEP, prel1, prel1.getTraitSet(), true);
+      phyRelNode = (Prel) prel2.accept(new PrelFinalizer());
       // log externally as we need to finalize before traversing the tree.
       log(PlannerType.VOLCANO, PlannerPhase.PHYSICAL, phyRelNode, logger, watch);
     } catch (RelOptPlanner.CannotPlanException ex) {
       logger.error(ex.getMessage());
 
-      if(JoinUtils.checkCartesianJoin(drel, new ArrayList<Integer>(), new ArrayList<Integer>(), Lists.<Boolean>newArrayList())) {
+      if(JoinUtils.checkCartesianJoin(drel, new ArrayList<>(), new ArrayList<>(), Lists.<Boolean>newArrayList())) {
         throw new UnsupportedRelOperatorException("This query cannot be planned\u2014possibly due to use of an unsupported feature.");
       } else {
         throw ex;
       }
     }
+
     QueryContext context = config.getContext();
     OptionManager queryOptions = context.getOptions();
     final PlannerSettings plannerSettings = context.getPlannerSettings();
@@ -587,14 +587,33 @@ public class PrelTransformer {
     phyRelNode = StarColumnConverter.insertRenameProject(phyRelNode);
 
     /*
-     * 1.)
+     * 1.1.)
+     * Output schema for the same join rel might differ based on which operator is used in execution.
+     * Currently, RowType for join is based on actual fields needed by its consumer.
+     * However, this could cause name collision issue in execution time if
+     * - multiple join operators appear consecutively
+     * - the join operators are executed by operators that don't support partial projection
+     * For example, The following case would end up getting name conflicts on the field A and B.
+     *
+     *            JoinRel(RowType:[A B C D])
+     *            /            \
+     *       Rel([A B])       JoinRel([C D]) -> becomes [A B C D] after executed by join operators without partial projection support
+     *                        /         \
+     *                    Rel([A C])  Rel([B D])
+     *
+     * Make sure to add project on join if it partially projects all incoming fields
+     */
+    phyRelNode = AddProjectOnPartialJoinVisitor.insertProject(phyRelNode);
+
+    /*
+     * 1.2)
      * Join might cause naming conflicts from its left and right child.
      * In such case, we have to insert Project to rename the conflicting names.
      */
     phyRelNode = JoinPrelRenameVisitor.insertRenameProject(phyRelNode);
 
     /*
-     * 1.2.) Swap left / right for INNER hash join, if left's row count is < (1 + margin) right's row count.
+     * 1.3.) Swap left / right for INNER hash join, if left's row count is < (1 + margin) right's row count.
      * We want to have smaller dataset on the right side, since hash table builds on right side.
      */
     if (plannerSettings.isHashJoinSwapEnabled()) {
@@ -602,7 +621,7 @@ public class PrelTransformer {
     }
 
     /*
-     * 1.3.) Break up all expressions with complex outputs into their own project operations
+     * 1.4.) Break up all expressions with complex outputs into their own project operations
      *
      * This is not needed for planning anymore, but just in case there are udfs that needs to be split up, keep it.
      */
@@ -672,7 +691,7 @@ public class PrelTransformer {
     /* 6.)
      * Insert LocalExchange (mux and/or demux) nodes
      */
-    phyRelNode = InsertLocalExchangeVisitor.insertLocalExchanges(phyRelNode, queryOptions);
+    phyRelNode = InsertLocalExchangeVisitor.insertLocalExchanges(phyRelNode, queryOptions, context.getClusterResourceInformation());
 
     /*
      * 7.)

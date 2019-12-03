@@ -85,6 +85,7 @@ export default class CheckEnabledContainer extends Component {
           {containerIsSection &&
           <FormSection fields={fields}
             disabled={!enableContainer || mainCheckboxIsDisabled}
+            style={{marginBottom: 0}}
             sectionConfig={container}/>
           }
         </div>

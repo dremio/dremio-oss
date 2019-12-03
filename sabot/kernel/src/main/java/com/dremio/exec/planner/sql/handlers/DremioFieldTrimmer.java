@@ -34,6 +34,7 @@ import org.apache.calcite.rel.RelFieldCollation;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.Correlate;
 import org.apache.calcite.rel.core.CorrelationId;
+import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.Project;
 import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Window;
@@ -73,6 +74,8 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.planner.logical.DremioRelFactories;
 import com.dremio.exec.planner.logical.FlattenVisitors;
+import com.dremio.exec.planner.logical.JoinRel;
+import com.dremio.exec.planner.logical.LimitRel;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -87,6 +90,10 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
   public static DremioFieldTrimmer of(RelOptCluster cluster, boolean isRelPlanning) {
     RelBuilder builder = DremioRelFactories.CALCITE_LOGICAL_BUILDER.create(cluster, null);
     return new DremioFieldTrimmer(builder, isRelPlanning);
+  }
+
+  public static DremioFieldTrimmer of(RelBuilder builder) {
+    return new DremioFieldTrimmer(builder, false);
   }
 
   private DremioFieldTrimmer(RelBuilder builder, boolean isRelPlanning) {
@@ -381,6 +388,29 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
 
   }
 
+  public TrimResult trimFields(
+    LimitRel limit,
+    ImmutableBitSet fieldsUsed,
+    Set<RelDataTypeField> extraFields
+  ) {
+    final RelDataType rowType = limit.getRowType();
+    final int fieldCount = rowType.getFieldCount();
+    final RelNode input = limit.getInput();
+
+    final Set<RelDataTypeField> inputExtraFields = Collections.emptySet();
+    TrimResult trimResult =
+      trimChild(limit, input, fieldsUsed, inputExtraFields);
+    RelNode newInput = trimResult.left;
+    final Mapping inputMapping = trimResult.right;
+
+    if (newInput == input
+      && inputMapping.isIdentity()
+      && fieldsUsed.cardinality() == fieldCount) {
+      return result(limit, Mappings.createIdentity(fieldCount));
+    }
+    return result(limit.copy(newInput.getTraitSet(), ImmutableList.of(newInput)), inputMapping);
+  }
+
   /**
    * Variant of {@link #trimFields(RelNode, ImmutableBitSet, Set)} for {@link MultiJoin}.
    */
@@ -531,6 +561,31 @@ public class DremioFieldTrimmer extends RelFieldTrimmer {
         newPostJoinFilter);
 
     return result(newMultiJoin, mapping);
+  }
+
+  /**
+   * Variant of {@link #trimFields(RelNode, ImmutableBitSet, Set)} for
+   * {@link com.dremio.exec.planner.logical.JoinRel}.
+   * This sets ImmutableBitSet to JoinRel which indicates inputs used by its consumer
+   */
+  public TrimResult trimFields(
+    JoinRel join,
+    ImmutableBitSet fieldsUsed,
+    Set<RelDataTypeField> extraFields) {
+    TrimResult result = super.trimFields(join, fieldsUsed, extraFields);
+    Join rel = (Join) result.left;
+    Mapping mapping = result.right;
+    ImmutableBitSet projectedFields = ImmutableBitSet.of(fieldsUsed.asList().stream().map(mapping::getTarget).collect(Collectors.toList()));
+    RelNode newJoin = JoinRel.create(rel.getCluster(), rel.getTraitSet(), rel.getLeft(), rel.getRight(), rel.getCondition(), rel.getJoinType(), projectedFields);
+    final Mapping map = Mappings.create(MappingType.INVERSE_SURJECTION, join.getRowType().getFieldCount(), newJoin.getRowType().getFieldCount());
+    int j = 0;
+    for (int i = 0; i < join.getRowType().getFieldCount() ; i++) {
+      if (fieldsUsed.get(i)) {
+        map.set(i, j);
+        j++;
+      }
+    }
+    return result(newJoin, map);
   }
 
   public TrimResult trimFields(LogicalWindow window, ImmutableBitSet fieldsUsed, Set<RelDataTypeField> extraFields) {

@@ -49,6 +49,8 @@ public class UserSession {
   public static final String IMPERSONATION_TARGET = PropertySetter.IMPERSONATION_TARGET.toPropertyName();
   public static final String QUOTING = PropertySetter.QUOTING.toPropertyName();
   public static final String SUPPORTFULLYQUALIFIEDPROJECTS = PropertySetter.SUPPORTFULLYQUALIFIEDPROJECTS.toPropertyName();
+  public static final String ROUTING_TAG = PropertySetter.ROUTING_TAG.toPropertyName();
+  public static final String ROUTING_QUEUE = PropertySetter.ROUTING_QUEUE.toPropertyName();
 
   public static final RangeLongValidator MAX_METADATA_COUNT =
       new RangeLongValidator("client.max_metadata_count", 0, Integer.MAX_VALUE, 0);
@@ -112,7 +114,22 @@ public class UserSession {
       public void setValue(UserSession session, String value) {
         session.supportFullyQualifiedProjections = "true".equalsIgnoreCase(value);
       }
+    },
+
+    ROUTING_TAG {
+      @Override
+      public void setValue(UserSession session, String value) {
+        session.routingTag = value;
+      }
+    },
+
+    ROUTING_QUEUE {
+      @Override
+      public void setValue(UserSession session, String value) {
+        session.routingQueue = value;
+      }
     };
+
 
     /**
      * Set the corresponding
@@ -139,6 +156,8 @@ public class UserSession {
   private String impersonationTarget = null;
   private Quoting initialQuoting;
   private boolean supportFullyQualifiedProjections;
+  private String routingTag;
+  private String routingQueue;
   private RecordBatchFormat recordBatchFormat = RecordBatchFormat.DREMIO_1_4;
   private boolean exposeInternalSources = false;
   private SubstitutionSettings substitutionSettings = SubstitutionSettings.of();
@@ -252,6 +271,14 @@ public class UserSession {
 
   public OptionManager getOptions() {
     return sessionOptions;
+  }
+
+  public String getRoutingTag() {
+    return routingTag;
+  }
+
+  public String getRoutingQueue() {
+    return routingQueue;
   }
 
   public UserCredentials getCredentials() {

@@ -53,6 +53,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 
 /**
  * Manages the creation, deletion and retrieval of storage plugins.
@@ -68,6 +69,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
   private final CloseableThreadPool executor = new CloseableThreadPool("source-management");
   private final DatasetListingService datasetListing;
   private final ConcurrentHashMap<String, ManagedStoragePlugin> plugins = new ConcurrentHashMap<>();
+  private final Set<String> beingCreatedSources = Sets.newConcurrentHashSet();
   private final long startupWait;
   private final KVStore<NamespaceKey, SourceInternalData> sourceDataStore;
   private final CatalogServiceMonitor monitor;
@@ -89,11 +91,6 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     this.datasetListing = context.getDatasetListing();
     this.startupWait = DebugCheck.IS_DEBUG ? TimeUnit.DAYS.toMillis(365) : context.getOptionManager().getOption(CatalogOptions.STARTUP_WAIT_MAX);
     this.monitor = monitor;
-
-    // for coordinator, ensure catalog synchronization.
-    if(context.getRoles().contains(Role.COORDINATOR)) {
-      refresher = scheduler.schedule(Schedule.Builder.everyMillis(CatalogServiceImpl.CATALOG_SYNC).build(), Runnables.combo(new Refresher()));
-    }
   }
 
   ConnectionReader getReader() {
@@ -145,25 +142,34 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
       throw new SourceAlreadyExistsException();
     }
 
-    ManagedStoragePlugin plugin = newPlugin(config);
-    plugin.createSource(config, userName, attributes);
-
-    // use concurrency features of concurrent hash map to avoid locking.
-    ManagedStoragePlugin existing = plugins.putIfAbsent(c(config.getName()), plugin);
-
-    if (existing == null) {
-      return plugin;
+    if (!beingCreatedSources.add(config.getName())) {
+      // Someone else is adding the same source
+      throw new SourceAlreadyExistsException();
     }
 
-    final SourceAlreadyExistsException e = new SourceAlreadyExistsException();
     try {
-      // this happened in time with someone else.
-      plugin.close();
-    } catch (Exception ex) {
-      e.addSuppressed(ex);
-    }
+      ManagedStoragePlugin plugin = newPlugin(config);
+      plugin.createSource(config, userName, attributes);
 
-    throw e;
+      // use concurrency features of concurrent hash map to avoid locking.
+      ManagedStoragePlugin existing = plugins.putIfAbsent(c(config.getName()), plugin);
+
+      if (existing == null) {
+        return plugin;
+      }
+
+      final SourceAlreadyExistsException e = new SourceAlreadyExistsException();
+      try {
+        // this happened in time with someone else.
+        plugin.close();
+      } catch (Exception ex) {
+        e.addSuppressed(ex);
+      }
+
+      throw e;
+    } finally {
+      beingCreatedSources.remove(config.getName());
+    }
   }
 
   /**
@@ -217,6 +223,11 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
         sb.append(String.format("\t%s: pending.\n", name));
       }
 
+    }
+
+    // for coordinator, ensure catalog synchronization. Don't start this until the plugins manager is started.
+    if(context.getRoles().contains(Role.COORDINATOR)) {
+      refresher = scheduler.schedule(Schedule.Builder.everyMillis(CatalogServiceImpl.CATALOG_SYNC).build(), Runnables.combo(new Refresher()));
     }
 
     if(count > 0) {
@@ -319,6 +330,10 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
         return plugin;
       }
 
+      if (beingCreatedSources.contains(pluginConfig.getName())) {
+        throw new IllegalStateException(String.format("The source %s is still being created.", pluginConfig.getName()));
+      }
+
       plugin = newPlugin(pluginConfig);
       plugin.replacePluginWithLock(pluginConfig, createWaitMillis(), true);
 
@@ -397,6 +412,10 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     final Set<String> names = getSourceNameSet();
     for(SourceConfig config : systemNamespace.getSources()) {
       names.remove(config.getName());
+      if (beingCreatedSources.contains(config.getName())) {
+        // skip this source since it's still being created
+        continue;
+      }
       try {
         getSynchronized(config);
       } catch (Exception ex) {

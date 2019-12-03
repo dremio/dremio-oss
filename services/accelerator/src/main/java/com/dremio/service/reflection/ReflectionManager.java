@@ -102,6 +102,7 @@ import com.google.common.collect.Iterables;
  */
 public class ReflectionManager implements Runnable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ReflectionManager.class);
+  private static final long START_WAIT_MILLIS = 5*60*1000;
 
   /**
    * Callback that allows async handlers to wake up the manager once they are done.
@@ -825,7 +826,7 @@ public class ReflectionManager implements Runnable {
     // we should always update lastSubmittedRefresh to avoid an immediate refresh if we fail to start a refresh job
     entry.setLastSubmittedRefresh(jobSubmissionTime);
 
-    if (sabotContext.getExecutors().isEmpty()) {
+    if (sabotContext.getExecutors().isEmpty() && System.currentTimeMillis() - sabotContext.getEndpoint().getStartTime() < START_WAIT_MILLIS) {
       logger.warn("reflection {} was not refreshed because no executors were available", entry.getId().getId());
       reportFailure(entry, ACTIVE);
       return;

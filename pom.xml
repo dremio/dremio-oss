@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>4.0.5-201911202046080257-19b10938</version>
+  <version>4.1.0-201912030136020081-49feeb75</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -54,7 +54,7 @@
     <hadoop.version>3.2.0-dremio-201911062242240641-139525f</hadoop.version>
     <hsqldb.version>2.3.1</hsqldb.version>
     <jackson.version>2.9.9.20190807</jackson.version>
-    <jersey.version>2.25.1</jersey.version>
+    <jersey.version>2.29.1</jersey.version>
     <jetty.version>9.4.21.v20190926</jetty.version>
     <javax.ws.rs-api.version>2.0.1</javax.ws.rs-api.version>
     <junit.version>4.12</junit.version>
@@ -595,9 +595,11 @@ limitations under the License.
 
             <!-- by file name -->
             <exclude>**/Jenkinsfile</exclude>
+            <exclude>**/.cproject</exclude>
             <exclude>**/LICENSE</exclude>
             <exclude>**/NOTICE</exclude>
             <exclude>**/postinstall</exclude>
+            <exclude>**/.factorypath</exclude>
             <exclude>**/.babelrc</exclude>
             <exclude>**/.checkstyle</exclude>
             <exclude>**/.eslintcache</exclude>
@@ -620,6 +622,9 @@ limitations under the License.
           </excludes>
           <mapping>
             <java>SLASHSTAR_STYLE</java>
+            <cc>SLASHSTAR_STYLE</cc>
+            <h>SLASHSTAR_STYLE</h>
+            <map>SCRIPT_STYLE</map>
             <hql>DOUBLEDASHES_STYLE</hql>
             <jnk>DOUBLESLASH_STYLE</jnk>
             <stg>DOUBLESLASH_STYLE</stg>

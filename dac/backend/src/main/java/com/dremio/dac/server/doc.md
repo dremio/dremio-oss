@@ -4575,203 +4575,6 @@ any
 }
 ```
 
-## `class com.dremio.provision.ClusterCreateRequest`
-- Example:
-```
-{
-  clusterType: "YARN" | "MESOS" | "AWS" | "KUBERNETES" | "GCE" | "AZURE",
-  distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
-  dynamicConfig: {
-    containerCount: 1,
-  },
-  isSecure: true | false,
-  memoryMB: 1,
-  name: "abc",
-  queue: "abc",
-  subPropertyList: [
-    {
-      key: "abc",
-      type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-      value: "abc",
-    },
-    ...
-  ],
-  virtualCoreCount: 1,
-}
-```
-
-## `class com.dremio.provision.ClusterModifyRequest`
-- Example:
-```
-{
-  clusterType: "YARN" | "MESOS" | "AWS" | "KUBERNETES" | "GCE" | "AZURE",
-  desiredState: "DELETED" | "RUNNING" | "STOPPED",
-  distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
-  dynamicConfig: {
-    containerCount: 1,
-  },
-  id: "abc",
-  isSecure: true | false,
-  memoryMB: 1,
-  name: "abc",
-  queue: "abc",
-  subPropertyList: [
-    {
-      key: "abc",
-      type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-      value: "abc",
-    },
-    ...
-  ],
-  tag: "abc",
-  version: 1,
-  virtualCoreCount: 1,
-}
-```
-
-## `class com.dremio.provision.ClusterResponse`
-- Example:
-```
-{
-  clusterType: "YARN" | "MESOS" | "AWS" | "KUBERNETES" | "GCE" | "AZURE",
-  containers: {
-    decommissioningCount: 1,
-    disconnectedList: [
-      { /** Container **/
-        containerId: "abc",
-        containerPropertyList: [
-          { /** Property **/
-            key: "abc",
-            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-            value: "abc",
-          },
-          ...
-        ],
-      },
-      ...
-    ],
-    pendingCount: 1,
-    provisioningCount: 1,
-    runningList: [
-      { /** Container **/
-        containerId: "abc",
-        containerPropertyList: [
-          { /** Property **/
-            key: "abc",
-            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-            value: "abc",
-          },
-          ...
-        ],
-      },
-      ...
-    ],
-  },
-  currentState: "CREATED" | "STARTING" | "RUNNING" | "STOPPING" | "STOPPED" | "FAILED" | "DELETED",
-  desiredState: "DELETED" | "RUNNING" | "STOPPED",
-  detailedError: "abc",
-  distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
-  dynamicConfig: {
-    containerCount: 1,
-  },
-  error: "abc",
-  id: "abc",
-  isSecure: true | false,
-  memoryMB: 1,
-  name: "abc",
-  queue: "abc",
-  subPropertyList: [
-    { /** Property **/
-      key: "abc",
-      type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-      value: "abc",
-    },
-    ...
-  ],
-  tag: "abc",
-  version: 1,
-  virtualCoreCount: 1,
-}
-```
-
-## `class com.dremio.provision.ClusterResponses`
-- Example:
-```
-{
-  clusterList: [
-    {
-      clusterType: "YARN" | "MESOS" | "AWS" | "KUBERNETES" | "GCE" | "AZURE",
-      containers: {
-        decommissioningCount: 1,
-        disconnectedList: [
-          { /** Container **/
-            containerId: "abc",
-            containerPropertyList: [
-              { /** Property **/
-                key: "abc",
-                type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-                value: "abc",
-              },
-              ...
-            ],
-          },
-          ...
-        ],
-        pendingCount: 1,
-        provisioningCount: 1,
-        runningList: [
-          { /** Container **/
-            containerId: "abc",
-            containerPropertyList: [
-              { /** Property **/
-                key: "abc",
-                type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-                value: "abc",
-              },
-              ...
-            ],
-          },
-          ...
-        ],
-      },
-      currentState: "CREATED" | "STARTING" | "RUNNING" | "STOPPING" | "STOPPED" | "FAILED" | "DELETED",
-      desiredState: "DELETED" | "RUNNING" | "STOPPED",
-      detailedError: "abc",
-      distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
-      dynamicConfig: {
-        containerCount: 1,
-      },
-      error: "abc",
-      id: "abc",
-      isSecure: true | false,
-      memoryMB: 1,
-      name: "abc",
-      queue: "abc",
-      subPropertyList: [
-        { /** Property **/
-          key: "abc",
-          type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-          value: "abc",
-        },
-        ...
-      ],
-      tag: "abc",
-      version: 1,
-      virtualCoreCount: 1,
-    },
-    ...
-  ],
-}
-```
-
-## `class com.dremio.provision.ResizeClusterRequest`
-- Example:
-```
-{
-  containerCount: 1,
-}
-```
-
 ## `class com.dremio.service.namespace.dataset.proto.DatasetConfig`
 - Example:
 ```
@@ -5010,6 +4813,297 @@ any
     ...
   ],
   returnedRowCount: 1,
+}
+```
+
+## `interface com.dremio.provision.ClusterCreateRequest`
+- Example:
+```
+{
+  allowAutoStart: true | false,
+  allowAutoStop: true | false,
+  awsProps: {
+    amiId: "abc",
+    connectionProps: {
+      accessKey: "abc",
+      assumeRole: "abc",
+      authMode: "UNKNOWN" | "AUTO" | "SECRET",
+      endpoint: "abc",
+      region: "abc",
+      secretKey: "abc",
+      stsEndpoint: "abc",
+    },
+    extraConfProps: "abc",
+    instanceType: "abc",
+    nodeIamInstanceProfile: "abc",
+    securityGroupId: "abc",
+    sshKeyName: "abc",
+    subnetId: "abc",
+    useClusterPlacementGroup: true | false,
+    vpc: "abc",
+  },
+  clusterType: "YARN" | "MESOS" | "EC2" | "KUBERNETES" | "GCE" | "AZURE",
+  dynamicConfig: {
+    containerCount: 1,
+  },
+  name: "abc",
+  yarnProps: {
+    distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
+    memoryMB: 1,
+    queue: "abc",
+    secure: true | false,
+    subPropertyList: [
+      {
+        key: "abc",
+        type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+        value: "abc",
+      },
+      ...
+    ],
+    virtualCoreCount: 1,
+  },
+}
+```
+
+## `interface com.dremio.provision.ClusterModifyRequest`
+- Example:
+```
+{
+  allowAutoStart: true | false,
+  allowAutoStop: true | false,
+  awsProps: {
+    amiId: "abc",
+    connectionProps: {
+      accessKey: "abc",
+      assumeRole: "abc",
+      authMode: "UNKNOWN" | "AUTO" | "SECRET",
+      endpoint: "abc",
+      region: "abc",
+      secretKey: "abc",
+      stsEndpoint: "abc",
+    },
+    extraConfProps: "abc",
+    instanceType: "abc",
+    nodeIamInstanceProfile: "abc",
+    securityGroupId: "abc",
+    sshKeyName: "abc",
+    subnetId: "abc",
+    useClusterPlacementGroup: true | false,
+    vpc: "abc",
+  },
+  clusterType: "YARN" | "MESOS" | "EC2" | "KUBERNETES" | "GCE" | "AZURE",
+  desiredState: "DELETED" | "RUNNING" | "STOPPED",
+  dynamicConfig: {
+    containerCount: 1,
+  },
+  id: "abc",
+  name: "abc",
+  tag: "abc",
+  yarnProps: {
+    distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
+    memoryMB: 1,
+    queue: "abc",
+    secure: true | false,
+    subPropertyList: [
+      {
+        key: "abc",
+        type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+        value: "abc",
+      },
+      ...
+    ],
+    virtualCoreCount: 1,
+  },
+}
+```
+
+## `interface com.dremio.provision.ClusterResponse`
+- Example:
+```
+{
+  allowAutoStart: true | false,
+  allowAutoStop: true | false,
+  awsProps: {
+    amiId: "abc",
+    connectionProps: {
+      accessKey: "abc",
+      assumeRole: "abc",
+      authMode: "UNKNOWN" | "AUTO" | "SECRET",
+      endpoint: "abc",
+      region: "abc",
+      secretKey: "abc",
+      stsEndpoint: "abc",
+    },
+    extraConfProps: "abc",
+    instanceType: "abc",
+    nodeIamInstanceProfile: "abc",
+    securityGroupId: "abc",
+    sshKeyName: "abc",
+    subnetId: "abc",
+    useClusterPlacementGroup: true | false,
+    vpc: "abc",
+  },
+  clusterType: "YARN" | "MESOS" | "EC2" | "KUBERNETES" | "GCE" | "AZURE",
+  containers: {
+    decommissioningCount: 1,
+    disconnectedList: [
+      { /** Container **/
+        containerId: "abc",
+        containerPropertyList: [
+          { /** Property **/
+            key: "abc",
+            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+            value: "abc",
+          },
+          ...
+        ],
+      },
+      ...
+    ],
+    pendingCount: 1,
+    provisioningCount: 1,
+    runningList: [
+      { /** Container **/
+        containerId: "abc",
+        containerPropertyList: [
+          { /** Property **/
+            key: "abc",
+            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+            value: "abc",
+          },
+          ...
+        ],
+      },
+      ...
+    ],
+  },
+  currentState: "CREATED" | "STARTING" | "RUNNING" | "STOPPING" | "STOPPED" | "FAILED" | "DELETED",
+  desiredState: "DELETED" | "RUNNING" | "STOPPED",
+  detailedError: "abc",
+  dynamicConfig: {
+    containerCount: 1,
+  },
+  error: "abc",
+  id: "abc",
+  name: "abc",
+  tag: "abc",
+  yarnProps: {
+    distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
+    memoryMB: 1,
+    queue: "abc",
+    secure: true | false,
+    subPropertyList: [
+      { /** Property **/
+        key: "abc",
+        type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+        value: "abc",
+      },
+      ...
+    ],
+    virtualCoreCount: 1,
+  },
+}
+```
+
+## `interface com.dremio.provision.ClusterResponses`
+- Example:
+```
+{
+  clusterList: [
+    {
+      allowAutoStart: true | false,
+      allowAutoStop: true | false,
+      awsProps: {
+        amiId: "abc",
+        connectionProps: {
+          accessKey: "abc",
+          assumeRole: "abc",
+          authMode: "UNKNOWN" | "AUTO" | "SECRET",
+          endpoint: "abc",
+          region: "abc",
+          secretKey: "abc",
+          stsEndpoint: "abc",
+        },
+        extraConfProps: "abc",
+        instanceType: "abc",
+        nodeIamInstanceProfile: "abc",
+        securityGroupId: "abc",
+        sshKeyName: "abc",
+        subnetId: "abc",
+        useClusterPlacementGroup: true | false,
+        vpc: "abc",
+      },
+      clusterType: "YARN" | "MESOS" | "EC2" | "KUBERNETES" | "GCE" | "AZURE",
+      containers: {
+        decommissioningCount: 1,
+        disconnectedList: [
+          { /** Container **/
+            containerId: "abc",
+            containerPropertyList: [
+              { /** Property **/
+                key: "abc",
+                type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+                value: "abc",
+              },
+              ...
+            ],
+          },
+          ...
+        ],
+        pendingCount: 1,
+        provisioningCount: 1,
+        runningList: [
+          { /** Container **/
+            containerId: "abc",
+            containerPropertyList: [
+              { /** Property **/
+                key: "abc",
+                type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+                value: "abc",
+              },
+              ...
+            ],
+          },
+          ...
+        ],
+      },
+      currentState: "CREATED" | "STARTING" | "RUNNING" | "STOPPING" | "STOPPED" | "FAILED" | "DELETED",
+      desiredState: "DELETED" | "RUNNING" | "STOPPED",
+      detailedError: "abc",
+      dynamicConfig: {
+        containerCount: 1,
+      },
+      error: "abc",
+      id: "abc",
+      name: "abc",
+      tag: "abc",
+      yarnProps: {
+        distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
+        memoryMB: 1,
+        queue: "abc",
+        secure: true | false,
+        subPropertyList: [
+          { /** Property **/
+            key: "abc",
+            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+            value: "abc",
+          },
+          ...
+        ],
+        virtualCoreCount: 1,
+      },
+    },
+    ...
+  ],
+  clusterType: "YARN" | "MESOS" | "EC2" | "KUBERNETES" | "GCE" | "AZURE",
+}
+```
+
+## `interface com.dremio.provision.ResizeClusterRequest`
+- Example:
+```
+{
+  containerCount: 1,
 }
 ```
 

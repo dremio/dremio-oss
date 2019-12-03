@@ -46,11 +46,10 @@ import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.beans.NodeEndpoint;
-import com.dremio.exec.store.dfs.FileSystemWriter;
+import com.dremio.exec.store.parquet.ParquetWriter;
 import com.dremio.service.job.proto.JobFailureInfo;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobState;
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -66,6 +65,8 @@ import io.protostuff.ProtobufIOUtil;
  */
 public final class JobsServiceUtil {
   private static final Logger LOGGER = LoggerFactory.getLogger(JobsServiceUtil.class);
+
+  private static final String ACCELERATOR_STORAGEPLUGIN_NAME = "__accelerator";
 
   private JobsServiceUtil() {
   }
@@ -178,27 +179,28 @@ public final class JobsServiceUtil {
     // visit every single major fragment and check to see if there is a PDFSWriter
     // if so add address of every minor fragment as a data partition to builder.
     for (final Wrapper majorFragment : planningSet) {
-      majorFragment.getNode().getRoot().accept(new AbstractPhysicalVisitor<Object, Object, RuntimeException>() {
+      majorFragment.getNode().getRoot().accept(new AbstractPhysicalVisitor<Void, Void, RuntimeException>() {
         @Override
-        public Object visitOp(final PhysicalOperator op, final Object value) throws RuntimeException {
+        public Void visitOp(final PhysicalOperator op, Void value) throws RuntimeException {
           // override to prevent throwing exception, super class throws an exception
-          return visitChildren(op, value);
+          visitChildren(op, value);
+          return null;
         }
 
         @Override
-        public Object visitWriter(final Writer writer, final Object value) throws RuntimeException {
+        public Void visitWriter(final Writer writer, Void value) throws RuntimeException {
+          // we only want to get partitions for the lower writer, since this is the actual data
+          // there may be a second writer that writes the metadata "results", but we don't care about that one
+          super.visitWriter(writer, null);
           // TODO DX-5438: Remove PDFS specific code
-          if (writer instanceof FileSystemWriter && ((FileSystemWriter)writer).isPdfs()) {
+          if (writer instanceof ParquetWriter
+              && ACCELERATOR_STORAGEPLUGIN_NAME.equals(((ParquetWriter) writer).getPluginId().getName())
+              && ((ParquetWriter) writer).isPdfs()) {
             final List<String> addresses = Lists.transform(majorFragment.getAssignedEndpoints(),
-              new Function<CoordinationProtos.NodeEndpoint, String>() {
-                @Override
-                public String apply(final CoordinationProtos.NodeEndpoint endpoint) {
-                  return endpoint.getAddress();
-                }
-              });
+              CoordinationProtos.NodeEndpoint::getAddress);
             builder.addAll(addresses);
           }
-          return super.visitWriter(writer, value);
+          return null;
         }
       }, null);
     }

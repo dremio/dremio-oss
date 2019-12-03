@@ -29,6 +29,7 @@ import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.LogicalExpression;
@@ -47,11 +48,12 @@ import com.dremio.options.TypeValidators.DoubleValidator;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.options.TypeValidators.RangeDoubleValidator;
+import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
 import com.google.common.collect.Lists;
 
 @Options
-public class HashJoinPrel  extends JoinPrel {
+public class HashJoinPrel extends JoinPrel {
 
   public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.hashjoin.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);
   public static final LongValidator LIMIT = new PositiveLongValidator("planner.op.hashjoin.limit_bytes", Long.MAX_VALUE, DEFAULT_LIMIT);
@@ -62,20 +64,31 @@ public class HashJoinPrel  extends JoinPrel {
   private final boolean swapped;
 
   private HashJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-      JoinRelType joinType, boolean swapped) {
-    super(cluster, traits, left, right, condition, joinType);
+                       JoinRelType joinType, boolean swapped) {
+    super(cluster, traits, left, right, condition, joinType, JoinUtils.projectAll(left.getRowType().getFieldCount()+right.getRowType().getFieldCount()));
+    this.swapped = swapped;
+  }
+
+  private HashJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
+                       JoinRelType joinType, boolean swapped, ImmutableBitSet projectedFields) {
+    super(cluster, traits, left, right, condition, joinType, projectedFields);
     this.swapped = swapped;
   }
 
   public static HashJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-                                    JoinRelType joinType) {
+                                    JoinRelType joinType, ImmutableBitSet projectedFields) {
     final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
-    return new HashJoinPrel(cluster, adjustedTraits, left, right, condition, joinType, false);
+    return new HashJoinPrel(cluster, adjustedTraits, left, right, condition, joinType, false, projectedFields);
   }
 
   @Override
   public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
-    return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, this.swapped);
+    return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, this.swapped, getProjectedFields());
+  }
+
+  @Override
+  public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone, ImmutableBitSet projectedFields) {
+    return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, this.swapped, projectedFields);
   }
 
   @Override
@@ -214,7 +227,7 @@ public class HashJoinPrel  extends JoinPrel {
   }
 
   public HashJoinPrel swap() {
-    return new HashJoinPrel(getCluster(), traitSet, left, right, condition, joinType, !swapped);
+    return new HashJoinPrel(getCluster(), traitSet, left, right, condition, joinType, !swapped, getProjectedFields());
   }
 
   public boolean isSwapped() {

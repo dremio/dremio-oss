@@ -287,6 +287,7 @@
   "Queues.MaxConcurrentJobs": "Concurrency Limit",
   "Queues.MaxMemoryPerNode": "Queue Memory Limit per Node",
   "Queues.MaxQueryMemoryPerNode": "Job Memory Limit per Node",
+  "Queues.ClusterName": "Cluster Name",
   "Rules.UnnamedQueue": "Unnamed Rule",
   "Rules.Order": "Order",
   "Rules.Rule": "Rule",

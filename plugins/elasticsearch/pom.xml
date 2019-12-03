@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>4.0.5-201911202046080257-19b10938</version>
+    <version>4.1.0-201912030136020081-49feeb75</version>
   </parent>
 
   <artifactId>dremio-elasticsearch-plugin</artifactId>
@@ -171,6 +171,11 @@
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-proxy</artifactId>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish.jersey.inject</groupId>
+      <artifactId>jersey-hk2</artifactId>
+      <version>${jersey.version}</version>
     </dependency>
   </dependencies>
 

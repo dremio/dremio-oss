@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Component } from 'react';
+import { Component, Fragment } from 'react';
 
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
 
 import FormElement from 'components/Forms/FormElement';
 import HoverHelp from 'components/HoverHelp';
+import Art from '@app/components/Art';
 import SourceIcon from 'components/Icon/SourceIcon';
 
 import { sectionLabel, sectionBody, inlineHelp } from 'uiTheme/less/forms.less';
@@ -42,6 +43,27 @@ export default class FormSection extends Component {
     fields: PropTypes.object,
     sectionLevel: PropTypes.number,
     disabled: PropTypes.bool
+  };
+
+  state = {
+    collapsed: this.getCollapsetFromProps(this.props)
+  };
+
+  getCollapsetFromProps(props) {
+    const {sectionConfig} = props;
+    const sectionConfigJson = (sectionConfig) ? sectionConfig.getConfig() : {};
+    return sectionConfigJson && sectionConfigJson.collapsible && sectionConfigJson.collapsible.initCollapsed;
+  }
+
+  toggleCollapse = () => {
+    if (!this.getIsCollapsible()) return;
+
+    this.setState({collapsed: !this.state.collapsed});
+  };
+
+  getIsCollapsible = () => {
+    const {sectionConfig} = this.props;
+    return sectionConfig && sectionConfig.getConfig().collapsible;
   };
 
   renderElements(sectionConfig, fields) {
@@ -91,6 +113,18 @@ export default class FormSection extends Component {
     return this.renderElements(sectionConfig, fields);
   }
 
+  renderCollapser(sectionConfigJson) {
+    if (!sectionConfigJson.collapsible) return null;
+
+    const {collapsed} = this.state;
+    const iconType = collapsed ? 'TriangleRight.svg' : 'TriangleDown.svg';
+    const iconAlt = collapsed ? 'Expand Section' : 'Collapse Section';
+
+    return <div data-qa='section-toggle' style={styles.collapser}>
+      <Art src={iconType} alt={iconAlt} style={styles.iconStyle}/>
+    </div>;
+  }
+
   renderLink(linkConfig) {
     const label = linkConfig.label || 'Learn more ...';
     return (
@@ -110,40 +144,56 @@ export default class FormSection extends Component {
     const help = sectionConfigJson.help;
     const link = sectionConfigJson.link;
 
+    let sectionLabelStyle = (sectionConfigJson.collapsible) ? {cursor: 'pointer'} : null;
     // style overwrites for sub-section
-    const sectionLabelStyle = (sectionLevel) ? {fontSize: '14px'} : null;
+    sectionLabelStyle = (sectionLevel) ? {...sectionLabelStyle, fontSize: '14px'} : sectionLabelStyle;
     const sectionBodyStyle = (sectionLevel) ? {marginBottom: 15} : null;
 
     return (
       <div className={sectionBody} style={{...style, ...sectionBodyStyle}}>
         {sectionConfigJson.name &&
-          <div className={sectionLabel} style={sectionLabelStyle}>
+          <div className={sectionLabel} style={sectionLabelStyle} onClick={this.toggleCollapse}>
             {sectionConfigJson.name}
             {sectionConfigJson.tooltip &&
             <HoverHelp content={sectionConfigJson.tooltip} />
             }
+            {this.renderCollapser(sectionConfigJson)}
           </div>
         }
-        {help && help.position === 'top' &&
+        {!this.state.collapsed && <Fragment>
+          {help && help.position === 'top' &&
           <div className={inlineHelp}>{help.text}</div>
-        }
-        {link && link.position === 'top' && this.renderLink(link)}
-        {sectionConfig.getSections().map((subsection, index) => (
-          <FormSection
-            fields={fields}
-            key={index}
-            disabled={disabled}
-            sectionLevel={sectionLevel + 1}
-            sectionConfig={subsection}/>
-        ))
-        }
-        {this.renderIconAndElements(sectionConfig, fields)}
-        {help && help.position !== 'top' &&
+          }
+          {link && link.position === 'top' && this.renderLink(link)}
+          {sectionConfig.getSections().map((subsection, index) => (
+            <FormSection
+              fields={fields}
+              key={index}
+              disabled={disabled}
+              sectionLevel={sectionLevel + 1}
+              sectionConfig={subsection}/>
+          ))
+          }
+          {this.renderIconAndElements(sectionConfig, fields)}
+          {help && help.position !== 'top' &&
           <div className={inlineHelp}>{help.text}</div>
+          }
+          {link && link.position !== 'top' && this.renderLink(link)}
+        </Fragment>
         }
-        {link && link.position !== 'top' && this.renderLink(link)}
       </div>
     );
   }
 
 }
+
+const styles = {
+  iconStyle: {
+    width: 24,
+    height: 24
+  },
+  collapser: {
+    marginLeft: 10,
+    paddingTop: 5
+  }
+};

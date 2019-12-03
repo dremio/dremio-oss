@@ -46,7 +46,7 @@ message ClusterId {
 enum ClusterType {
   YARN = 1;
   MESOS = 2;
-  AWS = 3;
+  EC2 = 3;
   KUBERNETES = 4;
   GCE = 5;
   AZURE = 6;
@@ -72,17 +72,4 @@ message Property {
   required string key = 1;
   required string value = 2;
   optional PropertyType type = 3;
-}
-
-message Container {
-  optional string containerId = 1;
-  repeated Property containerProperty = 2;
-}
-
-message Containers {
-  repeated Container running = 1;
-  optional int32 decommissioningCount = 2;
-  optional int32 provisioningCount = 3;
-  optional int32 pendingCount = 4;
-  repeated Container disconnected = 5;
 }

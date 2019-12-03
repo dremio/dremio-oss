@@ -540,7 +540,11 @@ public class DACDaemonModule implements DACModule {
       registry.provider(FabricService.class),
       registry.getBindingCreator()));
 
+    final Provider<SabotContext> sabotContextProvider = registry.provider(SabotContext.class);
+    final Provider<OptionManager> optionsProvider = () -> sabotContextProvider.get().getOptionManager();
+
     if(isCoordinator) {
+
       final Provider<ClusterCoordinator> coordProvider = registry.provider(ClusterCoordinator.class);
       final NodeProvider executionNodeProvider = new NodeProvider() {
         @Override
@@ -553,7 +557,8 @@ public class DACDaemonModule implements DACModule {
           config,
           registry.provider(KVStoreProvider.class),
           executionNodeProvider,
-          bootstrap.getClasspathScan()
+          bootstrap.getClasspathScan(),
+          optionsProvider
           ));
 
       registry.bindSelf(new ServerHealthMonitor(registry.provider(MasterStatusListener.class)));
@@ -577,8 +582,8 @@ public class DACDaemonModule implements DACModule {
         ));
 
 
-    final Provider<SabotContext> sabotContextProvider = registry.provider(SabotContext.class);
-    final Provider<OptionManager> optionsProvider = () -> sabotContextProvider.get().getOptionManager();
+
+
 
     if(isCoordinator){
       registry.bind(SampleDataPopulatorService.class,

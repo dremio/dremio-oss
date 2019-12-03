@@ -26,3 +26,7 @@ export function getAllProvisions(state) {
     .sortBy((provision) => provision.get('name'))
     .sortBy((provision) => provision.get('clusterType'));
 }
+
+export function getAwsDefaults(state) {
+  return state.resources.entities.get('awsDefaults');
+}

@@ -28,6 +28,7 @@ import org.apache.calcite.rel.core.Join;
 import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.util.ImmutableBitSet;
 
 import com.dremio.common.logical.data.JoinCondition;
 import com.dremio.exec.physical.base.PhysicalOperator;
@@ -40,6 +41,7 @@ import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.LongValidator;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
+import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.sabot.op.join.JoinUtils.JoinCategory;
 import com.google.common.collect.Lists;
 
@@ -52,7 +54,13 @@ public class MergeJoinPrel  extends JoinPrel {
   /** Creates a MergeJoinPrel. */
   private MergeJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
       JoinRelType joinType) {
-    super(cluster, traits, left, right, condition, joinType);
+    super(cluster, traits, left, right, condition, joinType, JoinUtils.projectAll(left.getRowType().getFieldCount()+right.getRowType().getFieldCount()));
+  }
+
+  /** Creates a MergeJoinPrel. */
+  private MergeJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
+                        JoinRelType joinType, ImmutableBitSet projectedFields) {
+    super(cluster, traits, left, right, condition, joinType, projectedFields);
   }
 
   public static MergeJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
@@ -61,9 +69,20 @@ public class MergeJoinPrel  extends JoinPrel {
     return new MergeJoinPrel(cluster, adjustedTraits, left, right, condition, joinType);
   }
 
+  public static MergeJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
+                                     JoinRelType joinType, ImmutableBitSet projectedFields) {
+    final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
+    return new MergeJoinPrel(cluster, adjustedTraits, left, right, condition, joinType, projectedFields);
+  }
+
   @Override
   public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
-    return new MergeJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType);
+    return new MergeJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, getProjectedFields());
+  }
+
+  @Override
+  public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone, ImmutableBitSet projectedFields) {
+    return new MergeJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, projectedFields);
   }
 
   @Override
@@ -85,7 +104,7 @@ public class MergeJoinPrel  extends JoinPrel {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    final List<String> fields = getRowType().getFieldNames();
+    final List<String> fields = getInputRowType().getFieldNames();
     assert isUnique(fields);
 
     final int leftCount = left.getRowType().getFieldCount();

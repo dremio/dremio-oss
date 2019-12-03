@@ -33,6 +33,7 @@ public final class StackFinder {
 
   public static List<ElasticsearchPrel> getStack(RelNode rel){
     rel = rel.accept(new MoreRelOptUtil.SubsetRemover(false));
+    rel = rel.accept(new MoreRelOptUtil.VertexRemover());
     List<ElasticsearchPrel> stack = new ArrayList<>();
     outside: while(rel != null){
       if( !(rel instanceof ElasticsearchPrel) ){

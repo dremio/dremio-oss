@@ -157,7 +157,6 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "field_size_limit_test_orc")
         .baselineValues("hive.default", "parqschematest_table")
         .baselineValues("hive.default", "orc_strings")
-        .baselineValues("hive.default", "orc_strings_complex")
         .baselineValues("hive.default", "timestamptostring")
         .baselineValues("hive.default", "timestamptostring_orc")
         .baselineValues("hive.default", "timestamptostring_orc_ext")

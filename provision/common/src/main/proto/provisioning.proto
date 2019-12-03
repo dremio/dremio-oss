@@ -36,19 +36,17 @@ message ClusterConfig {
  optional DistroType distroType = 6 [default = OTHER];
  optional bool isSecure = 7 [default = false];
  optional string tag = 8;
+ optional AwsProps awsProps = 9;
+ optional bool allowAutoStart = 10 [default = false];
+ optional bool allowAutoStop = 11 [default = false];
 }
 
 message ClusterSpec {
  required int32 containerCount = 1;
- required int32 memoryMBOnHeap = 2;
- required int32 memoryMBOffHeap = 3;
- required int32 virtualCoreCount = 4;
+ optional int32 memoryMBOnHeap = 2;
+ optional int32 memoryMBOffHeap = 3;
+ optional int32 virtualCoreCount = 4;
  optional string queue = 5;
-}
-
-message ClusterEnriched {
- required Cluster cluster = 1;
- optional Containers runTimeInfo = 2;
 }
 
 message Cluster {
@@ -59,6 +57,36 @@ message Cluster {
  optional string detailedError = 5;
  optional ClusterState desiredState = 6;
  optional RunId runId = 7;
+ optional int64 startTime = 8;
 }
 
+message AwsProps {
 
+  enum AuthMode {
+    UNKNOWN = 0;
+    AUTO = 1;
+    SECRET = 2;
+  }
+
+  message AwsConnectionProps {
+    optional AuthMode authMode = 1;
+    optional string assumeRole = 2; // optional, role for the ec2 commands
+    optional string accessKey = 3;
+    optional string secretKey = 4;
+    optional string region = 5;
+    optional string endpoint = 6;
+    optional string sts_endpoint = 7;
+  }
+  
+  optional string vpc = 1;
+  optional string subnetId = 2;
+  optional string nodeIamInstanceProfile = 3; // role for the started ec2 instances, required
+  optional string amiId = 4; // optional, used to override the default ami
+  optional bool useClusterPlacementGroup = 5 [default = true];
+  optional string securityGroupId = 6;
+  optional string sshKeyName = 7;
+  optional string instanceType = 8;
+  optional AwsConnectionProps connectionProps = 9;
+  optional string extraConfProps = 10;
+
+}

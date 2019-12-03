@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ConcurrentModificationException;
 
+import com.dremio.common.DeferredException;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.homefiles.HomeFileConf;
 import com.dremio.dac.homefiles.HomeFileSystemStoragePlugin;
@@ -109,6 +110,7 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     final DremioConfig config = provider.lookup(DremioConfig.class);
     final CatalogService catalogService = provider.lookup(CatalogService.class);
     final NamespaceService ns = provider.lookup(SabotContext.class).getNamespaceService(SYSTEM_USERNAME);
+    final DeferredException deferred = new DeferredException();
 
     final Path supportPath = Paths.get(sabotContext.getOptionManager().getOption(TEMPORARY_SUPPORT_PATH));
     final Path logPath = Paths.get(System.getProperty(DREMIO_LOG_PATH_PROPERTY, "/var/log/dremio"));
@@ -128,46 +130,58 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     home.setName(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
     home.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
 
-    createOrUpdateSystemSource(catalogService, ns, home);
+    createSafe(catalogService, ns, home, deferred);
 
     final int maxCacheSpacePercent = config.hasPath(DremioConfig.DEBUG_DIST_MAX_CACHE_SPACE_PERCENT)?
       config.getInt(DremioConfig.DEBUG_DIST_MAX_CACHE_SPACE_PERCENT) : MAX_CACHE_SPACE_PERCENT;
 
     final boolean enableCachingForAcceleration = enable(config, DremioConfig.DEBUG_DIST_CACHING_ENABLED);
 
+
     final boolean enableAsyncForAcceleration = enable(config, DremioConfig.DEBUG_DIST_ASYNC_ENABLED);
-    createOrUpdateSystemSource(catalogService, ns,
+    createSafe(catalogService, ns,
         AccelerationStoragePluginConfig.create(accelerationPath, enableAsyncForAcceleration,
-            enableCachingForAcceleration, maxCacheSpacePercent));
+            enableCachingForAcceleration, maxCacheSpacePercent), deferred);
 
     final boolean enableAsyncForJobs = enable(config, DremioConfig.DEBUG_JOBS_ASYNC_ENABLED);
-    createOrUpdateSystemSource(catalogService, ns,
+    createSafe(catalogService, ns,
       InternalFileConf.create(DACDaemonModule.JOBS_STORAGEPLUGIN_NAME, resultsPath, SchemaMutability.SYSTEM_TABLE,
-        CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE, enableAsyncForJobs));
+        CatalogService.DEFAULT_METADATA_POLICY_WITH_AUTO_PROMOTE, enableAsyncForJobs), deferred);
 
     final boolean enableAsyncForScratch = enable(config, DremioConfig.DEBUG_SCRATCH_ASYNC_ENABLED);
-    createOrUpdateSystemSource(catalogService, ns,
+    createSafe(catalogService, ns,
       InternalFileConf.create(DACDaemonModule.SCRATCH_STORAGEPLUGIN_NAME, scratchPath, SchemaMutability.USER_TABLE,
-        CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE, enableAsyncForScratch));
+        CatalogService.NEVER_REFRESH_POLICY_WITH_AUTO_PROMOTE, enableAsyncForScratch), deferred);
 
     final boolean enableAsyncForDownload = enable(config, DremioConfig.DEBUG_DOWNLOAD_ASYNC_ENABLED);
-    createOrUpdateSystemSource(catalogService, ns,
+    createSafe(catalogService, ns,
       InternalFileConf.create(DATASET_DOWNLOAD_STORAGE_PLUGIN, downloadPath, SchemaMutability.USER_TABLE,
-        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForDownload));
+        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForDownload), deferred);
 
     final boolean enableAsyncForLogs = enable(config, DremioConfig.DEBUG_LOGS_ASYNC_ENABLED);
-    createOrUpdateSystemSource(catalogService, ns,
+    createSafe(catalogService, ns,
       InternalFileConf.create(LOGS_STORAGE_PLUGIN, logsPath, SchemaMutability.NONE,
-        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForLogs));
+        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForLogs), deferred);
 
     final boolean enableAsyncForSupport = enable(config, DremioConfig.DEBUG_SUPPORT_ASYNC_ENABLED);
-    createOrUpdateSystemSource(catalogService, ns,
+    createSafe(catalogService, ns,
       InternalFileConf.create(LOCAL_STORAGE_PLUGIN, supportURI, SchemaMutability.SYSTEM_TABLE,
-        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForSupport));
+        CatalogService.NEVER_REFRESH_POLICY, enableAsyncForSupport), deferred);
+
+    deferred.throwAndClear();
   }
 
   private static boolean enable(DremioConfig config, String path) {
     return !config.hasPath(path) || config.getBoolean(path);
+  }
+
+  private void createSafe(final CatalogService catalogService, final NamespaceService ns, final
+      SourceConfig config, DeferredException deferred) {
+    try {
+      createOrUpdateSystemSource(catalogService, ns, config);
+    } catch (Exception ex) {
+      deferred.addException(ex);
+    }
   }
 
   /**

@@ -29,6 +29,7 @@ import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.Fixtures.DataRow;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.op.join.nlj.NLJOperator;
+import com.google.common.collect.ImmutableSet;
 
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 import io.airlift.tpch.TpchGenerator;
@@ -68,7 +69,7 @@ public class TestNLJ extends BaseTestOperator {
         );
 
     validateDual(
-        new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, false),
+        new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, false, null, ImmutableSet.of(0), ImmutableSet.of(0)),
         NLJOperator.class,
         TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey"),
         TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_name"),
@@ -110,7 +111,7 @@ public class TestNLJ extends BaseTestOperator {
         );
 
     validateDual(
-        new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, false),
+        new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, false, null, ImmutableSet.of(0), ImmutableSet.of(0)),
         NLJOperator.class,
         TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey"),
         TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_name"),
@@ -149,9 +150,8 @@ public class TestNLJ extends BaseTestOperator {
       expectedData
     );
 
-
     validateDual(
-      new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, false),
+      new NestedLoopJoinPOP(PROPS, null, null, JoinRelType.INNER, null, false, null, ImmutableSet.of(0), ImmutableSet.of(0)),
       NLJOperator.class,
       t1.toGenerator(getTestAllocator()),
       t2.toGenerator(getTestAllocator()),

@@ -38,7 +38,8 @@ describe('AddProvisionModal', () => {
       createProvision: sinon.spy(),
       editProvision: sinon.spy(),
       hide: sinon.spy(),
-      showConfirmationDialog: sinon.spy()
+      showConfirmationDialog: sinon.spy(),
+      addNotification: sinon.spy()
     };
   });
 

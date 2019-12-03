@@ -66,6 +66,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.datastore.KVStore;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.options.OptionManager;
 import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterConfig;
 import com.dremio.provision.ClusterCreateRequest;
@@ -77,6 +78,7 @@ import com.dremio.provision.ClusterType;
 import com.dremio.provision.DistroType;
 import com.dremio.provision.DynamicConfig;
 import com.dremio.provision.Property;
+import com.dremio.provision.YarnPropsApi;
 import com.dremio.provision.resource.ProvisioningResource;
 import com.dremio.provision.service.ProvisioningHandlingException;
 import com.dremio.provision.service.ProvisioningService;
@@ -84,6 +86,7 @@ import com.dremio.provision.service.ProvisioningServiceImpl;
 import com.dremio.provision.service.ProvisioningStateListener;
 import com.dremio.provision.yarn.DacDaemonYarnApplication;
 import com.dremio.provision.yarn.YarnController;
+import com.dremio.service.DirectProvider;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.test.DremioTest;
 import com.dremio.test.TemporarySystemProperties;
@@ -109,7 +112,7 @@ public class TestYarnService {
     cluster.setState(ClusterState.CREATED);
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
-    clusterConfig.setClusterSpec(new ClusterSpec(2, 4096, 4096, 2));
+    clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
     List<Property> propertyList = new ArrayList<>();
     propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
     propertyList.add(new Property(RM_HOSTNAME, "resource-manager"));
@@ -154,7 +157,7 @@ public class TestYarnService {
     cluster.setState(ClusterState.CREATED);
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
-    clusterConfig.setClusterSpec(new ClusterSpec(2, 4096, 4096, 2));
+    clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
     clusterConfig.setIsSecure(false);
     clusterConfig.setDistroType(DistroType.MAPR);
     List<Property> propertyList = new ArrayList<>();
@@ -342,10 +345,11 @@ public class TestYarnService {
     @Test
   public void testMemoryLimit() throws Exception {
     Provider provider = Mockito.mock(Provider.class);
-    ProvisioningService service = new ProvisioningServiceImpl(DremioConfig.create(), provider, Mockito.mock(NodeProvider.class), null);
+    ProvisioningService service = new ProvisioningServiceImpl(DremioConfig.create(), provider, Mockito.mock(NodeProvider.class), null, null);
 
     ClusterConfig clusterConfig = new ClusterConfig();
-    clusterConfig.setClusterSpec(new ClusterSpec(2, 4096, 2048, 2));
+    clusterConfig.setClusterType(ClusterType.YARN);
+    clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(2048).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
 
     try {
       service.createCluster(clusterConfig);
@@ -368,7 +372,7 @@ public class TestYarnService {
       kvstore.start();
       registry.start();
       ProvisioningService service = new ProvisioningServiceImpl(DremioConfig.create(), registry.provider(KVStoreProvider.class), Mockito.mock(NodeProvider.class), DremioTest
-        .CLASSPATH_SCAN_RESULT);
+        .CLASSPATH_SCAN_RESULT, DirectProvider.<OptionManager>wrap(null));
       service.start();
       final ClusterConfig clusterConfig = new ClusterConfig();
       clusterConfig.setName("DremioDaemon");
@@ -408,20 +412,25 @@ public class TestYarnService {
           DremioConfig.create(),
           registry.provider(KVStoreProvider.class),
           Mockito.mock(NodeProvider.class),
-          DremioTest.CLASSPATH_SCAN_RESULT));
+          DremioTest.CLASSPATH_SCAN_RESULT,
+          DirectProvider.<OptionManager>wrap(null)));
       service.start();
       ProvisioningResource resource = new ProvisioningResource(service);
-      ClusterCreateRequest createRequest = new ClusterCreateRequest();
-      createRequest.setClusterType(ClusterType.YARN);
-      createRequest.setDynamicConfig(new DynamicConfig(2));
-      createRequest.setVirtualCoreCount(2);
-      createRequest.setMemoryMB(8192);
+
       List<Property> props = new ArrayList<>();
       props.add(new Property(ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY, "2048"));
       props.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
       props.add(new Property("yarn.resourcemanager.hostname", "resource-manager"));
 
-      createRequest.setSubPropertyList(props);
+      ClusterCreateRequest createRequest = ClusterCreateRequest.builder()
+          .setClusterType(ClusterType.YARN)
+          .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+          .setYarnProps(YarnPropsApi.builder()
+              .setVirtualCoreCount(2)
+              .setMemoryMB(8192)
+              .setSubPropertyList(props)
+              .build())
+          .build();
       doReturn(new ClusterEnriched()).when(service).startCluster(any(ClusterId.class));
       try {
         resource.createCluster(createRequest);
@@ -734,10 +743,10 @@ public class TestYarnService {
     cluster.setRunId(new com.dremio.provision.RunId(runId.toString()));
     YarnConfiguration yarnConfig = new YarnConfiguration();
 
-    List<ClusterSpec> specs = Lists.asList(new ClusterSpec(2, 4096, 96000, 2),
-      new ClusterSpec[] {new ClusterSpec(2, 1234, 96023, 2),
-      new ClusterSpec(2, 4096, 8192, 2),
-      new ClusterSpec(2, 8192, 72000, 2)});
+    List<ClusterSpec> specs = Lists.asList(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(96000).setMemoryMBOnHeap(4096).setVirtualCoreCount(2),
+      new ClusterSpec[] {new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(96023).setMemoryMBOnHeap(1234).setVirtualCoreCount(2),
+      new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(8192).setMemoryMBOnHeap(4096).setVirtualCoreCount(2),
+      new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(72000).setMemoryMBOnHeap(8192).setVirtualCoreCount(2)});
 
     for (ClusterSpec spec : specs) {
       clusterConfig.setClusterSpec(spec);
@@ -768,7 +777,7 @@ public class TestYarnService {
     cluster.setState(ClusterState.CREATED);
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
-    clusterConfig.setClusterSpec(new ClusterSpec(2, 4096, 4096, 2));
+    clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
     List<Property> propertyList = new ArrayList<>();
     propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
     propertyList.add(new Property(RM_HOSTNAME, "resource-manager"));
@@ -800,7 +809,7 @@ public class TestYarnService {
     ClusterEnriched clusterEnriched = yarnService.getClusterInfo(cluster);
 
     assertNotNull(clusterEnriched.getRunTimeInfo());
-    assertEquals(8, clusterEnriched.getRunTimeInfo().getDecommissioningCount().intValue());
+    assertEquals(8, clusterEnriched.getRunTimeInfo().getDecommissioningCount());
   }
 
   @Test
@@ -817,7 +826,7 @@ public class TestYarnService {
     cluster.setState(ClusterState.CREATED);
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
-    clusterConfig.setClusterSpec(new ClusterSpec(2, 4096, 4096, 2));
+    clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
     List<Property> propertyList = new ArrayList<>();
     clusterConfig.setSubPropertyList(propertyList);
     RunId runId = RunIds.generate();
@@ -871,7 +880,7 @@ public class TestYarnService {
     cluster.setState(ClusterState.CREATED);
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
-    clusterConfig.setClusterSpec(new ClusterSpec(2, 4096, 4096, 2));
+    clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
     List<Property> propertyList = new ArrayList<>();
     propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));
     propertyList.add(new Property(RM_HOSTNAME, "resource-manager"));

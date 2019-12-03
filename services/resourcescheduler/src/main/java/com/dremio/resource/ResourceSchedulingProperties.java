@@ -25,8 +25,8 @@ public class ResourceSchedulingProperties {
   private Double queryCost;
   private String clientType;
   private String queryType;
-  private String queueName;
-  private String tag;
+  private String routingQueue;
+  private String routingTag;
 
   public ResourceSchedulingProperties() {
 
@@ -77,21 +77,21 @@ public class ResourceSchedulingProperties {
     return this;
   }
 
-  public String getQueueName() {
-    return queueName;
+  public String getRoutingQueue() {
+    return routingQueue;
   }
 
-  public ResourceSchedulingProperties setQueueName(String queueName) {
-    this.queueName = queueName;
+  public ResourceSchedulingProperties setRoutingQueue(String queueName) {
+    this.routingQueue = queueName;
     return this;
   }
 
-  public String getTag() {
-    return tag;
+  public String getRoutingTag() {
+    return routingTag;
   }
 
-  public ResourceSchedulingProperties setTag(String tag) {
-    this.tag = tag;
+  public ResourceSchedulingProperties setRoutingTag(String tag) {
+    this.routingTag = tag;
     return this;
   }
 }

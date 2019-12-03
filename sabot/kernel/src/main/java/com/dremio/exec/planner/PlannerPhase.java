@@ -108,6 +108,7 @@ import com.dremio.exec.planner.logical.ValuesRule;
 import com.dremio.exec.planner.logical.WindowRule;
 import com.dremio.exec.planner.physical.EmptyPrule;
 import com.dremio.exec.planner.physical.FilterNLJMergeRule;
+import com.dremio.exec.planner.physical.FilterProjectNLJRule;
 import com.dremio.exec.planner.physical.FilterPrule;
 import com.dremio.exec.planner.physical.FlattenPrule;
 import com.dremio.exec.planner.physical.HashAggPrule;
@@ -117,12 +118,14 @@ import com.dremio.exec.planner.physical.LimitUnionExchangeTransposeRule;
 import com.dremio.exec.planner.physical.MergeJoinPrule;
 import com.dremio.exec.planner.physical.NestedLoopJoinPrule;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.planner.physical.ProjectNLJMergeRule;
 import com.dremio.exec.planner.physical.ProjectPrule;
 import com.dremio.exec.planner.physical.PushLimitToPruneableScan;
 import com.dremio.exec.planner.physical.PushLimitToTopN;
 import com.dremio.exec.planner.physical.SamplePrule;
 import com.dremio.exec.planner.physical.SampleToLimitPrule;
 import com.dremio.exec.planner.physical.ScreenPrule;
+import com.dremio.exec.planner.physical.SimplifyNLJConditionRule;
 import com.dremio.exec.planner.physical.SortConvertPrule;
 import com.dremio.exec.planner.physical.SortPrule;
 import com.dremio.exec.planner.physical.StreamAggPrule;
@@ -355,6 +358,22 @@ public enum PlannerPhase {
     public RuleSet getRules(OptimizerRulesContext context) {
       return PlannerPhase.getPhysicalRules(context);
     }
+  },
+
+  PHYSICAL_HEP("Physical Heuristic Planning") {
+    @Override
+    public RuleSet getRules(OptimizerRulesContext context) {
+      ImmutableList.Builder<RelOptRule> builder = ImmutableList.builder();
+      builder.add(FilterProjectNLJRule.INSTANCE);
+      builder.add(FilterNLJMergeRule.INSTANCE);
+      if (context.getPlannerSettings().options.getOption(PlannerSettings.ENABlE_PROJCT_NLJ_MERGE)) {
+        builder.add(ProjectNLJMergeRule.INSTANCE);
+      }
+      if (context.getPlannerSettings().options.getOption(PlannerSettings.NLJ_PUSHDOWN)) {
+        builder.add(SimplifyNLJConditionRule.INSTANCE);
+      }
+      return RuleSets.ofList(builder.build());
+    }
   };
 
   private static final Logger logger = LoggerFactory.getLogger(PlannerPhase.class);
@@ -578,6 +597,9 @@ public enum PlannerPhase {
     final ImmutableList.Builder<RelOptRule> userConfigurableRules = ImmutableList.builder();
 
     userConfigurableRules.add(ConvertCountDistinctToHll.INSTANCE);
+    if (ps.options.getOption(PlannerSettings.REDUCE_ALGEBRAIC_EXPRESSIONS)) {
+      userConfigurableRules.add(ReduceTrigFunctionsRule.INSTANCE);
+    }
 
     if (ps.isConstantFoldingEnabled()) {
       // TODO - DRILL-2218, DX-2319
@@ -663,7 +685,6 @@ public enum PlannerPhase {
     final List<RelOptRule> ruleList = new ArrayList<>();
     final PlannerSettings ps = optimizerRulesContext.getPlannerSettings();
 
-    ruleList.add(FilterNLJMergeRule.INSTANCE);
     ruleList.add(SortConvertPrule.INSTANCE);
     ruleList.add(SortPrule.INSTANCE);
     ruleList.add(ProjectPrule.INSTANCE);

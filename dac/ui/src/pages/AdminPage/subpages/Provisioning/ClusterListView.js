@@ -25,13 +25,14 @@ export default class ClusterListView extends Component {
     removeProvision: PropTypes.func,
     editProvision: PropTypes.func,
     changeProvisionState: PropTypes.func
-  }
+  };
 
   static defaultProps = {
     provisions: Immutable.List()
-  }
+  };
 
   render() {
+    // provisions are sorted in selectors/provision
     return (
       <div>
         {this.props.provisions.map((item, i) =>

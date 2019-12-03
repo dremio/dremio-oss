@@ -120,6 +120,12 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
 
 <#-- Push down the filter in Hive ORC SerDe reader -->
 <#if entry.hiveReader == "Orc">
+    if (filter != null && filter instanceof HiveProxyingOrcScanFilter) {
+      final HiveProxyingOrcScanFilter scanFilter = (HiveProxyingOrcScanFilter) filter;
+      jobConf.set(ColumnProjectionUtils.READ_COLUMN_NAMES_CONF_STR, jobConf.get(serdeConstants.LIST_COLUMNS));
+      jobConf.set(ConvertAstToSearchArg.SARG_PUSHDOWN, scanFilter.getProxiedOrcScanFilter().getKryoBase64EncodedFilter());
+    }
+
     /*
      * There are three cases possible if acid table gets updated
      * and dremio metadata for file paths becomes invalid as hive
@@ -158,12 +164,6 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
     AcidUtils.setTransactionalTableRaiseErrorIfDeltaFileNotFound(jobConf, true);
     final Reader.Options options = new Reader.Options();
     if ( !((OrcInputFormat)jobConf.getInputFormat()).isAcidRead(jobConf, inputSplit) ) {
-      if (filter != null && filter instanceof HiveProxyingOrcScanFilter) {
-        final HiveProxyingOrcScanFilter scanFilter = (HiveProxyingOrcScanFilter) filter;
-        jobConf.set(ColumnProjectionUtils.READ_COLUMN_NAMES_CONF_STR, jobConf.get(serdeConstants.LIST_COLUMNS));
-        jobConf.set(ConvertAstToSearchArg.SARG_PUSHDOWN, scanFilter.getProxiedOrcScanFilter().getKryoBase64EncodedFilter());
-      }
-
       final OrcFile.ReaderOptions opts = OrcFile.readerOptions(jobConf);
 
       final OrcSplit fSplit = (OrcSplit)inputSplit;

@@ -26,6 +26,7 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.locks.InterProcessSemaphoreV2;
 import org.apache.curator.framework.recipes.locks.Lease;
 import org.apache.curator.utils.ZKPaths;
+import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.EventType;
@@ -49,9 +50,14 @@ class ZkDistributedSemaphore implements DistributedSemaphore {
     this.client = client;
   }
 
-  private void setWatcher() throws Exception {
+  private boolean setWatcher() throws Exception {
     if(client.checkExists().forPath(path) != null) {
       client.getChildren().usingWatcher((Watcher) t -> onEvent(t)).forPath(path);
+      logger.debug("watcher set for path: {}", path);
+      return true;
+    } else {
+      logger.debug("path {} not found", path);
+      return false;
     }
   }
 
@@ -77,7 +83,13 @@ class ZkDistributedSemaphore implements DistributedSemaphore {
     try {
       return !semaphore.getParticipantNodes().isEmpty();
     } catch (Exception e) {
-      return true;
+      if (e instanceof KeeperException.NoNodeException) {
+        logger.debug("No node exception.", e);
+        return false;
+      } else {
+        logger.warn("exception when semaphore trying to get participant nodes.", e);
+        return true;
+      }
     }
   }
 
@@ -92,25 +104,27 @@ class ZkDistributedSemaphore implements DistributedSemaphore {
   }
 
   @Override
-  public void registerUpdateListener(UpdateListener listener) {
+  public boolean registerUpdateListener(UpdateListener listener) {
 
     // if this is the first add, add it here.
+    boolean set = true;
     synchronized (this) {
       if(listeners.isEmpty()) {
         try {
-          setWatcher();
+          set = setWatcher();
         } catch (Exception e) {
-
+          logger.warn("Exception occurred while registering listener", e);
         }
       }
     }
     listeners.put(() -> {
       try {
-      listener.updated();
+        listener.updated();
       } catch (Exception e) {
         logger.warn("Exception occurred while notifying listener.", e);
       }
     }, null);
+    return set;
   }
 
   private class LeasesHolder implements DistributedLease {

@@ -22,6 +22,7 @@ import java.io.OutputStream;
 import java.util.List;
 import java.util.Set;
 
+import com.dremio.common.SentinelSecure;
 import com.dremio.common.logical.FormatPluginConfigBase;
 import com.dremio.common.logical.StoragePluginConfigBase;
 import com.dremio.common.logical.data.LogicalOperatorBase;
@@ -36,6 +37,7 @@ import com.dremio.dac.model.common.Acceptor;
 import com.dremio.dac.proto.model.dataset.Order;
 import com.dremio.dac.proto.model.dataset.TransformConvertCase;
 import com.dremio.dac.proto.model.dataset.TransformSorts;
+import com.dremio.dac.server.SentinelSecureFilter;
 import com.dremio.dac.server.socket.SocketMessage;
 import com.dremio.datastore.Converter;
 import com.dremio.exec.catalog.ConnectionReader;
@@ -58,6 +60,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 
 /**
  * turn stuff into pretty JSON
@@ -90,12 +93,13 @@ public class JSONUtil {
     }
   }
 
-  private static final ObjectMapper prettyMapper = new ObjectMapper(new PrettyPrintMappingJsonFactory());
-  private static final ObjectMapper mapper = new ObjectMapper();
+  private static final ObjectMapper PRETTY_MAPPER = new ObjectMapper(new PrettyPrintMappingJsonFactory());
+  private static final ObjectMapper INLINE_MAPPER = new ObjectMapper();
 
   static {
-    for (ObjectMapper m : asList(mapper, prettyMapper)) {
+    for (ObjectMapper m : asList(INLINE_MAPPER, PRETTY_MAPPER)) {
       // omit fields when they are null
+      m.setFilterProvider(new SimpleFilterProvider().addFilter(SentinelSecure.FILTER_NAME, SentinelSecureFilter.SECURE));
       m.setSerializationInclusion(Include.NON_NULL);
       m.registerSubtypes(SocketMessage.getImplClasses());
       m.registerModule(new SimpleModule().addAbstractTypeMapping(User.class, SimpleUser.class));
@@ -147,11 +151,11 @@ public class JSONUtil {
   }
 
   public static ObjectMapper prettyMapper() {
-    return prettyMapper.copy();
+    return PRETTY_MAPPER.copy();
   }
 
   public static ObjectMapper mapper() {
-    return mapper.copy();
+    return INLINE_MAPPER.copy();
   }
 
   public static ObjectMapper registerStorageTypes(ObjectMapper mapper, ScanResult scanResult, ConnectionReader connectionReader) {
@@ -168,7 +172,7 @@ public class JSONUtil {
     }
   }
 
-  private static final ObjectWriter writer = prettyMapper.writerWithDefaultPrettyPrinter();
+  private static final ObjectWriter writer = PRETTY_MAPPER.writerWithDefaultPrettyPrinter();
 
   public static String toString(Object o) {
     try {

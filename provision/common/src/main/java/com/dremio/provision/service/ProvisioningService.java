@@ -127,11 +127,11 @@ public interface ProvisioningService extends Service {
   Iterable<ClusterEnriched> getClusterInfoByTypeByState(ClusterType type, ClusterState state) throws ProvisioningHandlingException;
 
   /**
-   * Given a name, start the cluster(s) if they can be started.
+   * Given a name, start the cluster(s) if they can be autostarted.
    * @param name The name of the cluster.
    * @return A future that notifies when the cluster is up or throws ActionDisallowed, NoClusterException as appropriate.
    */
-  CompletableFuture<Void> startCluster(String name);
+  CompletableFuture<Void> autostartCluster(String name);
 
   /**
    * Stop the collection of clusterIds if possible. No exceptions are thrown if the stop is disallowed.

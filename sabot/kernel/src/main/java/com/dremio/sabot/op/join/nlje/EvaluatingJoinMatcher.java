@@ -15,22 +15,20 @@
  */
 package com.dremio.sabot.op.join.nlje;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.Preconditions;
-import org.apache.arrow.vector.BitVectorHelper;
-import org.apache.arrow.vector.ValueVector;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.record.VectorAccessible;
-import com.dremio.exec.record.VectorWrapper;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 
@@ -44,42 +42,35 @@ class EvaluatingJoinMatcher implements AutoCloseable, JoinMatcher {
   private enum State {INIT, JOINING, NON_MATCHES, BATCH_COMPLETE}
 
   private final OperatorContext context;
-  // defines how many matches we do at once.
-  private final int probeBatchSize;
-  private final int buildBatchCount;
-  private final int[] buildRecordsPerBatch;
   private final ImmutableList<FieldBufferCopier> buildCopiers;
   private final ImmutableList<FieldBufferCopier> probeCopiers;
 
-  private MatchState matchState = new MatchState(0,0,0,0,0);
+  private DualRange inputRange;
+  private VectorRange outputRange;
   private State state = State.INIT;
   private MatchGenerator matchGenerator;
   private final BufferAllocator allocator;
-  private final int targetGenerateAtOnce;
   private final VectorAccessible probe;
   private final JoinRelType joinType;
   private long totalProbedCount;
+  private final int targetGenerateAtOnce;
   private final Stopwatch matchWatch = Stopwatch.createUnstarted();
   private final Stopwatch copyWatch = Stopwatch.createUnstarted();
 
-  public EvaluatingJoinMatcher(OperatorContext context, VectorAccessible probe, VectorAccessible build, final int targetGenerateAtOnce,
-      ImmutableList<FieldBufferCopier> probeCopiers, ImmutableList<FieldBufferCopier> buildCopiers, JoinRelType joinType) {
+  public EvaluatingJoinMatcher(
+      OperatorContext context,
+      VectorAccessible probe,
+      VectorAccessible build,
+      int targetGenerateAtOnce,
+      DualRange initialMatchState,
+      ImmutableList<FieldBufferCopier> probeCopiers,
+      ImmutableList<FieldBufferCopier> buildCopiers, JoinRelType joinType) {
+    this.inputRange = initialMatchState;
     this.context = context;
-    VectorWrapper<?> wrapper = build.iterator().next();
-    ValueVector[] vectors = wrapper.getValueVectors();
-    int[] counts = new int[vectors.length];
-    int maxBuildCount = 0;
-    for(int i = 0; i < vectors.length; i++) {
-      counts[i] = vectors[i].getValueCount();
-      maxBuildCount = Math.max(maxBuildCount, counts[i]);
-    }
     this.joinType = joinType;
     this.probe = probe;
     this.targetGenerateAtOnce = targetGenerateAtOnce;
     this.allocator = context.getAllocator();
-    this.probeBatchSize = (int) (1.0d * targetGenerateAtOnce)/maxBuildCount;
-    this.buildRecordsPerBatch = counts;
-    this.buildBatchCount = counts.length;
     this.buildCopiers = buildCopiers;
     this.probeCopiers = probeCopiers;
   }
@@ -95,11 +86,13 @@ class EvaluatingJoinMatcher implements AutoCloseable, JoinMatcher {
   }
 
   private int outputJoin() {
-    final int count = matchState.getOutputEnd() - matchState.getOutputStart();
+    Preconditions.checkArgument(state == State.JOINING);
+    final IntRange range = outputRange.getCurrentOutputRange();
+    final int count = outputRange.getCurrentOutputCount();
 
     copyWatch.start();
     {
-      final long probe = matchGenerator.getProbeOutputAddress() + matchState.getOutputStart() * MatchGenerator.PROBE_OUTPUT_SIZE;
+      final long probe = outputRange.getProbeOffsets2() + range.start * VectorRange.PROBE_OUTPUT_SIZE;
       for(FieldBufferCopier fb : probeCopiers) {
         fb.allocate(count);
         fb.copy(probe, count);
@@ -107,7 +100,7 @@ class EvaluatingJoinMatcher implements AutoCloseable, JoinMatcher {
     }
 
     {
-      final long build = matchGenerator.getBuildOutputAddress() + matchState.getOutputStart() * MatchGenerator.BUILD_OUTPUT_SIZE;
+      final long build = outputRange.getBuildOffsets4() + range.start * VectorRange.BUILD_OUTPUT_SIZE;
       for(FieldBufferCopier fb : buildCopiers) {
         fb.allocate(count);
         fb.copy(build, count);
@@ -116,26 +109,26 @@ class EvaluatingJoinMatcher implements AutoCloseable, JoinMatcher {
 
     copyWatch.stop();
 
-    int probeStart = matchState.probeStart;
-    int buildBatch = matchState.buildBatchIndex;
-    matchState = matchState.nextOutput();
+    // now set things up for next time.
+    outputRange = outputRange.nextOutput();
+    if(outputRange.isEmpty()) {
+      // we don't have any records for current match review.
+      inputRange = inputRange.nextOutput();
+      if(inputRange.isEmpty()) {
+        // we depleted all of the data in this batch for matches. Either finish batch or output non matches.
+        if(joinType == JoinRelType.INNER) {
+          state = State.BATCH_COMPLETE;
+        } else {
+          state = State.NON_MATCHES;
+        }
+        return count;
+      }
 
-    if(buildBatch != matchState.buildBatchIndex || probeStart != matchState.probeStart) {
       matchWatch.start();
-      matchState = matchGenerator.tryMatch(matchState, buildRecordsPerBatch[matchState.buildBatchIndex]);
+      outputRange = matchGenerator.tryMatch(inputRange, outputRange);
       matchWatch.stop();
     }
 
-    if (!matchState.depleted()) {
-      return count;
-    }
-
-    // we finished all of the data for probe matches, now output probe non-matches.
-    if(joinType == JoinRelType.INNER) {
-      state = State.BATCH_COMPLETE;
-    } else {
-      state = State.NON_MATCHES;
-    }
     return count;
   }
 
@@ -144,15 +137,14 @@ class EvaluatingJoinMatcher implements AutoCloseable, JoinMatcher {
    * @return
    */
   private int outputNonMatches() {
-    Preconditions.checkState(state == State.NON_MATCHES);
-    final ArrowBuf probeMatchVector = matchGenerator.getProbeMatchVector();
-    int nonMatchCount = BitVectorHelper.getNullCount(probeMatchVector, probe.getRecordCount());
-    try (ArrowBuf offsetCopier = allocator.buffer(nonMatchCount * MatchGenerator.PROBE_OUTPUT_SIZE)) {
+    Preconditions.checkState(state == State.NON_MATCHES, "Expected state NON_MATCHES, got %s.", state);
+    final MatchedVector probeMatchVector = matchGenerator.getProbeMatchVector();
+    try (ArrowBuf offsetCopier = allocator.buffer(probeMatchVector.count() * VectorRange.PROBE_OUTPUT_SIZE)) {
       int output = 0;
       final int end = probe.getRecordCount();
       for (int i = 0; i < end; i++) {
-        if (BitVectorHelper.get(probeMatchVector, i) == 0) {
-          offsetCopier.setShort(output * MatchGenerator.PROBE_OUTPUT_SIZE, i);
+        if (probeMatchVector.isSet(i)) {
+          offsetCopier.setShort(output * VectorRange.PROBE_OUTPUT_SIZE, i);
           output++;
         }
       }
@@ -180,23 +172,39 @@ class EvaluatingJoinMatcher implements AutoCloseable, JoinMatcher {
   @Override
   public void setup(LogicalExpression expr, ClassProducer classProducer, VectorAccessible probe, VectorAccessible build) throws Exception {
     Preconditions.checkState(state == State.INIT);
+
     matchGenerator = MatchGenerator.generate(expr, classProducer, probe, build);
-    matchGenerator.setup(allocator, context.getFunctionContext(), probe, build, targetGenerateAtOnce, joinType != JoinRelType.INNER);
+
+    try(RollbackCloseable rbc = new RollbackCloseable()) {
+      final boolean maintainMatches = joinType != JoinRelType.INNER;
+      final Optional<MatchedVector> matched;
+      if(maintainMatches) {
+        matched = Optional.of(rbc.add(new MatchedVector(allocator)));
+      } else {
+        matched = Optional.empty();
+      }
+      outputRange = rbc.add(new VectorRange(targetGenerateAtOnce, context.getTargetBatchSize()));
+      outputRange.allocate(allocator);
+      matchGenerator.setup(matched, context.getFunctionContext(), probe, build, targetGenerateAtOnce);
+      rbc.commit();
+    }
+
   }
 
   @Override
   public void startNextProbe(int records) {
     Preconditions.checkState(state == State.BATCH_COMPLETE || state == State.INIT);
-    matchGenerator.clearProbeValidity();
+    matchGenerator.clearProbeValidity(records);
     matchWatch.start();
-    matchState = matchGenerator.tryMatch(matchState.reset(records), buildRecordsPerBatch[matchState.buildBatchIndex]);
+    inputRange = inputRange.startNextProbe(records).nextOutput();
+    outputRange = matchGenerator.tryMatch(inputRange, outputRange).nextOutput();
     matchWatch.stop();
     state = State.JOINING;
   }
 
   @Override
   public boolean needNextInput() {
-    return matchState.depleted() && state == State.BATCH_COMPLETE;
+    return !outputRange.hasNext() && state == State.BATCH_COMPLETE;
   }
 
   @Override
@@ -206,92 +214,7 @@ class EvaluatingJoinMatcher implements AutoCloseable, JoinMatcher {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(matchGenerator);
-  }
-
-  /**
-   * Encapsulates the state of output for a particular probe batch.
-   */
-  public class MatchState {
-    private final int probeStart;
-    private final int probeCount;
-    private final int outputStart;
-    private final int outputCount;
-    private final int buildBatchIndex;
-
-    private MatchState(int probeStart, int probeCount, int outputStart, int outputCount, int buildBatchIndex) {
-      super();
-      this.probeStart = probeStart;
-      this.probeCount = probeCount;
-      this.outputStart = outputStart;
-      this.outputCount = outputCount;
-      this.buildBatchIndex = buildBatchIndex;
-      // System.out.print(this);
-    }
-
-    public boolean depleted() {
-      return probeStart == probeCount && outputStart == outputCount;
-    }
-
-    public MatchState nextOutput() {
-      if(getOutputEnd() < outputCount) {
-        // next output
-        return new MatchState(probeStart, probeCount, getOutputEnd(), outputCount, buildBatchIndex);
-      }
-
-      if(getProbeEnd() < probeCount) {
-        // next probe range.
-        totalProbedCount += getProbeEnd() - probeStart;
-        return new MatchState(getProbeEnd(), probeCount, 0, 0, buildBatchIndex);
-      }
-
-      if(buildBatchIndex + 1 < buildBatchCount) {
-        // next build batch.
-        return new MatchState(0, probeCount, 0, 0, buildBatchIndex + 1);
-      }
-
-      return reset(0);
-    }
-
-    public int getProbeEnd() {
-      return Math.min(probeStart + probeBatchSize, probeCount);
-    }
-
-    public int getOutputEnd() {
-      return Math.min(outputStart + context.getTargetBatchSize(), outputCount);
-    }
-
-    public MatchState withOutputCount(int outputCount) {
-      return new MatchState(probeStart, probeCount, 0, outputCount, buildBatchIndex);
-    }
-
-    public int getProbeStart() {
-      return probeStart;
-    }
-
-    public int getOutputStart() {
-      return outputStart;
-    }
-
-    public int getBuildBatchIndex() {
-      return buildBatchIndex;
-    }
-
-    public MatchState reset(int records) {
-      return new MatchState(0, records, 0, 0, 0);
-    }
-
-    public String toString() {
-      return MoreObjects
-          .toStringHelper(this)
-          .add("probeStart", probeStart)
-          .add("probeCount", probeCount)
-          .add("outputStart", outputStart)
-          .add("outputCount", outputCount)
-          .add("buildBatchIndex", buildBatchIndex)
-          .add("buildBatchCount", buildBatchCount)
-          .toString();
-    }
+    AutoCloseables.close(matchGenerator, inputRange, outputRange);
   }
 
 }

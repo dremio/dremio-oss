@@ -243,7 +243,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
     }
 
     @Override
-    public void registerUpdateListener(UpdateListener listener) {
+    public boolean registerUpdateListener(UpdateListener listener) {
       listeners.put(() -> {
         try {
         listener.updated();
@@ -251,6 +251,7 @@ public class LocalClusterCoordinator extends ClusterCoordinator {
           logger.warn("Exception occurred while notifying listener.", e);
         }
       }, null);
+      return true;
     }
   }
 
