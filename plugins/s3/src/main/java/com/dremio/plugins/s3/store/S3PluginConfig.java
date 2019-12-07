@@ -38,7 +38,7 @@ import io.protostuff.Tag;
 /**
  * Connection Configuration for S3.
  */
-@SourceType(value = "S3", label = "Amazon S3")
+@SourceType(value = "S3", label = "Amazon S3", uiConfig = "s3-plugin-layout.json")
 public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlugin> {
   @Tag(1)
   @DisplayMetadata(label = "AWS Access Key")

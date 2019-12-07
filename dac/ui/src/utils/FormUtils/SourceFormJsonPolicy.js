@@ -77,7 +77,8 @@ export default class SourceFormJsonPolicy {
    * @param typeConfig
    */
   static getCombinedConfig(typeCode, typeConfig) {
-    const uiConfig = DEFAULT_VLHF_DETAIL[typeCode];
+    // If Plugin provided it's own UI Layout JSON, use that; if not, check local definitions for a plugin match.
+    const uiConfig = (typeConfig.uiconfig ? typeConfig.uiconfig : DEFAULT_VLHF_DETAIL[typeCode]);
     const conbinedConfig = SourceFormJsonPolicy.combineFunctionalAndPresentationalSourceTypeConfig(typeConfig, uiConfig);
     return SourceFormJsonPolicy.applyJsonPolicyToFormConfig(conbinedConfig, typeConfig);
   }

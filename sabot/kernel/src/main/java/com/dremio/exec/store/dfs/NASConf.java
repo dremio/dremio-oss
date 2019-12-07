@@ -31,7 +31,7 @@ import com.google.common.collect.ImmutableList;
 
 import io.protostuff.Tag;
 
-@SourceType("NAS")
+@SourceType(value = "NAS", uiConfig = "nas-layout.json")
 public class NASConf extends FileSystemConf<NASConf, FileSystemPlugin<NASConf>> {
 
   // optional string path = 1;

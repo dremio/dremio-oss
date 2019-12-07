@@ -28,6 +28,7 @@ import java.lang.annotation.Target;
 public @interface SourceType {
   String value();
   String label() default "";
+  String uiConfig() default "";
   boolean configurable() default true;
   boolean listable() default true;
 }

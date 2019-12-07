@@ -32,7 +32,7 @@ import com.dremio.io.file.Path;
 
 import io.protostuff.Tag;
 
-@SourceType("HDFS")
+@SourceType(value = "HDFS", uiConfig = "hdfs-layout.json")
 public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   public enum ShortCircuitFlag {
     @Tag(1) @DisplayMetadata(label = "HDFS Default") SYSTEM,

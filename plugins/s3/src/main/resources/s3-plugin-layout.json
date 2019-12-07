@@ -1,0 +1,146 @@
+{
+  "sourceType": "S3", "tags": ["beta"],
+  "metadataRefresh": {"datasetDiscovery": true, "isFileSystemSource": true },
+  "form": {"tabs": [
+    {
+      "name": "General",
+      "isGeneral": true,
+      "sections": [
+        {
+          "name": "Authentication",
+          "elements": [
+            {
+              "propName": "config.credentialType",
+              "uiType": "container_selection",
+              "options": [
+                {
+                  "value": "ACCESS_KEY",
+                  "container": {
+                    "elements": [
+                      {
+                        "propName": "config.accessKey",
+                        "size": "half",
+                        "errMsg": "Both access secret and key are required for private S3 buckets."
+                      },
+                      {
+                        "propName": "config.accessSecret",
+                        "size": "half",
+                        "errMsg": "Both access secret and key are required for private S3 buckets.",
+                        "secure": true
+                      },
+                      {
+                        "propName": "config.assumedRoleARN",
+                        "size": "full",
+                        "validate": {"isRequired": false}
+                      }
+                    ],
+                    "help": {
+                      "position": "top",
+                      "text": "All or whitelisted (if specified) buckets associated with this access key or IAM role to assume (if specified) will be available. "
+                    }
+                  }
+                },
+                {
+                  "value": "EC2_METADATA",
+                  "container": {
+                    "elements": [
+                      {
+                        "propName": "config.assumedRoleARN",
+                        "size": "full",
+                        "validate": {"isRequired": false}
+                      }
+                    ],
+                    "help": {
+                      "position": "top",
+                      "text": "All or whitelisted (if specified) buckets associated with the IAM role attached to EC2 or IAM role to assume (if specified) will be available."
+                    }
+                  }
+                },
+                {
+                  "value": "NONE",
+                  "container": {
+                    "help": {
+                      "position": "top",
+                      "text": "Only the buckets provided in Public Buckets will be available."
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "propName": "config.secure"
+            }
+          ]
+        },
+        {
+          "name": "Public Buckets",
+          "elements": [
+            {
+              "propName": "config.externalBucketList[]",
+              "uiType": "value_list",
+              "emptyLabel": "No public buckets added",
+              "addLabel": "Add bucket",
+              "validate": {"isRequired": false}
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Advanced Options",
+      "sections": [
+        {
+          "elements": [
+            {
+              "propName": "config.enableAsync"
+            },
+            {
+              "propName": "config.allowCreateDrop"
+            },
+            {
+              "propName": "config.compatibilityMode"
+            },
+            {
+              "propName": "config.rootPath"
+            },
+            {
+              "propName": "config.kmsKeyARN"
+            }
+          ]
+        },
+        {
+          "elements": [
+            {
+              "emptyLabel": "No properties added",
+              "addLabel": "Add property",
+              "propName": "config.propertyList"
+            }
+          ]
+        },
+        {
+          "elements": [
+            {
+              "propName": "config.whitelistedBuckets[]",
+              "uiType": "value_list",
+              "emptyLabel": "No whitelisted buckets added",
+              "addLabel": "Add bucket",
+              "validate": {"isRequired": false}
+            }
+          ]
+        },
+        {
+          "name": "Cache Options",
+          "elements": [
+            {
+              "propName": "config.isCachingEnabled"
+            },
+            {
+              "propName": "config.maxCacheSpacePct"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+  }
+}

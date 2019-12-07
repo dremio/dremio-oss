@@ -1,0 +1,84 @@
+{
+  "sourceType": "HDFS",
+  "metadataRefresh": {"authorization": true, "isFileSystemSource": true },
+  "form": {"tabs": [
+    {
+      "name": "General",
+      "isGeneral": true,
+      "sections": [
+        {
+          "name": "Connection",
+          "layout": "row",
+          "elements": [
+            {
+              "propName": "config.hostname",
+              "placeholder": "e.g.123.123.123.123",
+              "size": "half",
+              "validate": {"isRequired": true}
+            },
+            {
+              "propName": "config.port",
+              "size": "half",
+              "validate": {"isRequired": true}
+            },
+            {
+              "propName": "config.impersonationMode"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Advanced Options",
+      "sections": [
+        {
+          "elements": [
+            {
+              "propName": "config.enableAsync"
+            },
+            {
+              "propName": "config.allowCreateDrop"
+            },
+            {
+              "propName": "config.rootPath"
+            },
+            {
+              "propName": "config.shortCircuitFlag",
+              "uiType": "container_selection",
+              "options": [
+                {"value": "SYSTEM", "container": {}},
+                {"value": "ENABLED", "container": {
+                  "propName": "config.shortCircuitSocketPath",
+                  "placeholder": "/var/lib/hadoop-hdfs/dn_socket"
+                }},
+                {"value": "DISABLED", "container": {}}
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Connection Properties",
+          "elements": [
+            {
+              "emptyLabel": "No properties added",
+              "addLabel": "Add property",
+              "propName": "config.propertyList"
+            }
+          ]
+        },
+        {
+          "name": "Cache Options",
+          "elements": [
+            {
+              "propName": "config.isCachingEnabled"
+            },
+            {
+              "propName": "config.maxCacheSpacePct"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+  }
+}

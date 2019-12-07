@@ -16,6 +16,7 @@
 package com.dremio.dac.api;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ import java.util.List;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ClassUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +34,7 @@ import com.dremio.exec.catalog.conf.SourceType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.google.common.collect.Iterables;
 
 import io.protostuff.Tag;
@@ -46,17 +49,20 @@ public class SourceTypeTemplate {
   private final String label;
   private final String icon;
   private final List<SourcePropertyTemplate> elements;
+  private final String uiConfig;
 
   @JsonCreator
   public SourceTypeTemplate(
     @JsonProperty("sourceType") String name,
     @JsonProperty("label") String label,
     @JsonProperty("icon") String icon,
-    @JsonProperty("elements") List<SourcePropertyTemplate> elements) {
+    @JsonProperty("elements") List<SourcePropertyTemplate> elements,
+    @JsonProperty("uiConfig") String uiConfig) {
     this.sourceType = name;
     this.label = label;
     this.icon = icon;
     this.elements = elements;
+    this.uiConfig = uiConfig;
   }
 
   public String getSourceType() {
@@ -75,6 +81,11 @@ public class SourceTypeTemplate {
     return elements;
   }
 
+  @JsonRawValue
+  public String getUIConfig() {
+    return uiConfig;
+  }
+
   public static SourceTypeTemplate fromSourceClass(Class<?> sourceClass, boolean includeProperties) {
     final SourceType type = sourceClass.getAnnotation(SourceType.class);
 
@@ -90,8 +101,20 @@ public class SourceTypeTemplate {
       }
     }
 
+    // source uiConfig layout provided as a resource file
+    String uiLayoutConfig="null";
+    if(!StringUtils.isEmpty(type.uiConfig())) {
+      try {
+        InputStream inputStream = sourceClass.getClassLoader().getResourceAsStream(type.uiConfig());
+        uiLayoutConfig = IOUtils.toString(inputStream);
+      } catch (IOException e) {
+        logger.warn("Failed to read UI Layout Configuration for [{}]", sourceClass.getName(), e);
+      }
+    }
+
+
     if (!includeProperties) {
-      return new SourceTypeTemplate(type.value(), type.label(), icon, null);
+      return new SourceTypeTemplate(type.value(), type.label(), icon, null, null);
     }
 
     final Object newClassInstance;
@@ -99,7 +122,7 @@ public class SourceTypeTemplate {
       newClassInstance = sourceClass.getConstructor().newInstance();
     } catch (Exception e) {
       logger.warn("Failed to create new instance of [{}]", sourceClass.getName(), e);
-      return new SourceTypeTemplate(type.value(), type.label(), icon, null);
+      return new SourceTypeTemplate(type.value(), type.label(), icon, null, null);
     }
 
     final List<SourcePropertyTemplate> properties = new ArrayList<>();
@@ -151,7 +174,7 @@ public class SourceTypeTemplate {
       }
     }
 
-    return new SourceTypeTemplate(type.value(), type.label(), icon, properties);
+    return new SourceTypeTemplate(type.value(), type.label(), icon, properties, uiLayoutConfig);
   }
 
   private static Iterable<Field> getAllFields(Class<?> clazz) {

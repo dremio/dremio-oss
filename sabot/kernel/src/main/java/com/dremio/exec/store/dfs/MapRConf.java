@@ -32,7 +32,7 @@ import com.google.common.collect.Lists;
 
 import io.protostuff.Tag;
 
-@SourceType(value = "MAPRFS", label = "MapR-FS")
+@SourceType(value = "MAPRFS", label = "MapR-FS", uiConfig = "mapr-fs-layout.json")
 public class MapRConf extends FileSystemConf<MapRConf, FileSystemPlugin<MapRConf>> {
 
   //  optional string cluster_name = 1;

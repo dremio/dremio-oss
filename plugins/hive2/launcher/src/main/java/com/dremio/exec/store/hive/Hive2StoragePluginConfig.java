@@ -29,7 +29,7 @@ import com.dremio.exec.store.hive.pf4j.NativeLibPluginManager;
 /**
  * Hive 2.x storage plugin configuration.
  */
-@SourceType(value = SourceConfigAwareConnectionConfDeserializer.HIVE2_SOURCE_TYPE, label = "Hive 2.x")
+@SourceType(value = SourceConfigAwareConnectionConfDeserializer.HIVE2_SOURCE_TYPE, label = "Hive 2.x", uiConfig = "hive2-plugin-layout.json")
 public class Hive2StoragePluginConfig extends HiveStoragePluginConfig {
 
   @Override
