@@ -16,13 +16,13 @@
 package com.dremio.service.commandpool;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.concurrent.NamedThreadFactory;
+import com.dremio.telemetry.api.metrics.Metrics;
 
 /**
  * Bound implementation of {@link CommandPool}.<br>
@@ -32,7 +32,8 @@ import com.dremio.common.concurrent.NamedThreadFactory;
 class BoundCommandPool implements CommandPool {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BoundCommandPool.class);
 
-  private final ExecutorService executorService;
+  private final ThreadPoolExecutor executorService;
+
 
   BoundCommandPool(final int poolSize) {
     this.executorService = new ThreadPoolExecutor(
@@ -59,6 +60,8 @@ class BoundCommandPool implements CommandPool {
 
   @Override
   public void start() throws Exception {
+    Metrics.newGauge(Metrics.join("jobs","command_pool", "active_threads"), () -> executorService.getActiveCount());
+    Metrics.newGauge(Metrics.join("jobs","command_pool", "queue_size"), () -> executorService.getQueue().size());
   }
 
   @Override

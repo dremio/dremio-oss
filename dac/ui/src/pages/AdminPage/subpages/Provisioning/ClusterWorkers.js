@@ -25,6 +25,8 @@ import * as ButtonTypes from 'components/Buttons/ButtonTypes';
 import { formDescription } from 'uiTheme/radium/typography';
 import { PALE_BLUE, PALE_NAVY } from 'uiTheme/radium/colors';
 import { openMoreInfoProvisionModal } from 'actions/resources/provisioning';
+import {CLUSTER_STATE} from '@app/constants/provisioningPage/provisioningConstants';
+
 import AdjustWorkers from './components/AdjustWorkers';
 import ResourceSummary from './components/ResourceSummary';
 import WorkersGrid from './components/WorkersGrid';
@@ -33,6 +35,7 @@ const buttonTextForCurrentState = {
   RUNNING: 'Stop',
   STOPPED: 'Start',
   FAILED: 'Start',
+  PENDING: null,
   CREATED: null,
   DELETED: null,
   STARTING: null,
@@ -48,43 +51,42 @@ export class ClusterWorkers extends Component {
     changeProvisionState: PropTypes.func,
     viewId: PropTypes.string,
     readonly: PropTypes.bool
-  }
+  };
 
   openMoreInfoProvisionModal = () => {
     const provisionId = this.props.entity.get('id');
     this.props.openMoreInfoProvisionModal(provisionId);
-  }
+  };
 
   toggleClusterState = () => {
     const { entity, viewId } = this.props;
-    this.props.changeProvisionState(entity.get('currentState') === 'RUNNING' ? 'STOPPED' : 'RUNNING', entity, viewId);
-  }
+    const nextState = entity.get('currentState') === CLUSTER_STATE.running ?
+      CLUSTER_STATE.stopped : CLUSTER_STATE.running;
+    this.props.changeProvisionState(nextState, entity, viewId);
+  };
+
+  displayState = (state) => startCase(state.toLowerCase());
+
+  makeStatusName = (currentState, desiredState) => {
+    if (currentState === desiredState
+      || desiredState === CLUSTER_STATE.running && currentState === CLUSTER_STATE.starting
+      || desiredState === CLUSTER_STATE.stopped && currentState === CLUSTER_STATE.stopping) {
+      return `Status: ${this.displayState(currentState)}`;
+    }
+    if (desiredState === CLUSTER_STATE.running && currentState === CLUSTER_STATE.stopping) {
+      return la('Status: Restarting');
+    }
+    if (desiredState === CLUSTER_STATE.deleted && currentState === CLUSTER_STATE.stopping) {
+      return la('Status: Deleting');
+    } // else
+    return `Target: ${this.displayState(desiredState)} (Currently: ${this.displayState(currentState)})`;
+  };
 
   render() {
     const { entity, readonly } = this.props;
     const totalWorkers = entity.getIn(['workersSummary', 'total']);
     const {desiredState, currentState} = entity.toJS();
-
-    // TODO: add loc
-    let status = 'Status: ' + startCase(currentState.toLowerCase());
-    mixed: if (currentState !== desiredState) {
-      if (desiredState === 'RUNNING' && currentState === 'STARTING') {
-        break mixed;
-      }
-      if (desiredState === 'STOPPED' && currentState === 'STOPPING') {
-        break mixed;
-      }
-      if (desiredState === 'RUNNING' && currentState === 'STOPPING') {
-        status = 'Status: Restarting';
-        break mixed;
-      }
-      if (desiredState === 'DELETED' && currentState === 'STOPPING') {
-        status = 'Status: Deleting';
-        break mixed;
-      }
-      status = 'Target: ' + startCase(desiredState.toLowerCase());
-      status += ' (Currently: ' + startCase(currentState.toLowerCase()) + ')';
-    }
+    const statusName = this.makeStatusName(currentState, desiredState);
 
     return (
       <div style={styles.base}>
@@ -94,7 +96,7 @@ export class ClusterWorkers extends Component {
             <span style={formDescription}>{' (' + la('requested') + ')'} </span>
           </div>
           <div style={{display: 'flex', alignItems: 'center'}}>
-            <span style={{ marginRight: 10 }}>{status}</span>
+            <span style={{ marginRight: 10 }}>{statusName}</span>
             {buttonTextForCurrentState[currentState] &&
               <Button
                 onClick={this.toggleClusterState}

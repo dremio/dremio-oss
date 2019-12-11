@@ -225,7 +225,7 @@ export default class FormUtils {
    * @returns {*} - mutated initValues or new object if initValues was not defined.
    */
   static addInitValue(initValues, path, value, multiplier) {
-    if (!path) return initValues;
+    if (!path || value === null || value === undefined) return initValues;
 
     const adjustedValue = (multiplier && value instanceof Number) ? value * multiplier : value;
 

@@ -35,9 +35,9 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.CatalogService.UpdateType;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.namespace.NamespaceKey;
 
@@ -344,7 +344,7 @@ public class TestExampleQueries extends PlanTestBase {
     file2.println("{\"a\":1,\"b\":[\"b\"]}");
     file2.close();
     // TODO(AH) force refresh schema
-    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("dfs_test"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
+    ((CatalogServiceImpl) getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("dfs_test"), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
     try {
       test("select * from dfs_test.emptyList");
     } catch (Exception e) {

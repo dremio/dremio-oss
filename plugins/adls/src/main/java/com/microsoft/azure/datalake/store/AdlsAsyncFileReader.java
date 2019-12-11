@@ -22,6 +22,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import org.apache.hadoop.fs.Path;
 import org.asynchttpclient.AsyncCompletionHandlerBase;
@@ -30,21 +32,22 @@ import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.HttpResponseStatus;
 import org.asynchttpclient.Response;
-import org.asynchttpclient.netty.LazyResponseBodyPart;
 import org.asynchttpclient.util.HttpConstants;
 
 import com.dremio.io.AsyncByteReader;
+import com.dremio.io.ExponentialBackoff;
 import com.dremio.plugins.adl.store.DremioAdlFileSystem;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Stopwatch;
 
 import io.netty.buffer.ByteBuf;
 
 /**
  * Reads file content from ADLS Gen 1 asynchronously.
  */
-public class AdlsAsyncFileReader implements AsyncByteReader {
+public class AdlsAsyncFileReader extends ExponentialBackoff implements AsyncByteReader {
   static class RemoteException {
     private String exception;
     private String message;
@@ -76,12 +79,15 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
       message = remoteException.get("message");
       javaClassName = remoteException.get("javaClassName");
     }
-
   }
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AdlsAsyncFileReader.class);
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper()
         .configure(DeserializationFeature.FAIL_ON_READING_DUP_TREE_KEY, true);
+
+  private static final int BASE_MILLIS_TO_WAIT = 250; // set to the average latency of an async read
+  private static final int MAX_MILLIS_TO_WAIT = 10 * BASE_MILLIS_TO_WAIT;
+  private static final int MAX_RETRIES = 4;
 
   private final ADLStoreClient client;
   private final AsyncHttpClient asyncHttpClient;
@@ -91,6 +97,7 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
   private final Long cachedVersion;
   private volatile Long latestVersion;
   private final ExecutorService threadPool;
+  private int errCode = 0;
 
   /**
    * Helper class for processing ADLS responses. This will write to the given output buffer
@@ -111,6 +118,7 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
       if (status.getStatusCode() >= io.netty.handler.codec.http.HttpResponseStatus.BAD_REQUEST.code() &&
           status.getStatusCode() != HttpConstants.ResponseStatusCodes.UNAUTHORIZED_401) {
         isErrorResponse = true;
+        errCode = status.getStatusCode();
       }
       return super.onStatusReceived(status);
     }
@@ -121,15 +129,7 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
         return super.onBodyPartReceived(content);
       }
 
-      // Do not accumulate the content in the super class if it's a valid response.
-      // Just stream it to the output buffer.
-      if (content instanceof LazyResponseBodyPart) {
-        // Avoid intermediate transformation of ByteBuf to ByteBuffer by using getBuf(), which
-        // is implementation-specific on LazyResponseBodyPart.
-        outputBuffer.writeBytes(((LazyResponseBodyPart) content).getBuf());
-      } else {
-        outputBuffer.writeBytes(content.getBodyByteBuffer());
-      }
+      outputBuffer.writeBytes(content.getBodyByteBuffer());
       return AsyncHandler.State.CONTINUE;
     }
 
@@ -164,11 +164,21 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
   }
 
   @Override
+  protected int getBaseMillis() {
+    return BASE_MILLIS_TO_WAIT;
+  }
+
+  @Override
+  protected int getMaxMillis() {
+    return MAX_MILLIS_TO_WAIT;
+  }
+
+  @Override
   public void close() {
     latestVersion = null;
   }
 
-  private CompletableFuture<Void> readFullyFuture(long offset, ByteBuf dst, int dstOffset, int len) {
+  private CompletableFuture<Void> readFullyFuture(final String callerName, long offset, ByteBuf dst, int dstOffset, int len) {
     if (latestVersion > cachedVersion) {
       logger.debug("File has been modified, metadata refresh is required");
       CompletableFuture<Void> future = new CompletableFuture<>();
@@ -205,19 +215,52 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
         builder.addQueryParam("length", Long.toString(len));
       }
 
-      dst.writerIndex(dstOffset);
-      logger.debug("Sending request with clientRequestId: {}", clientRequestId);
-      return asyncHttpClient.executeRequest(builder.build(), new AdlsResponseProcessor(dst))
-        .toCompletableFuture()
-        .whenComplete((response, throwable) -> logger.debug("Request completed for clientRequestId: {}", clientRequestId))
-        .thenAccept(response -> {}); // Discard the response, which has already been handled by AdlsResponseProcessor.
+      return executeAsyncRequest(callerName, dst, dstOffset, clientRequestId, builder, 0);
     });
+  }
+
+  private CompletableFuture<Void> executeAsyncRequest(final String callerName, ByteBuf dst, int dstOffset, String clientRequestId,
+                                                      AdlsRequestBuilder builder, int retryAttemptNum) {
+    logger.debug("Sending request with clientRequestId: {}", clientRequestId);
+    dst.writerIndex(dstOffset);
+    final Stopwatch watch = Stopwatch.createStarted();
+    return asyncHttpClient.executeRequest(builder.build(), new AdlsResponseProcessor(dst))
+      .toCompletableFuture()
+      .whenComplete((response, throwable) -> {
+        if (null == throwable) {
+          logger.debug("Request completed for clientRequestId: {}, took {} ms", clientRequestId,
+            watch.elapsed(TimeUnit.MILLISECONDS));
+        } else if (retryAttemptNum < MAX_RETRIES) {
+          logger.info("Caller {}: Retry #{}, request failed with {} clientRequestId: {}, took {} ms", callerName, retryAttemptNum + 1, errCode,
+            clientRequestId, watch.elapsed(TimeUnit.MILLISECONDS), throwable);
+        } else {
+          logger.error("Caller {}: Request failed with {}, for clientRequestId: {}, took {} ms", callerName, errCode,
+            clientRequestId, watch.elapsed(TimeUnit.MILLISECONDS), throwable);
+        }
+      })
+      .thenAccept(response -> {}) // Discard the response, which has already been handled by AdlsResponseProcessor.
+      .thenApply(CompletableFuture::completedFuture)
+      .exceptionally(throwable -> {
+        if (retryAttemptNum > MAX_RETRIES) {
+          final CompletableFuture<Void> errorFuture = new CompletableFuture<>();
+          errorFuture.completeExceptionally(throwable);
+          return errorFuture;
+        }
+
+        backoffWait(retryAttemptNum);
+
+        // Reset the index of the writer for the retry.
+        dst.writerIndex(dstOffset);
+        return executeAsyncRequest(callerName, dst, dstOffset, clientRequestId, builder, retryAttemptNum + 1);
+      }).thenCompose(Function.identity());
   }
 
   @Override
   public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
+    final String callerName = Thread.currentThread().getName();
+
     if (latestVersion != null) {
-      return readFullyFuture(offset, dst, dstOffset, len);
+      return readFullyFuture(callerName, offset, dst, dstOffset, len);
     }
 
     final CompletableFuture<Void> getStatusFuture = CompletableFuture.runAsync(() -> {
@@ -234,6 +277,6 @@ public class AdlsAsyncFileReader implements AsyncByteReader {
       }
     }, threadPool);
 
-    return getStatusFuture.thenCompose(Void -> readFullyFuture(offset, dst, dstOffset, len));
+    return getStatusFuture.thenCompose(Void -> readFullyFuture(callerName, offset, dst, dstOffset, len));
   }
 }

@@ -35,6 +35,7 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.conf.HiveConf.ConfVars;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
@@ -694,7 +695,7 @@ public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin
         }
 
         processUserMetastoreClient = HiveClient.createClient(hiveConf);
-      } catch (MetaException e) {
+      } catch (MetaException | HiveException e) {
         throw Throwables.propagate(e);
       }
 

@@ -46,7 +46,7 @@ import org.apache.lucene.util.BytesRef;
 import com.dremio.datastore.IndexedStore;
 import com.dremio.datastore.WarningTimer;
 import com.dremio.datastore.indexed.CommitWrapper.CommitCloser;
-import com.dremio.metrics.Metrics;
+import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;

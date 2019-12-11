@@ -35,6 +35,7 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionSyntax;
 import com.dremio.exec.expr.fn.hll.HyperLogLog;
+import com.dremio.exec.expr.fn.impl.GeoFunctions;
 import com.dremio.exec.planner.sql.OperatorTable;
 import com.dremio.exec.planner.sql.SqlAggOperator;
 import com.dremio.exec.planner.sql.SqlDatePartOperator;
@@ -144,6 +145,9 @@ public class FunctionRegistry implements PrimaryFunctionRegistry{
     operatorTable.add("DATE_PART", SqlDatePartOperator.INSTANCE);
     operatorTable.add("FLATTEN", SqlFlattenOperator.INSTANCE);
     operatorTable.add("E", E_FUNCTION);
+    operatorTable.add("GEO_DISTANCE", GeoFunctions.GEO_DISTANCE);
+    operatorTable.add("GEO_NEARBY", GeoFunctions.GEO_NEARBY);
+    operatorTable.add("GEO_BEYOND", GeoFunctions.GEO_BEYOND);
 
     for (Entry<String, Collection<AbstractFunctionHolder>> function : registeredFunctions.asMap().entrySet()) {
       final ArrayListMultimap<Pair<Integer, Integer>, BaseFunctionHolder> functions = ArrayListMultimap.create();

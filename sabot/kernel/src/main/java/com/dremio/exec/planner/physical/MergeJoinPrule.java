@@ -30,7 +30,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
-import com.dremio.exec.planner.common.JoinRelBase;
 import com.dremio.exec.planner.logical.JoinRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
@@ -95,8 +94,8 @@ public class MergeJoinPrule extends JoinPruleBase {
     RelTraitSet traitsRight = right.getTraitSet().plus(Prel.PHYSICAL).plus(collationRight).plus(DistributionTrait.BROADCAST);
     final RelNode convertedLeft = convert(left, traitsLeft);
     final RelNode convertedRight = convert(right, traitsRight);
-    call.transformTo(MergeJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet(), convertedLeft, convertedRight, joinCondition,
-        join.getJoinType()));
+    call.transformTo(PrelUtil.addPartialProjectOnJoin(MergeJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet(), convertedLeft, convertedRight, joinCondition,
+        join.getJoinType()), join.getProjectedFields()));
   }
 
   private RelCollation getCollation(List<Integer> keys){
@@ -119,9 +118,9 @@ public class MergeJoinPrule extends JoinPruleBase {
     final RelNode convertedLeft = convert(left, traitsLeft);
     final RelNode convertedRight = convert(right, traitsRight);
 
-    JoinRelBase newJoin = MergeJoinPrel.create(join.getCluster(), traitsLeft /* traits need to be consistent with row type */,
-        convertedLeft, convertedRight, join.getCondition(),
-        join.getJoinType());
-    call.transformTo(newJoin);
+    call.transformTo(
+      PrelUtil.addPartialProjectOnJoin(MergeJoinPrel.create(join.getCluster(), traitsLeft /* traits need to be consistent with row type */,
+      convertedLeft, convertedRight, join.getCondition(),
+      join.getJoinType()), join.getProjectedFields()));
   }
 }

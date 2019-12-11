@@ -26,7 +26,6 @@ import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.util.trace.CalciteTrace;
 import org.slf4j.Logger;
 
-import com.dremio.exec.planner.common.JoinRelBase;
 import com.dremio.exec.planner.logical.JoinRel;
 import com.dremio.exec.planner.logical.RelOptHelper;
 import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
@@ -91,8 +90,8 @@ public class HashJoinPrule extends JoinPruleBase {
 
     final RelNode convertedLeft = convert(left, left.getTraitSet().plus(Prel.PHYSICAL));
     final RelNode convertedRight = convert(right, right.getTraitSet().plus(Prel.PHYSICAL).plus(DistributionTrait.BROADCAST));
-    call.transformTo(HashJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet(), convertedLeft, convertedRight, joinCondition,
-        join.getJoinType()));
+    call.transformTo(PrelUtil.addPartialProjectOnJoin(HashJoinPrel.create(join.getCluster(), convertedLeft.getTraitSet(), convertedLeft, convertedRight, joinCondition,
+        join.getJoinType(), null), join.getProjectedFields()));
   }
 
   @Override
@@ -106,10 +105,8 @@ public class HashJoinPrule extends JoinPruleBase {
     final RelNode convertedLeft = convert(left, traitsLeft);
     final RelNode convertedRight = convert(right, traitsRight);
 
-    JoinRelBase newJoin = HashJoinPrel.create(join.getCluster(), traitsLeft,
-        convertedLeft, convertedRight, join.getCondition(),
-        join.getJoinType());
-
-    call.transformTo(newJoin);
+    call.transformTo(PrelUtil.addPartialProjectOnJoin(HashJoinPrel.create(join.getCluster(), traitsLeft,
+      convertedLeft, convertedRight, join.getCondition(),
+      join.getJoinType(), null), join.getProjectedFields()));
   }
 }

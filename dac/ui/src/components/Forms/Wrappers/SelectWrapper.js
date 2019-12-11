@@ -45,6 +45,7 @@ export default class SelectWrapper extends Component {
               {...isDisabled}
               items={elementConfig.getConfig().options}
               className={selectBody}
+              valueField='value'
               {...field} />
           </div>
         </FieldWithError>

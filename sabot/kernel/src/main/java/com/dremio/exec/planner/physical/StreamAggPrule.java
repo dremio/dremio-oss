@@ -51,6 +51,13 @@ public class StreamAggPrule extends AggPruleBase {
   public void onMatch(RelOptRuleCall call) {
     final AggregateRel aggregate = (AggregateRel) call.rel(0);
 
+    if (aggregate.getGroupCount() > 0 && !PrelUtil.getPlannerSettings(call.getPlanner()).getOptions().getOption(PlannerSettings.STREAM_AGG_WITH_GROUPS)) {
+      if (PrelUtil.getPlannerSettings(call.getPlanner()).isHashAggEnabled()) {
+        // if hash agg is enabled and stream agg with groups is disabled and this has >0 group count, don't match.
+        return;
+      }
+    }
+
     // too many group by keys in streaming agg will result in compilation error
     if (aggregate.getGroupCount() > PrelUtil.getPlannerSettings(call.getPlanner()).streamAggMaxGroupKey()) {
       return;

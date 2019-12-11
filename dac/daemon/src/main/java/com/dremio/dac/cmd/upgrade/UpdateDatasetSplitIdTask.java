@@ -144,7 +144,7 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
     try (final KVStoreProvider storeProvider = new LocalKVStoreProvider(classpathScan, args[0], false, true)) {
       storeProvider.start();
 
-      final UpgradeContext context = new UpgradeContext(storeProvider, null, null);
+      final UpgradeContext context = new UpgradeContext(storeProvider, null, null, null);
       final UpdateDatasetSplitIdTask task = new UpdateDatasetSplitIdTask();
       task.upgrade(context);
     }

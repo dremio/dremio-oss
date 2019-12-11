@@ -22,6 +22,7 @@ import static com.dremio.service.namespace.dataset.DatasetVersion.newVersion;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
 import static javax.ws.rs.client.Entity.entity;
+import static org.glassfish.jersey.CommonProperties.FEATURE_AUTO_DISCOVERY_DISABLE;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -37,6 +38,7 @@ import java.nio.file.Files;
 import java.security.Principal;
 import java.util.List;
 import java.util.Properties;
+import java.util.function.Function;
 
 import javax.inject.Provider;
 import javax.ws.rs.client.Client;
@@ -61,6 +63,7 @@ import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.SentinelSecure;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
@@ -121,6 +124,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.ser.impl.SimpleFilterProvider;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.collect.ImmutableList;
 
@@ -137,9 +141,13 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   private PrintWriter docLog;
   private UserLoginSession uls;
+
   public static final String USERNAME = SampleDataPopulator.TEST_USER_NAME;
 
   private static boolean defaultUser = true;
+  private static boolean testApiEnabled = true;
+  private static boolean inMemoryStorage = true;
+  private static boolean addDefaultUser = false;
 
   protected static boolean isDefaultUserEnabled() {
     return defaultUser;
@@ -147,6 +155,18 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected static void enableDefaultUser(boolean enabled) {
     defaultUser = enabled;
+  }
+
+  protected static void enableTestAPi(boolean enabled) {
+    testApiEnabled = enabled;
+  }
+
+  protected static void inMemoryStorage(boolean enabled) {
+    inMemoryStorage = enabled;
+  }
+
+  protected static void addDefaultUser(boolean enabled) {
+    addDefaultUser = enabled;
   }
 
   protected void doc(String message) {
@@ -305,7 +325,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
   @ClassRule
   public static final TemporaryFolder folder3 = new TemporaryFolder();
 
-  protected static void initClient() {
+  private static ObjectMapper configureObjectMapper() {
     ObjectMapper objectMapper = JSONUtil.prettyMapper();
     JSONUtil.registerStorageTypes(objectMapper, DremioTest.CLASSPATH_SCAN_RESULT,
       ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG));
@@ -320,13 +340,38 @@ public abstract class BaseTestServer extends BaseClientUtils {
                 }
             )
     );
-    initClient(objectMapper);
+    objectMapper.setFilterProvider(new SimpleFilterProvider().addFilter(SentinelSecure.FILTER_NAME, SentinelSecureFilter.TEST_ONLY));
+    return objectMapper;
   }
 
-  protected static void initClient(ObjectMapper mapper) {
-    JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
+  protected static void initClient() throws Exception {
+    initClient(configureObjectMapper());
+  }
+
+  private static void initClient(ObjectMapper mapper) throws Exception {
+    setBinder(createBinder(currentDremioDaemon.getBindingProvider()));
+
+    if (!Files.exists(new File(folder0.getRoot().getAbsolutePath() + "/testplugins").toPath())) {
+      TestUtilities.addDefaultTestPlugins(l(CatalogService.class), folder0.newFolder("testplugins").toString());
+    }
+
+    setPopulator(new SampleDataPopulator(
+      l(SabotContext.class),
+      newSourceService(),
+      newDatasetVersionMutator(),
+      l(UserService.class),
+      newNamespaceService(),
+      DEFAULT_USERNAME
+    ));
+
+    final JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
     provider.setMapper(mapper);
-    client = ClientBuilder.newBuilder().register(provider).register(MultiPartFeature.class).build();
+
+    client = ClientBuilder.newBuilder()
+      .property(FEATURE_AUTO_DISCOVERY_DISABLE, true)
+      .register(provider)
+      .register(MultiPartFeature.class)
+      .build();
     rootTarget = client.target("http://localhost:" + currentDremioDaemon.getWebServer().getPort());
     apiV2 = rootTarget.path(API_LOCATION);
     publicAPI = rootTarget.path(PUBLIC_API_LOCATION);
@@ -346,11 +391,21 @@ public abstract class BaseTestServer extends BaseClientUtils {
   @BeforeClass
   public static void init() throws Exception {
     try (TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
-      initializeCluster(isMultinode(), new DACDaemonModule());
+      init(isMultinode());
+    }
+  }
+
+  public static void init(boolean multiMode) throws Exception {
+    try (TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
+      initializeCluster(multiMode, new DACDaemonModule());
     }
   }
 
   protected static void initializeCluster(final boolean isMultiNode, DACModule dacModule) throws Exception {
+    initializeCluster(isMultiNode, dacModule, o -> o);
+  }
+
+  protected static void initializeCluster(final boolean isMultiNode, DACModule dacModule, Function<ObjectMapper, ObjectMapper> mapperUpdate) throws Exception {
     final String hostname = InetAddress.getLocalHost().getCanonicalHostName();
     if (isMultiNode) {
       logger.info("Running tests in multinode mode");
@@ -378,9 +433,9 @@ public abstract class BaseTestServer extends BaseClientUtils {
           DACConfig
               .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
               .autoPort(true)
-              .allowTestApis(true)
+              .allowTestApis(testApiEnabled)
               .serveUI(false)
-              .inMemoryStorage(true)
+              .inMemoryStorage(inMemoryStorage)
               .writePath(folder1.getRoot().getAbsolutePath())
               .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
               .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
@@ -397,9 +452,9 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
               .isMaster(false)
               .autoPort(true)
-              .allowTestApis(true)
+              .allowTestApis(testApiEnabled)
               .serveUI(false)
-              .inMemoryStorage(true)
+              .inMemoryStorage(inMemoryStorage)
               .writePath(folder2.getRoot().getAbsolutePath())
               .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
               .clusterMode(ClusterMode.DISTRIBUTED)
@@ -416,9 +471,9 @@ public abstract class BaseTestServer extends BaseClientUtils {
           DACConfig
               .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
               .autoPort(true)
-              .allowTestApis(true)
+              .allowTestApis(testApiEnabled)
               .serveUI(false)
-              .inMemoryStorage(true)
+              .inMemoryStorage(inMemoryStorage)
               .with(DremioConfig.ENABLE_COORDINATOR_BOOL, false)
               .writePath(folder3.getRoot().getAbsolutePath())
               .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
@@ -431,17 +486,16 @@ public abstract class BaseTestServer extends BaseClientUtils {
           );
       executorDaemonClosed = false;
       executorDaemon.init();
-
-      initClient();
     } else {
       logger.info("Running tests in local mode");
       currentDremioDaemon = DACDaemon.newDremioDaemon(
           DACConfig
               .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
               .autoPort(true)
-              .allowTestApis(true)
+              .allowTestApis(testApiEnabled)
               .serveUI(false)
-              .inMemoryStorage(true)
+              .addDefaultUser(addDefaultUser)
+              .inMemoryStorage(inMemoryStorage)
               .writePath(folder1.getRoot().getAbsolutePath())
               .clusterMode(DACDaemon.ClusterMode.LOCAL),
               DremioTest.CLASSPATH_SCAN_RESULT,
@@ -449,20 +503,9 @@ public abstract class BaseTestServer extends BaseClientUtils {
           );
       masterDremioDaemon = null;
       startCurrentDaemon();
-      initClient();
     }
 
-    setBinder(createBinder(currentDremioDaemon.getBindingProvider()));
-    TestUtilities.addDefaultTestPlugins(l(CatalogService.class), folder0.newFolder("testplugins").toString());
-
-    setPopulator(new SampleDataPopulator(
-        l(SabotContext.class),
-        newSourceService(),
-        newDatasetVersionMutator(),
-        l(UserService.class),
-        newNamespaceService(),
-        DEFAULT_USERNAME
-    ));
+    initClient(mapperUpdate.apply(configureObjectMapper()));
   }
 
   protected static NamespaceService newNamespaceService(){

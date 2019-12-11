@@ -134,7 +134,7 @@ public class TestCatalogServiceImpl {
   private CloseableThreadPool pool;
   private FabricService fabricService;
   private NamespaceKey mockUpKey;
-  private CatalogService catalogService;
+  private CatalogServiceImpl catalogService;
 
   @Rule
   public TemporarySystemProperties properties = new TemporarySystemProperties();
@@ -230,7 +230,7 @@ public class TestCatalogServiceImpl {
         .setConnectionConf(new MockUpConfig());
 
     doMockDatasets(mockUpPlugin, ImmutableList.of());
-    ((CatalogServiceImpl) catalogService).getSystemUserCatalog().createSource(mockUpConfig);
+    catalogService.getSystemUserCatalog().createSource(mockUpConfig);
   }
 
   @After
@@ -242,7 +242,7 @@ public class TestCatalogServiceImpl {
   @Test
   public void refreshSourceMetadata_EmptySource() throws Exception {
     doMockDatasets(mockUpPlugin, ImmutableList.of());
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
     // make sure the namespace has no datasets under mockUpKey
     List<NamespaceKey> datasets = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
@@ -254,8 +254,8 @@ public class TestCatalogServiceImpl {
   @Test
   public void refreshSourceMetadata_FirstTime() throws Exception {
     doMockDatasets(mockUpPlugin, mockDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin
     List<NamespaceKey> actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
@@ -271,8 +271,8 @@ public class TestCatalogServiceImpl {
   @Test
   public void refreshSourceMetadata_FirstTime_UpdateWithNewDatasets() throws Exception {
     doMockDatasets(mockUpPlugin, mockDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
     List<NamespaceKey> actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
     assertEquals(5, actualDatasetKeys.size());
@@ -284,8 +284,8 @@ public class TestCatalogServiceImpl {
     testDatasets.add(newDataset(MOCK_UP + ".fld5.ds51"));
 
     doMockDatasets(mockUpPlugin, testDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
     actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
@@ -302,8 +302,8 @@ public class TestCatalogServiceImpl {
   @Test
   public void refreshSourceMetadata_FirstTime_MultipleUpdatesWithNewDatasetsDeletedDatasets() throws Exception {
     doMockDatasets(mockUpPlugin, mockDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
     List<DatasetHandle> testDatasets = Lists.newArrayList();
     testDatasets.add(newDataset(MOCK_UP + ".fld1.ds11"));
@@ -313,8 +313,8 @@ public class TestCatalogServiceImpl {
     testDatasets.add(newDataset(MOCK_UP + ".fld5.ds51"));
 
     doMockDatasets(mockUpPlugin, testDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
     List<NamespaceKey> actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
@@ -337,8 +337,8 @@ public class TestCatalogServiceImpl {
     testDatasets.add(newDataset(MOCK_UP + ".fld6.ds61"));
 
     doMockDatasets(mockUpPlugin, testDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
-    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
+    catalogService.refreshSource(mockUpKey, CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
     actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
@@ -356,7 +356,7 @@ public class TestCatalogServiceImpl {
   @Test
   public void refreshSourceNames() throws Exception {
     doMockDatasets(mockUpPlugin, mockDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.DEFAULT_METADATA_POLICY, CatalogService.UpdateType.NAMES);
+    catalogService.refreshSource(mockUpKey, CatalogService.DEFAULT_METADATA_POLICY, CatalogServiceImpl.UpdateType.NAMES);
 
     assertEquals(5, Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey)).size());
 
@@ -367,7 +367,7 @@ public class TestCatalogServiceImpl {
     testDatasets.add(newDataset(MOCK_UP + ".ds4"));
     testDatasets.add(newDataset(MOCK_UP + ".fld5.ds51"));
     doMockDatasets(mockUpPlugin, testDatasets);
-    catalogService.refreshSource(mockUpKey, CatalogService.DEFAULT_METADATA_POLICY, CatalogService.UpdateType.NAMES);
+    catalogService.refreshSource(mockUpKey, CatalogService.DEFAULT_METADATA_POLICY, CatalogServiceImpl.UpdateType.NAMES);
 
     // make sure the namespace has datasets and folders according to the data supplied by plugin in second request
     List<NamespaceKey> actualDatasetKeys = Lists.newArrayList(namespaceService.getAllDatasets(mockUpKey));
@@ -401,10 +401,10 @@ public class TestCatalogServiceImpl {
 
     boolean testPassed = false;
     try {
-      ((CatalogServiceImpl) catalogService).getSystemUserCatalog().createSource(mockUpConfig);
+      catalogService.getSystemUserCatalog().createSource(mockUpConfig);
     } catch (UserException ue) {
       assertEquals(UserBitShared.DremioPBError.ErrorType.RESOURCE, ue.getErrorType());
-      ManagedStoragePlugin msp = ((CatalogServiceImpl) catalogService).getManagedSource(pluginName);
+      ManagedStoragePlugin msp = catalogService.getManagedSource(pluginName);
       assertEquals(null, msp);
       testPassed = true;
     }
@@ -423,7 +423,7 @@ public class TestCatalogServiceImpl {
 
     boolean testPassed = false;
     try {
-      ((CatalogServiceImpl) catalogService).getSystemUserCatalog().deleteSource(mockUpConfig);
+      catalogService.getSystemUserCatalog().deleteSource(mockUpConfig);
     } catch (UserException ue) {
       testPassed = true;
     }
@@ -439,7 +439,7 @@ public class TestCatalogServiceImpl {
 
     testPassed = false;
     try {
-      ((CatalogServiceImpl) catalogService).getSystemUserCatalog().deleteSource(mockUpConfig);
+      catalogService.getSystemUserCatalog().deleteSource(mockUpConfig);
     } catch (UserException ue) {
       testPassed = true;
     }
@@ -454,11 +454,11 @@ public class TestCatalogServiceImpl {
       .setName(MISSING_CONFIG_NAME)
       .setConnectionConf(missing);
 
-    ((CatalogServiceImpl) catalogService).getSystemUserCatalog().createSource(missingConfig);
-    ((CatalogServiceImpl) catalogService).deleteSource(MISSING_CONFIG_NAME);
+    catalogService.getSystemUserCatalog().createSource(missingConfig);
+    catalogService.deleteSource(MISSING_CONFIG_NAME);
 
     // Check nullity of the state to confirm it's been deleted.
-    assertNull(((CatalogServiceImpl) catalogService).getSourceState(MISSING_CONFIG_NAME));
+    assertNull(catalogService.getSourceState(MISSING_CONFIG_NAME));
 
   }
 
@@ -470,10 +470,10 @@ public class TestCatalogServiceImpl {
       .setName(MISSING_CONFIG_NAME)
       .setConnectionConf(missing);
 
-    ((CatalogServiceImpl) catalogService).getSystemUserCatalog().createSource(missingConfig);
+    catalogService.getSystemUserCatalog().createSource(missingConfig);
 
     assertFalse(catalogService.refreshSource(new NamespaceKey(MISSING_CONFIG_NAME),
-      CatalogService.REFRESH_EVERYTHING_NOW, CatalogService.UpdateType.FULL));
+      CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL));
   }
 
   private static abstract class DatasetImpl implements DatasetTypeHandle, DatasetMetadata, PartitionChunkListing {

@@ -17,6 +17,7 @@ package com.dremio.service;
 
 import java.util.Set;
 
+import com.dremio.common.DeferredException;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -53,17 +54,30 @@ public class InitializerRegistry implements Service {
     ImmutableMap.Builder builder = ImmutableMap.<Class<?>, Object>builder();
     final Set<Class<? extends Initializer>> functions = scanResult.getImplementations(Initializer.class);
 
+
+    DeferredException ex = new DeferredException();
     for(Class<? extends Initializer> functionClass : functions){
+      final Initializer i;
       try {
-        final Object inited = functionClass.newInstance().initialize(provider);
+        i = functionClass.newInstance();
+      } catch (Exception e) {
+        ex.addException(new RuntimeException("Unable to load Initializer " + functionClass.getSimpleName(), e));
+        continue;
+      }
+
+      try {
+        Object inited = i.initialize(provider);
         if(inited != null){
           builder.put(functionClass, inited);
         }
       } catch (Exception e) {
-        logger.error("Unable to load Initializer {}", functionClass.getSimpleName(), e);
+        ex.addException(new RuntimeException("Unable to initialize Initializer " + functionClass.getSimpleName(), e));
       }
+
     }
 
+    // fail startup if we didn't initialize successfully.
+    ex.throwAndClear();
     outputs = builder.build();
   }
 

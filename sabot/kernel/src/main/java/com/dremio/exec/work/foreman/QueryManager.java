@@ -444,8 +444,8 @@ class QueryManager {
         if (schedulingProperties.getQueryCost() != null) {
           resourcePropsBuilder.setQueryCost(schedulingProperties.getQueryCost());
         }
-        if (schedulingProperties.getTag() != null) {
-          resourcePropsBuilder.setTag(schedulingProperties.getTag());
+        if (schedulingProperties.getRoutingTag() != null) {
+          resourcePropsBuilder.setTag(schedulingProperties.getRoutingTag());
         }
         resourceBuilder.setSchedulingProperties(resourcePropsBuilder);
       }
@@ -527,6 +527,10 @@ class QueryManager {
 
   void markEndTime() {
     endTime = System.currentTimeMillis();
+  }
+
+  long getTime() {
+    return Math.max(0, endTime - startTime);
   }
 
   /**

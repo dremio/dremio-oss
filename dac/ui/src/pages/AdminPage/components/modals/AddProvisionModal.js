@@ -13,16 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import React, {Component} from 'react';
+import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import {connect} from 'react-redux';
+import { connect } from 'react-redux';
 import Immutable from 'immutable';
 import invariant from 'invariant';
 
-import {createProvision, editProvision} from 'actions/resources/provisioning';
-import {getEntity} from 'selectors/resources';
-import {showConfirmationDialog} from 'actions/confirmation';
-import {PROVISION_MANAGERS} from '@app/constants/provisioningPage/provisionManagers';
+import { createProvision, editProvision } from 'actions/resources/provisioning';
+import { getEntity } from 'selectors/resources';
+import { showConfirmationDialog } from 'actions/confirmation';
+import { PROVISION_MANAGERS } from 'dyn-load/constants/provisioningPage/provisionManagers';
 import FormUnsavedWarningHOC from 'components/Modals/FormUnsavedWarningHOC';
 import SelectClusterType from 'pages/AdminPage/subpages/Provisioning/SelectClusterType';
 import Modal from 'components/Modals/Modal';
@@ -73,7 +73,7 @@ export class AddProvisionModal extends Component {
     const { location } = this.props;
     // location.state gets merged into this.props by ModalsContainer
     this.context.router.push({...location, state: {...location.state, clusterType}});
-  }
+  };
 
   promptEditProvisionRestart(values) {
     return new Promise((resolve, reject) => {

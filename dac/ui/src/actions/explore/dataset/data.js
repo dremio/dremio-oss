@@ -107,9 +107,10 @@ export const updateExploreJobProgress = (jobUpdate) => ({
 });
 
 export const SET_EXPLORE_JOBID_IN_PROGRESS = 'SET_EXPLORE_JOBID_IN_PROGRESS';
-export const setExploreJobIdInProgress = (jobId) => ({
+export const setExploreJobIdInProgress = (jobId, datasetVersion) => ({
   type: SET_EXPLORE_JOBID_IN_PROGRESS,
-  jobId
+  jobId,
+  datasetVersion
 });
 
 export const UPDATE_EXPLORE_JOB_RECORDS = 'UPDATE_EXPLORE_JOB_RECORDS';

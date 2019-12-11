@@ -24,10 +24,15 @@ export default class ResourceSummary extends Component {
     entity: PropTypes.instanceOf(Immutable.Map),
     totalRam: PropTypes.number,
     totalCores: PropTypes.number
-  }
+  };
 
   render() {
     const { entity } = this.props;
+    const isYarn = entity && entity.get('clusterType') === 'YARN';
+    if (!isYarn) {
+      return <div style={styles.empty}> </div>;
+    }
+
     const totalRam = NumberFormatUtils.roundNumberField(entity.getIn(['workersSummary', 'totalRAM']) / 1024);
     const totalCores = entity.getIn(['workersSummary', 'totalCores']);
     return (
@@ -46,6 +51,9 @@ export default class ResourceSummary extends Component {
 }
 
 const styles = {
+  empty: {
+    height: 32
+  },
   infoRow: {
     display: 'flex',
     marginBottom: 6

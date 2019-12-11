@@ -21,13 +21,14 @@ import java.util.UUID;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.Constants;
+import org.apache.hadoop.fs.s3a.S3AUtils;
 import org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider;
 
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.InstanceProfileCredentialsProvider;
 import com.amazonaws.auth.STSAssumeRoleSessionCredentialsProvider;
-import com.amazonaws.services.securitytoken.AWSSecurityTokenService;
+import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder;
 
 /**
@@ -49,14 +50,18 @@ public class STSCredentialProviderV1 implements AWSCredentialsProvider {
       awsCredentialsProvider = InstanceProfileCredentialsProvider.getInstance();
     }
 
-    AWSSecurityTokenService stsClient = AWSSecurityTokenServiceClientBuilder.standard()
+    final String region = S3FileSystem.getAWSRegionFromConfigurationOrDefault(conf).toString();
+    final AWSSecurityTokenServiceClientBuilder builder = AWSSecurityTokenServiceClientBuilder.standard()
       .withCredentials(awsCredentialsProvider)
-      .withRegion(S3FileSystem.getAwsRegionFromConfigurationOrDefault(conf).toString())
-      .build();
+      .withClientConfiguration(S3AUtils.createAwsConf(conf, ""))
+      .withRegion(region);
+    S3FileSystem.getStsEndpoint(conf).ifPresent(e -> {
+      builder.withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration(e, region));
+    });
 
     this.stsAssumeRoleSessionCredentialsProvider = new STSAssumeRoleSessionCredentialsProvider.Builder(
       conf.get(Constants.ASSUMED_ROLE_ARN), UUID.randomUUID().toString())
-      .withStsClient(stsClient)
+      .withStsClient(builder.build())
       .build();
   }
 

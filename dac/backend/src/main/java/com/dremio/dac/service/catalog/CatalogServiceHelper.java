@@ -330,13 +330,13 @@ public class CatalogServiceHelper {
       } else {
         Optional<?> optional = extractFromNamespaceContainer(namespaceService.getEntityById(id));
         if (!optional.isPresent()) {
-          logger.warn("Could not find entity with id [{}]", id);
+          logger.debug("Could not find entity with id [{}]", id);
         }
 
         return optional;
       }
     } catch (NamespaceException e) {
-      logger.warn("Failed to get entity ", e);
+      logger.debug("Failed to get entity ", e);
       return Optional.absent();
     }
   }
@@ -415,7 +415,7 @@ public class CatalogServiceHelper {
     if (rootEntity != null && rootEntity.getType() == NameSpaceContainer.Type.SOURCE) {
       return Optional.of(getInternalItemFromSource(rootEntity.getSource(), path));
     } else {
-      logger.warn("Can not find internal item with path [%s].", path);
+      logger.warn("Can not find internal item with path [{}].", path);
       return Optional.absent();
     }
   }

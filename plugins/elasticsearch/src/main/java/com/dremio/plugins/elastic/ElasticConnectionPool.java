@@ -41,8 +41,6 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
 
-import org.glassfish.hk2.utilities.Binder;
-import org.glassfish.hk2.utilities.binding.AbstractBinder;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.JerseyInvocation;
@@ -173,22 +171,16 @@ public class ElasticConnectionPool implements AutoCloseable {
   }
 
   public void connect() throws IOException {
-    ClientConfig configuration = new ClientConfig();
+    final ClientConfig configuration = new ClientConfig();
     configuration.property(ClientProperties.READ_TIMEOUT, readTimeoutMillis);
-    AWSCredentialsProvider awsCredentialsProvider = elasticsearchAuthentication.getAwsCredentialsProvider();
+    final AWSCredentialsProvider awsCredentialsProvider = elasticsearchAuthentication.getAwsCredentialsProvider();
     if (awsCredentialsProvider != null) {
       configuration.property(REGION_NAME, elasticsearchAuthentication.getRegionName());
       configuration.register(ElasticsearchRequestClientFilter.class);
-      Binder binder = new AbstractBinder() {
-        @Override
-        protected void configure() {
-          bind(awsCredentialsProvider).to(AWSCredentialsProvider.class);
-        }
-      };
-      configuration.register(binder);
+      configuration.register(new InjectableAWSCredentialsProvider(awsCredentialsProvider), InjectableAWSCredentialsProvider.class);
     }
 
-    ClientBuilder builder = ClientBuilder.newBuilder()
+    final ClientBuilder builder = ClientBuilder.newBuilder()
         .withConfig(configuration);
 
     switch(sslMode) {

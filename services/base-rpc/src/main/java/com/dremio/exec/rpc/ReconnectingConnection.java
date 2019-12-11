@@ -26,6 +26,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.dremio.common.SerializedExecutor;
 import com.dremio.exec.rpc.RpcConnectionHandler.FailureType;
+import com.dremio.telemetry.api.metrics.Counter;
+import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.telemetry.api.metrics.Metrics.ResetType;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.MessageLite;
 
@@ -38,6 +41,9 @@ import io.netty.channel.ChannelFutureListener;
 public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConnection, OUTBOUND_HANDSHAKE extends MessageLite>
     implements Closeable {
   private final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(this.getClass());
+
+  private static final Counter CONNECTION_BREAK_15M = Metrics.newCounter(Metrics.join("rpc", "failure_15m"), ResetType.PERIODIC_15M);
+  private static final Counter CONNECTION_BREAK_1D = Metrics.newCounter(Metrics.join("rpc", "failure_1d"), ResetType.PERIODIC_1D);
 
   /**
    * Amount of time to wait after failing to establishing a connection before establishing again.
@@ -439,6 +445,8 @@ public abstract class ReconnectingConnection<CONNECTION_TYPE extends RemoteConne
     public ConnectionFailure(FailureType type, Throwable throwable) {
       this.type = type;
       this.throwable = throwable;
+      CONNECTION_BREAK_15M.increment();
+      CONNECTION_BREAK_1D.increment();
     }
 
     /**

@@ -75,7 +75,7 @@ public class TestUpdateS3CredentialType extends DremioTest {
       UpdateS3CredentialType task = new UpdateS3CredentialType();
       final LogicalPlanPersistence lpPersistence = new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
       final ConnectionReader connectionReader = ConnectionReader.of(CLASSPATH_SCAN_RESULT, DEFAULT_SABOT_CONFIG);
-      UpgradeContext context = new UpgradeContext(kvStoreProvider, lpPersistence, connectionReader);
+      UpgradeContext context = new UpgradeContext(kvStoreProvider, lpPersistence, connectionReader, null);
       task.upgrade(context);
 
       final NamespaceService namespaceService = new NamespaceServiceImpl(context.getKVStoreProvider());

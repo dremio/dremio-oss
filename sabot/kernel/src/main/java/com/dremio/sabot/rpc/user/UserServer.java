@@ -28,8 +28,8 @@ import com.dremio.exec.rpc.TransportCheck;
 import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.protector.UserWorker;
-import com.dremio.metrics.Metrics;
 import com.dremio.service.Service;
+import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.base.Preconditions;
 
 import io.netty.channel.EventLoopGroup;

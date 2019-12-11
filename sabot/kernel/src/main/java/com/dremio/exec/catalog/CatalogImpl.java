@@ -488,10 +488,7 @@ public class CatalogImpl implements Catalog {
           .message("Unknown source %s", key.getRoot())
           .buildSilently();
     }
-
-    plugin.refreshState();
-    plugin.initiateMetadataRefresh();
-    return plugin.getState();
+    return plugin.refreshState().get();
   }
 
   @Override

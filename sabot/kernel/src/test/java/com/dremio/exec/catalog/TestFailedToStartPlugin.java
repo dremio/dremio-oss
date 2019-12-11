@@ -15,13 +15,11 @@
  */
 package com.dremio.exec.catalog;
 
-import static com.dremio.test.DremioTest.CLASSPATH_SCAN_RESULT;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -34,13 +32,10 @@ import javax.inject.Provider;
 
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.concurrent.Runnables;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -75,6 +70,7 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.namespace.source.proto.UpdateMode;
 import com.dremio.service.scheduler.Cancellable;
+import com.dremio.service.scheduler.LocalSchedulerService;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.test.DremioTest;
@@ -83,7 +79,7 @@ import com.google.common.collect.Sets;
 /**
  *
  */
-public class TestFailedToStartPlugin {
+public class TestFailedToStartPlugin extends DremioTest {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestFailedToStartPlugin.class);
 
   private SabotConfig sabotConfig;
@@ -115,8 +111,8 @@ public class TestFailedToStartPlugin {
     MetadataPolicy rapidRefreshPolicy = new MetadataPolicy()
         .setAuthTtlMs(1L)
         .setDatasetUpdateMode(UpdateMode.PREFETCH)
-        .setNamesRefreshMs(1L)
-        .setDatasetDefinitionRefreshAfterMs(1L)
+        .setNamesRefreshMs(100L)
+        .setDatasetDefinitionRefreshAfterMs(100L)
         .setDatasetDefinitionExpireAfterMs(1L);
 
     final SourceConfig mockUpConfig = new SourceConfig()
@@ -172,7 +168,28 @@ public class TestFailedToStartPlugin {
     when(sabotContext.getRoles())
         .thenReturn(Sets.newHashSet(ClusterCoordinator.Role.MASTER));
 
-    schedulerService = mock(SchedulerService.class);
+    schedulerService = new SchedulerService() {
+      SchedulerService delegate = new LocalSchedulerService(3);
+      @Override
+      public void close() throws Exception {
+        delegate.close();
+      }
+
+      @Override
+      public void start() throws Exception {
+        delegate.start();
+      }
+
+      @Override
+      public Cancellable schedule(Schedule arg0, Runnable arg1) {
+        // replace timing of wakeup.
+        return delegate.schedule(
+            Schedule.Builder.everyMillis(100).asClusteredSingleton("metadata-refresh-test")
+          .build(), arg1);
+
+      }
+    };
+
   }
 
   /**
@@ -190,33 +207,6 @@ public class TestFailedToStartPlugin {
     }
   }
 
-  private void mockScheduleInvocation(InvocationCounter counter) {
-    doAnswer(new Answer<Cancellable>() {
-      @Override
-      public Cancellable answer(InvocationOnMock invocation) {
-        final Object[] arguments = invocation.getArguments();
-        final Runnable r = (Runnable) arguments[1];
-        Runnables.executeInSeparateThread(new Runnable() {
-          @Override
-          public void run() {
-            /* Next run scheduled for 100ms from now. Let's sleep for that 100ms to avoid the run failure of the
-               runnable r (SingletonRunnable) which will skip secondary execution before its previous run exits.
-             */
-            try {
-              Thread.sleep(100L);
-            } catch (Exception e) {
-              // ignored
-            }
-            counter.incrementCount();
-            r.run();
-          }
-
-        });
-        return mock(Cancellable.class);
-      }
-    }).when(schedulerService).schedule(any(Schedule.class), any(Runnable.class));
-  }
-
   /**
    * Wait until metadata refresh counts up three times - as we added thread for initial step,
    * making sure the metadata refresh actually ran in the meantime
@@ -231,46 +221,67 @@ public class TestFailedToStartPlugin {
 
   @Test
   public void testFailedToStart() throws Exception {
-    InvocationCounter counter = new InvocationCounter();
-    mockScheduleInvocation(counter);
+    InvocationCounter refreshCounter = new InvocationCounter();
+    InvocationCounter wakeupCounter = new InvocationCounter();
+    CatalogServiceMonitor monitor = new CatalogServiceMonitor() {
+      @Override
+      public void startBackgroundRefresh() {
+        refreshCounter.incrementCount();
+      }
 
+      @Override
+      public void onWakeup() {
+        wakeupCounter.incrementCount();
+      }
+    };
     KVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
-    plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService, ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig));
+    plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService, ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor);
 
     mockUpPlugin.setThrowAtStart();
     assertEquals(0, mockUpPlugin.getNumFailedStarts());
     plugins.start();
     // mockUpPlugin should be failing over and over right around now
-    waitForRefresh(counter);
+    waitForRefresh(wakeupCounter);
     long currNumFailedStarts = mockUpPlugin.getNumFailedStarts();
     assertTrue(currNumFailedStarts > 1);
     mockUpPlugin.unsetThrowAtStart();
-    waitForRefresh(counter);
+    waitForRefresh(refreshCounter);
     currNumFailedStarts = mockUpPlugin.getNumFailedStarts();
-    waitForRefresh(counter);
+    waitForRefresh(refreshCounter);
     assertEquals(currNumFailedStarts, mockUpPlugin.getNumFailedStarts());
   }
 
   @Test
   public void testBadSourceAtStart() throws Exception {
-    InvocationCounter counter = new InvocationCounter();
-    mockScheduleInvocation(counter);
+    InvocationCounter refreshCounter = new InvocationCounter();
+    InvocationCounter wakeupCounter = new InvocationCounter();
+    CatalogServiceMonitor monitor = new CatalogServiceMonitor() {
+      @Override
+      public void startBackgroundRefresh() {
+        refreshCounter.incrementCount();
+      }
+
+      @Override
+      public void onWakeup() {
+        wakeupCounter.incrementCount();
+      }
+    };
 
     KVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
-    plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService, ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig));
+    plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService, ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor);
 
     mockUpPlugin.setSimulateBadState(true);
     assertEquals(false, mockUpPlugin.gotDatasets());
     plugins.start();
     // metadata refresh should be running right now
-    waitForRefresh(counter);
+    waitForRefresh(wakeupCounter);
     assertFalse(mockUpPlugin.gotDatasets());
     mockUpPlugin.setSimulateBadState(false);
     // Give metadata refresh a chance to run again
-    waitForRefresh(counter);
+    waitForRefresh(refreshCounter);
     assertTrue(mockUpPlugin.gotDatasets());
     mockUpPlugin.unsetGotDatasets();
-    waitForRefresh(counter);
+    waitForRefresh(refreshCounter);
     assertTrue(mockUpPlugin.gotDatasets());
   }
 

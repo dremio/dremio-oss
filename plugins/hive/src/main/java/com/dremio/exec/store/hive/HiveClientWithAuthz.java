@@ -19,9 +19,10 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.ql.metadata.Hive;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.thrift.TException;
@@ -44,7 +45,7 @@ class HiveClientWithAuthz extends HiveClient {
   private HiveAuthorizationHelper authorizer;
 
   HiveClientWithAuthz(final HiveConf hiveConf, final UserGroupInformation ugiForRpc, final String userName,
-      final HiveClient processUserClient, final boolean needDelegationToken) throws TException {
+      final HiveClient processUserClient, final boolean needDelegationToken) throws TException, HiveException {
     super(hiveConf);
     this.processUserClient = processUserClient;
     this.ugiForRpc = ugiForRpc;
@@ -58,7 +59,7 @@ class HiveClientWithAuthz extends HiveClient {
         new UGIDoAsCommand<Void>() {
           @Override
           public Void run() throws Exception {
-            client = new HiveMetaStoreClient(hiveConf);
+            client = Hive.get(hiveConf).getMSC();
             return null;
           }
         },

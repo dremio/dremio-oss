@@ -36,6 +36,7 @@ import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.exec.catalog.ManagedStoragePlugin.MetadataAccessType;
+import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
@@ -99,12 +100,12 @@ class DatasetManager {
 
   /**
    * A path is ambiguous if it has two parts and the root contains a period. In this case, we don't
-   * know whether the root should be considered a single part of many parts and need to do a search
+   * know whether the root should be considered a single part or multiple parts and need to do a search
    * for an unescaped path rather than a lookup.
    *
    * This is because JDBC & ODBC tools use a two part naming scheme and thus we also present Dremio
    * datasets using this two part scheme where all parts of the path except the leaf are presented
-   * as part of the schema of the table. This relates to DX-
+   * as part of the schema of the table.
    *
    * @param key
    *          Key to test
@@ -130,7 +131,7 @@ class DatasetManager {
     }
 
     /**
-     * If we have an ambgious key, let's search for possible matches in the namespace.
+     * If we have an ambiguous key, let's search for possible matches in the namespace.
      *
      * From there we will:
      * - only consider keys that have the same leaf value (since ambiguity isn't allowed there)
@@ -383,12 +384,13 @@ class DatasetManager {
   private String getAccessUserName(ManagedStoragePlugin plugin, SchemaConfig schemaConfig) {
     final String accessUserName;
 
-    if (plugin.getConnectionConf() instanceof ImpersonationConf) {
+    ConnectionConf<?,?> conf = plugin.getConnectionConf();
+    if (conf instanceof ImpersonationConf) {
       String queryUser = null;
       if (schemaConfig.getViewExpansionContext() != null) {
         queryUser = schemaConfig.getViewExpansionContext().getQueryUser();
       }
-      accessUserName = ((ImpersonationConf) plugin.getConnectionConf()).getAccessUserName(schemaConfig.getUserName(), queryUser);
+      accessUserName = ((ImpersonationConf) conf).getAccessUserName(schemaConfig.getUserName(), queryUser);
     } else {
       accessUserName = schemaConfig.getUserName();
     }

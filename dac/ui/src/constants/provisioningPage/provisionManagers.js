@@ -13,6 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+//TODO: move fields and init_values to provisioningConstants
 export const MAPPED_FIELDS = {
   resourceManagerHost: 'resourceManagerHost',
   namenodeHost: 'namenodeHost',
@@ -88,11 +90,11 @@ export const PROVISION_MANAGERS = [ // todo: loc
   //   connected: false
   // },
   // {
-  //   clusterType: 'AMAZON',
-  //   label: 'Amazon EC2',
+  //   clusterType: 'EC2',
+  //   label: 'AWS Cluster',
   //   iconType: 'Amazon',
-  //   connected: false
-  // },
+  //   connected: true
+  // }
   // {
   //   clusterType: 'GCE',
   //   label: 'Google Cloud Platform',

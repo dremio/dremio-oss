@@ -51,8 +51,6 @@ import com.dremio.exec.store.hive.Hive3PluginOptions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
-// DX-18454: ignoring tests due to jetty version mismatch with Hadoop 3.2
-@Ignore
 public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
 
   @ClassRule

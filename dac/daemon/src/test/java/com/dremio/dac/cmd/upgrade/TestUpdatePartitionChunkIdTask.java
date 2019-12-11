@@ -91,7 +91,7 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
       assertThat(StreamSupport.stream(partitionChunksStore.find().spliterator(), false).count(), is(10L + 20L + 30L));
 
       // Perform upgrade
-      final UpgradeContext context = new UpgradeContext(kvStoreProvider, null, null);
+      final UpgradeContext context = new UpgradeContext(kvStoreProvider, null, null, null);
       final UpdateDatasetSplitIdTask task = new UpdateDatasetSplitIdTask();
       task.upgrade(context);
 

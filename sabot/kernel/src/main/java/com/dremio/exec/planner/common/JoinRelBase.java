@@ -18,6 +18,7 @@ package com.dremio.exec.planner.common;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.holders.IntHolder;
 import org.apache.calcite.plan.RelOptCluster;
@@ -34,8 +35,13 @@ import org.apache.calcite.rel.core.JoinRelType;
 import org.apache.calcite.rel.metadata.RelMdUtil;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexChecker;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
+import org.apache.calcite.sql.type.SqlTypeName;
+import org.apache.calcite.util.ImmutableBitSet;
+import org.apache.calcite.util.Litmus;
 
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.cost.DremioCost;
@@ -68,12 +74,28 @@ public abstract class JoinRelBase extends Join {
   protected final RexNode remaining;
 
   /**
+   * Fields required by its consumer
+   */
+  protected ImmutableBitSet projectedFields;
+
+  /**
+   * This is rowType for incoming fields.
+   * This will be only used when projectedFields property is not null.
+   */
+  protected RelDataType inputRowType;
+
+  /**
    * Dremio join category
    */
   protected final JoinUtils.JoinCategory joinCategory;
 
   protected JoinRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-      JoinRelType joinType){
+      JoinRelType joinType) {
+    this(cluster, traits, left, right, condition, joinType, null);
+  }
+
+  protected JoinRelBase(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
+                        JoinRelType joinType, ImmutableBitSet projectedFields) {
     super(cluster, traits, left, right, condition, CorrelationId.setOf(Collections.emptySet()), joinType);
     leftKeys = Lists.newArrayList();
     rightKeys = Lists.newArrayList();
@@ -81,11 +103,57 @@ public abstract class JoinRelBase extends Join {
 
     remaining = RelOptUtil.splitJoinCondition(left, right, condition, leftKeys, rightKeys, filterNulls);
     joinCategory = getJoinCategory(condition, leftKeys, rightKeys, filterNulls, remaining);
+
+    this.projectedFields = projectedFields;
+    if (projectedFields != null) {
+      List<RelDataType> fields = getRowType().getFieldList().stream().map(RelDataTypeField::getType).collect(Collectors.toList());
+      List<String> names = ImmutableList.copyOf(getRowType().getFieldNames());
+      inputRowType = cluster.getTypeFactory().createStructType(fields, names);
+      rowType = JoinUtils.rowTypeFromProjected(left, right, getRowType(), projectedFields, cluster.getTypeFactory());
+    }
+  }
+
+  public RelDataType getInputRowType() {
+    if (inputRowType != null) {
+      return inputRowType;
+    }
+    return getRowType();
   }
 
   protected static RelTraitSet adjustTraits(RelTraitSet traits) {
     // Join operators do not preserve collations
     return traits.replaceIfs(RelCollationTraitDef.INSTANCE, ImmutableList::of);
+  }
+
+  public ImmutableBitSet getProjectedFields() {
+    return this.projectedFields;
+  }
+
+  @Override public boolean isValid(Litmus litmus, Context context) {
+    if (condition != null) {
+      if (condition.getType().getSqlTypeName() != SqlTypeName.BOOLEAN) {
+        return litmus.fail("condition must be boolean: {}",
+          condition.getType());
+      }
+      // The input to the condition is a row type consisting of system
+      // fields, left fields, and right fields. Very similar to the
+      // output row type, except that fields have not yet been made due
+      // due to outer joins.
+      RexChecker checker =
+        new RexChecker(
+          getCluster().getTypeFactory().builder()
+            .addAll(getSystemFieldList())
+            .addAll(getLeft().getRowType().getFieldList())
+            .addAll(getRight().getRowType().getFieldList())
+            .build(),
+          context, litmus);
+      condition.accept(checker);
+      if (checker.getFailureCount() > 0) {
+        return litmus.fail(checker.getFailureCount()
+          + " failures in condition " + condition);
+      }
+    }
+    return litmus.succeed();
   }
 
   @Override
@@ -322,6 +390,25 @@ public abstract class JoinRelBase extends Join {
 
     return false;
   }
+
+  /**
+   * Creates a copy of this join, overriding condition, system fields and
+   * inputs.
+   *
+   * <p>General contract as {@link RelNode#copy}.
+   *
+   * @param traitSet        Traits
+   * @param conditionExpr   Condition
+   * @param left            Left input
+   * @param right           Right input
+   * @param joinType        Join type
+   * @param semiJoinDone    Whether this join has been translated to a
+   *                        semi-join
+   * @Param projectedFields
+   * @return Copy of this join
+   */
+  public abstract Join copy(RelTraitSet traitSet, RexNode conditionExpr,
+                            RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone, ImmutableBitSet projectedFields);
 
   private static JoinCategory getJoinCategory(RexNode condition,
       List<Integer> leftKeys, List<Integer> rightKeys, List<Boolean> filterNulls, RexNode remaining) {

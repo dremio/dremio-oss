@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
 import com.dremio.common.Version;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.cmd.AdminCommand;
@@ -169,7 +168,8 @@ public class Upgrade {
     final UpgradeStore upgradeStore = new UpgradeStore(storeProvider);
 
     if (!identity.isPresent()) {
-      throw UserException.validationError().message("No Cluster Identity found").build(logger);
+      AdminLogger.log("No cluster identity found. Skipping upgrade");
+      return;
     }
 
     ClusterIdentity clusterIdentity = identity.get();
@@ -199,7 +199,7 @@ public class Upgrade {
       final LogicalPlanPersistence lpPersistence = new LogicalPlanPersistence(sabotConfig, classpathScan);
       final ConnectionReader connectionReader = ConnectionReader.of(classpathScan, sabotConfig);
 
-      final UpgradeContext context = new UpgradeContext(storeProvider, lpPersistence, connectionReader);
+      final UpgradeContext context = new UpgradeContext(storeProvider, lpPersistence, connectionReader, classpathScan);
 
       for (UpgradeTask task : tasksToRun) {
         AdminLogger.log(task.toString());

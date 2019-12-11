@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-parent</artifactId>
-    <version>4.0.2-201910020123580864-a98a0b9</version>
+    <version>4.1.0-201912030136020081-49feeb75</version>
   </parent>
 
   <groupId>com.dremio.services</groupId>
@@ -37,7 +37,8 @@
     <module>base-rpc</module>
     <module>fabric-rpc</module>
     <module>jobs</module>
-    <module>metrics</module>
+    <module>telemetry-api</module>
+    <module>telemetry-impl</module>
     <module>namespace</module>
     <module>options</module>
     <module>resourcescheduler</module>

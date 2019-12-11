@@ -65,17 +65,17 @@ public class BasicResourceTest {
 
     basicProperties.setClientType("jdbc");
     basicProperties.setQueryCost(30000.0D);
-    basicProperties.setQueueName("abc");
+    basicProperties.setRoutingQueue("abc");
     basicProperties.setUser("bcd");
-    basicProperties.setTag("tagvalue1");
+    basicProperties.setRoutingTag("tagvalue1");
 
     assertEquals(30000.0D,
       basicProperties.getQueryCost(),10E-6);
 
     assertEquals("jdbc", basicProperties.getClientType());
-    assertEquals("abc", basicProperties.getQueueName());
+    assertEquals("abc", basicProperties.getRoutingQueue());
     assertEquals("bcd", basicProperties.getUser());
-    assertEquals("tagvalue1", basicProperties.getTag());
+    assertEquals("tagvalue1", basicProperties.getRoutingTag());
 
   }
 

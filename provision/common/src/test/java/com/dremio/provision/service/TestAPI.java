@@ -40,6 +40,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.datastore.KVStore;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.options.OptionManager;
 import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterConfig;
 import com.dremio.provision.ClusterCreateRequest;
@@ -52,16 +53,19 @@ import com.dremio.provision.ClusterState;
 import com.dremio.provision.ClusterType;
 import com.dremio.provision.DistroType;
 import com.dremio.provision.DynamicConfig;
+import com.dremio.provision.ImmutableClusterModifyRequest;
 import com.dremio.provision.Property;
 import com.dremio.provision.PropertyType;
+import com.dremio.provision.YarnPropsApi;
 import com.dremio.provision.resource.ProvisioningResource;
+import com.dremio.service.DirectProvider;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.test.DremioTest;
 
 /**
  * To test ProvisionResource APIs
  */
-public class TestAPI {
+public class TestAPI extends DremioTest {
 
   private static ProvisioningResource resource;
   private static final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true,
@@ -74,8 +78,13 @@ public class TestAPI {
       registry.bind(KVStoreProvider.class, kvstore);
       kvstore.start();
       registry.start();
-      service = Mockito.spy(new ProvisioningServiceImpl(DremioConfig.create(), registry.provider(KVStoreProvider.class), Mockito.mock(NodeProvider.class),
-        DremioTest.CLASSPATH_SCAN_RESULT));
+      service = Mockito.spy(new ProvisioningServiceImpl(
+          DremioConfig.create(),
+          registry.provider(KVStoreProvider.class),
+          Mockito.mock(NodeProvider.class),
+          DremioTest.CLASSPATH_SCAN_RESULT,
+          DirectProvider.wrap(Mockito.mock(OptionManager.class))
+          ));
       service.start();
       resource = new ProvisioningResource(service);
   }
@@ -152,9 +161,10 @@ public class TestAPI {
   public void testVersionMismatch() throws Exception {
     Cluster storedCluster = clusterCreateHelper();
     // test version mismatch
-    ClusterModifyRequest request = new ClusterModifyRequest();
-    request.setId(storedCluster.getId().getId());
-    request.setTag("11");
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+        .setTag("11")
+        .setId(storedCluster.getId().getId())
+        .build();
 
     ClusterConfig config = resource.toClusterConfig(request);
     try {
@@ -173,9 +183,10 @@ public class TestAPI {
       Cluster storedCluster = clusterCreateHelper();
       storedCluster.getClusterConfig().setTag(version);
       // test version mismatch
-      ClusterModifyRequest request = new ClusterModifyRequest();
-      request.setId(storedCluster.getId().getId());
-      request.setTag(version);
+      ClusterModifyRequest request = ClusterModifyRequest.builder()
+          .setId(storedCluster.getId().getId())
+          .setTag(version)
+          .build();
 
       ClusterConfig config = resource.toClusterConfig(request);
       try {
@@ -193,8 +204,9 @@ public class TestAPI {
     Cluster storedCluster = clusterCreateHelper();
     storedCluster.getClusterConfig().setTag("12");
     // test version not set
-    ClusterModifyRequest request = new ClusterModifyRequest();
-    request.setId(storedCluster.getId().getId());
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+        .setId(storedCluster.getId().getId())
+        .build();
 
     ClusterConfig config = resource.toClusterConfig(request);
     try {
@@ -250,12 +262,12 @@ public class TestAPI {
   public void testDeletedState() throws Exception {
     Cluster storedCluster = clusterCreateHelper();
 
-    ClusterModifyRequest request = new ClusterModifyRequest();
+    ImmutableClusterModifyRequest.Builder request = ClusterModifyRequest.builder();
     // test DELETED state
     storedCluster.setDesiredState(ClusterState.DELETED);
     request.setId(storedCluster.getId().getId());
     request.setTag("12");
-    ClusterConfig config = resource.toClusterConfig(request);
+    ClusterConfig config = resource.toClusterConfig(request.build());
 
     try {
       final Cluster modifiedCluster = service.toCluster(config, null, storedCluster);
@@ -270,9 +282,10 @@ public class TestAPI {
   public void testStoppingState() throws Exception {
     Cluster storedCluster = clusterCreateHelper();
 
-    ClusterModifyRequest request = new ClusterModifyRequest();
-    request.setId(storedCluster.getId().getId());
-    request.setTag("12");
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+        .setId(storedCluster.getId().getId())
+        .setTag("12")
+        .build();
 
     // test STOPPING state
     storedCluster.setDesiredState(null);
@@ -292,14 +305,20 @@ public class TestAPI {
   public void testActionNone() throws Exception {
     // test action NONE - resize to the same number
     Cluster storedCluster = clusterCreateHelper();
-
-    ClusterModifyRequest request = new ClusterModifyRequest();
-    request.setId(storedCluster.getId().getId());
-    request.setTag("12");
-
     storedCluster.setState(ClusterState.RUNNING);
-    request.setDynamicConfig(new DynamicConfig(2));
-    request.setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList());
+
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+        .setId(storedCluster.getId().getId())
+        .setTag("12")
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+        .setYarnProps(YarnPropsApi.builder()
+            .setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList())
+            .setVirtualCoreCount(storedCluster.getClusterConfig().getClusterSpec().getVirtualCoreCount())
+            .setMemoryMB(8192)
+            .build())
+
+        .build();
+
     ClusterConfig config = resource.toClusterConfig(request);
 
     final Cluster modifiedCluster = service.toCluster(config, null, storedCluster);
@@ -311,14 +330,18 @@ public class TestAPI {
   public void testResize() throws Exception {
     // test action RESIZE
     Cluster storedCluster = clusterCreateHelper();
-
-    ClusterModifyRequest request = new ClusterModifyRequest();
-    request.setId(storedCluster.getId().getId());
-    request.setTag("12");
-
     storedCluster.setState(ClusterState.RUNNING);
-    request.setDynamicConfig(new DynamicConfig(3));
-    request.setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList());
+
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+        .setId(storedCluster.getId().getId())
+        .setTag("12")
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(3).build())
+        .setYarnProps(YarnPropsApi.builder()
+            .setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList())
+            .setVirtualCoreCount(storedCluster.getClusterConfig().getClusterSpec().getVirtualCoreCount())
+            .setMemoryMB(8192)
+            .build())
+        .build();
     ClusterConfig config = resource.toClusterConfig(request);
 
     final Cluster modifiedCluster = service.toCluster(config, null, storedCluster);
@@ -330,15 +353,19 @@ public class TestAPI {
   public void testStart() throws Exception {
     // test action START
     Cluster storedCluster = clusterCreateHelper();
-
-    ClusterModifyRequest request = new ClusterModifyRequest();
-    request.setId(storedCluster.getId().getId());
-    request.setTag("12");
-
     storedCluster.setState(ClusterState.STOPPED);
-    request.setDynamicConfig(new DynamicConfig(2));
-    request.setDesiredState(ClusterDesiredState.RUNNING);
-    request.setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList());
+
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+        .setId(storedCluster.getId().getId())
+        .setTag("12")
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+        .setDesiredState(ClusterDesiredState.RUNNING)
+        .setYarnProps(YarnPropsApi.builder()
+            .setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList())
+            .setVirtualCoreCount(storedCluster.getClusterConfig().getClusterSpec().getVirtualCoreCount())
+            .setMemoryMB(8192)
+            .build())
+        .build();
     ClusterConfig config = resource.toClusterConfig(request);
 
     final Cluster modifiedCluster2 = service.toCluster(config, ClusterState.RUNNING, storedCluster);
@@ -350,15 +377,20 @@ public class TestAPI {
   public void testStop() throws Exception {
     // test action STOP
     Cluster storedCluster = clusterCreateHelper();
-
-    ClusterModifyRequest request = new ClusterModifyRequest();
-    request.setId(storedCluster.getId().getId());
-    request.setTag("12");
-
     storedCluster.setState(ClusterState.RUNNING);
-    request.setDynamicConfig(new DynamicConfig(2));
-    request.setDesiredState(ClusterDesiredState.STOPPED);
-    request.setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList());
+
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+        .setId(storedCluster.getId().getId())
+        .setTag("12")
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+        .setDesiredState(ClusterDesiredState.STOPPED)
+        .setYarnProps(YarnPropsApi.builder()
+            .setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList())
+            .setVirtualCoreCount(storedCluster.getClusterConfig().getClusterSpec().getVirtualCoreCount())
+            .setMemoryMB(8192)
+            .build())
+        .build();
+
     ClusterConfig config = resource.toClusterConfig(request);
 
     final Cluster modifiedCluster3 = service.toCluster(config, ClusterState.STOPPED, storedCluster);
@@ -370,16 +402,19 @@ public class TestAPI {
   public void testRestartCoresChanges() throws Exception {
     // test action RESTART
     Cluster storedCluster = clusterCreateHelper();
-
-    ClusterModifyRequest request = new ClusterModifyRequest();
-    request.setId(storedCluster.getId().getId());
-    request.setTag("12");
-
     storedCluster.setState(ClusterState.RUNNING);
-    request.setDynamicConfig(new DynamicConfig(2));
-    request.setVirtualCoreCount(4);
-    request.setDesiredState(ClusterDesiredState.RUNNING);
-    request.setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList());
+
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+        .setId(storedCluster.getId().getId())
+        .setTag("12")
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+        .setDesiredState(ClusterDesiredState.RUNNING)
+        .setYarnProps(YarnPropsApi.builder()
+            .setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList())
+            .setVirtualCoreCount(4)
+            .setMemoryMB(8192)
+            .build())
+        .build();
     ClusterConfig config = resource.toClusterConfig(request);
     final Cluster modifiedCluster4 = service.toCluster(config, ClusterState.RUNNING, storedCluster);
     ProvisioningServiceImpl.Action action = service.toAction(storedCluster, modifiedCluster4);
@@ -392,16 +427,18 @@ public class TestAPI {
   public void testRestartMemoryChanges() throws Exception {
     // test action RESTART
     Cluster storedCluster = clusterCreateHelper();
-
-    ClusterModifyRequest request = new ClusterModifyRequest();
-    request.setId(storedCluster.getId().getId());
-    request.setTag("12");
-
     storedCluster.setState(ClusterState.RUNNING);
-    request.setDynamicConfig(new DynamicConfig(2));
-    request.setMemoryMB(9126);
-    request.setDesiredState(ClusterDesiredState.RUNNING);
-    request.setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList());
+
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+        .setId(storedCluster.getId().getId())
+        .setTag("12")
+        .setDesiredState(ClusterDesiredState.RUNNING)
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+        .setYarnProps(YarnPropsApi.builder()
+            .setMemoryMB(9126)
+            .setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList())
+            .build())
+        .build();
     ClusterConfig config = resource.toClusterConfig(request);
     final Cluster modifiedCluster4 = service.toCluster(config, ClusterState.RUNNING, storedCluster);
     ProvisioningServiceImpl.Action action = service.toAction(storedCluster, modifiedCluster4);
@@ -414,18 +451,24 @@ public class TestAPI {
   public void testRestartMemoryOnHeapChanges() throws Exception {
     // test action RESTART
     Cluster storedCluster = clusterCreateHelper();
-
-    ClusterModifyRequest request = new ClusterModifyRequest();
-    request.setId(storedCluster.getId().getId());
-    request.setTag("12");
-
     storedCluster.setState(ClusterState.RUNNING);
-    request.setDynamicConfig(new DynamicConfig(2));
-    //request.setMemoryMB(9126);
-    request.setDesiredState(ClusterDesiredState.RUNNING);
+
     List<Property> newList = new ArrayList<>(storedCluster.getClusterConfig().getSubPropertyList());
     newList.add(new Property(ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY, "2096"));
-    request.setSubPropertyList(newList);
+
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+        .setId(storedCluster.getId().getId())
+        .setTag("12")
+        .setDesiredState(ClusterDesiredState.RUNNING)
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+        .setYarnProps(YarnPropsApi.builder()
+            .setSubPropertyList(newList)
+            .setVirtualCoreCount(storedCluster.getClusterConfig().getClusterSpec().getVirtualCoreCount())
+            .setMemoryMB(8192)
+            .build())
+        .build();
+
+
     ClusterConfig config = resource.toClusterConfig(request);
     final Cluster modifiedCluster4 = service.toCluster(config, ClusterState.RUNNING, storedCluster);
     ProvisioningServiceImpl.Action action = service.toAction(storedCluster, modifiedCluster4);
@@ -438,18 +481,19 @@ public class TestAPI {
   public void testRestartMemoryOnAndOffHeapChanges() throws Exception {
     // test action RESTART
     Cluster storedCluster = clusterCreateHelper();
-
-    ClusterModifyRequest request = new ClusterModifyRequest();
-    request.setId(storedCluster.getId().getId());
-    request.setTag("12");
-
     storedCluster.setState(ClusterState.RUNNING);
-    request.setDynamicConfig(new DynamicConfig(2));
-    request.setMemoryMB(9126);
-    request.setDesiredState(ClusterDesiredState.RUNNING);
     List<Property> newList = new ArrayList<>(storedCluster.getClusterConfig().getSubPropertyList());
     newList.add(new Property(ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY, "2096"));
-    request.setSubPropertyList(newList);
+
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+        .setId(storedCluster.getId().getId())
+        .setTag("12")
+        .setDesiredState(ClusterDesiredState.RUNNING)
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+        .setYarnProps(YarnPropsApi.builder()
+            .setMemoryMB(9126)
+            .setSubPropertyList(newList).build())
+        .build();
     ClusterConfig config = resource.toClusterConfig(request);
     final Cluster modifiedCluster4 = service.toCluster(config, ClusterState.RUNNING, storedCluster);
     ProvisioningServiceImpl.Action action = service.toAction(storedCluster, modifiedCluster4);
@@ -460,12 +504,15 @@ public class TestAPI {
 
   @Test
   public void testMemoryLimitDefault() throws Exception {
-    ClusterCreateRequest clusterCreateRequest = new ClusterCreateRequest();
-    clusterCreateRequest.setMemoryMB(32767);
-    clusterCreateRequest.setClusterType(ClusterType.YARN);
-    clusterCreateRequest.setDynamicConfig(new DynamicConfig(2));
-    clusterCreateRequest.setVirtualCoreCount(2);
-    clusterCreateRequest.setDistroType(DistroType.MAPR).setIsSecure(true);
+    ClusterCreateRequest clusterCreateRequest = ClusterCreateRequest.builder()
+        .setYarnProps(YarnPropsApi.builder()
+            .setVirtualCoreCount(2)
+            .setDistroType(DistroType.MAPR).setIsSecure(true)
+            .setMemoryMB(32767)
+            .build())
+        .setClusterType(ClusterType.YARN)
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+        .build();
 
     ClusterConfig clusterConfig = resource.getClusterConfig(clusterCreateRequest);
     assertEquals( 4096, clusterConfig.getClusterSpec().getMemoryMBOnHeap().intValue());
@@ -474,12 +521,17 @@ public class TestAPI {
 
   @Test
   public void testMemoryLimitLargeSystem() throws Exception {
-    ClusterCreateRequest clusterCreateRequest = new ClusterCreateRequest();
-    clusterCreateRequest.setMemoryMB(32768);
-    clusterCreateRequest.setClusterType(ClusterType.YARN);
-    clusterCreateRequest.setDynamicConfig(new DynamicConfig(2));
-    clusterCreateRequest.setVirtualCoreCount(2);
-    clusterCreateRequest.setDistroType(DistroType.MAPR).setIsSecure(true);
+    ClusterCreateRequest clusterCreateRequest = ClusterCreateRequest.builder()
+        .setYarnProps(YarnPropsApi.builder()
+            .setMemoryMB(32768)
+            .setVirtualCoreCount(2)
+            .setDistroType(DistroType.MAPR)
+            .setIsSecure(true)
+            .build())
+        .setClusterType(ClusterType.YARN)
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+        .build();
+
 
     ClusterConfig clusterConfig = resource.getClusterConfig(clusterCreateRequest);
     assertEquals( 8192, clusterConfig.getClusterSpec().getMemoryMBOnHeap().intValue());
@@ -488,16 +540,21 @@ public class TestAPI {
 
   @Test
   public void testMemoryLimitOverWrite() throws Exception {
-    ClusterCreateRequest clusterCreateRequest = new ClusterCreateRequest();
-    clusterCreateRequest.setMemoryMB(32768);
-    clusterCreateRequest.setClusterType(ClusterType.YARN);
-    clusterCreateRequest.setDynamicConfig(new DynamicConfig(2));
-    clusterCreateRequest.setVirtualCoreCount(2);
-    clusterCreateRequest.setDistroType(DistroType.MAPR).setIsSecure(true);
-
     List<Property> newList = new ArrayList<>();
     newList.add(new Property(ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY, "2096"));
-    clusterCreateRequest.setSubPropertyList(newList);
+
+    ClusterCreateRequest clusterCreateRequest = ClusterCreateRequest.builder()
+        .setYarnProps(YarnPropsApi.builder()
+            .setMemoryMB(32768)
+            .setVirtualCoreCount(2)
+            .setDistroType(DistroType.MAPR)
+            .setIsSecure(true)
+            .setSubPropertyList(newList)
+            .build()
+            )
+        .setClusterType(ClusterType.YARN)
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+        .build();
 
     ClusterConfig clusterConfig = resource.getClusterConfig(clusterCreateRequest);
     assertEquals( 2096, clusterConfig.getClusterSpec().getMemoryMBOnHeap().intValue());
@@ -506,12 +563,19 @@ public class TestAPI {
 
   @Test
   public void testUpdateFromDefaultToLargeSystem() throws Exception {
-    ClusterCreateRequest clusterCreateRequest = new ClusterCreateRequest();
-    clusterCreateRequest.setMemoryMB(32767);
-    clusterCreateRequest.setClusterType(ClusterType.YARN);
-    clusterCreateRequest.setDynamicConfig(new DynamicConfig(2));
-    clusterCreateRequest.setVirtualCoreCount(2);
-    clusterCreateRequest.setDistroType(DistroType.MAPR).setIsSecure(true);
+    ClusterCreateRequest clusterCreateRequest = ClusterCreateRequest.builder()
+        .setYarnProps(YarnPropsApi.builder()
+            .setMemoryMB(32767)
+            .setVirtualCoreCount(2)
+            .setDistroType(DistroType.MAPR)
+            .setIsSecure(true)
+            .build()
+
+            )
+        .setClusterType(ClusterType.YARN)
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+        .build();
+
     ClusterConfig defaultConfig = resource.getClusterConfig(clusterCreateRequest);
 
     final Cluster initStoredCluster = clusterCreateHelper();
@@ -520,8 +584,11 @@ public class TestAPI {
     assertEquals(4096, defaultStoredCluster.getClusterConfig().getClusterSpec().getMemoryMBOnHeap().intValue());
     assertEquals( (32767-4096), defaultStoredCluster.getClusterConfig().getClusterSpec().getMemoryMBOffHeap().intValue());
 
-    ClusterModifyRequest clusterModifyRequest = new ClusterModifyRequest();
-    clusterModifyRequest.setMemoryMB(32768);
+    ClusterModifyRequest clusterModifyRequest = ClusterModifyRequest.builder()
+        .setYarnProps(YarnPropsApi.builder()
+            .setMemoryMB(32768)
+            .build())
+        .build();
 
     ClusterConfig largeSystemConfig = resource.toClusterConfig(clusterModifyRequest);
 
@@ -533,12 +600,16 @@ public class TestAPI {
 
   @Test
   public void testUpdateFromLargeSystemToDefault() throws Exception {
-    ClusterCreateRequest clusterCreateRequest = new ClusterCreateRequest();
-    clusterCreateRequest.setMemoryMB(32768);
-    clusterCreateRequest.setClusterType(ClusterType.YARN);
-    clusterCreateRequest.setDynamicConfig(new DynamicConfig(2));
-    clusterCreateRequest.setVirtualCoreCount(2);
-    clusterCreateRequest.setDistroType(DistroType.MAPR).setIsSecure(true);
+    ClusterCreateRequest clusterCreateRequest = ClusterCreateRequest.builder()
+        .setClusterType(ClusterType.YARN)
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+        .setYarnProps(YarnPropsApi.builder()
+            .setMemoryMB(32768)
+            .setVirtualCoreCount(2)
+            .setDistroType(DistroType.MAPR)
+            .setIsSecure(true)
+            .build())
+        .build();
     ClusterConfig defaultConfig = resource.getClusterConfig(clusterCreateRequest);
 
     final Cluster initStoredCluster = clusterCreateHelper();
@@ -547,8 +618,11 @@ public class TestAPI {
     assertEquals(8192, defaultStoredCluster.getClusterConfig().getClusterSpec().getMemoryMBOnHeap().intValue());
     assertEquals( (32768-8192), defaultStoredCluster.getClusterConfig().getClusterSpec().getMemoryMBOffHeap().intValue());
 
-    ClusterModifyRequest clusterModifyRequest = new ClusterModifyRequest();
-    clusterModifyRequest.setMemoryMB(32767);
+    ClusterModifyRequest clusterModifyRequest = ClusterModifyRequest.builder()
+        .setYarnProps(YarnPropsApi.builder()
+            .setMemoryMB(32767)
+            .build())
+        .build();
 
     ClusterConfig largeSystemConfig = resource.toClusterConfig(clusterModifyRequest);
 
@@ -562,16 +636,18 @@ public class TestAPI {
   public void testRestartProperties() throws Exception {
     // test action RESTART
     Cluster storedCluster = clusterCreateHelper();
-
-    ClusterModifyRequest request = new ClusterModifyRequest();
-    request.setId(storedCluster.getId().getId());
-    request.setTag("12");
-
     storedCluster.setState(ClusterState.RUNNING);
-    request.setDynamicConfig(new DynamicConfig(2));
-    request.setVirtualCoreCount(2);
-    request.setDesiredState(ClusterDesiredState.RUNNING);
-    request.setSubPropertyList(new ArrayList<Property>());
+
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+        .setId(storedCluster.getId().getId())
+        .setTag("12")
+        .setDesiredState(ClusterDesiredState.RUNNING)
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+        .setYarnProps(YarnPropsApi.builder()
+            .setVirtualCoreCount(2)
+            .setSubPropertyList(new ArrayList<Property>())
+            .build())
+        .build();
     ClusterConfig config = resource.toClusterConfig(request);
     final Cluster modifiedCluster5 = service.toCluster(config, ClusterState.RUNNING, storedCluster);
     ProvisioningServiceImpl.Action action = service.toAction(storedCluster, modifiedCluster5);
@@ -582,16 +658,19 @@ public class TestAPI {
   public void testRestartNoChangeProperties() throws Exception {
     // test action RESTART
     Cluster storedCluster = clusterCreateHelper();
-
-    ClusterModifyRequest request = new ClusterModifyRequest();
-    request.setId(storedCluster.getId().getId());
-    request.setTag("12");
-
     storedCluster.setState(ClusterState.RUNNING);
-    request.setDynamicConfig(new DynamicConfig(2));
-    request.setVirtualCoreCount(2);
-    request.setDesiredState(ClusterDesiredState.RUNNING);
-    request.setSubPropertyList(null);
+
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+        .setId(storedCluster.getId().getId())
+        .setTag("12")
+        .setDesiredState(ClusterDesiredState.RUNNING)
+        .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+        .setYarnProps(YarnPropsApi.builder()
+            .setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList())
+            .setVirtualCoreCount(storedCluster.getClusterConfig().getClusterSpec().getVirtualCoreCount())
+            .setMemoryMB(8192)
+            .build())
+        .build();
     ClusterConfig config = resource.toClusterConfig(request);
     final Cluster modifiedCluster5 = service.toCluster(config, ClusterState.RUNNING, storedCluster);
     ProvisioningServiceImpl.Action action = service.toAction(storedCluster, modifiedCluster5);
@@ -602,16 +681,19 @@ public class TestAPI {
   public void testDelete() throws Exception {
     // test action DELETE
     Cluster storedCluster = clusterCreateHelper();
-
-    ClusterModifyRequest request = new ClusterModifyRequest();
-    request.setId(storedCluster.getId().getId());
-    request.setTag("12");
-
     storedCluster.setState(ClusterState.RUNNING);
-    request.setDynamicConfig(new DynamicConfig(2));
-    request.setVirtualCoreCount(2);
-    request.setDesiredState(ClusterDesiredState.DELETED);
-    request.setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList());
+
+    ClusterModifyRequest request = ClusterModifyRequest.builder()
+      .setId(storedCluster.getId().getId())
+      .setTag("12")
+      .setDesiredState(ClusterDesiredState.DELETED)
+      .setDynamicConfig(DynamicConfig.builder().setContainerCount(2).build())
+      .setYarnProps(YarnPropsApi.builder()
+          .setSubPropertyList(storedCluster.getClusterConfig().getSubPropertyList())
+          .setVirtualCoreCount(storedCluster.getClusterConfig().getClusterSpec().getVirtualCoreCount())
+          .setMemoryMB(8192)
+          .build())
+      .build();
     ClusterConfig config = resource.toClusterConfig(request);
     final Cluster modifiedCluster6 = service.toCluster(config, ClusterState.DELETED, storedCluster);
     ProvisioningServiceImpl.Action action = service.toAction(storedCluster, modifiedCluster6);
@@ -626,7 +708,7 @@ public class TestAPI {
     ClusterConfig clusterConfig = new ClusterConfig();
     clusterConfig.setTag("12");
     clusterConfig.setClusterType(ClusterType.YARN);
-    clusterConfig.setClusterSpec(new ClusterSpec(2, 4096, 4096, 2));
+    clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
     clusterConfig.setDistroType(DistroType.MAPR).setIsSecure(true);
     List<Property> propertyList = new ArrayList<>();
     propertyList.add(new Property(FS_DEFAULT_NAME_KEY, "hdfs://name-node:8020"));

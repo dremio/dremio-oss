@@ -82,9 +82,8 @@ import software.amazon.awssdk.services.sts.model.StsException;
  */
 public class S3FileSystem extends ContainerFileSystem implements MayProvideAsyncStream {
 
-  public static final String COMPATIBILITY_MODE = "dremio.s3.compat";
-  public static final String REGION_OVERRIDE = "dremio.s3.region";
-  public static final String ACCESS_DENIED = "AccessDenied";
+  static final String COMPATIBILITY_MODE = "dremio.s3.compat";
+  static final String REGION_OVERRIDE = "dremio.s3.region";
 
   private static final Logger logger = LoggerFactory.getLogger(S3FileSystem.class);
   private static final String S3_URI_SCHEMA = "s3a://";
@@ -126,7 +125,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     .expireAfterAccess(1, TimeUnit.HOURS)
     .build(new CacheLoader<String, S3Client>() {
       @Override
-      public S3Client load(String bucket) throws Exception {
+      public S3Client load(String bucket) {
         return newSyncClientReference(bucket);
       }
     });
@@ -169,7 +168,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     try {
       s3 = clientCache.get(S3ClientKey.create(conf));
       useWhitelistedBuckets = !conf.get(S3StoragePlugin.WHITELISTED_BUCKETS,"").isEmpty();
-      if (!S3StoragePlugin.NONE_PROVIDER.equals(conf.get(Constants.AWS_CREDENTIALS_PROVIDER))
+      if (!NONE_PROVIDER.equals(conf.get(Constants.AWS_CREDENTIALS_PROVIDER))
         && !conf.getBoolean(COMPATIBILITY_MODE, false)) {
         verifyCredentials(conf);
       }
@@ -193,7 +192,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     AwsCredentialsProvider awsCredentialsProvider = getAsync2Provider(conf);
     final StsClientBuilder stsClientBuilder = StsClient.builder()
       .credentialsProvider(awsCredentialsProvider)
-      .region(getAwsRegionFromConfigurationOrDefault(conf));
+      .region(getAWSRegionFromConfigurationOrDefault(conf));
     try (StsClient stsClient = stsClientBuilder.build()) {
       GetCallerIdentityRequest request = GetCallerIdentityRequest.builder().build();
       stsClient.getCallerIdentity(request);
@@ -245,8 +244,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     return null;
   }
 
-  software.amazon.awssdk.regions.Region getAWSBucketRegion(String bucketName) throws SdkClientException {
-    String awsRegionName = Region.fromValue(s3.getBucketLocation(bucketName)).toAWSRegion().getName();
+  private software.amazon.awssdk.regions.Region getAWSBucketRegion(String bucketName) throws SdkClientException {
+    final String awsRegionName = Region.fromValue(s3.getBucketLocation(bucketName)).toAWSRegion().getName();
     return software.amazon.awssdk.regions.Region.of(awsRegionName);
   }
 
@@ -310,7 +309,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     private final Configuration parentConf;
     private final String bucketName;
 
-    public BucketCreator(Configuration parentConf, String bucketName) {
+    BucketCreator(Configuration parentConf, String bucketName) {
       super();
       this.parentConf = parentConf;
       this.bucketName = bucketName;
@@ -328,14 +327,14 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         @Override
         public FileSystem create() throws IOException {
           final String targetEndpoint;
-          Optional<String> endpoint = getEndpoint();
+          Optional<String> endpoint = getEndpoint(getConf());
 
-          if(isCompatMode() && endpoint.isPresent()) {
+          if (isCompatMode() && endpoint.isPresent()) {
             // if this is compatibility mode and we have an endpoint, just use that.
             targetEndpoint = endpoint.get();
           } else {
             final String bucketRegion = s3.getBucketLocation(bucketName);
-            final String fallbackEndpoint = endpoint.orElseGet(() -> String.format("%ss3.%s.amazonaws.com", getHttpScheme(), bucketRegion));
+            final String fallbackEndpoint = endpoint.orElseGet(() -> String.format("%ss3.%s.amazonaws.com", getHttpScheme(getConf()), bucketRegion));
 
             String regionEndpoint = fallbackEndpoint;
             try {
@@ -449,14 +448,14 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     @Override
     public String toString() {
       return "[ Access Key=" + s3Config.get(Constants.ACCESS_KEY) + ", Secret Key =*****, isSecure=" +
-          s3Config.get(Constants.SECURE_CONNECTIONS) + " ]";
+          s3Config.get(SECURE_CONNECTIONS) + " ]";
     }
   }
 
   private <T extends AwsClientBuilder<?,?>> T configClientBuilder(T builder, String bucket) {
     final Configuration conf = getConf();
     builder.credentialsProvider(getAsync2Provider(conf));
-    Optional<String> endpoint = getEndpoint();
+    Optional<String> endpoint = getEndpoint(conf);
     if (endpoint.isPresent()) {
       try {
         builder.endpointOverride(new URI(endpoint.get()));
@@ -465,17 +464,16 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
       }
     }
 
-    if(!isCompatMode()) {
+    if (!isCompatMode()) {
       // normal s3/govcloud mode.
       builder.region(getAWSBucketRegion(bucket));
-    } else
-    {
-      builder.region(getAwsRegionFromConfigurationOrDefault(conf));
+    } else {
+      builder.region(getAWSRegionFromConfigurationOrDefault(conf));
     }
     return builder;
   }
 
-  static software.amazon.awssdk.regions.Region getAwsRegionFromConfigurationOrDefault(Configuration conf) {
+  static software.amazon.awssdk.regions.Region getAWSRegionFromConfigurationOrDefault(Configuration conf) {
     if (conf.get(REGION_OVERRIDE) != null) {
       // a region override is set.
       String regionOverride = conf.getTrimmed(REGION_OVERRIDE);
@@ -488,13 +486,18 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     return software.amazon.awssdk.regions.Region.US_EAST_1;
   }
 
-  private Optional<String> getEndpoint() {
-    return Optional.ofNullable(getConf().getTrimmed(ENDPOINT))
-        .map(s -> getHttpScheme() + s);
+  static Optional<String> getEndpoint(Configuration conf) {
+    return Optional.ofNullable(conf.getTrimmed(Constants.ENDPOINT))
+      .map(s -> getHttpScheme(conf) + s);
   }
 
-  private String getHttpScheme() {
-    return getConf().getBoolean(SECURE_CONNECTIONS, true) ? "https://" : "http://";
+  static Optional<String> getStsEndpoint(Configuration conf) {
+    return Optional.ofNullable(conf.getTrimmed(Constants.ASSUMED_ROLE_STS_ENDPOINT))
+      .map(s -> "https://" + s);
+  }
+
+  private static String getHttpScheme(Configuration conf) {
+    return conf.getBoolean(SECURE_CONNECTIONS, true) ? "https://" : "http://";
   }
 
   private boolean isCompatMode() {

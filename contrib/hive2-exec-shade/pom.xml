@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>4.0.2-201910020123580864-a98a0b9</version>
+    <version>4.1.0-201912030136020081-49feeb75</version>
   </parent>
 
   <artifactId>dremio-hive2-exec-shaded</artifactId>
@@ -30,7 +30,7 @@
   <name>Contrib - Shaded Hive 2 JAR</name>
 
   <properties>
-    <hive.version>2.1.1-dremio-201908200647000054-61ee9c8</hive.version>
+    <hive.version>2.1.1-dremio-201909161537170757-9d964f7</hive.version>
   </properties>
 
   <!-- Need to overwrite dependency management for calcite

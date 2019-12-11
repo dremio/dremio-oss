@@ -37,3 +37,6 @@ plugins/hive/metastore_db/*
 .externalToolBuilders*
 .indexing
 jetbrains_config.js
+.factorypath
+.cproject
+CTestTestfile.cmake

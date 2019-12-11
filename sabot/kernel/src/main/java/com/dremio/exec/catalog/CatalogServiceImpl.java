@@ -16,12 +16,9 @@
 package com.dremio.exec.catalog;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -36,11 +33,7 @@ import org.apache.calcite.tools.RuleSet;
 import org.apache.calcite.tools.RuleSets;
 
 import com.dremio.common.DeferredException;
-import com.dremio.common.concurrent.AutoCloseableLock;
-import com.dremio.common.concurrent.WithAutoCloseableLock;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.util.Closeable;
-import com.dremio.concurrent.Runnables;
 import com.dremio.datastore.KVStore;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
@@ -60,7 +53,6 @@ import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.ischema.InfoSchemaConf;
-import com.dremio.exec.util.DebugCheck;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.coordinator.DistributedSemaphore.DistributedLease;
 import com.dremio.service.namespace.NamespaceAttribute;
@@ -74,7 +66,6 @@ import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
 import com.dremio.service.scheduler.Cancellable;
-import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.ScheduleUtils;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.service.users.SystemUser;
@@ -82,10 +73,7 @@ import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Stopwatch;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
@@ -104,21 +92,9 @@ import io.protostuff.ProtobufIOUtil;
  */
 public class CatalogServiceImpl implements CatalogService {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CatalogServiceImpl.class);
-  private static final long CATALOG_SYNC = TimeUnit.MINUTES.toMillis(3);
+  public static final long CATALOG_SYNC = TimeUnit.MINUTES.toMillis(3);
   private static final long CHANGE_COMMUNICATION_WAIT = TimeUnit.SECONDS.toMillis(5);
 
-  private static final Comparator<SourceConfig> SOURCE_CONFIG_COMPARATOR = (s1, s2) -> {
-    if (s2.getConfigOrdinal() == null) {
-      if (s1.getConfigOrdinal() == null) {
-        return 0;
-      }
-      return 1;
-    } else if (s1.getConfigOrdinal() == null) {
-      return -1;
-    } else {
-      return Long.compare(s1.getConfigOrdinal(), s2.getConfigOrdinal());
-    }
-  };
 
   private static final String LOCAL_TASK_LEADER_NAME = "catalogservice";
 
@@ -135,8 +111,8 @@ public class CatalogServiceImpl implements CatalogService {
   private PluginsManager plugins;
   private BufferAllocator allocator;
   private FabricRunnerFactory tunnelFactory;
-  private Cancellable refresher;
   private CatalogProtocol protocol;
+  private final CatalogServiceMonitor monitor;
 
   public CatalogServiceImpl(
       Provider<SabotContext> context,
@@ -145,11 +121,24 @@ public class CatalogServiceImpl implements CatalogService {
       Provider<FabricService> fabric,
       Provider<ConnectionReader> connectionReaderProvider
       ) {
+    this(context, scheduler, sysTableConfProvider, fabric, connectionReaderProvider, CatalogServiceMonitor.DEFAULT);
+  }
+
+  @VisibleForTesting
+  CatalogServiceImpl(
+      Provider<SabotContext> context,
+      Provider<SchedulerService> scheduler,
+      Provider<? extends Provider<ConnectionConf<?, ?>>> sysTableConfProvider,
+      Provider<FabricService> fabric,
+      Provider<ConnectionReader> connectionReaderProvider,
+      final CatalogServiceMonitor monitor
+      ) {
     this.context = context;
     this.scheduler = scheduler;
     this.sysTableConfProvider = sysTableConfProvider;
     this.fabric = fabric;
     this.connectionReaderProvider = connectionReaderProvider;
+    this.monitor = monitor;
   }
 
   @Override
@@ -158,7 +147,7 @@ public class CatalogServiceImpl implements CatalogService {
     this.allocator = context.getAllocator().newChildAllocator("catalog-protocol", 0, Long.MAX_VALUE);
     this.systemNamespace = context.getNamespaceService(SystemUser.SYSTEM_USERNAME);
     sourceDataStore = context.getKVStoreProvider().getStore(CatalogSourceDataCreator.class);
-    this.plugins = new PluginsManager(context, sourceDataStore, this.scheduler.get(), this.connectionReaderProvider.get());
+    this.plugins = new PluginsManager(context, sourceDataStore, this.scheduler.get(), this.connectionReaderProvider.get(), monitor);
     plugins.start();
     this.protocol =  new CatalogProtocol(allocator, new CatalogChangeListener(), context.getConfig());
     tunnelFactory = fabric.get().registerProtocol(protocol);
@@ -205,27 +194,7 @@ public class CatalogServiceImpl implements CatalogService {
     }
 
 
-    // for coordinator, ensure catalog synchronization.
-    if(context.getRoles().contains(Role.COORDINATOR)) {
-      refresher = scheduler.get().schedule(Schedule.Builder.everyMillis(CATALOG_SYNC).build(), Runnables.combo(new Refresher()));
-    }
-  }
 
-  private class Refresher implements Runnable {
-
-    @Override
-    public void run() {
-      try {
-        synchronizeSources();
-      } catch (Exception ex) {
-        logger.warn("Failure while synchronizing sources.");
-      }
-    }
-
-    @Override
-    public String toString() {
-      return "catalog-source-synchronization";
-    }
   }
 
   private void communicateChange(SourceConfig config, RpcType rpcType) {
@@ -241,7 +210,7 @@ public class CatalogServiceImpl implements CatalogService {
       }
 
       SendSource send = new SendSource(wrapper, rpcType);
-      tunnelFactory.getCommandRunner(e.getAddress(), e.getFabricPort()).runCommand(send);;
+      tunnelFactory.getCommandRunner(e.getAddress(), e.getFabricPort()).runCommand(send);
       logger.trace("Sending [{}] to {}:{}", config.getName(), e.getAddress(), e.getUserPort());
       futures.add(send.getFuture());
     }
@@ -273,7 +242,7 @@ public class CatalogServiceImpl implements CatalogService {
       try {
         logger.debug("Received source update for [{}]", config.getName());
 
-        synchronize(config);
+        plugins.getSynchronized(config);
       } catch (Exception ex) {
         logger.warn("Failure while synchronizing source [{}].", config.getName(), ex);
       }
@@ -283,56 +252,12 @@ public class CatalogServiceImpl implements CatalogService {
       try {
         logger.debug("Received delete source for [{}]", config.getName());
 
-        plugins.deleteSource(config);
+        plugins.closeAndRemoveSource(config);
       } catch (Exception ex) {
         logger.warn("Failure while synchronizing source [{}].", config.getName(), ex);
       }
     }
 
-  }
-
-  /**
-   * For each source, synchronize the sources definition to the namespace.
-   */
-  @VisibleForTesting
-  public void synchronizeSources() {
-    logger.trace("Running scheduled source synchronization");
-
-    // first collect up all the current source configs.
-    final Map<String, SourceConfig> configs = FluentIterable.from(plugins.managed()).transform(new Function<ManagedStoragePlugin, SourceConfig>(){
-
-      @Override
-      public SourceConfig apply(ManagedStoragePlugin input) {
-        return input.getConfig();
-      }}).uniqueIndex(new Function<SourceConfig, String>(){
-
-        @Override
-        public String apply(SourceConfig input) {
-          return input.getName();
-        }});
-
-    // second, for each source, synchronize to latest state
-    final Set<String> names = plugins.getSourceNameSet();
-    for(SourceConfig config : systemNamespace.getSources()) {
-      names.remove(config.getName());
-      try {
-        synchronize(config);
-      } catch (Exception ex) {
-        logger.warn("Failure updating source [{}] during scheduled updates.", config, ex);
-      }
-    }
-
-    // third, delete everything that wasn't found, assuming it matches what we originally searched.
-    for(String name : names) {
-      SourceConfig originalConfig = configs.get(name);
-      if(originalConfig != null) {
-        try {
-          plugins.deleteSource(originalConfig);
-        } catch (Exception e) {
-          logger.warn("Failure while deleting source [{}] during source synchronization.", originalConfig.getName(), e);
-        }
-      }
-    }
   }
 
   /**
@@ -351,7 +276,7 @@ public class CatalogServiceImpl implements CatalogService {
     }
   }
 
-  @Override
+  @VisibleForTesting
   public boolean refreshSource(NamespaceKey source, MetadataPolicy metadataPolicy, UpdateType updateType) throws NamespaceException {
     ManagedStoragePlugin plugin = plugins.get(source.getRoot());
     if (plugin == null){
@@ -363,16 +288,16 @@ public class CatalogServiceImpl implements CatalogService {
     return plugin.refresh(updateType, metadataPolicy);
   }
 
+  @VisibleForTesting
+  public void synchronizeSources() {
+    plugins.synchronizeSources();
+  }
+
   @Override
   public void close() throws Exception {
     DeferredException ex = new DeferredException();
     if(plugins != null) {
-      try (AutoCloseableLock l = plugins.writeLock()) {
-        ex.suppressingClose(plugins);
-      }
-    }
-    if(refresher != null) {
-      refresher.cancel(false);
+      ex.suppressingClose(plugins);
     }
     ex.suppressingClose(protocol);
     ex.suppressingClose(allocator);
@@ -392,23 +317,44 @@ public class CatalogServiceImpl implements CatalogService {
     return false;
   }
 
-  public boolean createSourceIfMissingWithThrow(SourceConfig config) throws ConcurrentModificationException {
+  public boolean createSourceIfMissingWithThrow(SourceConfig config) {
     Preconditions.checkArgument(config.getTag() == null);
     if(!plugins.hasPlugin(config.getName())) {
-        createOrUpdateSource(config, true, SystemUser.SYSTEM_USERNAME);
+        createSource(config, SystemUser.SYSTEM_USERNAME);
         return true;
     }
     return false;
   }
 
   private void createSource(SourceConfig config, String userName, NamespaceAttribute... attributes) {
-    Preconditions.checkArgument(config.getTag() == null);
-    createOrUpdateSource(config, false, userName, attributes);
+
+    try(final AutoCloseable sourceDistributedLock = getDistributedLock(config.getName())) {
+      plugins.create(config, userName, attributes);
+      communicateChange(config, RpcType.REQ_SOURCE_CONFIG);
+    } catch (SourceAlreadyExistsException e) {
+      throw UserException.concurrentModificationError(e).message("Source already exists with name %s.", config.getName()).buildSilently();
+    } catch(ConcurrentModificationException ex) {
+      throw ex;
+    } catch(Exception ex) {
+      throw UserException.validationError(ex).message("Failed to create source with name %s.", config.getName()).buildSilently();
+    }
   }
 
   private void updateSource(SourceConfig config, String userName, NamespaceAttribute... attributes) {
     Preconditions.checkArgument(config.getTag() != null);
-    createOrUpdateSource(config, false, userName, attributes);
+
+    try(final AutoCloseable sourceDistributedLock = getDistributedLock(config.getName());) {
+      ManagedStoragePlugin plugin = plugins.get(config.getName());
+      if(plugin == null) {
+        throw UserException.concurrentModificationError().message("Source not found.").buildSilently();
+      }
+      plugin.updateSource(config, userName, attributes);
+      communicateChange(config, RpcType.REQ_SOURCE_CONFIG);
+    } catch (ConcurrentModificationException ex) {
+      throw ex;
+    } catch (Exception ex) {
+      throw UserException.validationError(ex).message("Failed to update source with name %s.", config.getName()).buildSilently();
+    }
   }
 
   @VisibleForTesting
@@ -421,425 +367,29 @@ public class CatalogServiceImpl implements CatalogService {
   }
 
   /**
-   * Synchronize the named source with the namespace.
-   * @param name The name of the source to synchronize.
-   * @param errorOnMissing Whether or not to throw an exception if the namespace does not contain the source.
-   */
-  private ManagedStoragePlugin synchronize(String name, boolean errorOnMissing) {
-    try{
-      logger.debug("Synchronizing source [{}] with namespace", name);
-      SourceConfig config = systemNamespace.getSource(new NamespaceKey(name));
-      return synchronize(config);
-    } catch (NamespaceNotFoundException ex) {
-      if(!errorOnMissing) {
-        return null;
-      }
-      throw UserException.validationError().message("Tried to access non-existent source [%s].", name).build(logger);
-    } catch (Exception ex) {
-      throw UserException.validationError(ex).message("Failure while trying to read source [%s].", name).build(logger);
-    }
-  }
-
-  /**
-   * Synchronize plugin state to the provided target source config.
-   *
-   * Note that this will fail if the target config is older than the existing config, in terms of creation time or
-   * version.
-   *
-   * @param targetConfig target source config
-   * @return managed storage plugin
-   * @throws Exception if synchronization fails
-   */
-  @SuppressWarnings("resource")
-  private ManagedStoragePlugin synchronize(SourceConfig targetConfig) throws Exception {
-    ManagedStoragePlugin plugin = plugins.get(targetConfig.getName());
-    AutoCloseableLock pluginLock = null;
-
-    try {
-      // to avoid keeping locks for extended periods (across startup, etc) we loop until we either synchronize or mismatch.
-
-      while (true) {
-        if(plugin != null) {
-          if(plugin.matches(targetConfig)) {
-            logger.trace("Source [{}] already up-to-date, not synchronizing", targetConfig.getName());
-            return plugin;
-          }
-        } else {
-          logger.trace("Creating source [{}]", targetConfig.getName());
-          // we need to create a new plugin. we'll do this under the plugins write lock.
-          try(AutoCloseableLock l = plugins.writeLock()) {
-            plugin = plugins.get(targetConfig.getName());
-
-            if(plugin != null) {
-              // start over, the plugin appeared while grabbing the lock.
-              continue;
-            }
-
-            // create this plugin, it is missing.
-            plugin = plugins.create(targetConfig);
-            pluginLock = plugin.writeLock();
-          }
-
-          // now start the plugin outside the plugin map writelock.
-          SourceState state = plugin.startAsync().checkedGet(createWaitMillis(), TimeUnit.MILLISECONDS);
-          if(SourceStatus.bad == state.getStatus()) {
-            logger.warn("Source [{}] in bad state after synchronization. Info: {}", targetConfig.getName(), state);
-          }
-          // since this is a synchronize, we don't do anything here since no one is listening.
-          plugin.initiateMetadataRefresh();
-          return plugin;
-        }
-
-
-        // we think the plugin exists. Now grab it under the plugin map read lock to make sure we only hold it while the plugin lives
-        try(AutoCloseableLock l = plugins.readLock()) {
-          plugin = plugins.get(targetConfig.getName());
-          if(plugin == null) {
-            // we lost the plugin, loop again.
-            continue;
-          }
-          pluginLock = plugin.writeLock();
-        }
-
-        if(plugin.matches(targetConfig)) {
-          // up to date.
-          return plugin;
-        }
-        // else, bring the plugin up to date, if possible
-
-        final long creationTime = plugin.getConfig().getCtime();
-        final long targetCreationTime = targetConfig.getCtime();
-
-        if (creationTime > targetCreationTime) {
-          // in-memory source config is newer than the target config, in terms of creation time
-          throw new ConcurrentModificationException(String.format(
-              "Source [%s] was updated, and the given configuration has older ctime (current: %d, given: %d)",
-              targetConfig.getName(), creationTime, targetCreationTime));
-
-        } else if (creationTime == targetCreationTime) {
-          final SourceConfig currentConfig = plugin.getConfig();
-
-          compareConfigs(currentConfig, targetConfig);
-
-          final int compareTo = SOURCE_CONFIG_COMPARATOR.compare(currentConfig, targetConfig);
-
-          if (compareTo > 0) {
-            // in-memory source config is newer than the target config, in terms of version
-            throw new ConcurrentModificationException(String.format(
-              "Source [%s] was updated, and the given configuration has older version (current: %d, given: %d)",
-              currentConfig.getName(), currentConfig.getConfigOrdinal(), targetConfig.getConfigOrdinal()));
-          }
-
-          if (compareTo == 0) {
-            // in-memory source config has a different version but the same value
-            throw new IllegalStateException(String.format(
-              "Current and given configurations for source [%s] have same version (%d) but different values" +
-                " [current source: %s, given source: %s]",
-              currentConfig.getName(), currentConfig.getConfigOrdinal(),
-              plugins.getReader().toStringWithoutSecrets(currentConfig),
-              plugins.getReader().toStringWithoutSecrets(targetConfig)));
-          }
-        }
-        // else (creationTime < targetCreationTime), the source config is new but plugins has an entry with the same
-        // name, so replace the plugin regardless of the checks
-
-        // in-memory storage plugin is older than the one persisted, update
-        plugin.replacePlugin(targetConfig, context.get(), createWaitMillis());
-        plugin.initiateMetadataRefresh();
-        return plugin;
-      }
-
-    } finally {
-      if(pluginLock != null) {
-        pluginLock.close();
-      }
-    }
-  }
-
-  private long createWaitMillis() {
-    if(DebugCheck.IS_DEBUG) {
-      return TimeUnit.DAYS.toMillis(365);
-    }
-    return context.get().getOptionManager().getOption(CatalogOptions.STORAGE_PLUGIN_CREATE_MAX);
-  }
-
-  private void addDefaults(SourceConfig config) {
-    if(config.getCtime() == null) {
-      config.setCtime(System.currentTimeMillis());
-    }
-
-    if(config.getMetadataPolicy() == null) {
-      config.setMetadataPolicy(CatalogService.DEFAULT_METADATA_POLICY);
-    }
-  }
-
-  /**
-   * Create or update an existing source. Uses a set of escalating locks.
-   *
-   * - Modification requires a distributed lock for the canonicalized source name.
-   * - If this is a new plugin, we need the PluginManager writelock.
-   * - Either way, once we have the ManagedStoragePlugin, we need its writelock
-   *
+   * To delete the source, we need to:
+   *   Grab the distributed source lock.
+   *   Check that we have a valid config.
    * @param config
+   * @param userName
    */
-  private void createOrUpdateSource(SourceConfig config, boolean ignoreIfExists, String userName, NamespaceAttribute... attributes) {
-    if (logger.isTraceEnabled()) {
-      logger.trace("Adding or updating source [{}].", config.getName(), new RuntimeException("Nothing wrong, just show stack trace for debug."));
-    } else {
-      logger.debug("Adding or updating source [{}].", config.getName());
-    }
-
+  private void deleteSource(SourceConfig config, String userName) {
     NamespaceService namespaceService = context.get().getNamespaceService(userName);
 
-    addDefaults(config);
-
-    ManagedStoragePlugin plugin = null;
-
-    // first, grab the source configuration lock for this source.
-    try(
-        final AutoCloseable sourceDistributedLock = getDistributedLock(config.getName());
-        ) {
-      // now let's pre check the commit.
-      try {
-        SourceConfig existingConfig = namespaceService.getSource(config.getKey());
-
-        if (ignoreIfExists) {
-          return;
-        }
-
-        // add back any secrets
-        final ConnectionConf<?, ?> connectionConf = config.getConnectionConf(plugins.getReader());
-        connectionConf.applySecretsFrom(plugins.getReader().getConnectionConf(existingConfig));
-        config.setConfig(connectionConf.toBytesString());
-
-        namespaceService.canSourceConfigBeSaved(config, existingConfig, attributes);
-
-        // if config can be saved we can set the oridinal
-        config.setConfigOrdinal(existingConfig.getConfigOrdinal());
-      } catch (NamespaceNotFoundException ex) {
-        if (config.getTag() != null) {
-          throw new ConcurrentModificationException("Source was already created.");
-        }
+    try (AutoCloseable l = getDistributedLock(config.getName()) ) {
+      if(!plugins.closeAndRemoveSource(config)) {
+        throw UserException.invalidMetadataError().message("Unable to remove source as the provided definition is out of date.").buildSilently();
       }
 
-      final boolean keepStaleMetadata  = context.get().getOptionManager()
-          .getOption(CatalogOptions.STORAGE_PLUGIN_KEEP_METADATA_ON_REPLACE);
-      // now that we've confirmed that the version is correct, let's update the plugin.
-      final WithAutoCloseableLock<ManagedStoragePlugin> pluginWithWriteLock = plugins.getWithPluginWriteLock(config.getName());
-
-      boolean newlyCreated = false;
-      Closeable pluginLock = null;
-      boolean refreshNames = false;
-      final Stopwatch stopwatchForPlugin = Stopwatch.createStarted();
-
-      try {
-
-        if(pluginWithWriteLock != null) {
-          plugin = pluginWithWriteLock.getValue();
-          pluginLock = pluginWithWriteLock;
-        } else {
-          try(final AutoCloseable pluginManagerWriteLock = plugins.writeLock()){
-            // check again inside lock.
-            plugin = plugins.get(config.getName());
-            if(plugin == null) {
-              plugin = plugins.create(config);
-              newlyCreated = true;
-              // acquire write lock before exiting plugin manager write lock. This ensures no one else can use this plugin until we are done starting it.
-              pluginLock = plugin.writeLock();
-            }
-          }
-        }
-
-        boolean oldMetadataIsBad = false;
-
-        // we now have the plugin lock.
-        if(newlyCreated) {
-          logger.debug("Starting the source [{}]", config.getName());
-          try {
-            SourceState state = plugin.startAsync().checkedGet(createWaitMillis(), TimeUnit.MILLISECONDS);
-            refreshNames = true;
-
-            // if the creation resulted in a bad state,
-            if (SourceStatus.bad == state.getStatus() &&
-              context.get().getOptionManager().getOption(CatalogOptions.STORAGE_PLUGIN_CHECK_STATE)) {
-              plugins.deleteSource(config);
-              throw UserException.connectionError().message("Failure while configuring source [%s]. Info: %s", config.getName(), state).build(logger);
-            }
-          } catch (Exception e) {
-            plugins.deleteSource(config);
-            throw UserException.connectionError(e).message("Failure while configuring source [%s].", config.getName())
-              .build(logger);
-          }
-
-        } else {
-          boolean metadataStillGood = plugin.replacePlugin(config, context.get(), createWaitMillis());
-          oldMetadataIsBad = !metadataStillGood;
-          refreshNames = !metadataStillGood;
-        }
-
-        if (oldMetadataIsBad) {
-          if (!keepStaleMetadata) {
-            logger.debug("Old metadata data may be bad; deleting all descendants of source [{}]", config.getName());
-            // TODO: expensive call on non-master coordinators (sends as many RPC requests as entries under the source)
-            namespaceService.deleteSourceChildren(config.getKey(), config.getTag());
-          } else {
-            logger.info("Old metadata data may be bad, but preserving descendants of source [{}] because '{}' is enabled",
-                config.getName(), CatalogOptions.STORAGE_PLUGIN_KEEP_METADATA_ON_REPLACE.getOptionName());
-          }
-        }
-
-        // Now let's create the plugin in the system namespace.
-        // This increments the version in the config object as well.
-        namespaceService.addOrUpdateSource(config.getKey(), config, attributes);
-      } finally {
-        if(pluginLock != null) {
-          pluginLock.close();
-        }
-      }
-
-      // inform other nodes about the config change, only if successful
-      communicateChange(config, RpcType.REQ_SOURCE_CONFIG);
-
-      // now that we're outside the plugin lock, we should refresh the dataset names. Note that this could possibly get
-      // run on a different config if two source updates are racing to this lock.
-      if (refreshNames) {
-        if (!keepStaleMetadata) {
-          logger.debug("Refreshing names in source [{}]", config.getName());
-          plugin.refresh(UpdateType.NAMES, null);
-        } else {
-          logger.debug("Not refreshing names in source [{}]", config.getName());
-        }
-      }
-
-      // once we have potentially done initial refresh, we can run subsequent refreshes. This allows
-      // us to avoid two separate threads refreshing simultaneously (possible if we put this above
-      // the inline plugin.refresh() call.)
-      plugin.initiateMetadataRefresh();
-      stopwatchForPlugin.stop();
-      logger.debug("Source added [{}], took {} milliseconds", config.getName(), stopwatchForPlugin.elapsed(TimeUnit.MILLISECONDS));
-
-    } catch (ConcurrentModificationException ex) {
-      throw UserException.concurrentModificationError(ex).message("Failure creating/updating source [%s].", config.getName()).build(logger);
-    } catch (Exception ex) {
-      throw UserException.validationError(ex).message("Failure creating/updating source [%s].", config.getName()).addContext(ex.getMessage()).build(logger);
-    }
-  }
-
-  @SuppressWarnings("resource")
-  private void deleteSource(SourceConfig config, String userName) {
-    try {
-      NamespaceService namespaceService = context.get().getNamespaceService(userName);
-
-      while(true) { // delete loop
-
-        ManagedStoragePlugin plugin = plugins.get(config.getName());
-        if(plugin == null) {
-          noExistDelete: {
-            // delete the source under the source configuration lock and plugin map lock.
-            try(AutoCloseable l = getDistributedLock(config.getName());
-                AutoCloseable pluginMapLock = plugins.writeLock();
-                ) {
-
-              // double check that plugin wasn't created while we were waiting for distributed lock.
-              plugin = plugins.get(config.getName());
-              if(plugin != null && !MissingPluginConf.TYPE.equals(plugin.getConfig().getType())) {
-                break noExistDelete;
-              }
-
-              namespaceService.deleteSource(config.getKey(), config.getTag());
-              sourceDataStore.delete(config.getKey());
-            }
-
-            communicateChange(config, RpcType.REQ_DEL_SOURCE);
-            return;
-          }
-        }
-
-        if (MissingPluginConf.TYPE.equals(plugin.getConfig().getType())) {
-          // Skip synchronization and verification checks for missing plugins.
-          // The attributes will always be inconsistent for these since we don't fully read all
-          // attributes when we detect the plugin is missing.
-          try(AutoCloseable l = getDistributedLock(config.getName());
-              AutoCloseable pluginMapLock = plugins.writeLock();
-              AutoCloseable pluginLock = plugin.writeLock()
-          ) {
-            plugins.deleteSource(config);
-            namespaceService.deleteSource(config.getKey(), config.getTag());
-            sourceDataStore.delete(config.getKey());
-          }
-          communicateChange(config, RpcType.REQ_DEL_SOURCE);
-          return;
-        }
-
-        // make sure we're at the latest
-        SourceConfig existing = plugin.getConfig();
-        if(!existing.equals(config)) {
-          compareConfigs(existing, config);
-
-          final int compareTo = SOURCE_CONFIG_COMPARATOR.compare(existing, config);
-          if (compareTo == 0) {
-            throw new IllegalStateException("Two different configurations shouldn't have the same version.");
-          }
-
-          if (compareTo > 0) {
-            // storage plugin is newer than provided configuration.
-            throw new ConcurrentModificationException("Source was updated or replaced and the provided configuration is out of date.");
-          }
-
-          // storage plugin is old, update.
-          synchronize(config);
-        }
-
-        // delete the source under the source configuration lock.
-        try(
-            AutoCloseable l = getDistributedLock(config.getName());
-            AutoCloseable pluginsLock = plugins.writeLock();
-            ) {
-
-          // reacquire plugin inside locks.
-          plugin = plugins.get(config.getName());
-          if(plugin == null) {
-            // restart loop to include synchronize or simple delete.
-            continue;
-          }
-
-          // We need to cancel the metadata refresh task before trying to acquire the plugin writeLock or delete the plugin
-          plugin.cancelMetadataRefreshTask();
-
-          try (AutoCloseable pluginLock = plugin.writeLock()) {
-            if(!plugin.matches(config)) {
-              // restart loop to include synchronize or no exists delete.
-              continue;
-            }
-
-            // we delete the source from the plugin once we confirm that it matches what was requested for deletion.
-            // we do this first to ensure the SourceMetadataManager process is killed for this source so that subsequent deletes are correct.
-            plugins.deleteSource(config);
-            namespaceService.deleteSource(config.getKey(), config.getTag());
-            sourceDataStore.delete(config.getKey());
-          }
-
-        }
-
-        communicateChange(config, RpcType.REQ_DEL_SOURCE);
-        return;
-      }
-
+      namespaceService.deleteSource(config.getKey(), config.getTag());
+      sourceDataStore.delete(config.getKey());
+    } catch (RuntimeException ex) {
+      throw ex;
     } catch (Exception ex) {
       throw UserException.validationError(ex).message("Failure deleting source [%s].", config.getName()).build(logger);
     }
-  }
 
-  private void compareConfigs(SourceConfig existing, SourceConfig config) {
-    if (Objects.equals(existing.getTag(), config.getTag())) {
-      // in-memory source config has a different value but the same etag
-      throw new IllegalStateException(String.format(
-        "Current and given configurations for source [%s] have same etag (%s) but different values" +
-          " [current source: %s, given source: %s]",
-        existing.getName(), existing.getTag(),
-        plugins.getReader().toStringWithoutSecrets(existing),
-        plugins.getReader().toStringWithoutSecrets(config)));
-    }
+    communicateChange(config, RpcType.REQ_DEL_SOURCE);
   }
 
   private AutoCloseable getDistributedLock(String sourceName) throws Exception {
@@ -861,18 +411,16 @@ public class CatalogServiceImpl implements CatalogService {
    * @return Plugin with a matching id.
    */
   private ManagedStoragePlugin getPlugin(StoragePluginId id) {
-    try(AutoCloseableLock l = plugins.readLock()) {
-      ManagedStoragePlugin plugin = plugins.get(id.getName());
+    ManagedStoragePlugin plugin = plugins.get(id.getName());
 
-      // plugin.matches() here grabs the plugin read lock, guaranteeing that the plugin already exists and has been started
-      if(plugin != null && plugin.matches(id.getConfig())) {
-        return plugin;
-      }
+    // plugin.matches() here grabs the plugin read lock, guaranteeing that the plugin already exists and has been started
+    if(plugin != null && plugin.matches(id.getConfig())) {
+      return plugin;
     }
 
     try {
       logger.debug("Source [{}] does not exist/match the one in-memory, synchronizing from id", id.getName());
-      return synchronize(id.getConfig());
+      return plugins.getSynchronized(id.getConfig());
     } catch (Exception e) {
       throw UserException.validationError(e).message("Failure getting source [%s].", id.getName()).build(logger);
     }
@@ -884,7 +432,18 @@ public class CatalogServiceImpl implements CatalogService {
       return plugin;
     }
 
-    return synchronize(name, errorOnMissing);
+    try{
+      logger.debug("Synchronizing source [{}] with namespace", name);
+      SourceConfig config = systemNamespace.getSource(new NamespaceKey(name));
+      return plugins.getSynchronized(config);
+    } catch (NamespaceNotFoundException ex) {
+      if(!errorOnMissing) {
+        return null;
+      }
+      throw UserException.validationError().message("Tried to access non-existent source [%s].", name).build(logger);
+    } catch (Exception ex) {
+      throw UserException.validationError(ex).message("Failure while trying to read source [%s].", name).build(logger);
+    }
   }
 
   @VisibleForTesting
@@ -1002,6 +561,10 @@ public class CatalogServiceImpl implements CatalogService {
   @VisibleForTesting
   public Catalog getSystemUserCatalog() {
     return getCatalog(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build());
+  }
+
+  public enum UpdateType {
+    NAMES, FULL, NONE
   }
 
   /**

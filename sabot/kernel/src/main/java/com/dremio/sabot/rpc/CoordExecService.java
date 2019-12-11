@@ -37,12 +37,12 @@ import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.metrics.Metrics;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.Service;
 import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.services.fabric.api.PhysicalConnection;
+import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 

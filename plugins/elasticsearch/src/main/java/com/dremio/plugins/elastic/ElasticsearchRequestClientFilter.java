@@ -37,15 +37,14 @@ public class ElasticsearchRequestClientFilter implements ClientRequestFilter {
   private static final String SERVICE_NAME = "es";
   private final AWS4Signer signer;
   private final AWSCredentialsProvider awsCredentialsProvider;
-
   private final MessageBodyWorkers workers;
 
   @Inject
-  public ElasticsearchRequestClientFilter(final AWSCredentialsProvider awsCredentialsProvider,
+  public ElasticsearchRequestClientFilter(final InjectableAWSCredentialsProvider awsCredentialsProvider,
                                           @Context final Configuration configuration,
                                           @Context final MessageBodyWorkers workers) {
-    this.signer = new AWS4Signer();
     this.awsCredentialsProvider = awsCredentialsProvider;
+    this.signer = new AWS4Signer();
     this.signer.setRegionName((String) configuration.getProperty(REGION_NAME));
     this.signer.setServiceName(SERVICE_NAME);
     this.workers = workers;

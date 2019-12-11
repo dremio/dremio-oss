@@ -32,9 +32,10 @@ export default class ProvisionInfoTable extends Component {
       if (!items) return new Immutable.List();
 
       return items.map((item) => {
+        const containerPropertyList = item.getIn(['containerPropertyList']);
         const row = {
           rowClassName: '',
-          data: item.getIn(['containerPropertyList']).reduce((prev, property) => {
+          data: containerPropertyList.reduce((prev, property) => {
             return {...prev, [property.get('key')]: property.get('value')};
           }, {status})
         };
@@ -51,31 +52,27 @@ export default class ProvisionInfoTable extends Component {
   }
 
   getTableColumns() {
-    // DX-11577 NOTE regarding widths. Previously reactable component was used to display this data. Widths below are taken from actual dom that is rendered by reactable component.
-    return [ // todo: make this list dynamic for different provision types = i.e. just a mapping of known keys to UI strings
-      {
-        key: 'status',
-        label: la('Status'),
-        width: 87
-      },
-      {
-        key: 'host',
-        label: la('Host'),
-        flexGrow: 1 // fills a rest of the available space
-      },
-      {
-        key: 'memoryMB',
-        label: la('Memory (MB)'),
-        align: 'right',
-        width: 131
-      },
-      {
-        key: 'virtualCoreCount',
-        label: la('Virtual Cores'),
-        align: 'right',
-        width: 126
-      }
-    ];
+    const {provision} = this.props;
+    const clusterType = provision && provision.get('clusterType');
+
+    if (clusterType === 'YARN') {
+      // DX-11577 NOTE regarding widths. Previously reactable component was used to display this data. Widths below are taken from actual dom that is rendered by reactable component.
+      return [
+        { key: 'status', label: la('Status'), flexGrow: 2 },
+        { key: 'host', label: la('Host'), flexGrow: 4 }, // fills a rest of the available space
+        { key: 'memoryMB', label: la('Memory (MB)'), align: 'right', width: 131 },
+        { key: 'virtualCoreCount', label: la('Virtual Cores'), align: 'right', width: 126 }
+      ];
+    }
+    if (clusterType === 'EC2') {
+      return [
+        { key: 'status', label: la('Status'), flexGrow: 2 },
+        { key: 'host', label: la('Host'), flexGrow: 4 },
+        { key: 'instanceId', label: la('Instance ID'), width: 150 },
+        { key: 'privateIp', label: la('Private ip'), width: 100 }
+      ];
+    }
+    return [];
   }
 
   render() {
@@ -87,6 +84,7 @@ export default class ProvisionInfoTable extends Component {
         {
           tableData.size > 0 ? <TableViewer
             tableData={tableData}
+            rowHeight={42}
             columns={columns}
           /> : (
             <ViewCheckContent

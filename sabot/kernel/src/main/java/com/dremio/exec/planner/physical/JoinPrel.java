@@ -29,6 +29,7 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexUtil;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Pair;
 
 import com.dremio.common.exceptions.UserException;
@@ -40,15 +41,15 @@ import com.google.common.collect.Lists;
 
 /**
  *
- * Base class for MergeJoinPrel and HashJoinPrel
+ * Base class for MergeJoinPrel, HashJoinPrel, and NestedLoopJoinPrel
  *
  */
 public abstract class JoinPrel extends JoinRelBase implements Prel {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JoinPrel.class);
 
   protected JoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
-      JoinRelType joinType) {
-    super(cluster, traits, left, right, condition, joinType);
+      JoinRelType joinType, ImmutableBitSet projectedFields) {
+    super(cluster, traits, left, right, condition, joinType, projectedFields);
   }
 
   protected static RelTraitSet adjustTraits(RelTraitSet traits) {
@@ -78,10 +79,11 @@ public abstract class JoinPrel extends JoinRelBase implements Prel {
    */
   public RelNode getJoinInput(int offset, RelNode input) {
     assert uniqueFieldNames(input.getRowType());
-    final List<String> fields = getRowType().getFieldNames();
+    final List<String> fields = getInputRowType().getFieldNames();
     final List<String> inputFields = input.getRowType().getFieldNames();
     final List<String> outputFields = fields.subList(offset, offset + inputFields.size());
-    if (!outputFields.equals(inputFields)) {
+
+    if ((!outputFields.equals(inputFields))) {
       // Ensure that input field names are the same as output field names.
       // If there are duplicate field names on left and right, fields will get
       // lost.

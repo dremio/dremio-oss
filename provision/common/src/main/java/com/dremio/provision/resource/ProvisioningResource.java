@@ -22,6 +22,10 @@ import static com.dremio.provision.service.ProvisioningServiceImpl.MIN_MEMORY_RE
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
@@ -37,8 +41,16 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
+import org.modelmapper.AbstractConverter;
+import org.modelmapper.ModelMapper;
+import org.modelmapper.convention.MatchingStrategies;
+
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
+import com.dremio.provision.AwsProps;
+import com.dremio.provision.AwsProps.AwsConnectionProps;
+import com.dremio.provision.AwsPropsApi.AwsConnectionPropsApi;
 import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterConfig;
 import com.dremio.provision.ClusterCreateRequest;
@@ -52,16 +64,18 @@ import com.dremio.provision.ClusterSpec;
 import com.dremio.provision.ClusterState;
 import com.dremio.provision.ClusterType;
 import com.dremio.provision.DynamicConfig;
+import com.dremio.provision.ImmutableAwsConnectionPropsApi;
+import com.dremio.provision.ImmutableAwsPropsApi;
+import com.dremio.provision.ImmutableClusterResponse;
+import com.dremio.provision.ImmutableYarnPropsApi;
 import com.dremio.provision.Property;
 import com.dremio.provision.PropertyType;
 import com.dremio.provision.ResizeClusterRequest;
+import com.dremio.provision.YarnPropsApi;
 import com.dremio.provision.service.ProvisioningHandlingException;
 import com.dremio.provision.service.ProvisioningService;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
 
 
 /**
@@ -73,8 +87,18 @@ import com.google.common.collect.FluentIterable;
 @Path("/provision")
 public class ProvisioningResource {
 
+  public static final String USE_EXISTING_SECRET_VALUE = "$DREMIO_EXISTING_VALUE$";
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProvisioningResource.class);
-
+  private static final ModelMapper MODEL_MAPPER;
+  static {
+    MODEL_MAPPER = new ModelMapper();
+    MODEL_MAPPER.addConverter(new AbstractConverter<AwsConnectionProps, AwsConnectionPropsApi>(){
+      @Override
+      protected AwsConnectionPropsApi convert(AwsConnectionProps source) {
+        return MODEL_MAPPER.map(source, ImmutableAwsConnectionPropsApi.Builder.class).build();
+      }});
+    MODEL_MAPPER.getConfiguration().setMatchingStrategy(MatchingStrategies.LOOSE);
+  }
 
   private final ProvisioningService service;
   //private boolean isMaster;
@@ -92,7 +116,7 @@ public class ProvisioningResource {
                                        ResizeClusterRequest clusterResizeRequest) throws Exception {
 
     final ClusterId clusterId = new ClusterId(id);
-    final ClusterEnriched cluster = service.resizeCluster(clusterId, clusterResizeRequest.getContainerCount().intValue());
+    final ClusterEnriched cluster = service.resizeCluster(clusterId, clusterResizeRequest.getContainerCount());
     return toClusterResponse(cluster);
   }
 
@@ -108,42 +132,63 @@ public class ProvisioningResource {
    }
 
   public ClusterConfig getClusterConfig(ClusterCreateRequest clusterCreateRequest) {
-    Preconditions.checkNotNull(clusterCreateRequest.getMemoryMB());
-    Preconditions.checkNotNull(clusterCreateRequest.getDistroType());
-    Preconditions.checkNotNull(clusterCreateRequest.getIsSecure());
-
-    if(clusterCreateRequest.getMemoryMB() < MIN_MEMORY_REQUIRED_MB) {
-      throw new IllegalArgumentException("Minimum memory required should be greater or equal than: " +
-        MIN_MEMORY_REQUIRED_MB + "MB");
-    }
-
-    int onHeap = clusterCreateRequest.getMemoryMB() < LARGE_SYSTEMS_MIN_MEMORY_MB
-                                                    ? DEFAULT_HEAP_MEMORY_MB
-                                                    : LARGE_SYSTEMS_DEFAULT_HEAP_MEMORY_MB;
-    List<Property> properties = Optional.fromNullable(clusterCreateRequest.getSubPropertyList()).or(new ArrayList<Property>());
-    for (Property prop : properties) {
-      if (ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY.equalsIgnoreCase(prop.getKey())) {
-        String onHeapStr = prop.getValue();
-        try {
-          onHeap = Integer.valueOf(onHeapStr);
-        } catch (NumberFormatException nfe) {
-          logger.warn("Heap memory specified is not numeric, using default {}", onHeap);
-        }
-        break;
-      }
-    }
     ClusterConfig clusterConfig = new ClusterConfig();
     clusterConfig.setName(clusterCreateRequest.getName());
     clusterConfig.setClusterType(clusterCreateRequest.getClusterType());
-    clusterConfig.setClusterSpec(new ClusterSpec()
-      .setMemoryMBOffHeap(clusterCreateRequest.getMemoryMB() - onHeap)
-      .setMemoryMBOnHeap(onHeap)
-      .setContainerCount(clusterCreateRequest.getDynamicConfig().getContainerCount())
-      .setVirtualCoreCount(clusterCreateRequest.getVirtualCoreCount())
-      .setQueue(clusterCreateRequest.getQueue()));
-    clusterConfig.setDistroType(clusterCreateRequest.getDistroType());
-    clusterConfig.setIsSecure(clusterCreateRequest.getIsSecure());
-    clusterConfig.setSubPropertyList(clusterCreateRequest.getSubPropertyList());
+
+    clusterConfig.setAllowAutoStart(clusterCreateRequest.isAllowAutoStart());
+    clusterConfig.setAllowAutoStop(clusterCreateRequest.isAllowAutoStop());
+
+    if(clusterCreateRequest.getClusterType() == ClusterType.YARN) {
+      YarnPropsApi props = clusterCreateRequest.getYarnProps();
+      Preconditions.checkNotNull(props);
+      Preconditions.checkNotNull(props.getMemoryMB());
+      Preconditions.checkNotNull(props.getDistroType());
+      Preconditions.checkNotNull(props.isSecure());
+
+      if(props.getMemoryMB() < MIN_MEMORY_REQUIRED_MB) {
+        throw new IllegalArgumentException("Minimum memory required should be greater or equal than: " +
+          MIN_MEMORY_REQUIRED_MB + "MB");
+      }
+
+      int onHeap = props.getMemoryMB() < LARGE_SYSTEMS_MIN_MEMORY_MB
+                                                      ? DEFAULT_HEAP_MEMORY_MB
+                                                      : LARGE_SYSTEMS_DEFAULT_HEAP_MEMORY_MB;
+      List<Property> properties = Optional.ofNullable(props.getSubPropertyList()).orElse(new ArrayList<Property>());
+      for (Property prop : properties) {
+        if (ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY.equalsIgnoreCase(prop.getKey())) {
+          String onHeapStr = prop.getValue();
+          try {
+            onHeap = Integer.valueOf(onHeapStr);
+          } catch (NumberFormatException nfe) {
+            logger.warn("Heap memory specified is not numeric, using default {}", onHeap);
+          }
+          break;
+        }
+      }
+
+      ClusterSpec spec = new ClusterSpec()
+        .setMemoryMBOffHeap(props.getMemoryMB() - onHeap)
+        .setMemoryMBOnHeap(onHeap)
+        .setContainerCount(clusterCreateRequest.getDynamicConfig().getContainerCount())
+        .setVirtualCoreCount(props.getVirtualCoreCount())
+        .setQueue(props.getQueue());
+
+      clusterConfig.setClusterSpec(spec);
+      clusterConfig.setDistroType(props.getDistroType());
+      clusterConfig.setIsSecure(props.isSecure());
+      clusterConfig.setSubPropertyList(props.getSubPropertyList());
+      clusterConfig.setClusterSpec(spec);
+    } else if(clusterCreateRequest.getClusterType() == ClusterType.EC2) {
+      if(clusterCreateRequest.getName() == null || clusterCreateRequest.getName().isEmpty()) {
+        throw UserException.validationError().message("Cluster name must be defined.").buildSilently();
+      }
+      ClusterSpec spec = new ClusterSpec().setContainerCount(clusterCreateRequest.getDynamicConfig().getContainerCount());
+      clusterConfig.setClusterSpec(spec);
+      clusterConfig.setAwsProps(map(clusterCreateRequest.getAwsProps(), AwsProps.class));
+    } else {
+      throw new UnsupportedOperationException("Unknown cluster type: " + clusterCreateRequest.getClusterType());
+    }
     return clusterConfig;
   }
 
@@ -185,28 +230,27 @@ public class ProvisioningResource {
   @Path("/clusters")
   @Produces(MediaType.APPLICATION_JSON)
   public ClusterResponses getClustersInfo(@DefaultValue("") @QueryParam("type") final String type) throws Exception {
-    final Iterable<ClusterEnriched> clusters;
+    final Stream<ClusterEnriched> clusters;
     if (type.isEmpty()) {
       // use all the types
-      clusters = service.getClustersInfo();
+      clusters = StreamSupport.stream(service.getClustersInfo().spliterator(), false);
     } else {
       ClusterType clusterType = ClusterType.valueOf(type.toUpperCase());
-      clusters = service.getClusterInfoByType(clusterType);
+      clusters = StreamSupport.stream(service.getClusterInfoByType(clusterType).spliterator(), false);
     }
 
-    ClusterResponses responses = new ClusterResponses();
-    responses.setClusterList((FluentIterable.from(clusters).transform(new Function<ClusterEnriched, ClusterResponse>() {
-      @Override
-      public ClusterResponse apply(ClusterEnriched input) {
-        return toClusterResponse(input);
-      }
-    }).toList()));
-    return responses;
+    return ClusterResponses.builder()
+        .setClusterList(clusters.map(ProvisioningResource::toClusterResponse)
+            .collect(Collectors.toList()))
+        .build();
   }
 
   private static ClusterResponse toClusterResponse(ClusterEnriched clusterEnriched) {
     Cluster cluster = clusterEnriched.getCluster();
-    ClusterResponse response = new ClusterResponse();
+    ClusterConfig config = cluster.getClusterConfig();
+
+    ImmutableClusterResponse.Builder response = ClusterResponse.builder();
+
     response.setCurrentState(cluster.getState());
     if (cluster.getError() != null) {
       response.setError(cluster.getError());
@@ -215,40 +259,69 @@ public class ProvisioningResource {
     response.setTag(cluster.getClusterConfig().getTag());
     response.setClusterType(cluster.getClusterConfig().getClusterType());
     response.setName(cluster.getClusterConfig().getName());
-    response.setDynamicConfig(new DynamicConfig()
-      .setContainerCount(cluster.getClusterConfig().getClusterSpec().getContainerCount()));
-    response.setMemoryMB(cluster.getClusterConfig().getClusterSpec().getMemoryMBOnHeap() +
-      cluster.getClusterConfig().getClusterSpec().getMemoryMBOffHeap());
-    response.setVirtualCoreCount(cluster.getClusterConfig().getClusterSpec().getVirtualCoreCount());
-    response.setQueue(cluster.getClusterConfig().getClusterSpec().getQueue());
-    // take care of the property types
-    final List<Property> properties = cluster.getClusterConfig().getSubPropertyList();
-    for (Property prop : properties) {
-      if (prop.getType() == null) {
-        if (prop.getKey().startsWith("-X")) {
-          prop.setType(PropertyType.SYSTEM_PROP);
-        } else {
-          prop.setType(PropertyType.JAVA_PROP);
+
+    response.setIsAllowAutoStart(cluster.getClusterConfig().getAllowAutoStart());
+    response.setIsAllowAutoStop(cluster.getClusterConfig().getAllowAutoStop());
+    response.setDynamicConfig(DynamicConfig.builder()
+        .setContainerCount(cluster.getClusterConfig().getClusterSpec().getContainerCount())
+        .build());
+
+
+    if(config.getClusterType() == ClusterType.YARN) {
+      ImmutableYarnPropsApi.Builder yarnProps = YarnPropsApi.builder();
+      yarnProps.setMemoryMB(cluster.getClusterConfig().getClusterSpec().getMemoryMBOnHeap() + cluster.getClusterConfig().getClusterSpec().getMemoryMBOffHeap());
+      yarnProps.setVirtualCoreCount(cluster.getClusterConfig().getClusterSpec().getVirtualCoreCount());
+      yarnProps.setQueue(cluster.getClusterConfig().getClusterSpec().getQueue());
+
+      // take care of the property types
+      final List<Property> properties = cluster.getClusterConfig().getSubPropertyList();
+      for (Property prop : properties) {
+        if (prop.getType() == null) {
+          if (prop.getKey().startsWith("-X")) {
+            prop.setType(PropertyType.SYSTEM_PROP);
+          } else {
+            prop.setType(PropertyType.JAVA_PROP);
+          }
         }
       }
+
+      yarnProps.setSubPropertyList(cluster.getClusterConfig().getSubPropertyList());
+      yarnProps.setDistroType(cluster.getClusterConfig().getDistroType());
+      yarnProps.setIsSecure(cluster.getClusterConfig().getIsSecure());
+      response.setYarnProps(yarnProps.build());
+
+    } else if (config.getClusterType() == ClusterType.EC2) {
+      response.setAwsProps(map(cluster.getClusterConfig().getAwsProps(), ImmutableAwsPropsApi.Builder.class).build());
     }
-    response.setSubPropertyList(cluster.getClusterConfig().getSubPropertyList());
+
     response.setContainers(clusterEnriched.getRunTimeInfo());
     response.setDesiredState(toDesiredState((cluster.getDesiredState() != null) ? cluster.getDesiredState() :
         cluster.getState()));
-    response.setDistroType(cluster.getClusterConfig().getDistroType());
-    response.setIsSecure(cluster.getClusterConfig().getIsSecure());
-    return response;
+
+    return response.build();
+  }
+
+  private static <T> T map(Object o, Class<T> clazz) {
+    if(o == null) {
+      return null;
+    }
+    T t = MODEL_MAPPER.map(o, clazz);
+    return t;
   }
 
   @VisibleForTesting
   public ClusterConfig toClusterConfig(final ClusterModifyRequest clusterModifyRequest) {
     ClusterConfig clusterConfig = new ClusterConfig();
-    clusterConfig.setName(Optional.fromNullable(clusterModifyRequest.getName()).orNull());
+    clusterConfig.setName(Optional.ofNullable(clusterModifyRequest.getName()).orElse(null));
     clusterConfig.setClusterType(clusterModifyRequest.getClusterType());
     clusterConfig.setTag(clusterModifyRequest.getTag());
-    clusterConfig.setSubPropertyList(clusterModifyRequest.getSubPropertyList());
+    if(clusterModifyRequest.getYarnProps() != null) {
+      clusterConfig.setSubPropertyList(clusterModifyRequest.getYarnProps().getSubPropertyList());
+    }
     ClusterSpec clusterSpec = new ClusterSpec();
+
+    clusterConfig.setAllowAutoStart(clusterModifyRequest.isAllowAutoStart());
+    clusterConfig.setAllowAutoStop(clusterModifyRequest.isAllowAutoStop());
 
     int onHeap = 0;
     if (clusterConfig.getSubPropertyList() != null) {
@@ -266,16 +339,20 @@ public class ProvisioningResource {
         break;
       }
     }
-    if (clusterModifyRequest.getMemoryMB() != null) {
+
+
+    if(clusterModifyRequest.getYarnProps() != null) {
       // total memory was passed in. if we don't know on-heap - adjust it later on
-      clusterSpec.setMemoryMBOffHeap(clusterModifyRequest.getMemoryMB() - onHeap);
+      clusterSpec.setMemoryMBOffHeap(clusterModifyRequest.getYarnProps().getMemoryMB() - onHeap);
     }
 
-    clusterSpec.setVirtualCoreCount(Optional.fromNullable(clusterModifyRequest.getVirtualCoreCount()).orNull());
-    DynamicConfig requestConfig = Optional.fromNullable(clusterModifyRequest.getDynamicConfig()).or(new DynamicConfig());
-    clusterSpec.setContainerCount(Optional.fromNullable(requestConfig.getContainerCount()).orNull());
-    clusterSpec.setQueue(Optional.fromNullable(clusterModifyRequest.getQueue()).orNull());
 
+    clusterSpec.setVirtualCoreCount(Optional.ofNullable(clusterModifyRequest.getYarnProps()).map(t -> t.getVirtualCoreCount()).orElse(null));
+    DynamicConfig requestConfig = Optional.ofNullable(clusterModifyRequest.getDynamicConfig()).orElse(DynamicConfig.builder().build());
+    clusterSpec.setContainerCount(Optional.ofNullable(requestConfig.getContainerCount()).orElse(null));
+    clusterSpec.setQueue(Optional.ofNullable(clusterModifyRequest.getYarnProps()).map(t -> t.getQueue()).orElse(null));
+
+    clusterConfig.setAwsProps(map(clusterModifyRequest.getAwsProps(), AwsProps.class));
     clusterConfig.setClusterSpec(clusterSpec);
     return clusterConfig;
   }
@@ -310,4 +387,5 @@ public class ProvisioningResource {
     // can throw IllegalArgumentException
     return ClusterState.valueOf(state.name());
   }
+
 }

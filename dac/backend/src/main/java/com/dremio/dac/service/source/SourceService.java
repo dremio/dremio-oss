@@ -141,7 +141,7 @@ public class SourceService {
   }
 
   public SourceConfig registerSourceWithRuntime(SourceUI source) throws ExecutionSetupException, NamespaceException {
-    return registerSourceWithRuntime(source.asSourceConfig());
+    return registerSourceWithRuntime(source.asSourceConfig(), source.getNamespaceAttributes());
   }
 
   public SourceConfig registerSourceWithRuntime(SourceConfig sourceConfig,  NamespaceAttribute... attributes) throws ExecutionSetupException, NamespaceException {

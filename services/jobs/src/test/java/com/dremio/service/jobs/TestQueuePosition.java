@@ -33,6 +33,7 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.options.OptionManager;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.resource.basic.BasicResourceAllocator;
+import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.coordinator.ClusterCoordinator;
 
 /**
@@ -53,12 +54,15 @@ public class TestQueuePosition {
   @Mock
   AttemptObserver observer;
 
+  @Mock
+  UserSession session;
 
   @Test
   public void testQueue() throws Exception {
     final AtomicInteger count = new AtomicInteger();
     Mockito.when(context.getWorkloadType()).thenReturn(UserBitShared.WorkloadType.JDBC);
     Mockito.when(context.getOptions()).thenReturn(optionsManager);
+    Mockito.when(context.getSession()).thenReturn(session);
     Mockito.when(context.getQueryContextInfo()).thenReturn(CoordExecRPC.QueryContextInformation.getDefaultInstance());
     Mockito.doAnswer(invocation -> {
       int i = count.getAndIncrement();

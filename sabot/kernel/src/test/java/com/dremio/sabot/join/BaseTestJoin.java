@@ -16,6 +16,7 @@
 package com.dremio.sabot.join;
 
 import static com.dremio.sabot.Fixtures.NULL_BIGINT;
+import static com.dremio.sabot.Fixtures.NULL_INT;
 import static com.dremio.sabot.Fixtures.NULL_VARCHAR;
 import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
@@ -24,6 +25,7 @@ import static com.dremio.sabot.Fixtures.tr;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BaseFixedWidthVector;
@@ -49,8 +51,10 @@ import com.dremio.sabot.Fixtures.HeaderRow;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.Generator;
 import com.dremio.sabot.join.hash.EmptyGenerator;
+import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.sabot.op.spi.DualInputOperator;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 
 import io.airlift.tpch.GenerationDefinition.TpchTable;
 import io.airlift.tpch.TpchGenerator;
@@ -72,12 +76,12 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     Assume.assumeTrue(true);
   }
 
-  protected abstract JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type);
+  protected abstract JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type, Set<Integer> buildProjected, Set<Integer> probeProjected);
 
   @Test
   public void emptyRight() throws Exception {
     JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("key"))),
-      JoinRelType.INNER);
+      JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0));
 
     final Table expected = t(
       th("key", "value", "n_nationKey"),
@@ -93,7 +97,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void emptyRightWithLeftJoin() throws Exception {
     JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("r_regionKey"), f("key"))),
-      JoinRelType.LEFT);
+      JoinRelType.LEFT, ImmutableSet.of(0, 1), ImmutableSet.of(0));
 
     final Table expected = t(
       th("key", "value", "r_regionKey"),
@@ -113,71 +117,72 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void isNotDistinctWithNulls() throws Exception{
-    JoinInfo includeNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("IS_NOT_DISTINCT_FROM", f("id1"), f("id2"))), JoinRelType.INNER);
+    JoinInfo includeNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("IS_NOT_DISTINCT_FROM", f("id1"), f("id2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table includeNulls = t(
-        th("id2", "name2", "id1", "name1"),
-        tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, "a1"),
-        tr(4l, "b2", 4l, "a2")
-        );
+      th("id2", "name2", "id1", "name1"),
+      tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, "a1"),
+      tr(4l, "b2", 4l, "a2")
+    );
     nullKeys(includeNullsInfo, includeNulls);
 
   }
 
   @Test
   public void noNullEquivalenceWithNulls() throws Exception{
-    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER);
+    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table noNulls = t(
-        th("id2", "name2", "id1", "name1"),
-        tr(4l, "b2", 4l, "a2")
-        );
+      th("id2", "name2", "id1", "name1"),
+      tr(4l, "b2", 4l, "a2")
+    );
     nullKeys(noNullsInfo, noNulls);
   }
 
   @Test
   public void noNullEquivalenceWithNullsLeft() throws Exception{
-    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.LEFT);
+    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.LEFT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table noNulls = t(
-        th("id2", "name2", "id1", "name1"),
-        tr(Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR, Fixtures.NULL_BIGINT, "a1"),
-        tr(4l, "b2", 4l, "a2")
-        );
+      th("id2", "name2", "id1", "name1"),
+      tr(Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR, Fixtures.NULL_BIGINT, "a1"),
+      tr(4l, "b2", 4l, "a2")
+    );
     nullKeys(noNullsInfo, noNulls);
   }
 
   @Test
   public void noNullEquivalenceWithNullsRight() throws Exception{
     runRightAndOuter();
-    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.RIGHT);
+    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.RIGHT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table noNulls = t(
-        th("id2", "name2", "id1", "name1"),
-        tr(4l, "b2", 4l, "a2"),
-        tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR)
-        );
+      th("id2", "name2", "id1", "name1"),
+      tr(4l, "b2", 4l, "a2"),
+      tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR)
+    );
     nullKeys(noNullsInfo, noNulls);
   }
 
   private void nullKeys(JoinInfo info, Table expected) throws Exception {
     final Table left = t(
-        th("id1", "name1"),
-        tr(Fixtures.NULL_BIGINT, "a1"),
-        tr(4l, "a2")
-        );
+      th("id1", "name1"),
+      tr(Fixtures.NULL_BIGINT, "a1"),
+      tr(4l, "a2")
+    );
 
     final Table right = t(
-        th("id2", "name2"),
-        tr(Fixtures.NULL_BIGINT, "b1"),
-        tr(4l, "b2")
-        );
+      th("id2", "name2"),
+      tr(Fixtures.NULL_BIGINT, "b1"),
+      tr(4l, "b2")
+    );
+
     validateDual(
-        info.operator, info.clazz,
-        left.toGenerator(getTestAllocator()),
-        right.toGenerator(getTestAllocator()),
-        DEFAULT_BATCH, expected);
+      info.operator, info.clazz,
+      left.toGenerator(getTestAllocator()),
+      right.toGenerator(getTestAllocator()),
+      DEFAULT_BATCH, expected);
   }
 
   @Test
   public void noNullEquivalenceWithNullsLeftForString() throws Exception{
-    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.LEFT);
+    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.LEFT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table noNulls = t(
       th("id2", "name2", "id1", "name1"),
       tr(4l, "a1", 1l, "a1"),
@@ -190,7 +195,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void noNullEquivalenceWithNullsRightForString() throws Exception{
     runRightAndOuter();
-    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.RIGHT);
+    JoinInfo noNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("name1"), f("name2"))), JoinRelType.RIGHT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table noNulls = t(
       th("id2", "name2", "id1", "name1"),
       tr(4l, "a1", 1l, "a1"),
@@ -223,7 +228,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void isNotDistinctWithZeroKey() throws Exception{
-    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("IS_NOT_DISTINCT_FROM", f("id1"), f("id2"))), JoinRelType.INNER);
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("IS_NOT_DISTINCT_FROM", f("id1"), f("id2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
       tr(Fixtures.NULL_BIGINT, "b1", Fixtures.NULL_BIGINT, "a1"),
@@ -236,7 +241,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceWithZeroKey() throws Exception{
-    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER);
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
       tr(0l, "b2", 0l, "a2"),
@@ -247,7 +252,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceWithZeroKeyLeft() throws Exception{
-    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.LEFT);
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.LEFT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
       tr(Fixtures.NULL_BIGINT, Fixtures.NULL_VARCHAR, Fixtures.NULL_BIGINT, "a1"),
@@ -260,7 +265,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void noNullEquivalenceWithZeroKeyRight() throws Exception{
     runRightAndOuter();
-    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.RIGHT);
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.RIGHT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
       tr(0l, "b2", 0l, "a2"),
@@ -295,7 +300,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void freeValueInHashTable() throws Exception{
     long freeValue = Long.MIN_VALUE + 474747l;
-    JoinInfo freeValueInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER);
+    JoinInfo freeValueInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
       tr(0l, "b2", 0l, "a2"),
@@ -325,7 +330,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void isNotDistinctBitKeys() throws Exception{
-    JoinInfo includeNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("IS_NOT_DISTINCT_FROM", f("bool1"), f("bool2"))), JoinRelType.INNER);
+    JoinInfo includeNullsInfo = getJoinInfo(Arrays.asList(new JoinCondition("IS_NOT_DISTINCT_FROM", f("bool1"), f("bool2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table expected = t(
       th("bool2", "name2", "bool1", "name1"),
       tr(true, "b1", true, "a1"),
@@ -338,7 +343,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceBitKeys() throws Exception{
-    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.INNER);
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table expected = t(
       th("bool2", "name2", "bool1", "name1"),
       tr(true, "b1", true, "a1"),
@@ -349,7 +354,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void noNullEquivalenceBitKeysLeft() throws Exception{
-    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.LEFT);
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.LEFT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table expected = t(
       th("bool2", "name2", "bool1", "name1"),
       tr(true, "b1", true, "a1"),
@@ -362,7 +367,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void noNullEquivalenceBitKeysRight() throws Exception{
     runRightAndOuter();
-    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.RIGHT);
+    JoinInfo includeZeroKeyInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("bool1"), f("bool2"))), JoinRelType.RIGHT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table expected = t(
       th("bool2", "name2", "bool1", "name1"),
       tr(true, "b1", true, "a1"),
@@ -395,187 +400,187 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void regionNationInner() throws Exception {
-    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("r_regionKey"), f("n_regionKey"))), JoinRelType.INNER);
+    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("r_regionKey"), f("n_regionKey"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
 
     final Table expected = t(
-        th("n_name", "n_regionKey", "r_regionKey", "r_name"),
-        tr("ALGERIA", 0L, 0L, "AFRICA"),
-        tr("MOZAMBIQUE", 0L, 0L, "AFRICA"),
-        tr("MOROCCO", 0L, 0L, "AFRICA"),
-        tr("KENYA", 0L, 0L, "AFRICA"),
-        tr("ETHIOPIA", 0L, 0L, "AFRICA"),
-        tr("ARGENTINA", 1L, 1L, "AMERICA"),
-        tr("UNITED STATES", 1L, 1L, "AMERICA"),
-        tr("PERU", 1L, 1L, "AMERICA"),
-        tr("CANADA", 1L, 1L, "AMERICA"),
-        tr("BRAZIL", 1L, 1L, "AMERICA"),
-        tr("INDIA", 2L, 2L, "ASIA"),
-        tr("VIETNAM", 2L, 2L, "ASIA"),
-        tr("CHINA", 2L, 2L, "ASIA"),
-        tr("JAPAN", 2L, 2L, "ASIA"),
-        tr("INDONESIA", 2L, 2L, "ASIA"),
-        tr("FRANCE", 3L, 3L, "EUROPE"),
-        tr("UNITED KINGDOM", 3L, 3L, "EUROPE"),
-        tr("RUSSIA", 3L, 3L, "EUROPE"),
-        tr("ROMANIA", 3L, 3L, "EUROPE"),
-        tr("GERMANY", 3L, 3L, "EUROPE"),
-        tr("EGYPT", 4L, 4L, "MIDDLE EAST"),
-        tr("SAUDI ARABIA", 4L, 4L, "MIDDLE EAST"),
-        tr("JORDAN", 4L, 4L, "MIDDLE EAST"),
-        tr("IRAQ", 4L, 4L, "MIDDLE EAST"),
-        tr("IRAN", 4L, 4L, "MIDDLE EAST")
-        );
+      th("n_name", "n_regionKey", "r_regionKey", "r_name"),
+      tr("ALGERIA", 0L, 0L, "AFRICA"),
+      tr("MOZAMBIQUE", 0L, 0L, "AFRICA"),
+      tr("MOROCCO", 0L, 0L, "AFRICA"),
+      tr("KENYA", 0L, 0L, "AFRICA"),
+      tr("ETHIOPIA", 0L, 0L, "AFRICA"),
+      tr("ARGENTINA", 1L, 1L, "AMERICA"),
+      tr("UNITED STATES", 1L, 1L, "AMERICA"),
+      tr("PERU", 1L, 1L, "AMERICA"),
+      tr("CANADA", 1L, 1L, "AMERICA"),
+      tr("BRAZIL", 1L, 1L, "AMERICA"),
+      tr("INDIA", 2L, 2L, "ASIA"),
+      tr("VIETNAM", 2L, 2L, "ASIA"),
+      tr("CHINA", 2L, 2L, "ASIA"),
+      tr("JAPAN", 2L, 2L, "ASIA"),
+      tr("INDONESIA", 2L, 2L, "ASIA"),
+      tr("FRANCE", 3L, 3L, "EUROPE"),
+      tr("UNITED KINGDOM", 3L, 3L, "EUROPE"),
+      tr("RUSSIA", 3L, 3L, "EUROPE"),
+      tr("ROMANIA", 3L, 3L, "EUROPE"),
+      tr("GERMANY", 3L, 3L, "EUROPE"),
+      tr("EGYPT", 4L, 4L, "MIDDLE EAST"),
+      tr("SAUDI ARABIA", 4L, 4L, "MIDDLE EAST"),
+      tr("JORDAN", 4L, 4L, "MIDDLE EAST"),
+      tr("IRAQ", 4L, 4L, "MIDDLE EAST"),
+      tr("IRAN", 4L, 4L, "MIDDLE EAST")
+    );
 
     validateDual(
-        info.operator, info.clazz,
-        TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey", "r_name"),
-        TpchGenerator.singleGenerator(TpchTable.NATION, 0.1, getTestAllocator(), "n_regionKey", "n_name"),
-        DEFAULT_BATCH, expected);
+      info.operator, info.clazz,
+      TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey", "r_name"),
+      TpchGenerator.singleGenerator(TpchTable.NATION, 0.1, getTestAllocator(), "n_regionKey", "n_name"),
+      DEFAULT_BATCH, expected);
   }
 
   @Test
   public void nationRegionPartialKeyRight() throws Exception {
     runRightAndOuter();
-    JoinInfo info = getJoinInfo( Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.RIGHT);
+    JoinInfo info = getJoinInfo( Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.RIGHT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
 
     final Table expected = t(
-        th("r_regionKey", "r_name", "n_nationKey", "n_name"),
-        tr(0L, "AFRICA", 0L, "ALGERIA"),
-        tr(1L, "AMERICA", 1L, "ARGENTINA"),
-        tr(2L, "ASIA", 2L, "BRAZIL"),
-        tr(3L, "EUROPE", 3L, "CANADA"),
-        tr(4L, "MIDDLE EAST", 4L, "EGYPT")
-        );
+      th("r_regionKey", "r_name", "n_nationKey", "n_name"),
+      tr(0L, "AFRICA", 0L, "ALGERIA"),
+      tr(1L, "AMERICA", 1L, "ARGENTINA"),
+      tr(2L, "ASIA", 2L, "BRAZIL"),
+      tr(3L, "EUROPE", 3L, "CANADA"),
+      tr(4L, "MIDDLE EAST", 4L, "EGYPT")
+    );
 
     validateDual(
-        info.operator, info.clazz,
-        TpchGenerator.singleGenerator(TpchTable.NATION, 0.1, getTestAllocator(), "n_nationKey", "n_name"),
-        TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey", "r_name"),
-        DEFAULT_BATCH, expected);
+      info.operator, info.clazz,
+      TpchGenerator.singleGenerator(TpchTable.NATION, 0.1, getTestAllocator(), "n_nationKey", "n_name"),
+      TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey", "r_name"),
+      DEFAULT_BATCH, expected);
   }
 
   @Test
   public void regionNationPartialKeyRight() throws Exception {
     runRightAndOuter();
 
-    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("r_regionKey"), f("n_nationKey"))), JoinRelType.RIGHT);
+    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("r_regionKey"), f("n_nationKey"))), JoinRelType.RIGHT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
 
     final Table expected = t(
-        th("n_nationKey", "n_name", "r_regionKey", "r_name"),
-        tr(0L, "ALGERIA", 0L, "AFRICA"),
-        tr(1L, "ARGENTINA", 1L, "AMERICA"),
-        tr(2L, "BRAZIL", 2L, "ASIA"),
-        tr(3L, "CANADA", 3L, "EUROPE"),
-        tr(4L, "EGYPT", 4L, "MIDDLE EAST"),
-        tr(5L, "ETHIOPIA", NULL_BIGINT, NULL_VARCHAR),
-        tr(6L, "FRANCE", NULL_BIGINT, NULL_VARCHAR),
-        tr(7L, "GERMANY", NULL_BIGINT, NULL_VARCHAR),
-        tr(8L, "INDIA", NULL_BIGINT, NULL_VARCHAR),
-        tr(9L, "INDONESIA", NULL_BIGINT, NULL_VARCHAR),
-        tr(10L, "IRAN", NULL_BIGINT, NULL_VARCHAR),
-        tr(11L, "IRAQ", NULL_BIGINT, NULL_VARCHAR),
-        tr(12L, "JAPAN", NULL_BIGINT, NULL_VARCHAR),
-        tr(13L, "JORDAN", NULL_BIGINT, NULL_VARCHAR),
-        tr(14L, "KENYA", NULL_BIGINT, NULL_VARCHAR),
-        tr(15L, "MOROCCO", NULL_BIGINT, NULL_VARCHAR),
-        tr(16L, "MOZAMBIQUE", NULL_BIGINT, NULL_VARCHAR),
-        tr(17L, "PERU", NULL_BIGINT, NULL_VARCHAR),
-        tr(18L, "CHINA", NULL_BIGINT, NULL_VARCHAR),
-        tr(19L, "ROMANIA", NULL_BIGINT, NULL_VARCHAR),
-        tr(20L, "SAUDI ARABIA", NULL_BIGINT, NULL_VARCHAR),
-        tr(21L, "VIETNAM", NULL_BIGINT, NULL_VARCHAR),
-        tr(22L, "RUSSIA", NULL_BIGINT, NULL_VARCHAR),
-        tr(23L, "UNITED KINGDOM", NULL_BIGINT, NULL_VARCHAR),
-        tr(24L, "UNITED STATES", NULL_BIGINT, NULL_VARCHAR)
-        );
+      th("n_nationKey", "n_name", "r_regionKey", "r_name"),
+      tr(0L, "ALGERIA", 0L, "AFRICA"),
+      tr(1L, "ARGENTINA", 1L, "AMERICA"),
+      tr(2L, "BRAZIL", 2L, "ASIA"),
+      tr(3L, "CANADA", 3L, "EUROPE"),
+      tr(4L, "EGYPT", 4L, "MIDDLE EAST"),
+      tr(5L, "ETHIOPIA", NULL_BIGINT, NULL_VARCHAR),
+      tr(6L, "FRANCE", NULL_BIGINT, NULL_VARCHAR),
+      tr(7L, "GERMANY", NULL_BIGINT, NULL_VARCHAR),
+      tr(8L, "INDIA", NULL_BIGINT, NULL_VARCHAR),
+      tr(9L, "INDONESIA", NULL_BIGINT, NULL_VARCHAR),
+      tr(10L, "IRAN", NULL_BIGINT, NULL_VARCHAR),
+      tr(11L, "IRAQ", NULL_BIGINT, NULL_VARCHAR),
+      tr(12L, "JAPAN", NULL_BIGINT, NULL_VARCHAR),
+      tr(13L, "JORDAN", NULL_BIGINT, NULL_VARCHAR),
+      tr(14L, "KENYA", NULL_BIGINT, NULL_VARCHAR),
+      tr(15L, "MOROCCO", NULL_BIGINT, NULL_VARCHAR),
+      tr(16L, "MOZAMBIQUE", NULL_BIGINT, NULL_VARCHAR),
+      tr(17L, "PERU", NULL_BIGINT, NULL_VARCHAR),
+      tr(18L, "CHINA", NULL_BIGINT, NULL_VARCHAR),
+      tr(19L, "ROMANIA", NULL_BIGINT, NULL_VARCHAR),
+      tr(20L, "SAUDI ARABIA", NULL_BIGINT, NULL_VARCHAR),
+      tr(21L, "VIETNAM", NULL_BIGINT, NULL_VARCHAR),
+      tr(22L, "RUSSIA", NULL_BIGINT, NULL_VARCHAR),
+      tr(23L, "UNITED KINGDOM", NULL_BIGINT, NULL_VARCHAR),
+      tr(24L, "UNITED STATES", NULL_BIGINT, NULL_VARCHAR)
+    );
 
     validateDual(
-        info.operator, info.clazz,
-        TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey", "r_name"),
-        TpchGenerator.singleGenerator(TpchTable.NATION, 0.1, getTestAllocator(), "n_nationKey", "n_name"),
-        DEFAULT_BATCH, expected);
+      info.operator, info.clazz,
+      TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey", "r_name"),
+      TpchGenerator.singleGenerator(TpchTable.NATION, 0.1, getTestAllocator(), "n_nationKey", "n_name"),
+      DEFAULT_BATCH, expected);
   }
 
   @Test
   public void nationRegionPartialKeyLeft() throws Exception {
 
-    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.LEFT);
+    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.LEFT, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
 
     final Table expected = t(
-        th("r_regionKey", "r_name", "n_nationKey", "n_name"),
-        tr(0L, "AFRICA", 0L, "ALGERIA"),
-        tr(1L, "AMERICA", 1L, "ARGENTINA"),
-        tr(2L, "ASIA", 2L, "BRAZIL"),
-        tr(3L, "EUROPE", 3L, "CANADA"),
-        tr(4L, "MIDDLE EAST", 4L, "EGYPT"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 5L, "ETHIOPIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 6L, "FRANCE"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 7L, "GERMANY"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 8L, "INDIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 9L, "INDONESIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 10L, "IRAN"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 11L, "IRAQ"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 12L, "JAPAN"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 13L, "JORDAN"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 14L, "KENYA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 15L, "MOROCCO"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 16L, "MOZAMBIQUE"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 17L, "PERU"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 18L, "CHINA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 19L, "ROMANIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 20L, "SAUDI ARABIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 21L, "VIETNAM"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 22L, "RUSSIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 23L, "UNITED KINGDOM"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 24L, "UNITED STATES")
-        );
+      th("r_regionKey", "r_name", "n_nationKey", "n_name"),
+      tr(0L, "AFRICA", 0L, "ALGERIA"),
+      tr(1L, "AMERICA", 1L, "ARGENTINA"),
+      tr(2L, "ASIA", 2L, "BRAZIL"),
+      tr(3L, "EUROPE", 3L, "CANADA"),
+      tr(4L, "MIDDLE EAST", 4L, "EGYPT"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 5L, "ETHIOPIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 6L, "FRANCE"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 7L, "GERMANY"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 8L, "INDIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 9L, "INDONESIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 10L, "IRAN"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 11L, "IRAQ"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 12L, "JAPAN"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 13L, "JORDAN"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 14L, "KENYA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 15L, "MOROCCO"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 16L, "MOZAMBIQUE"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 17L, "PERU"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 18L, "CHINA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 19L, "ROMANIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 20L, "SAUDI ARABIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 21L, "VIETNAM"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 22L, "RUSSIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 23L, "UNITED KINGDOM"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 24L, "UNITED STATES")
+    );
 
     validateDual(
-        info.operator, info.clazz,
-        TpchGenerator.singleGenerator(TpchTable.NATION, 0.1, getTestAllocator(), "n_nationKey", "n_name"),
-        TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey", "r_name"),
-        DEFAULT_BATCH, expected);
+      info.operator, info.clazz,
+      TpchGenerator.singleGenerator(TpchTable.NATION, 0.1, getTestAllocator(), "n_nationKey", "n_name"),
+      TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey", "r_name"),
+      DEFAULT_BATCH, expected);
   }
 
   @Test
   public void nationRegionPartialKeyOuter() throws Exception {
     runRightAndOuter();
-    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.FULL);
+    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.FULL, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
 
     final Table expected = t(
-        th("r_regionKey", "r_name", "n_nationKey", "n_name"),
-        tr(0L, "AFRICA", 0L, "ALGERIA"),
-        tr(1L, "AMERICA", 1L, "ARGENTINA"),
-        tr(2L, "ASIA", 2L, "BRAZIL"),
-        tr(3L, "EUROPE", 3L, "CANADA"),
-        tr(4L, "MIDDLE EAST", 4L, "EGYPT"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 5L, "ETHIOPIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 6L, "FRANCE"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 7L, "GERMANY"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 8L, "INDIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 9L, "INDONESIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 10L, "IRAN"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 11L, "IRAQ"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 12L, "JAPAN"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 13L, "JORDAN"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 14L, "KENYA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 15L, "MOROCCO"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 16L, "MOZAMBIQUE"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 17L, "PERU"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 18L, "CHINA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 19L, "ROMANIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 20L, "SAUDI ARABIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 21L, "VIETNAM"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 22L, "RUSSIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 23L, "UNITED KINGDOM"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 24L, "UNITED STATES")
-        );
+      th("r_regionKey", "r_name", "n_nationKey", "n_name"),
+      tr(0L, "AFRICA", 0L, "ALGERIA"),
+      tr(1L, "AMERICA", 1L, "ARGENTINA"),
+      tr(2L, "ASIA", 2L, "BRAZIL"),
+      tr(3L, "EUROPE", 3L, "CANADA"),
+      tr(4L, "MIDDLE EAST", 4L, "EGYPT"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 5L, "ETHIOPIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 6L, "FRANCE"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 7L, "GERMANY"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 8L, "INDIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 9L, "INDONESIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 10L, "IRAN"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 11L, "IRAQ"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 12L, "JAPAN"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 13L, "JORDAN"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 14L, "KENYA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 15L, "MOROCCO"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 16L, "MOZAMBIQUE"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 17L, "PERU"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 18L, "CHINA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 19L, "ROMANIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 20L, "SAUDI ARABIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 21L, "VIETNAM"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 22L, "RUSSIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 23L, "UNITED KINGDOM"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 24L, "UNITED STATES")
+    );
 
     validateDual(
-        info.operator, info.clazz,
-        TpchGenerator.singleGenerator(TpchTable.NATION, 0.1, getTestAllocator(), "n_nationKey", "n_name"),
-        TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey", "r_name"),
-        DEFAULT_BATCH, expected);
+      info.operator, info.clazz,
+      TpchGenerator.singleGenerator(TpchTable.NATION, 0.1, getTestAllocator(), "n_nationKey", "n_name"),
+      TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey", "r_name"),
+      DEFAULT_BATCH, expected);
   }
 
 
@@ -583,42 +588,42 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void nationRegionPartialKeyOuterSmall() throws Exception {
     runRightAndOuter();
-    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.FULL);
+    JoinInfo info = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("n_nationKey"), f("r_regionKey"))), JoinRelType.FULL, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
 
     final Table expected = t(
-        th("r_regionKey", "r_name", "n_nationKey", "n_name"),
-        tr(0L, "AFRICA", 0L, "ALGERIA"),
-        tr(1L, "AMERICA", 1L, "ARGENTINA"),
-        tr(2L, "ASIA", 2L, "BRAZIL"),
-        tr(3L, "EUROPE", 3L, "CANADA"),
-        tr(4L, "MIDDLE EAST", 4L, "EGYPT"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 5L, "ETHIOPIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 6L, "FRANCE"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 7L, "GERMANY"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 8L, "INDIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 9L, "INDONESIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 10L, "IRAN"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 11L, "IRAQ"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 12L, "JAPAN"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 13L, "JORDAN"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 14L, "KENYA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 15L, "MOROCCO"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 16L, "MOZAMBIQUE"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 17L, "PERU"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 18L, "CHINA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 19L, "ROMANIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 20L, "SAUDI ARABIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 21L, "VIETNAM"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 22L, "RUSSIA"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 23L, "UNITED KINGDOM"),
-        tr(NULL_BIGINT, NULL_VARCHAR, 24L, "UNITED STATES")
-        );
+      th("r_regionKey", "r_name", "n_nationKey", "n_name"),
+      tr(0L, "AFRICA", 0L, "ALGERIA"),
+      tr(1L, "AMERICA", 1L, "ARGENTINA"),
+      tr(2L, "ASIA", 2L, "BRAZIL"),
+      tr(3L, "EUROPE", 3L, "CANADA"),
+      tr(4L, "MIDDLE EAST", 4L, "EGYPT"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 5L, "ETHIOPIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 6L, "FRANCE"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 7L, "GERMANY"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 8L, "INDIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 9L, "INDONESIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 10L, "IRAN"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 11L, "IRAQ"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 12L, "JAPAN"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 13L, "JORDAN"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 14L, "KENYA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 15L, "MOROCCO"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 16L, "MOZAMBIQUE"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 17L, "PERU"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 18L, "CHINA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 19L, "ROMANIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 20L, "SAUDI ARABIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 21L, "VIETNAM"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 22L, "RUSSIA"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 23L, "UNITED KINGDOM"),
+      tr(NULL_BIGINT, NULL_VARCHAR, 24L, "UNITED STATES")
+    );
 
     validateDual(
-        info.operator, info.clazz,
-        TpchGenerator.singleGenerator(TpchTable.NATION, 0.1, getTestAllocator(), "n_nationKey", "n_name"),
-        TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey", "r_name"),
-        3, expected);
+      info.operator, info.clazz,
+      TpchGenerator.singleGenerator(TpchTable.NATION, 0.1, getTestAllocator(), "n_nationKey", "n_name"),
+      TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator(), "r_regionKey", "r_name"),
+      3, expected);
   }
 
   @Test
@@ -657,7 +662,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       new JoinCondition("EQUALS", f("col1_31"), f("col2_31")),
       new JoinCondition("EQUALS", f("col1_32"), f("col2_32")),
       new JoinCondition("EQUALS", f("col1_33"), f("col2_33"))
-      ), JoinRelType.INNER);
+    ), JoinRelType.INNER, JoinUtils.projectAll(34).asSet(), JoinUtils.projectAll(34).asSet());
 
     final Table expected = t(
       th("col2_1", "col2_2", "col2_3", "col2_4", "col2_5", "col2_6", "col2_7", "col2_8", "col2_9", "col2_10",
@@ -669,7 +674,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
         "col1_21", "col1_22", "col1_23", "col1_24", "col1_25", "col1_26", "col1_27", "col1_28", "col1_29", "col1_30",
         "col1_31", "col1_32", "col1_33", "col1_34"
 
-        ),
+      ),
       tr(1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
         11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
         21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
@@ -695,7 +700,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
         "col1_11", "col1_12", "col1_13", "col1_14", "col1_15", "col1_16", "col1_17", "col1_18", "col1_19", "col1_20",
         "col1_21", "col1_22", "col1_23", "col1_24", "col1_25", "col1_26", "col1_27", "col1_28", "col1_29", "col1_30",
         "col1_31", "col1_32", "col1_33", "col1_34"
-        ),
+      ),
       tr(1l, 2l, 3l, 4l, 5l, 6l, 7l, 8l, 9l, 10l,
         11l, 12l, 13l, 14l, 15l, 16l, 17l, 18l, 19l, 20l,
         21l, 22l, 23l, 24l, 25l, 26l, 27l, 28l, 29l, 30l,
@@ -730,7 +735,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   @Test
   public void hugeBatch() throws Exception {
     JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("a"), f("b"))),
-      JoinRelType.INNER);
+      JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
 
     final int batchSize = 65536;
     final DataRow[] leftRows = new DataRow[batchSize];
@@ -755,7 +760,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
 
   @Test
   public void testDecimalJoin() throws Exception {
-    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER);
+    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("id1"), f("id2"))), JoinRelType.INNER, ImmutableSet.of(0, 1), ImmutableSet.of(0, 1));
     final Table expected = t(
       th("id2", "name2", "id1", "name1"),
       tr(BigDecimal.valueOf(1), "b2", BigDecimal.valueOf(1), "a2"),
@@ -766,14 +771,14 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       th("id1", "name1"),
       tr(BigDecimal.valueOf(1), "a2"),
       tr(BigDecimal.valueOf(2), "a3")
-      );
+    );
 
     final Table right = t(
       th("id2", "name2"),
       tr(BigDecimal.valueOf(1), "b2"),
       tr(BigDecimal.valueOf(2), "b3"),
       tr(BigDecimal.valueOf(3), "b4")
-      );
+    );
     validateDual(
       joinInfo.operator, joinInfo.clazz,
       left.toGenerator(getTestAllocator()),
@@ -801,7 +806,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
       ImmutableList.Builder<T> vectorsBuilder = ImmutableList.builder();
       for(int i = 0; i<columns; i++) {
         Field field = new Field(String.format("%s_%d", prefix, i + 1), true,
-              arrowType, null);
+          arrowType, null);
         T vector = result.addOrGet(field);
         vectorsBuilder.add(vector);
       }
@@ -863,27 +868,35 @@ public abstract class BaseTestJoin extends BaseTestOperator {
   }
 
   private static HeaderRow getHeader(String leftPrefix, int leftColumns, String rightPrefix, int rightColumns) {
+    return getHeader(leftPrefix, 0, leftColumns, rightPrefix, 0, rightColumns);
+  }
+
+  private static HeaderRow getHeader(String leftPrefix, int leftFrom, int leftColumns, String rightPrefix, int rightFrom, int rightColumns) {
     String[] names = new String[leftColumns + rightColumns];
     for(int i = 0; i<leftColumns; i++) {
-      names[i] = String.format("%s_%d", leftPrefix, i+1);
+      names[i] = String.format("%s_%d", leftPrefix, i+1+leftFrom);
     }
     for(int i = 0; i<rightColumns; i++) {
-      names[i + leftColumns] = String.format("%s_%d", rightPrefix, i+1);
+      names[i + leftColumns] = String.format("%s_%d", rightPrefix, i+1+rightFrom);
     }
     return new HeaderRow(names);
   }
 
   private static DataRow[] getData( int leftColumns, int rightColumns, int count) {
+    return getData(0, leftColumns, 0, rightColumns, count);
+  }
+
+  private static DataRow[] getData( int leftFrom, int leftColumns, int rightFrom, int rightColumns, int count) {
     DataRow[] rows = new DataRow[count];
 
     for(int i = 0; i<count; i++) {
       Object[] objects = new Object[leftColumns + rightColumns];
 
       for(int j = 0; j<leftColumns; j++) {
-        objects[j] = i * leftColumns + j;
+        objects[j] = i * leftColumns + (leftFrom+j);
       }
       for(int j = 0; j<rightColumns; j++) {
-        objects[j + leftColumns] = i * rightColumns + j;
+        objects[j + leftColumns] = i * rightColumns + (rightFrom+j);
       }
       rows[i] = tr(objects);
     }
@@ -915,7 +928,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     int leftColumns = columns;
     int rightColumns = columns;
 
-    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("left_1"), f("right_1"))), JoinRelType.LEFT);
+    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("left_1"), f("right_1"))), JoinRelType.LEFT, JoinUtils.projectAll(1000).asSet(), JoinUtils.projectAll(1000).asSet());
 
     Table expected = t(getHeader("right", rightColumns, "left", leftColumns), false, getData(columns, leftColumns, 1));
     validateDual(joinInfo.operator, joinInfo.clazz,
@@ -931,7 +944,7 @@ public abstract class BaseTestJoin extends BaseTestOperator {
     int leftColumns = columns;
     int rightColumns = columns;
 
-    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("left_1"), f("right_1"))), JoinRelType.LEFT);
+    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("left_1"), f("right_1"))), JoinRelType.LEFT, JoinUtils.projectAll(1000).asSet(), JoinUtils.projectAll(1000).asSet());
 
     Table expected = t(getHeader("right", rightColumns, "left", leftColumns), false, getDataDecimal(columns, leftColumns, 1));
     validateDual(joinInfo.operator, joinInfo.clazz,
@@ -939,6 +952,202 @@ public abstract class BaseTestJoin extends BaseTestOperator {
         DecimalVector.class, new ArrowType.Decimal(38, 0), BaseTestJoin::insertIntoDecimalVector),
       new ManyColumnsGenerator<DecimalVector>(getTestAllocator(), "right", rightColumns, 1,
         DecimalVector.class, new ArrowType.Decimal(38, 0), BaseTestJoin::insertIntoDecimalVector),
+      DEFAULT_BATCH, expected);
+  }
+
+  protected void baseManyColumnsPartialProjectLeft() throws Exception {
+    int columns = 1000;
+    int leftColumns = columns;
+    int rightColumns = columns;
+
+    JoinInfo joinInfo = getJoinInfo(Arrays.asList(new JoinCondition("EQUALS", f("left_1"), f("right_1"))), JoinRelType.LEFT, ImmutableSet.of(0), ImmutableSet.of(0));
+
+    Table expected = t(getHeader("right", 1, "left", 1), false, getData(1, 1, 1));
+    validateDual(joinInfo.operator, joinInfo.clazz,
+      new ManyColumnsGenerator<IntVector>(getTestAllocator(), "left", leftColumns, 1, IntVector
+        .class, new ArrowType.Int(32, true),  BaseTestJoin::insertIntoIntVector),
+      new ManyColumnsGenerator<IntVector>(getTestAllocator(), "right", rightColumns, 1, IntVector
+        .class, new ArrowType.Int(32, true), BaseTestJoin::insertIntoIntVector),
+      DEFAULT_BATCH, expected);
+  }
+
+  public void basePartialInnerJoin() throws Exception {
+    JoinInfo info = getJoinInfo(Arrays.asList(
+      new JoinCondition("EQUALS", f("left_int2"), f("right_int2")),
+      new JoinCondition("EQUALS", f("left_string2"), f("right_string2"))
+    ), JoinRelType.INNER, ImmutableSet.of(2), ImmutableSet.of(2));
+
+    final Table expected = t(
+      th("right_int2", "left_int2"),
+      tr(21, 21)
+    );
+
+    final Table left = t(
+      th("left_int1", "left_string1", "left_int2", "left_string2", "left_int3", "left_string3"),
+      tr(11, "var11", 21, "var21", 31, "var31"),
+      tr(12, "var12", 22, "var22", 32, "var32"),
+      tr(13, "var13", 23, "var23", 33, "var33"),
+      tr(14, "var14", 24, "var24", 34, "var34")
+    );
+
+    final Table right = t(
+      th("right_int1", "right_string1", "right_int2", "right_string2", "right_int3", "right_string3"),
+      tr(101, "var101", 21, "var21", 31, "var301"),
+      tr(102, "var102", 202, "var202", 32, "var302"),
+      tr(103, "var103", 23, "var203", 33, "var303"),
+      tr(104, "var104", 204, "var204", 34, "var304")
+    );
+
+    validateDual(
+      info.operator, info.clazz,
+      left.toGenerator(getTestAllocator()),
+      right.toGenerator(getTestAllocator()),
+      DEFAULT_BATCH, expected);
+  }
+
+  public void basePartialInnerJoinMultipleFields() throws Exception {
+    JoinInfo info = getJoinInfo(Arrays.asList(
+      new JoinCondition("EQUALS", f("left_int2"), f("right_int2")),
+      new JoinCondition("EQUALS", f("left_string2"), f("right_string2")),
+      new JoinCondition("EQUALS", f("left_int3"), f("right_int3"))
+    ), JoinRelType.INNER, ImmutableSet.of(2, 4), ImmutableSet.of(3));
+
+    final Table expected = t(
+      th("right_int2", "right_int3", "left_string2"),
+      tr(21, 31, "var21")
+    );
+
+    final Table left = t(
+      th("left_int1", "left_string1", "left_int2", "left_string2", "left_int3", "left_string3"),
+      tr(11, "var11", 21, "var21", 31, "var31"),
+      tr(12, "var12", 22, "var22", 32, "var32"),
+      tr(13, "var13", 23, "var23", 33, "var33"),
+      tr(14, "var14", 24, "var24", 34, "var34")
+    );
+
+    final Table right = t(
+      th("right_int1", "right_string1", "right_int2", "right_string2", "right_int3", "right_string3"),
+      tr(101, "var101", 21, "var21", 31, "var301"),
+      tr(102, "var102", 202, "var202", 32, "var302"),
+      tr(103, "var103", 23, "var203", 33, "var303"),
+      tr(104, "var104", 204, "var204", 34, "var304")
+    );
+
+    validateDual(
+      info.operator, info.clazz,
+      left.toGenerator(getTestAllocator()),
+      right.toGenerator(getTestAllocator()),
+      DEFAULT_BATCH, expected);
+  }
+
+  public void basePartialLeftJoin() throws Exception {
+    JoinInfo info = getJoinInfo(Arrays.asList(
+      new JoinCondition("EQUALS", f("left_int2"), f("right_int2")),
+      new JoinCondition("EQUALS", f("left_string2"), f("right_string2"))
+    ), JoinRelType.LEFT, ImmutableSet.of(2), ImmutableSet.of(2));
+
+    final Table expected = t(
+      th("right_int2", "left_int2"),
+      tr(21, 21),
+      tr(NULL_INT, 22),
+      tr(NULL_INT, 23),
+      tr(NULL_INT, 24)
+    );
+
+    final Table left = t(
+      th("left_int1", "left_string1", "left_int2", "left_string2", "left_int3", "left_string3"),
+      tr(11, "var11", 21, "var21", 31, "var31"),
+      tr(12, "var12", 22, "var22", 32, "var32"),
+      tr(13, "var13", 23, "var23", 33, "var33"),
+      tr(14, "var14", 24, "var24", 34, "var34")
+    );
+
+    final Table right = t(
+      th("right_int1", "right_string1", "right_int2", "right_string2", "right_int3", "right_string3"),
+      tr(101, "var101", 21, "var21", 31, "var301"),
+      tr(102, "var102", 202, "var202", 32, "var302"),
+      tr(103, "var103", 23, "var203", 33, "var303"),
+      tr(104, "var104", 204, "var204", 34, "var304")
+    );
+
+    validateDual(
+      info.operator, info.clazz,
+      left.toGenerator(getTestAllocator()),
+      right.toGenerator(getTestAllocator()),
+      DEFAULT_BATCH, expected);
+  }
+
+  public void basePartialLeftJoinEmptyBuild() throws Exception {
+    JoinInfo info = getJoinInfo(Arrays.asList(
+      new JoinCondition("EQUALS", f("left_int2"), f("right_int2")),
+      new JoinCondition("EQUALS", f("left_string2"), f("right_string2"))
+    ), JoinRelType.LEFT, ImmutableSet.of(), ImmutableSet.of(2));
+
+    final Table expected = t(
+      th("left_int2"),
+      tr(21),
+      tr(22),
+      tr(23),
+      tr(24)
+    );
+
+    final Table left = t(
+      th("left_int1", "left_string1", "left_int2", "left_string2", "left_int3", "left_string3"),
+      tr(11, "var11", 21, "var21", 31, "var31"),
+      tr(12, "var12", 22, "var22", 32, "var32"),
+      tr(13, "var13", 23, "var23", 33, "var33"),
+      tr(14, "var14", 24, "var24", 34, "var34")
+    );
+
+    final Table right = t(
+      th("right_int1", "right_string1", "right_int2", "right_string2", "right_int3", "right_string3"),
+      tr(101, "var101", 21, "var21", 31, "var301"),
+      tr(102, "var102", 202, "var202", 32, "var302"),
+      tr(103, "var103", 23, "var203", 33, "var303"),
+      tr(104, "var104", 204, "var204", 34, "var304")
+    );
+
+    validateDual(
+      info.operator, info.clazz,
+      left.toGenerator(getTestAllocator()),
+      right.toGenerator(getTestAllocator()),
+      DEFAULT_BATCH, expected);
+  }
+
+  public void basePartialLeftJoinEmptyProbe() throws Exception {
+    JoinInfo info = getJoinInfo(Arrays.asList(
+      new JoinCondition("EQUALS", f("left_int2"), f("right_int2")),
+      new JoinCondition("EQUALS", f("left_string2"), f("right_string2"))
+    ), JoinRelType.LEFT, ImmutableSet.of(2), ImmutableSet.of());
+
+    final Table expected = t(
+      th("right_int2"),
+      tr(21),
+      tr(NULL_INT),
+      tr(NULL_INT),
+      tr(NULL_INT)
+    );
+
+    final Table left = t(
+      th("left_int1", "left_string1", "left_int2", "left_string2", "left_int3", "left_string3"),
+      tr(11, "var11", 21, "var21", 31, "var31"),
+      tr(12, "var12", 22, "var22", 32, "var32"),
+      tr(13, "var13", 23, "var23", 33, "var33"),
+      tr(14, "var14", 24, "var24", 34, "var34")
+    );
+
+    final Table right = t(
+      th("right_int1", "right_string1", "right_int2", "right_string2", "right_int3", "right_string3"),
+      tr(101, "var101", 21, "var21", 31, "var301"),
+      tr(102, "var102", 202, "var202", 32, "var302"),
+      tr(103, "var103", 23, "var203", 33, "var303"),
+      tr(104, "var104", 204, "var204", 34, "var304")
+    );
+
+    validateDual(
+      info.operator, info.clazz,
+      left.toGenerator(getTestAllocator()),
+      right.toGenerator(getTestAllocator()),
       DEFAULT_BATCH, expected);
   }
 

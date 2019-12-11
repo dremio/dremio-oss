@@ -24,8 +24,8 @@ import org.junit.rules.TestRule;
 
 import com.dremio.TestBuilder;
 import com.dremio.common.util.TestTools;
+import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.CatalogService.UpdateType;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Strings;
@@ -42,7 +42,7 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
 
   @Before
   public void ensureFullMetadataRead() throws NamespaceException{
-    getSabotContext().getCatalogService().refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, UpdateType.FULL);
+    ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
   }
 
   @Test

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive2-plugin-parent</artifactId>
-    <version>4.0.2-201910020123580864-a98a0b9</version>
+    <version>4.1.0-201912030136020081-49feeb75</version>
   </parent>
 
   <artifactId>dremio-hive2-plugin</artifactId>
@@ -41,7 +41,7 @@
     <!-- Currently Hive storage plugin only supports Apache Hive 1.2 or vendor
       specific variants of the Apache Hive 1.2. If the version is changed, make
       sure the jars and their dependencies are updated. -->
-    <hive.version>2.1.1-dremio-201908200647000054-61ee9c8</hive.version>
+    <hive.version>2.1.1-dremio-201909161537170757-9d964f7</hive.version>
     <hbase.version>1.1.3</hbase.version>
   </properties>
 
@@ -1260,7 +1260,12 @@
         </property>
       </activation>
       <dependencies>
-        <dependency>
+      <dependency>
+        <groupId>com.amazonaws.glue</groupId>
+        <artifactId>aws-glue-datacatalog-hive2-client</artifactId>
+        <version>1.10.0-201909182150580144-c83f2cb</version>
+      </dependency>      
+      <dependency>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-mapreduce-client-app</artifactId>
           <version>${hadoop.version}</version>

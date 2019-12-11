@@ -27,8 +27,6 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.ops.OptimizerRulesContext;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.service.Service;
-import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -147,23 +145,6 @@ public interface CatalogService extends AutoCloseable, Service {
    * @return
    */
   RuleSet getStorageRules(OptimizerRulesContext context, PlannerPhase phase);
-
-  enum UpdateType {
-    NAMES, FULL, NONE
-  }
-
-  /**
-   * Refresh the metadata cached for a given source. If no metadata policy is provided, the
-   * currently active source one is used.
-   *
-   * @param source         The name of the source to update.
-   * @param metadataPolicy The metadata policy to use when updating. A null value tells the update to use the
-   *                       currently active metadata policy associated with that source.
-   * @param updateType     The type of update perform.
-   * @return Whether or not any changes to metadata occurred as part of the update.
-   * @throws NamespaceException
-   */
-  boolean refreshSource(NamespaceKey source, MetadataPolicy metadataPolicy, UpdateType updateType) throws NamespaceException;
 
   /**
    * Get a Catalog contextualized to the provided SchemaConfig. Catalogs are used to interact with

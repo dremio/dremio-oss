@@ -113,15 +113,6 @@ public class TestDisabledFunctionality extends BaseTestQuery{
     }
   }
 
-  @Test(expected = UnsupportedRelOperatorException.class) // see DRILL-1921
-  public void testDisabledCrossJoin() throws Exception {
-    try {
-      test("select * from cp.\"tpch/nation.parquet\" CROSS JOIN cp.\"tpch/region.parquet\"");
-    } catch(UserException ex) {
-      throwAsUnsupportedException(ex);
-    }
-  }
-
   @Test(expected = UnsupportedDataTypeException.class) // see DRILL-1959
   public void testDisabledCastTINYINT() throws Exception {
     try {

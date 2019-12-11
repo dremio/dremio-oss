@@ -745,7 +745,7 @@
           ...
         ],
         level: 1,
-        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+        type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
       },
       ...
     ],
@@ -762,7 +762,7 @@
           ...
         ],
         level: 1,
-        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+        type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
       },
       ...
     ],
@@ -907,7 +907,7 @@
       "abc",
       ...
     ],
-    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     displayFullPath: [
       "abc",
       ...
@@ -933,7 +933,7 @@
           ...
         ],
         level: 1,
-        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+        type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
       },
       ...
     ],
@@ -953,7 +953,7 @@
   apiLinks: {
     abc: "abc", ...
   },
-  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
   datasetVersion: "abc",
   descendants: 1,
   fields: [
@@ -988,7 +988,7 @@
     "abc",
     ...
   ],
-  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
   datasetVersion: "abc",
   descendants: 1,
   displayFullPath: [
@@ -1023,7 +1023,7 @@
       "abc",
       ...
     ],
-    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     datasetVersion: "abc",
     descendants: 1,
     displayFullPath: [
@@ -1190,7 +1190,7 @@
       "abc",
       ...
     ],
-    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     datasetVersion: "abc",
     descendants: 1,
     displayFullPath: [
@@ -1262,7 +1262,7 @@
       "abc",
       ...
     ],
-    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     datasetVersion: "abc",
     descendants: 1,
     displayFullPath: [
@@ -1323,7 +1323,7 @@
       "abc",
       ...
     ],
-    datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     datasetVersion: "abc",
     descendants: 1,
     displayFullPath: [
@@ -1398,7 +1398,7 @@
 - Example:
 ```
 {
-  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
   fullPath: [
     "abc",
     ...
@@ -1619,7 +1619,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -1636,7 +1636,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -1816,7 +1816,7 @@
           id: "abc",
           name: "abc",
           tag: "abc",
-          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
           version: 1,
         },
         datasetName: "abc",
@@ -1885,7 +1885,7 @@
             "abc",
             ...
           ],
-          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
         },
         materialization: {
           id: "abc",
@@ -1981,7 +1981,7 @@
     "abc",
     ...
   ],
-  datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
   datasetVersion: "abc",
   description: "abc",
   downloadUrl: "abc",
@@ -2050,7 +2050,7 @@
         "abc",
         ...
       ],
-      type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+      type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     },
     ...
   ],
@@ -2299,7 +2299,7 @@
             ...
           ],
           level: 1,
-          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
         },
         ...
       ],
@@ -2389,7 +2389,7 @@
             "abc",
             ...
           ],
-          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
         },
         ...
       ],
@@ -2503,7 +2503,7 @@
         "abc",
         ...
       ],
-      datasetType: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+      datasetType: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
       datasetVersion: "abc",
       description: "abc",
       endTime: 1,
@@ -2591,7 +2591,7 @@
     id: "abc",
     name: "abc",
     tag: "abc",
-    type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+    type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
     version: 1,
   },
   datasetName: "abc",
@@ -2671,7 +2671,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -2688,7 +2688,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -2893,7 +2893,7 @@
           id: "abc",
           name: "abc",
           tag: "abc",
-          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
           version: 1,
         },
         datasetName: "abc",
@@ -2932,6 +2932,10 @@
     updateMode: "PREFETCH" | "PREFETCH_QUERIED" | "INLINE",
   },
   name: "abc",
+  namespaceAttributes: [
+    any,
+    ...
+  ],
   numberOfDatasets: 1,
   resourcePath: "abc",
   state: {
@@ -3014,7 +3018,7 @@
                     ...
                   ],
                   level: 1,
-                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+                  type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
                 },
                 ...
               ],
@@ -3031,7 +3035,7 @@
                     ...
                   ],
                   level: 1,
-                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+                  type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
                 },
                 ...
               ],
@@ -3236,7 +3240,7 @@
               id: "abc",
               name: "abc",
               tag: "abc",
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
               version: 1,
             },
             datasetName: "abc",
@@ -3275,6 +3279,10 @@
         updateMode: "PREFETCH" | "PREFETCH_QUERIED" | "INLINE",
       },
       name: "abc",
+      namespaceAttributes: [
+        any,
+        ...
+      ],
       numberOfDatasets: 1,
       resourcePath: "abc",
       state: {
@@ -3352,7 +3360,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -3369,7 +3377,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -3574,7 +3582,7 @@
           id: "abc",
           name: "abc",
           tag: "abc",
-          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
           version: 1,
         },
         datasetName: "abc",
@@ -3678,7 +3686,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -3695,7 +3703,7 @@
                 ...
               ],
               level: 1,
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
             },
             ...
           ],
@@ -3900,7 +3908,7 @@
           id: "abc",
           name: "abc",
           tag: "abc",
-          type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+          type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
           version: 1,
         },
         datasetName: "abc",
@@ -3993,7 +4001,7 @@
                     ...
                   ],
                   level: 1,
-                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+                  type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
                 },
                 ...
               ],
@@ -4010,7 +4018,7 @@
                     ...
                   ],
                   level: 1,
-                  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+                  type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
                 },
                 ...
               ],
@@ -4215,7 +4223,7 @@
               id: "abc",
               name: "abc",
               tag: "abc",
-              type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+              type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
               version: 1,
             },
             datasetName: "abc",
@@ -4567,203 +4575,6 @@ any
 }
 ```
 
-## `class com.dremio.provision.ClusterCreateRequest`
-- Example:
-```
-{
-  clusterType: "YARN" | "MESOS" | "AWS" | "KUBERNETES" | "GCE" | "AZURE",
-  distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
-  dynamicConfig: {
-    containerCount: 1,
-  },
-  isSecure: true | false,
-  memoryMB: 1,
-  name: "abc",
-  queue: "abc",
-  subPropertyList: [
-    {
-      key: "abc",
-      type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-      value: "abc",
-    },
-    ...
-  ],
-  virtualCoreCount: 1,
-}
-```
-
-## `class com.dremio.provision.ClusterModifyRequest`
-- Example:
-```
-{
-  clusterType: "YARN" | "MESOS" | "AWS" | "KUBERNETES" | "GCE" | "AZURE",
-  desiredState: "DELETED" | "RUNNING" | "STOPPED",
-  distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
-  dynamicConfig: {
-    containerCount: 1,
-  },
-  id: "abc",
-  isSecure: true | false,
-  memoryMB: 1,
-  name: "abc",
-  queue: "abc",
-  subPropertyList: [
-    {
-      key: "abc",
-      type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-      value: "abc",
-    },
-    ...
-  ],
-  tag: "abc",
-  version: 1,
-  virtualCoreCount: 1,
-}
-```
-
-## `class com.dremio.provision.ClusterResponse`
-- Example:
-```
-{
-  clusterType: "YARN" | "MESOS" | "AWS" | "KUBERNETES" | "GCE" | "AZURE",
-  containers: {
-    decommissioningCount: 1,
-    disconnectedList: [
-      { /** Container **/
-        containerId: "abc",
-        containerPropertyList: [
-          { /** Property **/
-            key: "abc",
-            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-            value: "abc",
-          },
-          ...
-        ],
-      },
-      ...
-    ],
-    pendingCount: 1,
-    provisioningCount: 1,
-    runningList: [
-      { /** Container **/
-        containerId: "abc",
-        containerPropertyList: [
-          { /** Property **/
-            key: "abc",
-            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-            value: "abc",
-          },
-          ...
-        ],
-      },
-      ...
-    ],
-  },
-  currentState: "CREATED" | "STARTING" | "RUNNING" | "STOPPING" | "STOPPED" | "FAILED" | "DELETED",
-  desiredState: "DELETED" | "RUNNING" | "STOPPED",
-  detailedError: "abc",
-  distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
-  dynamicConfig: {
-    containerCount: 1,
-  },
-  error: "abc",
-  id: "abc",
-  isSecure: true | false,
-  memoryMB: 1,
-  name: "abc",
-  queue: "abc",
-  subPropertyList: [
-    { /** Property **/
-      key: "abc",
-      type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-      value: "abc",
-    },
-    ...
-  ],
-  tag: "abc",
-  version: 1,
-  virtualCoreCount: 1,
-}
-```
-
-## `class com.dremio.provision.ClusterResponses`
-- Example:
-```
-{
-  clusterList: [
-    {
-      clusterType: "YARN" | "MESOS" | "AWS" | "KUBERNETES" | "GCE" | "AZURE",
-      containers: {
-        decommissioningCount: 1,
-        disconnectedList: [
-          { /** Container **/
-            containerId: "abc",
-            containerPropertyList: [
-              { /** Property **/
-                key: "abc",
-                type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-                value: "abc",
-              },
-              ...
-            ],
-          },
-          ...
-        ],
-        pendingCount: 1,
-        provisioningCount: 1,
-        runningList: [
-          { /** Container **/
-            containerId: "abc",
-            containerPropertyList: [
-              { /** Property **/
-                key: "abc",
-                type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-                value: "abc",
-              },
-              ...
-            ],
-          },
-          ...
-        ],
-      },
-      currentState: "CREATED" | "STARTING" | "RUNNING" | "STOPPING" | "STOPPED" | "FAILED" | "DELETED",
-      desiredState: "DELETED" | "RUNNING" | "STOPPED",
-      detailedError: "abc",
-      distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
-      dynamicConfig: {
-        containerCount: 1,
-      },
-      error: "abc",
-      id: "abc",
-      isSecure: true | false,
-      memoryMB: 1,
-      name: "abc",
-      queue: "abc",
-      subPropertyList: [
-        { /** Property **/
-          key: "abc",
-          type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
-          value: "abc",
-        },
-        ...
-      ],
-      tag: "abc",
-      version: 1,
-      virtualCoreCount: 1,
-    },
-    ...
-  ],
-}
-```
-
-## `class com.dremio.provision.ResizeClusterRequest`
-- Example:
-```
-{
-  containerCount: 1,
-}
-```
-
 ## `class com.dremio.service.namespace.dataset.proto.DatasetConfig`
 - Example:
 ```
@@ -4857,7 +4668,7 @@ any
   schemaVersion: 1,
   tag: "abc",
   totalNumSplits: 1,
-  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+  type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
   version: 1,
   virtualDataset: {
     calciteFieldsList: [
@@ -4902,7 +4713,7 @@ any
           ...
         ],
         level: 1,
-        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+        type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
       },
       ...
     ],
@@ -4913,7 +4724,7 @@ any
           ...
         ],
         level: 1,
-        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
+        type: "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
       },
       ...
     ],
@@ -5002,6 +4813,297 @@ any
     ...
   ],
   returnedRowCount: 1,
+}
+```
+
+## `interface com.dremio.provision.ClusterCreateRequest`
+- Example:
+```
+{
+  allowAutoStart: true | false,
+  allowAutoStop: true | false,
+  awsProps: {
+    amiId: "abc",
+    connectionProps: {
+      accessKey: "abc",
+      assumeRole: "abc",
+      authMode: "UNKNOWN" | "AUTO" | "SECRET",
+      endpoint: "abc",
+      region: "abc",
+      secretKey: "abc",
+      stsEndpoint: "abc",
+    },
+    extraConfProps: "abc",
+    instanceType: "abc",
+    nodeIamInstanceProfile: "abc",
+    securityGroupId: "abc",
+    sshKeyName: "abc",
+    subnetId: "abc",
+    useClusterPlacementGroup: true | false,
+    vpc: "abc",
+  },
+  clusterType: "YARN" | "MESOS" | "EC2" | "KUBERNETES" | "GCE" | "AZURE",
+  dynamicConfig: {
+    containerCount: 1,
+  },
+  name: "abc",
+  yarnProps: {
+    distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
+    memoryMB: 1,
+    queue: "abc",
+    secure: true | false,
+    subPropertyList: [
+      {
+        key: "abc",
+        type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+        value: "abc",
+      },
+      ...
+    ],
+    virtualCoreCount: 1,
+  },
+}
+```
+
+## `interface com.dremio.provision.ClusterModifyRequest`
+- Example:
+```
+{
+  allowAutoStart: true | false,
+  allowAutoStop: true | false,
+  awsProps: {
+    amiId: "abc",
+    connectionProps: {
+      accessKey: "abc",
+      assumeRole: "abc",
+      authMode: "UNKNOWN" | "AUTO" | "SECRET",
+      endpoint: "abc",
+      region: "abc",
+      secretKey: "abc",
+      stsEndpoint: "abc",
+    },
+    extraConfProps: "abc",
+    instanceType: "abc",
+    nodeIamInstanceProfile: "abc",
+    securityGroupId: "abc",
+    sshKeyName: "abc",
+    subnetId: "abc",
+    useClusterPlacementGroup: true | false,
+    vpc: "abc",
+  },
+  clusterType: "YARN" | "MESOS" | "EC2" | "KUBERNETES" | "GCE" | "AZURE",
+  desiredState: "DELETED" | "RUNNING" | "STOPPED",
+  dynamicConfig: {
+    containerCount: 1,
+  },
+  id: "abc",
+  name: "abc",
+  tag: "abc",
+  yarnProps: {
+    distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
+    memoryMB: 1,
+    queue: "abc",
+    secure: true | false,
+    subPropertyList: [
+      {
+        key: "abc",
+        type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+        value: "abc",
+      },
+      ...
+    ],
+    virtualCoreCount: 1,
+  },
+}
+```
+
+## `interface com.dremio.provision.ClusterResponse`
+- Example:
+```
+{
+  allowAutoStart: true | false,
+  allowAutoStop: true | false,
+  awsProps: {
+    amiId: "abc",
+    connectionProps: {
+      accessKey: "abc",
+      assumeRole: "abc",
+      authMode: "UNKNOWN" | "AUTO" | "SECRET",
+      endpoint: "abc",
+      region: "abc",
+      secretKey: "abc",
+      stsEndpoint: "abc",
+    },
+    extraConfProps: "abc",
+    instanceType: "abc",
+    nodeIamInstanceProfile: "abc",
+    securityGroupId: "abc",
+    sshKeyName: "abc",
+    subnetId: "abc",
+    useClusterPlacementGroup: true | false,
+    vpc: "abc",
+  },
+  clusterType: "YARN" | "MESOS" | "EC2" | "KUBERNETES" | "GCE" | "AZURE",
+  containers: {
+    decommissioningCount: 1,
+    disconnectedList: [
+      { /** Container **/
+        containerId: "abc",
+        containerPropertyList: [
+          { /** Property **/
+            key: "abc",
+            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+            value: "abc",
+          },
+          ...
+        ],
+      },
+      ...
+    ],
+    pendingCount: 1,
+    provisioningCount: 1,
+    runningList: [
+      { /** Container **/
+        containerId: "abc",
+        containerPropertyList: [
+          { /** Property **/
+            key: "abc",
+            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+            value: "abc",
+          },
+          ...
+        ],
+      },
+      ...
+    ],
+  },
+  currentState: "CREATED" | "STARTING" | "RUNNING" | "STOPPING" | "STOPPED" | "FAILED" | "DELETED",
+  desiredState: "DELETED" | "RUNNING" | "STOPPED",
+  detailedError: "abc",
+  dynamicConfig: {
+    containerCount: 1,
+  },
+  error: "abc",
+  id: "abc",
+  name: "abc",
+  tag: "abc",
+  yarnProps: {
+    distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
+    memoryMB: 1,
+    queue: "abc",
+    secure: true | false,
+    subPropertyList: [
+      { /** Property **/
+        key: "abc",
+        type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+        value: "abc",
+      },
+      ...
+    ],
+    virtualCoreCount: 1,
+  },
+}
+```
+
+## `interface com.dremio.provision.ClusterResponses`
+- Example:
+```
+{
+  clusterList: [
+    {
+      allowAutoStart: true | false,
+      allowAutoStop: true | false,
+      awsProps: {
+        amiId: "abc",
+        connectionProps: {
+          accessKey: "abc",
+          assumeRole: "abc",
+          authMode: "UNKNOWN" | "AUTO" | "SECRET",
+          endpoint: "abc",
+          region: "abc",
+          secretKey: "abc",
+          stsEndpoint: "abc",
+        },
+        extraConfProps: "abc",
+        instanceType: "abc",
+        nodeIamInstanceProfile: "abc",
+        securityGroupId: "abc",
+        sshKeyName: "abc",
+        subnetId: "abc",
+        useClusterPlacementGroup: true | false,
+        vpc: "abc",
+      },
+      clusterType: "YARN" | "MESOS" | "EC2" | "KUBERNETES" | "GCE" | "AZURE",
+      containers: {
+        decommissioningCount: 1,
+        disconnectedList: [
+          { /** Container **/
+            containerId: "abc",
+            containerPropertyList: [
+              { /** Property **/
+                key: "abc",
+                type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+                value: "abc",
+              },
+              ...
+            ],
+          },
+          ...
+        ],
+        pendingCount: 1,
+        provisioningCount: 1,
+        runningList: [
+          { /** Container **/
+            containerId: "abc",
+            containerPropertyList: [
+              { /** Property **/
+                key: "abc",
+                type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+                value: "abc",
+              },
+              ...
+            ],
+          },
+          ...
+        ],
+      },
+      currentState: "CREATED" | "STARTING" | "RUNNING" | "STOPPING" | "STOPPED" | "FAILED" | "DELETED",
+      desiredState: "DELETED" | "RUNNING" | "STOPPED",
+      detailedError: "abc",
+      dynamicConfig: {
+        containerCount: 1,
+      },
+      error: "abc",
+      id: "abc",
+      name: "abc",
+      tag: "abc",
+      yarnProps: {
+        distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
+        memoryMB: 1,
+        queue: "abc",
+        secure: true | false,
+        subPropertyList: [
+          { /** Property **/
+            key: "abc",
+            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+            value: "abc",
+          },
+          ...
+        ],
+        virtualCoreCount: 1,
+      },
+    },
+    ...
+  ],
+  clusterType: "YARN" | "MESOS" | "EC2" | "KUBERNETES" | "GCE" | "AZURE",
+}
+```
+
+## `interface com.dremio.provision.ResizeClusterRequest`
+- Example:
+```
+{
+  containerCount: 1,
 }
 ```
 

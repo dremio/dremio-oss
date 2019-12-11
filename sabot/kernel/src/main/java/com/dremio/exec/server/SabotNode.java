@@ -138,7 +138,7 @@ public class SabotNode implements AutoCloseable {
     dremioConfig = dremioConfig.withValue(DremioConfig.ENABLE_COORDINATOR_BOOL, allRoles);
 
     // eagerly created.
-    final BootStrapContext bootstrap = registry.bindSelf(new BootStrapContext(dremioConfig, classpathScan));
+    final BootStrapContext bootstrap = registry.bindSelf(new BootStrapContext(dremioConfig, classpathScan, registry));
 
     final Provider<OptionManager> optionsProvider = () -> registry.provider(SabotContext.class).get().getOptionManager();
 

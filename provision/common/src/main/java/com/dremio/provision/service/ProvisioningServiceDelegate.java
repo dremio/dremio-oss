@@ -18,12 +18,13 @@ package com.dremio.provision.service;
 import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterEnriched;
 import com.dremio.provision.ClusterType;
+import com.dremio.service.Service;
 
 /**
  * Interface to provide implementations for different Provisioning services
  * to support general APIs to handle Dremio deployment
  */
-public interface ProvisioningServiceDelegate {
+public interface ProvisioningServiceDelegate extends Service {
 
   /**
    * Get clusterType API
@@ -61,4 +62,14 @@ public interface ProvisioningServiceDelegate {
    * @throws Exception
    */
   ClusterEnriched getClusterInfo(Cluster cluster) throws ProvisioningHandlingException;
+
+  @Override
+  default void close() throws Exception {
+  }
+
+  @Override
+  default void start() throws Exception {
+  }
+
+
 }

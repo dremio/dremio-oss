@@ -346,15 +346,16 @@ public class ParquetGroupScanUtils {
     columnTypeMap.put(SchemaPath.getSimplePath(UPDATE_COLUMN), Types.optional(MinorType.BIGINT));
     long maxFooterLength = plugin.getContext().getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
     // TODO: do we need this code path?
+    final long maxSplits = optionManager.getOption(Metadata.DFS_MAX_SPLITS);
     if (entries.size() == 1) {
-      parquetTableMetadata = Metadata.getParquetTableMetadata(entries.get(0), fs, formatPlugin.getConfig(), maxFooterLength);
+      parquetTableMetadata = Metadata.getParquetTableMetadata(entries.get(0), fs, formatPlugin.getConfig(), maxFooterLength, maxSplits);
     } else {
-      parquetTableMetadata = Metadata.getParquetTableMetadata(entries, fs, formatPlugin.getConfig(), maxFooterLength);
+      parquetTableMetadata = Metadata.getParquetTableMetadata(entries, fs, formatPlugin.getConfig(), maxFooterLength, maxSplits);
     }
 
     Set<HostAndPort> hostEndpointMap = Sets.newHashSet();
     Set<HostAndPort> hostPortEndpointMap = Sets.newHashSet();
-    for(NodeEndpoint endpoint : plugin.getContext().getExecutors()) {
+    for (NodeEndpoint endpoint : plugin.getContext().getExecutors()) {
       hostEndpointMap.add(HostAndPort.fromHost(endpoint.getAddress()));
       hostPortEndpointMap.add(HostAndPort.fromParts(endpoint.getAddress(), endpoint.getFabricPort()));
     }

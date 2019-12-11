@@ -31,7 +31,9 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.store.sys.MemoryIterator;
-import com.dremio.metrics.Metrics;
+import com.dremio.service.SingletonRegistry;
+import com.dremio.telemetry.api.Telemetry;
+import com.dremio.telemetry.api.metrics.Metrics;
 
 public class BootStrapContext implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BootStrapContext.class);
@@ -45,8 +47,12 @@ public class BootStrapContext implements AutoCloseable {
   private final NodeDebugContextProvider nodeDebugContextProvider;
 
   public BootStrapContext(DremioConfig config, ScanResult classpathScan) {
-    Metrics.startReportersIfNotStarted(classpathScan, config.getLong("services.metrics.refresh_millis"));
+    this(config, classpathScan, new SingletonRegistry());
+  }
 
+  public BootStrapContext(DremioConfig config, ScanResult classpathScan, SingletonRegistry registry) {
+
+    Telemetry.startTelemetry(classpathScan, registry);
     this.config = config.getSabotConfig();
     this.classpathScan = classpathScan;
     this.allocator = RootAllocatorFactory.newRoot(config);

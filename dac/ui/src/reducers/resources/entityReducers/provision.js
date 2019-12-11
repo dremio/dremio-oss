@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { LOAD_PROVISIONING_SUCCESS } from 'actions/resources/provisioning';
+import { LOAD_PROVISIONING_SUCCESS, LOAD_AWS_DEFAULTS_SUCCESS } from '@app/actions/resources/provisioning';
 import Immutable from 'immutable';
 import { decorateProvision } from 'utils/decorators/resourceDecorators';
 
@@ -27,6 +27,9 @@ export default function data(state, action) {
       };
     }, {});
     return state.mergeIn(['provision'], Immutable.Map(provisions));
+  }
+  case LOAD_AWS_DEFAULTS_SUCCESS: {
+    return state.setIn(['awsDefaults'], Immutable.fromJS({awsProps: action.payload}));
   }
   default:
     return state;

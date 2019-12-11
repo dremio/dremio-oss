@@ -384,10 +384,10 @@ export class ExploreInfoHeader extends PureComponent {
 
   // ellipsis button with settings, download, and analyze options
   renderEllipsisButton = () => {
-    const { dataset } = this.props;
+    const { dataset, tableColumns } = this.props;
     const isSettingsDisabled = !this.shouldEnableSettingsButton();
     const isActionDisabled = !dataset.get('isNewQuery') && !dataset.get('datasetType'); // not new query nor loaded
-    const datasetColumns = this.props.tableColumns.map(column => column.get('type')).toJS();
+    const datasetColumns = tableColumns && tableColumns.map(column => column.get('type')).toJS() || [];
     return (
       <DropdownMenu
         className='explore-ellipsis-button'

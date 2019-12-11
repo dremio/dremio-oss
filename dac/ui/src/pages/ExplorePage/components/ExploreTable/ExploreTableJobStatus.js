@@ -24,7 +24,7 @@ import { JobStatusMenu } from '@app/components/Menus/ExplorePage/JobStatusMenu';
 import SampleDataMessage from '@app/pages/ExplorePage/components/SampleDataMessage';
 import ExploreTableJobStatusSpinner from '@app/pages/ExplorePage/components/ExploreTable/ExploreTableJobStatusSpinner';
 import jobsUtils from '@app/utils/jobsUtils';
-import {getJobProgress, getImmutableTable, getExploreJobId} from '@app/selectors/explore';
+import {getJobProgress, getImmutableTable, getExploreJobId, getJobOutputRecords} from '@app/selectors/explore';
 import { cancelJobAndShowNotification } from '@app/actions/jobs/jobs';
 
 
@@ -55,6 +55,7 @@ export class ExploreTableJobStatus extends Component {
     jobProgress: PropTypes.object,
     jobId: PropTypes.string,
     haveRows: PropTypes.bool,
+    outputRecords: PropTypes.number,
     cancelJob: PropTypes.func,
     //withRouter props
     location: PropTypes.object.isRequired
@@ -112,15 +113,15 @@ export class ExploreTableJobStatus extends Component {
   };
 
   render() {
-    const { jobProgress, jobId } = this.props;
+    const { jobProgress, jobId, outputRecords } = this.props;
     if (!jobProgress) {
       return this.renderPreviewWarning();
     }
 
     const jobTypeLabel = jobProgress.isRun ? la('Run') : la('Preview');
-    const isCompleteWithRecords = false; //TODO: recordCount for completed job: jobProgress.status === JOB_STATUS.completed && jobProgress.recordCount;
+    const isCompleteWithRecords = jobProgress.status === JOB_STATUS.completed && outputRecords;
     const jobStatusLabel = (isCompleteWithRecords) ? la('Records: ') : la('Status: ');
-    const jobStatusName = (isCompleteWithRecords) ? '' + jobProgress.recordCount : this.jobStatusNames[jobProgress.status];
+    const jobStatusName = (isCompleteWithRecords) ? outputRecords.toLocaleString() : this.jobStatusNames[jobProgress.status];
     const isJobCancellable = this.getCancellable(jobProgress.status);
 
     return (
@@ -156,6 +157,7 @@ export class ExploreTableJobStatus extends Component {
 function mapStateToProps(state, props) {
   const jobProgress = getJobProgress(state);
   const jobId = getExploreJobId(state);
+  const outputRecords = getJobOutputRecords(state);
   const {approximate, location = {}} = props;
 
   let haveRows = false;
@@ -170,7 +172,8 @@ function mapStateToProps(state, props) {
   return {
     jobProgress,
     jobId,
-    haveRows
+    haveRows,
+    outputRecords
   };
 }
 

@@ -31,7 +31,7 @@ import MetadataRefreshConfig from 'utils/FormUtils/MetadataRefreshConfig';
 import PropertListConfig from 'utils/FormUtils/PropertyListConfig';
 import SharingWidgetConfig from 'utils/FormUtils/SharingWidgetConfig';
 import ValueListConfig from 'utils/FormUtils/ValueListConfig';
-import { PASSWORD_FIELD, USER_NAME_FIELD } from '@app/components/Forms/Credentials';
+import { PASSWORD_FIELD, USER_NAME_FIELD, SECRET_RESOURCE_URL_FIELD } from '@app/components/Forms/Credentials';
 
 
 export default class SourceFormJsonPolicy {
@@ -357,7 +357,7 @@ export default class SourceFormJsonPolicy {
     // move loose elements to general tab no-name section
     let looseElements = form.getDirectElements();
 
-    // if we have credentials, remove username/password for loose elements
+    // if we have credentials, remove username/password/secretUrl from loose elements
     const hasCredentials = functionalElements.find((elem) => {
       return elem.type === 'credentials';
     });
@@ -368,7 +368,8 @@ export default class SourceFormJsonPolicy {
 
         return [
           USER_NAME_FIELD,
-          PASSWORD_FIELD
+          PASSWORD_FIELD,
+          SECRET_RESOURCE_URL_FIELD
         ].indexOf(propName) === -1;
       });
     }

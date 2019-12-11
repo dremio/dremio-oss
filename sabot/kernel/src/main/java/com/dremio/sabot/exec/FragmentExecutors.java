@@ -48,7 +48,6 @@ import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.UserRpcException;
-import com.dremio.metrics.Metrics;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.FragmentWorkManager.ExitCallback;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
@@ -99,8 +98,6 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
     this.pool = pool;
     this.evictionDelayMillis = TimeUnit.SECONDS.toMillis(
       options.getOption(ExecConstants.FRAGMENT_CACHE_EVICTION_DELAY_S));
-
-    Metrics.newGauge("dremio.exec.work.running_fragments", this::size);
 
     initEvictionThread(evictionDelayMillis);
   }
@@ -320,23 +317,28 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
        * delete tickets).
        */
       List<FragmentExecutor> fragmentExecutors = new ArrayList<>();
+      UserRpcException userRpcException = null;
       try {
         for (PlanFragmentFull fragment : fullFragments) {
           FragmentExecutor fe = buildFragment(queryTicket, fragment, schedulingInfo);
           fragmentExecutors.add(fe);
         }
-        sender.send(OK);
       } catch (UserRpcException e) {
-        sender.sendFailure(e);
+        userRpcException = e;
       } catch (Exception e) {
-        final UserRpcException genericException = new UserRpcException(NodeEndpoint.getDefaultInstance(), "Remote message leaked.", e);
-        sender.sendFailure(genericException);
+        userRpcException = new UserRpcException(NodeEndpoint.getDefaultInstance(), "Remote message leaked.", e);
       } finally {
         for (FragmentExecutor fe : fragmentExecutors) {
           startFragment(fe);
         }
         if (queryTicket != null) {
           queryTicket.release();
+        }
+
+        if (userRpcException == null) {
+          sender.send(OK);
+        } else {
+          sender.sendFailure(userRpcException);
         }
       }
     }

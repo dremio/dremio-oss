@@ -30,6 +30,7 @@ import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.UnorderedDeMuxExchangePrel;
 import com.dremio.exec.planner.physical.UnorderedMuxExchangePrel;
 import com.dremio.exec.planner.sql.SqlOperatorImpl;
+import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.options.OptionManager;
 import com.google.common.collect.Lists;
 
@@ -53,8 +54,13 @@ public class InsertLocalExchangeVisitor extends BasePrelVisitor<Prel, Void, Runt
     }
   }
 
-  public static Prel insertLocalExchanges(Prel prel, OptionManager options) {
-    final boolean isMuxEnabled = options.getOption(PlannerSettings.MUX_EXCHANGE);
+  public static Prel insertLocalExchanges(Prel prel, OptionManager options, ClusterResourceInformation cri) {
+    boolean isMuxEnabled = options.getOption(PlannerSettings.MUX_EXCHANGE);
+
+    if(isMuxEnabled && cri != null && cri.getAverageExecutorCores(options) * cri.getExecutorNodeCount() < options.getOption(PlannerSettings.MUX_USE_THRESHOLD)) {
+      isMuxEnabled = false;
+    }
+
     final boolean isDeMuxEnabled = options.getOption(PlannerSettings.DEMUX_EXCHANGE);
 
     if (isMuxEnabled || isDeMuxEnabled) {

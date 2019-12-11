@@ -58,6 +58,7 @@ import com.dremio.exec.store.sys.SystemTable;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
+import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -306,6 +307,6 @@ public class TestSimpleLimitExchangeRemover {
   }
 
   private Prel newJoin(Prel left, Prel right) {
-    return HashJoinPrel.create(cluster, traits, left, right, rexBuilder.makeLiteral(true), JoinRelType.INNER);
+    return HashJoinPrel.create(cluster, traits, left, right, rexBuilder.makeLiteral(true), JoinRelType.INNER, JoinUtils.projectAll(left.getRowType().getFieldCount()+right.getRowType().getFieldCount()));
   }
 }

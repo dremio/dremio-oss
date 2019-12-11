@@ -39,7 +39,7 @@ import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 class S3AsyncByteReader implements AsyncByteReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(S3AsyncByteReader.class);
 
-  private static AtomicInteger numOutstandingReads = new AtomicInteger(0);
+  private static final AtomicInteger numOutstandingReads = new AtomicInteger(0);
   private final S3AsyncClient client;
   private final String bucket;
   private final String path;
@@ -83,7 +83,7 @@ class S3AsyncByteReader implements AsyncByteReader {
   /**
    * Used to read a single byte range.
    */
-  private class ByteRangeReader implements AsyncResponseTransformer<GetObjectResponse, Void>{
+  private static class ByteRangeReader implements AsyncResponseTransformer<GetObjectResponse, Void>{
 
     private int curOffset;
     private final ByteBuf dst;

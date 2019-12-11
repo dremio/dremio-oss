@@ -28,11 +28,13 @@ describe('SingleCluster', () => {
         clusterType: 'YARN',
         currectState: 'RUNNING',
         desiredState: 'RUNNING',
-        subPropertyList: [
-          { key: 'yarn.resourcemanager.hostname', value: 'yarn_host'}
-        ],
-        virtualCoreCount: 1,
-        memoryMB: 1536
+        yarnProps: {
+          subPropertyList: [
+            { key: 'yarn.resourcemanager.hostname', value: 'yarn_host'}
+          ],
+          virtualCoreCount: 1,
+          memoryMB: 1536
+        }
       })
     };
   });

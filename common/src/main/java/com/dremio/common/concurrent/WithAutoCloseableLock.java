@@ -40,6 +40,14 @@ public class WithAutoCloseableLock<T> implements Closeable {
   }
 
   /**
+   * Get the lock that this exposes as an autocloseable.
+   * @return
+   */
+  public AutoCloseableLock getLock() {
+    return acl;
+  }
+
+  /**
    * Get the value that is included with the lock.
    * @return Value of type T.
    */

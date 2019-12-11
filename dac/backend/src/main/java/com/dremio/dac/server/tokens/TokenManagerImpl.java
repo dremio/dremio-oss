@@ -32,6 +32,8 @@ import com.dremio.datastore.KVStore;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.google.common.annotations.VisibleForTesting;
@@ -45,12 +47,13 @@ import com.google.common.collect.Sets;
 /**
  * Token manager implementation.
  */
+@Options
 public class TokenManagerImpl implements TokenManager {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TokenManagerImpl.class);
 
   private static final String LOCAL_TASK_LEADER_NAME = "tokenmanager";
 
-  private static final long TOKEN_EXPIRATION_MILLIS = TimeUnit.MILLISECONDS.convert(30, TimeUnit.HOURS);
+  public static final PositiveLongValidator TOKEN_EXPIRATION_TIME_MINUTES = new PositiveLongValidator("token.expiration.min", Integer.MAX_VALUE, TimeUnit.MINUTES.convert(30, TimeUnit.HOURS));
 
   private final SecureRandom generator = new SecureRandom();
 
@@ -158,7 +161,11 @@ public class TokenManagerImpl implements TokenManager {
   @Override
   public TokenDetails createToken(final String username, final String clientAddress) {
     final long now = System.currentTimeMillis();
-    final long expires = now + TOKEN_EXPIRATION_MILLIS;
+    final long expires = now + TimeUnit.MILLISECONDS.convert(sabotContext
+      .get()
+      .getOptionManager()
+      .getOption(TOKEN_EXPIRATION_TIME_MINUTES), TimeUnit.MINUTES);
+
     return createToken(username, clientAddress, now, expires);
   }
 

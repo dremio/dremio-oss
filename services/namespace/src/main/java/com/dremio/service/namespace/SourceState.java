@@ -43,6 +43,7 @@ public class SourceState {
   }
 
   public static final SourceState GOOD = new SourceState(SourceStatus.good, Collections.<Message>emptyList());
+  public static final SourceState NOT_AVAILABLE = SourceState.badState("Source is not currently available.");
 
   private final SourceStatus status;
   private final List<Message> messages;

@@ -23,15 +23,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.FileWriter;
 import java.nio.file.DirectoryStream;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.SecurityContext;
 
 import org.apache.hadoop.conf.Configuration;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
@@ -396,8 +401,14 @@ public class TestHomeFiles extends BaseTestServer {
 
     FSInputStream inputStream = HadoopFileSystem.getLocal(new Configuration()).open(inputFile);
     FileSystem fs = homeFileStore.getFilesystemAndCreatePaths(null);
-    Path stagingLocation = new HomeFileTool(homeFileStore, fs, "localhost").stageFile(filePath, extension, inputStream);
-    Path finalLocation = new HomeFileTool(homeFileStore, fs, "localhost").saveFile(stagingLocation, filePath, extension);
+
+    final SecurityContext mockSecurityContext = mock(SecurityContext.class);
+    when(mockSecurityContext.getUserPrincipal()).thenReturn(() -> DEFAULT_USER_NAME);
+
+    Path stagingLocation = new HomeFileTool(homeFileStore, fs, "localhost", mockSecurityContext)
+      .stageFile(filePath, extension, inputStream);
+    Path finalLocation = new HomeFileTool(homeFileStore, fs, "localhost", mockSecurityContext)
+      .saveFile(stagingLocation, filePath, extension);
     inputStream.close();
 
     // create file in namespace
@@ -483,7 +494,6 @@ public class TestHomeFiles extends BaseTestServer {
     }
   }
 
-
   @Test
   public void testPDFSFileStore() throws Exception {
     FileSystemPlugin fsp = (FileSystemPlugin) l(CatalogService.class).getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
@@ -494,5 +504,56 @@ public class TestHomeFiles extends BaseTestServer {
     } finally {
       tool.clear();
     }
+  }
+
+  @Test
+  public void testHomeUploadValidation() throws Exception {
+    Home home = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME)).buildGet(), Home.class);
+    assertNotNull(home.getId());
+
+    String homeFileName = "file2";
+
+    java.io.File inputFile = temporaryFolder.newFile("input-2.json");
+    try (FileWriter fileWriter = new FileWriter(inputFile)) {
+      fileWriter.write("{\"person_id\": 1, \"salary\": 10}");
+    }
+
+    FormDataMultiPart form = new FormDataMultiPart();
+    FormDataBodyPart fileBody = new FormDataBodyPart("file", inputFile, MediaType.MULTIPART_FORM_DATA_TYPE);
+    form.bodyPart(fileBody);
+    FormDataBodyPart fileNameBody = new FormDataBodyPart("fileName", homeFileName);
+    form.bodyPart(fileNameBody);
+    doc("upload file to staging");
+    File file1Staged = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_start/").queryParam("extension", "json")).buildPost(
+      Entity.entity(form, form.getMediaType())), File.class);
+    FileFormat file1StagedFormat = file1Staged.getFileFormat().getFileFormat();
+    assertEquals(homeFileName, file1StagedFormat.getName());
+    assertEquals(asList(HOME_NAME, homeFileName), file1StagedFormat.getFullPath());
+    assertEquals(FileType.JSON, file1StagedFormat.getFileType());
+
+    // change the location to the original file location's parent folder
+    file1StagedFormat.setLocation(inputFile.getParent());
+
+    // the upload endpoints should fail given that the location is not correct
+    expectStatus(Response.Status.BAD_REQUEST, getBuilder(getAPIv2().path("/home/" + HOME_NAME + "/file_preview_unsaved/" + homeFileName)).buildPost(Entity.json(file1StagedFormat)));
+    expectStatus(Response.Status.BAD_REQUEST, getBuilder(getAPIv2().path("home/" + HOME_NAME + "/upload_finish/" + homeFileName)).buildPost(Entity.json(file1StagedFormat)));
+
+    fileBody.cleanup();
+
+    final HomeFileTool tool = l(HomeFileTool.class);
+    final FilePath filePath = new FilePath(Arrays.asList("@dremio", "filename"));
+
+    // this is the root path for a user when staging files
+    java.nio.file.Path validRootPathForUser = Paths.get(tool.getStagingLocation(filePath, "json").getParent().toString());
+
+    // valid path
+    assertTrue(tool.validStagingLocation(Path.of(validRootPathForUser.resolve("foo").toString())));
+
+    assertFalse(tool.validStagingLocation(Path.of(validRootPathForUser.resolve("foo/../../../../").toString())));
+
+    assertFalse(tool.validStagingLocation(Path.of("/invalid/path")));
+
+    // one level above the valid root, won't include the username and therefore invalid
+    assertFalse(tool.validStagingLocation(Path.of(validRootPathForUser.getParent().resolve("foo").toString())));
   }
 }

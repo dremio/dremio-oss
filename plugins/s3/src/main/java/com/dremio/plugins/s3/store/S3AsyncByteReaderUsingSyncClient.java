@@ -16,17 +16,23 @@
 package com.dremio.plugins.s3.store;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.time.Instant;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
+import com.amazonaws.SdkBaseException;
 import com.amazonaws.services.s3.internal.Constants;
 import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.io.AsyncByteReader;
+import com.google.common.base.Stopwatch;
 
 import io.netty.buffer.ByteBuf;
 import software.amazon.awssdk.core.ResponseBytes;
+import software.amazon.awssdk.core.exception.RetryableException;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
@@ -64,12 +70,39 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
     return future;
   }
 
+  /**
+   * Scaffolding class to allow easy retries of an operation.
+   */
+  static class RetryableInvoker {
+    private final int maxRetries;
+    RetryableInvoker(int maxRetries) {
+      this.maxRetries = maxRetries;
+    }
+
+    <T> T invoke(Callable<T> operation) throws Exception {
+      int retryCount = 0;
+      while (true) {
+        try {
+          return operation.call();
+        } catch (SdkBaseException | IOException | RetryableException e) {
+          if (retryCount >= maxRetries) {
+            throw e;
+          }
+
+          logger.warn("Retrying S3Async operation, exception was: {}", e.getLocalizedMessage());
+          ++retryCount;
+        }
+      }
+    }
+  }
+
   class S3SyncReadObject implements Runnable {
     private final ByteBuf byteBuf;
     private final int dstOffset;
     private final long offset;
     private final int len;
     private final CompletableFuture<Void> future;
+    private final RetryableInvoker invoker;
 
     S3SyncReadObject(long offset, int len, ByteBuf byteBuf, int dstOffset, CompletableFuture<Void> future) {
       this.offset = offset;
@@ -77,34 +110,45 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
       this.byteBuf = byteBuf;
       this.dstOffset = dstOffset;
       this.future = future;
+
+      // Imitate the S3AFileSystem retry logic. See
+      // https://github.com/apache/hadoop/blob/trunk/hadoop-tools/hadoop-aws/src/main/java/org/apache/hadoop/fs/s3a/Invoker.java
+      // which is created with
+      // https://github.com/apache/hadoop/blob/trunk/hadoop-common-project/hadoop-common/src/main/java/org/apache/hadoop/io/retry/RetryPolicies.java#L63
+      this.invoker = new RetryableInvoker(1);
     }
 
     @Override
     public void run() {
-      GetObjectRequest.Builder requestBuilder = GetObjectRequest.builder()
+      final GetObjectRequest.Builder requestBuilder = GetObjectRequest.builder()
         .bucket(bucket)
         .key(path)
         .range(S3AsyncByteReader.range(offset, len))
         .ifUnmodifiedSince(instant);
-      GetObjectRequest request = requestBuilder.build();
+      final GetObjectRequest request = requestBuilder.build();
+      final Stopwatch watch = Stopwatch.createStarted();
 
       try {
-        ResponseBytes<GetObjectResponse> responseBytes = s3.getObjectAsBytes(request);
+        final ResponseBytes<GetObjectResponse> responseBytes = invoker.invoke(() -> s3.getObjectAsBytes(request));
         byteBuf.setBytes(dstOffset, responseBytes.asInputStream(), len);
-        logger.debug("Completed request for bucket {}, path {} for {}", bucket, path, request.range());
+        logger.debug("Completed request for bucket {}, path {} for {}, took {} ms", bucket, path, request.range(),
+          watch.elapsed(TimeUnit.MILLISECONDS));
         future.complete(null);
       } catch (S3Exception s3e) {
         Exception exception = s3e;
         if (s3e.statusCode() == Constants.FAILED_PRECONDITION_STATUS_CODE) {
-          logger.info("Request for bucket {}, path {} failed as requested version of file not present", bucket, path);
+          logger.info("Request for bucket {}, path {} failed as requested version of file not present, took {} ms",
+            bucket, path, watch.elapsed(TimeUnit.MILLISECONDS));
           exception = new FileNotFoundException("Version of file changed " + path);
         } else {
-          logger.error("Request for bucket {}, path {} failed. Failing read", bucket, path);
+          logger.error("Request for bucket {}, path {} failed with code {}. Failing read, took {} ms", bucket, path,
+            s3e.statusCode(), watch.elapsed(TimeUnit.MILLISECONDS));
         }
 
         future.completeExceptionally(exception);
       } catch (Exception e) {
-        logger.debug("Failed request for bucket {}, path {} for {}", bucket, path, request.range());
+        logger.error("Failed request for bucket {}, path {} for {}, took {} ms", bucket, path, request.range(),
+          watch.elapsed(TimeUnit.MILLISECONDS), e);
         future.completeExceptionally(e);
       }
     }

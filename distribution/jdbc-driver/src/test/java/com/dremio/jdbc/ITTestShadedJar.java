@@ -30,11 +30,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Vector;
+import java.util.concurrent.TimeUnit;
 
 import org.hamcrest.CoreMatchers;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 
 public class ITTestShadedJar {
   private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(ITTestShadedJar.class);
@@ -51,6 +55,9 @@ public class ITTestShadedJar {
             ));
 
   }
+
+  @ClassRule
+  public static final TestRule CLASS_TIMEOUT = Timeout.builder().withTimeout(2, TimeUnit.MINUTES).build();
 
   private static URLClassLoader classLoader;
   private static java.sql.Driver driver;

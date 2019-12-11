@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>4.0.2-201910020123580864-a98a0b9</version>
+    <version>4.1.0-201912030136020081-49feeb75</version>
   </parent>
 
   <artifactId>dremio-dac-daemon</artifactId>
@@ -158,6 +158,7 @@
       <artifactId>dremio-yarn</artifactId>
       <version>${project.version}</version>
     </dependency>
+    
     <dependency>
       <groupId>com.dremio.tools</groupId>
       <artifactId>dremio-attach-tool</artifactId>
@@ -225,6 +226,11 @@
       </activation>
       <dependencies>
         <dependency>
+          <groupId>com.dremio.community.sabot.joust</groupId>
+          <artifactId>dremio-ce-sabot-joust-java</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+        <dependency>
           <groupId>com.dremio.community.sabot</groupId>
           <artifactId>dremio-ce-sabot-kernel</artifactId>
         </dependency>
@@ -259,9 +265,9 @@
           <version>${project.version}</version>
         </dependency>
         <dependency>
-          <groupId>com.dremio.jdbc</groupId>
-          <artifactId>redshift-jdbc-42-no-awssdk</artifactId>
-          <version>1.2.16.1027</version>
+          <groupId>com.amazon.redshift</groupId>
+          <artifactId>redshift-jdbc42-no-awssdk</artifactId>
+          <version>1.2.34.1058</version>
         </dependency>
         <dependency>
           <groupId>com.dremio.jdbc</groupId>

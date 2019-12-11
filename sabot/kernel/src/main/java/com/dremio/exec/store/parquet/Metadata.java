@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.parquet.column.statistics.Statistics;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
@@ -33,17 +34,23 @@ import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.apache.parquet.schema.Type;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.DatasetMetadataTooLargeException;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileBlockLocation;
 import com.dremio.io.file.FileSystem;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.net.HostAndPort;
 
+@Options
 public class Metadata {
+  public static final TypeValidators.LongValidator DFS_MAX_SPLITS =
+    new TypeValidators.RangeLongValidator("dremio.store.dfs.max_splits", 1L, Integer.MAX_VALUE, 60000L);
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Metadata.class);
 
   private final FileSystem fs;
@@ -54,25 +61,27 @@ public class Metadata {
    * Get the parquet metadata for the parquet files in the given directory, including those in subdirectories
    *
    * @param fs
+   * @param maxSplits
    * @return
    * @throws IOException
    */
   public static ParquetTableMetadata getParquetTableMetadata(FileAttributes attributes, FileSystem fs,
-      ParquetFormatConfig formatConfig, long maxFooterLength) throws IOException {
-    return getParquetTableMetadata(ImmutableList.of(attributes), fs, formatConfig, maxFooterLength);
+                                                             ParquetFormatConfig formatConfig, long maxFooterLength, long maxSplits) throws IOException {
+    return getParquetTableMetadata(ImmutableList.of(attributes), fs, formatConfig, maxFooterLength, maxSplits);
   }
 
   /**
    * Get the parquet metadata for a list of parquet files
    *
    * @param fileStatuses
+   * @param maxSplits
    * @return
    * @throws IOException
    */
   public static ParquetTableMetadata getParquetTableMetadata(
-    List<FileAttributes> fileAttributes, FileSystem fs, ParquetFormatConfig formatConfig, long maxFooterLength) throws IOException {
+    List<FileAttributes> fileAttributes, FileSystem fs, ParquetFormatConfig formatConfig, long maxFooterLength, long maxSplits) throws IOException {
     Metadata metadata = new Metadata(formatConfig, fs, maxFooterLength);
-    return metadata.getParquetTableMetadata(fileAttributes);
+    return metadata.getParquetTableMetadata(fileAttributes, maxSplits);
   }
 
   private Metadata(ParquetFormatConfig formatConfig, FileSystem fs, long maxFooterLength) {
@@ -85,12 +94,13 @@ public class Metadata {
    * Get the parquet metadata for a list of parquet files
    *
    * @param fileStatuses
+   * @param maxSplits
    * @return
    * @throws IOException
    */
-  private ParquetTableMetadata getParquetTableMetadata(List<FileAttributes> fileAttributesList)
+  private ParquetTableMetadata getParquetTableMetadata(List<FileAttributes> fileAttributesList, long maxSplits)
       throws IOException {
-    List<ParquetFileMetadata> fileMetadataList = getParquetFileMetadata(fileAttributesList);
+    List<ParquetFileMetadata> fileMetadataList = getParquetFileMetadata(fileAttributesList, maxSplits);
     return new ParquetTableMetadata(fileMetadataList);
   }
 
@@ -98,16 +108,18 @@ public class Metadata {
    * Get a list of file metadata for a list of parquet files
    *
    * @param fileStatuses
+   * @param maxSplits
    * @return
    * @throws IOException
    */
-  private List<ParquetFileMetadata> getParquetFileMetadata(List<FileAttributes> fileAttributesList) throws IOException {
-    List<TimedRunnable<ParquetFileMetadata>> gatherers = Lists.newArrayList();
+  private List<ParquetFileMetadata> getParquetFileMetadata(List<FileAttributes> fileAttributesList, long maxSplits) throws IOException {
+    final List<TimedRunnable<ParquetFileMetadata>> gatherers = Lists.newArrayList();
+    final AtomicInteger numSplits = new AtomicInteger(0);
     for (FileAttributes file : fileAttributesList) {
-      gatherers.add(new MetadataGatherer(file));
+      gatherers.add(new MetadataGatherer(file, numSplits, maxSplits));
     }
 
-    List<ParquetFileMetadata> metaDataList = Lists.newArrayList();
+    final List<ParquetFileMetadata> metaDataList = Lists.newArrayList();
     metaDataList.addAll(TimedRunnable.run("Fetch parquet metadata", logger, gatherers, 16));
     return metaDataList;
   }
@@ -118,14 +130,18 @@ public class Metadata {
   private class MetadataGatherer extends TimedRunnable<ParquetFileMetadata> {
 
     private final FileAttributes fileAttributes;
+    private final AtomicInteger currentNumSplits;
+    private final long maxSplits;
 
-    public MetadataGatherer(FileAttributes fileAttributes) {
+    public MetadataGatherer(FileAttributes fileAttributes, AtomicInteger numSplits, long maxSplits) {
       this.fileAttributes = fileAttributes;
+      this.currentNumSplits = numSplits;
+      this.maxSplits = maxSplits;
     }
 
     @Override
     protected ParquetFileMetadata runInner() throws Exception {
-      return getParquetFileMetadata(fileAttributes);
+      return getParquetFileMetadata(fileAttributes, currentNumSplits, maxSplits);
     }
 
     @Override
@@ -138,6 +154,18 @@ public class Metadata {
     }
   }
 
+  private static class TooManySplitsException extends DatasetMetadataTooLargeException {
+    private static final long serialVersionUID = 238969807207917793L;
+
+    public TooManySplitsException(String message) {
+      super(message);
+    }
+
+    public TooManySplitsException(String message, Throwable cause) {
+      super(message, cause);
+    }
+  }
+
   private OriginalType getOriginalType(Type type, String[] path, int depth) {
     if (type.isPrimitive()) {
       return type.getOriginalType();
@@ -146,12 +174,17 @@ public class Metadata {
     return getOriginalType(t, path, depth + 1);
   }
 
-  private ParquetFileMetadata getParquetFileMetadata(FileAttributes file) throws IOException {
-    final ParquetMetadata metadata;
+  private ParquetFileMetadata getParquetFileMetadata(FileAttributes file, AtomicInteger currentNumSplits, long maxSplits) throws IOException {
+    final ParquetMetadata metadata =
+      SingletonParquetFooterCache.readFooter(fs, file, ParquetMetadataConverter.NO_FILTER, maxFooterLength);
+    final int numSplits = currentNumSplits.addAndGet(metadata.getBlocks().size());
+    if (numSplits > maxSplits) {
+      throw new TooManySplitsException(
+        String.format("Too many splits encountered when processing parquet metadata at file %s, maximum is %d but encountered %d splits thus far.",
+          file.getPath(), maxSplits, numSplits));
+    }
 
-    metadata = SingletonParquetFooterCache.readFooter(fs, file, ParquetMetadataConverter.NO_FILTER, maxFooterLength);
-
-    MessageType schema = metadata.getFileMetaData().getSchema();
+    final MessageType schema = metadata.getFileMetaData().getSchema();
 
     Map<SchemaPath, OriginalType> originalTypeMap = Maps.newHashMap();
     schema.getPaths();

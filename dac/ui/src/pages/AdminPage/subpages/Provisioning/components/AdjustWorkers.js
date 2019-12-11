@@ -26,10 +26,12 @@ export default class AdjustWorkers extends Component {
   static propTypes = {
     entity: PropTypes.instanceOf(Immutable.Map),
     readonly: PropTypes.bool
-  }
+  };
 
   render() {
     const { entity, readonly } = this.props;
+    if (entity.get('clusterType') === 'EC2') return null;
+
     return (
       <SelectView
         style={styles.fullWidth}

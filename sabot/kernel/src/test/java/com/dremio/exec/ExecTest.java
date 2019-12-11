@@ -44,10 +44,10 @@ import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.testing.ExecutionControls;
-import com.dremio.metrics.Metrics;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnection;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.telemetry.api.metrics.Metrics;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
 

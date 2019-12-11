@@ -54,6 +54,7 @@ import com.dremio.exec.store.sys.SystemPluginConf;
 import com.dremio.exec.store.sys.SystemScanPrel;
 import com.dremio.exec.store.sys.SystemTable;
 import com.dremio.options.OptionManager;
+import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -192,7 +193,7 @@ public class TestSplitCountChecker {
   }
 
   private Prel newJoin(Prel left, Prel right, RexNode joinExpr) {
-    return HashJoinPrel.create(cluster, traits, left, right, joinExpr, JoinRelType.INNER);
+    return HashJoinPrel.create(cluster, traits, left, right, joinExpr, JoinRelType.INNER, JoinUtils.projectAll(left.getRowType().getFieldCount()+right.getRowType().getFieldCount()));
   }
 
   private Prel newScan(RelDataType rowType, double rowCount, int splitCount) throws Exception {

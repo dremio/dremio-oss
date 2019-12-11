@@ -31,6 +31,7 @@ import java.time.format.TextStyle;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import org.apache.hadoop.conf.Configuration;
@@ -42,8 +43,10 @@ import org.slf4j.LoggerFactory;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
 import com.dremio.io.AsyncByteReader;
+import com.dremio.io.ExponentialBackoff;
 import com.dremio.plugins.azure.AzureStorageConf.AccountKind;
 import com.dremio.plugins.util.ContainerFileSystem;
+import com.google.common.base.Stopwatch;
 import com.microsoft.azure.storage.v10.adlsg2.models.DataLakeStorageErrorException;
 
 import io.netty.buffer.ByteBuf;
@@ -55,8 +58,7 @@ import io.reactivex.Flowable;
  * Supports both Blob containers and Hierarchical containers
  */
 public class AzureStorageFileSystem extends ContainerFileSystem implements MayProvideAsyncStream {
-
-  private static final Logger logger = LoggerFactory.getLogger(AzureStorageFileSystem.class);
+  private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss", Locale.ENGLISH);
 
   static final String SCHEME = "dremioAzureStorage://";
   private static final String CONTAINER_HUMAN_NAME = "Container";
@@ -257,16 +259,18 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
   // HTTP/1.1 protocol specification: https://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3
   // Conditional headers: https://docs.microsoft.com/en-us/rest/api/storageservices/specifying-conditional-headers-for-blob-service-operations
   static String convertToHttpDateTime(String version) {
-    ZonedDateTime date = ZonedDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(version)), ZoneId.of("GMT"));
-    String dayOfWeek = date.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
+    final ZonedDateTime date = ZonedDateTime.ofInstant(Instant.ofEpochMilli(Long.parseLong(version)), ZoneId.of("GMT"));
+    final String dayOfWeek = date.getDayOfWeek().getDisplayName(TextStyle.SHORT, Locale.ENGLISH);
     // DateTimeFormatter does not support commas
-    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss", Locale.ENGLISH);
-    return String.format("%s, %s GMT", dayOfWeek, date.format(formatter));
+    return String.format("%s, %s GMT", dayOfWeek, date.format(DATE_TIME_FORMATTER));
   }
 
-  private static final class AzureAsyncReader implements AsyncByteReader {
+  private static final class AzureAsyncReader extends ExponentialBackoff implements AsyncByteReader {
+    private static final int BASE_MILLIS_TO_WAIT = 250; // set to the average latency of an async read
+    private static final int MAX_MILLIS_TO_WAIT = 10 * BASE_MILLIS_TO_WAIT;
+    private static final int MAX_RETRIES = 4;
 
-    private static final Logger logger = LoggerFactory.getLogger(AzureStoragePlugin.class);
+    private static final Logger logger = LoggerFactory.getLogger(AzureAsyncReader.class);
     private final String container;
     private final String subpath;
     private final DataLakeG2Client client;
@@ -285,60 +289,97 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
     }
 
     @Override
+    protected int getBaseMillis() {
+      return BASE_MILLIS_TO_WAIT;
+    }
+
+    @Override
+    protected int getMaxMillis() {
+      return MAX_MILLIS_TO_WAIT;
+    }
+
+    @Override
     public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
+      final String callerName = Thread.currentThread().getName();
       final CompletableFuture<Void> future = new CompletableFuture<>();
-      dst.writerIndex(dstOffset);
-      logger.debug("Reading data from container: {}", this.container);
-      logger.debug("Reading data from container subpath: {}", this.subpath);
+      logger.debug("Reading data from container: {}, subpath: {}", this.container, this.subpath);
       try {
-        client.read(container, subpath, offset, offset + len, version)
-          .subscribe(
-
-            // in single success
-            response -> {
-              Flowable<ByteBuffer> flowable = response.body();
-              flowable.subscribe(
-
-                // on flowable next
-                bb -> {
-                  dst.writeBytes(bb);
-                },
-
-                //on flowable exception
-                ex -> {
-                  logger.error("Error reading HTTP response asynchronously.", ex);
-                  future.completeExceptionally(ex);
-                },
-
-                // on flowable complete
-                () -> {
-                  future.complete(null);
-                }
-              );
-
-            },
-
-            // on single failure
-            ex -> {
-              if (ex instanceof DataLakeStorageErrorException) {
-                DataLakeStorageErrorException adlsEx = (DataLakeStorageErrorException) ex;
-                if (adlsEx.body().error().code().equals("ConditionNotMet")) {
-                  logger.debug("Version of file changed, metadata refresh is required");
-                  future.completeExceptionally(new FileNotFoundException("Version of file changed " + subpath));
-                } else {
-                  logger.error("Error reading HTTP response asynchronously.", ex);
-                  future.completeExceptionally(ex);
-                }
-              } else {
-                logger.error("Error reading HTTP response asynchronously.", ex);
-                future.completeExceptionally(ex);
-              }
-            });
+        asyncRead(callerName, future, dst, dstOffset, offset, len, 0);
       } catch (Exception ex) {
-        logger.error("Unable to read with client: ", ex);
+        logger.error("Unable to read with client", ex);
         future.completeExceptionally(ex);
       }
       return future;
+    }
+
+    private void asyncRead(final String callerName, CompletableFuture<Void> future, ByteBuf dst, int dstOffset, long offset, int len, int retryAttemptNum) throws Exception {
+      dst.writerIndex(dstOffset);
+      final Stopwatch watch = Stopwatch.createStarted();
+      client.read(container, subpath, offset, offset + len, version)
+        .subscribe(
+
+          // in single success
+          response -> {
+            final Flowable<ByteBuffer> flowable = response.body();
+            flowable.subscribe(
+              // on flowable next
+              bb -> {
+                dst.writeBytes(bb);
+              },
+
+              // on flowable exception
+              ex -> {
+                if (ex instanceof DataLakeStorageErrorException) {
+                  DataLakeStorageErrorException dataLakeStorageErrorException = (DataLakeStorageErrorException) ex;
+                  String errCode = dataLakeStorageErrorException.body().error().code();
+                  logger.error("Caller {}: Flowable error {}, retry #{} while reading container: {}, subpath: {}, took {} ms.",
+                    callerName, errCode, retryAttemptNum, this.container, this.subpath, watch.elapsed(TimeUnit.MILLISECONDS), ex);
+                } else {
+                  logger.error("Caller{}: Retry #{}, error reading HTTP response asynchronously for container: {}, subpath: {}, took {} ms.",
+                    callerName, retryAttemptNum, this.container, this.subpath, watch.elapsed(TimeUnit.MILLISECONDS), ex);
+                }
+
+                if (retryAttemptNum < MAX_RETRIES) {
+                  backoffWait(retryAttemptNum);
+                  logger.debug("Retrying read for container: {}, subpath: {}", this.container, this.subpath);
+                  try {
+                    asyncRead(callerName, future, dst, dstOffset, offset, len, retryAttemptNum + 1);
+                  } catch (Exception aex) {
+                    future.completeExceptionally(ex);
+                  }
+                } else {
+                  future.completeExceptionally(ex);
+                }
+              },
+
+              // on flowable complete
+              () -> {
+                logger.debug("Reading data complete for container: {}, subpath: {}, took {} ms", this.container,
+                  this.subpath, watch.elapsed(TimeUnit.MILLISECONDS));
+                future.complete(null);
+              }
+            );
+          },
+
+          // on single failure
+          ex -> {
+            if (ex instanceof DataLakeStorageErrorException) {
+              DataLakeStorageErrorException dataLakeStorageErrorException = (DataLakeStorageErrorException)ex;
+              String errCode = dataLakeStorageErrorException.body().error().code();
+              if ("ConditionNotMet".equals(errCode)) {
+                logger.debug("Version of file changed, metadata refresh is required, took {} ms", watch.elapsed(TimeUnit.MILLISECONDS));
+                future.completeExceptionally(new FileNotFoundException("Version of file changed " + subpath));
+              } else {
+                logger.error("Caller {}: Error {} while reading container: {}, subpath: {}, took {} ms.",
+                  callerName, errCode, this.container, this.subpath, watch.elapsed(TimeUnit.MILLISECONDS), ex);
+                future.completeExceptionally(ex);
+              }
+            } else {
+              logger.error("Caller {}: Error reading HTTP response asynchronously for container: {}, subpath: {}, took {} ms.",
+                callerName, this.container, this.subpath, watch.elapsed(TimeUnit.MILLISECONDS), ex);
+              future.completeExceptionally(ex);
+            }
+          });
     }
   }
 }

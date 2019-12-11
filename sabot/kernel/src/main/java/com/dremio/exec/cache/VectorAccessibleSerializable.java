@@ -40,10 +40,10 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.WritableBatch;
 import com.dremio.exec.record.selection.SelectionVector2;
-import com.dremio.metrics.Metrics;
-import com.dremio.metrics.Metrics.ResetType;
-import com.dremio.metrics.Timer;
-import com.dremio.metrics.Timer.TimerContext;
+import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.telemetry.api.metrics.Metrics.ResetType;
+import com.dremio.telemetry.api.metrics.Timer;
+import com.dremio.telemetry.api.metrics.Timer.TimerContext;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
