@@ -15,7 +15,6 @@
  */
 package com.dremio.dac.api;
 
-import static com.dremio.config.DremioConfig.CLIENT_API_JOB_QUERY_RESULT_LIMIT;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import javax.annotation.security.RolesAllowed;
@@ -36,7 +35,9 @@ import javax.ws.rs.core.SecurityContext;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.options.OptionManager;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.jobs.GetJobRequest;
@@ -58,13 +59,13 @@ import com.google.common.base.Preconditions;
 public class JobResource {
   private final JobsService jobs;
   private final SecurityContext securityContext;
-  private final DremioConfig dremioConfig;
+  private final OptionManager optionManager;
 
   @Inject
   public JobResource(JobsService jobs, SecurityContext securityContext, SabotContext context) {
     this.jobs = jobs;
     this.securityContext = securityContext;
-    this.dremioConfig = context.getDremioConfig();
+    this.optionManager = context.getOptionManager();
   }
 
   @GET
@@ -86,7 +87,7 @@ public class JobResource {
   @GET
   @Path("/{id}/results")
   public JobData getQueryResults(@PathParam("id") String id, @QueryParam("offset") @DefaultValue("0") Integer offset, @Valid @QueryParam("limit") @DefaultValue("100") Integer limit) {
-    long queryResultsLimit = dremioConfig.getLong(CLIENT_API_JOB_QUERY_RESULT_LIMIT);
+    long queryResultsLimit = optionManager.getOption(ExecConstants.CLIENT_API_JOB_QUERY_RESULT_LIMIT);
     Preconditions.checkArgument(Math.max(limit, 1) <= queryResultsLimit,"limit can not exceed " + queryResultsLimit + " rows");
     Preconditions.checkArgument(offset >= 0,"offset can not be negative");
 
