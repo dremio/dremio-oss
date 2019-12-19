@@ -651,10 +651,18 @@ public class ManagedStoragePlugin implements AutoCloseable {
     }
   }
 
-  public boolean isValid(DatasetConfig datasetConfig, final MetadataRequestOptions options) {
+  /**
+   * Checks if the given metadata is complete and meets the given validity constraints.
+   *
+   * @param datasetConfig dataset metadata
+   * @param requestOptions request options
+   * @return true iff the metadata is complete and meets validity constraints
+   */
+  public boolean isCompleteAndValid(DatasetConfig datasetConfig, MetadataRequestOptions requestOptions) {
     try(AutoCloseableLock l = readLock()) {
       checkState();
-      return isComplete(datasetConfig) && metadataManager.isStillValid(options, datasetConfig);
+      return isComplete(datasetConfig) &&
+          (!requestOptions.checkValidity() || metadataManager.isStillValid(requestOptions, datasetConfig));
     }
   }
 
@@ -691,8 +699,13 @@ public class ManagedStoragePlugin implements AutoCloseable {
   ) throws ConnectorException {
     try (AutoCloseableLock ignored = readLock()) {
       checkState();
-
-      return plugin.getDatasetHandle(new EntityPath(key.getPathComponents()),
+      final EntityPath entityPath;
+      if(datasetConfig != null) {
+        entityPath = new EntityPath(datasetConfig.getFullPathList());
+      } else {
+        entityPath = MetadataObjectsUtils.toEntityPath(key);
+      }
+      return plugin.getDatasetHandle(entityPath,
           retrievalOptions.asGetDatasetOptions(datasetConfig));
     }
   }

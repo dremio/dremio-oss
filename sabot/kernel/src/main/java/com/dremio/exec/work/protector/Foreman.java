@@ -29,6 +29,7 @@ import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.exception.JsonFieldChangeExceptionContext;
 import com.dremio.exec.exception.SchemaChangeExceptionContext;
 import com.dremio.exec.ops.QueryContext;
@@ -359,7 +360,9 @@ public class Foreman {
           NamespaceKey datasetKey = new NamespaceKey(data.getTableSchemaPath());
           final String queryUserName = session.getCredentials().getUserName();
           final Catalog catalog =
-            context.getCatalogService().getCatalog(SchemaConfig.newBuilder(queryUserName).build(), Long.MAX_VALUE);
+              context.getCatalogService().getCatalog(MetadataRequestOptions.of(
+                  SchemaConfig.newBuilder(queryUserName)
+                      .build()));
           catalog.updateDatasetSchema(datasetKey, data.getNewSchema());
 
           // Update successful, populate return exception.
@@ -385,7 +388,8 @@ public class Foreman {
           NamespaceKey datasetKey = new NamespaceKey(data.getOriginTablePath());
           final String queryUserName = session.getCredentials().getUserName();
           final Catalog catalog =
-            context.getCatalogService().getCatalog(SchemaConfig.newBuilder(queryUserName).build(), Long.MAX_VALUE);
+              context.getCatalogService()
+                  .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(queryUserName).build()));
           catalog.updateDatasetField(datasetKey, data.getFieldName(), data.getFieldSchema());
 
           // Update successful, populate return exception.

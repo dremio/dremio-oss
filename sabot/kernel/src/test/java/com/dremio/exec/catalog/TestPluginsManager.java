@@ -241,10 +241,12 @@ public class TestPluginsManager {
 
     final SchemaConfig schemaConfig = mock(SchemaConfig.class);
     when(schemaConfig.getUserName()).thenReturn("user");
-    final MetadataRequestOptions metadataRequestOptions = new MetadataRequestOptions(schemaConfig, 1000);
+    final MetadataRequestOptions requestOptions = MetadataRequestOptions.newBuilder(schemaConfig)
+        .setNewerThan(1000)
+        .build();
 
     // force a cache of the permissions
-    plugin.checkAccess(new NamespaceKey("test"), datasetConfig, "user", metadataRequestOptions);
+    plugin.checkAccess(new NamespaceKey("test"), datasetConfig, "user", requestOptions);
 
     // create a replacement that will always fail permission checks
     final SourceConfig newConfig = new SourceConfig()
@@ -258,7 +260,7 @@ public class TestPluginsManager {
     // will throw if the cache has been cleared
     boolean threw = false;
     try {
-      plugin.checkAccess(new NamespaceKey("test"), datasetConfig, "user", metadataRequestOptions);
+      plugin.checkAccess(new NamespaceKey("test"), datasetConfig, "user", requestOptions);
     } catch (UserException e) {
       threw = true;
     }

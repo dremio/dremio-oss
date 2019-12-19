@@ -103,6 +103,8 @@ public class TestTableauMessageBodyGenerator {
   @Test
   public void verifyOutput()
       throws IOException, SAXException, ParserConfigurationException, ParseException {
+    when(optionManager.getOption(TableauMessageBodyGenerator.TABLEAU_EXPORT_TYPE))
+      .thenReturn(TableauMessageBodyGenerator.TableauExportType.ODBC.toString());
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setFullPathList(path.toPathList());
     TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager);
@@ -143,8 +145,61 @@ public class TestTableauMessageBodyGenerator {
   }
 
   @Test
+  public void verifySdkOutputSslOff()
+    throws IOException, SAXException, ParserConfigurationException, ParseException {
+    verifySdkOutput("" ,"");
+  }
+
+  @Test
+  public void verifySdkOutputSslOn()
+    throws IOException, SAXException, ParserConfigurationException, ParseException {
+    verifySdkOutput("ssl = true", "required");
+  }
+
+  private void verifySdkOutput(String properties, String sslmode)
+      throws IOException, SAXException, ParserConfigurationException, ParseException {
+    when(optionManager.getOption(TableauMessageBodyGenerator.EXTRA_NATIVE_CONNECTION_PROPERTIES)).thenReturn(properties);
+    when(optionManager.getOption(TableauMessageBodyGenerator.TABLEAU_EXPORT_TYPE))
+      .thenReturn(TableauMessageBodyGenerator.TableauExportType.NATIVE.toString());
+    DatasetConfig datasetConfig = new DatasetConfig();
+    datasetConfig.setFullPathList(path.toPathList());
+    TableauMessageBodyGenerator generator = new TableauMessageBodyGenerator(configuration, ENDPOINT, optionManager);
+    MultivaluedMap<String, Object> httpHeaders = new MultivaluedHashMap<>();
+    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    assertTrue(generator.isWriteable(datasetConfig.getClass(), null, null, WebServer.MediaType.APPLICATION_TDS_TYPE));
+    generator.writeTo(datasetConfig, DatasetConfig.class, null, new Annotation[] {}, WebServer.MediaType.APPLICATION_TDS_TYPE, httpHeaders, baos);
+
+    // Convert the baos into a DOM Tree to verify content
+    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+    Document document = factory.newDocumentBuilder().parse(new ByteArrayInputStream(baos.toByteArray()));
+
+    assertEquals("", document.getDocumentElement().getAttribute("version"));
+
+    NodeList connections = document.getDocumentElement().getElementsByTagName("connection");
+
+    assertEquals(1, connections.getLength());
+    Element connection = (Element) connections.item(0);
+    assertEquals("dremio", connection.getAttribute("class"));
+    assertEquals(sslmode, connection.getAttribute("sslmode"));
+    assertEquals("DREMIO", connection.getAttribute("dbname"));
+    assertEquals(path.toParentPath(), connection.getAttribute("schema"));
+
+    NodeList relations = connection.getElementsByTagName("relation");
+    assertEquals(1, relations.getLength());
+    Element relation = (Element) relations.item(0);
+    assertEquals("table", relation.getAttribute("type"));
+    assertEquals(tableName, relation.getAttribute("table"));
+
+    // Also check that Content-Disposition header is set with a filename ending by tds
+    ContentDisposition contentDisposition = new ContentDisposition((String) httpHeaders.getFirst(HttpHeaders.CONTENT_DISPOSITION));
+    assertTrue("filename should end with .tds", contentDisposition.getFileName().endsWith(".tds"));
+  }
+
+  @Test
   public void verifyNativeOutput()
       throws IOException, SAXException, ParserConfigurationException, ParseException {
+    when(optionManager.getOption(TableauMessageBodyGenerator.TABLEAU_EXPORT_TYPE))
+      .thenReturn(TableauMessageBodyGenerator.TableauExportType.ODBC.toString());
     DatasetConfig datasetConfig = new DatasetConfig();
     datasetConfig.setFullPathList(path.toPathList());
 

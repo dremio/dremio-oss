@@ -59,6 +59,7 @@ import com.dremio.dac.service.errors.SourceNotFoundException;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
@@ -124,11 +125,13 @@ public class SourceService {
   }
 
   private Catalog createCatalog() {
-    return catalogService.getCatalog(SchemaConfig.newBuilder(security.getUserPrincipal().getName()).build());
+    return catalogService.getCatalog(MetadataRequestOptions.of(
+        SchemaConfig.newBuilder(security.getUserPrincipal().getName())
+            .build()));
   }
 
   private Catalog createCatalog(String userName) {
-    return catalogService.getCatalog(SchemaConfig.newBuilder(userName).build());
+    return catalogService.getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(userName).build()));
   }
 
 

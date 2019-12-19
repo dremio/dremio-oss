@@ -51,6 +51,7 @@ import com.amazonaws.services.s3.model.Region;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
+import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.plugins.util.ContainerFileSystem;
 import com.google.common.base.FinalizablePhantomReference;
@@ -150,7 +151,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
   }
 
   public S3FileSystem() {
-    super("dremioS3", "bucket", ELIMINATE_PARENT_DIRECTORY);
+    super(FileSystemConf.CloudFileSystemScheme.S3_FILE_SYSTEM_SCHEME.getScheme(), "bucket", ELIMINATE_PARENT_DIRECTORY);
   }
 
   // Work around bug in s3a filesystem where the parent directory is included in list. Similar to HADOOP-12169

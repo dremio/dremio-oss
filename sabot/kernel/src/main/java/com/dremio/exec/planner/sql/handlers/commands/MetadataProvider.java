@@ -23,6 +23,7 @@ import java.util.UUID;
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -436,9 +437,11 @@ public class MetadataProvider {
         NamespaceKey tableName = fromFilter(
           req.getSchemaNameFilter(),
           req.getTableNameFilter());
-        if (tableName != null ) {
-          dContext.getCatalogService().getCatalog(SchemaConfig.newBuilder(session.getCredentials().getUserName()).build())
-            .getTable(tableName);
+        if (tableName != null) {
+          dContext.getCatalogService()
+              .getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(session.getCredentials().getUserName())
+                  .build()))
+              .getTable(tableName);
 
           records = FluentIterable.<Column>from(table.<Column>asIterable(catalogName, username, datasetListing,
             filter)).filter(new Predicate<Column>() {

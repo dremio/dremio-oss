@@ -15,6 +15,7 @@
  */
 package com.dremio.service.reflection.materialization;
 
+import static com.dremio.service.reflection.ReflectionOptions.CLOUD_CACHING_ENABLED;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import java.net.URI;
@@ -30,6 +31,7 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.reflection.ReflectionServiceImpl;
 import com.google.common.collect.ImmutableList;
@@ -135,7 +137,10 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
   public CacheProperties getCacheProperties() {
     return new CacheProperties() {
       @Override
-      public boolean isCachingEnabled() {
+      public boolean isCachingEnabled(final OptionManager optionManager) {
+        if (FileSystemConf.isCloudFileSystemScheme(connection)) {
+          return optionManager.getOption(CLOUD_CACHING_ENABLED) ;
+        }
         return enableCaching;
       }
 

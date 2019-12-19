@@ -56,4 +56,6 @@ public interface ReflectionOptions {
   PositiveLongValidator COMPACTION_TRIGGER_NUMBER_FILES = new PositiveLongValidator("reflection.compaction.trigger.num_files", Long.MAX_VALUE, 1);
   // Compaction will be triggered if the median file size is less than or equal to this parameter
   PositiveLongValidator COMPACTION_TRIGGER_FILE_SIZE = new PositiveLongValidator("reflection.compaction.trigger.file_size_mb", Long.MAX_VALUE/(1024*1024), 16);
+  // Enable caching of reflection whose dist storage is in cloud ( S3, AzureDataLake, AzureFileSystem)
+  BooleanValidator CLOUD_CACHING_ENABLED = new BooleanValidator("reflection.cloud.cache.enabled", true);
 }

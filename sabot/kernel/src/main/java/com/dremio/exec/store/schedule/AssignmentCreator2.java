@@ -69,7 +69,7 @@ public class AssignmentCreator2<T extends CompleteWork> {
 
   AssignmentCreator2(List<NodeEndpoint> incomingEndpoints, List<T> units, double balanceFactor) {
     this.workList = createWorkList(units);
-    this.isInstanceAffinity = this.workList.get(0).isInstanceAffinity;
+    this.isInstanceAffinity = this.workList.isEmpty() ? false : this.workList.get(0).isInstanceAffinity;
     int unitsPerFragment = (int) Math.ceil(units.size() / (float) incomingEndpoints.size());
     this.maxSize = (long) (sumOfFirst(units, unitsPerFragment) * balanceFactor);
     this.hostFragmentMap = createHostFragmentsMap(incomingEndpoints);

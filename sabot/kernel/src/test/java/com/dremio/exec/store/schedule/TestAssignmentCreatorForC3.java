@@ -17,6 +17,7 @@ package com.dremio.exec.store.schedule;
 
 import static java.util.Arrays.asList;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +29,7 @@ import org.junit.Test;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.physical.EndpointAffinity;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
@@ -195,6 +197,14 @@ public class TestAssignmentCreatorForC3 extends ExecTest {
     }
 
     return results;
+  }
+
+  @Test
+  public void testNoSplits() {
+    List<TestHardAssignmentCreator.TestWork> splits = new ArrayList<>();
+    List<CoordinationProtos.NodeEndpoint> nodes = Lists.newArrayList(ENDPOINT1_1);
+    ListMultimap mappings = AssignmentCreator2.getMappings(nodes, splits, 0.00);
+    Assert.assertNotNull(mappings);
   }
 
   @Test

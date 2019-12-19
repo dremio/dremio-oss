@@ -280,7 +280,7 @@ class SourceMetadataManager implements AutoCloseable {
     // check if the entry is expired
     if (
         // request marks this expired
-        options.getMaxRequestTime() < currentTime
+        options.newerThan() < currentTime
         ||
         // dataset was locally updated too long ago (or never)
         ((updateTime == null || updateTime + expiryTime < currentTime) &&
@@ -506,7 +506,13 @@ class SourceMetadataManager implements AutoCloseable {
 
     final boolean exists = currentConfig != null;
     final boolean isExtended = exists && currentConfig.getReadDefinition() != null;
-    final EntityPath entityPath = new EntityPath(datasetKey.getPathComponents());
+
+    final EntityPath entityPath;
+    if (exists) {
+      entityPath = new EntityPath(currentConfig.getFullPathList());
+    } else {
+      entityPath = MetadataObjectsUtils.toEntityPath(datasetKey);
+    }
 
     logger.debug("Dataset '{}' is being synced (exists: {}, isExtended: {})", datasetKey, exists, isExtended);
     final SourceMetadata sourceMetadata = bridge.getMetadata();

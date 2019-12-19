@@ -26,6 +26,7 @@ import java.util.Set;
 
 import javax.inject.Provider;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
@@ -147,7 +148,11 @@ public class HomeFileSystemStoragePlugin extends FileSystemPlugin<HomeFileConf> 
 
       if (fileConfig == null) {
         final DatasetConfig datasetConfig = getContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getDataset(namespaceKey);
-        fileConfig = datasetConfig.getPhysicalDataset().getFormatSettings();
+        if (datasetConfig.getPhysicalDataset() == null) {
+          throw UserException.validationError().message("not a valid physical dataset").buildSilently();
+        } else {
+          fileConfig = datasetConfig.getPhysicalDataset().getFormatSettings();
+        }
       }
 
       pluginConfig = PhysicalDatasetUtils.toFormatPlugin(fileConfig, Collections.<String>emptyList());

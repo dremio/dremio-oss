@@ -36,6 +36,7 @@ import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
@@ -112,7 +113,9 @@ public class DremioBinder extends AbstractBinder {
 
     @Override
     public Catalog get() {
-      return catalogService.getCatalog(SchemaConfig.newBuilder(context.getUserPrincipal().getName()).build());
+      return catalogService.getCatalog(MetadataRequestOptions.of(
+          SchemaConfig.newBuilder(context.getUserPrincipal().getName())
+              .build()));
     }
   }
 

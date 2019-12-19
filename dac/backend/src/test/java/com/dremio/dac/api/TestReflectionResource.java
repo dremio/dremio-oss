@@ -45,6 +45,7 @@ import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.store.SchemaConfig;
@@ -200,7 +201,9 @@ public class TestReflectionResource extends AccelerationTestUtil {
     // create a reflection
     List<ReflectionField> displayFields = new ArrayList<>();
 
-    DremioTable table = newCatalogService().getCatalog(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()).getTable(datasetId);
+    DremioTable table = newCatalogService().getCatalog(
+        MetadataRequestOptions.of(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()))
+        .getTable(datasetId);
     for (int i = 0; i < table.getSchema().getFieldCount(); i++) {
       Field field = table.getSchema().getColumn(i);
       displayFields.add(new ReflectionField(field.getName()));

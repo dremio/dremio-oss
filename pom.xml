@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>4.1.0-201912030136020081-49feeb75</version>
+  <version>4.1.1-201912191016540894-05db06db</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,7 +38,7 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.15.0-20191119110415-64f79cb5ce-dremio</arrow.version>
+    <arrow.version>0.15.0-20191210125417-87fbdd9801-dremio</arrow.version>
     <avatica.version>1.11.0</avatica.version>
     <calcite.version>1.16.0-201909031936280585-3f76472</calcite.version>
     <derby.version>10.14.2.0</derby.version>
@@ -2820,6 +2820,11 @@ limitations under the License.
         <groupId>org.xerial.snappy</groupId>
         <artifactId>snappy-java</artifactId>
         <version>1.1.4</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hudi</groupId>
+        <artifactId>hudi-spark</artifactId>
+        <version>0.5.0-incubating</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

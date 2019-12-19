@@ -39,10 +39,12 @@ import org.apache.arrow.vector.util.DateUtility;
 /**
  * generated from ${.template_name} ${type.from} ${type.to} ${type.major}
  */
+<#assign typeMapping = TypeMappings[type.to]!{}>
+<#assign dremioMinorType = typeMapping.minor_type!type.to?upper_case>
 @SuppressWarnings("unused")
 @FunctionTemplate(
         <#if type.to == "DateMilli">
-        names = {"cast${type.to?upper_case}", "${type.alias}"}
+        names = {"cast${dremioMinorType}", "${type.alias}"}
         <#elseif type.to == "TimeStampMilli">
         name = "castTIMESTAMP"
         <#else>

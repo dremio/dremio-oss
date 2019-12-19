@@ -54,7 +54,7 @@ public class MetricsConfigurator implements AutoCloseable {
     this.includes = Optional.ofNullable(includes).orElse(Collections.emptyList());
     this.excludes = Optional.ofNullable(excludes).orElse(Collections.emptyList());
 
-    if (includes.isEmpty() && excludes.isEmpty()) {
+    if (this.includes.isEmpty() && this.excludes.isEmpty()) {
       filter = MetricFilter.ALL;
     } else {
       filter = new IncludesExcludesFilter(includes, excludes);

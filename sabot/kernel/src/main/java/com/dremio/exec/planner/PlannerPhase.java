@@ -38,6 +38,7 @@ import org.apache.calcite.rel.rules.AggregateExpandDistinctAggregatesRule;
 import org.apache.calcite.rel.rules.AggregateReduceFunctionsRule;
 import org.apache.calcite.rel.rules.AggregateRemoveRule;
 import org.apache.calcite.rel.rules.FilterAggregateTransposeRule;
+import org.apache.calcite.rel.rules.FilterCorrelateRule;
 import org.apache.calcite.rel.rules.FilterJoinRule;
 import org.apache.calcite.rel.rules.FilterMultiJoinMergeRule;
 import org.apache.calcite.rel.rules.FilterSetOpTransposeRule;
@@ -217,6 +218,10 @@ public enum PlannerPhase {
         // This can't run here because even though it is heuristic, it causes acceleration matches to fail.
         // PushProjectIntoScanRule.INSTANCE
       );
+
+      if (context.getPlannerSettings().isRelPlanningEnabled()) {
+        b.add(LOGICAL_FILTER_CORRELATE_RULE);
+      }
 
       if (context.getPlannerSettings().isTransitiveFilterPushdownEnabled()) {
         b.add(CompositeFilterJoinRule.NO_TOP_FILTER,
@@ -460,6 +465,8 @@ public enum PlannerPhase {
       LogicalJoin.class,
       ExprCondition.TRUE,
       DremioRelFactories.CALCITE_LOGICAL_BUILDER);
+
+  public static final RelOptRule LOGICAL_FILTER_CORRELATE_RULE = new FilterCorrelateRule(DremioRelFactories.CALCITE_LOGICAL_BUILDER);
 
   private static final class LogicalFilterJoinRule extends FilterJoinRule {
     private LogicalFilterJoinRule() {

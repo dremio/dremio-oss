@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>4.1.0-201912030136020081-49feeb75</version>
+    <version>4.1.1-201912191016540894-05db06db</version>
   </parent>
 
   <artifactId>dremio-dac-daemon</artifactId>
@@ -270,9 +270,9 @@
           <version>1.2.34.1058</version>
         </dependency>
         <dependency>
-          <groupId>com.dremio.jdbc</groupId>
-          <artifactId>oracle-ojdbc8</artifactId>
-          <version>12.2.0.1</version>
+          <groupId>com.oracle.ojdbc</groupId>
+          <artifactId>ojdbc8</artifactId>
+          <version>19.3.0.0</version>
         </dependency>
       </dependencies>
     </profile>

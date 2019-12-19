@@ -55,6 +55,7 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.server.ContextService;
@@ -154,7 +155,8 @@ public class BaseTestReflection extends BaseTestServer {
   }
 
   protected Catalog cat() {
-    return l(CatalogService.class).getCatalog(SchemaConfig.newBuilder(SYSTEM_USERNAME).build());
+    return l(CatalogService.class).getCatalog(MetadataRequestOptions.of(
+        SchemaConfig.newBuilder(SYSTEM_USERNAME).build()));
   }
 
   protected static NamespaceService getNamespaceService() {

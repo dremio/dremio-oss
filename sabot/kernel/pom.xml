@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>4.1.0-201912030136020081-49feeb75</version>
+    <version>4.1.1-201912191016540894-05db06db</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -537,6 +537,12 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-execselector</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.immutables</groupId>
+      <artifactId>value</artifactId>
+      <version>2.8.1</version>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
 

@@ -64,6 +64,7 @@ import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
@@ -416,8 +417,13 @@ public class TestHomeFiles extends BaseTestServer {
     fileFormat.setFullPath(filePath.toPathList());
     fileFormat.setName(name);
     fileFormat.setLocation(finalLocation.toString());
-    DatasetConfig datasetConfig = DatasetsUtil.toDatasetConfig(fileFormat.asFileConfig(), DatasetType.PHYSICAL_DATASET_HOME_FILE, null, new EntityId(UUID.randomUUID().toString()));
-    newCatalogService().getCatalog(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()).createOrUpdateDataset(newNamespaceService(), new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), filePath.toNamespaceKey(), datasetConfig);
+    DatasetConfig datasetConfig = DatasetsUtil.toDatasetConfig(fileFormat.asFileConfig(),
+        DatasetType.PHYSICAL_DATASET_HOME_FILE, null, new EntityId(UUID.randomUUID().toString()));
+    newCatalogService().getCatalog(MetadataRequestOptions.of(
+        SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME)
+            .build()))
+        .createOrUpdateDataset(newNamespaceService(), new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME),
+            filePath.toNamespaceKey(), datasetConfig);
   }
 
   public static void runQuery(String name, int rows, int columns, FolderPath parent) {

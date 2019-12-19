@@ -1674,13 +1674,14 @@ public class StringFunctions{
       out.buffer = buffer = buffer.reallocIfNeeded(len);
       int charlen = 0;
 
-      int index = in.end;
+      int index = len;
       int innerindex = 0;
 
       for (int id = in.start; id < in.end; id += charlen) {
         innerindex = charlen = com.dremio.exec.expr.fn.impl.StringFunctionUtil.utf8CharLen(in
           .buffer.asNettyBuffer(), id, errCtx);
 
+        // retain byte order of multibyte characters
         while (innerindex > 0) {
           out.buffer.setByte(index - innerindex, in.buffer.getByte(id + (charlen - innerindex)));
           innerindex-- ;

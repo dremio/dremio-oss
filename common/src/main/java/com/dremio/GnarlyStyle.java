@@ -26,7 +26,9 @@ import com.dremio.common.SentinelSecure;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 /**
- * Describes Dremio's default annotation style for Immutables
+ * Describes Dremio's default annotation style for Immutables.
+ *
+ * Keep in sync with {@link ValidatingGnarlyStyle}.
  */
 @Target({ElementType.PACKAGE, ElementType.TYPE})
 @Retention(RetentionPolicy.CLASS)

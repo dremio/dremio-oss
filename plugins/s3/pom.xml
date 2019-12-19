@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>4.1.0-201912030136020081-49feeb75</version>
+    <version>4.1.1-201912191016540894-05db06db</version>
   </parent>
 
   <artifactId>dremio-s3-plugin</artifactId>

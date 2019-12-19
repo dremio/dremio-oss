@@ -231,7 +231,6 @@ public class TestTpchExplain extends PlanTestBase {
   }
 
   @Test
-  @Ignore("cartesian")
   public void tpch21() throws Exception{
     doExplain("queries/tpch/21.sql");
   }

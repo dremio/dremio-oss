@@ -42,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
+import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.io.ExponentialBackoff;
 import com.dremio.plugins.azure.AzureStorageConf.AccountKind;
@@ -60,7 +61,6 @@ import io.reactivex.Flowable;
 public class AzureStorageFileSystem extends ContainerFileSystem implements MayProvideAsyncStream {
   private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("dd MMM yyyy HH:mm:ss", Locale.ENGLISH);
 
-  static final String SCHEME = "dremioAzureStorage://";
   private static final String CONTAINER_HUMAN_NAME = "Container";
   static final String ACCOUNT = "dremio.azure.account";
   static final String KEY = "dremio.azure.key";
@@ -101,7 +101,7 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
   }
 
   protected AzureStorageFileSystem() {
-    super(SCHEME, CONTAINER_HUMAN_NAME, a -> true);
+    super(FileSystemConf.CloudFileSystemScheme.AZURE_STORAGE_FILE_SYSTEM_SCHEME.getScheme(), CONTAINER_HUMAN_NAME, a -> true);
   }
 
   @Override

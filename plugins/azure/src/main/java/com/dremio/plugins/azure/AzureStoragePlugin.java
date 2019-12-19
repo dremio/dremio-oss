@@ -40,6 +40,7 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.io.file.FileSystem;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
@@ -95,7 +96,7 @@ class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
 
   private void ensureDefaultName() throws IOException {
     String urlSafeName = URLEncoder.encode(getName(), "UTF-8");
-    getFsConf().set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, AzureStorageFileSystem.SCHEME + urlSafeName);
+    getFsConf().set(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY, FileSystemConf.CloudFileSystemScheme.AZURE_STORAGE_FILE_SYSTEM_SCHEME.getScheme() + urlSafeName);
     final FileSystem fs = getSystemUserFS();
     // do not use fs.getURI() or fs.getConf() directly as they will produce wrong results
     fs.unwrap(org.apache.hadoop.fs.FileSystem.class).initialize(URI.create(getFsConf().get(org.apache.hadoop.fs.FileSystem.FS_DEFAULT_NAME_KEY)), getFsConf());

@@ -99,6 +99,11 @@ public class TestNativeFunctions extends BaseTestFunction {
       {"case when c0 >= 10 then 'hello' else 'bye' end", 5, "bye"},
       {"upper(c0)", "hello", "HELLO"},
       {"upper(c0)", NULL_VARCHAR, NULL_VARCHAR},
+      {"reverse(c0)", "hello", "olleh"},
+      {"reverse(c0)", NULL_VARCHAR, NULL_VARCHAR},
+      {"replace(c0, 'world', 'wo')", "hello world", "hello wo"},
+      {"locate('world', c0)", "hello world", 7},
+      {"locate('world', c0, 3)", "hello world", 7},
     });
   }
 

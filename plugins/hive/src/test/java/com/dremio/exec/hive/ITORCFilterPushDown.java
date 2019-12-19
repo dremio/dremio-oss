@@ -270,4 +270,219 @@ public class ITORCFilterPushDown extends HiveTestBase {
       .baselineValues(new Float("-0.1"))
       .go();
   }
+
+  @Test
+  public void testProjectionFixedWidthCharSingleSelect() throws Exception {
+    String query = "SELECT country_char25 from hive.orc_strings where country_char25='INDIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("country_char25")
+      .baselineValues("INDIA")
+      .go();
+    query = "SELECT country_char25 from hive.orc_strings_complex where country_char25='INDIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("country_char25")
+      .baselineValues("INDIA")
+      .go();
+    query = "SELECT \"orc_strings_complex\".\"struct_col\".\"f1\" as f1 from hive.orc_strings_complex where country_char25='INDIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("f1")
+      .baselineValues(1)
+      .go();
+    query = "SELECT country_char25 from hive.orc_strings where country_char25='INDONESIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("country_char25")
+      .baselineValues("INDONESIA")
+      .go();
+    query = "SELECT country_char25 from hive.orc_strings_complex where country_char25='INDONESIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("country_char25")
+      .baselineValues("INDONESIA")
+      .go();
+  }
+
+  @Test
+  public void testProjectionFixedWidthCharMultiSelect() throws Exception {
+    String query = "SELECT continent_char25 from hive.orc_strings where continent_char25='ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("continent_char25")
+      .baselineValues("ASIA")
+      .baselineValues("ASIA")
+      .go();
+    query = "SELECT continent_char25 from hive.orc_strings_complex where continent_char25='ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("continent_char25")
+      .baselineValues("ASIA")
+      .baselineValues("ASIA")
+      .go();
+  }
+
+  @Test
+  public void testProjectionFixedWidthCharMultiPredicate() throws Exception {
+    String query = "SELECT key from hive.orc_strings where country_char25='INDIA' and continent_char25='ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key")
+      .baselineValues(1)
+      .go();
+    query = "SELECT key from hive.orc_strings_complex where country_char25='INDIA' and continent_char25='ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key")
+      .baselineValues(1)
+      .go();
+    query = "SELECT key from hive.orc_strings where country_char25='INDONESIA' and continent_char25='ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key")
+      .baselineValues(2)
+      .go();
+    query = "SELECT key from hive.orc_strings_complex where country_char25='INDONESIA' and continent_char25='ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key")
+      .baselineValues(2)
+      .go();
+
+  }
+
+  @Test
+  public void testProjectionFixedWidthCharMixedPredicateTypes() throws Exception {
+    String query = "SELECT key from hive.orc_strings where country_char25='INDIA' " +
+      "and country_string='CHINA' and continent_char25='ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key")
+      .baselineValues(1)
+      .go();
+
+    query = "SELECT key from hive.orc_strings_complex where country_char25='INDIA' " +
+      "and country_string='CHINA' and continent_char25='ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("key")
+      .baselineValues(1)
+      .go();
+  }
+
+  @Test
+  public void testProjectionFixedWidthCharDifferentPredicateOperators() throws Exception {
+    String query = "SELECT continent_char25 from hive.orc_strings where continent_char25 != 'EUROPE'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("continent_char25")
+      .baselineValues("ASIA")
+      .baselineValues("ASIA")
+      .go();
+    query = "SELECT continent_char25 from hive.orc_strings_complex where continent_char25 != 'EUROPE'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("continent_char25")
+      .baselineValues("ASIA")
+      .baselineValues("ASIA")
+      .go();
+    query = "SELECT continent_char25 from hive.orc_strings where continent_char25 < 'EUROPE'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("continent_char25")
+      .baselineValues("ASIA")
+      .baselineValues("ASIA")
+      .go();
+    query = "SELECT continent_char25 from hive.orc_strings_complex where continent_char25 < 'EUROPE'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("continent_char25")
+      .baselineValues("ASIA")
+      .baselineValues("ASIA")
+      .go();
+    query = "SELECT continent_char25 from hive.orc_strings where continent_char25 > 'ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("continent_char25")
+      .baselineValues("EUROPE")
+      .go();
+    query = "SELECT continent_char25 from hive.orc_strings_complex where continent_char25 > 'ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("continent_char25")
+      .baselineValues("EUROPE")
+      .go();
+    query = "SELECT continent_char25 from hive.orc_strings where continent_char25 >= 'ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("continent_char25")
+      .baselineValues("ASIA")
+      .baselineValues("ASIA")
+      .baselineValues("EUROPE")
+      .go();
+    query = "SELECT continent_char25 from hive.orc_strings_complex where continent_char25 >= 'ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("continent_char25")
+      .baselineValues("ASIA")
+      .baselineValues("ASIA")
+      .baselineValues("EUROPE")
+      .go();
+    query = "SELECT continent_char25 from hive.orc_strings where continent_char25 <= 'EUROPE'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("continent_char25")
+      .baselineValues("ASIA")
+      .baselineValues("ASIA")
+      .baselineValues("EUROPE")
+      .go();
+    query = "SELECT continent_char25 from hive.orc_strings_complex where continent_char25 <= 'EUROPE'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("continent_char25")
+      .baselineValues("ASIA")
+      .baselineValues("ASIA")
+      .baselineValues("EUROPE")
+      .go();
+    query = "SELECT continent_char25 from hive.orc_strings where continent_char25 <= 'ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("continent_char25")
+      .baselineValues("ASIA")
+      .baselineValues("ASIA")
+      .go();
+    query = "SELECT continent_char25 from hive.orc_strings_complex where continent_char25 <= 'ASIA'";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("continent_char25")
+      .baselineValues("ASIA")
+      .baselineValues("ASIA")
+      .go();
+  }
 }

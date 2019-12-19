@@ -124,7 +124,7 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
     externalReflectionStore = new ExternalReflectionStore(storeProvider);
 
     reflectionSettings = new ReflectionSettings(namespaceService, storeProvider);
-    validator = new ReflectionValidator(namespaceService, catalogService);
+    validator = new ReflectionValidator(catalogService);
   }
 
   /**

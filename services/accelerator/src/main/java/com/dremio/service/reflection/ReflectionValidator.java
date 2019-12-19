@@ -31,15 +31,13 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.planner.sql.handlers.direct.AccelCreateReflectionHandler;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection.MeasureType;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.util.ViewFieldsHelper;
 import com.dremio.service.accelerator.AccelerationUtils;
-import com.dremio.service.namespace.NamespaceKey;
-import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.reflection.proto.ReflectionDimensionField;
 import com.dremio.service.reflection.proto.ReflectionField;
@@ -58,11 +56,9 @@ public class ReflectionValidator {
 
   private static final Logger logger = LoggerFactory.getLogger(ReflectionValidator.class);
 
-  private final Provider<NamespaceService> namespaceService;
   private final Provider<CatalogService> catalogService;
 
-  public ReflectionValidator(Provider<NamespaceService> namespaceService, Provider<CatalogService> catalogService) {
-    this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
+  public ReflectionValidator(Provider<CatalogService> catalogService) {
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalog service required");
   }
 
@@ -85,12 +81,16 @@ public class ReflectionValidator {
     ReflectionUtils.validateReflectionGoalWithoutSchema(goal);
 
     // The dataset that the reflection refers to must exist.
-    DatasetConfig dataset = namespaceService.get().findDatasetByUUID(goal.getDatasetId());
-    Preconditions.checkNotNull(dataset, "datasetId must reference an existing dataset");
+    final Catalog catalog = catalogService.get()
+        .getCatalog(MetadataRequestOptions.newBuilder(
+            SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME)
+                .build())
+            .setCheckValidity(false)
+            .build());
 
-    Catalog catalog = catalogService.get().getCatalog(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build());
-    DremioTable table = catalog.getTable(new NamespaceKey(dataset.getFullPathList()));
-    List<ViewFieldType> schemaFields = ViewFieldsHelper.getBatchSchemaFields(table.getSchema());
+    final DremioTable table = catalog.getTable(goal.getDatasetId());
+    Preconditions.checkNotNull(table, "datasetId must reference an existing dataset");
+    final List<ViewFieldType> schemaFields = ViewFieldsHelper.getBatchSchemaFields(table.getSchema());
 
     Map<String, ViewFieldType> schemaMap = Maps.newHashMap();
     for (ViewFieldType type : schemaFields) {

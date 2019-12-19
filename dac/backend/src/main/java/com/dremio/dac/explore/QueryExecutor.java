@@ -36,6 +36,7 @@ import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.model.job.JobUI;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.planner.types.SqlTypeFactoryImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
@@ -167,7 +168,9 @@ public class QueryExecutor {
   }
 
   public List<String> getColumnList(final String username, DatasetPath path) {
-    Catalog catalog = catalogService.getCatalog(SchemaConfig.newBuilder(context.getUserPrincipal().getName()).build());
+    Catalog catalog = catalogService.getCatalog(MetadataRequestOptions.of(
+        SchemaConfig.newBuilder(context.getUserPrincipal().getName())
+            .build()));
     DremioTable table = catalog.getTable(path.toNamespaceKey());
     return table.getRowType(SqlTypeFactoryImpl.INSTANCE).getFieldNames();
   }

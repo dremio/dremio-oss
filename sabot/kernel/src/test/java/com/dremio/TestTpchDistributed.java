@@ -144,7 +144,6 @@ public class TestTpchDistributed extends BaseTestQuery {
   }
 
   @Test
-  @Ignore("cartesian")
   public void tpch21() throws Exception{
     testDistributed("queries/tpch/21.sql");
   }

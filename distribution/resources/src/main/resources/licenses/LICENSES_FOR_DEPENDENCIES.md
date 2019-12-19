@@ -244,11 +244,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |4.1.0               |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |4.1.0               |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |4.1.0               |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |4.1.0               |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |4.1.0               |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |4.1.1               |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |4.1.1               |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |4.1.1               |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |4.1.1               |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |4.1.1               |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |4.1.1               |Dremio Free Software License 1.0|
 |EclipseLink (non OSGi)                                      |2.5.2               |EPL 1.0, EPL 2.0    |
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
@@ -296,6 +297,7 @@
 |Google Guice Extensions Servlet                             |4.0                 |Apache 2.0          |
 |Google HTTP Client Library for Java                         |1.20.0              |Apache 2.0          |
 |Google OAuth Client Library for Java                        |1.20.0              |Apache 2.0          |
+|Google Testing and Mocking Framework                        |1.10.x              |BSD 3-clause        |
 |Gson                                                        |2.2.4               |Apache 2.0          |
 |Guava: Google Core Libraries for Java                       |20.0                |Apache 2.0          |
 |gud                                                         |1.0.0               |MIT                 |
@@ -634,11 +636,12 @@
 |Okio                                                        |1.6.0               |Apache 2.0          |
 |OpenHFT/Java-Thread-Affinity/affinity                       |3.1.7               |Apache 2.0          |
 |OpenSSL Bindings for Java                                   |1.0.4.Final         |Apache 2.0          |
+|OpenSSL toolkit                                             |1.1.1d              |OpenSSL and SSLeay license|
 |OpenTracing Java API                                        |0.33.0              |Apache 2.0          |
 |OpenTracing NoOp                                            |0.33.0              |Apache 2.0          |
 |OpenTracing utilities                                       |0.33.0              |Apache 2.0          |
 |options                                                     |0.0.6               |MIT                 |
-|Oracle odjbc8                                               |12.2.0.1            |Oracle Technology Network License Agreement|
+|Oracle ojdbc8                                               |19.3.0.0            |Oracle Free Use Terms and Conditions (FUTC)|
 |Oro                                                         |2.0.8               |Apache 2.0          |
 |OSGi resource locator bundle - used by various API providers that rely on META-INF/services mechanism to locate providers.|1.0.3               |CDDL 1.1            |
 |ParaNamer Core                                              |2.5.6               |BSD 3-clause        |
@@ -742,6 +745,7 @@
 |RocksDB JNI                                                 |5.14.2              |Apache 2.0          |
 |RSQL-parser                                                 |2.1.0               |MIT                 |
 |rst-selector-parser                                         |2.2.3               |BSD-3-Clause        |
+|S2 Geometry Library                                         |0.9.0               |Apache 2.0          |
 |safe-buffer                                                 |5.1.1               |MIT                 |
 |Scala Compiler                                              |2.10.1              |BSD 3-clause        |
 |Scala Compiler                                              |2.10.1              |BSD 3-clause        |
@@ -4867,85 +4871,131 @@ separate license, in which case the terms of that license will govern.
 ```
 
 
-## Oracle Technology Network License
+## Oracle Free Use Terms and Conditions (FUTC)
 
 ```
-Oracle Technology Network License Agreement
-
-Oracle is willing to authorize Your access to software associated with this License Agreement (“Agreement”) only upon the condition that You accept that this Agreement governs Your use of the software. By selecting the “Accept License Agreement” button or box (or the equivalent) or installing or using the Programs You indicate Your acceptance of this Agreement and Your agreement, as an authorized representative of Your company or organization (if being acquired for use by an entity) or as an individual, to comply with the license terms that apply to the software that You wish to download and access. If You are not willing to be bound by this Agreement, do not select the “Accept License Agreement” button or box (or the equivalent) and do not download or access the software.
+Oracle Free Use Terms and Conditions
 
 Definitions
-"Oracle" refers to Oracle America, Inc. "You" and "Your" refers to (a) a company or organization (each an “Entity”) accessing the Programs, if use of the Programs will be on behalf of such Entity; or (b) an individual accessing the Programs, if use of the Programs will not be on behalf of an Entity. “Contractors” refers to Your agents and contractors (including, without limitation, outsourcers). "Program(s)" refers to Oracle software provided by Oracle pursuant to this Agreement and any updates, error corrections, and/or Program Documentation provided by Oracle. “Program Documentation” refers to Program user manuals and Program installation manuals, if any. If available, Program Documentation may be delivered with the Programs and/or may be accessed from www.oracle.com/documentation. “Associated Product” refers to the Oracle product(s), if any, and as identified in the Programs documentation or on the Programs download site, with which the Programs are intended to enable or enhance interoperation with Your application(s). “Separate Terms” refers to separate license terms that are specified in the Program Documentation, readmes or notice files and that apply to Separately Licensed Third Party Technology. “Separately Licensed Third Party Technology” refers to third party technology that is licensed under Separate Terms and not under the terms of this Agreement.
 
-License Rights and Restrictions
-Oracle grants You a nonexclusive, nontransferable, limited license to, subject to the restrictions stated in this Agreement, (a) internally use the Programs solely for the purposes of developing, testing, prototyping and demonstrating Your applications, and running the Programs for Your own internal business operations; and (b) redistribute unmodified Programs and Programs Documentation pursuant to the Programs Redistribution section below. You may allow Your Contractor(s) to use the Programs, provided they are acting on Your behalf to exercise license rights granted in this Agreement and further provided that You are responsible for their compliance with this Agreement in such use. You will have a written agreement with Your Contractor(s) that strictly limits their right to use the Programs and that otherwise protects Oracle’s intellectual property rights to the same extent as this Agreement. You may make copies of the Programs to the extent reasonably necessary to exercise the license rights granted in this Agreement. You may make one copy of the Programs for backup purposes.
+"Oracle" refers to Oracle America, Inc. "You" and "Your" refers to (a)
+a company or organization (each an "Entity") accessing the Programs,
+if use of the Programs will be on behalf of such Entity; or (b) an
+individual accessing the Programs, if use of the Programs will not be
+on behalf of an Entity. "Program(s)" refers to Oracle software
+provided by Oracle pursuant to the following terms and any updates,
+error corrections, and/or Program Documentation provided by
+Oracle. "Program Documentation" refers to Program user manuals and
+Program installation manuals, if any. If available, Program
+Documentation may be delivered with the Programs and/or may be
+accessed from www.oracle.com/documentation. "Separate Terms" refers to
+separate license terms that are specified in the Program
+Documentation, readmes or notice files and that apply to Separately
+Licensed Technology. "Separately Licensed Technology" refers to Oracle
+or third party technology that is licensed under Separate Terms and
+not under the terms of this license.
 
-Further, You may not:
+Separately Licensed Technology
 
-remove or modify any Program markings or any notice of Oracle’s or a licensor’s proprietary rights;
-use the Programs to provide third party training unless Oracle expressly authorizes such use on the Program’s download page;
-assign this Agreement or distribute, give, or transfer the Programs or an interest in them to any third party, except as expressly permitted in this Agreement (the foregoing shall not be construed to limit the rights You may otherwise have with respect to Separately Licensed Third Party Technology);
-cause or permit reverse engineering (unless required by law for interoperability), disassembly or decompilation of the Programs; and
-disclose results of any Program benchmark tests without Oracle’s prior consent.
-The Programs may contain source code that, unless expressly licensed in this Agreement for other purposes (for example, licensed under an open source license), is provided solely for reference purposes pursuant to the terms of this Agreement and may not be modified.
-
-All rights not expressly granted in this Agreement are reserved by Oracle. If You want to use the Programs or Your application for any purpose other than as expressly permitted under this Agreement, You must obtain from Oracle or an Oracle reseller a valid Programs license under a separate agreement permitting such use. However, You acknowledge that the Programs may not be intended for production use and/or Oracle may not make a version of the Programs available for production or other purposes; any development or other work You undertake with the Programs is at Your sole risk.
-
-Programs Redistribution
-We grant You a nonexclusive, nontransferable right to copy and distribute unmodified Programs and Programs Documentation as part of and included in Your application that is intended to interoperate with the Associated Product, if any, provided that You do not charge Your end users any additional fees for the use of the Programs. Prior to distributing the Programs and Programs Documentation, You shall require Your end users to execute an agreement binding them to terms, with respect to the Programs and Programs Documentation, materially consistent and no less restrictive than those contained in this section and the sections of this Agreement entitled “License Rights and Restrictions” (except that the redistribution right granted to You shall not be included; Your end users may not distribute Programs and Programs Documentation to any third parties), "Ownership," "Export Controls," "Disclaimer of Warranties; Limitation of Liability," "No Technical Support" (with respect to Oracle support; You may provide Your own support for Programs at Your discretion), "Audit; Termination (except that Oracle’s audit right shall not be included)," "Relationship Between the Parties," and “U.S. Government End Users.” You must also include a provision stating that Your end users shall have no right to distribute the Programs and Programs Documentation, and a provision specifying us as a third party beneficiary of the agreement. You are responsible for obtaining these agreements with Your end users.
-
-You agree to: (a) defend and indemnify us against all claims and damages caused by Your distribution of the Programs and Programs Documentation in breach of this Agreement and/or failure to include the required contractual provisions in Your end user agreement as stated above; (b) keep executed end user agreements and records of end user information including name, address, date of distribution and identity of Programs distributed; (c) allow us to inspect Your end user agreements and records upon request; and, (d) enforce the terms of Your end user agreements so as to effect a timely cure of any end user breach, and to notify us of any breach of the terms.
-
-Ownership
-Oracle or its licensors retain all ownership and intellectual property rights to the Programs.
-
-Third-Party Technology
-The Programs may contain or require the use of third party technology that is provided with the Programs. Oracle may provide certain notices to You in Program Documentation, readmes or notice files in connection with such third party technology. Third party technology will be licensed to You either under the terms of this Agreement or, if specified in the Program Documentation, readmes or notice files, under Separate Terms. Your rights to use Separately Licensed Third Party Technology under Separate Terms are not restricted in any way by this Agreement. However, for clarity, notwithstanding the existence of a notice, third party technology that is not Separately Licensed Third Party Technology shall be deemed part of the Programs and is licensed to You under the terms of this Agreement.
+Oracle may provide certain notices to You in Program Documentation,
+readmes or notice files in connection with Oracle or third party
+technology provided as or with the Programs. If specified in the
+Program Documentation, readmes or notice files, such technology will
+be licensed to You under Separate Terms. Your rights to use Separately
+Licensed Technology under Separate Terms are not restricted in any way
+by the terms herein. For clarity, notwithstanding the existence of a
+notice, third party technology that is not Separately Licensed
+Technology shall be deemed part of the Programs licensed to You under
+the terms of this license.
 
 Source Code for Open Source Software
-For software that You receive from Oracle in binary form that is licensed under an open source license that gives You the right to receive the source code for that binary, You can obtain a copy of the applicable source code from https://oss.oracle.com/sources/ or http://www.oracle.com/goto/opensourcecode. If the source code for such software was not provided to You with the binary, You can also receive a copy of the source code on physical media by submitting a written request pursuant to the instructions in the "Written Offer for Source Code" section of the latter website.
 
-Export Controls
-Export laws and regulations of the United States and any other relevant local export laws and regulations apply to the Programs . You agree that such export control laws govern Your use of the Programs (including technical data) and any services deliverables provided under this agreement, and You agree to comply with all such export laws and regulations (including "deemed export" and "deemed re-export" regulations). You agree that no data, information, program and/or materials resulting from Programs or services (or direct products thereof) will be exported, directly or indirectly, in violation of these laws, or will be used for any purpose prohibited by these laws including, without limitation, nuclear, chemical, or biological weapons proliferation, or development of missile technology. Accordingly, You confirm:
+For software that You receive from Oracle in binary form that is
+licensed under an open source license that gives You the right to
+receive the source code for that binary, You can obtain a copy of the
+applicable source code from https://oss.oracle.com/sources/ or
+http://www.oracle.com/goto/opensourcecode. If the source code for such
+software was not provided to You with the binary, You can also receive
+a copy of the source code on physical media by submitting a written
+request pursuant to the instructions in the "Written Offer for Source
+Code" section of the latter website.
 
-You will not download, provide, make available or otherwise export or re-export the Programs, directly or indirectly, to countries prohibited by applicable laws and regulations nor to citizens, nationals or residents of those countries.
-You are not listed on the United States Department of Treasury lists of Specially Designated Nationals and Blocked Persons, Specially Designated Terrorists, and Specially Designated Narcotic Traffickers, nor are You listed on the United States Department of Commerce Table of Denial Orders.
-You will not download or otherwise export or re-export the Programs, directly or indirectly, to persons on the above mentioned lists.
-You will not use the Programs for, and will not allow the Programs to be used for, any purposes prohibited by applicable law, including, without limitation, for the development, design, manufacture or production of nuclear, chemical or biological weapons of mass destruction.
+-------------------------------------------------------------------------------
+
+The following license terms apply to those Programs that are not
+provided to You under Separate Terms.
+
+License Rights and Restrictions
+
+Oracle grants to You, as a recipient of this Program, a nonexclusive,
+nontransferable, limited license to, subject to the conditions stated
+herein, (a) internally use the unmodified Programs for the purposes of
+developing, testing, prototyping and demonstrating your applications,
+and running the Programs for your own internal business operations;
+and (b) redistribute unmodified Programs and Programs Documentation,
+under the terms of this License, provided that You do not charge Your
+end users any additional fees for the use of the Programs. You may
+make copies of the Programs to the extent reasonably necessary for
+exercising the license rights granted herein and for backup
+purposes. You are granted the right to use the Programs to provide
+third party training in the use of the Programs and associated
+Separately Licensed Technology only if there is express authorization
+of such use by Oracle on the Program's download page or in the Program
+Documentation.
+
+Your license is contingent on Your compliance with the following conditions:
+
+    - You include a copy of this license with any distribution by You
+      of the Programs;
+
+    - You do not remove markings or notices of either Oracle's or a
+      licensor's proprietary rights from the Programs or Program
+      Documentation;
+
+    - You comply with all U.S. and applicable export control and
+      economic sanctions laws and regulations that govern Your use of
+      the Programs (including technical data);
+
+    - You do not cause or permit reverse engineering, disassembly or
+      decompilation of the Programs (except as allowed by law) by You
+      nor allow an associated party to do so.
+
+For clarity, any source code that may be included in the distribution
+with the Programs is provided solely for reference purposes and may
+not be modified, unless such source code is under Separate Terms
+permitting modification.
+
+Ownership
+
+Oracle or its licensors retain all ownership and intellectual property
+rights to the Programs.
+
 Information Collection
-The Programs’ installation and/or auto-update processes, if any, may transmit a limited amount of data to Oracle or its service provider about those processes to help Oracle understand and optimize them. Oracle does not associate the data with personally identifiable information. Refer to Oracle’s Privacy Policy at www.oracle.com/privacy.
+
+The Programs' installation and/or auto-update processes, if any, may
+transmit a limited amount of data to Oracle or its service provider
+about those processes to help Oracle understand and optimize
+them. Oracle does not associate the data with personally identifiable
+information. Refer to Oracle's Privacy Policy at
+www.oracle.com/privacy.
 
 Disclaimer of Warranties; Limitation of Liability
 
-THE PROGRAMS ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. ORACLE FURTHER DISCLAIMS ALL WARRANTIES, EXPRESS AND IMPLIED, INCLUDING WITHOUT LIMITATION, ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NONINFRINGEMENT .
+THE PROGRAMS ARE PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. ORACLE
+FURTHER DISCLAIMS ALL WARRANTIES, EXPRESS AND IMPLIED, INCLUDING
+WITHOUT LIMITATION, ANY IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, OR NONINFRINGEMENT.
 
-IN NO EVENT WILL ORACLE BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, PUNITIVE OR CONSEQUENTIAL DAMAGES, OR DAMAGES FOR LOSS OF PROFITS, REVENUE, DATA OR DATA USE, INCURRED BY YOU OR ANY THIRD PARTY, WHETHER IN AN ACTION IN CONTRACT OR TORT, EVEN IF ORACLE HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. ORACLE’S ENTIRE LIABILITY FOR DAMAGES UNDER THIS AGREEMENT SHALL IN NO EVENT EXCEED ONE THOUSAND DOLLARS (U.S. $1,000) .
+IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW WILL ORACLE BE LIABLE TO
+YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL, INCIDENTAL OR
+CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE THE
+PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING
+RENDERED INACCURATE OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A
+FAILURE OF THE PROGRAM TO OPERATE WITH ANY OTHER PROGRAMS), EVEN IF
+SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGES.
 
-No Technical Support
-Unless Oracle support for the Programs, if any, is expressly included in a separate, current support agreement between You and Oracle, Oracle’s technical support organization will not provide technical support, phone support, or updates to You for the Programs provided under this Agreement.
-
-Audit; Termination
-Oracle may audit Your use of the Programs. You may terminate this Agreement by destroying all copies of the Programs. This Agreement shall automatically terminate without notice if You fail to comply with any of the terms of this Agreement, in which case You shall promptly destroy all copies of the Programs.
-
-U.S. Government End Users
-Programs and/or Programs Documentation delivered to U.S. Government end users are “commercial computer software” pursuant to the applicable Federal Acquisition Regulation and agency-specific supplemental regulations. As such, use, duplication, disclosure, modification, and adaptation of the Programs and/or Programs Documentation shall be subject to the license terms and license restrictions set forth in this Agreement. No other rights are granted to the U.S. Government.
-
-Relationship Between the Parties
-Oracle is an independent contractor and we agree that no partnership, joint venture, or agency relationship exists between us. We each will be responsible for paying our own employees, including employment related taxes and insurance.. Nothing in this agreement shall be construed to limit either party's right to independently develop or distribute software that is functionally similar to the other party's products, so long as proprietary information of the other party is not included in such software.
-
-Entire Agreement; Governing Law
-You agree that this Agreement is the complete agreement for the Programs and this Agreement supersedes all prior or contemporaneous agreements or representations, including any clickwrap, shrinkwrap or similar licenses, or license agreements for prior versions of the Programs. This Agreement may not be modified and the rights and restrictions may not be altered or waived except in a writing signed by authorized representatives of You and of Oracle. If any term of this Agreement is found to be invalid or unenforceable, the remaining provisions will remain effective.
-
-This Agreement is governed by the substantive and procedural laws of the State of California, USA, and You and Oracle agree to submit to the exclusive jurisdiction of, and venue in, the courts of San Francisco or Santa Clara counties in California in any dispute arising out of or relating to this Agreement.
-
-Notices
-Should you have any questions concerning this License Agreement, or if you desire to contact Oracle for any reason, please write:
-
-Oracle America, Inc.
-500 Oracle Parkway
-Redwood City, CA 94065
-
-Oracle Employees: Under no circumstances are Oracle Employees authorized to download software for the purpose of distributing it to customers. Oracle products are available to employees for internal use or demonstration purposes only. In keeping with Oracle's trade compliance obligations under U.S. and applicable multilateral law, failure to comply with this policy could result in disciplinary action up to and including termination.
+Last updated:  8 October 2018
 ```
 
 

@@ -144,6 +144,48 @@ public class DecimalFunctions {
 
   @SuppressWarnings("unused")
   @FunctionTemplate(names = {"castDECIMAL"}, derivation = OutputDerivation.DecimalCast.class, nulls= NullHandling.NULL_IF_NULL)
+  public static class CastDecimalDecimal implements SimpleFunction {
+
+    @Param
+    DecimalHolder in;
+    @Param(constant = true)
+    BigIntHolder precision;
+    @Param(constant = true)
+    BigIntHolder scale;
+    @Output
+    DecimalHolder out;
+    @Inject
+    ArrowBuf buffer;
+    @Inject
+    FunctionErrorContext errorContext;
+
+    @Override
+    public void setup() {
+      buffer = buffer.reallocIfNeeded(16);
+    }
+
+    @Override
+    public void eval() {
+      int index = (in.start / (org.apache.arrow.vector.util.DecimalUtility.DECIMAL_BYTE_LENGTH));
+      java.math.BigDecimal input = org.apache.arrow.vector.util.DecimalUtility.getBigDecimalFromArrowBuf(in.buffer, index, in.scale);
+
+      java.math.BigDecimal result = com.dremio.exec.expr.fn.impl.DecimalFunctions.roundWithPositiveScale(input,
+              (int) scale.value, java.math.RoundingMode.HALF_UP);
+      result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+      try {
+        org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
+      } catch (RuntimeException e) {
+        throw errorContext.error(e)
+                .build();
+      }
+      out.buffer = buffer;
+      out.precision = (int) precision.value;
+      out.scale = (int) scale.value;
+    }
+  }
+
+  @SuppressWarnings("unused")
+  @FunctionTemplate(names = {"castDECIMAL"}, derivation = OutputDerivation.DecimalCast.class, nulls= NullHandling.NULL_IF_NULL)
   public static class CastIntDecimal implements SimpleFunction {
 
     @Param
@@ -1211,7 +1253,7 @@ public class DecimalFunctions {
     return result;
   }
 
-  private static BigDecimal roundWithPositiveScale(BigDecimal input, int scale, java.math.RoundingMode roundingMode) {
+  public static BigDecimal roundWithPositiveScale(BigDecimal input, int scale, java.math.RoundingMode roundingMode) {
     java.math.BigDecimal result = input.setScale(scale, roundingMode);
     result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
     return result;
