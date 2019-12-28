@@ -23,7 +23,7 @@
   <parent>
     <artifactId>dremio-services-parent</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>4.1.1-201912191016540894-05db06db</version>
+    <version>4.1.2-201912272233020690-014eceed</version>
   </parent>
 
   <artifactId>dremio-services-options</artifactId>

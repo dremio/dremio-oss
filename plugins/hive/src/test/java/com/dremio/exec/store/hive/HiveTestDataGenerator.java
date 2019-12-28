@@ -323,7 +323,6 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insert3);
 
     createOrcStringTableWithComplexTypes(hiveDriver);
-
     final String[][] typeconversinoTables = {
       {"tinyint", "", "90"},
       {"smallint", "", "90"},

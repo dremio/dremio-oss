@@ -24,7 +24,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>4.1.1-201912191016540894-05db06db</version>
+    <version>4.1.2-201912272233020690-014eceed</version>
   </parent>
 
   <artifactId>dremio-azure-storage-plugin</artifactId>
@@ -41,47 +41,30 @@
       <artifactId>dremio-s3-plugin</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <dependency>
-      <groupId>com.microsoft.rest.v2</groupId>
-      <artifactId>client-runtime</artifactId>
-      <version>2.0.2</version>
-    </dependency>
-    <dependency>
-      <groupId>io.reactivex.rxjava2</groupId>
-      <artifactId>rxjava</artifactId>
-      <version>2.2.0</version>
-    </dependency>
-    <dependency>
-      <!-- Override default for azure-storage since the ajax decoders aren't compatible between 9.3.19 and 9.3.25 -->
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-util-ajax</artifactId>
-    </dependency>       
-    <dependency>
-      <groupId>com.microsoft.azure</groupId>
-      <artifactId>azure-storage</artifactId>
-      <version>8.3.0</version>
-      <scope>compile</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.commons</groupId>
-          <artifactId>commons-lang3</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>com.microsoft.azure</groupId>
-      <artifactId>azure-storage-blob</artifactId>
-      <version>10.4.0-dremio-r0</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.commons</groupId>
-          <artifactId>commons-lang3</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
+
     <dependency>
       <groupId>com.microsoft.azure</groupId>
       <artifactId>adal4j</artifactId>
+    </dependency>
+
+    <!-- SDK V12: Needed only for Shared secret key based authz header -->
+    <dependency>
+      <groupId>com.azure</groupId>
+      <artifactId>azure-storage-common</artifactId>
+      <version>12.1.0</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.commons</groupId>
+          <artifactId>commons-lang3</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <!-- SDK V12: End -->
+
+    <dependency>
+      <groupId>org.asynchttpclient</groupId>
+      <artifactId>async-http-client</artifactId>
+      <version>2.7.0</version>
     </dependency>
 
     <dependency>

@@ -15,7 +15,6 @@
  */
 package com.dremio.plugins.azure;
 
-import java.io.IOException;
 import java.util.stream.Stream;
 
 import com.dremio.plugins.util.ContainerFileSystem.ContainerCreator;
@@ -29,14 +28,14 @@ class ProvidedContainerList implements ContainerProvider {
   private final ImmutableList<String> containers;
   private final AzureStorageFileSystem parent;
 
-  public ProvidedContainerList(AzureStorageFileSystem parent, String[] containers) throws IOException {
+  public ProvidedContainerList(AzureStorageFileSystem parent, String[] containers) {
     this.parent = parent;
     this.containers = ImmutableList.copyOf(containers);
   }
 
   @Override
-  public Stream<ContainerCreator> getContainerCreators() throws IOException {
+  public Stream<ContainerCreator> getContainerCreators() {
     return containers.stream()
-        .map(c -> new AzureStorageFileSystem.ContainerCreatorImpl(parent, c));
+      .map(c -> new AzureStorageFileSystem.ContainerCreatorImpl(parent, c));
   }
 }

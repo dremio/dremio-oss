@@ -333,7 +333,6 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insert3);
 
     createOrcStringTableWithComplexTypes(hiveDriver);
-
     final String[][] typeconversinoTables = {
       {"tinyint", "", "90"},
       {"smallint", "", "90"},
@@ -664,6 +663,7 @@ public class HiveTestDataGenerator {
     String intsert_datatable = "INSERT INTO " + table + " VALUES (" + value + ")";
     executeQuery(hiveDriver, intsert_datatable);
   }
+
   private void createTypeConversionDestinationTable(final Driver hiveDriver, final String source,
                                                     final String sourcetypeargs,
                                                     final String destination,

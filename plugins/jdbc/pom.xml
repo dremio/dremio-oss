@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>4.1.1-201912191016540894-05db06db</version>
+    <version>4.1.2-201912272233020690-014eceed</version>
   </parent>
 
   <artifactId>dremio-jdbc-plugin</artifactId>
