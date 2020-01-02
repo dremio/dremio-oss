@@ -24,8 +24,6 @@ import java.net.URLEncoder;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.Date;
 import java.util.UUID;
 
 import javax.net.ssl.SSLException;
@@ -38,6 +36,8 @@ import org.asynchttpclient.netty.channel.DefaultChannelPool;
 import org.asynchttpclient.util.HttpConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.azure.core.util.DateTimeRfc1123;
 
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.util.HashedWheelTimer;
@@ -57,10 +57,6 @@ public final class AzureAsyncHttpClientUtils {
     System.getProperty("java.version"),
     System.getProperty("os.name"),
     System.getProperty("os.version"));
-  public static final DateTimeFormatter HTTP_DATE_FORMATTER = DateTimeFormatter
-    .ofPattern("EEE, dd MMM yyyy HH:mm:ss z")
-    .withZone(ZoneId.of("GMT"));
-
 
   private AzureAsyncHttpClientUtils() {
     // Not to be instantiated.
@@ -98,7 +94,7 @@ public final class AzureAsyncHttpClientUtils {
 
   public static RequestBuilder newDefaultRequestBuilder() {
     return new RequestBuilder(HttpConstants.Methods.GET)
-      .addHeader("Date", new Date())
+      .addHeader("Date", toHttpDateFormat(System.currentTimeMillis()))
       .addHeader("Content-Length", 0)
       .addHeader("x-ms-version", XMS_VERSION)
       .addHeader("x-ms-client-request-id", UUID.randomUUID().toString())
@@ -115,7 +111,8 @@ public final class AzureAsyncHttpClientUtils {
   }
 
   public static String toHttpDateFormat(final long timeInMillis) {
-    OffsetDateTime time = OffsetDateTime.ofInstant(Instant.ofEpochMilli(timeInMillis), ZoneId.of("GMT"));
-    return HTTP_DATE_FORMATTER.format(time);
+    final OffsetDateTime time = OffsetDateTime.ofInstant(Instant.ofEpochMilli(timeInMillis), ZoneId.of("GMT"));
+    final DateTimeRfc1123 dateTimeRfc1123 = new DateTimeRfc1123(time);
+    return dateTimeRfc1123.toString();
   }
 }
