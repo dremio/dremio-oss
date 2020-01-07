@@ -32,6 +32,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
 
 import io.protostuff.Tag;
 
@@ -86,7 +87,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   @Tag(11)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable local caching when possible")
-  public boolean isCachingEnabled = false;
+  public boolean isCachingEnabled = true;
 
   @Tag(12)
   @NotMetadataImpacting
@@ -125,7 +126,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
 
   @Override
   public String getConnection() {
-    return "dremioS3:///";
+    return CloudFileSystemScheme.S3_FILE_SYSTEM_SCHEME.getScheme() + ":///";
   }
 
   @Override
@@ -147,7 +148,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   public CacheProperties getCacheProperties() {
     return new CacheProperties() {
       @Override
-      public boolean isCachingEnabled() {
+      public boolean isCachingEnabled(final OptionManager optionManager) {
         return isCachingEnabled;
       }
 

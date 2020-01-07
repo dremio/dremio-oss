@@ -139,7 +139,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     /* STEP 2: parse header from the bytes read above */
     final int fixedBufferLength = getLEIntFromByteArray(ioBuffer, HashAggPartitionWritableBatch.FIXED_BUFFER_LENGTH_OFFSET);
     final int variableBufferLength = getLEIntFromByteArray(ioBuffer, HashAggPartitionWritableBatch.VARIABLE_BUFFER_LENGTH_OFFSET);
-    final byte numAccumulators = ioBuffer[HashAggPartitionWritableBatch.NUM_ACCUMULATORS_OFFSET];
+    final int numAccumulators = getLEIntFromByteArray(ioBuffer, HashAggPartitionWritableBatch.NUM_ACCUMULATORS_OFFSET);
 
     /* STEP 3: read info on types of accumulators -- sum, min, max etc */
     final byte[] accumulatorTypes = partitionToLoadSpilledData.getAccumulatorTypes();
@@ -404,7 +404,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
     try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
       output.write(getByteArrayFromInt(batchDefinition.fixedBufferLength));
       output.write(getByteArrayFromInt(batchDefinition.variableBufferLength));
-      output.write(batchDefinition.numAccumulators);
+      output.write(getByteArrayFromInt(batchDefinition.numAccumulators));
       output.write(batchDefinition.accumulatorTypes);
       batchDefinition.accumulatorBatchDef.writeDelimitedTo(output);
     }

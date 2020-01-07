@@ -20,6 +20,7 @@ import java.util.List;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
 
 public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends FileSystemPlugin<C>> extends ConnectionConf<C, P>{
   public abstract Path getPath();
@@ -59,7 +60,7 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
      * must have async reads enabled.)
      * @return {@code true} if caching is requested.
      */
-    default boolean isCachingEnabled() {
+    default boolean isCachingEnabled(final OptionManager optionManager) {
       return false;
     }
 
@@ -75,5 +76,37 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
 
   public CacheProperties getCacheProperties() {
     return new CacheProperties() {};
+  }
+
+
+  /**
+   * Defines the constants used for cloud file systems.
+   */
+  public enum CloudFileSystemScheme {
+    S3_FILE_SYSTEM_SCHEME("dremioS3"),
+    ADL_FILE_SYSTEM_SCHEME("dremioAdl"),
+    AZURE_STORAGE_FILE_SYSTEM_SCHEME("dremioAzureStorage://") ;
+
+    private String scheme;
+    CloudFileSystemScheme(String scheme) {
+      this.scheme = scheme;
+    }
+
+    public String getScheme() {
+      return scheme;
+    }
+  }
+  /**
+   * Is the scheme in path belongs to a cloud file system.
+   * @param connectionOrScheme connection string or scheme
+   * @return true if scheme is found in CloudFileSystemScheme.
+   */
+  public static boolean isCloudFileSystemScheme(String connectionOrScheme) {
+    for(CloudFileSystemScheme cloudFS: CloudFileSystemScheme.values()) {
+      if (connectionOrScheme.startsWith(cloudFS.getScheme())) {
+        return true;
+      }
+    }
+    return false;
   }
 }

@@ -20,6 +20,7 @@ import static com.dremio.dac.support.SupportService.DREMIO_LOG_PATH_PROPERTY;
 import static com.dremio.dac.support.SupportService.LOCAL_STORAGE_PLUGIN;
 import static com.dremio.dac.support.SupportService.LOGS_STORAGE_PLUGIN;
 import static com.dremio.dac.support.SupportService.TEMPORARY_SUPPORT_PATH;
+import static com.dremio.service.reflection.ReflectionOptions.CLOUD_CACHING_ENABLED;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.net.URI;
@@ -34,6 +35,7 @@ import com.dremio.dac.homefiles.HomeFileSystemStoragePlugin;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.service.BindingProvider;
@@ -135,8 +137,10 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     final int maxCacheSpacePercent = config.hasPath(DremioConfig.DEBUG_DIST_MAX_CACHE_SPACE_PERCENT)?
       config.getInt(DremioConfig.DEBUG_DIST_MAX_CACHE_SPACE_PERCENT) : MAX_CACHE_SPACE_PERCENT;
 
-    final boolean enableCachingForAcceleration = enable(config, DremioConfig.DEBUG_DIST_CACHING_ENABLED);
-
+    boolean enableCachingForAcceleration = enable(config, DremioConfig.DEBUG_DIST_CACHING_ENABLED);
+    if (FileSystemConf.isCloudFileSystemScheme(accelerationPath.getScheme())) {
+      enableCachingForAcceleration = sabotContext.getOptionManager().getOption(CLOUD_CACHING_ENABLED) ;
+    }
 
     final boolean enableAsyncForAcceleration = enable(config, DremioConfig.DEBUG_DIST_ASYNC_ENABLED);
     createSafe(catalogService, ns,

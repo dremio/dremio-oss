@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioCatalogReader;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -79,7 +80,8 @@ public class SQLAnalyzerFactory {
       .exposeInternalSources(session.exposeInternalSources())
       .build();
 
-    Catalog catalog = sabotContext.getCatalogService().getCatalog(newSchemaConfig, Long.MAX_VALUE);
+    Catalog catalog = sabotContext.getCatalogService()
+        .getCatalog(MetadataRequestOptions.of(newSchemaConfig));
     JavaTypeFactory typeFactory = JavaTypeFactoryImpl.INSTANCE;
     DremioCatalogReader catalogReader = new DremioCatalogReader(catalog, typeFactory);
 

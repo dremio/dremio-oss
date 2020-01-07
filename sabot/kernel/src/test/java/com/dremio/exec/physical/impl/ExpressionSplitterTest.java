@@ -1015,6 +1015,31 @@ public class ExpressionSplitterTest extends BaseTestFunction {
     assertTrue(gotException);
   }
 
+  @Test
+  public void testCastDateIsNotUsingCastVarchar() throws Exception {
+    GandivaAnnotator annotator = new GandivaAnnotator();
+
+    String query = "extractYear(cast(c0 as date))";
+    Fixtures.Table input = Fixtures.split(
+        th("c0"),
+        1,
+        tr(ts("2014-02-01T17:20:34")),
+        tr(ts("2019-02-01T17:20:36")),
+        tr(ts("2015-02-01T17:20:50"))
+    );
+    Fixtures.Table output = t(
+        th("out"),
+        tr(2014L),
+        tr(2019L),
+        tr(2015L)
+    );
+    Split[] expSplits = new Split[]{
+        new Split(false, "_xxx0", "extractyear(castdate(c0))", 1, 0)
+    };
+
+    splitAndVerify(query, input, output, expSplits, annotator);
+  }
+
   // Converts an expression to a tree
   // Uses the schema to convert reads to column names
   private class ExprToString extends ExpressionStringBuilder {

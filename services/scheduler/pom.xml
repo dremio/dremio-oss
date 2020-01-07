@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>4.1.0-201912030136020081-49feeb75</version>
+    <version>4.1.3-202001022113020736-53142377</version>
   </parent>
   <artifactId>dremio-services-scheduler</artifactId>
   <name>Services - Task Scheduler</name>

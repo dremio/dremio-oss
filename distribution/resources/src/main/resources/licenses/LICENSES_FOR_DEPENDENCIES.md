@@ -106,10 +106,10 @@
 |API Common                                                  |1.1.0               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |array.prototype.flat                                        |1.2.1               |MIT                 |
-|Arrow Format                                                |0.15.0-20191119110415-64f79cb5ce-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |0.15.0-20191119110415-64f79cb5ce-dremio|Apache 2.0          |
-|Arrow Memory                                                |0.15.0-20191119110415-64f79cb5ce-dremio|Apache 2.0          |
-|Arrow Vectors                                               |0.15.0-20191119110415-64f79cb5ce-dremio|Apache 2.0          |
+|Arrow Format                                                |0.15.0-20191210125417-87fbdd9801-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |0.15.0-20191210125417-87fbdd9801-dremio|Apache 2.0          |
+|Arrow Memory                                                |0.15.0-20191210125417-87fbdd9801-dremio|Apache 2.0          |
+|Arrow Vectors                                               |0.15.0-20191210125417-87fbdd9801-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -137,6 +137,7 @@
 |AWS Java SDK :: Services :: Amazon S3                       |2.5.37              |Apache 2.0          |
 |AWS Java SDK :: Services :: AWS STS                         |2.5.37              |Apache 2.0          |
 |AWS Java SDK :: Utilities                                   |2.5.37              |Apache 2.0          |
+|AWS Java SDK For Amazon DynamoDB                            |1.11.375            |Apache 2.0          |
 |AWS Java SDK for AWS STS                                    |1.11.375            |Apache 2.0          |
 |AWS SDK for AWS KMS                                         |1.11.375            |Apache 2.0          |
 |AWS SDK for AWS S3                                          |1.11.375            |Apache 2.0          |
@@ -244,11 +245,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |4.1.0               |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |4.1.0               |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |4.1.0               |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |4.1.0               |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |4.1.0               |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |4.1.3               |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |4.1.3               |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |4.1.3               |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |4.1.3               |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |4.1.3               |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |4.1.3               |Dremio Free Software License 1.0|
 |EclipseLink (non OSGi)                                      |2.5.2               |EPL 1.0, EPL 2.0    |
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
@@ -296,6 +298,7 @@
 |Google Guice Extensions Servlet                             |4.0                 |Apache 2.0          |
 |Google HTTP Client Library for Java                         |1.20.0              |Apache 2.0          |
 |Google OAuth Client Library for Java                        |1.20.0              |Apache 2.0          |
+|Google Testing and Mocking Framework                        |1.10.x              |BSD 3-clause        |
 |Gson                                                        |2.2.4               |Apache 2.0          |
 |Guava: Google Core Libraries for Java                       |20.0                |Apache 2.0          |
 |gud                                                         |1.0.0               |MIT                 |
@@ -578,6 +581,9 @@
 |Metrics Core Library                                        |2.2.0               |Apache 2.0          |
 |Metrics Integration with JMX                                |4.1.0               |Apache 2.0          |
 |Microsoft Azure Active Directory Authentication Library (ADAL) for Java|1.6.4               |MIT License         |
+|Microsoft Azure Common Module For Storage                   |12.1.0              |MIT License         |
+|Microsoft Azure Java Core Library                           |1.1.0               |MIT License         |
+|Microsoft Azure Netty HTTP Client Library                   |1.1.0               |MIT License         |
 |Microsoft Azure SDK for Key Vault Core                      |1.0.0               |MIT License         |
 |Microsoft Azure Storage Client SDK                          |8.3.0               |MIT                 |
 |Microsoft JDBC Driver For SQL Server                        |7.0.0.jre8          |MIT License         |
@@ -613,6 +619,7 @@
 |Nimbus LangTag                                              |1.4.4               |Apache 2.0          |
 |node-fetch                                                  |1.7.3               |MIT                 |
 |Noggit                                                      |0.6                 |Apache 2.0          |
+|Non Blocking Reactive Foundation For The JVM                |3.3.0.RELEASE       |Apache 2.0          |
 |normalize-scroll-left                                       |0.1.2               |MIT                 |
 |normalizr                                                   |2.3.1               |MIT                 |
 |nth-check                                                   |1.0.1               |BSD-2-Clause        |
@@ -628,18 +635,23 @@
 |object.fromentries                                          |2.0.0               |MIT                 |
 |object.values                                               |1.1.0               |MIT                 |
 |Objenesis                                                   |2.4                 |Apache 2.0          |
+|Ojdbc8                                                      |19.3.0.0            |Oracle Free Use Terms and Conditions (FUTC)|
 |OkHttp                                                      |2.7.5               |Apache 2.0          |
 |OkHttp                                                      |3.9.0               |Apache 2.0          |
 |Okio                                                        |1.4.0               |Apache 2.0          |
 |Okio                                                        |1.6.0               |Apache 2.0          |
+|Ons                                                         |19.3.0.0            |Oracle Free Use Terms and Conditions (FUTC)|
 |OpenHFT/Java-Thread-Affinity/affinity                       |3.1.7               |Apache 2.0          |
 |OpenSSL Bindings for Java                                   |1.0.4.Final         |Apache 2.0          |
+|OpenSSL toolkit                                             |1.1.1d              |OpenSSL and SSLeay license|
 |OpenTracing Java API                                        |0.33.0              |Apache 2.0          |
 |OpenTracing NoOp                                            |0.33.0              |Apache 2.0          |
 |OpenTracing utilities                                       |0.33.0              |Apache 2.0          |
 |options                                                     |0.0.6               |MIT                 |
-|Oracle odjbc8                                               |12.2.0.1            |Oracle Technology Network License Agreement|
+|Oraclepki                                                   |19.3.0.0            |Oracle Free Use Terms and Conditions (FUTC)|
 |Oro                                                         |2.0.8               |Apache 2.0          |
+|Osdt CERT                                                   |19.3.0.0            |Oracle Free Use Terms and Conditions (FUTC)|
+|Osdt Core                                                   |19.3.0.0            |Oracle Free Use Terms and Conditions (FUTC)|
 |OSGi resource locator bundle - used by various API providers that rely on META-INF/services mechanism to locate providers.|1.0.3               |CDDL 1.1            |
 |ParaNamer Core                                              |2.5.6               |BSD 3-clause        |
 |parse-key                                                   |0.2.1               |MIT                 |
@@ -715,6 +727,8 @@
 |react-virtualized                                           |9.10.1              |MIT                 |
 |Reactive Extensions for Java                                |2.2.0               |Apache License      |
 |Reactive Streams                                            |1.0.2               |CC0                 |
+|Reactive Streams Netty Driver                               |0.9.0.RELEASE       |Apache 2.0          |
+|Reactor Pool                                                |0.1.0.RELEASE       |Apache 2.0          |
 |readable-stream                                             |3.1.1               |MIT                 |
 |recompose                                                   |0.30.0              |MIT                 |
 |redbox-react                                                |1.5.0               |MIT                 |
@@ -742,6 +756,7 @@
 |RocksDB JNI                                                 |5.14.2              |Apache 2.0          |
 |RSQL-parser                                                 |2.1.0               |MIT                 |
 |rst-selector-parser                                         |2.2.3               |BSD-3-Clause        |
+|S2 Geometry Library                                         |0.9.0               |Apache 2.0          |
 |safe-buffer                                                 |5.1.1               |MIT                 |
 |Scala Compiler                                              |2.10.1              |BSD 3-clause        |
 |Scala Compiler                                              |2.10.1              |BSD 3-clause        |
@@ -754,6 +769,7 @@
 |setimmediate                                                |1.0.5               |MIT                 |
 |shallowequal                                                |1.0.2               |MIT                 |
 |shallowequal                                                |1.1.0               |MIT                 |
+|Simplefan                                                   |19.3.0.0            |Oracle Free Use Terms and Conditions (FUTC)|
 |simplemde                                                   |1.11.2              |MIT                 |
 |Sketches Core                                               |0.9.0               |Apache 2.0          |
 |SLF4J API Module                                            |1.7.10              |MIT                 |
@@ -787,6 +803,7 @@
 |typed-styles                                                |0.0.7               |MIT                 |
 |typo-js                                                     |1.0.3               |BSD-3-Clause        |
 |ua-parser-js                                                |0.7.14              |MIT                 |
+|UCP                                                         |19.3.0.0            |Oracle Free Use Terms and Conditions (FUTC)|
 |ultron                                                      |1.0.2               |MIT                 |
 |UnboundID LDAP SDK for Java                                 |4.0.9               |LGPL v2.1           |
 |uncontrollable                                              |6.1.0               |MIT                 |

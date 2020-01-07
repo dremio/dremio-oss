@@ -74,9 +74,13 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     final Stopwatch watch = Stopwatch.createStarted();
 
     Creator creator = new Creator(fragmentExecContext, context, config);
-    final ScanOperator scan = creator.createScan();
-    logger.debug("Took {} ms to create Parquet Scan.", watch.elapsed(TimeUnit.MILLISECONDS));
-    return scan;
+    try {
+      final ScanOperator scan = creator.createScan();
+      logger.debug("Took {} ms to create Parquet Scan.", watch.elapsed(TimeUnit.MILLISECONDS));
+      return scan;
+    } catch (Exception ex) {
+      throw new ExecutionSetupException("Failed to create scan operator.", ex);
+    }
   }
 
   /**
@@ -138,7 +142,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       }
     }
 
-    public ScanOperator createScan() {
+    public ScanOperator createScan() throws Exception {
       List<SplitReaderCreator> splits = config.getSplits().stream().map(SplitReaderCreator::new).sorted().collect(Collectors.toList());
       SplitReaderCreator next = null;
 
@@ -150,7 +154,12 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       }
 
       PrefetchingIterator iterator = new PrefetchingIterator(splits);
-      return new ScanOperator(config, context, iterator, globalDictionaries);
+      try {
+        return new ScanOperator(config, context, iterator, globalDictionaries);
+      } catch (Exception ex) {
+        AutoCloseables.close(iterator);
+        throw ex;
+      }
     }
 
     /**

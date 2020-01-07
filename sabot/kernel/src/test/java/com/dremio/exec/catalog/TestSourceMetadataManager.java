@@ -52,11 +52,13 @@ import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.DatasetMetadataSaver;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.test.UserExceptionMatcher;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 public class TestSourceMetadataManager {
@@ -81,6 +83,7 @@ public class TestSourceMetadataManager {
             new DatasetConfig()
                 .setTag("0")
                 .setReadDefinition(new ReadDefinition())
+                .setFullPathList(ImmutableList.of("one", "two"))
         );
 
     boolean[] deleted = new boolean[] {false};
@@ -122,7 +125,9 @@ public class TestSourceMetadataManager {
   public void doNotDeleteUnavailableDataset() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
     when(ns.getDataset(any()))
-        .thenReturn(new DatasetConfig().setReadDefinition(new ReadDefinition()));
+        .thenReturn(new DatasetConfig()
+                        .setReadDefinition(new ReadDefinition())
+                        .setFullPathList(ImmutableList.of("one", "two")));
 
     doThrow(new IllegalStateException("should not invoke deleteDataset()"))
         .when(ns)
@@ -167,6 +172,7 @@ public class TestSourceMetadataManager {
         .thenReturn(
             new DatasetConfig()
                 .setTag("0")
+                .setFullPathList(ImmutableList.of("one", "two"))
         );
 
     boolean[] deleted = new boolean[] {false};
@@ -207,7 +213,8 @@ public class TestSourceMetadataManager {
   @Test
   public void doNotDeleteUnavailableDatasetWithoutDefinition() throws Exception {
     NamespaceService ns = mock(NamespaceService.class);
-    when(ns.getDataset(any())).thenReturn(new DatasetConfig());
+    when(ns.getDataset(any())).thenReturn(new DatasetConfig()
+                                                .setFullPathList(ImmutableList.of("one", "two")));
 
     doThrow(new IllegalStateException("should not invoke deleteDataset()"))
         .when(ns)
@@ -297,6 +304,72 @@ public class TestSourceMetadataManager {
             .build());
 
     assertTrue(forced[0]);
+  }
+
+  @Test
+  public void dataSetPathCaseSensitivity() throws Exception {
+    final String qualifier = "inspector";
+    final String original = "testPath";
+    final String capital = "TESTPATH";
+    final ImmutableList<String> fullPathList = ImmutableList.of(qualifier, original);
+    final EntityPath originalPath = new EntityPath(fullPathList);
+    final EntityPath capitalPath = new EntityPath(ImmutableList.of(qualifier, capital));
+    final DatasetHandle datasetHandle = () -> originalPath;
+    final NamespaceKey dataSetKey = new NamespaceKey(ImmutableList.of(qualifier, capital));
+
+    ExtendedStoragePlugin mockStoragePlugin = mock(ExtendedStoragePlugin.class);
+      when(mockStoragePlugin.listDatasetHandles())
+        .thenReturn(Collections::emptyIterator);
+      when(mockStoragePlugin.getDatasetHandle(eq(capitalPath), any()))
+        .thenReturn(Optional.empty());
+      when(mockStoragePlugin.getDatasetHandle(eq(originalPath), any()))
+        .thenReturn(Optional.of(datasetHandle));
+      when(mockStoragePlugin.getState())
+        .thenReturn(SourceState.GOOD);
+      when(mockStoragePlugin.listPartitionChunks(any(), any()))
+        .thenReturn(Collections::emptyIterator);
+      when(mockStoragePlugin.validateMetadata(any(), any(), any()))
+        .thenReturn(SupportsReadSignature.MetadataValidity.VALID);
+      when(mockStoragePlugin.provideSignature(any(), any()))
+        .thenReturn(BytesOutput.NONE);
+      final boolean[] forced = new boolean[]{false};
+      doAnswer(invocation -> {
+        forced[0] = true;
+        return DatasetMetadata.of(DatasetStats.of(0, 0), new Schema(new ArrayList<>()));
+      }).when(mockStoragePlugin).getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class), any());
+
+    NamespaceService ns = mock(NamespaceService.class);
+    when(ns.getDataset(any()))
+      .thenReturn(MetadataObjectsUtils.newShallowConfig(datasetHandle));
+
+    DatasetMetadataSaver saver = mock(DatasetMetadataSaver.class);
+    doNothing().when(saver).saveDataset(any(), anyBoolean(), any());
+    when(ns.newDatasetMetadataSaver(any(), any(), any()))
+      .thenReturn(saver);
+
+    ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
+    when(msp.getMetadata())
+      .thenReturn(mockStoragePlugin);
+    when(msp.getMetadataPolicy())
+      .thenReturn(new MetadataPolicy());
+    when(msp.getNamespaceService())
+      .thenReturn(ns);
+
+    SourceMetadataManager manager = new SourceMetadataManager(
+      dataSetKey,
+      mock(SchedulerService.class),
+      true,
+      mock(KVStore.class),
+      msp,
+      optionManager,
+      CatalogServiceMonitor.DEFAULT
+    );
+
+    assertEquals(Catalog.UpdateStatus.CHANGED,
+      manager.refreshDataset(dataSetKey,
+        DatasetRetrievalOptions.DEFAULT.toBuilder()
+          .build())
+    );
   }
 
   @Test

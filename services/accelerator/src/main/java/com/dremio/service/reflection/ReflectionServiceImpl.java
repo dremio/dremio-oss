@@ -236,7 +236,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       }
     };
 
-    this.validator = new ReflectionValidator(namespaceService, catalogService);
+    this.validator = new ReflectionValidator(catalogService);
     this.materializationDescriptorFactory = config.getInstance(
         "dremio.reflection.materialization.descriptor.factory",
         MaterializationDescriptorFactory.class,

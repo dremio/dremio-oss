@@ -31,22 +31,22 @@ import com.microsoft.azure.storage.blob.CloudBlobClient;
 public class BlobContainerProviderOAuth extends BlobContainerProvider {
   private static final Logger logger = LoggerFactory.getLogger(BlobContainerProviderOAuth.class);
 
-  private AzureTokenGenerator tokenGenerator;
+  private AzureOAuthTokenProvider tokenProvider;
 
   public BlobContainerProviderOAuth(AzureStorageFileSystem parent, String connection, String account,
-                                    AzureTokenGenerator tokenGenerator) throws Exception {
+                                    AzureOAuthTokenProvider tokenGenerator) throws Exception {
     super(parent, account, connection, new StorageCredentialsToken(account, tokenGenerator.getToken()), true);
-    this.tokenGenerator = tokenGenerator;
+    this.tokenProvider = tokenGenerator;
   }
 
   @Override
   public Stream<ContainerFileSystem.ContainerCreator> getContainerCreators() throws IOException {
     try {
       synchronized (this){
-        if(tokenGenerator.checkAndUpdateToken()) {
+        if(tokenProvider.checkAndUpdateToken()) {
           logger.debug("Storage V1 - BlobContainerProviderOAuth - Token is expired or is about to expire, token has been updated");
           CloudBlobClient newClient = new CloudBlobClient(getConnection(),
-            new StorageCredentialsToken(getAccount(), tokenGenerator.getToken()));
+            new StorageCredentialsToken(getAccount(), tokenProvider.getToken()));
           setCloudBlobClient(newClient);
         }
       }

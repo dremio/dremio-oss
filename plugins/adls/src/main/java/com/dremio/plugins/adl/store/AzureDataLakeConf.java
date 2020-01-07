@@ -37,6 +37,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
 
@@ -112,7 +113,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   @Tag(11)
   @NotMetadataImpacting
   @DisplayMetadata(label = "Enable local caching when possible")
-  public boolean isCachingEnabled = false;
+  public boolean isCachingEnabled = true;
 
   @Tag(12)
   @NotMetadataImpacting
@@ -146,7 +147,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
 
   @Override
   public String getConnection() {
-    return DremioAdlFileSystem.SCHEME + "://" + accountName + ".azuredatalakestore.net/";
+    return CloudFileSystemScheme.ADL_FILE_SYSTEM_SCHEME.getScheme() + "://" + accountName + ".azuredatalakestore.net/";
   }
 
   @Override
@@ -219,7 +220,7 @@ public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDa
   public CacheProperties getCacheProperties() {
     return new CacheProperties() {
       @Override
-      public boolean isCachingEnabled() {
+      public boolean isCachingEnabled(final OptionManager optionManager) {
         return isCachingEnabled;
       }
 

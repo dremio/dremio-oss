@@ -214,14 +214,14 @@ public class TestStringFunctions extends BaseTestFunction {
       { "substring('abcdef', -1, 3)", "f"},
       { "substring('', 1, 2)", ""},
       { "substring('abcdef', 10, 2)", ""},
-      //TODO: DX-3623 { "substring('भारतवर्ष', 1, 4)", "भारत"},
-      //TODO: DX-3623 { "substring('भारतवर्ष', 5, 4)", "वर्"},
-      //TODO: DX-3623 { "substring('भारतवर्ष', 5, 5)", "वर्"},
+      { "substring('भारतवर्ष', 1, 4)", "भारत"},
+      { "substring('भारतवर्ष', 5, 4)", "वर्ष"},
+      { "substring('भारतवर्ष', 5, 5)", "वर्ष"},
       { "substring('abcdef', 3)", "cdef"},
       { "substring('abcdef', -2)", "ef"},
       { "substring('abcdef', 0)", "abcdef"},
       { "substring('abcdef', 10)", ""},
-      //TODO: DX-3623 { "substring('अपाचे ड्रिल', 7)", "ड्रिल"}
+      { "substring('अपाचे ड्रिल', 7)", "ड्रिल"}
     });
   }
 

@@ -17,8 +17,10 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import { withRouter } from 'react-router';
+import { injectIntl } from 'react-intl';
 
 import DropdownMenu from '@app/components/Menus/DropdownMenu';
+import HoverHelp from '@app/components/HoverHelp';
 import RealTimeTimer from '@app/components/RealTimeTimer';
 import { JobStatusMenu } from '@app/components/Menus/ExplorePage/JobStatusMenu';
 import SampleDataMessage from '@app/pages/ExplorePage/components/SampleDataMessage';
@@ -48,6 +50,7 @@ export const isWorking = (status) => {
     JOB_STATUS.cancellationRequested].includes(status);
 };
 
+@injectIntl
 export class ExploreTableJobStatus extends Component {
   static propTypes = {
     approximate: PropTypes.bool,
@@ -57,6 +60,7 @@ export class ExploreTableJobStatus extends Component {
     haveRows: PropTypes.bool,
     outputRecords: PropTypes.number,
     cancelJob: PropTypes.func,
+    intl: PropTypes.object.isRequired,
     //withRouter props
     location: PropTypes.object.isRequired
   };
@@ -106,6 +110,19 @@ export class ExploreTableJobStatus extends Component {
     return null;
   };
 
+  renderHoverHelp = (isRun) => {
+    const {intl} = this.props;
+    const helpContent = isRun ?
+      intl.formatMessage({ id: 'Explore.run.warning' }) :
+      intl.formatMessage({ id: 'Explore.preview.warning' });
+    return <HoverHelp
+      content={helpContent}
+      placement='bottom-start'
+      tooltipStyle={styles.helpTooltip}
+      tooltipInnerStyle={styles.helpInnerTooltip}
+    />;
+  };
+
   getCancellable = jobStatus => {
     return jobStatus === JOB_STATUS.running
       || jobStatus === JOB_STATUS.starting
@@ -127,7 +144,7 @@ export class ExploreTableJobStatus extends Component {
     return (
       <div style={styles.wrapper}>
         <span style={styles.label}>{la('Job: ')}</span>
-        <span style={styles.value}>{jobTypeLabel}</span>
+        <span style={styles.value}>{jobTypeLabel}{this.renderHoverHelp(jobProgress.isRun)}</span>
         <span style={styles.divider}> | </span>
         <span style={styles.label}>{jobStatusLabel}</span>
         <span style={styles.value}>
@@ -206,5 +223,14 @@ const styles = {
   },
   text: {
     marginRight: 6
+  },
+  helpTooltip: {
+    zIndex: 10001
+  },
+  helpInnerTooltip: {
+    width: 240
+  },
+  menuText: {
+    marginRight: 0
   }
 };

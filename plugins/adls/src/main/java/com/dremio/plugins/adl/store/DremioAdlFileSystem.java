@@ -21,6 +21,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.adl.AdlFileSystem;
 
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
+import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.io.AsyncByteReader;
 import com.microsoft.azure.datalake.store.AdlsAsyncFileReader;
 
@@ -30,12 +31,11 @@ import com.microsoft.azure.datalake.store.AdlsAsyncFileReader;
 @SuppressWarnings("Unchecked")
 public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyncStream {
 
-  static final String SCHEME = "dremioAdl";
   private volatile AsyncHttpClientManager asyncHttpClientManager;
 
   @Override
   public String getScheme() {
-    return SCHEME;
+    return FileSystemConf.CloudFileSystemScheme.ADL_FILE_SYSTEM_SCHEME.getScheme();
   }
 
   @Override

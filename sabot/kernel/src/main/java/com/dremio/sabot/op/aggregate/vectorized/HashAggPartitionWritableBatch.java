@@ -42,7 +42,7 @@ public class HashAggPartitionWritableBatch {
   private final int maxValuesPerBatch;
 
   /* metadata length could possibly be optimized to smaller value later */
-  static final byte BATCH_HEADER_LENGTH = 9;
+  static final byte BATCH_HEADER_LENGTH = 12;
   static final byte FIXED_BUFFER_LENGTH_OFFSET = 0;
   static final byte VARIABLE_BUFFER_LENGTH_OFFSET = 4;
   static final byte NUM_ACCUMULATORS_OFFSET = 8;
@@ -204,7 +204,7 @@ public class HashAggPartitionWritableBatch {
 
     final int batchIdx = this.currentBatchIndex++;
 
-    return new HashAggPartitionBatchDefinition(fixedBufferLength, variableBufferLength, (byte)accumulators.length,
+    return new HashAggPartitionBatchDefinition(fixedBufferLength, variableBufferLength, accumulators.length,
       accumulatorTypes, accumulatorBatchDef, batchIdx);
   }
 
@@ -215,13 +215,13 @@ public class HashAggPartitionWritableBatch {
   public static class HashAggPartitionBatchDefinition {
     final int fixedBufferLength;
     final int variableBufferLength;
-    final byte numAccumulators;
+    final int numAccumulators;
     final byte[] accumulatorTypes;
     final UserBitShared.RecordBatchDef accumulatorBatchDef;
     final int batchIdx;
 
     public HashAggPartitionBatchDefinition(int fixedBufferLength, int variableBufferLength,
-                                           byte numAccumulators, byte[] accumulatorTypes,
+                                           int numAccumulators, byte[] accumulatorTypes,
                                            UserBitShared.RecordBatchDef accumulatorBatchDef, final int batchIdx) {
       this.fixedBufferLength = fixedBufferLength;
       this.variableBufferLength = variableBufferLength;

@@ -143,6 +143,7 @@
   "Job.State.FAILED": "Failed",
   "Job.State.CANCELLATION_REQUESTED": "Cancellation Requested",
   "Job.State.ENQUEUED": "Enqueued",
+  "Job.State.PLANNING": "Planning",
   "Dataset.Settings": "Dataset Settings",
   "Dataset.Descendants": "Descendants",
   "Dataset.Dataset": "Dataset",
@@ -329,6 +330,8 @@
   "Reflection.Reflection": "Reflection",
   "Reflection.Reflections": "Reflections",
   "Reflection.Footprint": "Footprint",
+  "Explore.run.warning": "Results may be truncated for performance, execute over ODBC/JDBC to save complete results if more than a few thousand rows.",
+  "Explore.preview.warning": "Results based on sub-sample of data from external sources.",
   "Message.SomeReflectionsFailed": "{countFail} Reflection{countFail, plural, one {} other {s}} could not be saved ({countSuccess} Reflection{countSuccess, plural, one {} other {s}} {countSuccess, plural, one {was} other {were}} saved). See individual Reflection{countFail, plural, one {} other {s}} for details.",
   "Message.Code.WS_CLOSED.Message": "There was an issue communicating with Dremio.",
   "Message.Code.WS_CLOSED.Details": "Your Internet connection may be offline, or WebSockets to Dremio are being blocked."

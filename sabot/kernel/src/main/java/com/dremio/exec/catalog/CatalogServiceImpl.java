@@ -474,31 +474,12 @@ public class CatalogServiceImpl implements CatalogService {
     return (T) getPlugin(name, true).unwrap(StoragePlugin.class);
   }
 
-  /**
-   * Get a {@link CachingCatalog} contextualized to the provided SchemaConfig. Catalogs are used to interact with
-   * datasets within the context a particular session.
-   *
-   * @param schemaConfig schema config
-   * @return catalog
-   */
   @Override
-  public Catalog getCatalog(SchemaConfig schemaConfig) {
-    return getCatalog(schemaConfig, Long.MAX_VALUE);
-  }
+  public Catalog getCatalog(MetadataRequestOptions requestOptions) {
+    Preconditions.checkNotNull(requestOptions,  "request options are required");
 
-  /**
-   * Get a new {@link CachingCatalog} that only considers metadata valid if it is newer than the
-   * provided maxRequestTime.
-   *
-   * @param schemaConfig schema config
-   * @param maxRequestTime max request time
-   * @return catalog with given constraints
-   */
-  @Override
-  public Catalog getCatalog(SchemaConfig schemaConfig, long maxRequestTime) {
-    final MetadataRequestOptions requestOptions = new MetadataRequestOptions(schemaConfig, maxRequestTime);
     final Catalog catalog = new CatalogImpl(context.get(), requestOptions, new Retriever(),
-        new SourceModifier(schemaConfig.getUserName()));
+        new SourceModifier(requestOptions.getSchemaConfig().getUserName()));
 
     final Catalog decoratedCatalog = SourceAccessChecker.secureIfNeeded(requestOptions, catalog);
     return new CachingCatalog(decoratedCatalog);
@@ -560,7 +541,7 @@ public class CatalogServiceImpl implements CatalogService {
 
   @VisibleForTesting
   public Catalog getSystemUserCatalog() {
-    return getCatalog(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build());
+    return getCatalog(MetadataRequestOptions.of(SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME).build()));
   }
 
   public enum UpdateType {

@@ -28,9 +28,11 @@ export default class HoverHelp extends Component {
   static propTypes = {
     style: PropTypes.object,
     iconStyle: PropTypes.object,
+    tooltipStyle: PropTypes.object,
     tooltipInnerStyle: PropTypes.object,
     content: PropTypes.node,
-    className: PropTypes.string
+    className: PropTypes.string,
+    placement: PropTypes.string
   };
 
   constructor(props) {
@@ -49,7 +51,7 @@ export default class HoverHelp extends Component {
   }
 
   render() {
-    const { style, iconStyle, content, tooltipInnerStyle, className } = this.props;
+    const { style, iconStyle, content, tooltipStyle, tooltipInnerStyle, className, placement } = this.props;
     const {hover} = this.state;
     const finalInnerStyle = {...styles.defaultInnerStyle, ...tooltipInnerStyle};
 
@@ -65,9 +67,10 @@ export default class HoverHelp extends Component {
       />
       <Tooltip
         container={this}
-        placement='right-start'
+        placement={placement || 'bottom-start'}
         target={() => hover ? this.refs.target : null}
         type='status'
+        style={tooltipStyle}
         tooltipInnerStyle={finalInnerStyle}
       >
         {content}

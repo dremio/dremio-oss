@@ -16,11 +16,13 @@
 package com.dremio.plugins.azure;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.asynchttpclient.Request;
+
 import com.dremio.common.concurrent.NamedThreadFactory;
-import com.google.common.annotations.VisibleForTesting;
 import com.microsoft.aad.adal4j.AuthenticationContext;
 import com.microsoft.aad.adal4j.AuthenticationResult;
 import com.microsoft.aad.adal4j.ClientCredential;
@@ -28,7 +30,7 @@ import com.microsoft.aad.adal4j.ClientCredential;
 /**
  * Utility class for generating OAuth tokens from ClientId and ClientSecrets
  */
-public class AzureTokenGenerator {
+public class AzureOAuthTokenProvider implements AzureAuthTokenProvider {
 
   // From: https://docs.microsoft.com/en-us/azure/storage/common/storage-auth-aad-app
   private static final String RESOURCE = "https://storage.azure.com/";
@@ -39,7 +41,7 @@ public class AzureTokenGenerator {
   private AuthenticationResult authResult;
   private static final long REFRESH_RANGE = TimeUnit.MILLISECONDS.convert(5, TimeUnit.MINUTES);
 
-  public AzureTokenGenerator(String oauthUrl, String clientId, String clientSecret) throws IOException {
+  public AzureOAuthTokenProvider(String oauthUrl, String clientId, String clientSecret) throws IOException {
     try {
       authContext = new AuthenticationContext(oauthUrl, true,
         Executors.newCachedThreadPool(new NamedThreadFactory("adls-oauth-request")));
@@ -52,42 +54,37 @@ public class AzureTokenGenerator {
     }
   }
 
-  /**
-   * Get method to return token
-   */
   public String getToken() {
     return authResult.getAccessToken();
   }
 
-  /**
-   * Checks whether token is about to expire or is already expired
-   * If it is either of the scenarios, method updates the token and returns true
-   * Otherwise, the token remains unchanged and method returns false
-   */
-  public synchronized boolean checkAndUpdateToken() throws Exception {
-    if (authResult == null || isTokenAboutToExpire()) {
-      authResult = requestNewToken();
-      return true;
-    }
-    return false;
+  @Override
+  public String getAuthzHeaderValue(Request req) {
+    return String.format("Bearer %s", getToken());
   }
 
-  @VisibleForTesting
-  public synchronized void updateToken() throws Exception {
-    authResult = requestNewToken();
+  @Override
+  public synchronized boolean checkAndUpdateToken() {
+    try {
+      if (authResult == null || isCloseToExpiry()) {
+        authResult = requestNewToken();
+        return true;
+      }
+      return false;
+    } catch (ExecutionException | InterruptedException e) {
+      throw new RuntimeException("Error while acquiring new access token from Azure", e);
+    }
   }
 
   /**
    * Requests a new token with stored credentials
    */
-  private synchronized AuthenticationResult requestNewToken() throws Exception {
+  private synchronized AuthenticationResult requestNewToken() throws ExecutionException, InterruptedException {
     return authContext.acquireToken(RESOURCE, credential, null).get();
   }
 
-  /**
-   * Determines whether token has expired or is within 5 minutes of expiration.
-   */
-  private boolean isTokenAboutToExpire() {
+  @Override
+  public boolean isCloseToExpiry() {
     return authResult.getExpiresOnDate().getTime() < System.currentTimeMillis() + REFRESH_RANGE;
   }
 }

@@ -376,7 +376,7 @@ class ExploreUtils {
   getHrefForUntitledDatasetConfig = (dottedFullPath, newVersion, doNotWaitJobCompletion) => {
     const pathParam = encodeURIComponent(dottedFullPath);
     return `/datasets/new_untitled?parentDataset=${pathParam}&newVersion=${newVersion}&limit=${doNotWaitJobCompletion ? 0 : ROWS_LIMIT}`;
-  }
+  };
 
   getHrefForDatasetConfig = (resourcePath) => `${resourcePath}?view=explore&limit=50`;
   getPreviewLink = (dataset, tipVersion) => {
@@ -480,12 +480,24 @@ class ExploreUtils {
     fakeElement.value = text;
     document.body.appendChild(fakeElement);
     return fakeElement;
-  }
+  };
+
   copySelection = (elementOrText) => {
     if (elementOrText === null) return;
 
     const isText = typeof elementOrText === 'string';
     const selectionElement = isText ? this._createFakeElement(elementOrText) : elementOrText;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      const text = isText ? elementOrText : selectionElement.innerText;
+      return navigator.clipboard.writeText(text)
+        .then(() => {
+          return true;
+        }).catch(err => {
+          console.error('Could not copy to clipboard text: ', err);
+          return false;
+        });
+    }
 
     if (isText) {
       selectionElement.select();
@@ -505,7 +517,8 @@ class ExploreUtils {
     if (isText) {
       document.body.removeChild(selectionElement);
     }
-  }
+  };
+
   escapeFieldNameForSQL(value) {
     return `"${value.replace(/"/g, '""')}"`;
   }

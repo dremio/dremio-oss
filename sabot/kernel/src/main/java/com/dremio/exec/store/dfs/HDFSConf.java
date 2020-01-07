@@ -29,6 +29,7 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.io.file.Path;
+import com.dremio.options.OptionManager;
 
 import io.protostuff.Tag;
 
@@ -123,7 +124,7 @@ public class HDFSConf extends FileSystemConf<HDFSConf, HDFSStoragePlugin> {
   public CacheProperties getCacheProperties() {
     return new CacheProperties() {
       @Override
-      public boolean isCachingEnabled() {
+      public boolean isCachingEnabled(final OptionManager optionManager) {
         return isCachingEnabled;
       }
 

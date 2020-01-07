@@ -37,6 +37,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
@@ -171,7 +172,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
         .build();
 
     this.catalog = sabotContext.getCatalogService()
-        .getCatalog(schemaConfig, Long.MAX_VALUE);
+        .getCatalog(MetadataRequestOptions.of(schemaConfig));
     this.namespaceService = sabotContext.getNamespaceService(queryUserName);
     this.substitutionProviderFactory = sabotContext.getConfig()
         .getInstance("dremio.exec.substitution.factory",

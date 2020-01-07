@@ -421,7 +421,10 @@ public class DACDaemonModule implements DACModule {
         )
         );
 
-    registry.bindSelf(new InitializerRegistry(bootstrap.getClasspathScan(), registry.getBindingProvider()));
+    // Run initializers only on coordinator.
+    if (isCoordinator) {
+      registry.bindSelf(new InitializerRegistry(bootstrap.getClasspathScan(), registry.getBindingProvider()));
+    }
 
     registry.bind(CommandPool.class, CommandPoolFactory.INSTANCE.newPool(config));
 

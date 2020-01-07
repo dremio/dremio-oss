@@ -180,10 +180,16 @@ class ORCSearchArgumentGenerator extends RexVisitorImpl<Object> {
 
         if (literalPair.second == Type.STRING && !columnInfos.isEmpty()) {
           final HiveReaderProto.ColumnInfo columnInfo = columnInfos.get(colIndex);
-          if (columnInfo.getPrimitiveType() == HiveReaderProto.HivePrimitiveType.CHAR) {
+          if (columnInfo.hasIsPrimitive() && columnInfo.getIsPrimitive() &&
+            columnInfo.getPrimitiveType() == HiveReaderProto.HivePrimitiveType.CHAR) {
             final int fixedCharLength = columnInfo.getPrecision();
             final String paddedPredicate = HiveBaseChar.getPaddedValue((String)literalPair.first, fixedCharLength);
             literalPair = Tuple.<Object, Type>of(paddedPredicate, Type.STRING);
+          } else if (!columnInfo.hasIsPrimitive() &&
+            columnInfo.getPrimitiveType() == HiveReaderProto.HivePrimitiveType.CHAR) {
+            // DX-18763: we may have badly populated columnInfo.
+            // let us not use pushdown filter
+            return null;
           }
         }
 
@@ -194,7 +200,9 @@ class ORCSearchArgumentGenerator extends RexVisitorImpl<Object> {
           final HiveReaderProto.ColumnInfo columnInfo = columnInfos.get(colIndex);
           Type literalType = literalPair.second;
           Object literalValue = literalPair.first;
-          if (literalValue.getClass() == Long.class && columnInfo.getPrimitiveType() != null) {
+          if (literalValue.getClass() == Long.class &&
+            columnInfo.hasIsPrimitive() && columnInfo.getIsPrimitive() &&
+            columnInfo.getPrimitiveType() != null) {
             switch (columnInfo.getPrimitiveType().getNumber()) {
               case HiveReaderProto.HivePrimitiveType.DECIMAL_VALUE:
                 literalType = Type.DECIMAL;
@@ -209,7 +217,9 @@ class ORCSearchArgumentGenerator extends RexVisitorImpl<Object> {
                 break;
             }
             literalPair = Tuple.<Object, Type>of(literalValue, literalType);
-          } else if (literalValue.getClass() == HiveDecimalWritable.class && columnInfo.getPrimitiveType() != null) {
+          } else if (literalValue.getClass() == HiveDecimalWritable.class &&
+            columnInfo.hasIsPrimitive() && columnInfo.getIsPrimitive() &&
+            columnInfo.getPrimitiveType() != null) {
             switch (columnInfo.getPrimitiveType().getNumber()) {
               case HiveReaderProto.HivePrimitiveType.DOUBLE_VALUE:
               case HiveReaderProto.HivePrimitiveType.FLOAT_VALUE:
@@ -220,6 +230,12 @@ class ORCSearchArgumentGenerator extends RexVisitorImpl<Object> {
               default:
                 break;
             }
+          } else if (!columnInfo.hasIsPrimitive() &&
+            (literalValue.getClass() == HiveDecimalWritable.class ||
+              literalValue.getClass() == Long.class)) {
+            // DX-18763: we may have badly populated columnInfo.
+            // let us not use pushdown filter
+            return null;
           }
         }
 

@@ -40,6 +40,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceServiceImpl;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
@@ -127,8 +128,9 @@ public class TestNamespaceListing {
                   .addAll(datasetHandle.getDatasetPath().getComponents())
                   .build();
               try {
-                namespaceService.addOrUpdateDataset(new NamespaceKey(canonicalComponents),
-                    MetadataObjectsUtils.newShallowConfig(datasetHandle));
+                DatasetConfig config = MetadataObjectsUtils.newShallowConfig(datasetHandle);
+                config.setFullPathList(canonicalComponents);
+                namespaceService.addOrUpdateDataset(new NamespaceKey(canonicalComponents), config);
               } catch (NamespaceException e) {
                 throw new RuntimeException(e);
               }

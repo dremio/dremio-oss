@@ -174,7 +174,6 @@ public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
     testDistributed("queries/tpch_gd/03.sql", "tpch03");
   }
 
-  @Ignore("Doesn't work")
   @Test
   public void tpch04() throws Exception{
     testDistributed("queries/tpch_gd/04.sql", "tpch04");
@@ -262,7 +261,6 @@ public class TestTpchDistributedWithGlobalDictionaries extends PlanTestBase {
   }
 
   @Test
-  @Ignore
   public void tpch21() throws Exception{
     testDistributed("queries/tpch_gd/21.sql", "tpch21");
   }

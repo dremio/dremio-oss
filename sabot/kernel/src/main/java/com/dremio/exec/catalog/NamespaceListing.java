@@ -113,7 +113,6 @@ public class NamespaceListing implements DatasetHandleListing {
 
       while (keyIterator.hasNext()) {
         final NamespaceKey nextKey = keyIterator.next();
-        final EntityPath entityPath = MetadataObjectsUtils.toEntityPath(nextKey);
 
         final DatasetConfig currentConfig;
         try {
@@ -122,6 +121,13 @@ public class NamespaceListing implements DatasetHandleListing {
           continue; // race condition
         } catch (NamespaceException e) {
           throw new RuntimeException(e);
+        }
+
+        final EntityPath entityPath;
+        if (currentConfig != null) {
+          entityPath = new EntityPath(currentConfig.getFullPathList());
+        } else {
+          entityPath = MetadataObjectsUtils.toEntityPath(nextKey);
         }
 
         final Optional<DatasetHandle> handle;
