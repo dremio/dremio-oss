@@ -78,14 +78,25 @@ export default class ContainerSelection extends Component {
     </div>;
   };
 
+  findSelectedOption = (elementConfig, value) => {
+    return elementConfig.getOptions().find(option => option.value === value);
+  };
+
   render() {
     const {fields, elementConfig} = this.props;
     const radioField = FormUtils.getFieldByComplexPropName(fields, elementConfig.getPropName());
-    // radioField usually has a value. If not, use 1st option value
 
     const { value, ...radioProps } = radioField;
-    const selectedValue = value || elementConfig.getOptions()[0].value;
-    const selectedOptionObj = elementConfig.getOptions().find(option => option.value === selectedValue);
+    const firstValue = elementConfig.getOptions()[0].value;
+    // radioField usually has a value. If not, use 1st option value
+    let selectedValue = value || firstValue;
+    let selectedOptionObj = this.findSelectedOption(elementConfig, selectedValue);
+
+    if (!selectedOptionObj) {
+      // the value is not in the options -> default to the 1st option
+      selectedValue = firstValue;
+      selectedOptionObj = this.findSelectedOption(elementConfig, firstValue);
+    }
 
     const container = selectedOptionObj.container;
     const containerHelp = container.getConfig && container.getConfig().help;

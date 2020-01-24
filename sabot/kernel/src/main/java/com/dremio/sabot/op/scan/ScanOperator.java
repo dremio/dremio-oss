@@ -101,7 +101,12 @@ public class ScanOperator implements ProducerOperator {
     PRELOADED_BYTES,           // Number of bytes pre-loaded
     NUM_CACHE_HITS,       // Number of C3 hits
     NUM_CACHE_MISSES,     // Number of C3 misses
-    AVG_PROCESSING_TIME   // Average processing time of request by C3
+    AVG_PROCESSING_TIME,   // Average processing time of request by C3
+    JAVA_BUILD_TIME,   // time taken by Java (setup+evaluation) for type conversions in CoercionReader
+    JAVA_EXECUTE_TIME,
+    GANDIVA_BUILD_TIME, // time taken by Gandiva (setup+evaluation) for type conversions in CoercionReader,
+    GANDIVA_EXECUTE_TIME,
+    NUM_FILTERS_MODIFIED   // Number of parquet filters modified
     ;
 
     @Override
@@ -329,6 +334,10 @@ public class ScanOperator implements ProducerOperator {
       }
 
       return clazz.cast(v);
+    }
+
+    public VectorContainer getContainer() {
+      return outgoing;
     }
 
     private <T extends ValueVector> boolean checkIfDecimalsTypesAreDifferent(ValueVector v, Field field) {

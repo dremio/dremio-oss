@@ -10,7 +10,7 @@
 ## Resource defined by class com.dremio.dac.resource.BackupResource
 
  - POST /backup   
-   > `=>` String   
+   > `=>` [com.dremio.dac.util.BackupRestoreUtil$BackupOptions](#class-comdremiodacutilbackuprestoreutil$backupoptions)   
    > `<=` [com.dremio.dac.util.BackupRestoreUtil$BackupStats](#class-comdremiodacutilbackuprestoreutil$backupstats)   
 
 
@@ -4523,6 +4523,21 @@ any
   includesLogs: true | false,
   success: true | false,
   url: "abc",
+}
+```
+
+## `class com.dremio.dac.util.BackupRestoreUtil$BackupOptions`
+- Example:
+```
+{
+  backupDir: "abc",
+  backupDirAsPath: { /** Path **/
+    absolute: true | false,
+    name: "abc",
+    parent: (ref: Path),
+  },
+  binary: true | false,
+  includeProfiles: true | false,
 }
 ```
 

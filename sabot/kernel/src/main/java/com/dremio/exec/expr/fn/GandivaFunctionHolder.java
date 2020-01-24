@@ -125,6 +125,7 @@ public class GandivaFunctionHolder extends AbstractFunctionHolder {
           OutputDerivation.DECIMAL_SET_SCALE;
         break;
       case "castDECIMAL":
+      case "castDECIMALNullOnOverflow":
         derivation = OutputDerivation.DECIMAL_CAST;
         break;
       default:

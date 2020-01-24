@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -29,6 +30,7 @@ import org.junit.rules.ExpectedException;
 import com.dremio.common.expression.SupportedEngines;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.util.DecimalUtils;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.BaseTestFunction;
 import com.dremio.sabot.Fixtures;
@@ -713,4 +715,23 @@ public abstract class BaseDecimalFunctionTests extends BaseTestFunction {
     });
   }
 
+  @Test
+  public void testCastDecimalNullOnOverflow() throws Exception {
+    testFunctionsCompiledOnly(new Object[][]{
+        {"castDECIMALNullOnOverflow(c0, 38l, 1l)", DecimalUtils.MAX_DECIMAL, Fixtures
+            .createDecimal(null, 38, 1)},
+        {"castDECIMALNullOnOverflow(c0, 38l, 1l)", new BigDecimal("1.234"), new BigDecimal("1.2")},
+        {"castDECIMALNullOnOverflow(c0, 2l, 2l)", new BigDecimal("111111111111111111111.111111111"), Fixtures
+            .createDecimal(null, 2, 2)},
+    });
+  }
+
+  @Test
+  @Ignore("DX-20528")
+  public void testCastDecimalZeroOnOverflow() {
+    testFunctionsCompiledOnly(new Object[][]{
+        {"castDECIMAL(c0, 2l, 2l)", new BigDecimal("111111111111111111111.111111111"), Fixtures
+            .createDecimal(new BigDecimal("0.00"), 2, 2)}
+    });
+  }
 }

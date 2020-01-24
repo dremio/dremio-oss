@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.hive.metadata;
 
+import static com.dremio.hive.proto.HiveReaderProto.HivePrimitiveType.CHAR;
+import static com.dremio.hive.proto.HiveReaderProto.HivePrimitiveType.VARCHAR;
 import static org.apache.hadoop.hive.metastore.api.hive_metastoreConstants.META_TABLE_STORAGE;
 
 import java.io.IOException;
@@ -30,6 +32,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.Lists;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -55,12 +58,14 @@ import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.metadata.HiveStorageHandler;
 import org.apache.hadoop.hive.ql.metadata.HiveUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
+import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.HiveDecimalUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
+import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 import org.apache.hadoop.mapred.FileInputFormat;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
@@ -98,6 +103,8 @@ import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.google.common.base.Joiner;
 import com.google.common.base.Objects;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 
@@ -175,6 +182,45 @@ public class HiveMetadataUtils {
     final List<String> partitionColumns = new ArrayList<>();
     HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format);
     return BatchSchema.newBuilder().addFields(fields).build();
+  }
+
+  public static boolean isVarcharTruncateSupported(InputFormat<?, ?> format) {
+    return false;
+  }
+
+  public static boolean hasVarcharColumnInTableSchema(
+    final Table table, final HiveConf hiveConf
+  ) {
+    InputFormat<?, ?> format = getInputFormat(table, hiveConf);
+    if (!isVarcharTruncateSupported(format)) {
+      return false;
+    }
+
+    for (FieldSchema hiveField : table.getSd().getCols()) {
+      if (isFieldTypeVarchar(hiveField)) {
+        return true;
+      }
+    }
+
+    for (FieldSchema hiveField : table.getPartitionKeys()) {
+      if (isFieldTypeVarchar(hiveField)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private static boolean isFieldTypeVarchar(FieldSchema hiveField) {
+    final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType());
+    if (typeInfo.getCategory() == Category.PRIMITIVE) {
+      PrimitiveTypeInfo pTypeInfo = (PrimitiveTypeInfo) typeInfo;
+      if (pTypeInfo.getPrimitiveCategory() == PrimitiveObjectInspector.PrimitiveCategory.VARCHAR ||
+        pTypeInfo.getPrimitiveCategory() == PrimitiveObjectInspector.PrimitiveCategory.CHAR) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static void populateFieldsAndPartitionColumns(
@@ -1078,10 +1124,19 @@ public class HiveMetadataUtils {
           case LONG:
             return PartitionValue.of(name, Long.parseLong(value));
           case STRING:
-          case VARCHAR:
             return PartitionValue.of(name, value);
+          case VARCHAR:
+            String truncatedVarchar = value;
+            if (value.length() > ((VarcharTypeInfo) typeInfo).getLength()) {
+              truncatedVarchar = value.substring(0, ((VarcharTypeInfo) typeInfo).getLength());
+            }
+            return PartitionValue.of(name, truncatedVarchar);
           case CHAR:
-            return PartitionValue.of(name, value.trim());
+            String truncatedChar = value.trim();
+            if (truncatedChar.length() > ((CharTypeInfo) typeInfo).getLength()) {
+              truncatedChar = value.substring(0, ((CharTypeInfo) typeInfo).getLength());
+            }
+            return PartitionValue.of(name, truncatedChar);
           case TIMESTAMP:
             return PartitionValue.of(name, DateTimes.toMillisFromJdbcTimestamp(value));
           case DATE:
@@ -1094,6 +1149,9 @@ public class HiveMetadataUtils {
                 .build(logger);
             }
             final HiveDecimal decimal = HiveDecimalUtils.enforcePrecisionScale(HiveDecimal.create(value), decimalTypeInfo);
+            if (decimal == null) {
+              return PartitionValue.of(name);
+            }
             final BigDecimal original = decimal.bigDecimalValue();
             // we can't just use unscaledValue() since BigDecimal doesn't store trailing zeroes and we need to ensure decoding includes the correct scale.
             final BigInteger unscaled = original.movePointRight(decimalTypeInfo.scale()).unscaledValue();
@@ -1179,14 +1237,17 @@ public class HiveMetadataUtils {
       partition.getValues());
   }
 
-  public static int getHash(Table table) {
-    return Objects.hashCode(
-      table.getTableType(),
+  public static int getHash(Table table, final HiveConf hiveConf) {
+    List<Object> hashParts = Lists.newArrayList(table.getTableType(),
       table.getParameters(),
       table.getPartitionKeys(),
       table.getSd(),
       table.getViewExpandedText(),
       table.getViewOriginalText());
+    if (hasVarcharColumnInTableSchema(table, hiveConf)) {
+      hashParts.add(Boolean.TRUE);
+    }
+    return Objects.hashCode(hashParts.toArray());
   }
 
   public static void checkLeafFieldCounter(int leafCounter, int maxMetadataLeafColumns, String tableName) {

@@ -225,7 +225,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       @Override
       public QueryContext get() {
         final UserSession session = systemSession(getOptionManager());
-        return new QueryContext(session, sabotContext.get(), new AttemptId().toQueryId());
+        return new QueryContext(session, sabotContext.get(), new AttemptId().toQueryId(),
+            java.util.Optional.of(false));
       }
     };
 

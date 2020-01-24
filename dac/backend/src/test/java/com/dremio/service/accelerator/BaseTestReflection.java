@@ -185,7 +185,7 @@ public class BaseTestReflection extends BaseTestServer {
   protected static ReflectionMonitor newReflectionMonitor(long delay, long maxWait) {
     final MaterializationStore materializationStore = new MaterializationStore(p(KVStoreProvider.class));
     return new ReflectionMonitor(getReflectionService(), getReflectionStatusService(), getMaterializationDescriptorProvider(),
-      materializationStore, delay, maxWait);
+      getJobsService(), materializationStore, delay, maxWait);
   }
 
   protected static JobsService getJobsService() {

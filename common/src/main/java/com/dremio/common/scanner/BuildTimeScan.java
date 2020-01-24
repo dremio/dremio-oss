@@ -41,8 +41,8 @@ public class BuildTimeScan {
   private static final String REGISTRY_FILE = "META-INF/dremio-module-scan/registry.json";
 
   private static final ObjectMapper mapper = new ObjectMapper().enable(INDENT_OUTPUT);
-  private static final ObjectReader reader = mapper.reader(ScanResult.class);
-  private static final ObjectWriter writer = mapper.writerWithType(ScanResult.class);
+  private static final ObjectReader reader = mapper.readerFor(ScanResult.class);
+  private static final ObjectWriter writer = mapper.writerFor(ScanResult.class);
 
   /**
    * @return paths that have the prescanned registry file in them

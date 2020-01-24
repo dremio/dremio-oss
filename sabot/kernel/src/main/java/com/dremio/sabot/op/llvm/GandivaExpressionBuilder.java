@@ -127,13 +127,13 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
       .map(this::acceptExpression)
       .collect(Collectors.toList());
 
-    if (holder.getName().equals("castDECIMAL")) {
+    if (holder.getName().equals("castDECIMAL") || holder.getName().equals("castDECIMALNullOnOverflow")) {
       // remove the dummy args added for precision/scale. They are implicitly specified in the
       // return type.
       int size = children.size();
 
       Preconditions.checkState(size >= 3,
-        "expected atleast three args for castDECIMAL");
+        "expected atleast three args for castDECIMAL/castDECIMALNullOnOverflow");
 
       Preconditions.checkState(holder.args.get(size - 1) instanceof LongExpression,
         "expected long type for precision");

@@ -42,11 +42,11 @@ public class Restore {
     @Parameter(names={"-h", "--help"}, description="show usage", help=true)
     private boolean help = false;
 
-    @Parameter(names= {"-r", "--restore"}, description="restore dremio metadata")
-    private boolean restore;
+    @Parameter(names= {"-r", "--restore"}, description="restore dremio metadata (deprecated, always true)")
+    private boolean deprecatedRestore;
 
-    @Parameter(names= {"-v", "--verify"}, description="verify backup contents")
-    private boolean verify;
+    @Parameter(names= {"-v", "--verify"}, description="verify backup contents (deprecated, noop)")
+    private boolean deprecatedVerify = false;
 
     @Parameter(names= {"-d", "--backupdir"}, description="backup directory path. for example, /mnt/dremio/backups or hdfs://$namenode:8020/dremio/backups", required=true)
     private String backupDir = null;
@@ -75,28 +75,16 @@ public class Restore {
   public static void main(String[] args) {
     final DACConfig dacConfig = DACConfig.newConfig();
     final BackupManagerOptions options = BackupManagerOptions.parse(args);
-    String action = "";
     try {
       if (!dacConfig.isMaster) {
         throw new UnsupportedOperationException("Restore should be run on master node ");
       }
       Path backupDir = Path.of(options.backupDir);
       FileSystem fs = HadoopFileSystem.get(backupDir, new Configuration());
-
-      if (options.restore) {
-        action = "restore";
-        BackupStats backupStats =  BackupRestoreUtil.restore(fs, backupDir, dacConfig);
-        AdminLogger.log("Restored from backup at {}, dremio tables {}, uploaded files {}", backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
-      } else if (options.verify) {
-        action = "verify";
-        BackupRestoreUtil.validateBackupDir(fs, backupDir);
-        AdminLogger.log("Verified checksum for backup at {}", fs.makeQualified(backupDir).toString());
-
-      } else {
-        throw new IllegalArgumentException("Missing option restore (-r) or verify (-v)");
-      }
+      BackupStats backupStats =  BackupRestoreUtil.restore(fs, backupDir, dacConfig);
+      AdminLogger.log("Restored from backup at {}, dremio tables {}, uploaded files {}", backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
     } catch (Exception e) {
-      AdminLogger.log("{} failed", action, e);
+      AdminLogger.log("Restore failed", e);
       System.exit(1);
     }
   }

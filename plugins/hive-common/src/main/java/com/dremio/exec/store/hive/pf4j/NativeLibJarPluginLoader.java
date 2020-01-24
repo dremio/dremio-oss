@@ -15,18 +15,26 @@
  */
 package com.dremio.exec.store.hive.pf4j;
 
+import java.io.IOException;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.util.stream.Collectors;
 
 import org.pf4j.JarPluginLoader;
 import org.pf4j.PluginClassLoader;
 import org.pf4j.PluginDescriptor;
 import org.pf4j.PluginManager;
+import org.slf4j.Logger;
 
 /**
  * Customized plugin loader to create a classloader that extracts native libraries before loading them from a plugin
  * bundle.
  */
 public class NativeLibJarPluginLoader extends JarPluginLoader {
+  private static final Logger logger = org.slf4j.LoggerFactory.getLogger(NativeLibJarPluginLoader.class);
+
   public NativeLibJarPluginLoader(PluginManager pluginManager) {
     super(pluginManager);
   }
@@ -35,6 +43,21 @@ public class NativeLibJarPluginLoader extends JarPluginLoader {
   public ClassLoader loadPlugin(Path pluginPath, PluginDescriptor pluginDescriptor) {
     PluginClassLoader pluginClassLoader = new NativeLibPluginClassLoader(pluginPath, this.pluginManager, pluginDescriptor, this.getClass().getClassLoader());
     pluginClassLoader.addFile(pluginPath.toFile());
+
+    // Add the subdirectory for any customer added dependencies.
+    try {
+      final Path dependencyPath = pluginPath.getParent().resolve(pluginDescriptor.getPluginId() + ".d");
+      for (Path file : Files.list(dependencyPath).collect(Collectors.toList())) {
+        final URL fileUrl = file.toUri().toURL();
+        logger.debug("Loaded dependency for {}: {}", pluginDescriptor.getPluginId(), fileUrl.toString());
+        pluginClassLoader.addURL(fileUrl);
+      }
+    } catch (NoSuchFileException nfe) {
+      // Do nothing, the subdirectory doesn't exist.
+    } catch (IOException e) {
+      logger.warn(String.format("Unable to add dependency directory for plugin %s", pluginDescriptor.getPluginId()), e);
+    }
+
     return pluginClassLoader;
   }
 }

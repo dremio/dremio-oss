@@ -48,7 +48,7 @@ public class GandivaRegistryWrapper {
 
       // To make this fit in dremio model of type inference, add dummy args for precision and
       // scale.
-      if (signature.getName().equals("castDECIMAL")) {
+      if (signature.getName().equals("castDECIMAL") || signature.getName().equals("castDECIMALNullOnOverflow")) {
         List<ArrowType> args = new ArrayList<>(signature.getParamTypes());
         args.add(new ArrowType.Int(64, true)); // precision
         args.add(new ArrowType.Int(64, true)); // scale

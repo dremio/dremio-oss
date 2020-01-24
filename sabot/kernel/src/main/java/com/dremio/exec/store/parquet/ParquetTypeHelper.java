@@ -18,11 +18,16 @@ package com.dremio.exec.store.parquet;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.parquet.schema.DecimalMetadata;
 import org.apache.parquet.schema.OriginalType;
+import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.apache.parquet.schema.Type.Repetition;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CompleteType;
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
@@ -102,6 +107,71 @@ public class ParquetTypeHelper {
         return 16;
       default:
         return 0;
+    }
+  }
+
+  /**
+   * Returns an arrow vector field for a parquet primitive field
+   * @param colPath schema path of the column
+   * @param primitiveType parquet primitive type
+   * @param originalType parquet original type
+   * @param schemaHelper schema helper used for type conversions
+   * @return arrow vector field
+   */
+  public static Field createField(SchemaPath colPath,
+                            PrimitiveType primitiveType,
+                            OriginalType originalType,
+                            SchemaDerivationHelper schemaHelper) {
+    final String colName = colPath.getAsNamePart().getName();
+    switch (primitiveType.getPrimitiveTypeName()) {
+      case BINARY:
+      case FIXED_LEN_BYTE_ARRAY:
+        if (originalType == OriginalType.UTF8) {
+          return CompleteType.VARCHAR.toField(colName);
+        }
+        if (originalType == OriginalType.DECIMAL) {
+
+          return CompleteType.fromDecimalPrecisionScale(primitiveType.getDecimalMetadata()
+            .getPrecision(), primitiveType.getDecimalMetadata().getScale()).toField(colName);
+        }
+        if (schemaHelper.isVarChar(colPath)) {
+          return CompleteType.VARCHAR.toField(colName);
+        }
+        return CompleteType.VARBINARY.toField(colName);
+      case BOOLEAN:
+        return CompleteType.BIT.toField(colName);
+      case DOUBLE:
+        return CompleteType.DOUBLE.toField(colName);
+      case FLOAT:
+        return CompleteType.FLOAT.toField(colName);
+      case INT32:
+        if (originalType == OriginalType.DATE) {
+          return CompleteType.DATE.toField(colName);
+        } else if (originalType == OriginalType.TIME_MILLIS) {
+          return CompleteType.TIME.toField(colName);
+        } else if (originalType == OriginalType.DECIMAL) {
+          return CompleteType.fromDecimalPrecisionScale(primitiveType.getDecimalMetadata()
+            .getPrecision(), primitiveType.getDecimalMetadata().getScale()).toField(colName);
+        }
+        return CompleteType.INT.toField(colName);
+      case INT64:
+        if (originalType == OriginalType.TIMESTAMP_MILLIS) {
+          return CompleteType.TIMESTAMP.toField(colName);
+        } else if (originalType == OriginalType.DECIMAL) {
+          return CompleteType.fromDecimalPrecisionScale(primitiveType.getDecimalMetadata()
+            .getPrecision(), primitiveType.getDecimalMetadata().getScale()).toField(colName);
+        }
+        return CompleteType.BIGINT.toField(colName);
+      case INT96:
+        if (schemaHelper.readInt96AsTimeStamp()) {
+          return CompleteType.TIMESTAMP.toField(colName);
+        }
+        return CompleteType.VARBINARY.toField(colName);
+      default:
+        throw UserException.unsupportedError()
+          .message("Parquet Primitive Type '%s', Original Type '%s' combination not supported. Column '%s'",
+            primitiveType.toString(), originalType != null ? originalType : "Not Available", colName)
+          .build();
     }
   }
 

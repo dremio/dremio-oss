@@ -19,6 +19,7 @@ import java.lang.instrument.Instrumentation;
 
 import com.dremio.dac.admin.LocalAdmin;
 import com.dremio.dac.resource.ExportProfilesParams;
+import com.google.common.base.Preconditions;
 
 /**
  * Agent
@@ -27,14 +28,16 @@ public class DremioAgent {
 
   public static void agentmain(String args, Instrumentation inst) throws Exception {
 
-    String[] argsArray = args.split("\t", 2);
+    String[] argsArray = args.split("\t", 4);
     String command = argsArray[0];
     String option = argsArray[1];
 
     if ("export-profiles".equals(command)) {
+      Preconditions.checkArgument(argsArray.length == 2, "Expected length of args of 4.");
       LocalAdmin.getInstance().exportProfiles(ExportProfilesParams.fromParamString(option));
     } else if ("backup".equals(command)) {
-      LocalAdmin.getInstance().backup(option);
+      Preconditions.checkArgument(argsArray.length == 4, "Expected length of args of 4.");
+      LocalAdmin.getInstance().backup(option, argsArray[2], argsArray[3]);
     }
   }
 }

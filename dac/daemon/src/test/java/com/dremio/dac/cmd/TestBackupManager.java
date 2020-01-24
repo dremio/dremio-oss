@@ -33,6 +33,9 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
 import com.dremio.common.perf.Timer;
 import com.dremio.common.util.FileUtils;
@@ -49,6 +52,7 @@ import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.TestHomeFiles;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.util.BackupRestoreUtil;
+import com.dremio.dac.util.BackupRestoreUtil.BackupOptions;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
@@ -80,6 +84,7 @@ import com.google.common.io.Files;
 /**
  * Test backup and restore.
  */
+@RunWith(Parameterized.class)
 public class TestBackupManager extends BaseTestServer {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestBackupManager.class);
 
@@ -121,8 +126,19 @@ public class TestBackupManager extends BaseTestServer {
     ));
   }
 
+  private final String mode;
+  public TestBackupManager(String mode) {
+    this.mode = mode;
+  }
+
+  @Parameters(name="mode={0}")
+  public static Iterable<? extends Object> data() {
+      return Arrays.asList("json", "binary");
+  }
+
   @Test
   public void testBackup() throws Exception {
+    boolean binary = "binary".equals(mode);
     FileSystem fs = HadoopFileSystem.getLocal(new Configuration());
     populateInitialData();
     Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
@@ -135,7 +151,7 @@ public class TestBackupManager extends BaseTestServer {
     // take backup 1
     CheckPoint cp1 = checkPoint();
     Path backupDir1 = Path.of(BackupRestoreUtil.createBackup(
-      fs, Path.of(BaseTestServer.folder1.newFolder().getAbsolutePath()), localKVStoreProvider, homeFileStore).getBackupPath());
+      fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false), localKVStoreProvider, homeFileStore).getBackupPath());
 
     // add dataset, delete dataset, upload file
     getPopulator().putDS("DG", "dsg11", new FromSQL("select * from DG.dsg9 t1 left join DG.dsg8 t2 on t1.A=t2.age").wrap());
@@ -153,7 +169,7 @@ public class TestBackupManager extends BaseTestServer {
     // take backup 2 using rest api
     final URI backupPath = BaseTestServer.folder1.newFolder().getAbsoluteFile().toURI();
     Path backupDir2 = Path.of(
-      Backup.createBackup(dacConfig, DEFAULT_USERNAME, DEFAULT_PASSWORD, false, backupPath)
+      Backup.createBackup(dacConfig, DEFAULT_USERNAME, DEFAULT_PASSWORD, false, backupPath, binary, false)
       .getBackupPath());
 
     // destroy everything

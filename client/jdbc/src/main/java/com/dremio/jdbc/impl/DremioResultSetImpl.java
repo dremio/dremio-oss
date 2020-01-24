@@ -88,7 +88,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
 
   DremioResultSetImpl(AvaticaStatement statement, QueryState state,
                      Meta.Signature signature, ResultSetMetaData resultSetMetaData,
-                     TimeZone timeZone, Meta.Frame firstFrame) {
+                     TimeZone timeZone, Meta.Frame firstFrame) throws SQLException {
     super(statement, state, signature, resultSetMetaData, timeZone, firstFrame);
     connection = (DremioConnectionImpl) statement.getConnection();
     client = connection.getClient();
@@ -547,7 +547,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     throwIfClosed();
     // Map Avatica's erroneous zero-based row numbers to 1-based, and return 0
     // after end, per JDBC:
-    return isAfterLast() ? 0 : 1 + super.getRow();
+    return super.getRow();
   }
 
   @Override

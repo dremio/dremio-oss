@@ -75,7 +75,7 @@ public final class LocalAdmin {
     System.out.println(exporter.export(getKVStoreProvider()).retrieveStats());
   }
 
-  public void backup(String path) throws Exception {
+  public void backup(String path, String binaryStr, String includeProfilesStr) throws Exception {
     if (!isLocalAdmin()) {
       throw new UnsupportedOperationException("This operation is only supported to local admin");
     }
@@ -86,7 +86,8 @@ public final class LocalAdmin {
     }
     final FileSystem fs = HadoopFileSystem.get(backupDir, new Configuration());
     BackupRestoreUtil.checkOrCreateDirectory(fs, backupDir);
-    BackupRestoreUtil.BackupStats backupStats = BackupRestoreUtil.createBackup(fs, backupDir, (LocalKVStoreProvider) getKVStoreProvider(), LocalAdmin.getInstance().getHomeFileTool().getConf());
+    BackupRestoreUtil.BackupOptions options = new BackupRestoreUtil.BackupOptions(path, Boolean.getBoolean(binaryStr), Boolean.getBoolean(includeProfilesStr));
+    BackupRestoreUtil.BackupStats backupStats = BackupRestoreUtil.createBackup(fs, options, (LocalKVStoreProvider) getKVStoreProvider(), LocalAdmin.getInstance().getHomeFileTool().getConf());
     System.out.println(format("Backup created at %s, dremio tables %d, uploaded files %d",
     backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles()));
   }

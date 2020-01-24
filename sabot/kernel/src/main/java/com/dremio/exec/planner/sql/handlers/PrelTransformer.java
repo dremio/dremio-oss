@@ -561,6 +561,12 @@ public class PrelTransformer {
     OptionManager queryOptions = context.getOptions();
     final PlannerSettings plannerSettings = context.getPlannerSettings();
 
+    /*
+     * Convert AND with not equal expressions to NOT-OR with equal conditions
+     * to make query use InExpression logical expression
+     */
+    phyRelNode = (Prel) phyRelNode.accept(new AndToOrConverter());
+
     /* Disable distribution trait pulling
      *
      * Some of the following operations might rewrite the tree but would not

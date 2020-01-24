@@ -728,4 +728,18 @@ public class TypeCastRules {
     }
   }
 
+  public static boolean isHiveCompatibleTypeChange(MinorType from, MinorType to) {
+    if (from == to) {
+      return true;
+    }
+
+    switch (from) {
+      case INT:
+        return to == MinorType.BIGINT;
+      case FLOAT4:
+        return to == MinorType.FLOAT8;
+      default:
+        return false;
+    }
+  }
 }

@@ -46,6 +46,8 @@ import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.JerseyInvocation;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
 import org.glassfish.jersey.client.filter.EncodingFilter;
+import org.glassfish.jersey.internal.InternalProperties;
+import org.glassfish.jersey.internal.util.PropertiesHelper;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.glassfish.jersey.message.DeflateEncoder;
 import org.glassfish.jersey.message.GZipEncoder;
@@ -213,7 +215,14 @@ public class ElasticConnectionPool implements AutoCloseable {
 
     final JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
     provider.setMapper(ElasticMappingSet.MAPPER);
+
+    // Disable other JSON providers.
+    client.property(
+      PropertiesHelper.getPropertyNameForRuntime(InternalProperties.JSON_FEATURE, client.getConfiguration().getRuntimeType()),
+      JacksonJaxbJsonProvider.class.getSimpleName());
+
     client.register(provider);
+
     HttpAuthenticationFeature httpAuthenticationFeature = elasticsearchAuthentication.getHttpAuthenticationFeature();
     if (httpAuthenticationFeature != null) {
       client.register(httpAuthenticationFeature);

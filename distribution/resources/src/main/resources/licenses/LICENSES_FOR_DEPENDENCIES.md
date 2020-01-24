@@ -23,7 +23,7 @@
 |Apache Ant Launcher                                         |1.9.1               |Apache 2.0          |
 |Apache Avro                                                 |1.7.4               |Apache 2.0          |
 |Apache Avro                                                 |1.7.7               |Apache 2.0          |
-|Apache Calcite Avatica (Shaded)                             |1.11.0              |Apache 2.0          |
+|Apache Calcite Avatica (Shaded)                             |1.12.0              |Apache 2.0          |
 |Apache Commons Collections                                  |4.1                 |Apache 2.0          |
 |Apache Commons Compress                                     |1.9                 |Apache 2.0          |
 |Apache Commons Crypto                                       |1.0.0               |Apache 2.0          |
@@ -106,10 +106,10 @@
 |API Common                                                  |1.1.0               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |array.prototype.flat                                        |1.2.1               |MIT                 |
-|Arrow Format                                                |0.15.0-20191210125417-87fbdd9801-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |0.15.0-20191210125417-87fbdd9801-dremio|Apache 2.0          |
-|Arrow Memory                                                |0.15.0-20191210125417-87fbdd9801-dremio|Apache 2.0          |
-|Arrow Vectors                                               |0.15.0-20191210125417-87fbdd9801-dremio|Apache 2.0          |
+|Arrow Format                                                |0.15.0-20200119111124-92f2900e45-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |0.15.0-20200119111124-92f2900e45-dremio|Apache 2.0          |
+|Arrow Memory                                                |0.15.0-20200119111124-92f2900e45-dremio|Apache 2.0          |
+|Arrow Vectors                                               |0.15.0-20200119111124-92f2900e45-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -245,12 +245,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |4.1.3               |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |4.1.3               |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |4.1.3               |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |4.1.3               |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |4.1.3               |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |4.1.3               |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |4.1.4               |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |4.1.4               |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |4.1.4               |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |4.1.4               |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |4.1.4               |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |4.1.4               |Dremio Free Software License 1.0|
 |EclipseLink (non OSGi)                                      |2.5.2               |EPL 1.0, EPL 2.0    |
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
@@ -390,30 +390,32 @@
 |Jackson 2 extensions to the Google APIs Client Library for Java|1.20.0              |Apache 2.0          |
 |Jackson 2 extensions to the Google HTTP Client Library for Java.|1.20.0              |Apache 2.0          |
 |Jackson Datatype Protobuf                                   |0.9.10-jackson2.9-proto2|Apache 2.0          |
-|Jackson datatype: Guava                                     |2.9.9               |Apache 2.0          |
-|Jackson Datatype: JSR310                                    |2.9.9               |Apache 2.0          |
+|Jackson datatype: Guava                                     |2.10.2              |Apache 2.0          |
+|Jackson Datatype: JSR310                                    |2.10.2              |Apache 2.0          |
 |Jackson extensions to the Google HTTP Client Library for Java.|1.22.0              |Apache 2.0          |
 |Jackson Integration For Metrics                             |3.1.0               |Apache 2.0          |
-|Jackson module: Afterburner                                 |2.9.9               |Apache 2.0          |
-|Jackson-annotations                                         |2.9.0               |Apache 2.0          |
-|Jackson-core                                                |2.9.9               |Apache 2.0          |
-|jackson-databind                                            |2.9.9.3             |Apache 2.0          |
-|Jackson-dataformat-CBOR                                     |2.9.9               |Apache 2.0          |
-|Jackson-dataformat-Smile                                    |2.9.9               |Apache 2.0          |
-|Jackson-dataformat-XML                                      |2.9.9               |Apache 2.0          |
-|Jackson-dataformat-YAML                                     |2.9.9               |Apache 2.0          |
-|Jackson-JAXRS-base                                          |2.9.9               |Apache 2.0          |
-|Jackson-JAXRS-JSON                                          |2.9.9               |Apache 2.0          |
-|Jackson-module-JAXB-annotations                             |2.9.9               |Apache 2.0          |
-|jackson-module-jsonSchema                                   |2.9.9               |Apache 2.0          |
+|Jackson module: Afterburner                                 |2.10.2              |Apache 2.0          |
+|Jackson-annotations                                         |2.10.2              |Apache 2.0          |
+|Jackson-core                                                |2.10.2              |Apache 2.0          |
+|jackson-databind                                            |2.10.2              |Apache 2.0          |
+|Jackson-dataformat-CBOR                                     |2.10.2              |Apache 2.0          |
+|Jackson-dataformat-Smile                                    |2.10.2              |Apache 2.0          |
+|Jackson-dataformat-XML                                      |2.10.2              |Apache 2.0          |
+|Jackson-dataformat-YAML                                     |2.10.2              |Apache 2.0          |
+|Jackson-JAXRS-base                                          |2.10.2              |Apache 2.0          |
+|Jackson-JAXRS-JSON                                          |2.10.2              |Apache 2.0          |
+|Jackson-module-JAXB-annotations                             |2.10.2              |Apache 2.0          |
+|jackson-module-jsonSchema                                   |2.10.2              |Apache 2.0          |
 |Jaeger Client                                               |1.0.0               |Apache 2.0          |
 |Jaeger Core                                                 |1.0.0               |Apache 2.0          |
 |Jaeger Thrift                                               |1.0.0               |Apache 2.0          |
 |Jaeger TracerResolver                                       |1.0.0               |Apache 2.0          |
+|Jakarta Activation API JAR                                  |1.2.1               |EDL 1.0             |
 |Jakarta Annotations API                                     |1.3.5               |Eclipse Public License 2.0|
 |Jakarta Bean Validation API                                 |2.0.2               |Apache 2.0          |
 |Jakarta Inject                                              |2.6.1               |Eclipse Public License 2.0|
 |Jakarta RESTful Web Services API                            |2.1.6               |Eclipse Public License 2.0|
+|Jakarta XML Bind API                                        |2.3.2               |EDL 1.0             |
 |Janino                                                      |2.7.6               |BSD 3-clause        |
 |Java 6 (and higher) Extensions to the Google API Client Library for Java.|1.20.0              |Apache 2.0          |
 |Java 6 (and higher) extensions to the Google OAuth Client Library for Java.|1.20.0              |Apache 2.0          |

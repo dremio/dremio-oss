@@ -49,7 +49,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 @Options
-public class ProjectPrel extends ProjectRelBase implements Prel{
+public class ProjectPrel extends ProjectRelBase implements Prel {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProjectPrel.class);
 
   public static final LongValidator RESERVE = new PositiveLongValidator("planner.op.project.reserve_bytes", Long.MAX_VALUE, DEFAULT_RESERVE);

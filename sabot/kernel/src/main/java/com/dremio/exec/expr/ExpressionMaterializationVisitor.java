@@ -16,6 +16,7 @@
 package com.dremio.exec.expr;
 
 import static com.dremio.common.types.Types.isFixedWidthType;
+import static com.dremio.exec.expr.fn.impl.DecimalFunctions.DECIMAL_CAST_NULL_ON_OVERFLOW;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -31,6 +32,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.BooleanOperator;
 import com.dremio.common.expression.CastExpression;
+import com.dremio.common.expression.CastExpressionWithOverflow;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.ConvertExpression;
 import com.dremio.common.expression.ErrorCollector;
@@ -562,6 +564,14 @@ class ExpressionMaterializationVisitor
 
       // Get the cast function name from the map
       String castFuncWithType = CastFunctions.getCastFunc(targetType.getMinorType());
+
+      // this is coming from the hive coercion reader
+      // switch to functions that throw error on overflow if we are converting string/decimal
+      // to decimal.
+      if (e instanceof CastExpressionWithOverflow && (input.getCompleteType().isDecimal() ||
+              input.getCompleteType().isText())) {
+        castFuncWithType = DECIMAL_CAST_NULL_ON_OVERFLOW;
+      }
 
       List<LogicalExpression> newArgs = Lists.newArrayList();
       newArgs.add(input); // input_expr

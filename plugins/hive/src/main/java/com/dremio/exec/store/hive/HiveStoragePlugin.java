@@ -367,7 +367,7 @@ public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin
     if (table == null) { // missing table?
       return MetadataValidity.INVALID;
     }
-    if (HiveMetadataUtils.getHash(table) != tableHash) {
+    if (HiveMetadataUtils.getHash(table, hiveConf) != tableHash) {
       return MetadataValidity.INVALID;
     }
 
@@ -592,7 +592,7 @@ public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin
 
     accumulateTableMetadata(tableExtended, metadataAccumulator, table, tableProperties);
 
-    tableExtended.setTableHash(HiveMetadataUtils.getHash(table));
+    tableExtended.setTableHash(HiveMetadataUtils.getHash(table, hiveConf));
     tableExtended.setPartitionHash(metadataAccumulator.getPartitionHash());
     tableExtended.setReaderType(metadataAccumulator.getReaderType());
     tableExtended.addAllColumnInfo(tableMetadata.getColumnInfos());

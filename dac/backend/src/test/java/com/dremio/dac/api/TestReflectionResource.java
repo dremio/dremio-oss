@@ -51,6 +51,7 @@ import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.options.OptionValue;
 import com.dremio.service.accelerator.AccelerationTestUtil;
+import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.reflection.ReflectionMonitor;
@@ -106,6 +107,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
       l(ReflectionService.class),
       l(ReflectionStatusService.class),
       l(MaterializationDescriptorProvider.class),
+      l(JobsService.class),
       new MaterializationStore(p(KVStoreProvider.class)),
       SECONDS.toMillis(1),
       SECONDS.toMillis(10)

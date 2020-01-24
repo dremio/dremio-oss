@@ -345,6 +345,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
               finder.getRealFields(),
               globalDictionaryEncodedColumns,
               config.getConditions(),
+              ParquetFilterCreator.DEFAULT,
               splitXAttr,
               fs,
               footer,

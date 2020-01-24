@@ -18,6 +18,8 @@ package com.dremio.service.reflection;
 import static com.dremio.service.reflection.ReflectionStatus.AVAILABILITY_STATUS.AVAILABLE;
 import static com.dremio.service.reflection.ReflectionUtils.isTerminal;
 import static com.dremio.service.reflection.proto.MaterializationState.DEPRECATED;
+import static com.dremio.service.reflection.proto.MaterializationState.DONE;
+import static com.dremio.service.reflection.proto.MaterializationState.FAILED;
 import static com.dremio.service.reflection.proto.ReflectionState.ACTIVE;
 import static com.dremio.service.reflection.proto.ReflectionState.REFRESHING;
 
@@ -25,6 +27,12 @@ import java.util.Objects;
 import java.util.concurrent.Future;
 
 import com.dremio.exec.server.MaterializationDescriptorProvider;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobState;
+import com.dremio.service.jobs.GetJobRequest;
+import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobNotFoundException;
+import com.dremio.service.jobs.JobsService;
 import com.dremio.service.reflection.MaterializationCache.CacheViewer;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.Materialization;
@@ -49,23 +57,25 @@ public class ReflectionMonitor {
   private final ReflectionService reflections;
   private final ReflectionStatusService statusService;
   private final MaterializationDescriptorProvider materializations;
+  private final JobsService jobsService;
   private final MaterializationStore materializationStore;
   private final long delay;
   private final long maxWait;
 
   public ReflectionMonitor(ReflectionService reflections, ReflectionStatusService statusService,
-                           MaterializationDescriptorProvider materializations,
+                           MaterializationDescriptorProvider materializations, JobsService jobsService,
                            MaterializationStore materializationStore, long delay, long maxWait) {
     this.reflections = reflections;
     this.statusService = statusService;
     this.materializations = materializations;
+    this.jobsService = jobsService;
     this.materializationStore = materializationStore;
     this.delay = delay;
     this.maxWait = maxWait;
   }
 
   public ReflectionMonitor withWait(long maxWait) {
-    return new ReflectionMonitor(reflections, statusService, materializations, materializationStore, delay, maxWait);
+    return new ReflectionMonitor(reflections, statusService, materializations, jobsService, materializationStore, delay, maxWait);
   }
 
   public void waitUntilRefreshed(final ReflectionId reflectionId) {
@@ -103,9 +113,26 @@ public class ReflectionMonitor {
   public Materialization waitUntilMaterialized(final ReflectionId reflectionId, MaterializationId lastMaterializationId) {
     Wait w = new Wait();
     while (w.loop()) {
-      final Materialization lastMaterialization = materializationStore.getLastMaterializationDone(reflectionId);
+      final Materialization lastMaterialization = materializationStore.getLastMaterialization(reflectionId);
       if (lastMaterialization != null && !Objects.equals(lastMaterializationId, lastMaterialization.getId())) {
-        return lastMaterialization;
+        if (lastMaterialization.getState() == DONE) {
+          return lastMaterialization;
+        } else if (lastMaterialization.getState() == FAILED) {
+          final JobId refreshJobId = new JobId(lastMaterialization.getInitRefreshJobId());
+          GetJobRequest request = GetJobRequest.newBuilder()
+            .setJobId(refreshJobId)
+            .build();
+          try {
+            final Job refreshJob = jobsService.getJob(request);
+            if (refreshJob.getJobAttempt().getState() == JobState.FAILED) {
+              throw new RuntimeException("Materialization failed: " + refreshJob.getJobAttempt().getInfo().getFailureInfo());
+            } else {
+              throw new RuntimeException(String.format("Refresh job completed, but materialization failed with %s.", lastMaterialization.getFailure().getMessage()));
+            }
+          } catch (JobNotFoundException e) {
+            throw new RuntimeException("Failed to get refresh job after materialization failed.");
+          }
+        }
       }
     }
 

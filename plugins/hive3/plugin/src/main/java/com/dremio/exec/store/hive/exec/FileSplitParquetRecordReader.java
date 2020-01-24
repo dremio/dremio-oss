@@ -21,28 +21,38 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
+import org.apache.parquet.schema.Type;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.common.types.TypeProtos;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.resolver.TypeCastRules;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.SampleMutator;
 import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
 import com.dremio.exec.store.hive.exec.dfs.DremioHadoopFileSystemWrapper;
 import com.dremio.exec.store.parquet.InputStreamProvider;
+import com.dremio.exec.store.parquet.ManagedSchema;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
+import com.dremio.exec.store.parquet.ParquetTypeHelper;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet.SingleStreamProvider;
 import com.dremio.exec.store.parquet.StreamPerColumnProvider;
@@ -52,12 +62,14 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 /**
  * A {@link RecordReader} implementation that takes a {@link FileSplit} and
  * wraps one or more {@link UnifiedParquetReader}s (one for each row groups in {@link FileSplit})
+ * Will throw error if fields being read have incompatible types in file and hive table
  */
 public class FileSplitParquetRecordReader implements RecordReader {
 
@@ -79,6 +91,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
   private List<UnifiedParquetReader> innerReaders;
   private Iterator<UnifiedParquetReader> innerReadersIter;
   private UnifiedParquetReader currentReader;
+  private ManagedSchema managedSchema;
 
   public FileSplitParquetRecordReader(
     final OperatorContext oContext,
@@ -92,7 +105,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
     final boolean vectorize,
     final BatchSchema outputSchema,
     final boolean enableDetailedTracing,
-    final UserGroupInformation readerUgi
+    final UserGroupInformation readerUgi,
+    final ManagedSchema managedSchema
   ) {
     this.oContext = oContext;
     this.tableSchema = tableSchema;
@@ -106,6 +120,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
     this.enableDetailedTracing = enableDetailedTracing;
     this.outputSchema = outputSchema;
     this.readerUgi = readerUgi;
+    this.managedSchema = managedSchema;
   }
 
 
@@ -118,6 +133,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
+    Preconditions.checkArgument(output instanceof SampleMutator, "Unexpected output mutator");
     try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
       try {
         boolean useSingleStream =
@@ -174,6 +190,32 @@ public class FileSplitParquetRecordReader implements RecordReader {
           }
         }
 
+        final boolean autoCorrectCorruptDates = oContext.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR);
+        final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
+          .readInt96AsTimeStamp(true)
+          .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, columnsToRead, autoCorrectCorruptDates))
+          .noSchemaLearning(outputSchema)
+          .allowMixedDecimals(true)
+          .build();
+
+
+        for (Type parquetField : footer.getFileMetaData().getSchema().getFields()) {
+          SchemaPath columnSchemaPath = SchemaPath.getCompoundPath(parquetField.getName());
+          for (SchemaPath projectedPath : columnsToRead) {
+            String name = projectedPath.getRootSegment().getNameSegment().getPath();
+            if (parquetField.getName().equalsIgnoreCase(name)) {
+              Field field = ParquetTypeHelper.createField(columnSchemaPath,
+                parquetField.asPrimitiveType(), parquetField.getOriginalType(), schemaHelper);
+              final Class<? extends ValueVector> clazz = TypeHelper.getValueVectorClass(field);
+              output.addField(field, clazz);
+              break;
+            }
+          }
+        }
+        ((SampleMutator)output).getContainer().buildSchema();
+        output.isSchemaChanged();
+        checkFieldTypesCompatibleWithHiveTable(output, tableSchema);
+
         final List<Integer> rowGroupNums = ParquetReaderUtility.getRowGroupNumbersFromFileSplit(fileSplit.getStart(), fileSplit.getLength(), footer);
         oContext.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, rowGroupNums.size());
         innerReaders = Lists.newArrayList();
@@ -196,12 +238,6 @@ public class FileSplitParquetRecordReader implements RecordReader {
           if (innerReaders.size() > 0) {
             inputStreamProvider = getInputStreamProvider(useSingleStream, dremioPath, fs, fileLength, readFullFile);
           }
-          final boolean autoCorrectCorruptDates = oContext.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR);
-          final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
-            .readInt96AsTimeStamp(true)
-            .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, columnsToRead, autoCorrectCorruptDates))
-            .noSchemaLearning(outputSchema)
-            .build();
 
           final UnifiedParquetReader innerReader = new UnifiedParquetReader(
             oContext,
@@ -210,6 +246,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
             columnsToRead,
             null,
             conditions,
+            readerFactory.newFilterCreator(ParquetReaderFactory.FilterCreatorType.HIVE, managedSchema),
             split,
             fs,
             footer,
@@ -272,6 +309,30 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
   @Override
   public void close() throws Exception {
+    if ((conditions!= null) && !conditions.isEmpty()) {
+      if (conditions.get(0).isModifiedForPushdown()) {
+        this.oContext.getStats().addLongStat(ScanOperator.Metric.NUM_FILTERS_MODIFIED, 1);
+      }
+    }
     AutoCloseables.close(innerReaders);
+  }
+
+  private void checkFieldTypesCompatibleWithHiveTable(OutputMutator readerOutputMutator, BatchSchema tableSchema) {
+    for (ValueVector fieldVector : readerOutputMutator.getVectors()) {
+      Field fieldInFileSchema = fieldVector.getField();
+      Optional<Field> fieldInTable = tableSchema.findFieldIgnoreCase(fieldInFileSchema.getName());
+
+      if (!fieldInTable.isPresent()) {
+        throw UserException.validationError().message("Field [%s] not found in table schema %s", fieldInFileSchema.getName(),
+            tableSchema.getFields()).buildSilently();
+      }
+
+      TypeProtos.MinorType fieldTypeInFile = CompleteType.fromField(fieldInFileSchema).toMinorType();
+      TypeProtos.MinorType fieldTypeInTable = CompleteType.fromField(fieldInTable.get()).toMinorType();
+      if (!TypeCastRules.isHiveCompatibleTypeChange(fieldTypeInFile, fieldTypeInTable)) {
+        throw UserException.schemaChangeError().message("Field [%s] has incompatible types in file and table." +
+            " Type in fileschema: [%s], type in tableschema: [%s]", fieldInFileSchema.getName(), fieldTypeInFile, fieldTypeInTable).buildSilently();
+      }
+    }
   }
 }

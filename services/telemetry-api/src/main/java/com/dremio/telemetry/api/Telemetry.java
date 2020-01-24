@@ -81,33 +81,52 @@ public final class Telemetry {
     Provider<Tuple<RefreshConfiguration, Tuple<Collection<MetricsConfigurator>, TracerConfigurator>>> configurationProvider =
       new Provider<Tuple<RefreshConfiguration, Tuple<Collection<MetricsConfigurator>, TracerConfigurator>>>() {
 
-        private boolean shouldWarnIfUnableToFindFile = true;
+        private final ExceptionWatcher exceptionWatcher =
+          new ExceptionWatcher((ex) -> logger.warn("Failure reading telemetry configuration. Leaving telemetry as is.", ex));
 
         @Override
         public Tuple<RefreshConfiguration, Tuple<Collection<MetricsConfigurator>, TracerConfigurator>> get() {
           final URL resource;
+          Tuple<RefreshConfiguration, Tuple<Collection<MetricsConfigurator>, TracerConfigurator>> ret = null;
           try {
             resource = Resources.getResource(CONFIG_FILE);
             final TelemetryConfigurator fromConfig = reader.readValue(resource);
-            // If we currently have a config file, we should be warned if it disappears in the future.
-            shouldWarnIfUnableToFindFile = true;
-            return Tuple.of(fromConfig.getRefreshConfig(), Tuple.of(fromConfig.getMetricsConfigs(), fromConfig.getTracerConfig()));
-          } catch (IllegalArgumentException ex) {
-            if (shouldWarnIfUnableToFindFile) {
-              logger.info("Unable to find metrics configuration file {}, leaving metrics setting as is.", CONFIG_FILE);
-            }
-            // Only warn once for a string of misses.
-            shouldWarnIfUnableToFindFile = false;
-          } catch (IOException ex) {
-            logger.warn("Failure reading metric configuration.", ex);
+
+            ret = Tuple.of(fromConfig.getRefreshConfig(), Tuple.of(fromConfig.getMetricsConfigs(), fromConfig.getTracerConfig()));
+            exceptionWatcher.reset();
+          } catch (IllegalArgumentException | IOException ex) {
+            exceptionWatcher.notify(ex);
           }
-          return null;
+          return ret;
         }
       };
 
     configRefreshListener = new TelemetryConfigListener(bootstrapRegistry);
     configRefresher = new AutoRefreshConfigurator<>(configurationProvider, configRefreshListener);
 
+  }
+
+  /**
+   * Only invokes exceptionConsumer when the exception message is different than the previous message.
+   */
+  static class ExceptionWatcher {
+    private final Consumer<Exception> consumer;
+    private String lastExceptionMessage;
+
+    ExceptionWatcher(Consumer<Exception> exceptionConsumer) {
+      this.consumer = exceptionConsumer;
+    }
+
+    void reset() {
+      lastExceptionMessage = "";
+    }
+
+    void notify(Exception ex) {
+      if (!ex.getMessage().equals(lastExceptionMessage)) {
+        lastExceptionMessage = ex.getMessage();
+        consumer.accept(ex);
+      }
+    }
   }
 
   /**

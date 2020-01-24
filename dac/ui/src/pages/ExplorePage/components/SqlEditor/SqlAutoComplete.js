@@ -128,7 +128,7 @@ export default class SqlAutoComplete extends Component { // todo: pull SQLEditor
   }
 
   resetValue() {
-    this.sqlEditor.resetValue();
+    this.sqlEditor && this.sqlEditor.resetValue();
   }
 
   handleChange = () => {

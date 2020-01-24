@@ -83,6 +83,7 @@ public class UnifiedParquetReader implements RecordReader {
   private final ParquetReaderFactory readerFactory;
   private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap;
   private final List<ParquetFilterCondition>  filterConditions;
+  private final ParquetFilterCreator filterCreator;
   private final boolean supportsColocatedReads;
 
   private List<RecordReader> delegates = new ArrayList<>();
@@ -100,6 +101,7 @@ public class UnifiedParquetReader implements RecordReader {
       List<SchemaPath> realFields,
       Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
       List<ParquetFilterCondition> filterConditions,
+      ParquetFilterCreator filterCreator,
       ParquetDatasetSplitScanXAttr readEntry,
       FileSystem fs,
       ParquetMetadata footer,
@@ -114,6 +116,7 @@ public class UnifiedParquetReader implements RecordReader {
     this.readerFactory = readerFactory;
     this.globalDictionaryFieldInfoMap = globalDictionaryFieldInfoMap;
     this.filterConditions = filterConditions;
+    this.filterCreator = filterCreator;
     this.fs = fs;
     this.footer = footer;
     this.readEntry = readEntry;
@@ -200,6 +203,11 @@ public class UnifiedParquetReader implements RecordReader {
 
   private RecordReader addFilterIfNecessary(RecordReader delegate) {
     if (filterConditions == null || filterConditions.isEmpty()) {
+      return delegate;
+    }
+
+    if (filterCreator.filterMayChange()) {
+      filterConditions.get(0).setFilterModifiedForPushdown(true);
       return delegate;
     }
 
@@ -454,6 +462,7 @@ public class UnifiedParquetReader implements RecordReader {
                   unifiedReader.readEntry.getPath(),
                   unifiedReader.codecFactory,
                   unifiedReader.filterConditions,
+                  unifiedReader.filterCreator,
                   unifiedReader.enableDetailedTracing,
                   unifiedReader.getFooter(),
                   unifiedReader.readEntry.getRowGroupIndex(),

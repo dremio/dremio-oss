@@ -30,7 +30,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 
 import io.protostuff.GraphIOUtil;
-import io.protostuff.JsonIOUtil;
+import io.protostuff.JsonIOUtils;
 import io.protostuff.Message;
 import io.protostuff.Schema;
 
@@ -96,10 +96,10 @@ public final class ProtostuffUtil {
   public static <T> void fromJSON(byte[] data, T message, Schema<T> schema, boolean numeric) throws IOException {
     // Configure a parser to intepret non-numeric numbers like NaN correctly
     // although non-standard JSON.
-    try(JsonParser parser = JsonIOUtil
+    try(JsonParser parser = JsonIOUtils
         .newJsonParser(null, data, 0, data.length)
         .enable(JsonParser.Feature.ALLOW_NON_NUMERIC_NUMBERS)) {
-      JsonIOUtil.mergeFrom(parser, message, schema, numeric);
+      JsonIOUtils.mergeFrom(parser, message, schema, numeric);
     }
   }
 
@@ -129,8 +129,8 @@ public final class ProtostuffUtil {
   public static <T> void toJSON(OutputStream out, T message, Schema<T> schema,
           boolean numeric) throws IOException {
     try (JsonGenerator jsonGenerator =
-           JsonIOUtil.DEFAULT_JSON_FACTORY.createGenerator(out, JsonEncoding.UTF8).disable(JsonGenerator.Feature.QUOTE_NON_NUMERIC_NUMBERS)) {
-      JsonIOUtil.writeTo(jsonGenerator, message, schema, numeric);
+           JsonIOUtils.DEFAULT_JSON_FACTORY.createGenerator(out, JsonEncoding.UTF8).disable(JsonGenerator.Feature.QUOTE_NON_NUMERIC_NUMBERS)) {
+      JsonIOUtils.writeTo(jsonGenerator, message, schema, numeric);
     }
   }
 

@@ -212,7 +212,9 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         logger.warn("Invalid Arrow Schema", e);
       }
 
-      verifyDecimalTypesAreSame(output);
+      if (!schemaHelper.isAllowMixedDecimals()) {
+        verifyDecimalTypesAreSame(output);
+      }
 
       MessageType projection;
 

@@ -24,4 +24,5 @@ message BackupFileInfo {
   required com.dremio.datastore.KVStoreInfo kvstoreInfo = 1;
   required int64 checksum = 2; // crc32 checksum
   required int64 records = 3;
+  optional bool binary = 4 [default = false];
 }

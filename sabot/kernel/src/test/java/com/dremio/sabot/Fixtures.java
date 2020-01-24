@@ -1010,14 +1010,28 @@ public final class Fixtures {
     }
   }
 
+  public static Decimal createDecimal(BigDecimal d, int precision, int scale) {
+    return new Decimal(d, precision, scale);
+  }
+
   private static class Decimal extends ValueCell<BigDecimal> {
+    int precision;
+    int scale;
+
     public Decimal(BigDecimal obj) {
-      super(obj);
+      this(obj, 38, obj == null ? 0 : obj.scale());
     }
+
+    public Decimal(BigDecimal obj, int precision, int scale) {
+      super(obj);
+      this.precision = precision;
+      this.scale = scale;
+    }
+
 
     @Override
     ArrowType getType() {
-      return new ArrowType.Decimal(38, obj == null ? 0 : obj.scale());
+      return new ArrowType.Decimal(precision, scale);
     }
 
     @Override

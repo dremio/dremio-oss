@@ -27,6 +27,9 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 public interface ParquetReaderFactory {
+  enum FilterCreatorType {
+    HIVE,
+  };
 
   boolean isSupported(ColumnChunkMetaData chunk);
 
@@ -35,12 +38,15 @@ public interface ParquetReaderFactory {
       String path,
       CompressionCodecFactory codecFactory,
       List<ParquetFilterCondition> conditions,
+      ParquetFilterCreator filterCreator,
       boolean enableDetailedTracing,
       ParquetMetadata footer,
       int rowGroupIndex,
       SimpleIntVector deltas,
       SchemaDerivationHelper schemaHelper,
       InputStreamProvider inputStreamProvider);
+
+  ParquetFilterCreator newFilterCreator(FilterCreatorType type, ManagedSchema schema);
 
   ParquetReaderFactory NONE = new ParquetReaderFactory(){
 
@@ -51,10 +57,15 @@ public interface ParquetReaderFactory {
 
     @Override
     public RecordReader newReader(OperatorContext context, List<SchemaPath> columns, String path,
-        CompressionCodecFactory codecFactory, List<ParquetFilterCondition> conditions, boolean enableDetailedTracing,
+        CompressionCodecFactory codecFactory, List<ParquetFilterCondition> conditions, ParquetFilterCreator filterCreator, boolean enableDetailedTracing,
         ParquetMetadata footer, int rowGroupIndex, SimpleIntVector deltas, SchemaDerivationHelper schemaHelper,
         InputStreamProvider inputStreamProvider) {
       throw new UnsupportedOperationException();
-    }};
+    }
 
+    @Override
+    public ParquetFilterCreator newFilterCreator(FilterCreatorType type, ManagedSchema managedSchema) {
+      return ParquetFilterCreator.DEFAULT;
+    }
+  };
 }

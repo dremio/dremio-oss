@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -185,6 +186,37 @@ public class ITHivePartitionPruning extends HiveTestBase {
     secondColumnIndex = resultString.indexOf(secondColumnString, secondColumnIndex + 1);
     // checks that column added to physical plan only one time
     assertEquals(-1, secondColumnIndex);
+  }
+
+  @Test
+  public void selectFromPartitionedTableWithDecimalPartitionOverflow() throws Exception {
+    final String selectStar = "SELECT * FROM hive.parquet_decimal_partition_overflow_ext";
+    testBuilder()
+        .sqlQuery(selectStar)
+        .unOrdered()
+        .baselineColumns("col1", "col2")
+        .baselineValues(2202, new BigDecimal("123456789.120"))
+        .baselineValues(234, new BigDecimal("123456789101.123"))
+        .baselineValues(154, new BigDecimal("123456789101.123"))
+        .baselineValues(202, null)
+        .baselineValues(184, new BigDecimal("123456789102.123"))
+        .baselineValues(184, new BigDecimal("123456789102.123"))
+        .baselineValues(153, new BigDecimal("15.300"))
+        .go();
+
+    final String query = "SELECT count(*) nullCount FROM hive.parquet_decimal_partition_overflow_ext " +
+        "WHERE col2 IS NULL";
+    final String plan = getPlanInString("EXPLAIN PLAN FOR " + query, OPTIQ_FORMAT);
+
+    // Check and make sure that Filter is not present in the plan
+    assertFalse("Unexpected plan\n" + plan, plan.contains("Filter"));
+
+    testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("nullCount")
+        .baselineValues(1L)
+        .go();
   }
 
   @AfterClass

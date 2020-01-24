@@ -75,7 +75,7 @@ export class AccelerationGrid extends Component {
   state = {
     tableWidth: 900,
     visibleLayoutExtraSettingsIndex: -1
-  }
+  };
 
   focusedColumn = undefined;
 
@@ -104,7 +104,7 @@ export class AccelerationGrid extends Component {
     if (this.gridWrapper) {
       this.setState({ tableWidth: this.gridWrapper.getBoundingClientRect().width - GRID_PADDING});
     }
-  }
+  };
 
   renderLeftHeaderCell = () => (
     <div style={styles.flexEnd}>
@@ -121,7 +121,7 @@ export class AccelerationGrid extends Component {
         </div>
       </div>
     </div>
-  )
+  );
 
   renderStatus(fields) {
     const id = fields.id.value;
@@ -227,7 +227,7 @@ export class AccelerationGrid extends Component {
         {this.renderExtraLayoutSettingsModal(columnIndex, name)}
       </div>
     );
-  }
+  };
 
   renderExtraLayoutSettingsModal(columnIndex, name) {
     const fields = this.props.layoutFields[columnIndex];
@@ -283,7 +283,7 @@ export class AccelerationGrid extends Component {
         <div>{columns.getIn([rowIndex, 'queries'])}</div>
       </div>
     );
-  }
+  };
 
   render() {
     const { columns, layoutFields, activeTab } = this.props;
@@ -311,7 +311,7 @@ export class AccelerationGrid extends Component {
     return (
       <div
         className='grid-acceleration'
-        style={{ width: '100%', overflow: 'hidden' }}
+        style={{width: '100%', height: '100vh', overflow: 'hidden'}}
         ref={(wrap) => this.gridWrapper = wrap}
       >
         <AutoSizer>

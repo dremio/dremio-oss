@@ -103,7 +103,7 @@ public class IncomingBuffers implements BatchStreamProvider, AutoCloseable {
 
     final Map<Integer, DataCollector> collectors = Maps.newHashMap();
     EndpointsIndex endpointsIndex = planFragmentsIndex.getEndpointsIndex();
-    try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable(allocator)) {
+    try (AutoCloseables.RollbackCloseable rollbackCloseable = new AutoCloseables.RollbackCloseable(true, allocator)) {
       for (int i = 0; i < fragment.getMinor().getCollectorCount(); i++) {
         Collector collector = fragment.getMinor().getCollector(i);
 

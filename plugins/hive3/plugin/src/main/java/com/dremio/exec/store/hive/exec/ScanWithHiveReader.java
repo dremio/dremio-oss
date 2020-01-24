@@ -160,23 +160,24 @@ class ScanWithHiveReader {
                                 ScanFilter.class, Collection.class, UserGroupInformation.class);
   }
 
-  static ProducerOperator createProducer(
+  static Iterable<RecordReader> createReaders(
       final HiveConf hiveConf,
       final FragmentExecutionContext fragmentExecContext,
       final OperatorContext context,
       final HiveProxyingSubScan config,
       final HiveTableXattr tableXattr,
       final CompositeReaderConfig compositeReader,
-      final UserGroupInformation readerUGI){
+      final UserGroupInformation readerUGI,
+      List<SplitAndPartitionInfo> splits){
 
-    if(config.getSplits().isEmpty()) {
-      return new ScanOperator(config, context, Iterators.singletonIterator(new EmptyRecordReader()));
+    if(splits.isEmpty()) {
+      return FluentIterable.of();
     }
 
     Iterable<RecordReader> readers = null;
 
     try {
-      readers = FluentIterable.from(config.getSplits()).transform(new Function<SplitAndPartitionInfo, RecordReader>(){
+      readers = FluentIterable.from(splits).transform(new Function<SplitAndPartitionInfo, RecordReader>(){
 
         @Override
         public RecordReader apply(final SplitAndPartitionInfo split) {
@@ -194,7 +195,7 @@ class ScanWithHiveReader {
             }
           });
         }});
-      return new ScanOperator(config, context, readers.iterator());
+      return readers;
     } catch (Exception e) {
       AutoCloseables.close(e, readers);
       throw Throwables.propagate(e);

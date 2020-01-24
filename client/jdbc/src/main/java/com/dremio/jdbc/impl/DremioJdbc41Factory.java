@@ -174,9 +174,8 @@ public class DremioJdbc41Factory extends DremioFactory {
                                          QueryState state,
                                          Meta.Signature signature,
                                          TimeZone timeZone,
-                                         Meta.Frame firstFrame) {
-    final ResultSetMetaData metaData =
-        newResultSetMetaData(statement, signature);
+                                         Meta.Frame firstFrame) throws SQLException {
+    final ResultSetMetaData metaData = newResultSetMetaData(statement, signature);
     return new DremioResultSetImpl(statement, state, signature, metaData, timeZone, firstFrame);
   }
 

@@ -104,6 +104,8 @@ public class TestNativeFunctions extends BaseTestFunction {
       {"replace(c0, 'world', 'wo')", "hello world", "hello wo"},
       {"locate('world', c0)", "hello world", 7},
       {"locate('world', c0, 3)", "hello world", 7},
+      {"castVARCHAR(c0, 5)", "helloworld", "hello"},
+      {"castVARCHAR(c0, 3)", "çåå†", "çåå"},
     });
   }
 

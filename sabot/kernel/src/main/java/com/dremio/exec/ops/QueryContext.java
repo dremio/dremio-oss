@@ -20,6 +20,7 @@ import static java.util.Arrays.asList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import javax.inject.Provider;
@@ -37,6 +38,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.ImmutableMetadataRequestOptions;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionErrorContextBuilder;
@@ -124,8 +126,19 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   public QueryContext(
       final UserSession session,
       final SabotContext sabotContext,
-      QueryId queryId) {
-    this(session, sabotContext, queryId, null, Long.MAX_VALUE, Predicates.<DatasetConfig>alwaysTrue());
+      QueryId queryId
+  ) {
+    this(session, sabotContext, queryId, Optional.empty());
+  }
+
+  public QueryContext(
+      final UserSession session,
+      final SabotContext sabotContext,
+      QueryId queryId,
+      Optional<Boolean> checkMetadataValidity
+  ) {
+    this(session, sabotContext, queryId, null, Long.MAX_VALUE, Predicates.alwaysTrue(),
+        checkMetadataValidity);
   }
 
   public QueryContext(
@@ -134,7 +147,20 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
       QueryId queryId,
       QueryPriority priority,
       long maxAllocation,
-      Predicate<DatasetConfig> datasetValidityChecker) {
+      Predicate<DatasetConfig> datasetValidityChecker
+  ) {
+    this(session, sabotContext, queryId, priority, maxAllocation, datasetValidityChecker, Optional.empty());
+  }
+
+  private QueryContext(
+      final UserSession session,
+      final SabotContext sabotContext,
+      QueryId queryId,
+      QueryPriority priority,
+      long maxAllocation,
+      Predicate<DatasetConfig> datasetValidityChecker,
+      Optional<Boolean> checkMetadataValidity
+  ) {
     this.sabotContext = sabotContext;
     this.session = session;
     this.queryId = queryId;
@@ -171,8 +197,10 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
         .setDatasetValidityChecker(datasetValidityChecker)
         .build();
 
+    final ImmutableMetadataRequestOptions.Builder requestOptions = MetadataRequestOptions.newBuilder(schemaConfig);
+    checkMetadataValidity.ifPresent(requestOptions::setCheckValidity);
     this.catalog = sabotContext.getCatalogService()
-        .getCatalog(MetadataRequestOptions.of(schemaConfig));
+        .getCatalog(requestOptions.build());
     this.namespaceService = sabotContext.getNamespaceService(queryUserName);
     this.substitutionProviderFactory = sabotContext.getConfig()
         .getInstance("dremio.exec.substitution.factory",

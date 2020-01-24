@@ -705,4 +705,8 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
   public static BatchSchema of(Field...fields) {
     return new BatchSchema(SelectionVectorMode.NONE, ImmutableList.copyOf(fields));
   }
+
+  public java.util.Optional<Field> findFieldIgnoreCase(String fieldName) {
+    return this.getFields().stream().filter(field -> field.getName().toUpperCase().equals(fieldName.toUpperCase())).findFirst();
+  }
 }

@@ -18,7 +18,9 @@ package com.dremio.exec.store.hive.exec;
 import java.io.IOException;
 import java.security.PrivilegedAction;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.FileSplit;
@@ -27,13 +29,18 @@ import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.store.CoercionReader;
 import com.dremio.exec.store.EmptyRecordReader;
+import com.dremio.exec.store.HiveParquetCoercionReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.TypeCoercion;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
 import com.dremio.exec.store.hive.HiveUtilities;
+import com.dremio.exec.store.hive.metadata.ManagedHiveSchema;
+import com.dremio.exec.store.parquet.ManagedSchema;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetScanFilter;
@@ -59,14 +66,15 @@ import com.google.common.collect.Lists;
 class ScanWithDremioReader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScanWithDremioReader.class);
 
-  static ProducerOperator createProducer(
+  static Iterable<RecordReader> createReaders(
       final HiveConf hiveConf,
       final FragmentExecutionContext fragmentExecContext,
       final OperatorContext context,
       final HiveProxyingSubScan config,
       final HiveTableXattr tableXattr,
       final CompositeReaderConfig compositeReader,
-      final UserGroupInformation readerUGI) {
+      final UserGroupInformation readerUGI,
+      List<SplitAndPartitionInfo> splits) {
 
     Iterable<RecordReader> readers = null;
 
@@ -78,14 +86,14 @@ class ScanWithDremioReader {
       final boolean enableDetailedTracing = options.getOption(ExecConstants.ENABLED_PARQUET_TRACING);
       final ParquetReaderFactory readerFactory = UnifiedParquetReader.getReaderFactory(context.getConfig());
 
-      if(config.getSplits().isEmpty()) {
-        return new ScanOperator(config, context, Iterators.singletonIterator(new EmptyRecordReader()));
+      if(splits.isEmpty()) {
+        return FluentIterable.of();
       }
 
       final UserGroupInformation currentUGI = UserGroupInformation.getCurrentUser();
       final List<HiveParquetSplit> sortedSplits = Lists.newArrayList();
 
-      for (SplitAndPartitionInfo split : config.getSplits()) {
+      for (SplitAndPartitionInfo split : splits) {
         sortedSplits.add(new HiveParquetSplit(split));
       }
       Collections.sort(sortedSplits);
@@ -97,6 +105,7 @@ class ScanWithDremioReader {
       } else {
         conditions = ((ParquetScanFilter) scanFilter).getConditions();
       }
+      final ManagedSchema managedHiveSchema = new ManagedHiveSchema(jobConf, tableXattr);
 
       readers = FluentIterable.from(sortedSplits).transform(new Function<HiveParquetSplit, RecordReader>(){
 
@@ -121,27 +130,38 @@ class ScanWithDremioReader {
                 jobConf.set(prop.getKey(), prop.getValue());
               }
 
+              final List<ParquetFilterCondition> filterConditions =
+                conditions == null ? null :
+                  conditions.stream().map(c ->
+                    new ParquetFilterCondition(c.getPath(), c.getFilter(), c.getExpr(), c.getSort()))
+                    .collect(Collectors.toList());
+
               final RecordReader innerReader = new FileSplitParquetRecordReader(
                   context,
                   readerFactory,
                   config.getFullSchema(),
                   compositeReader.getInnerColumns(),
-                  conditions,
+                  filterConditions,
                   hiveParquetSplit.getFileSplit(),
                   jobConf,
                   config.getReferencedTables(),
                   vectorize,
                   config.getFullSchema(),
                   enableDetailedTracing,
-                  readerUGI
+                  readerUGI,
+                  managedHiveSchema
               );
-              return compositeReader.wrapIfNecessary(context.getAllocator(), innerReader, hiveParquetSplit.getDatasetSplit());
+              final TypeCoercion hiveTypeCoercion = new HiveTypeCoercion(jobConf, tableXattr);
+              RecordReader wrappedRecordReader = compositeReader.wrapIfNecessary(context.getAllocator(), innerReader, hiveParquetSplit.getDatasetSplit());
+              return new HiveParquetCoercionReader(context, compositeReader.getInnerColumns(),
+                wrappedRecordReader, config.getFullSchema(), EnumSet.of(CoercionReader
+                .Options.NULL_DECIMAL_OVERFLOW, CoercionReader.Options.SET_VARCHAR_WIDTH), hiveTypeCoercion, filterConditions);
             }
           });
 
         }});
 
-      return new ScanOperator(config, context, readers.iterator());
+      return readers;
     } catch (final Exception e) {
       if(readers != null) {
         AutoCloseables.close(e, readers);

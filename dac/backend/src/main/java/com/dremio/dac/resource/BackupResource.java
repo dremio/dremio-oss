@@ -30,6 +30,7 @@ import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.homefiles.HomeFileTool;
 import com.dremio.dac.util.BackupRestoreUtil;
+import com.dremio.dac.util.BackupRestoreUtil.BackupOptions;
 import com.dremio.dac.util.BackupRestoreUtil.BackupStats;
 import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
@@ -59,18 +60,19 @@ public class BackupResource {
     this.fileStore = fileStore;
   }
 
+
   @POST
-  public BackupStats createBackup(String backupDir) throws IOException, NamespaceException {
+  public BackupStats createBackup(BackupOptions options) throws IOException, NamespaceException {
     final KVStoreProvider kvStoreProvider = kvStoreProviderProvider.get();
     if (!(kvStoreProvider instanceof LocalKVStoreProvider)) {
       throw new IllegalArgumentException("backups are created only on master node.");
     }
 
-    final com.dremio.io.file.Path backupDirPath = com.dremio.io.file.Path.of(backupDir);
+    final com.dremio.io.file.Path backupDirPath = options.getBackupDirAsPath();
     final FileSystem fs = HadoopFileSystem.get(backupDirPath, new Configuration());
     // Checking if directory already exists and that the daemon can access it
     BackupRestoreUtil.checkOrCreateDirectory(fs, backupDirPath);
-    return BackupRestoreUtil.createBackup(fs, backupDirPath, (LocalKVStoreProvider) kvStoreProvider, fileStore.get().getConf());
+    return BackupRestoreUtil.createBackup(fs, options, (LocalKVStoreProvider) kvStoreProvider, fileStore.get().getConf());
 
   }
 }

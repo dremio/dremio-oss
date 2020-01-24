@@ -15,21 +15,27 @@
  */
 package com.dremio.exec.store.hive.exec;
 
-import static com.dremio.exec.store.hive.HiveUtilities.addProperties;
-import static com.dremio.exec.store.hive.HiveUtilities.createSerDe;
-import static com.dremio.exec.store.hive.HiveUtilities.getInputFormatClass;
-import static com.dremio.exec.store.hive.HiveUtilities.getStructOI;
-
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-import java.security.PrivilegedAction;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-
+import com.dremio.common.AutoCloseables;
+import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.ScanFilter;
+import com.dremio.exec.store.SplitAndPartitionInfo;
+import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
+import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
+import com.dremio.exec.store.hive.HivePluginOptions;
+import com.dremio.exec.store.hive.HiveUtilities;
+import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
+import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
+import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
+import com.dremio.hive.proto.HiveReaderProto.Prop;
+import com.dremio.options.OptionManager;
+import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.op.spi.ProducerOperator;
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
+import com.google.common.base.Throwables;
+import com.google.common.collect.FluentIterable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -48,38 +54,30 @@ import org.apache.hadoop.mapred.TextInputFormat;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.util.NativeCodeLoader;
 import org.apache.orc.OrcConf;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.dremio.common.AutoCloseables;
-import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.store.EmptyRecordReader;
-import com.dremio.exec.store.RecordReader;
-import com.dremio.exec.store.ScanFilter;
-import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
-import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
-import com.dremio.exec.store.hive.HivePluginOptions;
-import com.dremio.exec.store.hive.HiveUtilities;
-import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
-import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
-import com.dremio.hive.proto.HiveReaderProto.PartitionXattr;
-import com.dremio.hive.proto.HiveReaderProto.Prop;
-import com.dremio.options.OptionManager;
-import com.dremio.sabot.exec.context.OperatorContext;
-import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
-import com.dremio.sabot.op.scan.ScanOperator;
-import com.dremio.sabot.op.spi.ProducerOperator;
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.base.Throwables;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterators;
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
+import java.security.PrivilegedAction;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+
+import static com.dremio.exec.store.hive.HiveUtilities.addProperties;
+import static com.dremio.exec.store.hive.HiveUtilities.createSerDe;
+import static com.dremio.exec.store.hive.HiveUtilities.getInputFormatClass;
+import static com.dremio.exec.store.hive.HiveUtilities.getStructOI;
 
 /**
  * Helper class for {@link HiveScanBatchCreator} to create a {@link ProducerOperator} that uses readers provided by
  * Hive.
  */
 class ScanWithHiveReader {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ScanWithHiveReader.class);
+  private static final Logger logger = LoggerFactory.getLogger(ScanWithHiveReader.class);
 
   /**
    * Use different classes for different Hive native formats:
@@ -111,7 +109,7 @@ class ScanWithHiveReader {
   }
 
   private static Class<? extends HiveAbstractReader> getNativeReaderClass(Optional<String> formatName,
-      OptionManager options, Configuration configuration, boolean mixedSchema, boolean isTransactional) {
+                                                                          OptionManager options, Configuration configuration, boolean mixedSchema, boolean isTransactional) {
     if (!formatName.isPresent()) {
       return HiveDefaultReader.class;
     }
@@ -159,23 +157,24 @@ class ScanWithHiveReader {
                                 ScanFilter.class, Collection.class, UserGroupInformation.class);
   }
 
-  static ProducerOperator createProducer(
+  static Iterable<RecordReader> createReaders(
       final HiveConf hiveConf,
       final FragmentExecutionContext fragmentExecContext,
       final OperatorContext context,
       final HiveProxyingSubScan config,
       final HiveTableXattr tableXattr,
       final CompositeReaderConfig compositeReader,
-      final UserGroupInformation readerUGI){
+      final UserGroupInformation readerUGI,
+      List<SplitAndPartitionInfo> splits){
 
-    if(config.getSplits().isEmpty()) {
-      return new ScanOperator(config, context, Iterators.singletonIterator(new EmptyRecordReader()));
+    if(splits.isEmpty()) {
+      return FluentIterable.of();
     }
 
     Iterable<RecordReader> readers = null;
 
     try {
-      readers = FluentIterable.from(config.getSplits()).transform(new Function<SplitAndPartitionInfo, RecordReader>(){
+      readers = FluentIterable.from(splits).transform(new Function<SplitAndPartitionInfo, RecordReader>(){
 
         @Override
         public RecordReader apply(final SplitAndPartitionInfo split) {
@@ -193,7 +192,7 @@ class ScanWithHiveReader {
             }
           });
         }});
-      return new ScanOperator(config, context, readers.iterator());
+      return readers;
     } catch (Exception e) {
       AutoCloseables.close(e, readers);
       throw Throwables.propagate(e);

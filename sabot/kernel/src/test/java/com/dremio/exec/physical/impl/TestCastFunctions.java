@@ -15,10 +15,16 @@
  */
 package com.dremio.exec.physical.impl;
 
+
+import java.math.BigDecimal;
+
 import org.joda.time.Period;
+import org.junit.Assert;
 import org.junit.Test;
 
+import com.dremio.exec.util.DecimalUtils;
 import com.dremio.sabot.BaseTestFunction;
+import com.dremio.sabot.Fixtures;
 
 public class TestCastFunctions extends BaseTestFunction {
 
@@ -87,5 +93,37 @@ public class TestCastFunctions extends BaseTestFunction {
       {"cast(c0 as INTERVALDAY)", Integer.valueOf(14), Period.millis(14)},
       {"cast(c0 as INTERVALYEAR)", Integer.valueOf(7), Period.months(7)},
     });
+  }
+
+  @Test
+  public void stringDecimalOverflow(){
+    testFunctionsCompiledOnly(new Object[][]{
+            {"castDECIMALNullOnOverflow(c0, 2l, 0l)", "99.99", Fixtures.createDecimal(null , 2,0)},
+            {"castDECIMALNullOnOverflow(c0, 2l, 0l)", "9.99", Fixtures.createDecimal(new
+                            BigDecimal("10") , 2, 0)},
+    });
+  }
+
+  @Test
+  public void decimalDecimalOverflow(){
+    testFunctionsCompiledOnly(new Object[][]{
+            {"castDECIMALNullOnOverflow(c0, 38l, 1l)", DecimalUtils.MAX_DECIMAL, Fixtures
+                    .createDecimal(null , 38,1)}
+    });
+  }
+
+  @Test
+  public void stringDecimalOverflowException(){
+    Class exceptionClass = null;
+    try {
+      testFunctionsCompiledOnly(new Object[][]{
+              {"castDECIMALNullOnOverflow(c0, 2l, 0l)", "s3AWS", Fixtures.createDecimal(null, 2, 0)},
+      });
+    } catch (Exception e) {
+      Throwable rootCause = e.getCause().getCause();
+      exceptionClass = rootCause.getClass();
+    }
+    Assert.assertEquals("Expected a number format exception", NumberFormatException.class,
+            exceptionClass);
   }
 }
