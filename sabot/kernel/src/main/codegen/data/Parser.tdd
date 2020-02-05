@@ -73,7 +73,8 @@
     "FORCE",
     "LAZY",
     "MAINTAIN",
-    "MISSING"
+    "MISSING",
+    "FOLDER"
   ]
 
   nonReservedKeywords: [
@@ -111,7 +112,8 @@
     "FORCE",
     "LAZY",
     "MAINTAIN",
-    "MISSING"
+    "MISSING",
+    "FOLDER"
   ]
 
   # List of methods for parsing custom SQL statements.
@@ -128,7 +130,8 @@
     "SqlAccel()",
     "SqlRefreshReflection()",
     "SqlLoadMaterialization()",
-    "SqlCompactMaterialization()"
+    "SqlCompactMaterialization()",
+    "SqlCreateFolderRecursive()"
   ]
 
   # List of methods for parsing custom literals.

@@ -21,6 +21,8 @@ import static com.dremio.exec.planner.physical.PlannerSettings.STORE_QUERY_RESUL
 import java.util.Locale;
 import java.util.Optional;
 
+import com.dremio.exec.planner.sql.handlers.direct.CreateFolderRecursiveHandler;
+import com.dremio.exec.planner.sql.parser.SqlCreateFolderRecursive;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
@@ -313,6 +315,8 @@ public class CommandCreator {
           return direct.create(new RefreshSourceStatusHandler(catalog));
         } else if (sqlNode instanceof SqlSetApprox) {
           return direct.create(new SetApproxHandler(catalog, context.getNamespaceService()));
+        } else if (sqlNode instanceof SqlCreateFolderRecursive) {
+          return direct.create(new CreateFolderRecursiveHandler(catalog, context.getNamespaceService()));
         }
 
         // fallthrough
