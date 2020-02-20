@@ -194,7 +194,7 @@ class SourceMetadataManager implements AutoCloseable {
     }
 
     try {
-      bridge.refreshState().get(30, TimeUnit.SECONDS);
+      bridge.refreshState();
     } catch (TimeoutException ex) {
       logger.debug("Source '{}' timed out while refreshing state, skipping refresh.", sourceKey, ex);
       return;
@@ -239,8 +239,17 @@ class SourceMetadataManager implements AutoCloseable {
   private void initializeRefresh() {
     SourceInternalData srcData = sourceDataStore.get(sourceKey);
     if (srcData == null) {
-      sourceDataStore.put(sourceKey, new SourceInternalData());
-      return;
+      try {
+        sourceDataStore.put(sourceKey, new SourceInternalData());
+        return;
+      } catch (ConcurrentModificationException e) {
+        // Refresh data might already be saved in saveRefreshData
+        logger.warn("Failed to save refresh data for {}.", sourceKey, e);
+        srcData = sourceDataStore.get(sourceKey);
+        if (srcData == null) {
+          return;
+        }
+      }
     }
 
     if (srcData.getLastNameRefreshDateMs() != null) {
@@ -389,7 +398,19 @@ class SourceMetadataManager implements AutoCloseable {
 
       srcData.setLastFullRefreshDateMs(fullRefresh.getLastStart())
         .setLastNameRefreshDateMs(namesRefresh.getLastStart());
-      sourceDataStore.put(sourceKey, srcData);
+      try {
+        sourceDataStore.put(sourceKey, srcData);
+      } catch (ConcurrentModificationException e) {
+        // Refresh data might already be saved in initializeRefresh
+        logger.warn("Failed to save refresh data for {}.", sourceKey, e);
+        srcData = sourceDataStore.get(sourceKey);
+        if (srcData == null) {
+          throw e;
+        }
+        srcData.setLastFullRefreshDateMs(fullRefresh.getLastStart())
+          .setLastNameRefreshDateMs(namesRefresh.getLastStart());
+        sourceDataStore.put(sourceKey, srcData);
+      }
     }
 
   }

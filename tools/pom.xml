@@ -24,7 +24,7 @@
   <parent>
     <artifactId>dremio-parent</artifactId>
     <groupId>com.dremio</groupId>
-    <version>4.1.4-202001240912140359-a90eb503</version>
+    <version>4.1.6-202002192122160072-67719f13</version>
   </parent>
 
   <groupId>com.dremio.tools</groupId>

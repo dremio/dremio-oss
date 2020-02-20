@@ -35,12 +35,15 @@ import org.junit.Test;
 
 import com.dremio.BaseTestQuery;
 import com.dremio.common.arrow.DremioArrowSchema;
+import com.dremio.common.util.TestTools;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.parquet.SingletonParquetFooterCache;
 import com.dremio.io.file.Path;
 
 public class TestParquetReader extends BaseTestQuery {
+  final static String WORKING_PATH = TestTools.getWorkingPath();
+
   // enable decimal data type
   @BeforeClass
   public static void enableDecimalDataType() throws Exception {
@@ -156,5 +159,49 @@ public class TestParquetReader extends BaseTestQuery {
     } catch (Exception e) {
       // ok
     }
+  }
+
+  @Test
+  public void testFilterOnNonExistentColumn() throws Exception {
+    final String parquetFiles = WORKING_PATH + "/src/test/resources/parquet/nonexistingcols";
+    testBuilder()
+      .sqlQuery("SELECT * FROM dfs.\"" + parquetFiles + "\" where col1='bothvalscol1'")
+      .ordered()
+      .baselineColumns("col1", "col2")
+      .baselineValues("bothvalscol1", "bothvalscol2")
+      .go();
+
+    testBuilder()
+      .sqlQuery("SELECT col2 FROM dfs.\"" + parquetFiles + "\" where col1 is null")
+      .ordered()
+      .baselineColumns("col2")
+      .baselineValues("singlevalcol2")
+      .go();
+  }
+
+  @Test
+  public void testAggregationFilterOnNonExistentColumn() throws Exception {
+    final String parquetFiles = WORKING_PATH + "/src/test/resources/parquet/nonexistingcols";
+
+    testBuilder()
+      .sqlQuery("SELECT count(*) as cnt FROM dfs.\"" + parquetFiles + "\" where col1 = 'doesnotexist'")
+      .ordered()
+      .baselineColumns("cnt")
+      .baselineValues(0L)
+      .go();
+
+    testBuilder()
+      .sqlQuery("SELECT count(*) as cnt FROM dfs.\"" + parquetFiles + "\"")
+      .ordered()
+      .baselineColumns("cnt")
+      .baselineValues(2L)
+      .go();
+
+    testBuilder()
+      .sqlQuery("SELECT count(*) cnt FROM dfs.\"" + parquetFiles + "\" where col1='bothvalscol1'")
+      .ordered()
+      .baselineColumns("cnt")
+      .baselineValues(1L)
+      .go();
   }
 }

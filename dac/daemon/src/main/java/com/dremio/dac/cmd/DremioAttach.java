@@ -16,6 +16,7 @@
 package com.dremio.dac.cmd;
 
 import com.dremio.attach.DremioAgent;
+import com.google.common.annotations.VisibleForTesting;
 import com.sun.tools.attach.VirtualMachine;
 import com.sun.tools.attach.VirtualMachineDescriptor;
 
@@ -23,6 +24,8 @@ import com.sun.tools.attach.VirtualMachineDescriptor;
  * Attach Tool
  */
 public class DremioAttach {
+  private static String DREMIO_PROCESS_NAME = "DremioDaemon";
+
 
   public static void main(String[] args) throws Exception {
     // find DremioDaemon Process
@@ -61,6 +64,11 @@ public class DremioAttach {
   }
 
   private static boolean isDremioDescriptor(VirtualMachineDescriptor descriptor) {
-    return descriptor.toString().contains("DremioDaemon");
+    return descriptor.toString().contains(DREMIO_PROCESS_NAME);
+  }
+
+  @VisibleForTesting
+  static void setDremioProcessName(String processName) {
+    DREMIO_PROCESS_NAME = processName;
   }
 }

@@ -25,6 +25,7 @@ import org.apache.calcite.sql.SqlIntervalQualifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlOperatorBinding;
+import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.sql.type.SqlReturnTypeInference;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -132,6 +133,7 @@ public class TypeInferenceUtils {
       .put("CONVERT_FROM", ConvertFromReturnTypeInference.INSTANCE)
       .put("IS DISTINCT FROM", IsDistinctFromSqlReturnTypeInference.INSTANCE)
       .put("IS NOT DISTINCT FROM", IsDistinctFromSqlReturnTypeInference.INSTANCE)
+      .put("TRUNC", SqlStdOperatorTable.TRUNCATE.getReturnTypeInference())
       .build();
 
   /**

@@ -15,35 +15,33 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Map;
-import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.store.CoercionReader;
 import com.dremio.exec.store.TypeCoercion;
 import com.dremio.exec.store.parquet.ManagedSchema;
 import com.dremio.exec.store.parquet.ManagedSchemaField;
-import com.google.common.collect.Sets;
 
 /**
  * Implements the TypeCoercion interface for Hive Parquet reader
  */
 public class HiveTypeCoercion implements TypeCoercion {
-  private static final Predicate<ManagedSchemaField> isTextField =
-    field -> field.getType().startsWith("varchar") || field.getType().startsWith("char");
-
-  private final Map<String, Integer> varcharWidthMap;
+  private Map<String, Integer> varcharWidthMap = CaseInsensitiveMap.newHashMap();
 
   HiveTypeCoercion(final ManagedSchema schema) {
-    varcharWidthMap = schema.getAllFields().entrySet().stream()
-      .map(Map.Entry::getValue).filter(isTextField).collect(Collectors.toMap(e -> e.getName(), e -> e.getLength()));
+    schema.getAllFields().entrySet().stream()
+      .map(Map.Entry::getValue)
+      .filter(ManagedSchemaField::isTextField)
+      .forEach(e -> varcharWidthMap.put(e.getName(), e.getLength()));
+    varcharWidthMap = Collections.unmodifiableMap(varcharWidthMap);
   }
 
   @Override

@@ -1553,7 +1553,6 @@ public class LocalJobsService implements JobsService, JobResultSchemaProvider {
   private void addAttemptToJob(Job job, QueryState state, QueryProfile profile) throws IOException {
 
       final JobAttempt jobAttempt = job.getJobAttempt();
-      jobAttempt.setState(JobsServiceUtil.queryStatusToJobStatus(state));
       final JobInfo jobInfo = jobAttempt.getInfo();
       final QueryProfileParser profileParser = new QueryProfileParser(job.getJobId(), profile);
       jobInfo.setStartTime(profile.getStart());
@@ -1584,6 +1583,7 @@ public class LocalJobsService implements JobsService, JobResultSchemaProvider {
       default:
         // nothing
       }
+      jobAttempt.setState(JobsServiceUtil.queryStatusToJobStatus(state));
 
       jobInfo.setSpillJobDetails(profileParser.getSpillDetails());
       jobInfo.setOutputTableList(Arrays.asList(storageName, jobAttempt.getAttemptId()));

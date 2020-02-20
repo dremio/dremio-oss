@@ -27,6 +27,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.mapred.JobConf;
 
+import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.exec.store.hive.exec.HiveReaderProtoUtil;
 import com.dremio.exec.store.parquet.ManagedSchema;
@@ -46,6 +47,7 @@ public class ManagedHiveSchema implements ManagedSchema {
     HiveUtilities.addProperties(jobConf, tableProperties, HiveReaderProtoUtil.getTableProperties(tableXattr));
     final String fieldNameProp = Optional.ofNullable(tableProperties.getProperty("columns")).orElse("");
     final String fieldTypeProp = Optional.ofNullable(tableProperties.getProperty("columns.types")).orElse("");
+    final boolean enforceVarcharWidth = tableXattr.getEnforceVarcharWidth();
 
     final Iterator<String> fieldNames = Splitter.on(",").trimResults().split(fieldNameProp).iterator();
     final Iterator<TypeInfo> fieldTypes = TypeInfoUtils.getTypeInfosFromTypeString(fieldTypeProp).iterator();
@@ -56,15 +58,19 @@ public class ManagedHiveSchema implements ManagedSchema {
 
       ManagedSchemaField field;
       if (fieldType instanceof DecimalTypeInfo) {
-        field = new ManagedSchemaField(fieldName, fieldType.getTypeName(),
+        field = ManagedSchemaField.newFixedLenField(fieldName, fieldType.getTypeName(),
           ((DecimalTypeInfo) fieldType).getPrecision(), ((DecimalTypeInfo) fieldType).getScale());
       } else if (fieldType instanceof BaseCharTypeInfo) {
-        field = new ManagedSchemaField(fieldName, fieldType.getTypeName(),
-          ((BaseCharTypeInfo) fieldType).getLength(), 0);
+        if (enforceVarcharWidth) {
+          field = ManagedSchemaField.newFixedLenField(fieldName, fieldType.getTypeName(),
+            ((BaseCharTypeInfo) fieldType).getLength(), 0);
+        } else {
+          field = ManagedSchemaField.newUnboundedLenField(fieldName, fieldType.getTypeName());
+        }
       } else {
         // Extend ManagedSchemaField.java in case granular information has to be stored.
         // No mention of len and scale means it is unbounded. So, we store max values.
-        field = new ManagedSchemaField(fieldName, fieldType.getTypeName(), Integer.MAX_VALUE, Integer.MAX_VALUE);
+        field = ManagedSchemaField.newUnboundedLenField(fieldName, fieldType.getTypeName());
       }
       fieldInfo.put(fieldName, field);
     }
@@ -72,8 +78,8 @@ public class ManagedHiveSchema implements ManagedSchema {
 
 
   @Override
-  public ManagedSchemaField getField(final String fieldName) {
-    return fieldInfo.get(fieldName);
+  public Optional<ManagedSchemaField> getField(final String fieldName) {
+    return Optional.ofNullable(fieldInfo.get(fieldName));
   }
 
   public Map<String, ManagedSchemaField> getAllFields() {

@@ -16,6 +16,8 @@
 package com.dremio.dac.server;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -28,9 +30,10 @@ import org.eclipse.jetty.servlet.ServletHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.thread.QueuedThreadPool;
 
+import com.dremio.common.liveness.LiveHealthMonitor;
 import com.dremio.config.DremioConfig;
-import com.dremio.sabot.exec.TaskPoolInitializer;
 import com.dremio.service.Service;
+import com.google.common.base.Preconditions;
 
 /**
  * Responds to HTTP requests on a special 'liveness' port bound to the loopback interface
@@ -53,13 +56,21 @@ public class LivenessService implements Service {
   private final Server embeddedLivenessJetty = new Server(new QueuedThreadPool(MAX_THREADS));
   private int livenessPort;
   private long pollCount;
-  private final TaskPoolInitializer taskPoolInitializer;
+  private final List<LiveHealthMonitor> healthMonitors = new ArrayList<>();
 
-  public LivenessService(DremioConfig config, TaskPoolInitializer taskPoolInitializer) {
+  public LivenessService(DremioConfig config) {
     this.config = config;
     this.livenessEnabled = config.getBoolean(DremioConfig.LIVENESS_ENABLED);
-    this.taskPoolInitializer = taskPoolInitializer;
     pollCount = 0;
+  }
+
+  /**
+   * adds a health monitor check to the list of checks
+   * @param healthMonitor
+   */
+  public void addHealthMonitor(LiveHealthMonitor healthMonitor) {
+    Preconditions.checkArgument(healthMonitor != null, "Health monitor cannot be null");
+    this.healthMonitors.add(healthMonitor);
   }
 
   @Override
@@ -113,13 +124,13 @@ public class LivenessService implements Service {
                          HttpServletResponse response ) throws ServletException, IOException
     {
       pollCount++;
-      if ((taskPoolInitializer != null) && !taskPoolInitializer.isTaskPoolHealthy()) {
-        // return error code 500
-        logger.error("One of the slicing threads is dead, returning an error");
-        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        return;
+      for(LiveHealthMonitor hm: healthMonitors) {
+        if (!hm.isHealthy()) {
+          // return error code 500
+          response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+          return;
+        }
       }
-
       response.setStatus(HttpServletResponse.SC_OK);
     }
   }

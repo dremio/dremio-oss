@@ -18,6 +18,7 @@ package com.dremio.sabot.exec;
 import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.liveness.LiveHealthMonitor;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.sabot.task.TaskPool;
 import com.dremio.sabot.task.TaskPoolFactory;
@@ -29,8 +30,8 @@ import com.google.common.base.Preconditions;
 /**
  * Instantiates {@link TaskPool} and adds to the providers' registry
  */
-public class TaskPoolInitializer implements Service {
-
+public class TaskPoolInitializer implements Service, LiveHealthMonitor {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TaskPoolInitializer.class);
   private final Provider<SabotContext> sContext;
   private final BindingCreator bindingCreator;
 
@@ -61,5 +62,14 @@ public class TaskPoolInitializer implements Service {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(pool);
+  }
+
+  @Override
+  public boolean isHealthy() {
+    boolean healthy = isTaskPoolHealthy();
+    if (!healthy) {
+      logger.error("One of the slicing threads is dead, returning an error");
+    }
+    return healthy;
   }
 }

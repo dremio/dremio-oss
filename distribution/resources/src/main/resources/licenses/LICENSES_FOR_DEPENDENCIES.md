@@ -88,8 +88,8 @@
 |Apache POI                                                  |3.17                |Apache 2.0          |
 |Apache POI                                                  |3.17                |Apache 2.0          |
 |Apache Solr Solrj                                           |5.5.4               |Apache 2.0          |
+|Apache Thrift                                               |0.13.0              |Apache 2.0          |
 |Apache Thrift                                               |0.9.3               |Apache 2.0          |
-|Apache Thrift                                               |0.9.3-1             |Apache 2.0          |
 |Apache Twill Apache Hadoop YARN library                     |0.11.0-201706241649560687-1b32fe4e|Apache 2.0          |
 |Apache Twill API                                            |0.11.0-201706241649560687-1b32fe4e|Apache 2.0          |
 |Apache Twill common library                                 |0.11.0-201706241649560687-1b32fe4e|Apache 2.0          |
@@ -106,10 +106,10 @@
 |API Common                                                  |1.1.0               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |array.prototype.flat                                        |1.2.1               |MIT                 |
-|Arrow Format                                                |0.15.0-20200119111124-92f2900e45-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |0.15.0-20200119111124-92f2900e45-dremio|Apache 2.0          |
-|Arrow Memory                                                |0.15.0-20200119111124-92f2900e45-dremio|Apache 2.0          |
-|Arrow Vectors                                               |0.15.0-20200119111124-92f2900e45-dremio|Apache 2.0          |
+|Arrow Format                                                |0.15.0-20200128044954-bfccdc5667-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |0.15.0-20200128044954-bfccdc5667-dremio|Apache 2.0          |
+|Arrow Memory                                                |0.15.0-20200128044954-bfccdc5667-dremio|Apache 2.0          |
+|Arrow Vectors                                               |0.15.0-20200128044954-bfccdc5667-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -158,8 +158,8 @@
 |c3                                                          |0.4.18              |MIT                 |
 |Caffeine cache                                              |2.6.2               |Apache 2.0          |
 |Calcite Avatica                                             |1.6.0               |Apache 2.0          |
-|Calcite Core                                                |1.16.0-201909031936280585-3f76472|Apache 2.0          |
-|Calcite Linq4j                                              |1.16.0-201909031936280585-3f76472|Apache 2.0          |
+|Calcite Core                                                |1.16.0-202002101928160934-01099e5|Apache 2.0          |
+|Calcite Linq4j                                              |1.16.0-202002101928160934-01099e5|Apache 2.0          |
 |change-emitter                                              |0.1.6               |MIT                 |
 |cheerio                                                     |1.0.0-rc.2          |MIT                 |
 |ClassMate                                                   |1.3.4               |Apache 2.0          |
@@ -194,7 +194,7 @@
 |Commons DBCP                                                |1.4                 |Apache 2.0          |
 |Commons IO                                                  |2.4                 |Apache 2.0          |
 |Commons IO                                                  |2.5                 |Apache 2.0          |
-|Commons Lang                                                |2.6                 |Apache 2.0          |
+|Commons Lang                                                |2.4                 |Apache 2.0          |
 |Commons Math                                                |2.2                 |Apache 2.0          |
 |Commons Math                                                |3.1.1               |Apache 2.0          |
 |Commons Net                                                 |3.1                 |Apache 2.0          |
@@ -245,12 +245,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |4.1.4               |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |4.1.4               |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |4.1.4               |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |4.1.4               |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |4.1.4               |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |4.1.4               |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |4.1.6               |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |4.1.6               |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |4.1.6               |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |4.1.6               |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |4.1.6               |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |4.1.6               |Dremio Free Software License 1.0|
 |EclipseLink (non OSGi)                                      |2.5.2               |EPL 1.0, EPL 2.0    |
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
@@ -406,10 +406,10 @@
 |Jackson-JAXRS-JSON                                          |2.10.2              |Apache 2.0          |
 |Jackson-module-JAXB-annotations                             |2.10.2              |Apache 2.0          |
 |jackson-module-jsonSchema                                   |2.10.2              |Apache 2.0          |
-|Jaeger Client                                               |1.0.0               |Apache 2.0          |
-|Jaeger Core                                                 |1.0.0               |Apache 2.0          |
-|Jaeger Thrift                                               |1.0.0               |Apache 2.0          |
-|Jaeger TracerResolver                                       |1.0.0               |Apache 2.0          |
+|Jaeger Client                                               |1.1.0               |Apache 2.0          |
+|Jaeger Core                                                 |1.1.0               |Apache 2.0          |
+|Jaeger Thrift                                               |1.1.0               |Apache 2.0          |
+|Jaeger TracerResolver                                       |1.1.0               |Apache 2.0          |
 |Jakarta Activation API JAR                                  |1.2.1               |EDL 1.0             |
 |Jakarta Annotations API                                     |1.3.5               |Eclipse Public License 2.0|
 |Jakarta Bean Validation API                                 |2.0.2               |Apache 2.0          |
@@ -432,7 +432,7 @@
 |JavaMail API                                                |1.6.1               |CDDL 1.1            |
 |Javassist                                                   |3.19.0-GA           |Apache 2.0          |
 |Javax Persistence                                           |2.1.0               |EPL 1.0, EPL 2.0    |
-|javax.annotation API                                        |1.2                 |GPL v2 w/ CPE       |
+|javax.annotation API                                        |1.3.2               |GPL v2 w/ CPE       |
 |javax.inject                                                |1                   |Apache 2.0          |
 |javax.inject:1 as OSGi bundle                               |2.5.0-b32           |CDDL 1.1            |
 |javax.ws.rs-api                                             |2.0.1               |GPL v2 w/ CPE       |
@@ -448,43 +448,43 @@
 |JDO API                                                     |3.0.1               |Apache 2.0          |
 |JDO API                                                     |3.2.0-m3            |Apache 2.0          |
 |Jersey Bundle                                               |1.19.3              |CDDL 1.1, GPL 1.1   |
-|Jersey Ext Entity Filtering                                 |2.29.1              |CDDL 1.1            |
+|Jersey Ext Entity Filtering                                 |2.30                |CDDL 1.1            |
 |Jersey Guice                                                |1.19                |CDDL 1.1, GPL v2 w/ CPE|
 |Jersey Guice                                                |1.9                 |CDDL 1.1, GPL v2 w/ CPE|
-|Jersey Inject HK2                                           |2.29.1              |Eclipse Public License 2.0|
-|Jersey Media JSON Jackson                                   |2.29.1              |CDDL 1.1            |
+|Jersey Inject HK2                                           |2.30                |Eclipse Public License 2.0|
+|Jersey Media JSON Jackson                                   |2.30                |CDDL 1.1            |
 |Jersey Servlet                                              |1.19                |CDDL 1.1, GPL v2 w/ CPE|
 |jersey-client                                               |1.9                 |CDDL 1.1            |
-|jersey-container-jetty-http                                 |2.29.1              |CDDL 1.1            |
-|jersey-container-jetty-servlet                              |2.29.1              |CDDL 1.1            |
-|jersey-container-servlet                                    |2.29.1              |CDDL 1.1            |
-|jersey-container-servlet-core                               |2.29.1              |CDDL 1.1            |
-|jersey-core-client                                          |2.29.1              |CDDL 1.1            |
-|jersey-core-common                                          |2.29.1              |CDDL 1.1            |
-|jersey-core-server                                          |2.29.1              |CDDL 1.1            |
-|jersey-ext-mvc                                              |2.29.1              |CDDL 1.1            |
-|jersey-ext-mvc-freemarker                                   |2.29.1              |CDDL 1.1            |
-|jersey-media-jaxb                                           |2.29.1              |CDDL 1.1            |
-|jersey-media-multipart                                      |2.29.1              |CDDL 1.1            |
+|jersey-container-jetty-http                                 |2.30                |CDDL 1.1            |
+|jersey-container-jetty-servlet                              |2.30                |CDDL 1.1            |
+|jersey-container-servlet                                    |2.30                |CDDL 1.1            |
+|jersey-container-servlet-core                               |2.30                |CDDL 1.1            |
+|jersey-core-client                                          |2.30                |CDDL 1.1            |
+|jersey-core-common                                          |2.30                |CDDL 1.1            |
+|jersey-core-server                                          |2.30                |CDDL 1.1            |
+|jersey-ext-mvc                                              |2.30                |CDDL 1.1            |
+|jersey-ext-mvc-freemarker                                   |2.30                |CDDL 1.1            |
+|jersey-media-jaxb                                           |2.30                |CDDL 1.1            |
+|jersey-media-multipart                                      |2.30                |CDDL 1.1            |
 |jersey-repackaged-guava                                     |2.25.1              |CDDL 1.1            |
 |Jettison                                                    |1.1                 |Apache 2.0          |
-|Jetty :: Asynchronous HTTP Client                           |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: Continuation                                       |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: Http Utility                                       |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: IO Utility                                         |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: Security                                           |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: Server Core                                        |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: Servlet Handling                                   |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: Utilities                                          |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: Utilities :: Ajax(JSON)                            |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: Utility Servlets and Filters                       |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: Webapp Application Support                         |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: Websocket :: API                                   |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: Websocket :: Client                                |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: Websocket :: Common                                |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: Websocket :: Server                                |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: Websocket :: Servlet Interface                     |9.4.21.v20190926    |Apache 2.0          |
-|Jetty :: XML utilities                                      |9.4.21.v20190926    |Apache 2.0          |
+|Jetty :: Asynchronous HTTP Client                           |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Continuation                                       |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Http Utility                                       |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: IO Utility                                         |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Security                                           |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Server Core                                        |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Servlet Handling                                   |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Utilities                                          |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Utilities :: Ajax(JSON)                            |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Utility Servlets and Filters                       |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Webapp Application Support                         |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Websocket :: API                                   |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Websocket :: Client                                |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Websocket :: Common                                |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Websocket :: Server                                |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: Websocket :: Servlet Interface                     |9.4.26.v20200117    |Apache 2.0          |
+|Jetty :: XML utilities                                      |9.4.26.v20200117    |Apache 2.0          |
 |Jetty Server                                                |6.1.26              |Apache 2.0          |
 |Jetty SSLEngine                                             |6.1.26              |Apache 2.0          |
 |Jetty Utilities                                             |6.1.26              |Apache 2.0          |
@@ -531,6 +531,8 @@
 |Koloboke Collections API                                    |1.0.0               |Apache 2.0          |
 |Koloboke Collections Implementation                         |1.0.0               |Apache 2.0          |
 |Koloboke Collections Implementation Commons (for Implementation Library and Koloboke Compile)|1.0.0               |Apache 2.0          |
+|Kotlin Common Standard Library                              |1.3.50              |Apache 2.0          |
+|Kotlin Standard Library                                     |1.3.50              |Apache 2.0          |
 |Kryo                                                        |4.0.1               |BSD 3-clause        |
 |leveldbjni-all                                              |1.8                 |BSD 3-clause        |
 |lilith-data-converter                                       |0.9.44              |Apache 2.0          |
@@ -602,21 +604,21 @@
 |nearley                                                     |2.16.0              |MIT                 |
 |Netty Reactive Streams HTTP Support                         |2.0.0               |Apache 2.0          |
 |Netty Reactive Streams Implementation                       |2.0.0               |Apache 2.0          |
-|Netty/Buffer                                                |4.1.38.Final        |Apache 2.0          |
-|Netty/Codec                                                 |4.1.38.Final        |Apache 2.0          |
-|Netty/Codec/DNS                                             |4.1.38.Final        |Apache 2.0          |
-|Netty/Codec/HTTP                                            |4.1.38.Final        |Apache 2.0          |
-|Netty/Codec/HTTP2                                           |4.1.38.Final        |Apache 2.0          |
-|Netty/Codec/Socks                                           |4.1.38.Final        |Apache 2.0          |
-|Netty/Common                                                |4.1.38.Final        |Apache 2.0          |
-|Netty/Handler                                               |4.1.38.Final        |Apache 2.0          |
-|Netty/Handler/Proxy                                         |4.1.38.Final        |Apache 2.0          |
-|Netty/Resolver                                              |4.1.38.Final        |Apache 2.0          |
-|Netty/Resolver/DNS                                          |4.1.38.Final        |Apache 2.0          |
-|Netty/TomcatNative [BoringSSL - Static]                     |2.0.25.Final        |Apache 2.0          |
-|Netty/Transport                                             |4.1.38.Final        |Apache 2.0          |
-|Netty/Transport/Native/Epoll                                |4.1.38.Final-linux-x86_64|Apache 2.0          |
-|Netty/Transport/Native/Unix/Common                          |4.1.38.Final        |Apache 2.0          |
+|Netty/Buffer                                                |4.1.45.Final        |Apache 2.0          |
+|Netty/Codec                                                 |4.1.45.Final        |Apache 2.0          |
+|Netty/Codec/DNS                                             |4.1.45.Final        |Apache 2.0          |
+|Netty/Codec/HTTP                                            |4.1.45.Final        |Apache 2.0          |
+|Netty/Codec/HTTP2                                           |4.1.45.Final        |Apache 2.0          |
+|Netty/Codec/Socks                                           |4.1.45.Final        |Apache 2.0          |
+|Netty/Common                                                |4.1.45.Final        |Apache 2.0          |
+|Netty/Handler                                               |4.1.45.Final        |Apache 2.0          |
+|Netty/Handler/Proxy                                         |4.1.45.Final        |Apache 2.0          |
+|Netty/Resolver                                              |4.1.45.Final        |Apache 2.0          |
+|Netty/Resolver/DNS                                          |4.1.45.Final        |Apache 2.0          |
+|Netty/TomcatNative [BoringSSL - Static]                     |2.0.28.Final        |Apache 2.0          |
+|Netty/Transport                                             |4.1.45.Final        |Apache 2.0          |
+|Netty/Transport/Native/Epoll                                |4.1.45.Final-linux-x86_64|Apache 2.0          |
+|Netty/Transport/Native/Unix/Common                          |4.1.45.Final        |Apache 2.0          |
 |Nimbus JOSE+JWT                                             |7.3                 |Apache 2.0          |
 |Nimbus LangTag                                              |1.4.4               |Apache 2.0          |
 |node-fetch                                                  |1.7.3               |MIT                 |
@@ -626,7 +628,7 @@
 |normalizr                                                   |2.3.1               |MIT                 |
 |nth-check                                                   |1.0.1               |BSD-2-Clause        |
 |OAuth 2.0 SDK with OpenID Connect Extensions                |6.5                 |Apache 2.0          |
-|OAuth2 Client                                               |2.29.1              |CDDL 1.1            |
+|OAuth2 Client                                               |2.30                |CDDL 1.1            |
 |object-assign                                               |4.1.1               |MIT                 |
 |object-inspect                                              |1.6.0               |MIT                 |
 |object-is                                                   |1.0.1               |MIT                 |

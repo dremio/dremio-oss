@@ -146,6 +146,7 @@ public class HiveParquetCoercionReader extends CoercionReader {
           debugPrint(projectorOutput);
         }
         runProjector(recordCount);
+        projectorOutput.setAllCount(recordCount);
 
         if (filterConditionPresent && filterCondition.isModifiedForPushdown()) {
           nextMethodState = NextMethodState.FIRST_CALL_BY_FILTERING_READER;

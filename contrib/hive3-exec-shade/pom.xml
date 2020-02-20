@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>4.1.4-202001240912140359-a90eb503</version>
+    <version>4.1.6-202002192122160072-67719f13</version>
   </parent>
 
   <artifactId>dremio-hive3-exec-shaded</artifactId>
@@ -40,7 +40,7 @@
       <dependency>
         <groupId>org.apache.calcite</groupId>
         <artifactId>calcite-core</artifactId>
-        <version>1.2.0-incubating</version>
+        <version>1.16.0</version>
         <exclusions>
           <exclusion>
             <groupId>org.jgrapht</groupId>
@@ -124,6 +124,18 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- Overwrite thrift version packaged with hive-exec -->
+    <dependency>
+      <groupId>org.apache.thrift</groupId>
+      <artifactId>libthrift</artifactId>
+      <version>0.9.3-2dremio</version>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-logging</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
   </dependencies>
 
   <build>
@@ -141,10 +153,7 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.hive:hive-exec</include>
-                  <!-- Added avro and commons-lang3 explicitely for shading as newer version of 
-                       hive-exec pom may not have it -->
-                  <include>org.apache.avro:avro</include>
-                  <include>org.apache.commons:commons-lang3</include>
+                  <include>org.apache.thrift:*</include>
                   <include>commons-codec:commons-codec</include>
                   <include>org.apache.calcite:calcite-core</include>
                   <include>org.apache.calcite:calcite-avatica</include>
@@ -164,11 +173,10 @@
                     <exclude>*.thrift</exclude>
                     <exclude>*-log4j.properties</exclude>
                     <!-- also expressed as a dependency -->
-                    <exclude>org/apache/thrift/**</exclude>
                     <exclude>templates/**</exclude>
                     <exclude>org/apache/hadoop/hive/llap/**</exclude>
-                    <exclude>com/facebook/fb303/**</exclude>
-                    <exclude>java/jdo/**</exclude>
+                    <!-- Exclude Thrift version packaged inside hive-exec -->
+                    <exclude>org/apache/thrift/**</exclude>
                   </excludes>
                 </filter>
                 <filter>
@@ -189,12 +197,16 @@
               </filters>
               <relocations>
                 <relocation>
-                  <pattern>com.google.</pattern>
-                  <shadedPattern>hive.com.google.</shadedPattern>
-                </relocation>
-                <relocation>
                   <pattern>com.fasterxml.jackson.</pattern>
                   <shadedPattern>hive.com.fasterxml.jackson.</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.facebook.</pattern>
+                  <shadedPattern>hive.com.facebook.</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.</pattern>
+                  <shadedPattern>hive.com.google.</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.parquet.</pattern>
@@ -223,6 +235,11 @@
                 <relocation>
                   <pattern>org.apache.commons.lang.</pattern>
                   <shadedPattern>hive.org.apache.commons.lang.</shadedPattern>
+                </relocation>
+                <relocation>
+                  <!-- Required by some dremio code -->
+                  <pattern>org.apache.thrift.</pattern>
+                  <shadedPattern>com.dremio.hive.thrift.</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.joda.</pattern>

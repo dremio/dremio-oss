@@ -184,7 +184,7 @@ public class HiveMetadataUtils {
   }
 
   public static boolean isVarcharTruncateSupported(InputFormat<?, ?> format) {
-    return false;
+    return MapredParquetInputFormat.class.isAssignableFrom(format.getClass());
   }
 
   public static boolean hasVarcharColumnInTableSchema(
@@ -670,19 +670,30 @@ public class HiveMetadataUtils {
         final org.apache.hadoop.fs.Path[] deltas = AcidUtils.deserializeDeltas(root, orcSplit.getDeltas());
         // go through each delta directory and add the size of the delta file belonging to the bucket to total split size
         for (org.apache.hadoop.fs.Path delta : deltas) {
-          final org.apache.hadoop.fs.Path deltaFile = AcidUtils.createBucketFile(delta, bucket);
-          final FileSystem fs = deltaFile.getFileSystem(conf);
-          final FileStatus fileStatus = fs.getFileStatus(deltaFile);
-          size += fileStatus.getLen();
+          size += getSize(bucket, delta);
         }
 
-        return size;
+        return (size > 0) ? size : ONE;
       } catch (Exception e) {
-        logger.warn("Failed to derive the input split size of transactional Hive tables", e);
+        logger.debug("Failed to derive the input split size of transactional Hive tables", e);
         // return a non-zero number - we don't want the metadata fetch operation to fail. We could ask the customer to
         // update the stats so that they can be used as part of the planning
         return ONE;
       }
+    }
+
+    private long getSize(int bucket, org.apache.hadoop.fs.Path delta) {
+      long size = 0;
+      try {
+        final org.apache.hadoop.fs.Path deltaFile = AcidUtils.createBucketFile(delta, bucket);
+        final FileSystem fs = deltaFile.getFileSystem(conf);
+        final FileStatus fileStatus = fs.getFileStatus(deltaFile);
+        size = fileStatus.getLen();
+      } catch (IOException e) {
+        // ignore exception since deltaFile may not exist
+        logger.debug("Exception thrown while checking delta file sizes. Deltas not existing are expected exceptions.", e);
+      }
+      return size;
     }
 
     @Override
@@ -783,6 +794,7 @@ public class HiveMetadataUtils {
   }
 
   public static PartitionMetadata getPartitionMetadata(final boolean storageImpersonationEnabled,
+                                                       final boolean enforceVarcharWidth,
                                                        TableMetadata tableMetadata,
                                                        MetadataAccumulator metadataAccumulator,
                                                        Partition partition,
@@ -861,7 +873,7 @@ public class HiveMetadataUtils {
         metastoreStats = getStatsFromProps(partitionProperties);
       }
 
-      List<PartitionValue> partitionValues = getPartitionValues(table, partition);
+      List<PartitionValue> partitionValues = getPartitionValues(table, partition, enforceVarcharWidth);
 
       return PartitionMetadata.newBuilder()
         .partitionId(partitionId)
@@ -1061,7 +1073,7 @@ public class HiveMetadataUtils {
     return output;
   }
 
-  public static List<PartitionValue> getPartitionValues(Table table, Partition partition) {
+  public static List<PartitionValue> getPartitionValues(Table table, Partition partition, boolean enforceVarcharWidth) {
     if (partition == null) {
       return Collections.emptyList();
     }
@@ -1070,7 +1082,7 @@ public class HiveMetadataUtils {
     final List<PartitionValue> output = new ArrayList<>();
     final List<FieldSchema> partitionKeys = table.getPartitionKeys();
     for (int i = 0; i < partitionKeys.size(); i++) {
-      final PartitionValue value = getPartitionValue(partitionKeys.get(i), partitionValues.get(i));
+      final PartitionValue value = getPartitionValue(partitionKeys.get(i), partitionValues.get(i), enforceVarcharWidth);
       if (value != null) {
         output.add(value);
       }
@@ -1078,7 +1090,7 @@ public class HiveMetadataUtils {
     return output;
   }
 
-  private static PartitionValue getPartitionValue(FieldSchema partitionCol, String value) {
+  private static PartitionValue getPartitionValue(FieldSchema partitionCol, String value, boolean enforceVarcharWidth) {
     final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(partitionCol.getType());
     final String name = partitionCol.getName();
 
@@ -1113,13 +1125,13 @@ public class HiveMetadataUtils {
             return PartitionValue.of(name, value);
           case VARCHAR:
             String truncatedVarchar = value;
-            if (value.length() > ((VarcharTypeInfo) typeInfo).getLength()) {
+            if (enforceVarcharWidth && (value.length() > ((VarcharTypeInfo) typeInfo).getLength())) {
               truncatedVarchar = value.substring(0, ((VarcharTypeInfo) typeInfo).getLength());
             }
             return PartitionValue.of(name, truncatedVarchar);
           case CHAR:
             String truncatedChar = value.trim();
-            if (truncatedChar.length() > ((CharTypeInfo) typeInfo).getLength()) {
+            if (enforceVarcharWidth && (truncatedChar.length() > ((CharTypeInfo) typeInfo).getLength())) {
               truncatedChar = value.substring(0, ((CharTypeInfo) typeInfo).getLength());
             }
             return PartitionValue.of(name, truncatedChar);
@@ -1223,14 +1235,14 @@ public class HiveMetadataUtils {
       partition.getValues());
   }
 
-  public static int getHash(Table table, final HiveConf hiveConf) {
+  public static int getHash(Table table, boolean enforceVarcharWidth, final HiveConf hiveConf) {
     List<Object> hashParts = Lists.newArrayList(table.getTableType(),
       table.getParameters(),
       table.getPartitionKeys(),
       table.getSd(),
       table.getViewExpandedText(),
       table.getViewOriginalText());
-    if (hasVarcharColumnInTableSchema(table, hiveConf)) {
+    if (enforceVarcharWidth && hasVarcharColumnInTableSchema(table, hiveConf)) {
       hashParts.add(Boolean.TRUE);
     }
     return Objects.hashCode(hashParts.toArray());

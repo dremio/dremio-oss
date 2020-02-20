@@ -317,7 +317,7 @@ public class StringFunctions{
     public void eval() {
       charSequenceWrapper.setBuffer(input.start, input.end, input.buffer);
       matcher.reset();
-      out.value = matcher.matches()? 1:0;
+      out.value = matcher.find()? 1:0;
     }
   }
 

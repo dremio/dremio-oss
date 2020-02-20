@@ -26,7 +26,7 @@ import ViewStateWrapper from 'components/ViewStateWrapper';
 import { createFirstUser } from 'actions/admin';
 import { noUsersError } from 'actions/account';
 import { getViewState } from 'selectors/resources';
-import { InnerComplexForm, connectComplexForm } from 'components/Forms/connectComplexForm.js';
+import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm.js';
 import { divider, formRow } from 'uiTheme/radium/forms';
 import { Link } from 'react-router';
 

@@ -30,7 +30,6 @@ import org.apache.hadoop.security.UserGroupInformation;
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.CoercionReader;
-import com.dremio.exec.store.EmptyRecordReader;
 import com.dremio.exec.store.HiveParquetCoercionReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.ScanFilter;
@@ -51,12 +50,10 @@ import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
-import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
 /**
@@ -151,7 +148,7 @@ class ScanWithDremioReader {
                   readerUGI,
                   managedHiveSchema
               );
-              final TypeCoercion hiveTypeCoercion = new HiveTypeCoercion(jobConf, tableXattr);
+              final TypeCoercion hiveTypeCoercion = new HiveTypeCoercion(managedHiveSchema);
               RecordReader wrappedRecordReader = compositeReader.wrapIfNecessary(context.getAllocator(), innerReader, hiveParquetSplit.getDatasetSplit());
               return new HiveParquetCoercionReader(context, compositeReader.getInnerColumns(),
                 wrappedRecordReader, config.getFullSchema(), EnumSet.of(CoercionReader

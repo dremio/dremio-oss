@@ -17,6 +17,10 @@ package com.dremio.dac.admin;
 
 import static java.lang.String.format;
 
+import java.security.Principal;
+
+import javax.ws.rs.core.SecurityContext;
+
 import org.apache.hadoop.conf.Configuration;
 
 import com.dremio.dac.daemon.DACDaemon;
@@ -63,6 +67,27 @@ public final class LocalAdmin {
   }
 
   private HomeFileTool getHomeFileTool() throws UnsupportedOperationException {
+    daemon.getBindingCreator().bindIfUnbound(SecurityContext.class, new SecurityContext() {
+      @Override
+      public Principal getUserPrincipal() {
+        return null;
+      }
+
+      @Override
+      public boolean isUserInRole(String s) {
+        return false;
+      }
+
+      @Override
+      public boolean isSecure() {
+        return false;
+      }
+
+      @Override
+      public String getAuthenticationScheme() {
+        return null;
+      }
+    });
     return daemon.getBindingProvider().lookup(HomeFileTool.class);
   }
 
@@ -86,7 +111,7 @@ public final class LocalAdmin {
     }
     final FileSystem fs = HadoopFileSystem.get(backupDir, new Configuration());
     BackupRestoreUtil.checkOrCreateDirectory(fs, backupDir);
-    BackupRestoreUtil.BackupOptions options = new BackupRestoreUtil.BackupOptions(path, Boolean.getBoolean(binaryStr), Boolean.getBoolean(includeProfilesStr));
+    BackupRestoreUtil.BackupOptions options = new BackupRestoreUtil.BackupOptions(path, Boolean.parseBoolean(binaryStr), Boolean.parseBoolean(includeProfilesStr));
     BackupRestoreUtil.BackupStats backupStats = BackupRestoreUtil.createBackup(fs, options, (LocalKVStoreProvider) getKVStoreProvider(), LocalAdmin.getInstance().getHomeFileTool().getConf());
     System.out.println(format("Backup created at %s, dremio tables %d, uploaded files %d",
     backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles()));

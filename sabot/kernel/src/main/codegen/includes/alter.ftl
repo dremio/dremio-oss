@@ -71,9 +71,17 @@
           )?
           { return new SqlRefreshTable(pos, tblName, deleteUnavail, forceUp, promotion); }
           |
-          <ENABLE> <APPROXIMATE> <STATS> {return new SqlSetApprox(pos, tblName, SqlLiteral.createBoolean(true, pos));}
+          <ENABLE> (
+            <APPROXIMATE> <STATS> {return new SqlSetApprox(pos, tblName, SqlLiteral.createBoolean(true, pos));}
+            |
+            <HIVE> <VARCHAR> <COMPATIBILITY> {return new SqlSetHiveVarcharCompatible(pos, tblName, SqlLiteral.createBoolean(true, pos));}
+           )
           |
-          <DISABLE> <APPROXIMATE> <STATS> {return new SqlSetApprox(pos, tblName, SqlLiteral.createBoolean(false, pos));}
+          <DISABLE> (
+            <APPROXIMATE> <STATS> {return new SqlSetApprox(pos, tblName, SqlLiteral.createBoolean(false, pos));}
+            |
+            <HIVE> <VARCHAR> <COMPATIBILITY> {return new SqlSetHiveVarcharCompatible(pos, tblName, SqlLiteral.createBoolean(false, pos));}
+           )
           |
           {return SqlEnableRaw(pos, tblName);}
         )

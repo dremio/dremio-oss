@@ -132,7 +132,8 @@ public class CoercionReader extends AbstractRecordReader {
           .DECIMAL)) {
           cast = new CastExpressionWithOverflow(inputRef, majorType);
         } else if (options.contains(Options.SET_VARCHAR_WIDTH) &&
-          (majorType.getMinorType().equals(TypeProtos.MinorType.VARCHAR) || majorType.getMinorType().equals(TypeProtos.MinorType.VARBINARY))){
+          (majorType.getMinorType().equals(TypeProtos.MinorType.VARCHAR) || majorType.getMinorType().equals(TypeProtos.MinorType.VARBINARY)) &&
+          majorType.getWidth() >= CompleteType.DEFAULT_VARCHAR_PRECISION){
           cast = inputRef;
         } else {
           cast = FunctionCallFactory.createCast(majorType, inputRef);

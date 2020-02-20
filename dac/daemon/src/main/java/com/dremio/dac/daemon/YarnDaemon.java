@@ -37,6 +37,8 @@ import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.LivenessService;
+import com.dremio.dac.server.liveness.ClasspathHealthMonitor;
+import com.dremio.dac.server.liveness.YarnContainerHealthMonitor;
 import com.dremio.exec.util.GuavaPatcher;
 import com.dremio.provision.yarn.YarnWatchdog;
 import com.google.common.base.Throwables;
@@ -124,6 +126,9 @@ public class YarnDaemon implements Runnable, AutoCloseable {
       logger.error("Failed to start liveness service, dremio will exit.");
       System.exit(1);
     }
+
+    livenessService.addHealthMonitor(new YarnContainerHealthMonitor());
+    livenessService.addHealthMonitor(new ClasspathHealthMonitor());
 
     DremioConfig dremioConfig = daemon.getDACConfig().getConfig();
     final long watchedPID = Integer.parseInt(ManagementFactory.getRuntimeMXBean().getName().split("@")[0]);

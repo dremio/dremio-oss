@@ -64,7 +64,7 @@ public class GMathFunctions{
 
     public void eval() {
 
-      <#if func.funcName=='truncate'>
+      <#if func.funcName=='truncate' || func.funcName=='trunc'>
       <#if type.roundingRequired ??>
       java.math.BigDecimal bd = java.math.BigDecimal.valueOf(in.value).setScale(0, java.math.BigDecimal.ROUND_DOWN);
       out.value = <#if type.extraCast ??>(${type.extraCast})</#if>bd.${type.castType}Value();

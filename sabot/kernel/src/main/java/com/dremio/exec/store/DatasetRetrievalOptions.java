@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.dremio.connector.metadata.ExtendedPropertyOption;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
@@ -266,6 +267,10 @@ public class DatasetRetrievalOptions {
     BatchSchema schema = DatasetHelper.getSchemaBytes(datasetConfig) != null ? BatchSchema.fromDataset(datasetConfig) : null;
     if(schema != null) {
       options.add(new CurrentSchemaOption(schema));
+    }
+
+    if (datasetConfig.getReadDefinition() != null && datasetConfig.getReadDefinition().getExtendedProperty() != null) {
+      options.add(new ExtendedPropertyOption(os -> os.write(datasetConfig.getReadDefinition().getExtendedProperty().toByteArray())));
     }
 
     List<T> addOptions = options.stream().filter(o -> clazz.isAssignableFrom(o.getClass())).map(o -> clazz.cast(o)).collect(Collectors.toList());

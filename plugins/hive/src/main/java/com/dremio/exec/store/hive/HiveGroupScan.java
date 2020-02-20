@@ -15,11 +15,18 @@
  */
 package com.dremio.exec.store.hive;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.hadoop.hive.ql.io.orc.OrcSplit;
+import org.apache.hadoop.mapred.InputSplit;
+
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.base.AbstractGroupScan;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
@@ -32,19 +39,25 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.hive.exec.HiveProxyingSubScan;
 import com.dremio.exec.store.hive.exec.HiveSubScan;
 import com.dremio.exec.store.hive.proxy.HiveProxiedSubScan;
+import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
+import com.google.common.base.Preconditions;
 
 public class HiveGroupScan extends AbstractGroupScan {
 
   private final ScanFilter filter;
+  private final long orcAcidDeltasLimit;
 
   public HiveGroupScan(
     OpProps props,
     TableMetadata dataset,
     List<SchemaPath> columns,
-    ScanFilter filter) {
+    ScanFilter filter,
+    QueryContext context) {
     super(props, dataset, columns);
     this.filter = filter;
+    this.orcAcidDeltasLimit = context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX) *
+      context.getOptions().getOption(CatalogOptions.ORC_DELTA_LEAF_COLUMN_FACTOR);
   }
 
   @Override
@@ -52,6 +65,26 @@ public class HiveGroupScan extends AbstractGroupScan {
     List<SplitAndPartitionInfo> splits = new ArrayList<>(work.size());
     BatchSchema schema = getDataset().getSchema();
     for(SplitWork split : work){
+      try {
+        // With ORC ACID, the effective number of readers is the product of the number of deltas and
+        // the number of columns. These readers use heap memory and if the value of this product
+        // is too high, it can overwhelm executor nodes and cause a heap outage.
+        InputSplit inputSplit = HiveUtilities.deserializeInputSplit(
+          HiveSplitXattr.parseFrom(
+            split.getDatasetSplit().getSplitExtendedProperty())
+            .getInputSplit());
+        if (inputSplit instanceof OrcSplit) {
+          OrcSplit orcSplit = (OrcSplit) inputSplit;
+          Preconditions.checkState(orcSplit.getDeltas() != null, "Unexpected state");
+          if (orcSplit.getDeltas().size() * columns.size() > this.orcAcidDeltasLimit) {
+            throw UserException.validationError().message(
+              "Too many delta files exist for the ORC ACID table, %s. Please run Hive compaction on the table and try again after metadata refresh.", getDataset().getName()).buildSilently();
+          }
+        }
+      } catch (IOException | ReflectiveOperationException e) {
+        //e.printStackTrace();
+      }
+
       splits.add(split.getSplitAndPartitionInfo());
     }
     final ReadDefinition readDefinition = dataset.getReadDefinition();

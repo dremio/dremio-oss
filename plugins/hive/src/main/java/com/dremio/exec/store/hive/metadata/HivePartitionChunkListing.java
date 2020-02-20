@@ -53,6 +53,7 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HivePartitionChunkListing.class);
 
   private final boolean storageImpersonationEnabled;
+  private final boolean enforceVarcharWidth;
   private final PartitionIterator partitions;
   private final HiveConf hiveConf;
   private final StatsEstimationParameters statsParams;
@@ -64,10 +65,11 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
   protected int currentPartitionIndex = -1;
   private PartitionMetadata currentPartitionMetadata;
 
-  private HivePartitionChunkListing(final boolean storageImpersonationEnabled, final TableMetadata tableMetadata,
+  private HivePartitionChunkListing(final boolean storageImpersonationEnabled, final boolean enforceVarcharWidth, final TableMetadata tableMetadata,
                                     final HiveConf hiveConf, final StatsEstimationParameters statsParams, PartitionIterator partitions,
                                     final int maxInputSplitsPerPartition) {
     this.storageImpersonationEnabled = storageImpersonationEnabled;
+    this.enforceVarcharWidth = enforceVarcharWidth;
     this.tableMetadata = tableMetadata;
     this.hiveConf = hiveConf;
     this.statsParams = statsParams;
@@ -116,7 +118,7 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
 
     // Read Hive partition metadata.
     currentPartitionMetadata = HiveMetadataUtils.getPartitionMetadata(
-      storageImpersonationEnabled, tableMetadata, metadataAccumulator, partition,
+      storageImpersonationEnabled, enforceVarcharWidth, tableMetadata, metadataAccumulator, partition,
       hiveConf, currentPartitionIndex, maxInputSplitsPerPartition);
   }
 
@@ -149,7 +151,7 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
 
             // Read Hive partition metadata.
             currentPartitionMetadata = HiveMetadataUtils.getPartitionMetadata(
-              storageImpersonationEnabled, tableMetadata, metadataAccumulator, partition,
+              storageImpersonationEnabled, enforceVarcharWidth, tableMetadata, metadataAccumulator, partition,
               hiveConf, currentPartitionIndex, maxInputSplitsPerPartition);
           }
           // Current partition may have no splits. Advance to the next partition.
@@ -183,6 +185,7 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
 
   public static final class Builder {
     private boolean storageImpersonationEnabled;
+    private boolean enforceVarcharWidth = false;
     private TableMetadata tableMetadata;
     private PartitionIterator partitions;
     private HiveConf hiveConf;
@@ -194,6 +197,11 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
 
     public Builder storageImpersonationEnabled(boolean storageImpersonationEnabled) {
       this.storageImpersonationEnabled = storageImpersonationEnabled;
+      return this;
+    }
+
+    public Builder enforceVarcharWidth(boolean enforceVarcharWidth) {
+      this.enforceVarcharWidth = enforceVarcharWidth;
       return this;
     }
 
@@ -229,7 +237,7 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
       Objects.requireNonNull(statsParams, "stats params is required");
       Objects.requireNonNull(maxInputSplitsPerPartition, "maxInputSplitsPerPartition is required");
 
-      return new HivePartitionChunkListing(storageImpersonationEnabled, tableMetadata, hiveConf, statsParams, partitions, maxInputSplitsPerPartition);
+      return new HivePartitionChunkListing(storageImpersonationEnabled, enforceVarcharWidth, tableMetadata, hiveConf, statsParams, partitions, maxInputSplitsPerPartition);
     }
   }
 }

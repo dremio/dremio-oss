@@ -15,80 +15,45 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
+import org.apache.arrow.vector.types.pojo.Field;
+
 import com.dremio.common.expression.CompleteType;
+import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.store.CoercionReader;
 import com.dremio.exec.store.TypeCoercion;
-import com.dremio.exec.store.hive.HiveUtilities;
-import com.dremio.hive.proto.HiveReaderProto;
-import org.apache.arrow.util.Preconditions;
-import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.hadoop.hive.serde2.typeinfo.CharTypeInfo;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
-import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
-import org.apache.hadoop.mapred.JobConf;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import com.dremio.exec.store.parquet.ManagedSchema;
+import com.dremio.exec.store.parquet.ManagedSchemaField;
+import com.google.common.collect.Sets;
 
 /**
  * Implements the TypeCoercion interface for Hive Parquet reader
  */
 public class HiveTypeCoercion implements TypeCoercion {
+  private Map<String, Integer> varcharWidthMap = CaseInsensitiveMap.newHashMap();
 
-  private Map<String, Integer> varcharWidthMap;
-
-  HiveTypeCoercion(JobConf jobConf, HiveReaderProto.HiveTableXattr tableXattr) {
-    final java.util.Properties tableProperties = new java.util.Properties();
-    HiveUtilities.addProperties(jobConf, tableProperties, HiveReaderProtoUtil.getTableProperties(tableXattr));
-    final String columnNameProperty = tableProperties.getProperty("columns");
-    final String columnTypeProperty = tableProperties.getProperty("columns.types");
-
-    final List<String> columnNames;
-    final List<TypeInfo> columnTypes;
-    if (columnNameProperty.length() == 0) {
-      columnNames = new ArrayList<String>();
-    } else {
-      columnNames = Arrays.asList(columnNameProperty.split(","));
-    }
-    if (columnTypeProperty.length() == 0) {
-      columnTypes = new ArrayList<TypeInfo>();
-    } else {
-      columnTypes = TypeInfoUtils.getTypeInfosFromTypeString(columnTypeProperty);
-    }
-
-    Preconditions.checkArgument(columnNames.size() == columnTypes.size(),
-      "columnNames and columnTypes have different sizes");
-
-    Iterator columnTypeIterator = columnTypes.iterator();
-    Iterator columnNameIterator = columnNames.iterator();
-
-    varcharWidthMap = new HashMap<>();
-
-    while(columnNameIterator.hasNext() && columnTypeIterator.hasNext()) {
-      String name = (String) columnNameIterator.next();
-      TypeInfo typeInfo = (TypeInfo) columnTypeIterator.next();
-      if (typeInfo instanceof VarcharTypeInfo) {
-        varcharWidthMap.put(name, (Integer) ((VarcharTypeInfo) typeInfo).getLength());
-      } else if (typeInfo instanceof CharTypeInfo) {
-        varcharWidthMap.put(name, (Integer) ((CharTypeInfo) typeInfo).getLength());
-      }
-    }
+  HiveTypeCoercion(final ManagedSchema schema) {
+    schema.getAllFields().entrySet().stream()
+      .map(Map.Entry::getValue)
+      .filter(ManagedSchemaField::isTextField)
+      .forEach(e -> varcharWidthMap.put(e.getName(), e.getLength()));
+    varcharWidthMap = Collections.unmodifiableMap(varcharWidthMap);
   }
 
   @Override
   public TypeProtos.MajorType getType(Field field, EnumSet<CoercionReader.Options> options) {
     TypeProtos.MajorType majorType = MajorTypeHelper.getMajorTypeForField(field);
     if (options.contains(CoercionReader.Options.SET_VARCHAR_WIDTH) && (majorType.getMinorType().equals(TypeProtos.MinorType
-      .VARCHAR) ||
-      majorType.getMinorType().equals(TypeProtos.MinorType.VARBINARY))) {
+        .VARCHAR) ||
+        majorType.getMinorType().equals(TypeProtos.MinorType.VARBINARY))) {
       int width = varcharWidthMap.getOrDefault(field.getName(), CompleteType.DEFAULT_VARCHAR_PRECISION);
       majorType = majorType.toBuilder().setWidth(width).build();
     }

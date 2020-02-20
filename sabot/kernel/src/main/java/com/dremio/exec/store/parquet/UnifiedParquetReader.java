@@ -84,6 +84,7 @@ public class UnifiedParquetReader implements RecordReader {
   private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap;
   private final List<ParquetFilterCondition>  filterConditions;
   private final ParquetFilterCreator filterCreator;
+  private final ParquetDictionaryConvertor dictionaryConvertor;
   private final boolean supportsColocatedReads;
 
   private List<RecordReader> delegates = new ArrayList<>();
@@ -102,6 +103,7 @@ public class UnifiedParquetReader implements RecordReader {
       Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
       List<ParquetFilterCondition> filterConditions,
       ParquetFilterCreator filterCreator,
+      ParquetDictionaryConvertor dictionaryConvertor,
       ParquetDatasetSplitScanXAttr readEntry,
       FileSystem fs,
       ParquetMetadata footer,
@@ -117,6 +119,7 @@ public class UnifiedParquetReader implements RecordReader {
     this.globalDictionaryFieldInfoMap = globalDictionaryFieldInfoMap;
     this.filterConditions = filterConditions;
     this.filterCreator = filterCreator;
+    this.dictionaryConvertor = dictionaryConvertor;
     this.fs = fs;
     this.footer = footer;
     this.readEntry = readEntry;
@@ -463,6 +466,7 @@ public class UnifiedParquetReader implements RecordReader {
                   unifiedReader.codecFactory,
                   unifiedReader.filterConditions,
                   unifiedReader.filterCreator,
+                  unifiedReader.dictionaryConvertor,
                   unifiedReader.enableDetailedTracing,
                   unifiedReader.getFooter(),
                   unifiedReader.readEntry.getRowGroupIndex(),
@@ -491,8 +495,27 @@ public class UnifiedParquetReader implements RecordReader {
         return returnList;
       }
     },
+    SKIP_ALL {
+      @Override
+      public List<RecordReader> getReaders(final UnifiedParquetReader unifiedReader) {
+        final RecordReader reader = new AbstractRecordReader(unifiedReader.context, Collections.emptyList()) {
+          @Override
+          public void setup(OutputMutator output) {
+          }
 
-    SKIPALL {
+          @Override
+          public int next() {
+            return 0;
+          }
+
+          @Override
+          public void close() {
+          }
+        };
+        return Collections.singletonList(reader);
+      }
+    },
+    INCLUDE_ALL {
       @Override
       public List<RecordReader> getReaders(final UnifiedParquetReader unifiedReader) throws ExecutionSetupException {
         final ParquetMetadata footer = unifiedReader.getFooter();
@@ -553,7 +576,7 @@ public class UnifiedParquetReader implements RecordReader {
     }
 
     if (vectorizableReaderColumns.isEmpty() && nonVectorizableReaderColumns.isEmpty()) {
-      return ExecutionPath.SKIPALL;
+      return (filterConditions == null || filterConditions.isEmpty()) ? ExecutionPath.INCLUDE_ALL : ExecutionPath.SKIP_ALL;
     }
     return ExecutionPath.VECTORIZED;
   }

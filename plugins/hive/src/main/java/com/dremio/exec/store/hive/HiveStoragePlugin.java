@@ -40,7 +40,6 @@ import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.AccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.orc.OrcConf;
-import org.apache.thrift.TException;
 import org.pf4j.PluginManager;
 
 import com.dremio.common.config.SabotConfig;
@@ -61,6 +60,7 @@ import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.exec.ExecConstants;
+import com.dremio.connector.metadata.ExtendedPropertyOption;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
@@ -89,11 +89,13 @@ import com.dremio.hive.proto.HiveReaderProto.HiveReadSignatureType;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.hive.proto.HiveReaderProto.PropertyCollectionType;
+import com.dremio.hive.thrift.TException;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.SourceState.MessageLevel;
 import com.dremio.service.namespace.SourceState.SourceStatus;
+import com.dremio.service.namespace.capabilities.BooleanCapabilityValue;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.users.SystemUser;
@@ -111,6 +113,8 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.InvalidProtocolBufferException;
+
+import io.protostuff.ByteStringUtil;
 
 public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin, SupportsReadSignature, SupportsListingDatasets {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveStoragePlugin.class);
@@ -198,12 +202,15 @@ public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin
       }
       return true;
     } catch (TException | ExecutionException | InvalidProtocolBufferException e) {
-      throw new RuntimeException("Unable to connect to Hive metastore.", e);
+      throw UserException.connectionError(e)
+        .message("Unable to connect to Hive metastore: %s", e.getMessage())
+        .build(logger);
     } catch (UncheckedExecutionException e) {
       Throwable cause = e.getCause();
       if (cause instanceof AuthorizerServiceException || cause instanceof RuntimeException) {
         throw e;
       }
+      logger.error("User: {} is trying to access Hive dataset with path: {}.", name, key, e);
     }
 
     return false;
@@ -211,7 +218,7 @@ public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin
 
   @Override
   public SourceCapabilities getSourceCapabilities() {
-    return new SourceCapabilities();
+    return new SourceCapabilities(new BooleanCapabilityValue(SourceCapabilities.VARCHARS_WITH_WIDTH, true));
   }
 
   @Override
@@ -357,7 +364,7 @@ public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin
     }
   }
 
-  private MetadataValidity checkHiveMetadata(Integer tableHash, Integer partitionHash, EntityPath datasetPath, BatchSchema tableSchema) throws TException {
+  private MetadataValidity checkHiveMetadata(HiveTableXattr tableXattr, EntityPath datasetPath, BatchSchema tableSchema) throws TException {
     final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
 
     final HiveMetadataUtils.SchemaComponents schemaComponents = HiveMetadataUtils.resolveSchemaComponents(datasetPath.getComponents(), true);
@@ -367,7 +374,7 @@ public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin
     if (table == null) { // missing table?
       return MetadataValidity.INVALID;
     }
-    if (HiveMetadataUtils.getHash(table, hiveConf) != tableHash) {
+    if (HiveMetadataUtils.getHash(table, tableXattr.getEnforceVarcharWidth(), hiveConf) != tableXattr.getTableHash()) {
       return MetadataValidity.INVALID;
     }
 
@@ -389,7 +396,7 @@ public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin
       partitionHashes.add(HiveMetadataUtils.getHash(partitionIterator.next()));
     }
 
-    if (partitionHash == null || partitionHash == 0) {
+    if (!tableXattr.hasPartitionHash() || tableXattr.getPartitionHash() == 0) {
       if (partitionHashes.isEmpty()) {
         return MetadataValidity.VALID;
       } else {
@@ -400,7 +407,7 @@ public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin
 
     Collections.sort(partitionHashes);
     // There were partitions in last read signature.
-    if (partitionHash != Objects.hash(partitionHashes)) {
+    if (tableXattr.getPartitionHash() != Objects.hash(partitionHashes)) {
       return MetadataValidity.INVALID;
     }
 
@@ -419,7 +426,7 @@ public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin
         BatchSchema tableSchema = new BatchSchema(metadata.getRecordSchema().getFields());
 
         // check for hive table and partition definition changes
-        MetadataValidity hiveTableStatus = checkHiveMetadata(tableXattr.getTableHash(), tableXattr.getPartitionHash(), datasetHandle.getDatasetPath(), tableSchema);
+        MetadataValidity hiveTableStatus = checkHiveMetadata(tableXattr, datasetHandle.getDatasetPath(), tableSchema);
 
         switch (hiveTableStatus) {
           case VALID: {
@@ -540,11 +547,24 @@ public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin
   @Override
   public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) throws ConnectorException {
     try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+      boolean enforceVarcharWidth = false;
+      Optional<BytesOutput> extendedProperty = ExtendedPropertyOption.getExtendedPropertyFromListPartitionChunkOption(options);
+      if (extendedProperty.isPresent()) {
+        HiveTableXattr hiveTableXattrFromKVStore;
+        try {
+          hiveTableXattrFromKVStore = HiveTableXattr.parseFrom(bytesOutputToByteArray(extendedProperty.get()));
+        } catch (InvalidProtocolBufferException e) {
+          throw UserException.parseError(e).buildSilently();
+        }
+        enforceVarcharWidth = hiveTableXattrFromKVStore.getEnforceVarcharWidth();
+      }
+
       final HivePartitionChunkListing.Builder builder = HivePartitionChunkListing
         .newBuilder()
         .hiveConf(hiveConf)
         .storageImpersonationEnabled(storageImpersonationEnabled)
         .statsParams(getStatsParams())
+        .enforceVarcharWidth(enforceVarcharWidth)
         .maxInputSplitsPerPartition((int) optionManager.getOption(HivePluginOptions.HIVE_MAX_INPUTSPLITS_PER_PARTITION_VALIDATOR));
 
       final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
@@ -592,10 +612,23 @@ public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin
 
     accumulateTableMetadata(tableExtended, metadataAccumulator, table, tableProperties);
 
-    tableExtended.setTableHash(HiveMetadataUtils.getHash(table, hiveConf));
+    boolean enforceVarcharWidth = false;
+    Optional<BytesOutput> extendedProperty = ExtendedPropertyOption.getExtendedPropertyFromMetadataOption(options);
+    if (extendedProperty.isPresent()) {
+      HiveTableXattr hiveTableXattrFromKVStore;
+      try {
+        hiveTableXattrFromKVStore = HiveTableXattr.parseFrom(bytesOutputToByteArray(extendedProperty.get()));
+      } catch (InvalidProtocolBufferException e) {
+        throw UserException.parseError(e).buildSilently();
+      }
+      enforceVarcharWidth = hiveTableXattrFromKVStore.getEnforceVarcharWidth();
+    }
+
+    tableExtended.setTableHash(HiveMetadataUtils.getHash(table, enforceVarcharWidth, hiveConf));
     tableExtended.setPartitionHash(metadataAccumulator.getPartitionHash());
     tableExtended.setReaderType(metadataAccumulator.getReaderType());
     tableExtended.addAllColumnInfo(tableMetadata.getColumnInfos());
+    tableExtended.setEnforceVarcharWidth(enforceVarcharWidth);
 
     tableExtended.addAllInputFormatDictionary(metadataAccumulator.buildInputFormatDictionary());
     tableExtended.addAllSerializationLibDictionary(metadataAccumulator.buildSerializationLibDictionary());
@@ -777,5 +810,23 @@ public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin
   @Override
   public Class<? extends HiveProxiedOrcScanFilter> getOrcScanFilterClass() {
     return ORCScanFilter.class;
+  }
+
+  @Override
+  public boolean updateVarcharCompatibility(DatasetConfig config, boolean compatible) {
+
+    HiveTableXattr hiveTableXattr;
+    try {
+      hiveTableXattr = HiveTableXattr.parseFrom(config.getReadDefinition().getExtendedProperty().toByteArray());
+    } catch (InvalidProtocolBufferException e) {
+      throw UserException.parseError(e).buildSilently();
+    }
+
+    boolean isChanged = compatible ^ hiveTableXattr.getEnforceVarcharWidth();
+
+    HiveTableXattr newXattrs = hiveTableXattr.toBuilder().setEnforceVarcharWidth(compatible).build();
+    config.getReadDefinition().setExtendedProperty(ByteStringUtil.wrap(newXattrs.toByteArray()));
+
+    return isChanged;
   }
 }

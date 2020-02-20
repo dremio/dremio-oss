@@ -340,9 +340,9 @@ public class ITHiveStorage extends HiveTestBase {
             .go();
   }
 
-  @Ignore
   @Test
   public void testParquetHiveFixedLenVarchar() throws Exception {
+    runSQL("ALTER TABLE hive.\"default\".parq_varchar ENABLE HIVE VARCHAR COMPATIBILITY");
     String query = "SELECT R_NAME FROM hive.parq_varchar";
     testBuilder().sqlQuery(query)
       .unOrdered()
@@ -354,6 +354,7 @@ public class ITHiveStorage extends HiveTestBase {
       .baselineValues("MIDDLE")
       .go();
 
+    runSQL("ALTER TABLE hive.\"default\".parq_char ENABLE HIVE VARCHAR COMPATIBILITY");
     query = "SELECT R_NAME FROM hive.parq_char";
     testBuilder().sqlQuery(query)
       .unOrdered()
@@ -365,6 +366,7 @@ public class ITHiveStorage extends HiveTestBase {
       .baselineValues("MIDDLE")
       .go();
 
+    runSQL("ALTER TABLE hive.\"default\".parq_varchar_complex_ext ENABLE HIVE VARCHAR COMPATIBILITY");
     query = "SELECT Country, Capital FROM hive.parq_varchar_complex_ext";
     testBuilder().sqlQuery(query)
       .unOrdered()
@@ -372,6 +374,7 @@ public class ITHiveStorage extends HiveTestBase {
       .baselineValues("Uni", "Lon")
       .go();
 
+    runSQL("ALTER TABLE hive.\"default\".parquet_fixed_length_varchar_partition_ext ENABLE HIVE VARCHAR COMPATIBILITY");
     query = "SELECT * FROM hive.parquet_fixed_length_varchar_partition_ext";
     testBuilder()
       .sqlQuery(query)
@@ -380,6 +383,16 @@ public class ITHiveStorage extends HiveTestBase {
       .baselineValues(100, "abcd")
       .go();
 
+    runSQL("ALTER TABLE hive.\"default\".parquet_fixed_length_varchar_partition_ext DISABLE HIVE VARCHAR COMPATIBILITY");
+    query = "SELECT * FROM hive.parquet_fixed_length_varchar_partition_ext";
+    testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("col1", "col2")
+      .baselineValues(100, "abcdefgh")
+      .go();
+
+    runSQL("ALTER TABLE hive.\"default\".parquet_fixed_length_char_partition_ext ENABLE HIVE VARCHAR COMPATIBILITY");
     query = "SELECT * FROM hive.parquet_fixed_length_char_partition_ext";
     testBuilder()
       .sqlQuery(query)

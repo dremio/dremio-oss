@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>4.1.4-202001240912140359-a90eb503</version>
+  <version>4.1.6-202002192122160072-67719f13</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,9 +38,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.15.0-20200121125919-a1cfbaf64d-dremio</arrow.version>
+    <arrow.version>0.15.0-20200128044954-bfccdc5667-dremio</arrow.version>
     <avatica.version>1.12.0</avatica.version>
-    <calcite.version>1.16.0-201909031936280585-3f76472</calcite.version>
+    <calcite.version>1.16.0-202002101928160934-01099e5</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <foodmart-data-hsqldb.version>0.3</foodmart-data-hsqldb.version>
@@ -54,8 +54,8 @@
     <hadoop.version>3.2.0-dremio-201911062242240641-139525f</hadoop.version>
     <hsqldb.version>2.3.1</hsqldb.version>
     <jackson.version>2.10.2</jackson.version>
-    <jersey.version>2.29.1</jersey.version>
-    <jetty.version>9.4.21.v20190926</jetty.version>
+    <jersey.version>2.30</jersey.version>
+    <jetty.version>9.4.26.v20200117</jetty.version>
     <javax.ws.rs-api.version>2.0.1</javax.ws.rs-api.version>
     <junit.version>4.12</junit.version>
     <lilith.version>0.9.44</lilith.version>
@@ -63,9 +63,8 @@
     <logback.version>1.1.3</logback.version>
     <metrics.version>4.1.0</metrics.version>
     <mariadb.connector.version>2.3.0</mariadb.connector.version>
-    <netty.version>4.1.38.Final</netty.version>
-    <!-- latest is 2.0.17.Final as of 10/28/18, but we run into this https://github.com/line/armeria/pull/1278 -->
-    <netty.boringssl.version>2.0.25.Final</netty.boringssl.version>
+    <netty.version>4.1.45.Final</netty.version>
+    <netty.boringssl.version>2.0.28.Final</netty.boringssl.version>
     <parquet.version>1.12.0-201905082117230809-0fe4d5d</parquet.version>
     <postgresql.version>42.2.5</postgresql.version>
     <protobuf.version>2.5.0</protobuf.version>
@@ -783,7 +782,7 @@ limitations under the License.
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>3.1.0</version>
+          <version>3.2.1</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -1163,6 +1162,21 @@ limitations under the License.
           <exclusion>
             <groupId>org.apache.hive</groupId>
             <artifactId>hive-exec</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.apache.thrift</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>com.dremio.contrib</groupId>
+        <artifactId>dremio-hive3-exec-shaded</artifactId>
+        <version>${project.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.apache.thrift</groupId>
+            <artifactId>*</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -2813,11 +2827,6 @@ limitations under the License.
         <version>0.9.10-jackson2.9-proto2</version>
       </dependency>
       <dependency>
-        <groupId>org.apache.thrift</groupId>
-        <artifactId>libthrift</artifactId>
-        <version>0.9.3-1</version>
-      </dependency>
-      <dependency>
         <groupId>org.eclipse.jetty</groupId>
         <artifactId>jetty-bom</artifactId>
         <version>${jetty.version}</version>
@@ -2845,11 +2854,6 @@ limitations under the License.
         <groupId>org.xerial.snappy</groupId>
         <artifactId>snappy-java</artifactId>
         <version>1.1.4</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.hudi</groupId>
-        <artifactId>hudi-spark</artifactId>
-        <version>0.5.0-incubating</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

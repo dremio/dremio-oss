@@ -607,13 +607,14 @@ public class HiveTestDataGenerator {
     createORCDecimalCompareTestTable(hiveDriver, "orcdecimalcompare");
     createMixedPartitionTypeTable(hiveDriver, "parquet_mixed_partition_type");
     createPartitionDecimalOverflow(hiveDriver, "parquet_decimal_partition_overflow");
+
     createVarcharParquetTable(hiveDriver, "parquet_varchar_t2");
 
     createDecimalParquetTableWithHighTableScale(hiveDriver, "parquet_mixed_decimal_t15_5_f10_2");
     createDecimalParquetTableWithHighFileScale(hiveDriver, "parquet_mixed_decimal_t37_2_f37_4");
 
     createDecimalParquetTableWithDecimalColumnMismatch(hiveDriver, "parquet_varchar_to_decimal_with_filter");
-
+    createTableWithMoreColumnsThanParquet(hiveDriver, "parquet_less_columns");
     ss.close();
   }
 
@@ -1734,5 +1735,17 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insert3);
     executeQuery(hiveDriver, insert4);
     executeQuery(hiveDriver, ext_table);
+  }
+
+  private void createTableWithMoreColumnsThanParquet(Driver hiveDriver, String table) throws Exception {
+    String createTable = "CREATE TABLE " + table + " (name varchar(20)) stored as parquet";
+    String insert1 = "INSERT INTO " + table + " VALUES('parquet1_val1'), ('parquet1_val2'), ('parquet1_val3')";
+    String alterTable = "ALTER TABLE " + table + " ADD COLUMNS(newintcol int, newvarcharcol varchar(20))";
+    String insert2 = "INSERT INTO " + table + " VALUES('parquet2_val1', 4, 'newvarcharcol'), ('parquet2_val2', 5, 'newvarcharcol'), ('parquet2_val3', 6, 'newvarcharcol')";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert1);
+    executeQuery(hiveDriver, alterTable);
+    executeQuery(hiveDriver, insert2);
   }
 }

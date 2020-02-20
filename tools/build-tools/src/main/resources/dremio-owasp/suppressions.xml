@@ -174,10 +174,40 @@
 <!-- Thrift -->
 <suppress>
    <notes><![CDATA[
-   Thrift go vulnerability
+   Thrift go only vulnerability
    ]]></notes>
    <gav regex="true">^org\.apache\.thrift:.*:.*$</gav>
    <cve>CVE-2016-5397</cve>
+</suppress>
+<suppress>
+   <notes><![CDATA[
+   Thrift Node.js only vulnerability
+   ]]></notes>
+   <gav regex="true">^org\.apache\.thrift:.*:.*$</gav>
+   <cve>CVE-2018-11798</cve>
+</suppress>
+<suppress>
+   <notes><![CDATA[
+   addressed in version 0.9.3.1 and 0.9.3.2
+   file name: libthrift-0.9.3-2dremio.jar
+   ]]></notes>
+   <sha1>c735c9a025ff53e03bfd2e8e92377826c000e9b4</sha1>
+   <cve>CVE-2018-1320</cve>
+</suppress>
+<suppress>
+   <notes><![CDATA[
+   addressed in version 0.9.3.2
+   file name: libthrift-0.9.3-2dremio.jar
+   ]]></notes>
+   <sha1>c735c9a025ff53e03bfd2e8e92377826c000e9b4</sha1>
+   <cve>CVE-2019-0205</cve>
+</suppress>
+<suppress>
+   <notes><![CDATA[
+   Thrift go only vulnerability
+   ]]></notes>
+   <gav regex="true">^org\.apache\.thrift:.*:.*$</gav>
+   <cve>CVE-2019-0210</cve>
 </suppress>
 
 <!-- Twill -->

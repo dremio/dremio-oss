@@ -4531,11 +4531,6 @@ any
 ```
 {
   backupDir: "abc",
-  backupDirAsPath: { /** Path **/
-    absolute: true | false,
-    name: "abc",
-    parent: (ref: Path),
-  },
   binary: true | false,
   includeProfiles: true | false,
 }

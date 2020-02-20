@@ -45,6 +45,7 @@ import com.dremio.exec.planner.sql.handlers.direct.ForgetTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.RefreshSourceStatusHandler;
 import com.dremio.exec.planner.sql.handlers.direct.RefreshTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SetApproxHandler;
+import com.dremio.exec.planner.sql.handlers.direct.SetHiveVarcharCompatibilityHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SetOptionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ShowSchemasHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ShowTablesHandler;
@@ -62,6 +63,7 @@ import com.dremio.exec.planner.sql.parser.SqlForgetTable;
 import com.dremio.exec.planner.sql.parser.SqlRefreshSourceStatus;
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
 import com.dremio.exec.planner.sql.parser.SqlSetApprox;
+import com.dremio.exec.planner.sql.parser.SqlSetHiveVarcharCompatible;
 import com.dremio.exec.planner.sql.parser.SqlShowSchemas;
 import com.dremio.exec.planner.sql.parser.SqlShowTables;
 import com.dremio.exec.planner.sql.parser.SqlUseSchema;
@@ -313,6 +315,8 @@ public class CommandCreator {
           return direct.create(new RefreshSourceStatusHandler(catalog));
         } else if (sqlNode instanceof SqlSetApprox) {
           return direct.create(new SetApproxHandler(catalog, context.getNamespaceService()));
+        } else if (sqlNode instanceof SqlSetHiveVarcharCompatible) {
+          return direct.create(new SetHiveVarcharCompatibilityHandler(catalog, context.getNamespaceService()));
         }
 
         // fallthrough

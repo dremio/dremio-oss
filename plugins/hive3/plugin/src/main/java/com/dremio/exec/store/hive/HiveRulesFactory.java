@@ -261,7 +261,7 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
       final BatchSchema schema = tableMetadata.getSchema().maskAndReorder(projectedColumns);
       return new HiveGroupScan(
         creator.props(this, tableMetadata.getUser(), schema, Hive3PluginOptions.RESERVE, Hive3PluginOptions.LIMIT),
-        tableMetadata, projectedColumns, filter);
+        tableMetadata, projectedColumns, filter, creator.getContext());
     }
 
     @Override

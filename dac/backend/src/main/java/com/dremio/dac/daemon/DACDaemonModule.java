@@ -654,7 +654,11 @@ public class DACDaemonModule implements DACModule {
           dacConfig));
     }
 
-    registry.bind(LivenessService.class, new LivenessService(config, taskPoolInitializer));
+    LivenessService livenessService = new LivenessService(config);
+    registry.bind(LivenessService.class, livenessService);
+    if (taskPoolInitializer != null) {
+      livenessService.addHealthMonitor(taskPoolInitializer);
+    }
 
     registry.bindSelf(SourceService.class);
     registry.bindSelf(DatasetVersionMutator.class);

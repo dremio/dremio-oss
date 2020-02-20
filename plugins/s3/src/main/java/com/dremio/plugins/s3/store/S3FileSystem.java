@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -89,6 +90,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
   private static final Logger logger = LoggerFactory.getLogger(S3FileSystem.class);
   private static final String S3_URI_SCHEMA = "s3a://";
   private static final URI S3_URI = URI.create("s3a://aws"); // authority doesn't matter here, it is just to avoid exceptions
+  private static final String S3_ENDPOINT_END = ".amazonaws.com";
+  private static final String S3_CN_ENDPOINT_END = S3_ENDPOINT_END + ".cn";
 
   // Used to close the S3AsyncClient objects
   // Lifecycle of an S3AsyncClient object:
@@ -475,16 +478,25 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
   }
 
   static software.amazon.awssdk.regions.Region getAWSRegionFromConfigurationOrDefault(Configuration conf) {
-    if (conf.get(REGION_OVERRIDE) != null) {
-      // a region override is set.
-      String regionOverride = conf.getTrimmed(REGION_OVERRIDE);
-      if (!regionOverride.isEmpty()) {
-        // set the region to what the user provided unless they provided an empty string.
-        return software.amazon.awssdk.regions.Region.of(regionOverride);
-      }
+    final String regionOverride = conf.getTrimmed(REGION_OVERRIDE);
+    if (!Strings.isNullOrEmpty(regionOverride)) {
+      // set the region to what the user provided unless they provided an empty string.
+      return software.amazon.awssdk.regions.Region.of(regionOverride);
     }
-    // default to the US_EAST_1 if no region is set.
-    return software.amazon.awssdk.regions.Region.US_EAST_1;
+
+    return getAwsRegionFromEndpoint(conf.get(Constants.ENDPOINT));
+  }
+
+  static software.amazon.awssdk.regions.Region getAwsRegionFromEndpoint(String endpoint) {
+    // Determine if one of the known AWS regions is contained within the given endpoint, and return that region if so.
+    return Optional.ofNullable(endpoint)
+      .map(e -> e.toLowerCase(Locale.ROOT)) // lower-case the endpoint for easy detection
+      .filter(e -> e.endsWith(S3_ENDPOINT_END) || e.endsWith(S3_CN_ENDPOINT_END)) // omit any semi-malformed endpoints
+      .flatMap(e -> software.amazon.awssdk.regions.Region.regions()
+        .stream()
+        .filter(region -> e.contains(region.id()))
+        .findFirst()) // map the endpoint to the region contained within it, if any
+      .orElse(software.amazon.awssdk.regions.Region.US_EAST_1); // default to US_EAST_1 if no regions are found.
   }
 
   static Optional<String> getEndpoint(Configuration conf) {

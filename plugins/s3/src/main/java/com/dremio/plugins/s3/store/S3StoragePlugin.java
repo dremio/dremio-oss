@@ -211,8 +211,9 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
       Map<String, Object> storageOptions
   ) {
     Preconditions.checkArgument(key.size() >= 2, "key must be at least two parts");
-    final String containerName = key.getPathComponents().get(1);
-    if (key.size() == 2) {
+    final List<String> resolvedPath = resolveTableNameToValidPath(key.getPathComponents()); // strips source name
+    final String containerName = resolvedPath.get(0);
+    if (resolvedPath.size() == 1) {
       throw UserException.validationError()
           .message("Creating buckets is not supported", containerName)
           .build(logger);

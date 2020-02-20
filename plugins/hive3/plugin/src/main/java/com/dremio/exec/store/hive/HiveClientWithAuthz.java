@@ -24,9 +24,9 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.thrift.TException;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.hive.thrift.TException;
 
 /**
  * HiveMetaStoreClient to create and maintain (reconnection cases) connection to Hive metastore with given user

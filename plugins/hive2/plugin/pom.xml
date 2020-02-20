@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive2-plugin-parent</artifactId>
-    <version>4.1.4-202001240912140359-a90eb503</version>
+    <version>4.1.6-202002192122160072-67719f13</version>
   </parent>
 
   <artifactId>dremio-hive2-plugin</artifactId>
@@ -43,6 +43,11 @@
       sure the jars and their dependencies are updated. -->
     <hive.version>2.1.1-dremio-201909161537170757-9d964f7</hive.version>
     <hbase.version>1.1.3</hbase.version>
+    <datanucleus-api-jdo.version>4.2.1</datanucleus-api-jdo.version>
+    <datanucleus-core.version>4.1.6</datanucleus-core.version>
+    <datanucleus-rdbms.version>4.1.7</datanucleus-rdbms.version>
+    <datanucleus-jdo.version>3.2.0-m3</datanucleus-jdo.version>
+    <jdo-api.version>3.0.1</jdo-api.version>
   </properties>
 
   <dependencies>
@@ -457,20 +462,6 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>org.apache.hudi</groupId>
-      <artifactId>hudi-spark</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-        <exclusion>
-          <artifactId>log4j</artifactId>
-          <groupId>log4j</groupId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-hbase-handler</artifactId>
       <version>${hive.version}</version>
@@ -560,61 +551,6 @@
         <exclusion>
           <artifactId>slf4j-log4j12</artifactId>
           <groupId>org.slf4j</groupId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hive</groupId>
-      <artifactId>hive-metastore</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.hive</groupId>
-          <artifactId>hive-serde</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging</artifactId>
-        </exclusion>
-        <exclusion>
-          <artifactId>slf4j-log4j12</artifactId>
-          <groupId>org.slf4j</groupId>
-        </exclusion>
-        <exclusion>
-          <groupId>commons-logging</groupId>
-          <artifactId>commons-logging-api</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.mortbay.jetty</groupId>
-          <artifactId>servlet-api</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hive</groupId>
-          <artifactId>hive-shims</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.derby</groupId>
-          <artifactId>derby</artifactId>
-        </exclusion>
-
-        <exclusion>
-          <artifactId>netty-all</artifactId>
-          <groupId>io.netty</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>log4j</artifactId>
-          <groupId>log4j</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>tephra-api</artifactId>
-          <groupId>co.cask.tephra</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>tephra-core</artifactId>
-          <groupId>co.cask.tephra</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>tephra-hbase-compat-1.0</artifactId>
-          <groupId>co.cask.tephra</groupId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -969,6 +905,37 @@
       <artifactId>slf4j-api</artifactId>
       <version>${slf4j.version}</version>
       <scope>provided</scope>
+    </dependency>
+    <!-- Needed to run metastore -->
+    <dependency>
+      <groupId>javax.jdo</groupId>
+      <artifactId>jdo-api</artifactId>
+      <version>${jdo-api.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.datanucleus</groupId>
+      <artifactId>datanucleus-api-jdo</artifactId>
+      <version>${datanucleus-api-jdo.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.datanucleus</groupId>
+      <artifactId>datanucleus-core</artifactId>
+      <version>${datanucleus-core.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.datanucleus</groupId>
+      <artifactId>datanucleus-rdbms</artifactId>
+      <version>${datanucleus-rdbms.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.datanucleus</groupId>
+      <artifactId>javax.jdo</artifactId>
+      <version>${datanucleus-jdo.version}</version>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>4.1.4-202001240912140359-a90eb503</version>
+    <version>4.1.6-202002192122160072-67719f13</version>
   </parent>
 
   <artifactId>dremio-hive2-exec-shaded</artifactId>
@@ -76,6 +76,9 @@
   </dependencyManagement>
 
   <profiles>
+   <!-- Main (non-mapr) build requires a shimloader fix to support Hadoop 3
+        But shim is not compatible with mapr, so only add exclusion for non-mapr
+   -->
    <profile>
      <id>notmapr</id>
      <activation>
@@ -86,6 +89,14 @@
      <build>
        <plugins>
          <plugin>
+           <!-- Enable compilation -->
+           <groupId>org.apache.maven.plugins</groupId>
+           <artifactId>maven-compiler-plugin</artifactId>
+           <configuration>
+             <skipMain>false</skipMain>
+           </configuration>
+         </plugin>
+         <plugin>
            <groupId>org.apache.maven.plugins</groupId>
            <artifactId>maven-shade-plugin</artifactId>
            <executions>
@@ -95,7 +106,7 @@
                  <goal>shade</goal>
                </goals>
                <configuration>
-                 <filters>
+                 <filters combine.children="append">
                    <filter>
                      <artifact>org.apache.hive:hive-exec</artifact>
                      <excludes>
@@ -130,19 +141,6 @@
         <scope>compile</scope>
       </dependency>
     </dependencies>
-    <build>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-compiler-plugin</artifactId>
-          <configuration>
-            <excludes>
-              <exclude>org/apache/hadoop/hive/shims/ShimLoader.java</exclude>
-            </excludes>
-          </configuration>
-        </plugin>
-      </plugins>
-    </build>
    </profile>
   </profiles>
 
@@ -195,6 +193,18 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- Overwrite thrift version packaged with hive-exec -->
+    <dependency>
+      <groupId>org.apache.thrift</groupId>
+      <artifactId>libthrift</artifactId>
+      <version>0.9.3-2dremio</version>
+      <exclusions>
+        <exclusion>
+          <groupId>commons-logging</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>log4j-over-slf4j</artifactId>
@@ -210,6 +220,14 @@
   <build>
     <plugins>
       <plugin>
+        <!-- Skip compilation (might be changed by profile -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <skipMain>true</skipMain>
+        </configuration>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
@@ -222,6 +240,7 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.hive:hive-exec</include>
+                  <include>org.apache.thrift:libthrift</include>
                   <!-- Added avro and commons-lang3 explicitely for shading as newer version of 
                        hive-exec pom may not have it -->
                   <include>org.apache.avro:avro</include>
@@ -246,12 +265,10 @@
                     <exclude>*.thrift</exclude>
                     <exclude>*-log4j.properties</exclude>
                     <!-- also expressed as a dependency -->
-                    <exclude>org/apache/thrift/**</exclude>
                     <exclude>templates/**</exclude>
                     <exclude>org/apache/hadoop/hive/llap/**</exclude>
-                    <exclude>org/apache/hadoop/hive/metastore/**</exclude>
-                    <exclude>com/facebook/fb303/**</exclude>
-                    <exclude>java/jdo/**</exclude>
+                    <!-- Exclude Thrift version packaged inside hive-exec -->
+                    <exclude>org/apache/thrift/**</exclude>
                   </excludes>
                 </filter>
                 <filter>
@@ -272,12 +289,16 @@
               </filters>
               <relocations>
                 <relocation>
-                  <pattern>com.google.</pattern>
-                  <shadedPattern>hive.com.google.</shadedPattern>
+                  <pattern>com.facebook.</pattern>
+                  <shadedPattern>hive.com.facebook.</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>com.fasterxml.jackson.</pattern>
                   <shadedPattern>hive.com.fasterxml.jackson.</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.google.</pattern>
+                  <shadedPattern>hive.com.google.</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.apache.parquet.</pattern>
@@ -306,6 +327,11 @@
                 <relocation>
                   <pattern>org.apache.commons.lang.</pattern>
                   <shadedPattern>hive.org.apache.commons.lang.</shadedPattern>
+                </relocation>
+                <relocation>
+                  <!-- Required by some dremio code -->
+                  <pattern>org.apache.thrift.</pattern>
+                  <shadedPattern>com.dremio.hive.thrift.</shadedPattern>
                 </relocation>
                 <relocation>
                   <pattern>org.joda.</pattern>

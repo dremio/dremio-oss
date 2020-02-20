@@ -346,6 +346,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
               globalDictionaryEncodedColumns,
               config.getConditions(),
               ParquetFilterCreator.DEFAULT,
+              ParquetDictionaryConvertor.DEFAULT,
               splitXAttr,
               fs,
               footer,

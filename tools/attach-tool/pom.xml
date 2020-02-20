@@ -22,7 +22,7 @@
   <parent>
     <artifactId>dremio-tools-parent</artifactId>
     <groupId>com.dremio.tools</groupId>
-    <version>4.1.4-202001240912140359-a90eb503</version>
+    <version>4.1.6-202002192122160072-67719f13</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 

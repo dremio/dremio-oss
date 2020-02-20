@@ -36,10 +36,10 @@ import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.metastore.utils.SecurityUtils;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.thrift.TException;
 import org.slf4j.helpers.NOPLogger;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.hive.thrift.TException;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;

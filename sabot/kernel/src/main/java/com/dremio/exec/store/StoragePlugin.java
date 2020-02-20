@@ -18,6 +18,7 @@ package com.dremio.exec.store;
 import java.io.IOException;
 import java.util.List;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.datastore.Serializer;
 import com.dremio.exec.planner.logical.ViewTable;
@@ -107,4 +108,14 @@ public interface StoragePlugin extends Service, SourceMetadata {
   @Override
   void start() throws IOException;
 
+  /**
+   * sets hive varchar compatibility to {@param compatible}
+   * returns true if value is changed
+   * @param config
+   * @param compatible
+   * @return
+   */
+  default boolean updateVarcharCompatibility(DatasetConfig config, boolean compatible) {
+    throw UserException.unsupportedError().message("Attempted to update hive table property with non-hive plugin").buildSilently();
+  }
 }

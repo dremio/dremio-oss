@@ -494,6 +494,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
 
           return state;
         } catch(Throwable e) {
+          logger.warn("Error starting new source: {}.", sourceConfig.getName(), e);
           state = SourceState.badState(e.getMessage());
 
           try {
@@ -1055,15 +1056,24 @@ public class ManagedStoragePlugin implements AutoCloseable {
       }
     }
 
-    CompletableFuture<SourceState> refreshState() throws Exception {
+    public void refreshState() throws Exception {
       Optional<AutoCloseableLock> refreshLock = AutoCloseableLock.of(refreshStateLock, true).tryOpen(0, TimeUnit.SECONDS);
-      if(!refreshLock.isPresent()) {
-        // don't refresh the state multiple times through MetadataBridge. All calls that are secondary should be skipped.
-        return CompletableFuture.completedFuture(state);
-      }
+      try {
+        CompletableFuture<SourceState> refreshState;
+        if (!refreshLock.isPresent()) {
+          // don't refresh the state multiple times through MetadataBridge. All calls that are secondary should be skipped.
+          refreshState = CompletableFuture.completedFuture(state);
+        } else {
+          try (AutoCloseableLock read = tryReadLock()) {
+            refreshState = ManagedStoragePlugin.this.refreshState();
+          }
+        }
 
-      try(AutoCloseableLock read = tryReadLock()) {
-        return ManagedStoragePlugin.this.refreshState().whenComplete((a,b) -> refreshLock.get().close());
+        refreshState.get(30, TimeUnit.SECONDS);
+      } finally {
+        if (refreshLock.isPresent()) {
+          refreshLock.get().close();
+        }
       }
     }
 

@@ -73,7 +73,9 @@
     "FORCE",
     "LAZY",
     "MAINTAIN",
-    "MISSING"
+    "MISSING",
+    "HIVE",
+    "COMPATIBILITY"
   ]
 
   nonReservedKeywords: [
@@ -111,7 +113,9 @@
     "FORCE",
     "LAZY",
     "MAINTAIN",
-    "MISSING"
+    "MISSING",
+    "HIVE",
+    "COMPATIBILITY"
   ]
 
   # List of methods for parsing custom SQL statements.

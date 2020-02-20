@@ -80,6 +80,7 @@ message HiveTableXattr {
   optional int32 table_storage_handler_subscript = 16; // lookup this value in storage_handler_dictionary
   optional int32 table_serialization_lib_subscript = 17; // lookup this value in serialization_lib_dictionary
   repeated ColumnInfo column_info = 18;
+  optional bool enforce_varchar_width = 19; // should varchars be truncated to width in table schema
 }
 
 message HiveSplitXattr {

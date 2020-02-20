@@ -197,8 +197,8 @@ public class ElasticsearchCluster implements Closeable {
     this.port = Integer.valueOf(System.getProperty("dremio.elastic.port", Integer.toString(sslEnabled ? sslPort : ELASTICSEARCH_PORT)));
     this.username = System.getProperty("dremio.elastic.username", "");
     this.password = System.getProperty("dremio.elastic.password", "");
-    this.accessKey = System.getProperty("dremio.elastic.access.key", "");
-    this.accessSecret = System.getProperty("dremio.elastic.access.secret", "");
+    this.accessKey = System.getenv("AWS_QA_ACCESS_KEY_ID");
+    this.accessSecret = System.getenv("AWS_QA_SECRET_ACCESS_KEY");
     this.overwriteRegion = "true".equals(System.getProperty("dremio.elastic.region.overwrite", "false"));
     this.regionName = System.getProperty("dremio.elastic.region.name", "");
     initClient();

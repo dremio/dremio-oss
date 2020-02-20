@@ -495,7 +495,7 @@ public class TestStringFunctions extends BaseTestQuery {
         .unOrdered()
         .baselineColumns("res1", "res2")
         .baselineValues(true, false)
-        .baselineValues(false, true)
+        .baselineValues(true, true)
         .build()
         .run();
   }

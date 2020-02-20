@@ -21,10 +21,10 @@ import java.util.List;
 import java.util.Objects;
 
 import org.apache.hadoop.hive.metastore.api.Partition;
-import org.apache.thrift.TException;
 
 import com.dremio.exec.store.hive.Hive3PluginOptions;
 import com.dremio.exec.store.hive.HiveClient;
+import com.dremio.hive.thrift.TException;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Lists;
 

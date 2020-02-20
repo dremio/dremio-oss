@@ -86,7 +86,6 @@ public class TestFailedToStartPlugin extends DremioTest {
   private SabotContext sabotContext;
   private KVStoreProvider storeProvider;
   private SchedulerService schedulerService;
-  private PluginsManager plugins;
   private static MockUpPlugin mockUpPlugin;
 
   private static final String MOCK_UP = "mockup-failed-to-start";
@@ -235,20 +234,22 @@ public class TestFailedToStartPlugin extends DremioTest {
       }
     };
     KVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
-    plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService, ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor);
+    try (PluginsManager plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService, ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor))
+    {
 
-    mockUpPlugin.setThrowAtStart();
-    assertEquals(0, mockUpPlugin.getNumFailedStarts());
-    plugins.start();
-    // mockUpPlugin should be failing over and over right around now
-    waitForRefresh(wakeupCounter);
-    long currNumFailedStarts = mockUpPlugin.getNumFailedStarts();
-    assertTrue(currNumFailedStarts > 1);
-    mockUpPlugin.unsetThrowAtStart();
-    waitForRefresh(refreshCounter);
-    currNumFailedStarts = mockUpPlugin.getNumFailedStarts();
-    waitForRefresh(refreshCounter);
-    assertEquals(currNumFailedStarts, mockUpPlugin.getNumFailedStarts());
+      mockUpPlugin.setThrowAtStart();
+      assertEquals(0, mockUpPlugin.getNumFailedStarts());
+      plugins.start();
+      // mockUpPlugin should be failing over and over right around now
+      waitForRefresh(wakeupCounter);
+      long currNumFailedStarts = mockUpPlugin.getNumFailedStarts();
+      assertTrue(currNumFailedStarts > 1);
+      mockUpPlugin.unsetThrowAtStart();
+      waitForRefresh(refreshCounter);
+      currNumFailedStarts = mockUpPlugin.getNumFailedStarts();
+      waitForRefresh(refreshCounter);
+      assertEquals(currNumFailedStarts, mockUpPlugin.getNumFailedStarts());
+    }
   }
 
   @Test
@@ -268,21 +269,22 @@ public class TestFailedToStartPlugin extends DremioTest {
     };
 
     KVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
-    plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService, ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor);
+    try (PluginsManager plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService, ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor)) {
 
-    mockUpPlugin.setSimulateBadState(true);
-    assertEquals(false, mockUpPlugin.gotDatasets());
-    plugins.start();
-    // metadata refresh should be running right now
-    waitForRefresh(wakeupCounter);
-    assertFalse(mockUpPlugin.gotDatasets());
-    mockUpPlugin.setSimulateBadState(false);
-    // Give metadata refresh a chance to run again
-    waitForRefresh(refreshCounter);
-    assertTrue(mockUpPlugin.gotDatasets());
-    mockUpPlugin.unsetGotDatasets();
-    waitForRefresh(refreshCounter);
-    assertTrue(mockUpPlugin.gotDatasets());
+      mockUpPlugin.setSimulateBadState(true);
+      assertEquals(false, mockUpPlugin.gotDatasets());
+      plugins.start();
+      // metadata refresh should be running right now
+      waitForRefresh(wakeupCounter);
+      assertFalse(mockUpPlugin.gotDatasets());
+      mockUpPlugin.setSimulateBadState(false);
+      // Give metadata refresh a chance to run again
+      waitForRefresh(refreshCounter);
+      assertTrue(mockUpPlugin.gotDatasets());
+      mockUpPlugin.unsetGotDatasets();
+      waitForRefresh(refreshCounter);
+      assertTrue(mockUpPlugin.gotDatasets());
+    }
   }
 
   @SourceType(value = MOCK_UP, configurable = false)

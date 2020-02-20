@@ -185,7 +185,7 @@ public class HiveMetadataUtils {
   }
 
   public static boolean isVarcharTruncateSupported(InputFormat<?, ?> format) {
-    return false;
+    return MapredParquetInputFormat.class.isAssignableFrom(format.getClass());
   }
 
   public static boolean hasVarcharColumnInTableSchema(
@@ -673,9 +673,9 @@ public class HiveMetadataUtils {
           size += getSize(bucket, delta);
         }
 
-        return size > 0 ? size : ONE;
+        return (size > 0) ? size : ONE;
       } catch (Exception e) {
-        logger.warn("Failed to derive the input split size of transactional Hive tables", e);
+        logger.debug("Failed to derive the input split size of transactional Hive tables", e);
         // return a non-zero number - we don't want the metadata fetch operation to fail. We could ask the customer to
         // update the stats so that they can be used as part of the planning
         return ONE;
@@ -794,6 +794,7 @@ public class HiveMetadataUtils {
   }
 
   public static PartitionMetadata getPartitionMetadata(final boolean storageImpersonationEnabled,
+                                                       final boolean enableVarcharWidth,
                                                        TableMetadata tableMetadata,
                                                        MetadataAccumulator metadataAccumulator,
                                                        Partition partition,
@@ -873,7 +874,7 @@ public class HiveMetadataUtils {
         metastoreStats = getStatsFromProps(partitionProperties);
       }
 
-      List<PartitionValue> partitionValues = getPartitionValues(table, partition);
+      List<PartitionValue> partitionValues = getPartitionValues(table, partition, enableVarcharWidth);
 
       return PartitionMetadata.newBuilder()
         .partitionId(partitionId)
@@ -1075,7 +1076,7 @@ public class HiveMetadataUtils {
     return output;
   }
 
-  public static List<PartitionValue> getPartitionValues(Table table, Partition partition) {
+  public static List<PartitionValue> getPartitionValues(Table table, Partition partition, boolean enableVarcharWidth) {
     if (partition == null) {
       return Collections.emptyList();
     }
@@ -1084,7 +1085,7 @@ public class HiveMetadataUtils {
     final List<PartitionValue> output = new ArrayList<>();
     final List<FieldSchema> partitionKeys = table.getPartitionKeys();
     for (int i = 0; i < partitionKeys.size(); i++) {
-      final PartitionValue value = getPartitionValue(partitionKeys.get(i), partitionValues.get(i));
+      final PartitionValue value = getPartitionValue(partitionKeys.get(i), partitionValues.get(i), enableVarcharWidth);
       if (value != null) {
         output.add(value);
       }
@@ -1092,7 +1093,7 @@ public class HiveMetadataUtils {
     return output;
   }
 
-  private static PartitionValue getPartitionValue(FieldSchema partitionCol, String value) {
+  private static PartitionValue getPartitionValue(FieldSchema partitionCol, String value, boolean enableVarcharWidth) {
     final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(partitionCol.getType());
     final String name = partitionCol.getName();
 
@@ -1127,13 +1128,13 @@ public class HiveMetadataUtils {
             return PartitionValue.of(name, value);
           case VARCHAR:
             String truncatedVarchar = value;
-            if (value.length() > ((VarcharTypeInfo) typeInfo).getLength()) {
+            if (enableVarcharWidth && (value.length() > ((VarcharTypeInfo) typeInfo).getLength())) {
               truncatedVarchar = value.substring(0, ((VarcharTypeInfo) typeInfo).getLength());
             }
             return PartitionValue.of(name, truncatedVarchar);
           case CHAR:
             String truncatedChar = value.trim();
-            if (truncatedChar.length() > ((CharTypeInfo) typeInfo).getLength()) {
+            if (enableVarcharWidth && (truncatedChar.length() > ((CharTypeInfo) typeInfo).getLength())) {
               truncatedChar = value.substring(0, ((CharTypeInfo) typeInfo).getLength());
             }
             return PartitionValue.of(name, truncatedChar);
@@ -1237,14 +1238,14 @@ public class HiveMetadataUtils {
       partition.getValues());
   }
 
-  public static int getHash(Table table, final HiveConf hiveConf) {
+  public static int getHash(Table table, boolean enforceVarcharWidth, final HiveConf hiveConf) {
     List<Object> hashParts = Lists.newArrayList(table.getTableType(),
       table.getParameters(),
       table.getPartitionKeys(),
       table.getSd(),
       table.getViewExpandedText(),
       table.getViewOriginalText());
-    if (hasVarcharColumnInTableSchema(table, hiveConf)) {
+    if (enforceVarcharWidth && hasVarcharColumnInTableSchema(table, hiveConf)) {
       hashParts.add(Boolean.TRUE);
     }
     return Objects.hashCode(hashParts.toArray());

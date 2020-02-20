@@ -46,6 +46,9 @@ public final class CatalogOptions {
   // Maximum number of leaf columns allowed for metadata
   public static final LongValidator METADATA_LEAF_COLUMN_MAX = new PositiveLongValidator("store.plugin.max_metadata_leaf_columns", Integer.MAX_VALUE, 800);
 
+  // ORC ACID table factor for leaf columns
+  public static final LongValidator ORC_DELTA_LEAF_COLUMN_FACTOR = new PositiveLongValidator("store.hive.orc_delta_leaf_column_factor", Integer.MAX_VALUE, 5);
+
   // How should (multi-)splits be compressed in the K/V store
   public static final TypeValidators.EnumValidator<NamespaceService.SplitCompression> SPLIT_COMPRESSION_TYPE = new TypeValidators.EnumValidator<>(
     "store.plugin.split_compression", NamespaceService.SplitCompression.class, NamespaceService.SplitCompression.SNAPPY);

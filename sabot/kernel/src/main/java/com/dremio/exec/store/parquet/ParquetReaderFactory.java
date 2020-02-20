@@ -27,7 +27,7 @@ import com.dremio.exec.store.RecordReader;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 public interface ParquetReaderFactory {
-  enum FilterCreatorType {
+  enum ManagedSchemaType {
     HIVE,
   };
 
@@ -39,6 +39,7 @@ public interface ParquetReaderFactory {
       CompressionCodecFactory codecFactory,
       List<ParquetFilterCondition> conditions,
       ParquetFilterCreator filterCreator,
+      ParquetDictionaryConvertor dictionaryConvertor,
       boolean enableDetailedTracing,
       ParquetMetadata footer,
       int rowGroupIndex,
@@ -46,7 +47,9 @@ public interface ParquetReaderFactory {
       SchemaDerivationHelper schemaHelper,
       InputStreamProvider inputStreamProvider);
 
-  ParquetFilterCreator newFilterCreator(FilterCreatorType type, ManagedSchema schema);
+  ParquetFilterCreator newFilterCreator(ManagedSchemaType type, ManagedSchema schema);
+
+  ParquetDictionaryConvertor newDictionaryConvertor(ManagedSchemaType type, ManagedSchema schema);
 
   ParquetReaderFactory NONE = new ParquetReaderFactory(){
 
@@ -57,15 +60,20 @@ public interface ParquetReaderFactory {
 
     @Override
     public RecordReader newReader(OperatorContext context, List<SchemaPath> columns, String path,
-        CompressionCodecFactory codecFactory, List<ParquetFilterCondition> conditions, ParquetFilterCreator filterCreator, boolean enableDetailedTracing,
+        CompressionCodecFactory codecFactory, List<ParquetFilterCondition> conditions, ParquetFilterCreator filterCreator, ParquetDictionaryConvertor dictionaryConvertor, boolean enableDetailedTracing,
         ParquetMetadata footer, int rowGroupIndex, SimpleIntVector deltas, SchemaDerivationHelper schemaHelper,
         InputStreamProvider inputStreamProvider) {
       throw new UnsupportedOperationException();
     }
 
     @Override
-    public ParquetFilterCreator newFilterCreator(FilterCreatorType type, ManagedSchema managedSchema) {
+    public ParquetFilterCreator newFilterCreator(ManagedSchemaType type, ManagedSchema managedSchema) {
       return ParquetFilterCreator.DEFAULT;
+    }
+
+    @Override
+    public ParquetDictionaryConvertor newDictionaryConvertor(ManagedSchemaType type, ManagedSchema schema) {
+      return ParquetDictionaryConvertor.DEFAULT;
     }
   };
 }

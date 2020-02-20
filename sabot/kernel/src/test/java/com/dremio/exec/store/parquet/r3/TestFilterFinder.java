@@ -222,4 +222,33 @@ public class TestFilterFinder {
     assertFalse(holder.hasRemainingExpression());
 
   }
+
+  @Test
+  public void multipleConditions() {
+    final RexNode node = builder.makeCall(
+      SqlStdOperatorTable.AND,
+      builder.makeCall(
+        SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
+        builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
+        builder.makeBigintLiteral(new BigDecimal("1"))
+      ),
+      builder.makeCall(
+        SqlStdOperatorTable.AND,
+        builder.makeCall(
+          SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
+          builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 0),
+          builder.makeBigintLiteral(new BigDecimal("1"))
+        ),
+        builder.makeCall(
+          SqlStdOperatorTable.LIKE,
+          builder.makeInputRef(factory.createSqlType(SqlTypeName.BIGINT), 1),
+          builder.makeLiteral("%1mg")
+        )
+      )
+    );
+    FindSimpleFilters finder = new FindSimpleFilters((builder));
+    StateHolder holder = node.accept(finder);
+    assertEquals(holder.getConditions().size(), 2);
+    assertTrue(holder.hasRemainingExpression());
+  }
 }

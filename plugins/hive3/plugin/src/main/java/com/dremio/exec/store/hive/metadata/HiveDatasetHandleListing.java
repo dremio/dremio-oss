@@ -18,12 +18,12 @@ package com.dremio.exec.store.hive.metadata;
 import java.util.Collections;
 import java.util.Iterator;
 
-import org.apache.thrift.TException;
 
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetHandleListing;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.exec.store.hive.HiveClient;
+import com.dremio.hive.thrift.TException;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.ImmutableList;
 

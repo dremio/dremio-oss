@@ -1460,7 +1460,7 @@ public class DecimalFunctions {
   }
 
   @SuppressWarnings("unused")
-  @FunctionTemplate(name = "truncate", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalSetScale.class)
+  @FunctionTemplate(names = {"truncate", "trunc"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalSetScale.class)
   public static class TruncateDecimalWithScale implements SimpleFunction {
 
     @Param
@@ -1506,7 +1506,7 @@ public class DecimalFunctions {
   }
 
   @SuppressWarnings("unused")
-  @FunctionTemplate(name = "truncate", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalZeroScale.class)
+  @FunctionTemplate(names = {"truncate", "trunc"}, scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL, derivation = OutputDerivation.DecimalZeroScale.class)
   public static class TruncateDecimal implements SimpleFunction {
 
     @Param
