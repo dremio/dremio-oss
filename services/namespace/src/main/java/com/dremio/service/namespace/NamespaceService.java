@@ -77,12 +77,13 @@ public interface NamespaceService {
 
   /**
    * Create a dataset metadata saver for the given dataset.
-   * @param datasetPath      dataset path
-   * @param datasetId        dataset id
-   * @param splitCompression compression to be used on the (multi-)splits in the K/V store
-   * @return                 dataset metadata saver
+   * @param datasetPath              dataset path
+   * @param datasetId                dataset id
+   * @param splitCompression         compression to be used on the (multi-)splits in the K/V store
+   * @param maxSinglePartitionChunks maximum number of single split partition chunks allowed to be saved together
+   * @return                         dataset metadata saver
    */
-  DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey datasetPath, EntityId datasetId, SplitCompression splitCompression);
+  DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey datasetPath, EntityId datasetId, SplitCompression splitCompression, long maxSinglePartitionChunks);
 
   //// GET
   boolean exists(NamespaceKey key, Type type);

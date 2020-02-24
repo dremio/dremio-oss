@@ -17,6 +17,7 @@ package com.dremio.exec.store.dfs;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.util.GregorianCalendar;
 import java.util.List;
@@ -132,11 +133,11 @@ public class MetadataUtils {
 
       case VARBINARY:
         if (value instanceof String) { // if the metadata was read from a JSON cache file it maybe a string type
-          return PartitionValue.of(name, os -> os.write(((String) value).getBytes(UTF8)), partitionType);
+          return PartitionValue.of(name, ByteBuffer.wrap(((String) value).getBytes(UTF8)), partitionType);
         } else if (value instanceof Binary) {
-          return PartitionValue.of(name, os -> os.write(((Binary) value).getBytes()), partitionType);
+          return PartitionValue.of(name, ByteBuffer.wrap(((Binary) value).getBytes()), partitionType);
         } else if (value instanceof byte[]) {
-          return PartitionValue.of(name, os -> os.write((byte[]) value), partitionType);
+          return PartitionValue.of(name, ByteBuffer.wrap((byte[]) value), partitionType);
         } else {
           throw new UnsupportedOperationException("Unable to create column data for type: " + type);
         }
@@ -152,15 +153,15 @@ public class MetadataUtils {
 
       case DECIMAL:
         if (value instanceof Binary) {
-          return PartitionValue.of(name, os -> os.write(((Binary) value).getBytes()), partitionType);
+          return PartitionValue.of(name, ByteBuffer.wrap(((Binary) value).getBytes()), partitionType);
         } else if (value instanceof byte[]) {
-          return PartitionValue.of(name, os -> os.write((byte[]) value), partitionType);
+          return PartitionValue.of(name, ByteBuffer.wrap((byte[]) value), partitionType);
         } else if (value instanceof Integer) {
           BigInteger decimal = BigInteger.valueOf(((Number) value).intValue());
-          return PartitionValue.of(name,  os -> os.write(decimal.toByteArray()), partitionType);
+          return PartitionValue.of(name,  ByteBuffer.wrap(decimal.toByteArray()), partitionType);
         } else if (value instanceof Long) {
           BigInteger decimal = BigInteger.valueOf(((Number) value).longValue());
-          return PartitionValue.of(name,  os -> os.write(decimal.toByteArray()), partitionType);
+          return PartitionValue.of(name,  ByteBuffer.wrap(decimal.toByteArray()), partitionType);
         }
         return PartitionValue.of(name, partitionType);
 

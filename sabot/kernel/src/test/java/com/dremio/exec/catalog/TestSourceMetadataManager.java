@@ -19,6 +19,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
+import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -258,7 +259,7 @@ public class TestSourceMetadataManager {
 
     DatasetMetadataSaver saver = mock(DatasetMetadataSaver.class);
     doNothing().when(saver).saveDataset(any(), anyBoolean(), any());
-    when(ns.newDatasetMetadataSaver(any(), any(), any()))
+    when(ns.newDatasetMetadataSaver(any(), any(), any(), anyLong()))
         .thenReturn(saver);
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
@@ -344,7 +345,7 @@ public class TestSourceMetadataManager {
 
     DatasetMetadataSaver saver = mock(DatasetMetadataSaver.class);
     doNothing().when(saver).saveDataset(any(), anyBoolean(), any());
-    when(ns.newDatasetMetadataSaver(any(), any(), any()))
+    when(ns.newDatasetMetadataSaver(any(), any(), any(), anyLong()))
       .thenReturn(saver);
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);

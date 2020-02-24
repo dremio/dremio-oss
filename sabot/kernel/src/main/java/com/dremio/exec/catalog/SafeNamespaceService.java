@@ -280,8 +280,8 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
-  public DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey arg0, EntityId arg1, SplitCompression arg2) {
-    final DatasetMetadataSaver delegate = runner.doSafe(() -> this.delegate.newDatasetMetadataSaver(arg0, arg1, arg2));
+  public DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey arg0, EntityId arg1, SplitCompression arg2, long arg3) {
+    final DatasetMetadataSaver delegate = runner.doSafe(() -> this.delegate.newDatasetMetadataSaver(arg0, arg1, arg2, arg3));
     return new DatasetMetadataSaver() {
 
       @Override

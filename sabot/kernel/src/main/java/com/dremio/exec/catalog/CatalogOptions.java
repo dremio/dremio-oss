@@ -49,6 +49,9 @@ public final class CatalogOptions {
   // ORC ACID table factor for leaf columns
   public static final LongValidator ORC_DELTA_LEAF_COLUMN_FACTOR = new PositiveLongValidator("store.hive.orc_delta_leaf_column_factor", Integer.MAX_VALUE, 5);
 
+  // Maximum number of single split partitions allowed to be saved together
+  public static final LongValidator SINGLE_SPLIT_PARTITION_MAX = new PositiveLongValidator("store.plugin.max_single_split_partitions", Long.MAX_VALUE, 500);
+
   // How should (multi-)splits be compressed in the K/V store
   public static final TypeValidators.EnumValidator<NamespaceService.SplitCompression> SPLIT_COMPRESSION_TYPE = new TypeValidators.EnumValidator<>(
     "store.plugin.split_compression", NamespaceService.SplitCompression.class, NamespaceService.SplitCompression.SNAPPY);

@@ -15,10 +15,13 @@
  */
 package com.dremio.connector.metadata;
 
+import java.nio.ByteBuffer;
+
 /**
  * Default implementations.
  */
 final class PartitionValues {
+  static final int PRIME = 31;
 
   /**
    * Abstract implementation.
@@ -41,6 +44,30 @@ final class PartitionValues {
     public String getColumn() {
       return name;
     }
+
+    @Override
+    public int hashCode() {
+      int result = 1;
+      result = PRIME * result + ((name == null) ? 0 : name.hashCode());
+      result = PRIME * result + ((type == null) ? 0 : type.hashCode());
+      return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj == null) {
+        return false;
+      }
+      if (obj == this) {
+        return true;
+      }
+      if (obj.getClass() != getClass()) {
+        return false;
+      }
+
+      AbstractPartitionValue other = (AbstractPartitionValue)obj;
+      return type.equals(other.type) && name.equals(other.name);
+    }
   }
 
   /**
@@ -55,6 +82,16 @@ final class PartitionValues {
     @Override
     public boolean hasValue() {
       return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return super.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return super.equals(obj);
     }
   }
 
@@ -73,6 +110,20 @@ final class PartitionValues {
     public String getValue() {
       return value;
     }
+
+    @Override
+    public int hashCode() {
+      return PRIME * super.hashCode() + (value == null ? 0 : value.hashCode());
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!super.equals(obj)) {
+        return false;
+      }
+      StringImpl other = (StringImpl)obj;
+      return value == null ? other.value == null : value.equals(other.value);
+    }
   }
 
   /**
@@ -89,6 +140,19 @@ final class PartitionValues {
     @Override
     public int getValue() {
       return value;
+    }
+
+    @Override
+    public int hashCode() {
+      return PRIME * super.hashCode() + Integer.hashCode(value);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!super.equals(obj)) {
+        return false;
+      }
+      return value == ((IntImpl)obj).value;
     }
   }
 
@@ -107,6 +171,19 @@ final class PartitionValues {
     public double getValue() {
       return value;
     }
+
+    @Override
+    public int hashCode() {
+      return PRIME * super.hashCode() + Double.hashCode(value);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!super.equals(obj)) {
+        return false;
+      }
+      return value == ((DoubleImpl)obj).value;
+    }
   }
 
   /**
@@ -123,6 +200,19 @@ final class PartitionValues {
     @Override
     public long getValue() {
       return value;
+    }
+
+    @Override
+    public int hashCode() {
+      return PRIME * super.hashCode() + Long.hashCode(value);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!super.equals(obj)) {
+        return false;
+      }
+      return value == ((LongImpl)obj).value;
     }
   }
 
@@ -141,6 +231,19 @@ final class PartitionValues {
     public float getValue() {
       return value;
     }
+
+    @Override
+    public int hashCode() {
+      return PRIME * super.hashCode() + Float.hashCode(value);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!super.equals(obj)) {
+        return false;
+      }
+      return value == ((FloatImpl)obj).value;
+    }
   }
 
   /**
@@ -158,22 +261,50 @@ final class PartitionValues {
     public boolean getValue() {
       return value;
     }
+
+    @Override
+    public int hashCode() {
+      return PRIME * super.hashCode() + Boolean.hashCode(value);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!super.equals(obj)) {
+        return false;
+      }
+      return value == ((BooleanImpl)obj).value;
+    }
   }
 
   /**
    * Binary implementation.
    */
   static final class BinaryImpl extends AbstractPartitionValue implements PartitionValue.BinaryPartitionValue {
-    private final BytesOutput value;
+    private final ByteBuffer value;
 
-    BinaryImpl(String name, PartitionValueType type, BytesOutput value) {
+    BinaryImpl(String name, PartitionValueType type, ByteBuffer value) {
       super(name, type);
       this.value = value;
     }
 
     @Override
-    public BytesOutput getValue() {
+    public ByteBuffer getValue() {
       return value;
+    }
+
+    @Override
+    public int hashCode() {
+      return PRIME * super.hashCode() + value.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!super.equals(obj)) {
+        return false;
+      }
+
+      BinaryImpl other = (BinaryImpl)obj;
+      return value == null ? other.value == null : value.equals(other.value);
     }
   }
 

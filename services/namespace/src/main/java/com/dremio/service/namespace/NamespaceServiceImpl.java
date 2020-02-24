@@ -464,15 +464,17 @@ public class NamespaceServiceImpl implements NamespaceService {
     private final EntityId datasetId;
     private final long nextDatasetVersion;
     private final SplitCompression splitCompression;
+    private final long maxSinglePartitionChunks;
     private boolean isClosed;
     private long partitionChunkCount;
+    private long partitionChunkWithSingleSplitCount;
     private List<PartitionChunkId> createdPartitionChunks;
     private long accumulatedSizeInBytes;
     private long accumulatedRecordCount;
     private List<DatasetSplit> accumulatedSplits;
     private int totalNumSplits;
 
-    DatasetMetadataSaverImpl(NamespaceKey datasetPath, EntityId datasetId, long nextDatasetVersion, SplitCompression splitCompression) {
+    DatasetMetadataSaverImpl(NamespaceKey datasetPath, EntityId datasetId, long nextDatasetVersion, SplitCompression splitCompression, long maxSinglePartitionChunks) {
       this.datasetPath = datasetPath;
       this.datasetId = datasetId;
       this.nextDatasetVersion = nextDatasetVersion;
@@ -481,7 +483,13 @@ public class NamespaceServiceImpl implements NamespaceService {
       this.partitionChunkCount = -1;  // incremented to 0 below
       this.createdPartitionChunks = new ArrayList<>();
       this.totalNumSplits = 0;
+      this.partitionChunkWithSingleSplitCount = 0;
+      this.maxSinglePartitionChunks = maxSinglePartitionChunks;
       resetSplitAccumulation();
+    }
+
+    private boolean isSingleSplitPartitionAllowed() {
+      return partitionChunkWithSingleSplitCount < maxSinglePartitionChunks;
     }
 
     private void resetSplitAccumulation() {
@@ -518,9 +526,13 @@ public class NamespaceServiceImpl implements NamespaceService {
               .collect(Collectors.toList()))
           .setSplitKey(splitKey)
           .setSplitCount(accumulatedSplits.size());
-      if (accumulatedSplits.size() == 1) {
+      // Only a limited number of partition chunks are allowed to be saved with a single dataset split.
+      // Once it reaches this limit(=maxSinglePartitionChunks), save splits separately in multi-split store.
+      final boolean singleSplitPartitionAllowed = isSingleSplitPartitionAllowed();
+      if (accumulatedSplits.size() == 1 && singleSplitPartitionAllowed) {
         // Single-split partition chunk
         builder.setDatasetSplit(MetadataProtoUtils.toProtobuf(accumulatedSplits.get(0)));
+        partitionChunkWithSingleSplitCount++;
       }
       PartitionChunkId chunkId = PartitionChunkId.of(datasetId, nextDatasetVersion, splitKey);
       NamespaceServiceImpl.this.partitionChunkStore.put(chunkId, builder.build());
@@ -528,7 +540,7 @@ public class NamespaceServiceImpl implements NamespaceService {
       // Intentionally creating any potential multi-splits after creating the partition chunk.
       // This makes orphan cleaning simpler, as we can key only on the existing partitionChunk(s), and remove
       // any matching multi-splits
-      if (accumulatedSplits.size() > 1) {
+      if (accumulatedSplits.size() > 1 || !singleSplitPartitionAllowed) {
         NamespaceServiceImpl.this.multiSplitStore.put(chunkId, createMultiSplitFromAccumulated(splitKey));
       }
       totalNumSplits += accumulatedSplits.size();
@@ -619,8 +631,8 @@ public class NamespaceServiceImpl implements NamespaceService {
   }
 
   @Override
-  public DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey datasetPath, EntityId datasetId, SplitCompression splitCompression) {
-    return new DatasetMetadataSaverImpl(datasetPath, datasetId, System.currentTimeMillis(), splitCompression);
+  public DatasetMetadataSaver newDatasetMetadataSaver(NamespaceKey datasetPath, EntityId datasetId, SplitCompression splitCompression, long maxSinglePartitionChunks) {
+    return new DatasetMetadataSaverImpl(datasetPath, datasetId, System.currentTimeMillis(), splitCompression, maxSinglePartitionChunks);
   }
 
   /**

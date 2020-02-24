@@ -92,7 +92,7 @@ public class DatasetSaver {
     }
     final NamespaceKey canonicalKey = MetadataObjectsUtils.toNamespaceKey(handle.getDatasetPath());
     SplitCompression splitCompression = NamespaceService.SplitCompression.valueOf(optionManager.getOption(CatalogOptions.SPLIT_COMPRESSION_TYPE).toUpperCase());
-    try (DatasetMetadataSaver saver = systemNamespace.newDatasetMetadataSaver(canonicalKey, datasetConfig.getId(), splitCompression)) {
+    try (DatasetMetadataSaver saver = systemNamespace.newDatasetMetadataSaver(canonicalKey, datasetConfig.getId(), splitCompression, optionManager.getOption(CatalogOptions.SINGLE_SPLIT_PARTITION_MAX))) {
       final PartitionChunkListing chunkListing = sourceMetadata.listPartitionChunks(handle,
           options.asListPartitionChunkOptions(datasetConfig));
       final Iterator<? extends PartitionChunk> chunks = chunkListing.iterator();

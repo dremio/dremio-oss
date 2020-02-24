@@ -24,6 +24,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.net.URI;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -1105,7 +1106,7 @@ public class HiveMetadataUtils {
           case BINARY:
             try {
               byte[] bytes = value.getBytes("UTF-8");
-              return PartitionValue.of(name, os -> os.write(bytes));
+              return PartitionValue.of(name, ByteBuffer.wrap(bytes));
             } catch (UnsupportedEncodingException e) {
               throw new RuntimeException("UTF-8 not supported?", e);
             }
@@ -1153,7 +1154,7 @@ public class HiveMetadataUtils {
             final BigDecimal original = decimal.bigDecimalValue();
             // we can't just use unscaledValue() since BigDecimal doesn't store trailing zeroes and we need to ensure decoding includes the correct scale.
             final BigInteger unscaled = original.movePointRight(decimalTypeInfo.scale()).unscaledValue();
-            return PartitionValue.of(name, os -> os.write(DecimalTools.signExtend16(unscaled.toByteArray())));
+            return PartitionValue.of(name, ByteBuffer.wrap(DecimalTools.signExtend16(unscaled.toByteArray())));
           default:
             HiveUtilities.throwUnsupportedHiveDataTypeError(primitiveTypeInfo.getPrimitiveCategory().toString());
         }

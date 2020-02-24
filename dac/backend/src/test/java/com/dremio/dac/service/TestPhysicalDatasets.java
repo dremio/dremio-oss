@@ -25,6 +25,7 @@ import static org.junit.Assert.fail;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.Iterator;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
@@ -38,6 +39,7 @@ import org.junit.rules.ExpectedException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.FileFormatUI;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.model.folder.Folder;
@@ -53,6 +55,7 @@ import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.FamilyExpectation;
 import com.dremio.dac.server.UserExceptionMapper;
 import com.dremio.dac.service.source.SourceService;
+import com.dremio.datastore.IndexedStore;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
@@ -64,6 +67,9 @@ import com.dremio.service.jobs.JobsServiceUtil;
 import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.PartitionChunkId;
+import com.dremio.service.namespace.PartitionChunkMetadata;
+import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.file.FileFormat;
 import com.dremio.service.namespace.file.proto.ExcelFileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
@@ -925,6 +931,50 @@ public class TestPhysicalDatasets extends BaseTestServer {
     ).truncate(500);
     assertEquals(23, jobData.getColumns().size());
     assertEquals(500, jobData.getReturnedRowCount());
+  }
+
+  @Test
+  public void testParquetPartitionChunkCount() throws Exception {
+    ParquetFileConfig fileConfig = new ParquetFileConfig();
+    fileConfig.setName("parquet");
+    String filePath = getUrlPath("/datasets/parquet_2p_4s");
+    expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
+
+    int expectedNumOfPartitionChunks = 2;
+    int expectedNumOfSplitsPerPartition = 2;
+    DatasetConfig datasetConfig = l(NamespaceService.class).getDataset(new DatasetPath(getSchemaPath("/datasets/parquet_2p_4s")).toNamespaceKey());
+    Iterator<PartitionChunkMetadata> iter = l(NamespaceService.class)
+      .findSplits(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))).iterator();
+    for (int i = 0 ; i < expectedNumOfPartitionChunks ; i++) {
+      assertTrue(iter.hasNext());
+      PartitionChunkMetadata partitionChunkMetadata = iter.next();
+      assertEquals(expectedNumOfSplitsPerPartition, partitionChunkMetadata.getSplitCount());
+    }
+    assertFalse(iter.hasNext());
+  }
+
+  @Test
+  public void testTextPartitionChunkCount() throws Exception {
+    TextFileConfig fileConfig = new TextFileConfig();
+    fileConfig.setFieldDelimiter("|");
+    fileConfig.setLineDelimiter("\n");
+    fileConfig.setName("tinyacq.txt");
+    fileConfig.setExtractHeader(true);
+
+    String filePath = getUrlPath("/datasets/text_2p_4s");
+    expectSuccess(getBuilder(getAPIv2().path("/source/dacfs_test/folder_format/" + filePath)).buildPut(Entity.json(fileConfig)));
+
+    int expectedNumOfPartitionChunks = 2;
+    int expectedNumOfSplitsPerPartition = 2;
+    DatasetConfig datasetConfig = l(NamespaceService.class).getDataset(new DatasetPath(getSchemaPath("/datasets/text_2p_4s")).toNamespaceKey());
+    Iterator<PartitionChunkMetadata> iter = l(NamespaceService.class)
+      .findSplits(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))).iterator();
+    for (int i = 0 ; i < expectedNumOfPartitionChunks ; i++) {
+      assertTrue(iter.hasNext());
+      PartitionChunkMetadata partitionChunkMetadata = iter.next();
+      assertEquals(expectedNumOfSplitsPerPartition, partitionChunkMetadata.getSplitCount());
+    }
+    assertFalse(iter.hasNext());
   }
 
   /*

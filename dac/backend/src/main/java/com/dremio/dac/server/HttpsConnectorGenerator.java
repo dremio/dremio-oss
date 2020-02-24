@@ -83,7 +83,7 @@ public class HttpsConnectorGenerator {
       }
     }
 
-    final SslContextFactory sslContextFactory = new SslContextFactory();
+    final SslContextFactory sslContextFactory = new SslContextFactory.Server();
     sslContextFactory.setKeyStore(keyStore);
     sslContextFactory.setKeyManagerPassword(sslConfig.getKeyPassword());
     // TODO(DX-12920): sslContextFactory.setKeyStorePassword(sslConfig.getKeyStorePassword());

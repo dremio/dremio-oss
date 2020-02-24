@@ -50,7 +50,7 @@ public final class MetadataProtoUtils {
     }
 
     if (value instanceof PartitionValue.BinaryPartitionValue) {
-      builder.setBinaryValue(toProtobuf(((PartitionValue.BinaryPartitionValue) value).getValue()));
+      builder.setBinaryValue(ByteString.copyFrom(((PartitionValue.BinaryPartitionValue) value).getValue()));
     } else if (value instanceof PartitionValue.BooleanPartitionValue) {
       builder.setBitValue(((PartitionValue.BooleanPartitionValue) value).getValue());
     } else if (value instanceof PartitionValue.DoublePartitionValue) {
