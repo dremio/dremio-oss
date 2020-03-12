@@ -575,8 +575,6 @@ public class HiveMetadataUtils {
     final long totalSizeOfInputSplits = inputSplitSizes.stream().mapToLong(Long::longValue).sum();
     final int estimatedRecordSize = tableMetadata.getBatchSchema().estimateRecordSize(statsParams.getListSizeEstimate(), statsParams.getVarFieldSizeEstimate());
 
-    metadataAccumulator.accumulateTotalBytesToScanFactor(totalSizeOfInputSplits);
-
     for (int i = 0; i < inputSplits.size(); i++) {
       final InputSplit inputSplit = inputSplits.get(i);
       final long inputSplitLength = inputSplitSizes.get(i);

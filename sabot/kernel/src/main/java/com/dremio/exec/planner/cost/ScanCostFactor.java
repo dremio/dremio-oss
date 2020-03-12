@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 public class ScanCostFactor {
 
   public static final ScanCostFactor PARQUET = ScanCostFactor.of(1); // make parquet the cheapest persisted
+  public static final ScanCostFactor HIVE = ScanCostFactor.of(5);
   public static final ScanCostFactor EASY = ScanCostFactor.of(5); // json and text
   public static final ScanCostFactor JDBC = ScanCostFactor.of(10);
   public static final ScanCostFactor MONGO = ScanCostFactor.of(20);

@@ -63,10 +63,8 @@ public final class AzureAsyncHttpClientUtils {
   }
 
   public static AsyncHttpClient newClient(final String accountName,
-                                          final boolean isSecure) {
-
-    final HashedWheelTimer poolTimer = new HashedWheelTimer();
-
+                                          final boolean isSecure,
+                                          final HashedWheelTimer poolTimer) {
     final DefaultAsyncHttpClientConfig.Builder configBuilder = config()
       // TODO: Confirm a new thread pool is not getting created everytime
       .setThreadPoolName(accountName + "-azurestorage-async-client")

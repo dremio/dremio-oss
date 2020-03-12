@@ -96,6 +96,7 @@ public class AdlsAsyncFileReader extends ExponentialBackoff implements AsyncByte
   private final DremioAdlFileSystem fs;
   private final Long cachedVersion;
   private volatile Long latestVersion;
+  private final String threadName;
   private final ExecutorService threadPool;
   private int errCode = 0;
 
@@ -160,6 +161,7 @@ public class AdlsAsyncFileReader extends ExponentialBackoff implements AsyncByte
     this.fs = fs;
     this.cachedVersion = Long.parseLong(cachedVersion);
     this.latestVersion = null;
+    this.threadName = Thread.currentThread().getName();
     this.threadPool = threadPool;
   }
 
@@ -178,9 +180,9 @@ public class AdlsAsyncFileReader extends ExponentialBackoff implements AsyncByte
     latestVersion = null;
   }
 
-  private CompletableFuture<Void> readFullyFuture(final String callerName, long offset, ByteBuf dst, int dstOffset, int len) {
+  private CompletableFuture<Void> readFullyFuture(long offset, ByteBuf dst, int dstOffset, int len) {
     if (latestVersion > cachedVersion) {
-      logger.debug("File has been modified, metadata refresh is required");
+      logger.debug("[{}] File has been modified, metadata refresh is required", threadName);
       CompletableFuture<Void> future = new CompletableFuture<>();
       future.completeExceptionally(new FileNotFoundException("Version of file changed " + path));
       return future;
@@ -189,7 +191,7 @@ public class AdlsAsyncFileReader extends ExponentialBackoff implements AsyncByte
     final String clientRequestId = UUID.randomUUID().toString();
     int capacityAtOffset = dst.capacity() - dstOffset;
     if (capacityAtOffset < len) {
-      logger.debug("Buffer has {} bytes remaining. Attempted to write at offset {} with {} bytes", capacityAtOffset, dstOffset, len);
+      logger.debug("[{}] Buffer has {} bytes remaining. Attempted to write at offset {} with {} bytes", threadName, capacityAtOffset, dstOffset, len);
     }
 
     final CompletableFuture<String> future = CompletableFuture.supplyAsync( () -> {
@@ -215,26 +217,26 @@ public class AdlsAsyncFileReader extends ExponentialBackoff implements AsyncByte
         builder.addQueryParam("length", Long.toString(len));
       }
 
-      return executeAsyncRequest(callerName, dst, dstOffset, clientRequestId, builder, 0);
+      return executeAsyncRequest(dst, dstOffset, clientRequestId, builder, 0);
     });
   }
 
-  private CompletableFuture<Void> executeAsyncRequest(final String callerName, ByteBuf dst, int dstOffset, String clientRequestId,
+  private CompletableFuture<Void> executeAsyncRequest(ByteBuf dst, int dstOffset, String clientRequestId,
                                                       AdlsRequestBuilder builder, int retryAttemptNum) {
-    logger.debug("Sending request with clientRequestId: {}", clientRequestId);
+    logger.debug("[{}] Sending request with clientRequestId: {}", threadName, clientRequestId);
     dst.writerIndex(dstOffset);
     final Stopwatch watch = Stopwatch.createStarted();
     return asyncHttpClient.executeRequest(builder.build(), new AdlsResponseProcessor(dst))
       .toCompletableFuture()
       .whenComplete((response, throwable) -> {
         if (null == throwable) {
-          logger.debug("Request completed for clientRequestId: {}, took {} ms", clientRequestId,
+          logger.debug("[{}] Request completed for clientRequestId: {}, took {} ms", threadName, clientRequestId,
             watch.elapsed(TimeUnit.MILLISECONDS));
         } else if (retryAttemptNum < MAX_RETRIES) {
-          logger.info("Caller {}: Retry #{}, request failed with {} clientRequestId: {}, took {} ms", callerName, retryAttemptNum + 1, errCode,
+          logger.info("[{}] Retry #{}, request failed with {} clientRequestId: {}, took {} ms", threadName, retryAttemptNum + 1, errCode,
             clientRequestId, watch.elapsed(TimeUnit.MILLISECONDS), throwable);
         } else {
-          logger.error("Caller {}: Request failed with {}, for clientRequestId: {}, took {} ms", callerName, errCode,
+          logger.error("[{}] Request failed with {}, for clientRequestId: {}, took {} ms", threadName, errCode,
             clientRequestId, watch.elapsed(TimeUnit.MILLISECONDS), throwable);
         }
       })
@@ -251,16 +253,14 @@ public class AdlsAsyncFileReader extends ExponentialBackoff implements AsyncByte
 
         // Reset the index of the writer for the retry.
         dst.writerIndex(dstOffset);
-        return executeAsyncRequest(callerName, dst, dstOffset, clientRequestId, builder, retryAttemptNum + 1);
+        return executeAsyncRequest(dst, dstOffset, clientRequestId, builder, retryAttemptNum + 1);
       }).thenCompose(Function.identity());
   }
 
   @Override
   public CompletableFuture<Void> readFully(long offset, ByteBuf dst, int dstOffset, int len) {
-    final String callerName = Thread.currentThread().getName();
-
     if (latestVersion != null) {
-      return readFullyFuture(callerName, offset, dst, dstOffset, len);
+      return readFullyFuture(offset, dst, dstOffset, len);
     }
 
     final CompletableFuture<Void> getStatusFuture = CompletableFuture.runAsync(() -> {
@@ -277,6 +277,6 @@ public class AdlsAsyncFileReader extends ExponentialBackoff implements AsyncByte
       }
     }, threadPool);
 
-    return getStatusFuture.thenCompose(Void -> readFullyFuture(callerName, offset, dst, dstOffset, len));
+    return getStatusFuture.thenCompose(Void -> readFullyFuture(offset, dst, dstOffset, len));
   }
 }

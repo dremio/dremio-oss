@@ -98,7 +98,11 @@ public class InvalidViewRel extends SingleRel implements SelfFlatteningRel {
         while (true) {
           boolean concurrentUpdate = false;
           try {
-            viewCatalog.updateView(view.getPath(), newView);
+            Catalog updateViewCatalog = viewCatalog;
+            if (view.getViewOwner() != null) {
+              updateViewCatalog = updateViewCatalog.resolveCatalog(view.getViewOwner());
+            }
+            updateViewCatalog.updateView(view.getPath(), newView);
           } catch (ConcurrentModificationException ex) {
             concurrentUpdate = true;
             if (count++ >= MAX_RETRIES) {

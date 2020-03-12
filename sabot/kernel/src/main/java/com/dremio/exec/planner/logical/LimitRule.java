@@ -52,7 +52,7 @@ public class LimitRule extends RelOptRule {
     }
 
     RelNode convertedInput = convert(input, input.getTraitSet().plus(Rel.LOGICAL).simplify());
-    call.transformTo(new LimitRel(incomingSort.getCluster(), convertedInput.getTraitSet().plus(Rel.LOGICAL), convertedInput, incomingSort.offset, incomingSort.fetch));
+    call.transformTo(LimitRel.create(incomingSort.getCluster(), convertedInput.getTraitSet().plus(Rel.LOGICAL), convertedInput, incomingSort.offset, incomingSort.fetch));
   }
 
 }

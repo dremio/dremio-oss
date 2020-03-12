@@ -29,6 +29,7 @@ import org.apache.calcite.rel.metadata.RelMetadataProvider;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.util.BuiltInMethod;
 
+import com.dremio.exec.planner.common.LimitRelBase;
 import com.dremio.exec.planner.physical.HashToMergeExchangePrel;
 import com.dremio.exec.planner.physical.StreamAggPrel;
 import com.google.common.base.Preconditions;
@@ -58,7 +59,7 @@ public class RelMdCollation implements MetadataHandler<BuiltInMetadata.Collation
     List<RelCollation> collations =
         Preconditions.checkNotNull(
             rel.getTraitSet().getTraits(RelCollationTraitDef.INSTANCE));
-    // Single rels alwyas return an empty list but Relsubset defaults to a list with one empty
+    // Single rels always return an empty list but Relsubset defaults to a list with one empty
     // element. Normalizing the output to prevent mismatches
     return EMPTY.equals(collations) ? ImmutableList.of() : ImmutableList.copyOf(collations);
   }
@@ -67,6 +68,10 @@ public class RelMdCollation implements MetadataHandler<BuiltInMetadata.Collation
       RelMetadataQuery mq) {
 
     return ImmutableList.of(StreamAggPrel.collation(rel.getGroupSet()));
+  }
+
+  public ImmutableList<RelCollation> collations(LimitRelBase rel, RelMetadataQuery mq) {
+    return ImmutableList.of();
   }
 
   public ImmutableList<RelCollation> collations(HashToMergeExchangePrel rel,

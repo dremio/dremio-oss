@@ -78,33 +78,33 @@ public final class Retryer<T> extends ExponentialBackoff {
 
   private void flatWait() {
     try {
-      Thread.sleep((long)baseMillis);
+      Thread.sleep(baseMillis);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
   }
 
-  public static class Builder {
-    private Retryer retryer = new Retryer();
+  public static class Builder<T> {
+    private Retryer<T> retryer = new Retryer<>();
 
-    public Builder retryIfExceptionOfType(Class<? extends Exception> clazz) {
+    public Builder<T> retryIfExceptionOfType(Class<? extends Exception> clazz) {
       retryer.retryableExceptionClasses.add(clazz);
       return this;
     }
 
-    public Builder setWaitStrategy(WaitStrategy waitStrategy, int baseMillis, int maxMillis) {
+    public Builder<T> setWaitStrategy(WaitStrategy waitStrategy, int baseMillis, int maxMillis) {
       retryer.waitStrategy = waitStrategy;
       retryer.baseMillis = baseMillis;
       retryer.maxMillis = maxMillis;
       return this;
     }
 
-    public Builder setMaxRetries(int maxRetries) {
+    public Builder<T> setMaxRetries(int maxRetries) {
       retryer.maxRetries = maxRetries;
       return this;
     }
 
-    public Retryer build() {
+    public Retryer<T> build() {
       return retryer;
     }
   }

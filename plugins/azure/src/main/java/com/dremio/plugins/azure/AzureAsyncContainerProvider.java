@@ -139,9 +139,7 @@ class ContainerIterator extends AbstractIterator<String> {
         Request request = buildRequest();
         request.getHeaders().add("Authorization", authProvider.getAuthzHeaderValue(request));
         asyncHttpClient.executeRequest(request, new ListContainersResponseProcessor(baos)).get();
-
-        final DocumentBuilderFactory factory =
-          DocumentBuilderFactory.newInstance();
+        final DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         final DocumentBuilder builder = factory.newDocumentBuilder();
         inputStream = new ByteArrayInputStream(baos.toByteArray());
         final Document doc = builder.parse(inputStream);

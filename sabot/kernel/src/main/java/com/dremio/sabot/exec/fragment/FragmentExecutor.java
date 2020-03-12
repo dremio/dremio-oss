@@ -23,11 +23,13 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.OutOfMemoryException;
 
 import com.dremio.common.DeferredException;
 import com.dremio.common.ProcessExit;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
@@ -43,6 +45,8 @@ import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.ExecRPC.FragmentStreamComplete;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.testing.ControlsInjector;
+import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
@@ -69,6 +73,7 @@ import com.dremio.sabot.threads.sharedres.SharedResourcesContextImpl;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.spill.SpillService;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.SettableFuture;
 
@@ -87,6 +92,10 @@ import io.netty.util.internal.OutOfDirectMemoryError;
 public class FragmentExecutor {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentExecutor.class);
+  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(FragmentExecutor.class);
+
+  @VisibleForTesting
+  public static final String INJECTOR_DO_WORK = "injectOOMOnRun";
 
   /** threadsafe fields, influenced by external events. **/
   private final FragmentExecutorListener listener = new FragmentExecutorListener();
@@ -135,6 +144,8 @@ public class FragmentExecutor {
   private final FragmentWorkQueue workQueue;
 
   private final SettableFuture<Boolean> cancelled;
+
+  private final ExecutionControls executionControls;
 
   // The fragment will not be activated until it gets :
   // a. a activate/cancel from the foreman (or)
@@ -192,6 +203,7 @@ public class FragmentExecutor {
       fragment, allocator, config, executionControls, spillService, reader.getPlanFragmentsIndex());
     this.eventProvider = eventProvider;
     this.cancelled = SettableFuture.create();
+    this.executionControls = executionControls;
   }
 
   /**
@@ -277,10 +289,14 @@ public class FragmentExecutor {
         transitionToFinished();
       }
 
+      injector.injectChecked(executionControls, INJECTOR_DO_WORK, OutOfMemoryError.class);
+
     } catch (OutOfMemoryError e) {
       // handle out of memory errors differently from other error types.
-      if (e instanceof OutOfDirectMemoryError || "Direct buffer memory".equals(e.getMessage())) {
-        transitionToFailed(UserException.memoryError(e).build(logger));
+      if (e instanceof OutOfDirectMemoryError || "Direct buffer memory".equals(e.getMessage()) || INJECTOR_DO_WORK.equals(e.getMessage())) {
+        transitionToFailed(UserException.memoryError(e)
+            .addContext(MemoryDebugInfo.getDetailsOnAllocationFailure(new OutOfMemoryException(e), allocator))
+            .buildSilently());
       } else {
         // we have a heap out of memory error. The JVM in unstable, exit.
         ProcessExit.exitHeap(e);

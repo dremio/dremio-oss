@@ -267,4 +267,21 @@ public class TestParquetComplex extends BaseTestQuery {
   public void testZeroRowParquetFile() throws Exception {
     test("select * from cp.\"store/parquet/complex/zero-rows.parquet\" p");
   }
+
+  @Test
+  public void nestedComplexProjection() throws Exception {
+    String query = "SELECT col2, " +
+      "col1[0][0][0].\"f1\"[0][0][0] f1, " +
+      "col1[0][0][0].\"f2\".\"sub_f1\"[0][0][0] sub_f1, " +
+      "col1[0][0][0].\"f2\".\"sub_f2\"[0][0][0].\"sub_sub_f1\" sub_sub_f1, " +
+      "col1[0][0][0].\"f2\".\"sub_f2\"[0][0][0].\"sub_sub_f2\" sub_sub_f2 " +
+      "FROM cp.\"/parquet/very_complex.parquet\"";
+    testBuilder()
+      .sqlQuery(query)
+      .ordered()
+      .baselineColumns("col2", "f1", "sub_f1", "sub_sub_f1", "sub_sub_f2")
+      .baselineValues(3, 1, 2, 1, "abc")
+      .build()
+      .run();
+  }
 }

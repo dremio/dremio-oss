@@ -45,6 +45,7 @@ import com.dremio.services.fabric.api.PhysicalConnection;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.MessageLite;
 
+import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.NettyArrowBuf;
 
@@ -126,8 +127,9 @@ public class ExecProtocol implements FabricProtocol {
 
     try {
 
-      final IncomingDataBatch batch = new IncomingDataBatch(fragmentBatch, ((NettyArrowBuf) body)
-        .arrowBuf(), ack);
+      ArrowBuf dBodyBuf = (body == null) ? null : ((NettyArrowBuf) body)
+        .arrowBuf();
+      final IncomingDataBatch batch = new IncomingDataBatch(fragmentBatch, dBodyBuf, ack);
       final int targetCount = fragmentBatch.getReceivingMinorFragmentIdCount();
 
       // randomize who gets first transfer (and thus ownership) so memory usage

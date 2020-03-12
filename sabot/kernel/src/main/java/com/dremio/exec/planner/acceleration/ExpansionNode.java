@@ -108,6 +108,29 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
       }});
   }
 
+  public static RelNode removeParentExpansionNodes(NamespaceKey pathFilter, RelNode node) {
+    RelNode rel = node.accept(new RelShuttleImpl() {
+      @Override
+      public RelNode visit(RelNode other) {
+        if(other instanceof ExpansionNode) {
+          ExpansionNode e = (ExpansionNode) other;
+          if(e.getPath().equals(pathFilter)) {
+            return e.copy(e.getTraitSet(), e.getInputs());
+          } else {
+            RelNode input = e.getInput().accept(this);
+            if (input == e.getInput()) {
+              return e;
+            } else {
+              return input;
+            }
+          }
+        }
+        return super.visit(other);
+      }
+    });
+    return rel;
+  }
+
   public static RelNode removeAllButRoot(RelNode tree) {
 
     return tree.accept(new RelShuttleImpl() {

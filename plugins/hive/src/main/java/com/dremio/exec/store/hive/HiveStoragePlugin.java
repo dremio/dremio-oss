@@ -28,6 +28,7 @@ import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
@@ -201,11 +202,20 @@ public class HiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin
         }
       }
       return true;
-    } catch (TException | ExecutionException | InvalidProtocolBufferException e) {
+    } catch (TException e) {
       throw UserException.connectionError(e)
         .message("Unable to connect to Hive metastore: %s", e.getMessage())
         .build(logger);
+    } catch (ExecutionException | InvalidProtocolBufferException e) {
+      throw new RuntimeException("Unable to connect to Hive metastore.", e);
     } catch (UncheckedExecutionException e) {
+      Throwable rootCause = ExceptionUtils.getRootCause(e);
+      if(rootCause instanceof TException) {
+        throw UserException.connectionError(e)
+          .message("Unable to connect to Hive metastore: %s", rootCause.getMessage())
+          .build(logger);
+      }
+
       Throwable cause = e.getCause();
       if (cause instanceof AuthorizerServiceException || cause instanceof RuntimeException) {
         throw e;

@@ -231,7 +231,8 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
           fs,
           schemaHelper,
           streamProvider,
-          codec
+          codec,
+          true
           );
       try {
         current.setup(output);

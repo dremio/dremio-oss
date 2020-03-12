@@ -28,6 +28,7 @@ import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.netty.channel.DefaultChannelPool;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.NamedThreadFactory;
 import com.microsoft.azure.datalake.store.ADLStoreClient;
 import com.microsoft.azure.datalake.store.ADLStoreOptions;
@@ -50,6 +51,7 @@ public class AsyncHttpClientManager implements Closeable {
   private AsyncHttpClient asyncHttpClient;
   private ADLStoreClient client;
   private ExecutorService utilityThreadPool;
+  private final HashedWheelTimer poolTimer = new HashedWheelTimer();
 
   public AsyncHttpClientManager(String name, AzureDataLakeConf conf) throws IOException {
     final AccessTokenProvider tokenProvider;
@@ -65,7 +67,6 @@ public class AsyncHttpClientManager implements Closeable {
         throw new RuntimeException("Failure creating ADLSg1 connection. Invalid credentials type.");
     }
 
-    final HashedWheelTimer poolTimer = new HashedWheelTimer();
     final SslContext sslContext = SslContextBuilder
       .forClient()
       .build();
@@ -105,8 +106,6 @@ public class AsyncHttpClientManager implements Closeable {
 
   @Override
   public void close() throws IOException {
-    asyncHttpClient.close();
-    utilityThreadPool.shutdown();
+    AutoCloseables.close(IOException.class, asyncHttpClient, poolTimer::stop, utilityThreadPool::shutdown);
   }
-
 }

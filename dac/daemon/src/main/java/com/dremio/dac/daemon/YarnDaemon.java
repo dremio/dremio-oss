@@ -38,8 +38,8 @@ import com.dremio.config.DremioConfig;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.LivenessService;
 import com.dremio.dac.server.liveness.ClasspathHealthMonitor;
-import com.dremio.dac.server.liveness.YarnContainerHealthMonitor;
 import com.dremio.exec.util.GuavaPatcher;
+import com.dremio.provision.yarn.YarnContainerHealthMonitor;
 import com.dremio.provision.yarn.YarnWatchdog;
 import com.google.common.base.Throwables;
 

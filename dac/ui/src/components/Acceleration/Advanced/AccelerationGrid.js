@@ -32,6 +32,7 @@ import Modal from 'components/Modals/Modal';
 import ModalForm from 'components/Forms/ModalForm';
 import FormBody from 'components/Forms/FormBody';
 import Message from 'components/Message';
+import EllipsedText from '@app/components/EllipsedText';
 
 import { formDescription, formLabel } from 'uiTheme/radium/typography';
 import { typeToIconType } from '@app/constants/DataTypes';
@@ -278,7 +279,7 @@ export class AccelerationGrid extends Component {
       <div style={{ ...styles.leftCell, backgroundColor, borderBottom }}>
         <div style={styles.column}>
           <FontIcon type={typeToIconType[columns.getIn([rowIndex, 'type', 'name'])]} theme={styles.columnTypeIcon}/>
-          <span style={{ marginLeft: 5 }}>{columns.getIn([rowIndex, 'name'])}</span>
+          <EllipsedText text={columns.getIn([rowIndex, 'name'])} style={{ marginLeft: 5 }}/>
         </div>
         <div>{columns.getIn([rowIndex, 'queries'])}</div>
       </div>
@@ -420,7 +421,8 @@ const styles = {
   column: {
     display: 'flex',
     alignItems: 'center',
-    marginLeft: 4
+    marginLeft: 4,
+    width: '100%'
   },
   columnTypeIcon: {
     Container: {

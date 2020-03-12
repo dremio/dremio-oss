@@ -39,7 +39,7 @@ import io.netty.buffer.ByteBuf;
 /**
  * Direct HTTP client, for doing azure storage operations
  */
-public final class AzureAsyncReader extends ExponentialBackoff implements AutoCloseable, AsyncByteReader {
+public class AzureAsyncReader extends ExponentialBackoff implements AutoCloseable, AsyncByteReader {
   private static final int BASE_MILLIS_TO_WAIT = 250; // set to the average latency of an async read
   private static final int MAX_MILLIS_TO_WAIT = 10 * BASE_MILLIS_TO_WAIT;
   private static final int MAX_RETRIES = 4;
@@ -50,6 +50,7 @@ public final class AzureAsyncReader extends ExponentialBackoff implements AutoCl
   private final Path path;
   private final String version;
   private final String url;
+  private final String threadName;
 
   public AzureAsyncReader(final String accountName,
                           final Path path,
@@ -65,7 +66,7 @@ public final class AzureAsyncReader extends ExponentialBackoff implements AutoCl
     final String container = ContainerFileSystem.getContainerName(path);
     final String subPath = removeLeadingSlash(ContainerFileSystem.pathWithoutContainer(path).toString());
     this.url = String.format("%s/%s/%s", baseURL, container, AzureAsyncHttpClientUtils.encodeUrl(subPath));
-
+    this.threadName = Thread.currentThread().getName();
   }
 
   @Override
@@ -95,8 +96,8 @@ public final class AzureAsyncReader extends ExponentialBackoff implements AutoCl
       .build();
     req.getHeaders().add("Authorization", tokenGenerator.getAuthzHeaderValue(req));
 
-    logger.debug(String.format("Req: URL %s %s %s", req.getUri(), req.getHeaders().get("x-ms-client-request-id"),
-      req.getHeaders().get("x-ms-range")));
+    logger.debug("[{}] Req: URL {} {} {}", threadName, req.getUri(), req.getHeaders().get("x-ms-client-request-id"),
+      req.getHeaders().get("x-ms-range"));
 
     metrics.startTimer("request");
     return asyncHttpClient.executeRequest(req, new BufferBasedCompletionHandler(dst))
@@ -114,7 +115,7 @@ public final class AzureAsyncReader extends ExponentialBackoff implements AutoCl
       .thenApply(CompletableFuture::completedFuture)
       .exceptionally(throwable -> {
         metrics.incrementCounter("error");
-        logger.error("Error while executing request", throwable);
+        logger.error("[{}] Error while executing request", threadName, throwable);
 
         final CompletableFuture<Void> errorFuture = new CompletableFuture<>();
         if (throwable.getMessage().contains("ConditionNotMet")) {
@@ -126,7 +127,7 @@ public final class AzureAsyncReader extends ExponentialBackoff implements AutoCl
           return errorFuture;
         } else if (retryAttemptNum > MAX_RETRIES) {
           metrics.incrementCounter("retry" + retryAttemptNum);
-          logger.error("Error while reading " + path + ". Operation failing beyond retries. ");
+          logger.error("[{}] Error while reading {}. Operation failing beyond retries.", threadName, path);
           errorFuture.completeExceptionally(throwable);
           return errorFuture;
         }

@@ -52,12 +52,14 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
   private final String bucket;
   private final String path;
   private final Instant instant;
+  private final String threadName;
 
   S3AsyncByteReaderUsingSyncClient(S3Client s3, String bucket, String path, String version) {
     this.s3 = s3;
     this.bucket = bucket;
     this.path = path;
     this.instant = Instant.ofEpochMilli(Long.parseLong(version));
+    this.threadName = Thread.currentThread().getName();
   }
 
   @Override
@@ -65,7 +67,7 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
     CompletableFuture<Void> future = new CompletableFuture<>();
 
     S3SyncReadObject readRequest = new S3SyncReadObject(offset, len, dstBuf, dstOffset, future);
-    logger.debug("Submitted request to queue for bucket {}, path {} for {}", bucket, path, S3AsyncByteReader.range(offset, len));
+    logger.debug("[{}] Submitted request to queue for bucket {}, path {} for {}", threadName, bucket, path, S3AsyncByteReader.range(offset, len));
     threadPool.submit(readRequest);
     return future;
   }
@@ -131,23 +133,23 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
       try {
         final ResponseBytes<GetObjectResponse> responseBytes = invoker.invoke(() -> s3.getObjectAsBytes(request));
         byteBuf.setBytes(dstOffset, responseBytes.asInputStream(), len);
-        logger.debug("Completed request for bucket {}, path {} for {}, took {} ms", bucket, path, request.range(),
+        logger.debug("[{}] Completed request for bucket {}, path {} for {}, took {} ms", threadName, bucket, path, request.range(),
           watch.elapsed(TimeUnit.MILLISECONDS));
         future.complete(null);
       } catch (S3Exception s3e) {
         Exception exception = s3e;
         if (s3e.statusCode() == Constants.FAILED_PRECONDITION_STATUS_CODE) {
-          logger.info("Request for bucket {}, path {} failed as requested version of file not present, took {} ms",
+          logger.info("[{}] Request for bucket {}, path {} failed as requested version of file not present, took {} ms", threadName,
             bucket, path, watch.elapsed(TimeUnit.MILLISECONDS));
           exception = new FileNotFoundException("Version of file changed " + path);
         } else {
-          logger.error("Request for bucket {}, path {} failed with code {}. Failing read, took {} ms", bucket, path,
+          logger.error("[{}] Request for bucket {}, path {} failed with code {}. Failing read, took {} ms", threadName, bucket, path,
             s3e.statusCode(), watch.elapsed(TimeUnit.MILLISECONDS));
         }
 
         future.completeExceptionally(exception);
       } catch (Exception e) {
-        logger.error("Failed request for bucket {}, path {} for {}, took {} ms", bucket, path, request.range(),
+        logger.error("[{}] Failed request for bucket {}, path {} for {}, took {} ms", threadName, bucket, path, request.range(),
           watch.elapsed(TimeUnit.MILLISECONDS), e);
         future.completeExceptionally(e);
       }

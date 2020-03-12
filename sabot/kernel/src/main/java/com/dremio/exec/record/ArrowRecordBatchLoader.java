@@ -94,7 +94,7 @@ public class ArrowRecordBatchLoader implements VectorAccessible, Iterable<Vector
       if (valueCount == 0) {
         return 0;
       }
-      size = batch.getBody().readableBytes();
+      size = (batch.getBody() == null) ? 0 : batch.getBody().readableBytes();
       load(recordBatch, container, batch.getBody());
     } catch (final Throwable cause) {
       // We have to clean up new vectors created here and pass over the actual cause. It is upper layer who should

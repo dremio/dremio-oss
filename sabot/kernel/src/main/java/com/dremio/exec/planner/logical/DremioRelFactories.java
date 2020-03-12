@@ -167,7 +167,7 @@ public class DremioRelFactories {
       }
 
       if (!isOffsetEmpty(offset) || !isFetchEmpty(fetch)) {
-        return new LimitRel(newInput.getCluster(), traits, newInput, offset, fetch);
+        return LimitRel.create(newInput.getCluster(), traits, newInput, offset, fetch);
       }
       return newInput;
     }

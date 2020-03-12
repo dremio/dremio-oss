@@ -22,11 +22,13 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.stream.Stream;
 
+import org.apache.arrow.util.VisibleForTesting;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.asynchttpclient.AsyncHttpClient;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
 import com.dremio.exec.store.dfs.FileSystemConf;
@@ -34,6 +36,8 @@ import com.dremio.io.AsyncByteReader;
 import com.dremio.plugins.azure.AzureStorageConf.AccountKind;
 import com.dremio.plugins.azure.utils.AzureAsyncHttpClientUtils;
 import com.dremio.plugins.util.ContainerFileSystem;
+
+import io.netty.util.HashedWheelTimer;
 
 /**
  * A container file system implementation for Azure Storage.
@@ -72,15 +76,18 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
   private ContainerProvider containerProvider;
   private AzureAuthTokenProvider authProvider;
   private final DremioFileSystemCache fsCache = new DremioFileSystemCache();
+  private final HashedWheelTimer poolTimer = new HashedWheelTimer();
+
 
   private AsyncHttpClient asyncHttpClient;
 
   @Override
   public void close() throws IOException {
-    fsCache.closeAll(true);
-    asyncHttpClient.close();
-    asyncHttpClient = null;
-    super.close();
+    AutoCloseables.close(IOException.class,
+      () -> fsCache.closeAll(true),
+      asyncHttpClient,
+      poolTimer::stop,
+      super::close);
   }
 
   protected AzureStorageFileSystem() {
@@ -91,7 +98,7 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
     if (asyncHttpClient == null || asyncHttpClient.isClosed()) {
       synchronized (this) {
         if (asyncHttpClient == null || asyncHttpClient.isClosed()) {
-          asyncHttpClient = AzureAsyncHttpClientUtils.newClient(accountName, isSecure);
+          asyncHttpClient = AzureAsyncHttpClientUtils.newClient(accountName, isSecure, poolTimer);
         }
       }
     }
@@ -180,6 +187,7 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
       this.parent = parent;
     }
 
+    @VisibleForTesting
     @Override
     protected String getName() {
       return container;

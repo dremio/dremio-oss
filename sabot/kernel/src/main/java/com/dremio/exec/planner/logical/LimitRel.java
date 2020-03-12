@@ -15,11 +15,11 @@
  */
 package com.dremio.exec.planner.logical;
 
-import java.util.List;
-
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rex.RexNode;
 
 import com.dremio.exec.planner.common.LimitRelBase;
@@ -31,7 +31,11 @@ public class LimitRel extends LimitRelBase implements Rel {
   }
 
   @Override
-  public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new LimitRel(getCluster(), traitSet, sole(inputs), offset, fetch);
+  public Sort copy(RelTraitSet traitSet, RelNode newInput, RelCollation newCollation, RexNode offset, RexNode fetch) {
+    return new LimitRel(getCluster(), traitSet, newInput, offset, fetch);
+  }
+
+  public static LimitRel create(RelOptCluster cluster, RelTraitSet traits, RelNode input, RexNode offset, RexNode fetch) {
+    return new LimitRel(cluster, traits, input, offset, fetch);
   }
 }

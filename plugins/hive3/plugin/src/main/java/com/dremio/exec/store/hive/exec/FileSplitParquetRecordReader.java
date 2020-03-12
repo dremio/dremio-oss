@@ -259,6 +259,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
             inputStreamProvider
           );
           innerReader.setIgnoreSchemaLearning(true);
+          innerReaders.add(innerReader);
 
           final PrivilegedExceptionAction<Void> readerSetupAction = () -> {
             innerReader.setup(output);
@@ -266,7 +267,6 @@ public class FileSplitParquetRecordReader implements RecordReader {
           };
           readerUgi.doAs(readerSetupAction);
 
-          innerReaders.add(innerReader);
         }
         innerReadersIter = innerReaders.iterator();
       } catch (FileNotFoundException e) {

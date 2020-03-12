@@ -77,4 +77,25 @@ public class TestArrowRecordBatchLoader extends DremioTest {
       buffer.release();
     }
   }
+
+  @Test
+  public void testNullBatchBuffer() throws InterruptedException {
+    try (BufferAllocator allocator = allocatorRule.newAllocator("test-arrow-record-batch-loader", 0, Long.MAX_VALUE)) {
+      VectorContainer container = new VectorContainer(allocator);
+      container.setRecordCount(5);
+      container.buildSchema();
+
+      FragmentWritableBatch fragmentWritableBatch = FragmentWritableBatch.create(QueryId.getDefaultInstance(), 0, 0, 0, container, 0);
+      container.zeroVectors();
+      ArrowBuf buffer = null;
+
+      ArrowRecordBatchLoader loader = new ArrowRecordBatchLoader(container);
+      RawFragmentBatch rawFragmentBatch = new RawFragmentBatch(fragmentWritableBatch.getHeader(), buffer, null);
+      loader.load(rawFragmentBatch);
+
+      container.close();
+      loader.close();
+      System.out.println();
+    }
+  }
 }

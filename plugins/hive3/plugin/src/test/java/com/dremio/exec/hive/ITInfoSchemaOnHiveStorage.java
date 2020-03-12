@@ -250,6 +250,7 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "parquet_varchar_t2")
         .baselineValues("hive.default", "parquet_mixed_decimal_t15_5_f10_2")
         .baselineValues("hive.default", "parquet_mixed_decimal_t37_2_f37_4")
+        .baselineValues("hive.default", "parquet_mixed_decimal_t4_2_f6_2")
         .baselineValues("hive.default", "parquet_less_columns")
       .go();
 

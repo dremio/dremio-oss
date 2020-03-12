@@ -278,9 +278,25 @@ public class ParquetReaderUtility {
         // remove 'list'
         type = type.asGroupType().getType(path.get(index+1));
         path.remove(index+1);
+
         // remove 'element'
         type = type.asGroupType().getType(path.get(index+1));
+
+        //handle nested list case
+        while (type.getOriginalType() == OriginalType.LIST && LogicalListL1Converter.isSupportedSchema(type.asGroupType())) {
+          // current 'list'.'element' entry
+          path.remove(index+1);
+
+          // nested 'list' entry
+          type = type.asGroupType().getType(path.get(index+1));
+          path.remove(index+1);
+
+          type = type.asGroupType().getType(path.get(index+1));
+        }
+
+        // final 'list'.'element' entry
         path.remove(index+1);
+
       }
       index++;
     }

@@ -17,11 +17,12 @@ package com.dremio.exec.planner.physical;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 
@@ -50,8 +51,8 @@ public class LimitPrel extends LimitRelBase implements Prel {
   }
 
   @Override
-  public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new LimitPrel(getCluster(), traitSet, sole(inputs), offset, fetch, isPushDown());
+  public Sort copy(RelTraitSet traitSet, RelNode newInput, RelCollation newCollation, RexNode offset, RexNode fetch) {
+    return new LimitPrel(getCluster(), traitSet, newInput, offset, fetch, isPushDown());
   }
 
   @Override

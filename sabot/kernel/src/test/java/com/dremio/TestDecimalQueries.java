@@ -237,4 +237,15 @@ public class TestDecimalQueries extends DecimalCompleteTest {
       .baselineValues(true, true, true)
       .go();
   }
+
+  @Test
+  public void testDecimalInComplexTypes() throws Exception {
+    final String query1 = "select places_lived[0] from cp.\"decimal/decimal_complex.parquet\"";
+    final String query2 = "select * from (select flatten(places_lived) places from cp.\"decimal/decimal_complex.parquet\") tab where tab.places.place='test'";
+    final String query3 = "select places_lived[0].decimal_array[0] from cp.\"decimal/decimal_complex.parquet\" where places_lived[0].decimal_array[0]=cast('579.29' as decimal(5,2))";
+
+    test(query1);
+    test(query2);
+    test(query3);
+  }
 }

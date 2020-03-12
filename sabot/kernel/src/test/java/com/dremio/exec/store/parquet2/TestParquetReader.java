@@ -24,6 +24,9 @@ import static org.junit.Assert.fail;
 
 import java.math.BigDecimal;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Map;
 
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -163,45 +166,72 @@ public class TestParquetReader extends BaseTestQuery {
 
   @Test
   public void testFilterOnNonExistentColumn() throws Exception {
-    final String parquetFiles = WORKING_PATH + "/src/test/resources/parquet/nonexistingcols";
-    testBuilder()
-      .sqlQuery("SELECT * FROM dfs.\"" + parquetFiles + "\" where col1='bothvalscol1'")
-      .ordered()
-      .baselineColumns("col1", "col2")
-      .baselineValues("bothvalscol1", "bothvalscol2")
-      .go();
+    final String parquetFiles = setupParquetFiles("testFilterOnNonExistentColumn");
+    try {
+      testBuilder()
+        .sqlQuery("SELECT * FROM dfs.\"" + parquetFiles + "\" where col1='bothvalscol1'")
+        .ordered()
+        .baselineColumns("col1", "col2")
+        .baselineValues("bothvalscol1", "bothvalscol2")
+        .go();
 
-    testBuilder()
-      .sqlQuery("SELECT col2 FROM dfs.\"" + parquetFiles + "\" where col1 is null")
-      .ordered()
-      .baselineColumns("col2")
-      .baselineValues("singlevalcol2")
-      .go();
+      testBuilder()
+        .sqlQuery("SELECT col2 FROM dfs.\"" + parquetFiles + "\" where col1 is null")
+        .ordered()
+        .baselineColumns("col2")
+        .baselineValues("singlevalcol2")
+        .go();
+    } finally {
+      delete(Paths.get(parquetFiles));
+    }
   }
 
   @Test
   public void testAggregationFilterOnNonExistentColumn() throws Exception {
-    final String parquetFiles = WORKING_PATH + "/src/test/resources/parquet/nonexistingcols";
+    final String parquetFiles = setupParquetFiles("testAggregationFilterOnNonExistentColumn");
+    try {
+      testBuilder()
+        .sqlQuery("SELECT count(*) as cnt FROM dfs.\"" + parquetFiles + "\" where col1 = 'doesnotexist'")
+        .ordered()
+        .baselineColumns("cnt")
+        .baselineValues(0L)
+        .go();
 
-    testBuilder()
-      .sqlQuery("SELECT count(*) as cnt FROM dfs.\"" + parquetFiles + "\" where col1 = 'doesnotexist'")
-      .ordered()
-      .baselineColumns("cnt")
-      .baselineValues(0L)
-      .go();
+      testBuilder()
+        .sqlQuery("SELECT count(*) as cnt FROM dfs.\"" + parquetFiles + "\"")
+        .ordered()
+        .baselineColumns("cnt")
+        .baselineValues(2L)
+        .go();
 
-    testBuilder()
-      .sqlQuery("SELECT count(*) as cnt FROM dfs.\"" + parquetFiles + "\"")
-      .ordered()
-      .baselineColumns("cnt")
-      .baselineValues(2L)
-      .go();
+      testBuilder()
+        .sqlQuery("SELECT count(*) cnt FROM dfs.\"" + parquetFiles + "\" where col1='bothvalscol1'")
+        .ordered()
+        .baselineColumns("cnt")
+        .baselineValues(1L)
+        .go();
+    } finally {
+      delete(Paths.get(parquetFiles));
+    }
+  }
 
-    testBuilder()
-      .sqlQuery("SELECT count(*) cnt FROM dfs.\"" + parquetFiles + "\" where col1='bothvalscol1'")
-      .ordered()
-      .baselineColumns("cnt")
-      .baselineValues(1L)
-      .go();
+  private String setupParquetFiles(String testName) throws Exception {
+    final String parquetRefFolder = WORKING_PATH + "/src/test/resources/parquet/nonexistingcols";
+    String parquetFiles = Files.createTempDirectory(testName).toString();
+    try {
+      Files.copy(Paths.get(parquetRefFolder, "bothcols.parquet"), Paths.get(parquetFiles, "bothcols.parquet"), StandardCopyOption.REPLACE_EXISTING);
+      runSQL("SELECT * FROM dfs.\"" + parquetFiles + "\"");  // to detect schema and auto promote
+      Files.copy(Paths.get(parquetRefFolder, "singlecol.parquet"), Paths.get(parquetFiles, "singlecol.parquet"), StandardCopyOption.REPLACE_EXISTING);
+      runSQL("alter table dfs.\"" + parquetFiles + "\" refresh metadata force update");  // so it detects second parquet
+      return parquetFiles;
+    } catch (Exception e) {
+      delete(Paths.get(parquetFiles));
+      throw e;
+    }
+  }
+
+  private static void delete(java.nio.file.Path dir) throws Exception {
+    Files.list(dir).forEach(f -> {try {Files.delete(f);} catch (Exception ex) {}});
+    Files.delete(dir);
   }
 }

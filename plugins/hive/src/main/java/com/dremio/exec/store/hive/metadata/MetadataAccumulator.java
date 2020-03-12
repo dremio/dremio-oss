@@ -114,14 +114,11 @@ public class MetadataAccumulator {
 
   public void accumulateReaderType(Class<? extends InputFormat> inputFormat) {
     allowParquetNative = HiveMetadataUtils.allowParquetNative(allowParquetNative, inputFormat);
+    datasetStats.setAllowParquetNative(allowParquetNative);
   }
 
   public void accumulateTotalEstimatedRecords(long splitEstimatedRecords) {
     datasetStats.addRecords(splitEstimatedRecords);
-  }
-
-  public void accumulateTotalBytesToScanFactor(long splitEstimatedRecords) {
-    datasetStats.addBytesToScanFactor(splitEstimatedRecords);
   }
 
   public HiveDatasetStats getDatasetStats() {

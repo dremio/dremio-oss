@@ -612,6 +612,7 @@ public class HiveTestDataGenerator {
 
     createDecimalParquetTableWithHighTableScale(hiveDriver, "parquet_mixed_decimal_t15_5_f10_2");
     createDecimalParquetTableWithHighFileScale(hiveDriver, "parquet_mixed_decimal_t37_2_f37_4");
+    createDecimalParquetTableWithSameScaleHighFilePrecision(hiveDriver, "parquet_mixed_decimal_t4_2_f6_2");
 
     createDecimalParquetTableWithDecimalColumnMismatch(hiveDriver, "parquet_varchar_to_decimal_with_filter");
     createTableWithMoreColumnsThanParquet(hiveDriver, "parquet_less_columns");
@@ -1679,6 +1680,25 @@ public class HiveTestDataGenerator {
     List<String> valuesToInsert = Lists.newArrayList(
       "100.1289", "100.1234", "99.1289", "99.1212", "10.1234", "1.1234", "0.1234",
       "-100.1289", "-100.1234", "-99.1289", "-99.1212", "-10.1234", "-1.1234"
+    );
+
+    executeQuery(hiveDriver, createTable);
+    insertValuesIntoTable(hiveDriver, table, valuesToInsert);
+    executeQuery(hiveDriver, alterTable);
+
+    valuesToInsert = Lists.newArrayList(
+      "50.12", "-50.12"
+    );
+    insertValuesIntoTable(hiveDriver, table, valuesToInsert);
+  }
+
+  // table schema: Decimal(4, 2), varchar(20)
+  // file schema: Decimal(6, 2), varchar
+  private void createDecimalParquetTableWithSameScaleHighFilePrecision(Driver hiveDriver, String table) throws Exception {
+    String createTable = "CREATE TABLE " + table + " (decimal_col decimal(6,2), name varchar(20)) stored as parquet";
+    String alterTable = "ALTER TABLE " + table + " change column decimal_col decimal_col decimal(4,2)";
+    List<String> valuesToInsert = Lists.newArrayList(
+      "1234.56", "-1234.56", "12.34", "-12.34"
     );
 
     executeQuery(hiveDriver, createTable);

@@ -106,10 +106,10 @@
 |API Common                                                  |1.1.0               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |array.prototype.flat                                        |1.2.1               |MIT                 |
-|Arrow Format                                                |0.15.0-20200128044954-bfccdc5667-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |0.15.0-20200128044954-bfccdc5667-dremio|Apache 2.0          |
-|Arrow Memory                                                |0.15.0-20200128044954-bfccdc5667-dremio|Apache 2.0          |
-|Arrow Vectors                                               |0.15.0-20200128044954-bfccdc5667-dremio|Apache 2.0          |
+|Arrow Format                                                |0.15.0-20200308131102-f6b34ee198-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |0.15.0-20200308131102-f6b34ee198-dremio|Apache 2.0          |
+|Arrow Memory                                                |0.15.0-20200308131102-f6b34ee198-dremio|Apache 2.0          |
+|Arrow Vectors                                               |0.15.0-20200308131102-f6b34ee198-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -245,12 +245,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |4.1.6               |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |4.1.6               |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |4.1.6               |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |4.1.6               |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |4.1.6               |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |4.1.6               |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |4.1.8               |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |4.1.8               |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |4.1.8               |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |4.1.8               |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |4.1.8               |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |4.1.8               |Dremio Free Software License 1.0|
 |EclipseLink (non OSGi)                                      |2.5.2               |EPL 1.0, EPL 2.0    |
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |

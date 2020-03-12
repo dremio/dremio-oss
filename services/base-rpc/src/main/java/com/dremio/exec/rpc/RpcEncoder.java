@@ -18,14 +18,19 @@ package com.dremio.exec.rpc;
 import java.io.OutputStream;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowByteBufAllocator;
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 
+import com.dremio.common.exceptions.UserException;
+import com.dremio.common.memory.MemoryDebugInfo;
 import com.dremio.exec.proto.GeneralRPCProtos.CompleteRpcMessage;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcHeader;
 import com.google.protobuf.CodedOutputStream;
 import com.google.protobuf.WireFormat;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufOutputStream;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
@@ -98,7 +103,15 @@ class RpcEncoder extends PromisingMessageToMessageEncoder<OutboundRpcMessage>{
           withoutRawMessage = ctx.alloc().buffer(fullLength + 5);
         }catch(OutOfMemoryException ex){
           msg.release();
-          promise.setFailure(ex);
+          UserException.Builder uexBuilder = UserException.memoryError(ex)
+              .message("Out of memory while encoding data.");
+
+          ByteBufAllocator byteBufAllocator = ctx.alloc();
+          if (byteBufAllocator instanceof ArrowByteBufAllocator) {
+            BufferAllocator bufferAllocator = ((ArrowByteBufAllocator) byteBufAllocator).unwrap();
+            uexBuilder.addContext(MemoryDebugInfo.getDetailsOnAllocationFailure(ex, bufferAllocator));
+          }
+          promise.setFailure(uexBuilder.buildSilently());
           return;
         }
       } else {

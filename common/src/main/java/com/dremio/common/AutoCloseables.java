@@ -15,6 +15,8 @@
  */
 package com.dremio.common;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -43,7 +45,8 @@ public final class AutoCloseables {
 
   /**
    * Closes all autoCloseables if not null and suppresses exceptions by adding them to t
-   * @param t the throwable to add suppressed exception to
+   *
+   * @param t              the throwable to add suppressed exception to
    * @param autoCloseables the closeables to close
    */
   public static void close(Throwable t, AutoCloseable... autoCloseables) {
@@ -52,7 +55,8 @@ public final class AutoCloseables {
 
   /**
    * Closes all autoCloseables if not null and suppresses exceptions by adding them to t
-   * @param t the throwable to add suppressed exception to
+   *
+   * @param t              the throwable to add suppressed exception to
    * @param autoCloseables the closeables to close
    */
   public static void close(Throwable t, Iterable<? extends AutoCloseable> autoCloseables) {
@@ -65,6 +69,7 @@ public final class AutoCloseables {
 
   /**
    * Closes all autoCloseables if not null and suppresses subsequent exceptions if more than one
+   *
    * @param autoCloseables the closeables to close
    */
   public static void close(AutoCloseable... autoCloseables) throws Exception {
@@ -72,7 +77,36 @@ public final class AutoCloseables {
   }
 
   /**
+   * Close with an expected exception class. This method wraps any checked exception to an expected type.
+   * The exception class should have a constructor that takes Exception object as a parameter.
+   *
+   * @param exceptionClazz
+   * @param autoCloseables
+   * @param <E>
+   * @throws E
+   */
+  public static <E extends Throwable> void close(Class<E> exceptionClazz, AutoCloseable... autoCloseables) throws E {
+    try {
+      close(autoCloseables);
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      if (exceptionClazz.isInstance(e) || RuntimeException.class.isInstance(e)) {
+        throw (E) e;
+      }
+
+      try {
+        Constructor<E> constructor = exceptionClazz.getDeclaredConstructor(new Class[]{Throwable.class});
+        throw constructor.newInstance(new Object[]{e});
+      } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException ex) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  /**
    * Closes all autoCloseables if not null and suppresses subsequent exceptions if more than one
+   *
    * @param ac the closeables to close
    */
   public static void close(Iterable<? extends AutoCloseable> ac) throws Exception {
@@ -94,7 +128,7 @@ public final class AutoCloseables {
       } catch (Exception e) {
         if (topLevelException == null) {
           topLevelException = e;
-        } else if (e != topLevelException){
+        } else if (e != topLevelException) {
           topLevelException.addSuppressed(e);
         }
       }
@@ -105,14 +139,14 @@ public final class AutoCloseables {
   }
 
   @SafeVarargs
-  public static void close(Iterable<? extends AutoCloseable>...closeables) throws Exception{
+  public static void close(Iterable<? extends AutoCloseable>... closeables) throws Exception {
     close(Iterables.concat(closeables));
   }
 
-  public static Iterable<AutoCloseable> iter(AutoCloseable... ac){
-    if(ac.length == 0){
+  public static Iterable<AutoCloseable> iter(AutoCloseable... ac) {
+    if (ac.length == 0) {
       return Collections.emptyList();
-    }else{
+    } else {
       final List<AutoCloseable> nonNullAc = Lists.newArrayList();
       for (AutoCloseable autoCloseable : ac) {
         if (autoCloseable != null) {
@@ -132,17 +166,17 @@ public final class AutoCloseables {
     private final boolean reverse;
     private List<AutoCloseable> closeables;
 
-    public RollbackCloseable(boolean reverse, AutoCloseable... closeables){
+    public RollbackCloseable(boolean reverse, AutoCloseable... closeables) {
       this.closeables = new ArrayList<>(Arrays.asList(closeables));
       this.reverse = reverse;
     }
 
-    public RollbackCloseable(AutoCloseable... closeables){
+    public RollbackCloseable(AutoCloseable... closeables) {
       this(false, closeables);
     }
 
 
-    public <T extends AutoCloseable> T add(T t){
+    public <T extends AutoCloseable> T add(T t) {
       closeables.add(t);
       return t;
     }
@@ -152,7 +186,7 @@ public final class AutoCloseables {
     }
 
     public void addAll(Iterable<? extends AutoCloseable> list) {
-      for(AutoCloseable ac : list) {
+      for (AutoCloseable ac : list) {
         closeables.add(ac);
       }
     }
@@ -161,14 +195,14 @@ public final class AutoCloseables {
       return Collections.unmodifiableList(closeables);
     }
 
-    public void commit(){
+    public void commit() {
       commit = true;
     }
 
     @Override
     public void close() throws Exception {
-      if(!commit){
-        if(reverse) {
+      if (!commit) {
+        if (reverse) {
           Collections.reverse(closeables);
         }
         AutoCloseables.close(closeables);
@@ -177,7 +211,7 @@ public final class AutoCloseables {
 
   }
 
-  public static RollbackCloseable rollbackable(AutoCloseable... closeables){
+  public static RollbackCloseable rollbackable(AutoCloseable... closeables) {
     return new RollbackCloseable(closeables);
   }
 
@@ -190,13 +224,13 @@ public final class AutoCloseables {
    *
    * @param autoCloseable the AutoCloseable to close; may be null
    * @throws RuntimeException if an Exception occurs; the Exception is
-   *   wrapped by the RuntimeException
+   *                          wrapped by the RuntimeException
    */
   public static void closeNoChecked(final AutoCloseable autoCloseable) {
     if (autoCloseable != null) {
       try {
         autoCloseable.close();
-      } catch(final Exception e) {
+      } catch (final Exception e) {
         throw new RuntimeException("Exception while closing: " + e.getMessage(), e);
       }
     }

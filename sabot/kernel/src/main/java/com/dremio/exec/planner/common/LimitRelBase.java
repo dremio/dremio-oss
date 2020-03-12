@@ -15,13 +15,16 @@
  */
 package com.dremio.exec.planner.common;
 
+import java.util.List;
+
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelCollation;
+import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.rel.RelWriter;
-import org.apache.calcite.rel.SingleRel;
+import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -29,13 +32,12 @@ import org.apache.calcite.rex.RexNode;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.planner.cost.DremioCost.Factory;
 import com.dremio.exec.planner.physical.PrelUtil;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Base class for logical and physical Limits implemented in Dremio
  */
-public abstract class LimitRelBase extends SingleRel {
-  protected RexNode offset;
-  protected RexNode fetch;
+public abstract class LimitRelBase extends Sort {
   private boolean pushDown;  // whether limit has been pushed past its child.
                              // Limit is special in that when it's pushed down, the original LIMIT still remains.
                              // Once the limit is pushed down, this flag will be TRUE for the original LIMIT
@@ -47,9 +49,8 @@ public abstract class LimitRelBase extends SingleRel {
   }
 
   public LimitRelBase(RelOptCluster cluster, RelTraitSet traitSet, RelNode child, RexNode offset, RexNode fetch, boolean pushDown) {
-    super(cluster, traitSet, child);
-    this.offset = offset;
-    this.fetch = fetch;
+    super(cluster, traitSet.plus(RelCollations.EMPTY), child, RelCollations.EMPTY, offset, fetch);
+    this.traitSet = traitSet;
     this.pushDown = pushDown;
   }
 
@@ -74,11 +75,13 @@ public abstract class LimitRelBase extends SingleRel {
   }
 
   @Override
-  public RelWriter explainTerms(RelWriter pw) {
-    super.explainTerms(pw);
-    pw.itemIf("offset", offset, offset != null);
-    pw.itemIf("fetch", fetch, fetch != null);
-    return pw;
+  public RelCollation getCollation() {
+    return RelCollations.EMPTY;
+  }
+
+  @Override
+  public List<RelCollation> getCollationList() {
+    return ImmutableList.of();
   }
 
   @Override

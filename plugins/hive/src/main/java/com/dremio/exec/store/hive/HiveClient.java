@@ -69,7 +69,7 @@ public class HiveClient implements AutoCloseable {
   public static HiveClient createClientWithAuthz(final HiveClient processUserMetaStoreClient,
       final HiveConf hiveConf, final String userName, final UserGroupInformation ugiForRpc) throws MetaException {
 
-    try {
+    try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
       HiveConf hiveConfForClient = hiveConf;
       boolean needDelegationToken = false;
       final boolean impersonationEnabled = hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_ENABLE_DOAS);

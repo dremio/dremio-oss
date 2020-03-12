@@ -18,13 +18,14 @@ package com.dremio.plugins.elastic.planning.rels;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Iterator;
-import java.util.List;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
@@ -83,8 +84,8 @@ public class ElasticsearchLimit extends LimitRelBase implements ElasticsearchPre
   }
 
   @Override
-  public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ElasticsearchLimit(getCluster(), traitSet, sole(inputs), offset, fetch, isPushDown(), pluginId);
+  public Sort copy(RelTraitSet traitSet, RelNode newInput, RelCollation newCollation, RexNode offset, RexNode fetch) {
+    return new ElasticsearchLimit(getCluster(), traitSet, newInput, offset, fetch, isPushDown(), pluginId);
   }
 
   @Override
