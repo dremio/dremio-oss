@@ -34,6 +34,9 @@ import javax.ws.rs.core.SecurityContext;
 
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.server.SabotContext;
+import com.dremio.options.OptionManager;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.jobs.GetJobRequest;
@@ -55,11 +58,13 @@ import com.google.common.base.Preconditions;
 public class JobResource {
   private final JobsService jobs;
   private final SecurityContext securityContext;
+  private final OptionManager optionManager;
 
   @Inject
-  public JobResource(JobsService jobs, SecurityContext securityContext) {
+  public JobResource(JobsService jobs, SecurityContext securityContext, SabotContext context) {
     this.jobs = jobs;
     this.securityContext = securityContext;
+    this.optionManager = context.getOptionManager();
   }
 
   @GET
@@ -81,7 +86,10 @@ public class JobResource {
   @GET
   @Path("/{id}/results")
   public JobData getQueryResults(@PathParam("id") String id, @QueryParam("offset") @DefaultValue("0") Integer offset, @Valid @QueryParam("limit") @DefaultValue("100") Integer limit) {
-    Preconditions.checkArgument(limit <= 500,"limit can not exceed 500 rows");
+    long queryResultsLimit = optionManager.getOption(ExecConstants.CLIENT_API_JOB_QUERY_RESULT_LIMIT);
+    Preconditions.checkArgument(Math.max(limit, 1) <= queryResultsLimit,"limit can not exceed " + queryResultsLimit + " rows");
+    Preconditions.checkArgument(offset >= 0,"offset can not be negative");
+
     try {
       GetJobRequest request = GetJobRequest.newBuilder()
         .setJobId(new JobId(id))

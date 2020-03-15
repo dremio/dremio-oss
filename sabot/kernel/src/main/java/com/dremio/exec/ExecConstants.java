@@ -425,4 +425,7 @@ public interface ExecConstants {
 
   BooleanValidator ENABLE_HEAP_MONITORING = new BooleanValidator("exec.heap.monitoring.enable", true);
   RangeLongValidator HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE = new RangeLongValidator("exec.heap.monitoring.thresh.percentage", 50, 100, 85);
+
+  // Determines how many rows are returned in HTTP response for client REST API
+  LongValidator CLIENT_API_JOB_QUERY_RESULT_LIMIT = new TypeValidators.PositiveLongValidator("exec.client.job.query_result_limit", 100000, 500);
 }
