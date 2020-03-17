@@ -41,6 +41,35 @@ import io.protostuff.Tag;
  */
 @SourceType(value = "S3", label = "Amazon S3")
 public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlugin> {
+
+/*
+  static final List<String> UNIQUE_CONN_PROPS = ImmutableList.of(
+    Constants.ACCESS_KEY,
+    Constants.SECRET_KEY,
+    Constants.SESSION_TOKEN,
+    Constants.SECURE_CONNECTIONS,
+    Constants.ENDPOINT,
+    Constants.AWS_CREDENTIALS_PROVIDER,
+    Constants.MAXIMUM_CONNECTIONS,
+    Constants.MAX_ERROR_RETRIES,
+    Constants.ESTABLISH_TIMEOUT,
+    Constants.SOCKET_TIMEOUT,
+    Constants.SOCKET_SEND_BUFFER,
+    Constants.SOCKET_RECV_BUFFER,
+    Constants.SIGNING_ALGORITHM,
+    Constants.USER_AGENT_PREFIX,
+    Constants.PROXY_HOST,
+    Constants.PROXY_PORT,
+    Constants.PROXY_DOMAIN,
+    Constants.PROXY_USERNAME,
+    Constants.PROXY_PASSWORD,
+    Constants.PROXY_WORKSTATION,
+    Constants.PATH_STYLE_ACCESS,
+    S3FileSystem.COMPATIBILITY_MODE,
+    S3FileSystem.REGION_OVERRIDE
+  );
+
+*/
   @Tag(1)
   @DisplayMetadata(label = "AWS Access Key")
   public String accessKey = "";
@@ -61,6 +90,7 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
 
   @Tag(5)
   @DisplayMetadata(label = "Connection Properties")
+
   public List<Property> propertyList;
 
   @Tag(6)

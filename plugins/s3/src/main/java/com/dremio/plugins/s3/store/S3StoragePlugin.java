@@ -24,8 +24,10 @@ import static org.apache.hadoop.fs.s3a.Constants.MAX_TOTAL_TASKS;
 import static org.apache.hadoop.fs.s3a.Constants.MULTIPART_SIZE;
 import static org.apache.hadoop.fs.s3a.Constants.SECRET_KEY;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
+
 import static org.apache.hadoop.fs.s3a.Constants.SERVER_SIDE_ENCRYPTION_ALGORITHM;
 import static org.apache.hadoop.fs.s3a.Constants.SERVER_SIDE_ENCRYPTION_KEY;
+
 
 import java.io.IOException;
 import java.net.URI;
@@ -74,6 +76,7 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
    */
   public static final int DEFAULT_MAX_CONNECTIONS = 1000;
   public static final String EXTERNAL_BUCKETS = "dremio.s3.external.buckets";
+
   public static final String WHITELISTED_BUCKETS = "dremio.s3.whitelisted.buckets";
 
   // AWS Credential providers
@@ -81,6 +84,7 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
   public static final String EC2_METADATA_PROVIDER = "com.amazonaws.auth.InstanceProfileCredentialsProvider";
   public static final String NONE_PROVIDER = AnonymousAWSCredentialsProvider.NAME;
   public static final String ASSUME_ROLE_PROVIDER = "com.dremio.plugins.s3.store.STSCredentialProviderV1";
+
 
   public S3StoragePlugin(S3PluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
@@ -99,6 +103,13 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     finalProperties.add(new Property(MAX_THREADS, "24"));
     finalProperties.add(new Property(MULTIPART_SIZE, "67108864")); // 64mb
     finalProperties.add(new Property(MAX_TOTAL_TASKS, "30"));
+
+    // Explicitly disable caching of the FileSystem backing this plugin. Hadoop's caching mechanism is only
+    // keyed by the URI, and not by connection properties, so if credentials are supplied through properties,
+    // Hadoop would return incorrect FileSystems from its cache.
+    // Note that the scheme for the FileSystem this FileSystemPlugin utilizes must match the second part of the
+    // property name.
+    finalProperties.add(new Property("fs.dremioS3.impl.disable.cache", "true"));
 
     if(config.compatibilityMode) {
       finalProperties.add(new Property(S3FileSystem.COMPATIBILITY_MODE, "true"));

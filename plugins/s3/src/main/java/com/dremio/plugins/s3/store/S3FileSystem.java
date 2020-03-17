@@ -19,6 +19,7 @@ import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ASSUME_ROLE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.NONE_PROVIDER;
+//import static com.dremio.plugins.s3.store.S3StoragePlugin.TEMP_PROVIDER;
 import static org.apache.hadoop.fs.s3a.Constants.ENDPOINT;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
 
@@ -70,6 +71,7 @@ import com.google.common.collect.Sets;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
@@ -212,6 +214,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
 
   @Override
   protected Stream<ContainerCreator> getContainerCreators() throws IOException {
+
+
     FluentIterable<String> buckets = getBucketNamesFromConfigurationProperty(S3StoragePlugin.EXTERNAL_BUCKETS);
     if (!NONE_PROVIDER.equals(getConf().get(Constants.AWS_CREDENTIALS_PROVIDER))) {
       if (!useWhitelistedBuckets) {
@@ -221,6 +225,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         // Only add the buckets provided in the configuration.
         buckets = buckets.append(FluentIterable.from(getBucketNamesFromConfigurationProperty(S3StoragePlugin.WHITELISTED_BUCKETS)));
       }
+
     }
     return buckets.toSet() // Remove duplicate bucket names.
         .stream()
@@ -302,10 +307,12 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         return InstanceProfileCredentialsProvider.create();
       case NONE_PROVIDER:
         return AnonymousCredentialsProvider.create();
+
       case ASSUME_ROLE_PROVIDER:
         return new STSCredentialProviderV2(config);
+
       default:
-        throw new IllegalStateException(config.get(Constants.AWS_CREDENTIALS_PROVIDER));
+        return DefaultCredentialsProvider.create();
     }
   }
 
