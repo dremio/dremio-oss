@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.hive;
 
+import java.security.PrivilegedExceptionAction;
 import java.util.Collections;
 import java.util.List;
 
@@ -22,7 +23,6 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.metadata.Hive;
-import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.security.authorization.plugin.HiveAccessControlException;
 import org.apache.hadoop.security.UserGroupInformation;
 
@@ -33,7 +33,7 @@ import com.dremio.hive.thrift.TException;
  * HiveMetaStoreClient to create and maintain (reconnection cases) connection to Hive metastore with given user
  * credentials and check authorization privileges if set.
  */
-class HiveClientWithAuthz extends HiveClient {
+class HiveClientWithAuthz extends HiveClientImpl {
   /**
    * We need the process user HiveClient in order to get delegation token in reconnecting cases.
    */
@@ -45,7 +45,7 @@ class HiveClientWithAuthz extends HiveClient {
   private HiveAuthorizationHelper authorizer;
 
   HiveClientWithAuthz(final HiveConf hiveConf, final UserGroupInformation ugiForRpc, final String userName,
-      final HiveClient processUserClient, final boolean needDelegationToken) throws TException, HiveException {
+                      final HiveClient processUserClient, final boolean needDelegationToken) {
     super(hiveConf);
     this.processUserClient = processUserClient;
     this.ugiForRpc = ugiForRpc;
@@ -56,13 +56,10 @@ class HiveClientWithAuthz extends HiveClient {
   @Override
   void connect() throws MetaException {
     doAsCommand(
-        new UGIDoAsCommand<Void>() {
-          @Override
-          public Void run() throws Exception {
-            client = Hive.get(hiveConf).getMSC();
-            return null;
-          }
-        },
+      (PrivilegedExceptionAction<Void>) () -> {
+        client = Hive.get(hiveConf).getMSC();
+        return null;
+      },
         ugiForRpc,
         "Failed to connect to Hive metastore"
     );
@@ -78,13 +75,10 @@ class HiveClientWithAuthz extends HiveClient {
       getAndSetDelegationToken(hiveConf, ugiForRpc, processUserClient);
     }
     doAsCommand(
-        new UGIDoAsCommand<Void>() {
-          @Override
-          public Void run() throws Exception {
-            client.reconnect();
-            return null;
-          }
-        },
+      (PrivilegedExceptionAction<Void>) () -> {
+        client.reconnect();
+        return null;
+      },
         ugiForRpc,
         "Failed to reconnect to Hive metastore"
     );

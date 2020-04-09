@@ -68,13 +68,14 @@ import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.FolderName;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
-import com.dremio.dac.model.job.JobUI;
+import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.sources.FormatTools;
 import com.dremio.dac.model.spaces.Home;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
+import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.server.InputValidation;
 import com.dremio.dac.server.UIOptions;
 import com.dremio.dac.service.catalog.CatalogServiceHelper;
@@ -88,16 +89,18 @@ import com.dremio.dac.service.errors.FolderNotFoundException;
 import com.dremio.dac.service.errors.HomeNotFoundException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.dac.service.errors.SourceNotFoundException;
-import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.server.SabotContext;
+import com.dremio.dac.util.JobRequestUtil;
+import com.dremio.exec.catalog.DatasetCatalog;
+import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.file.File;
 import com.dremio.file.FileName;
 import com.dremio.file.FilePath;
-import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.job.QueryType;
+import com.dremio.service.job.SqlQuery;
+import com.dremio.service.job.SubmitJobRequest;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.jobs.CompletionListener;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.NoOpJobStatusListener;
-import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.BoundedDatasetCount;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -121,7 +124,7 @@ import com.dremio.service.namespace.space.proto.HomeConfig;
 @Secured
 @RolesAllowed({"admin", "user"})
 @Path("/home/{homeName}")
-public class HomeResource {
+public class HomeResource extends BaseResourceWithAllocator {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HomeResource.class);
 
   private final NamespaceService namespaceService;
@@ -134,8 +137,8 @@ public class HomeResource {
   private final DatasetsResource datasetsResource;
   private final HomeFileTool fileStore;
   private final CatalogServiceHelper catalogServiceHelper;
-  private final Catalog catalog;
-  private final SabotContext sabotContext;
+  private final DatasetCatalog datasetCatalog;
+  private final ProjectOptionManager projectOptionManager;
   private final FormatTools formatTools;
 
   @Inject
@@ -147,11 +150,14 @@ public class HomeResource {
     DatasetsResource datasetsResource,
     HomeFileTool fileStore,
     CatalogServiceHelper catalogServiceHelper,
-    Catalog catalog,
-    SabotContext sabotContext,
+    DatasetCatalog datasetCatalog,
+    ProjectOptionManager projectOptionManager,
     CollaborationHelper collaborationService,
     FormatTools formatTools,
-    @PathParam("homeName") HomeName homeName) {
+    @PathParam("homeName") HomeName homeName,
+    BufferAllocatorFactory allocatorFactory)
+  {
+    super(allocatorFactory);
     this.namespaceService = namespaceService;
     this.datasetService = datasetService;
     this.securityContext = securityContext;
@@ -162,8 +168,8 @@ public class HomeResource {
     this.homePath = new HomePath(homeName);
     this.fileStore = fileStore;
     this.catalogServiceHelper = catalogServiceHelper;
-    this.catalog = catalog;
-    this.sabotContext = sabotContext;
+    this.datasetCatalog = datasetCatalog;
+    this.projectOptionManager = projectOptionManager;
     this.formatTools = formatTools;
   }
 
@@ -238,7 +244,7 @@ public class HomeResource {
                          @FormDataParam("fileName") FileName fileName,
                          @QueryParam("extension") String extension) throws Exception {
     // check if file uploads are allowed
-    if (!sabotContext.getOptionManager().getOption(UIOptions.ALLOW_FILE_UPLOADS)) {
+    if (!projectOptionManager.getOption(UIOptions.ALLOW_FILE_UPLOADS)) {
       throw new ForbiddenException("File uploads have been disabled.");
     }
 
@@ -285,7 +291,7 @@ public class HomeResource {
   @Produces(MediaType.APPLICATION_JSON)
   public File finishUploadFile(FileFormat fileFormat, @PathParam("path") String path) throws Exception {
     // check if file uploads are allowed
-    if (!sabotContext.getOptionManager().getOption(UIOptions.ALLOW_FILE_UPLOADS)) {
+    if (!projectOptionManager.getOption(UIOptions.ALLOW_FILE_UPLOADS)) {
       throw new ForbiddenException("File uploads have been disabled.");
     }
 
@@ -304,7 +310,7 @@ public class HomeResource {
     fileFormat.setVersion(null);
     final DatasetConfig datasetConfig = toDatasetConfig(fileFormat.asFileConfig(), DatasetType.PHYSICAL_DATASET_HOME_FILE,
       securityContext.getUserPrincipal().getName(), new EntityId(UUID.randomUUID().toString()));
-    catalog.createOrUpdateDataset(namespaceService, new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), filePath.toNamespaceKey(), datasetConfig);
+    datasetCatalog.createOrUpdateDataset(namespaceService, new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), filePath.toNamespaceKey(), datasetConfig);
     fileFormat.setVersion(datasetConfig.getTag());
     return newFile(
       datasetConfig.getId().getId(),
@@ -323,19 +329,24 @@ public class HomeResource {
   public JobDataFragment previewFormatSettingsStaging(FileFormat fileFormat, @PathParam("path") String path)
     throws FileNotFoundException, SourceNotFoundException {
 
+    if (!fileStore.validStagingLocation(com.dremio.io.file.Path.of(fileFormat.getLocation()))) {
+      throw new IllegalArgumentException("Invalid staging location provided");
+    }
+
     FilePath filePath = FilePath.fromURLPath(homeName, path);
     logger.debug("filePath: " + filePath.toPathString());
     // use file's location directly to query file
     String fileLocation = PathUtils.toDottedPath(com.dremio.io.file.Path.of(fileFormat.getLocation()));
-    SqlQuery query = new SqlQuery(format("select * from table(%s.%s (%s)) limit 500",
-        SqlUtils.quoteIdentifier(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), fileLocation, fileFormat.toTableOptions()), securityContext.getUserPrincipal().getName());
 
-    return JobUI.getJobData(
-      jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(query)
-        .setQueryType(QueryType.UI_INITIAL_PREVIEW)
-        .build(), NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
+    final SqlQuery query = JobRequestUtil.createSqlQuery(format("select * from table(%s.%s (%s)) limit 500",
+        SqlUtils.quoteIdentifier(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), fileLocation, fileFormat.toTableOptions()),
+      securityContext.getUserPrincipal().getName());
+
+    final CompletionListener listener = new CompletionListener();
+    final JobId jobId = jobsService.submitJob(SubmitJobRequest.newBuilder().setSqlQuery(query).setQueryType(QueryType.UI_INITIAL_PREVIEW).build(), listener);
+    listener.awaitUnchecked();
+
+    return new JobDataWrapper(jobsService, jobId, securityContext.getUserPrincipal().getName()).truncate(getOrCreateAllocator("previewFormatSettingsStaging"),500);
   }
 
   @POST
@@ -344,16 +355,19 @@ public class HomeResource {
   @Consumes(MediaType.APPLICATION_JSON)
   public JobDataFragment previewFormatSettings(FileFormat fileFormat, @PathParam("path") String path)
       throws FileNotFoundException, SourceNotFoundException {
+
     FilePath filePath = FilePath.fromURLPath(homeName, path);
     logger.debug("filePath: " + filePath.toPathString());
     // TODO, this should be moved to dataset resource and be paginated.
-    SqlQuery query = new SqlQuery(format("select * from table(%s (%s)) limit 500", filePath.toPathString(), fileFormat.toTableOptions()), securityContext.getUserPrincipal().getName());
-    return JobUI.getJobData(
-      jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(query)
-        .setQueryType(QueryType.UI_INITIAL_PREVIEW)
-        .build(), NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
+
+    final SqlQuery query = JobRequestUtil.createSqlQuery(format("select * from table(%s (%s)) limit 500", filePath.toPathString(), fileFormat.toTableOptions()),
+      securityContext.getUserPrincipal().getName());
+
+    final CompletionListener listener = new CompletionListener();
+    final JobId jobId = jobsService.submitJob(SubmitJobRequest.newBuilder().setSqlQuery(query).setQueryType(QueryType.UI_INITIAL_PREVIEW).build(), listener);
+    listener.awaitUnchecked();
+
+    return new JobDataWrapper(jobsService, jobId, securityContext.getUserPrincipal().getName()).truncate(getOrCreateAllocator("previewFormatSettings"),500);
   }
 
   @GET
@@ -439,7 +453,7 @@ public class HomeResource {
     newConfig.setName(oldConfig.getName());
     newConfig.setOwner(oldConfig.getOwner());
     newConfig.setLocation(oldConfig.getLocation());
-    catalog.createOrUpdateDataset(namespaceService, new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), filePath.toNamespaceKey(), toDatasetConfig(newConfig, DatasetType.PHYSICAL_DATASET_HOME_FILE,
+    datasetCatalog.createOrUpdateDataset(namespaceService, new NamespaceKey(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), filePath.toNamespaceKey(), toDatasetConfig(newConfig, DatasetType.PHYSICAL_DATASET_HOME_FILE,
       securityContext.getUserPrincipal().getName(), existingDSConfig.getId()));
     return new FileFormatUI(FileFormat.getForFile(newConfig), filePath);
   }

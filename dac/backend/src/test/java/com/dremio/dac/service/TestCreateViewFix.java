@@ -27,38 +27,17 @@ import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.server.test.SampleDataPopulator;
-import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobRequest;
-import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-import com.google.common.util.concurrent.Futures;
 
 /**
  * Validates that the fix for DX-17635 works.
  */
 public class TestCreateViewFix extends BaseTestServer {
-
-  private void doJobAndWait(String query) {
-    final Job job = Futures.getUnchecked(
-      l(JobsService.class).submitJob(JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
-        .setQueryType(QueryType.UI_INTERNAL_RUN)
-        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-        .build(), new NoOpJobStatusListener()
-      )
-    );
-    job.getData().loadIfNecessary();
-    JobState state = job.getJobAttempt().getState();
-    if(state != JobState.COMPLETED) {
-      throw new RuntimeException("failure running vds setup/teardown query: " +query);
-    }
-  }
 
   @Test
   public void test() throws InterruptedException, NamespaceException {
@@ -71,9 +50,14 @@ public class TestCreateViewFix extends BaseTestServer {
     final int numVds = VM.availableProcessors();
     Semaphore semaphore = new Semaphore(0);
     for (int i = 0; i < numVds; i++) {
-      final String vdsName = "vds" + i;
+      final String query = String.format("CREATE VDS %s.vds%d AS SELECT * FROM sys.version", testSpace, i);
       Thread thread = new Thread(() -> {
-        doJobAndWait(String.format("CREATE VDS %s.%s AS SELECT * FROM sys.version", testSpace, vdsName));
+        submitJobAndWaitUntilCompletion(
+          JobRequest.newBuilder()
+            .setSqlQuery(new SqlQuery(query, SampleDataPopulator.DEFAULT_USER_NAME))
+            .setQueryType(QueryType.UI_INTERNAL_RUN)
+            .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+            .build());
         semaphore.release();
       });
       thread.start();

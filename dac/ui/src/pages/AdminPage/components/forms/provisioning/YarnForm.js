@@ -19,7 +19,7 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import HOCON from 'hoconfig-js/lib/parser';
 
-import { applyValidators, isNumber, isRequired } from 'utils/validation';
+import {applyValidators, isNumber, isRequired, noSpaces} from '@app/utils/validation';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 import * as PROVISION_DISTRIBUTIONS from '@app/constants/provisioningPage/provisionDistributions';
 import { FormBody, ModalForm, modalFormProps } from 'components/Forms';
@@ -63,6 +63,7 @@ function validate(values) {
   return {
     ...getMinErrors(values),
     ...applyValidators(values, [
+      isRequired(MAPPED_FIELDS.nodeTag, la('Engine Name')),
       isRequired(MAPPED_FIELDS.resourceManagerHost, la('Resource Manager')),
       isRequired(MAPPED_FIELDS.namenodeHost, YarnForm.hostNameLabel(values)),
       isRequired('virtualCoreCount', la('Cores per Worker')),
@@ -70,7 +71,8 @@ function validate(values) {
       isRequired('dynamicConfig.containerCount', la('Workers')),
       isNumber('virtualCoreCount', la('Cores per Worker')),
       isNumber('memoryMB', la('Memory per Worker')),
-      isNumber('dynamicConfig.containerCount', la('Workers'))
+      isNumber('dynamicConfig.containerCount', la('Workers')),
+      noSpaces(MAPPED_FIELDS.nodeTag, la('Engine Name'))
     ]),
     ...applyValidators(values, values.spillDirectories.map((item, index) => {
       return isRequired(`${MAPPED_FIELDS.spillDirectories}.${index}`, la('Spill Directory'));
@@ -295,7 +297,7 @@ export class YarnForm extends Component {
           <div style={styles.formRow}>
             <div style={{display: 'inline-flex', marginRight: inputSpacingCssValue}}>
               <div style={styles.inlineBlock}>
-                <div style={label}>{la('Hadoop Cluster')}</div>
+                <div style={label}>{la('Hadoop Engine')}</div>
                 <Select
                   name='distroType'
                   items={this.getDistributionOptions()}
@@ -306,7 +308,7 @@ export class YarnForm extends Component {
             </div>
             <Checkbox
               style={{paddingTop: label.fontSize}}
-              label={la('This is a secure cluster')}
+              label={la('This is a secure engine')}
               disabled={isEditMode(provision)}
               {...fields.isSecure}
             />
@@ -315,7 +317,7 @@ export class YarnForm extends Component {
             <FieldWithError
               labelStyle={formLabel}
               style={styles.inlineBlock}
-              label={la('Cluster Name')}
+              label={la('Engine Name')}
               errorPlacement='top'
               {...fields.nodeTag}>
               <TextField {...fields.nodeTag}/>

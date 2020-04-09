@@ -27,6 +27,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.RawLocalFileSystem;
 
 import com.dremio.common.utils.ProtobufUtils;
+import com.dremio.common.utils.protos.AttemptId;
+import com.dremio.common.utils.protos.AttemptIdUtils;
 import com.dremio.dac.proto.model.source.ClusterIdentity;
 import com.dremio.dac.resource.ExportProfilesParams;
 import com.dremio.dac.resource.ExportProfilesParams.ExportFormatType;
@@ -35,23 +37,22 @@ import com.dremio.dac.resource.ExportProfilesStats;
 import com.dremio.dac.support.SupportService;
 import com.dremio.dac.util.BackupRestoreUtil;
 import com.dremio.dac.util.ZipUtil;
-import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.work.AttemptId;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
-import com.dremio.service.jobs.AttemptIdUtils;
 import com.dremio.service.jobs.JobIndexKeys;
 import com.dremio.service.jobs.LocalJobsService;
+import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.services.configuration.ConfigurationStore;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
 
@@ -92,8 +93,8 @@ public final class ProfilesExporter {
     return Path.of(fullPath);
   }
 
-  private IndexedStore.FindByCondition getJobsFilter(Long fromDate, Long toDate) {
-    IndexedStore.FindByCondition jobsFilter = new IndexedStore.FindByCondition();
+  private LegacyIndexedStore.LegacyFindByCondition getJobsFilter(Long fromDate, Long toDate) {
+    LegacyIndexedStore.LegacyFindByCondition jobsFilter = new LegacyIndexedStore.LegacyFindByCondition();
 
     // date condition
     SearchQuery dateQuery = SearchQueryUtils.newRangeLong(JobIndexKeys.END_TIME.getIndexFieldName(),
@@ -137,7 +138,7 @@ public final class ProfilesExporter {
     return false;
   }
 
-  public final ExportProfilesStats export(KVStoreProvider provider)
+  public final ExportProfilesStats export(LegacyKVStoreProvider provider)
     throws Exception {
 
     Path fakeFileName = getProfileFileNameWithPath("fake_id");
@@ -161,12 +162,13 @@ public final class ProfilesExporter {
     return exportChunk(fs, provider);
   }
 
-  private ExportProfilesStats exportJSON(FileSystem fs, KVStoreProvider provider)
+  private ExportProfilesStats exportJSON(FileSystem fs, LegacyKVStoreProvider provider)
     throws IOException {
-    final KVStore<AttemptId, UserBitShared.QueryProfile> profilesStore = provider.getStore(LocalJobsService.JobsProfileCreator.class);
-    final IndexedStore<JobId, JobResult> jobsStore = provider.getStore(LocalJobsService.JobsStoreCreator.class);
+    final LegacyKVStore<AttemptId, UserBitShared.QueryProfile> profilesStore =
+      provider.getStore(LocalProfileStore.KVProfileStoreCreator.class);
+    final LegacyIndexedStore<JobId, JobResult> jobsStore = provider.getStore(LocalJobsService.JobsStoreCreator.class);
 
-    IndexedStore.FindByCondition jobsFilter = getJobsFilter(fromDate, toDate);
+    LegacyIndexedStore.LegacyFindByCondition jobsFilter = getJobsFilter(fromDate, toDate);
 
     Integer totalJobsCount = jobsStore.getCounts(jobsFilter.getCondition()).get(0);
     logger.debug("Job count: {}", totalJobsCount);
@@ -212,12 +214,13 @@ public final class ProfilesExporter {
     return new ExportProfilesStats(totalJobsCount, profilesCount, skippedProfilesCount, outputFilePath);
   }
 
-  private ExportProfilesStats exportChunk(FileSystem fs, KVStoreProvider provider)
+  private ExportProfilesStats exportChunk(FileSystem fs, LegacyKVStoreProvider provider)
     throws IOException {
-    final KVStore<AttemptId, UserBitShared.QueryProfile> profilesStore = provider.getStore(LocalJobsService.JobsProfileCreator.class);
-    final IndexedStore<JobId, JobResult> jobsStore = provider.getStore(LocalJobsService.JobsStoreCreator.class);
+    final LegacyKVStore<AttemptId, UserBitShared.QueryProfile> profilesStore =
+      provider.getStore(LocalProfileStore.KVProfileStoreCreator.class);
+    final LegacyIndexedStore<JobId, JobResult> jobsStore = provider.getStore(LocalJobsService.JobsStoreCreator.class);
 
-    IndexedStore.FindByCondition jobsFilter = getJobsFilter(fromDate, toDate);
+    LegacyIndexedStore.LegacyFindByCondition jobsFilter = getJobsFilter(fromDate, toDate);
 
     Integer totalJobsCount = jobsStore.getCounts(jobsFilter.getCondition()).get(0);
     logger.debug("Job count: {}", totalJobsCount);
@@ -256,7 +259,7 @@ public final class ProfilesExporter {
     return new ExportProfilesStats(totalJobsCount, profilesCount, skippedProfilesCount, outputFilePath);
   }
 
-  private Optional<ClusterIdentity> getClusterIdentity(ConfigurationStore store, KVStoreProvider provider) {
+  private Optional<ClusterIdentity> getClusterIdentity(ConfigurationStore store, LegacyKVStoreProvider provider) {
     final ConfigurationEntry entry = store.get(SupportService.CLUSTER_ID);
     try {
       ClusterIdentity identity = ClusterIdentity.getSchema().newMessage();

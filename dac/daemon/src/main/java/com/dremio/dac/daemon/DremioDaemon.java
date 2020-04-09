@@ -17,6 +17,10 @@ package com.dremio.dac.daemon;
 
 import static com.dremio.common.util.DremioVersionInfo.VERSION;
 
+import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.ParameterException;
+import com.beust.jcommander.Parameters;
 import com.dremio.common.JULBridge;
 import com.dremio.common.ProcessExit;
 import com.dremio.common.Version;
@@ -51,9 +55,26 @@ public class DremioDaemon {
     JULBridge.configure();
   }
 
-  public static final String DAEMON_MODULE_CLASS = "dremio.daemon.module.class";
+  /**
+   * Command line options for DACDaemon
+   */
+  @Parameters(separators = "=")
+  private static final class DACDaemonOptions {
 
-  private static class AutoUpgrade extends Upgrade {
+    @Parameter(names={"-h", "--help"}, description="show usage", help=true)
+    private boolean help = false;
+
+    @Parameter(names= {"-a", "--aws"}, description="AWS configuration", hidden = true)
+    private boolean aws = false;
+  }
+
+  public static final String DAEMON_MODULE_CLASS = "dremio.daemon.module.class";
+  public static final String CONFIGURATION_MODULE_CLASS = "dremio.configuration.module.class";
+
+  /**
+   * To autoupgrade dremio before starting daemon
+   */
+  public static class AutoUpgrade extends Upgrade {
 
     public AutoUpgrade(DACConfig dacConfig, ScanResult classPathScan) {
       super(dacConfig, classPathScan, false);
@@ -88,24 +109,45 @@ public class DremioDaemon {
   }
 
   public static void main(String[] args) throws Exception {
-    try (TimedBlock b = Timer.time("main")) {
+    final DACDaemonOptions options = new DACDaemonOptions();
+    JCommander jc = JCommander.newBuilder().addObject(options).build();
+    jc.setProgramName("dremio-admin export-profiles");
+    try {
+      jc.parse(args);
+    } catch (ParameterException p) {
+      jc.usage();
+      System.exit(1);
+    }
+
+    if(options.help) {
+      jc.usage();
+      System.exit(0);
+    }
+
+    if (options.aws) {
       final DACConfig config = DACConfig.newConfig();
-      final SabotConfig sabotConfig = config.getConfig().getSabotConfig();
-      final ScanResult classPathScan = ClassPathScanner.fromPrescan(sabotConfig);
+      final ConfigurationModule configurationModule =
+        config.getConfig().getSabotConfig().getInstance(CONFIGURATION_MODULE_CLASS, ConfigurationModule.class, ConfigurationModuleImpl.class);
+      configurationModule.run();
+    } else {
+      try (TimedBlock b = Timer.time("main")) {
+        final DACConfig config = DACConfig.newConfig();
+        final SabotConfig sabotConfig = config.getConfig().getSabotConfig();
+        final ScanResult classPathScan = ClassPathScanner.fromPrescan(sabotConfig);
 
-      if (config.isMaster) {
-        // Try autoupgrade before starting daemon
-        AutoUpgrade autoUpgrade = new AutoUpgrade(config, classPathScan);
-        autoUpgrade.run(false);
+        if (config.isMaster) {
+          // Try autoupgrade before starting daemon
+          AutoUpgrade autoUpgrade = new AutoUpgrade(config, classPathScan);
+          autoUpgrade.run(false);
+        }
+
+        final DACModule module = sabotConfig.getInstance(DAEMON_MODULE_CLASS, DACModule.class, DACDaemonModule.class);
+        final DACDaemon daemon = DACDaemon.newDremioDaemon(config, classPathScan, module);
+        daemon.init();
+        daemon.closeOnJVMShutDown();
+      } catch (final Throwable ex) {
+        ProcessExit.exit(ex, "Failure while starting services.", 4);
       }
-
-      final DACModule module = sabotConfig.getInstance(DAEMON_MODULE_CLASS, DACModule.class, DACDaemonModule.class);
-      final DACDaemon daemon = DACDaemon.newDremioDaemon(config, classPathScan, module);
-      daemon.init();
-      daemon.closeOnJVMShutDown();
-    } catch (final Throwable ex) {
-      ProcessExit.exit(ex, "Failure while starting services.", 4);
     }
   }
-
 }

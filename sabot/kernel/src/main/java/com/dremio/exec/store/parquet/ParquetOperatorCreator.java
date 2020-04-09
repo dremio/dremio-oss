@@ -21,8 +21,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
@@ -34,14 +36,18 @@ import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
+import com.dremio.exec.store.FilteringCoercionReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
+import com.dremio.exec.util.ColumnUtils;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
@@ -49,11 +55,18 @@ import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergDatasetXAttr;
+import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergSchemaField;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
+import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetXAttr;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.dremio.sabot.op.spi.ProducerOperator.Creator;
+import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.file.FileFormat;
+import com.dremio.service.namespace.file.proto.FileConfig;
+import com.dremio.service.namespace.file.proto.FileType;
+import com.dremio.service.namespace.file.proto.IcebergFileConfig;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
@@ -91,7 +104,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     private final FileSystem fs;
     private final boolean isAccelerator;
     private final ParquetReaderFactory readerFactory;
-    private final ImplicitFilesystemColumnFinder finder;
+    private final List<SchemaPath> realFields;
     private final GlobalDictionaries globalDictionaries;
     private final boolean vectorize;
     private final boolean autoCorrectCorruptDates;
@@ -119,15 +132,21 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       this.isAccelerator = config.getPluginId().getName().equals(ACCELERATOR_STORAGEPLUGIN_NAME);
       this.readerFactory = UnifiedParquetReader.getReaderFactory(context.getConfig());
 
-      // TODO (AH )Fix implicit columns with mod time and global dictionaries
-      this.finder = new ImplicitFilesystemColumnFinder(context.getOptions(), fs, config.getColumns(), isAccelerator);
+      if (DatasetHelper.isIcebergFile(config.getFormatSettings())) {
+        this.realFields = getRealIcebergFields();
+      } else {
+        // TODO (AH )Fix implicit columns with mod time and global dictionaries
+        this.realFields = new ImplicitFilesystemColumnFinder(
+                context.getOptions(), fs, config.getColumns(), isAccelerator).getRealFields();
+      }
 
       // load global dictionaries, globalDictionaries must be closed by the last reader
       this.globalDictionaries = GlobalDictionaries.create(context, fs,  config.getGlobalDictionaryEncodedColumns());
       this.vectorize = context.getOptions().getOption(ExecConstants.PARQUET_READER_VECTORIZE);
+
       this.autoCorrectCorruptDates =
           context.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR)
-          && ((ParquetFileConfig) FileFormat.getForFile(config.getFormatSettings())).getAutoCorrectCorruptDates();
+          && autoCorrectCorruptDatesFromFileFormat(config.getFormatSettings());
       this.readInt96AsTimeStamp = context.getOptions().getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR);
       this.enableDetailedTracing = context.getOptions().getOption(ExecConstants.ENABLED_PARQUET_TRACING);
       this.supportsColocatedReads = plugin.supportsColocatedReads();
@@ -140,6 +159,27 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
           globalDictionaryEncodedColumns.put(fieldInfo.getFieldName(), fieldInfo);
         }
       }
+    }
+
+    private boolean autoCorrectCorruptDatesFromFileFormat(FileConfig fileConfig) {
+      boolean autoCorrect;
+      if (DatasetHelper.isIcebergFile(fileConfig)) {
+        autoCorrect = ((IcebergFileConfig) FileFormat.getForFile(fileConfig)).getParquetDataFormat().getAutoCorrectCorruptDates();
+      } else {
+        autoCorrect = ((ParquetFileConfig) FileFormat.getForFile(fileConfig)).getAutoCorrectCorruptDates();
+      }
+      return autoCorrect;
+    }
+
+    // iceberg has no implicit columns.
+    private List<SchemaPath> getRealIcebergFields() {
+      Set<SchemaPath> selectedPaths = new LinkedHashSet<>();
+      if (config.getColumns() == null || ColumnUtils.isStarQuery(config.getColumns())) {
+        selectedPaths.addAll(GroupScan.ALL_COLUMNS);
+      } else {
+        selectedPaths.addAll(config.getColumns());
+      }
+      return ImmutableList.copyOf(selectedPaths);
     }
 
     public ScanOperator createScan() throws Exception {
@@ -175,11 +215,11 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     private class PrefetchingIterator implements Iterator<RecordReader>, AutoCloseable {
 
       private int location = -1;
-      private final List<Creator.SplitReaderCreator> creators;
+      private final List<SplitReaderCreator> creators;
       private Path path;
       private ParquetMetadata footer;
 
-      public PrefetchingIterator(List<Creator.SplitReaderCreator> creators) {
+      public PrefetchingIterator(List<SplitReaderCreator> creators) {
         super();
         this.creators = creators;
       }
@@ -193,7 +233,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       public RecordReader next() {
         Preconditions.checkArgument(hasNext());
         location++;
-        final Creator.SplitReaderCreator current = creators.get(location);
+        final SplitReaderCreator current = creators.get(location);
         current.createInputStreamProvider(path, footer);
         this.path = current.getPath();
         this.footer = current.getFooter();
@@ -308,6 +348,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
 
           final Collection<List<String>> referencedTables = config.getReferencedTables();
           final List<String> dataset = referencedTables == null || referencedTables.isEmpty() ? null : referencedTables.iterator().next();
+          ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, getIcebergColumnIDList());
 
           inputStreamProvider = factory.create(
               plugin,
@@ -316,7 +357,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
               path,
               length,
               datasetSplit.getPartitionInfo().getSize(),
-              finder.getRealFields(),
+              projectedColumns,
               validLastFooter,
               splitXAttr.getRowGroupIndex(),
               depletionListener,
@@ -333,31 +374,64 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
           try {
             final ParquetMetadata footer = inputStreamProvider.getFooter();
 
-            final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
+            SchemaDerivationHelper.Builder schemaHelperBuilder = SchemaDerivationHelper.builder()
                 .readInt96AsTimeStamp(readInt96AsTimeStamp)
-                .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, config.getColumns(), autoCorrectCorruptDates))
-                .build();
+                .dateCorruptionStatus(ParquetReaderUtility.detectCorruptDates(footer, config.getColumns(), autoCorrectCorruptDates));
 
-            final UnifiedParquetReader inner = new UnifiedParquetReader(
-              context,
-              readerFactory,
-              config.getFullSchema(),
-              finder.getRealFields(),
-              globalDictionaryEncodedColumns,
-              config.getConditions(),
-              ParquetFilterCreator.DEFAULT,
-              ParquetDictionaryConvertor.DEFAULT,
-              splitXAttr,
-              fs,
-              footer,
-              globalDictionaries,
-              schemaHelper,
-              vectorize,
-              enableDetailedTracing,
-              supportsColocatedReads,
-              inputStreamProvider
-            );
-            return readerConfig.wrapIfNecessary(context.getAllocator(), inner, datasetSplit);
+            List<IcebergSchemaField> icebergColumnIDList = null;
+
+            if (config.getFormatSettings().getType() == FileType.ICEBERG) {
+              icebergColumnIDList = getIcebergColumnIDList();
+              schemaHelperBuilder.noSchemaLearning(config.getFullSchema());
+            }
+
+            final SchemaDerivationHelper schemaHelper = schemaHelperBuilder.build();
+
+            ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, icebergColumnIDList);
+            RecordReader inner;
+            if (DatasetHelper.isIcebergFile(config.getFormatSettings())) {
+              IcebergParquetReader innerIcebergParquetReader = new IcebergParquetReader(
+                context,
+                readerFactory,
+                config.getFullSchema(),
+                projectedColumns,
+                globalDictionaryEncodedColumns,
+                config.getConditions(),
+                splitXAttr,
+                fs,
+                footer,
+                globalDictionaries,
+                schemaHelper,
+                vectorize,
+                enableDetailedTracing,
+                supportsColocatedReads,
+                inputStreamProvider
+              );
+              RecordReader wrappedRecordReader = readerConfig.wrapIfNecessary(context.getAllocator(), innerIcebergParquetReader, datasetSplit);
+              inner = new FilteringCoercionReader(context, projectedColumns.getBatchSchemaProjectedColumns(), wrappedRecordReader, config.getFullSchema(), config.getConditions());
+            } else {
+              final UnifiedParquetReader innerParquetReader = new UnifiedParquetReader(
+                context,
+                readerFactory,
+                config.getFullSchema(),
+                projectedColumns,
+                globalDictionaryEncodedColumns,
+                config.getConditions(),
+                ParquetFilterCreator.DEFAULT,
+                ParquetDictionaryConvertor.DEFAULT,
+                splitXAttr,
+                fs,
+                footer,
+                globalDictionaries,
+                schemaHelper,
+                vectorize,
+                enableDetailedTracing,
+                supportsColocatedReads,
+                inputStreamProvider
+              );
+              inner = readerConfig.wrapIfNecessary(context.getAllocator(), innerParquetReader, datasetSplit);
+            }
+            return inner;
           }finally {
             // minimize heap memory of this object.
             clearAllLocalFields();
@@ -386,6 +460,26 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
 
 
     }
-  }
 
+    private List<IcebergSchemaField> getIcebergColumnIDList() {
+      if (config.getFormatSettings().getType() != FileType.ICEBERG) {
+        return null;
+      }
+
+      try {
+        IcebergDatasetXAttr icebergDatasetXAttr = LegacyProtobufSerializer.parseFrom(IcebergDatasetXAttr.PARSER,
+          config.getExtendedProperty().asReadOnlyByteBuffer());
+        return icebergDatasetXAttr.getColumnIdsList();
+      } catch (InvalidProtocolBufferException ie) {
+        try {
+          ParquetDatasetXAttr parquetDatasetXAttr = LegacyProtobufSerializer.parseFrom(ParquetDatasetXAttr.PARSER,
+            config.getExtendedProperty().asReadOnlyByteBuffer());
+          // found XAttr from 5.0.1 release. return null
+          return null;
+        } catch (InvalidProtocolBufferException pe) {
+          throw new RuntimeException("Could not deserialize Parquet dataset info", pe);
+        }
+      }
+    }
+  }
 }

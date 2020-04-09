@@ -19,6 +19,7 @@ import PropTypes from 'prop-types';
 
 import { PALE_BLUE } from 'uiTheme/radium/colors';
 import { formDefault } from 'uiTheme/radium/typography';
+import DefaultMenuItem from '@app/components/Menus/MenuItem';
 
 export default class MenuItem extends PureComponent {
   static propTypes = {
@@ -35,24 +36,23 @@ export default class MenuItem extends PureComponent {
     return (
       <div
         className={classnames('dropdown-menu-item', className)}
-        style={style}
         title={title}
         onClick={disabled ? undefined : onClick} >
-        <span>{children}</span>
+        <DefaultMenuItem disabled={disabled} style={style}>{children}</DefaultMenuItem>
       </div>
     );
   };
 
   renderLink = (className, style) => {
-    const { href, children, title, onClick } = this.props;
+    const { href, children, title, onClick, disabled } = this.props;
     return (
       <a
         href={href}
         title={title}
         onClick={onClick}
         className={classnames('menu-item-link', className)}
-        style={style} >
-        <span>{children}</span>
+      >
+        <DefaultMenuItem disabled={disabled} style={style}>{children}</DefaultMenuItem>
       </a>
     );
   };

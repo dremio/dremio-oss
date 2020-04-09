@@ -16,7 +16,6 @@
 package com.dremio.exec.store;
 
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -30,14 +29,12 @@ import org.apache.arrow.vector.util.TransferPair;
 import com.carrotsearch.hppc.IntHashSet;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.expression.CastExpressionWithOverflow;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.FieldReference;
 import com.dremio.common.expression.FunctionCallFactory;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.logical.data.NamedExpression;
-import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.ExecConstants;
@@ -71,16 +68,11 @@ public class CoercionReader extends AbstractRecordReader {
   protected final RecordReader inner;
   protected Projector projector;
   protected final BatchSchema targetSchema;
-  private final List<NamedExpression> exprs;
-  private final ExpressionEvaluationOptions projectorOptions;
+  protected final List<NamedExpression> exprs;
+  protected final ExpressionEvaluationOptions projectorOptions;
   protected ExpressionSplitter splitter;
   protected Stopwatch javaCodeGenWatch = Stopwatch.createUnstarted();
   protected Stopwatch gandivaCodeGenWatch = Stopwatch.createUnstarted();
-
-  public enum Options {
-    NULL_DECIMAL_OVERFLOW,
-    SET_VARCHAR_WIDTH;
-  }
 
   protected OutputMutator outputMutator;
 
@@ -90,15 +82,6 @@ public class CoercionReader extends AbstractRecordReader {
                         List<SchemaPath> columns,
                         RecordReader inner,
                         BatchSchema targetSchema) {
-    this(context, columns, inner, targetSchema, EnumSet.noneOf(Options.class), null);
-  }
-
-  public CoercionReader(OperatorContext context,
-                        List<SchemaPath> columns,
-                        RecordReader inner,
-                        BatchSchema targetSchema,
-                        EnumSet<Options> options,
-                        TypeCoercion typeCoercion) {
     super(context, columns);
     this.mutator = new SampleMutator(context.getAllocator());
     this.incoming = mutator.getContainer();
@@ -108,7 +91,9 @@ public class CoercionReader extends AbstractRecordReader {
     this.exprs = new ArrayList<>(targetSchema.getFieldCount());
     this.projectorOptions = new ExpressionEvaluationOptions(context.getOptions());
     this.projectorOptions.setCodeGenOption(context.getOptions().getOption(ExecConstants.QUERY_EXEC_OPTION.getOptionName()).getStringVal());
+  }
 
+  protected void createCoercions() {
     for (Field field : targetSchema.getFields()) {
       final FieldReference inputRef = FieldReference.getWithQuotedRef(field.getName());
       final CompleteType targetType = CompleteType.fromField(field);
@@ -121,31 +106,21 @@ public class CoercionReader extends AbstractRecordReader {
         // schema learning to handle any changes we hit when reading from the underlying reader
         mutator.addField(field, TypeHelper.getValueVectorClass(field));
       } else {
-        MajorType majorType;
-        if (typeCoercion != null) {
-          majorType = typeCoercion.getType(field, options);
-        } else {
-          majorType = MajorTypeHelper.getMajorTypeForField(field);
-        }
-        LogicalExpression cast = null;
-        if (options.contains(Options.NULL_DECIMAL_OVERFLOW) && majorType.getMinorType().equals(TypeProtos.MinorType
-          .DECIMAL)) {
-          cast = new CastExpressionWithOverflow(inputRef, majorType);
-        } else if (options.contains(Options.SET_VARCHAR_WIDTH) &&
-          (majorType.getMinorType().equals(TypeProtos.MinorType.VARCHAR) || majorType.getMinorType().equals(TypeProtos.MinorType.VARBINARY)) &&
-          majorType.getWidth() >= CompleteType.DEFAULT_VARCHAR_PRECISION){
-          cast = inputRef;
-        } else {
-          cast = FunctionCallFactory.createCast(majorType, inputRef);
-        }
-        exprs.add(new NamedExpression(cast, inputRef));
+        addExpression(field, inputRef);
       }
       //TODO check that the expression type is a subset of the targetSchema type
     }
   }
 
+  protected void addExpression(Field field, FieldReference inputRef) {
+    final MajorType majorType = MajorTypeHelper.getMajorTypeForField(field);
+    LogicalExpression cast = FunctionCallFactory.createCast(majorType, inputRef);
+    exprs.add(new NamedExpression(cast, inputRef));
+  }
+
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
+    createCoercions();
     this.outputMutator = output;
     inner.setup(mutator);
     newSchema(outgoing, outputMutator);
@@ -163,7 +138,7 @@ public class CoercionReader extends AbstractRecordReader {
     projectorOut.buildSchema(SelectionVectorMode.NONE);
 
     // reset the schema change callback
-    mutator.isSchemaChanged();
+    mutator.getAndResetSchemaChanged();
 
     setupProjector(projectorOut);
   }
@@ -194,24 +169,24 @@ public class CoercionReader extends AbstractRecordReader {
     }
     javaCodeGenWatch.start();
     this.projector = cg.getCodeGenerator().getImplementationClass();
+    this.projector.setup(
+      context.getFunctionContext(),
+      incoming,
+      projectorOutput,
+      transfers,
+      new ComplexWriterCreator() {
+        @Override
+        public ComplexWriter addComplexWriter(String name) {
+          return null;
+        }
+      }
+    );
     javaCodeGenWatch.stop();
     OperatorStats stats = context.getStats();
     stats.addLongStat(ScanOperator.Metric.JAVA_BUILD_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
     stats.addLongStat(ScanOperator.Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
     gandivaCodeGenWatch.reset();
     javaCodeGenWatch.reset();
-    this.projector.setup(
-        context.getFunctionContext(),
-        incoming,
-        projectorOutput,
-        transfers,
-        new ComplexWriterCreator() {
-          @Override
-          public ComplexWriter addComplexWriter(String name) {
-            return null;
-          }
-        }
-    );
   }
 
   @Override
@@ -223,7 +198,7 @@ public class CoercionReader extends AbstractRecordReader {
   @Override
   public int next() {
     int recordCount = inner.next();
-    if (mutator.isSchemaChanged()) {
+    if (mutator.getAndResetSchemaChanged()) {
       newSchema(outgoing, outputMutator);
     }
     incoming.setAllCount(recordCount);
@@ -243,7 +218,9 @@ public class CoercionReader extends AbstractRecordReader {
           splitter.projectRecords(recordCount, javaCodeGenWatch,
               gandivaCodeGenWatch);
         }
+        javaCodeGenWatch.start();
         projector.projectRecords(recordCount);
+        javaCodeGenWatch.stop();
       } catch (Exception e) {
         throw Throwables.propagate(e);
       }

@@ -24,7 +24,7 @@ import FormTab from '@app/components/Forms/FormTab';
 import { applyValidators, isRequired } from '@app/utils/validation';
 import FormTabConfig from '@app/utils/FormUtils/FormTabConfig';
 import EC2FormMixin, { getInitValuesFromVlh } from 'dyn-load/pages/AdminPage/components/forms/provisioning/EC2FormMixin';
-import { DREMIO_CUSTOM_REGION } from '@app/constants/provisioningPage/provisioningConstants';
+import {CLUSTER_STATE} from '@app/constants/provisioningPage/provisioningConstants';
 import { EC2_FIELDS } from 'dyn-load/constants/provisioningPage/provisioningConstants';
 import { loadAwsDefaults } from '@app/actions/resources/provisioning';
 import { getAwsDefaults } from '@app/selectors/provision';
@@ -65,13 +65,6 @@ function validate(values) {
         isRequired('secretKey', la('Secret'))
       ])};
   }
-  if (values.region === DREMIO_CUSTOM_REGION) {
-    validators = {
-      ...validators,
-      ...applyValidators(values, [
-        isRequired('endpoint', la('Endpoint'))
-      ])};
-  }
   return validators;
 }
 
@@ -108,7 +101,7 @@ export class EC2Form extends Component {
     if (isEditMode(provision)) {
       payload.id = provision.get('id');
       payload.tag = provision.get('tag');
-      payload.desiredState = provision.get('desiredState');
+      payload.desiredState = CLUSTER_STATE.running;
     }
     return payload;
   };
@@ -119,13 +112,14 @@ export class EC2Form extends Component {
   };
 
   render() {
-    const { fields, handleSubmit, onCancel, style } = this.props;
+    const {fields, handleSubmit, onCancel, style, provision} = this.props;
+    const btnText = (isEditMode(provision)) ? la('Save') : la('Save & Launch');
     return (
       <ModalForm
         {...(modalFormProps(this.props) || {})}
         onSubmit={handleSubmit(this.submit)}
         onCancel={onCancel}
-        confirmText={la('Save & Launch')}
+        confirmText={btnText}
       >
         <FormBody style={style}>
           <FormTab fields={fields} tabConfig={this.config}/>

@@ -25,8 +25,6 @@ import org.apache.twill.api.TwillRunnableSpecification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Preconditions;
-
 /**
  * Application bundle runnable
  *
@@ -63,7 +61,7 @@ public class AppBundleRunnable implements TwillRunnable {
     }
 
     public static Arguments fromArray(String[] args) {
-      Preconditions.checkArgument(args.length >= 1, "Requires at least 2 argument:"
+      checkArgument(args.length >= 1, "Requires at least 2 argument:"
         + " <jarFileName> <mainClassName>");
 
       return new Arguments(args[0], args[1], Arrays.copyOfRange(args, 2, args.length));
@@ -137,12 +135,14 @@ public class AppBundleRunnable implements TwillRunnable {
 
   @Override
   public void run() {
-    Preconditions.checkNotNull(jarRunner);
+    Objects.requireNonNull(jarRunner);
 
     try {
       jarRunner.run();
-    } catch (Throwable t) {
-      System.exit(1);
+    } catch (RuntimeException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
   }
 
@@ -176,9 +176,9 @@ public class AppBundleRunnable implements TwillRunnable {
     arguments = Arguments.fromArray(context.getArguments());
 
     final File jarFile = new File(arguments.getJarFileName());
-    Preconditions.checkArgument(jarFile != null, "Jar file %s cannot be null", jarFile.getAbsolutePath());
-    Preconditions.checkArgument(jarFile.exists(), "Jar file %s must exist", jarFile.getAbsolutePath());
-    Preconditions.checkArgument(jarFile.canRead(), "Jar file %s must be readable", jarFile.getAbsolutePath());
+    Objects.requireNonNull(jarFile, String.format("Jar file %s cannot be null", jarFile.getAbsolutePath()));
+    checkArgument(jarFile.exists(), "Jar file %s must exist", jarFile.getAbsolutePath());
+    checkArgument(jarFile.canRead(), "Jar file %s must be readable", jarFile.getAbsolutePath());
 
     jarRunner = loadJarRunner(jarFile, arguments);
   }
@@ -196,6 +196,20 @@ public class AppBundleRunnable implements TwillRunnable {
       } catch (Exception ex) {
         logger.error("Error occurred upon close of jarRunner: ", ex);
       }
+    }
+  }
+
+  // Implement own checkArgument to avoid dependency on Guava Preconditions
+  private static void checkArgument(boolean b, String errorMessageTemplate) {
+    if (!b) {
+      throw new IllegalArgumentException(errorMessageTemplate);
+    }
+  }
+
+  // Implement own checkArgument to avoid dependency on Guava Preconditions
+  private static void checkArgument(boolean b, String errorMessageTemplate, Object p1) {
+    if (!b) {
+      throw new IllegalArgumentException(String.format(errorMessageTemplate, p1));
     }
   }
 }

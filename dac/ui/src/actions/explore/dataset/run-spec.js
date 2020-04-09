@@ -34,7 +34,7 @@ describe('dataset/run', () => {
       const result = Actions.runDataset(dataset, viewId)(obj => obj)[RSAA];
       expect(result.types[0].meta).to.eql({dataset, viewId});
       expect(result.method).to.eql('GET');
-      expect(result.endpoint).to.eql(`${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/run?tipVersion=tip123`);
+      expect(result.endpoint.toString()).to.eql(`${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/run/?tipVersion=tip123`);
     });
 
   });
@@ -47,8 +47,8 @@ describe('dataset/run', () => {
       expect(result.types[0].meta).to.eql({entity: dataset, viewId});
       expect(result.method).to.eql('POST');
       expect(result.body).to.eql(JSON.stringify(transformData));
-      expect(result.endpoint).to.startWith(
-        `${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/transformAndRun?newVersion=`
+      expect(result.endpoint.toString()).to.startWith(
+        `${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/transformAndRun/?newVersion=`
       );
     });
   });

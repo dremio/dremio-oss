@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>4.1.8-202003120636020140-9c2a6b13</version>
+    <version>4.2.0-202004091958060824-8f7e141d</version>
   </parent>
 
   <artifactId>dremio-services-accelerator</artifactId>
@@ -30,6 +30,31 @@
   <name>Services - Accelerator</name>
 
   <dependencies>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-jobs</artifactId>
+      <classifier>proto</classifier>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-namespace</artifactId>
+      <classifier>proto</classifier>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-protocol</artifactId>
+      <classifier>proto</classifier>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.sabot</groupId>
+      <artifactId>dremio-sabot-kernel</artifactId>
+      <classifier>proto</classifier>
+      <version>${project.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
@@ -58,7 +83,6 @@
     <dependency>
       <groupId>de.huxhorn.lilith</groupId>
       <artifactId>de.huxhorn.lilith.logback.appender.multiplex-classic</artifactId>
-      <version>0.9.44</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -120,12 +144,12 @@
         </executions>
       </plugin>
       <plugin>
-        <groupId>io.protostuff</groupId>
-        <artifactId>protostuff-maven-plugin</artifactId>
+        <groupId>com.dremio.tools</groupId>
+        <artifactId>dremio-protostuff-maven-plugin</artifactId>
         <configuration>
           <protoModules>
             <protoModule>
-              <source>src/main/protobuf</source>
+              <source>${project.basedir}/src/main/protobuf</source>
               <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
               <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
               <options>
@@ -152,6 +176,23 @@
             <goals>
               <goal>compile</goal>
             </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>proto-jar-resources</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classesDirectory>${project.basedir}/src/main/protobuf</classesDirectory>
+              <classifier>proto</classifier>
+            </configuration>
           </execution>
         </executions>
       </plugin>

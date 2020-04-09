@@ -150,19 +150,20 @@ export class ExploreTableJobStatus extends Component {
         <span style={styles.value}>
           {!jobId && <span style={styles.text}>{jobStatusName}</span>}
           {jobId &&
-          <DropdownMenu
-            className='explore-job-status-button'
-            hideArrow
-            hideDivider
-            style={styles.textLink}
-            text={jobStatusName}
-            menu={<JobStatusMenu action={this.doButtonAction} jobId={jobId} isCancellable={isJobCancellable}/>}/>
+            <DropdownMenu
+              className='explore-job-status-button'
+              hideArrow
+              hideDivider
+              style={styles.textLink}
+              textStyle={styles.menuText}
+              text={jobStatusName}
+              menu={<JobStatusMenu action={this.doButtonAction} jobId={jobId} isCancellable={isJobCancellable}/>}/>
           }
           <ExploreTableJobStatusSpinner jobProgress={jobProgress} jobId={jobId}/>
         </span>
         <span style={styles.divider}> | </span>
         <span style={styles.label}>{la('Time: ')}</span>
-        <span style={styles.value}>
+        <span style={styles.timeValue}>
           {this.renderTime(jobProgress)}
         </span>
       </div>
@@ -211,6 +212,9 @@ const styles = {
   value: {
     display: 'inline-flex',
     alignItems: 'center'
+  },
+  timeValue: {
+    minWidth: 30
   },
   divider: {
     display: 'inline-box',

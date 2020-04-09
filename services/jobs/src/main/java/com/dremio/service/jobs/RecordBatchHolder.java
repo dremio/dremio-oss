@@ -17,7 +17,7 @@ package com.dremio.service.jobs;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.dremio.sabot.op.sort.external.RecordBatchData;
+import com.dremio.exec.record.RecordBatchData;
 
 /**
  * Represents a subset of data in {@link RecordBatchData}.

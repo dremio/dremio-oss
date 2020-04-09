@@ -14,25 +14,26 @@
  * limitations under the License.
  */
 import { RSAA } from 'redux-api-middleware';
-import { API_URL_V2 } from '@app/constants/Api';
+import { APIV2Call } from '@app/core/APICall';
 import { VIEW_ID as HOME_CONTENTS_VIEW_ID } from 'pages/HomePage/subpages/HomeContents';
 
-import { constructFullPathAndEncode } from 'utils/pathUtils';
-
 import sqlFunctions from 'customData/sqlFunctions.json';
+import { constructFullPath } from '@app/utils/pathUtils';
 
 export const CREATE_DATASET_START = 'CREATE_DATASET_START';
 export const CREATE_DATASET_SUCCESS = 'CREATE_DATASET_SUCCESS';
 export const CREATE_DATASET_FAILURE = 'CREATE_DATASET_FAILURE';
 
 function putDataset(cpath, dataset) {
+  const apiCall = new APIV2Call().paths(`dataset${cpath}`);
+
   return {
     [RSAA]: {
       types: [CREATE_DATASET_START, CREATE_DATASET_SUCCESS, CREATE_DATASET_FAILURE],
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(dataset),
-      endpoint: `${API_URL_V2}/dataset${cpath}`
+      endpoint: apiCall
     }
   };
 }
@@ -49,8 +50,12 @@ export const CREATE_DATASET_FROM_EXISTING_FAILURE = 'CREATE_DATASET_FAILURE';
 
 function putDatasetFromExisting(fullPathFrom, fullPathTo, datasetConfig) {
   const meta = { invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
-  const encodedPathFrom = constructFullPathAndEncode(fullPathFrom);
-  const encodedPathTo = constructFullPathAndEncode(fullPathTo);
+
+  const apiCall = new APIV2Call()
+    .path('dataset')
+    .path(constructFullPath(fullPathTo))
+    .path('copyFrom')
+    .path(constructFullPath(fullPathFrom));
 
   return {
     [RSAA]: {
@@ -61,7 +66,7 @@ function putDatasetFromExisting(fullPathFrom, fullPathTo, datasetConfig) {
       ],
       method: 'PUT',
       body: JSON.stringify(datasetConfig),
-      endpoint: `${API_URL_V2}/dataset/${encodedPathTo}/copyFrom/${encodedPathFrom}`
+      endpoint: apiCall
     }
   };
 }
@@ -78,8 +83,13 @@ export const MOVE_DATASET_FAILURE = 'MOVE_DATASET_FAILURE';
 
 function fetchDataSetMove(fullPathFrom, fullPathTo) {
   const meta = { invalidateViewIds: [HOME_CONTENTS_VIEW_ID] };
-  const encodedPathFrom = constructFullPathAndEncode(fullPathFrom);
-  const encodedPathTo = constructFullPathAndEncode(fullPathTo);
+
+  const apiCall = new APIV2Call()
+    .path('dataset')
+    .path(constructFullPath(fullPathFrom))
+    .path('moveTo')
+    .path(constructFullPath(fullPathTo));
+
   return {
     [RSAA]: {
       types: [
@@ -88,7 +98,7 @@ function fetchDataSetMove(fullPathFrom, fullPathTo) {
         { type: MOVE_DATASET_FAILURE, meta }
       ],
       method: 'POST',
-      endpoint: `${API_URL_V2}/dataset/${encodedPathFrom}/moveTo/${encodedPathTo}`
+      endpoint: apiCall
     }
   };
 }

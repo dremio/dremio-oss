@@ -42,6 +42,7 @@ import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
 import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.server.NodeDebugContextProvider;
+import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.FragmentOptionManager;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
@@ -54,6 +55,7 @@ import com.dremio.sabot.exec.EventProvider;
 import com.dremio.sabot.exec.ExecToCoordTunnelCreator;
 import com.dremio.sabot.exec.FragmentTicket;
 import com.dremio.sabot.exec.FragmentWorkManager.ExecConnectionCreator;
+import com.dremio.sabot.exec.MaestroProxy;
 import com.dremio.sabot.exec.QueriesClerk;
 import com.dremio.sabot.exec.QueryStarter;
 import com.dremio.sabot.exec.QueryTicket;
@@ -81,6 +83,7 @@ public class FragmentExecutorBuilder {
   static final String OOB_QUEUE = "oob-queue";
 
   private final QueriesClerk clerk;
+  private final MaestroProxy maestroProxy;
   private final SabotConfig config;
   private final ClusterCoordinator coord;
   private final ExecutorService executorService;
@@ -99,9 +102,11 @@ public class FragmentExecutorBuilder {
   private final ContextInformationFactory contextInformationFactory;
   private final NodeDebugContextProvider nodeDebugContextProvider;
   private final SpillService spillService;
+  private final DefaultOptionManager defaultOptionManager;
 
   public FragmentExecutorBuilder(
       QueriesClerk clerk,
+      MaestroProxy maestroProxy,
       SabotConfig config,
       ClusterCoordinator coord,
       ExecutorService executorService,
@@ -117,8 +122,10 @@ public class FragmentExecutorBuilder {
       DecimalFunctionImplementationRegistry decimalFunctions,
       NodeDebugContextProvider nodeDebugContextProvider,
       SpillService spillService,
-      Set<ClusterCoordinator.Role> roles) {
+      Set<ClusterCoordinator.Role> roles,
+      DefaultOptionManager defaultOptionManager) {
     this.clerk = clerk;
+    this.maestroProxy = maestroProxy;
     this.config = config;
     this.coord = coord;
     this.executorService = executorService;
@@ -136,6 +143,7 @@ public class FragmentExecutorBuilder {
     this.contextInformationFactory = contextInformationFactory;
     this.nodeDebugContextProvider = nodeDebugContextProvider;
     this.spillService = spillService;
+    this.defaultOptionManager = defaultOptionManager;
   }
 
   public PhysicalPlanReader getPlanReader() {
@@ -198,7 +206,7 @@ public class FragmentExecutorBuilder {
         }
       }
       // add the remaining options (QUERY, SESSION) to the fragment option manager
-      final OptionManager fragmentOptions = new FragmentOptionManager(optionManager, list.getNonSystemOptions());
+      final OptionManager fragmentOptions = new FragmentOptionManager(defaultOptionManager, list);
 
       final FlushableSendingAccountor flushable = new FlushableSendingAccountor(sharedResources.getGroup(PIPELINE_RES_GRP));
       final ExecutionControls controls = new ExecutionControls(fragmentOptions, fragment.getAssignment());
@@ -231,7 +239,8 @@ public class FragmentExecutorBuilder {
           major.getAllAssignmentList(),
           cachedReader.getPlanFragmentsIndex().getEndpointsIndex());
 
-      final FragmentStatusReporter statusReporter = new FragmentStatusReporter(fragment.getHandle(), stats, coordTunnel, allocator);
+      final FragmentStatusReporter statusReporter = new FragmentStatusReporter(fragment.getHandle(), stats,
+        maestroProxy, allocator);
       final FragmentExecutor executor = new FragmentExecutor(
           statusReporter,
           config,

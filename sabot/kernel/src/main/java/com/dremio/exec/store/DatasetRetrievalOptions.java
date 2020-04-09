@@ -31,11 +31,14 @@ import com.dremio.exec.catalog.AllowAutoPromote;
 import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.FileConfigOption;
 import com.dremio.exec.catalog.SortColumnsOption;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.source.proto.MetadataPolicy;
 import com.google.common.base.Preconditions;
+
+import io.protostuff.ByteString;
 
 /**
  * Dataset retrieval options.
@@ -264,13 +267,13 @@ public class DatasetRetrievalOptions {
       options.add(new SortColumnsOption(datasetConfig.getReadDefinition().getSortColumnsList()));
     }
 
-    BatchSchema schema = DatasetHelper.getSchemaBytes(datasetConfig) != null ? BatchSchema.fromDataset(datasetConfig) : null;
+    BatchSchema schema = DatasetHelper.getSchemaBytes(datasetConfig) != null ? CalciteArrowHelper.fromDataset(datasetConfig) : null;
     if(schema != null) {
       options.add(new CurrentSchemaOption(schema));
     }
 
     if (datasetConfig.getReadDefinition() != null && datasetConfig.getReadDefinition().getExtendedProperty() != null) {
-      options.add(new ExtendedPropertyOption(os -> os.write(datasetConfig.getReadDefinition().getExtendedProperty().toByteArray())));
+      options.add(new ExtendedPropertyOption(os -> ByteString.writeTo(os, datasetConfig.getReadDefinition().getExtendedProperty())));
     }
 
     List<T> addOptions = options.stream().filter(o -> clazz.isAssignableFrom(o.getClass())).map(o -> clazz.cast(o)).collect(Collectors.toList());

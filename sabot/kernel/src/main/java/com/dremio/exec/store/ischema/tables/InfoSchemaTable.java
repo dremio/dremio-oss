@@ -30,6 +30,7 @@ import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.planner.cost.ScanCostFactor;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RecordDataType;
@@ -98,7 +99,7 @@ public enum InfoSchemaTable implements DatasetHandle, DatasetMetadata, Partition
   public BatchSchema getRecordSchema() {
     RecordDataType dataType = new PojoDataType(definition.getRecordClass());
     RelDataType type = dataType.getRowType(JavaTypeFactoryImpl.INSTANCE);
-    return BatchSchema.fromCalciteRowType(type);
+    return CalciteArrowHelper.fromCalciteRowType(type);
   }
 
   @Override

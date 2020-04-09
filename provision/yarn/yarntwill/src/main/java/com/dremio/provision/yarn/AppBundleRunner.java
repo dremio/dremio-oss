@@ -28,6 +28,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
@@ -40,7 +41,6 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.config.DremioConfig;
 import com.dremio.provision.yarn.AppBundleRunnable.Arguments;
-import com.google.common.base.Preconditions;
 
 
 /**
@@ -61,10 +61,10 @@ public class AppBundleRunner implements AutoCloseable {
   private Runnable runnable;
 
   public AppBundleRunner(File jarFile, Arguments arguments) {
-    Preconditions.checkArgument(jarFile != null, "Jar file cannot be null");
-    Preconditions.checkArgument(jarFile.exists(), "Jar file %s must exist", jarFile.getAbsolutePath());
-    Preconditions.checkArgument(jarFile.canRead(), "Jar file %s must be readable", jarFile.getAbsolutePath());
-    Preconditions.checkArgument(arguments.getMainClassName() != null, "Main class name cannot be null", jarFile.getAbsolutePath());
+    Objects.requireNonNull(jarFile, "Jar file cannot be null");
+    checkArgument(jarFile.exists(), "Jar file %s must exist", jarFile.getAbsolutePath());
+    checkArgument(jarFile.canRead(), "Jar file %s must be readable", jarFile.getAbsolutePath());
+    checkArgument(arguments.getMainClassName() != null, "Main class name cannot be null", jarFile.getAbsolutePath());
 
     this.jarFile = jarFile;
     this.arguments = arguments;
@@ -81,7 +81,7 @@ public class AppBundleRunner implements AutoCloseable {
 
     logger.debug("Loading jars into ClassLoader");
     Path manifestPath = outputJarDir.resolve(JarFile.MANIFEST_NAME);
-    Preconditions.checkArgument(Files.exists(manifestPath) && Files.isReadable(manifestPath), "Jar file %s must contain a valid manifest file", jarFile.getAbsolutePath());
+    checkArgument(Files.exists(manifestPath) && Files.isReadable(manifestPath), "Jar file %s must contain a valid manifest file", jarFile.getAbsolutePath());
 
     final String classPath;
     final String nativeLibraryPath;
@@ -142,7 +142,7 @@ public class AppBundleRunner implements AutoCloseable {
     logger.debug("Instantiating instance of {}", mainClassName);
     final Class<?> cls = bundleJarClassLoader.loadClass(mainClassName);
 
-    Preconditions.checkArgument(Runnable.class.isAssignableFrom(cls), "{} does not implement `java.lang.Runnable` interface");
+    checkArgument(Runnable.class.isAssignableFrom(cls), "{} does not implement `java.lang.Runnable` interface");
     Constructor<? extends Runnable> constructor = cls.asSubclass(Runnable.class).getConstructor(String[].class);
 
     runnable = constructor.newInstance(new Object[] { arguments.getMainArgs() });
@@ -151,7 +151,7 @@ public class AppBundleRunner implements AutoCloseable {
   }
 
   public void run() throws Exception {
-    Preconditions.checkNotNull(runnable, "Must call load() first");
+    Objects.requireNonNull(runnable, "Must call load() first");
     String mainClassName = arguments.getMainClassName();
     String[] args = arguments.getMainArgs();
 
@@ -165,7 +165,7 @@ public class AppBundleRunner implements AutoCloseable {
   }
 
   public void stop() throws Exception {
-    Preconditions.checkNotNull(runnable, "Must call load() first");
+    Objects.requireNonNull(runnable, "Must call load() first");
     if (runnable instanceof AutoCloseable) {
       ((AutoCloseable) runnable).close();
     }
@@ -193,6 +193,20 @@ public class AppBundleRunner implements AutoCloseable {
           Files.copy(is, output);
         }
       }
+    }
+  }
+
+  // Implement own checkArgument to avoid dependency on Guava Preconditions
+  private static void checkArgument(boolean b, String errorMessageTemplate) {
+    if (!b) {
+      throw new IllegalArgumentException(errorMessageTemplate);
+    }
+  }
+
+  // Implement own checkArgument to avoid dependency on Guava Preconditions
+  private static void checkArgument(boolean b, String errorMessageTemplate, Object p1) {
+    if (!b) {
+      throw new IllegalArgumentException(String.format(errorMessageTemplate, p1));
     }
   }
 }

@@ -179,19 +179,19 @@ public class TestPushLimitToPruneableScan extends DremioTest {
     @Override
     public RelNode applyDatasetPointer(TableMetadata newDatasetPointer) {
       return new TestScanPrel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer,
-          projectedColumns, observedRowcountAdjustment, hasFilter);
+          getProjectedColumns(), observedRowcountAdjustment, hasFilter);
     }
 
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
       return new TestScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata,
-          projectedColumns, observedRowcountAdjustment, hasFilter);
+          getProjectedColumns(), observedRowcountAdjustment, hasFilter);
     }
 
     @Override
     public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
       return new TestScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata,
-          projectedColumns, observedRowcountAdjustment, hasFilter);
+          getProjectedColumns(), observedRowcountAdjustment, hasFilter);
     }
   }
 

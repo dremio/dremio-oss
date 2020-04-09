@@ -25,8 +25,8 @@ import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
 
-import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.RemoteDataStoreUtils;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.namespace.DatasetListingRPC.DLFindRequest;
@@ -104,7 +104,7 @@ public class DatasetListingInvoker implements DatasetListingService {
             DLFindRequest.getDefaultInstance(), DLFindResponse.getDefaultInstance()) {
           @Override
           public SentResponseMessage<DLFindResponse> handle(DLFindRequest findRequest, ArrowBuf dBody) {
-            final FindByCondition findByCondition = !findRequest.hasRequest() ? null :
+            final LegacyFindByCondition findByCondition = !findRequest.hasRequest() ? null :
                 RemoteDataStoreUtils.getConditionFromRequest(findRequest.getRequest());
 
             final Iterable<Entry<NamespaceKey, NameSpaceContainer>> searchResults;
@@ -231,7 +231,7 @@ public class DatasetListingInvoker implements DatasetListingService {
   @Override
   public Iterable<Entry<NamespaceKey, NameSpaceContainer>> find(
       String username,
-      FindByCondition condition
+      LegacyFindByCondition condition
   ) throws NamespaceException {
     if (isMaster) { // RPC calls unless running on master
       return datasetListing.find(username, condition);

@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 import org.apache.arrow.memory.BoundsChecking;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.commons.io.ByteOrderMark;
 
 import com.dremio.common.exceptions.UserException;
@@ -121,7 +122,7 @@ final class TextInput {
     this.buffer = readBuffer;
     this.bStart = buffer.memoryAddress();
     this.bStartMinus1 = bStart -1;
-    this.underlyingBuffer = buffer.nioBuffer(0, buffer.capacity());
+    this.underlyingBuffer = buffer.nioBuffer(0, LargeMemoryUtil.checkedCastToInt(buffer.capacity()));
   }
 
   /**

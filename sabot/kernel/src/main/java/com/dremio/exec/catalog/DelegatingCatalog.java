@@ -20,9 +20,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.schema.Function;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
@@ -30,6 +32,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.exec.store.ischema.tables.TablesTable;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
@@ -59,6 +62,16 @@ public class DelegatingCatalog implements Catalog {
   @Override
   public DremioTable getTableNoColumnCount(NamespaceKey key) {
     return delegate.getTableNoColumnCount(key);
+  }
+
+  @Override
+  public void addOrUpdateDataset(NamespaceKey key, DatasetConfig dataset) throws NamespaceException {
+    delegate.addOrUpdateDataset(key, dataset);
+  }
+
+  @Override
+  public void deleteDataset(NamespaceKey key, String version) throws NamespaceException {
+    delegate.deleteDataset(key, version);
   }
 
   @Override
@@ -107,11 +120,6 @@ public class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public String getUser() {
-    return delegate.getUser();
-  }
-
-  @Override
   public NamespaceKey resolveToDefault(NamespaceKey key) {
     return delegate.resolveToDefault(key);
   }
@@ -137,8 +145,14 @@ public class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public CreateTableEntry createNewTable(NamespaceKey key, WriterOptions writerOptions, Map<String, Object> storageOptions) {
-    return delegate.createNewTable(key, writerOptions, storageOptions);
+  public CreateTableEntry createNewTable(NamespaceKey key, IcebergTableProps icebergTableProps,
+                                         WriterOptions writerOptions, Map<String, Object> storageOptions) {
+    return delegate.createNewTable(key, icebergTableProps, writerOptions, storageOptions);
+  }
+
+  @Override
+  public void createEmptyTable(NamespaceKey key, BatchSchema batchSchema, WriterOptions writerOptions) {
+    delegate.createEmptyTable(key, batchSchema, writerOptions);
   }
 
   @Override
@@ -159,6 +173,26 @@ public class DelegatingCatalog implements Catalog {
   @Override
   public void dropTable(NamespaceKey key) {
     delegate.dropTable(key);
+  }
+
+  @Override
+  public void truncateTable(NamespaceKey key) {
+    delegate.truncateTable(key);
+  }
+
+  @Override
+  public void addColumns(NamespaceKey table, List<Field> colsToAdd) {
+    delegate.addColumns(table, colsToAdd);
+  }
+
+  @Override
+  public void dropColumn(NamespaceKey table, String columnToDrop) {
+    delegate.dropColumn(table, columnToDrop);
+  }
+
+  @Override
+  public void changeColumn(NamespaceKey table, String columnToChange, Field fieldFromSqlColDeclaration) {
+    delegate.changeColumn(table, columnToChange, fieldFromSqlColDeclaration);
   }
 
   @Override
@@ -217,12 +251,7 @@ public class DelegatingCatalog implements Catalog {
   }
 
   @Override
-  public boolean isSourceConfigMetadataImpacting(SourceConfig sourceConfig) {
-    return delegate.isSourceConfigMetadataImpacting(sourceConfig);
-  }
-
-  @Override
-  public SourceState getSourceState(String name) {
-    return delegate.getSourceState(name);
+  public boolean alterDataset(final NamespaceKey key, final Map<String, AttributeValue> attributes) {
+    return delegate.alterDataset(key, attributes);
   }
 }

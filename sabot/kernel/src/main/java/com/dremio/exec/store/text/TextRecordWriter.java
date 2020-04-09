@@ -216,7 +216,7 @@ public class TextRecordWriter extends StringOutputRecordWriter {
 
     if (stream != null) {
       stream.flush();
-      listener.recordsWritten(count, getFileSize(), path.toString(), null, partition.getBucketNumber());
+      listener.recordsWritten(count, getFileSize(), path.toString(), null, partition.getBucketNumber(), null);
       stream.close();
       stream = null;
       dos = null;

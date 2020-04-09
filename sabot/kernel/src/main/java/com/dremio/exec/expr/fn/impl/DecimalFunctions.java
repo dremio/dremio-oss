@@ -277,7 +277,11 @@ public class DecimalFunctions {
 
       java.math.BigDecimal result = com.dremio.exec.expr.fn.impl.DecimalFunctions.roundWithPositiveScale(input,
               (int) scale.value, java.math.RoundingMode.HALF_UP);
-      result = com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result);
+
+      if (com.dremio.exec.expr.fn.impl.DecimalFunctions.checkOverflow(result, (int) precision.value)) {
+        result = new java.math.BigDecimal(0);
+      }
+
       try {
         org.apache.arrow.vector.util.DecimalUtility.writeBigDecimalToArrowBuf(result, buffer, 0);
       } catch (RuntimeException e) {

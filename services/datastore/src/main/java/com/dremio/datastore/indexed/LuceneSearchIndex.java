@@ -22,6 +22,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.lucene.analysis.core.KeywordAnalyzer;
 import org.apache.lucene.document.Document;
@@ -43,13 +46,15 @@ import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.store.RAMDirectory;
 import org.apache.lucene.util.BytesRef;
 
-import com.dremio.datastore.IndexedStore;
+import com.dremio.datastore.CoreIndexedStore;
 import com.dremio.datastore.WarningTimer;
 import com.dremio.datastore.indexed.CommitWrapper.CommitCloser;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -116,6 +121,8 @@ public class LuceneSearchIndex implements AutoCloseable {
   private static final int REINDEX_RAM_BUFFER_SIZE_MB = Integer.getInteger(REINDEX_RAM_BUFFER_SIZE_MB_PROPERTY,
       (int) (Runtime.getRuntime().totalMemory() / (1024 * 1024) / REINDEX_RAM_BUFFER_SIZE_AUTO_RATIO));
 
+  // The searcher is saved in the cache for at least these many milli seconds after the last access.
+  private static final int SEARCHER_CACHE_TTL_MILLIS = 3600 * 1000;
 
   /**
    * Starts a thread that will commit the writer every 60s (by default), if any exception is thrown during commit it will
@@ -198,11 +205,30 @@ public class LuceneSearchIndex implements AutoCloseable {
 
   private volatile boolean reindexing = false;
 
+  // the search version number is composed of 32-bit fixed random number and a 32-bit monotonic counter.
+  private final int searchVersionBase = new Random().nextInt();
+  private AtomicInteger searchVersionCounter = new AtomicInteger();
+
+  // cache of searchers.
+  private final Cache<Long, Searcher> searcherCache;
+
+
   public LuceneSearchIndex(
+    final File localStorageDir,
+    final String name,
+    final boolean inMemory,
+    final CommitWrapper commitWrapper
+  ) {
+    this(localStorageDir, name, inMemory, commitWrapper, SEARCHER_CACHE_TTL_MILLIS);
+  }
+
+  @VisibleForTesting
+  LuceneSearchIndex(
       final File localStorageDir,
       final String name,
       final boolean inMemory,
-      final CommitWrapper commitWrapper
+      final CommitWrapper commitWrapper,
+      final int searcherCacheTTLMillis
   ) {
     this.name = name;
     this.commitWrapper = commitWrapper;
@@ -250,6 +276,11 @@ public class LuceneSearchIndex implements AutoCloseable {
     deletedRecordsMetricsName = Metrics.join(METRIC_PREFIX, name, "deleted-records");
     Metrics.newGauge(liveRecordsMetricName, this::getLiveRecords);
     Metrics.newGauge(deletedRecordsMetricsName, this::getDeletedRecords);
+
+    searcherCache = CacheBuilder.newBuilder()
+      .removalListener(x -> ((Searcher)x.getValue()).close())
+      .expireAfterAccess(searcherCacheTTLMillis, TimeUnit.MILLISECONDS)
+      .build();
   }
 
   private void checkIfChanged() {
@@ -271,7 +302,7 @@ public class LuceneSearchIndex implements AutoCloseable {
 
   public void add(Document document) {
     committerThread.throwExceptionIfAny();
-    Preconditions.checkNotNull(document.getField(IndexedStore.ID_FIELD_NAME));
+    Preconditions.checkNotNull(document.getField(CoreIndexedStore.ID_FIELD_NAME));
     try{
       writer.addDocument(document);
     } catch(IOException ex) {
@@ -322,14 +353,13 @@ public class LuceneSearchIndex implements AutoCloseable {
 
   private Searcher acquireSearcher() {
     try {
-      IndexSearcher searcher = searcherManager.acquire();
-      return new Searcher(searcher);
+      return new Searcher(searcherManager.acquire());
     } catch(IOException ex){
       throw Throwables.propagate(ex);
     }
   }
 
-  private List<Doc> toDocs(ScoreDoc[] hits, Searcher searcher) throws IOException{
+  private List<Doc> toDocs(ScoreDoc[] hits, Searcher searcher, long version) throws IOException{
     List<Doc> documentList = new ArrayList<>();
     for (int i = 0; i < hits.length; ++i) {
       ScoreDoc scoreDoc = hits[i];
@@ -342,22 +372,37 @@ public class LuceneSearchIndex implements AutoCloseable {
       final BytesRef ref = idField.binaryValue();
       final byte[] bytes = new byte[ref.length];
       System.arraycopy(ref.bytes, ref.offset, bytes, 0, ref.length);
-      Doc outputDoc = new Doc(scoreDoc, bytes, 0);
+      Doc outputDoc = new Doc(scoreDoc, bytes, version);
       documentList.add(outputDoc);
     }
     return documentList;
   }
 
-  public List<Doc> searchAfter(final Query query, int pageSize, Sort sort, Doc doc) throws IOException {
+  public List<Doc> searchAfter(final Query query, int pageSize, int limit, Sort sort, Doc doc) throws IOException {
+    Preconditions.checkArgument(pageSize <= limit, "pageSize must be <= limit. pageSize was %d, limit was %d",
+      pageSize, limit);
     committerThread.throwExceptionIfAny();
-    checkIfChanged();
-    try(Searcher searcher = acquireSearcher()) {
-      TopDocs fieldDocs = searcher.searchAfter(doc.doc, query, pageSize, sort);
-      if(fieldDocs == null) {
-        return ImmutableList.of();
-      }
-      return toDocs(fieldDocs.scoreDocs, searcher);
+
+    // Paginated search depends on the cursor (ScoreDoc). However, the cursors are not valid if the
+    // IndexSearcher changes (this can happen if there are a lot of updates to the index). Holding
+    // on to the searcher in the iterator wrapper is not feasible with the remote indexed store
+    // implementation (i.e search over rpc). So, we instead put the searcher in a cache and set a
+    // ttl (SEARCH_CACHE_TTL) on it. The ttl is extended on every access to the searcher.
+    Searcher searcher = searcherCache.getIfPresent(doc.version);
+    if (searcher == null) {
+      // searcher not found in cache.
+      throw new StaleSearcherException("stale searcher");
     }
+
+    TopDocs fieldDocs = searcher.searchAfter(doc.doc, query, pageSize, sort);
+    boolean searcherDone = fieldDocs == null || fieldDocs.scoreDocs.length == 0 ||
+      fieldDocs.scoreDocs.length == limit;
+    if  (searcherDone) {
+      // The iterator is done, release the searcher in the cache.
+      searcherCache.invalidate(doc.version);
+      return ImmutableList.of();
+    }
+    return toDocs(fieldDocs.scoreDocs, searcher, doc.version);
   }
 
   @Deprecated
@@ -375,33 +420,56 @@ public class LuceneSearchIndex implements AutoCloseable {
 
   }
 
-  public List<Doc> search(final Query query, int pageSize, Sort sort, int skip) throws IOException {
+  // a new version is generated at the beginning of each search.
+  private long nextSearchVersion() {
+    return (((long)searchVersionBase) << 32) + searchVersionCounter.incrementAndGet();
+  }
+
+  public List<Doc> search(final Query query, int pageSize, int limit, Sort sort, int skip) throws IOException {
     committerThread.throwExceptionIfAny();
     checkIfChanged();
     Preconditions.checkArgument(skip > -1, "Skip must be zero or greater. Was %d.", skip);
+    Preconditions.checkArgument(pageSize <= limit, "pageSize must be <= limit. pageSize was %d, limit was %d",
+      pageSize, limit);
 
-    try (Searcher searcher = acquireSearcher()){
-
-      if(skip == 0){
-        // don't skip anything.
-        final TopDocs fieldDocs = searcher.search(query, pageSize, sort);
-        return toDocs(fieldDocs.scoreDocs, searcher);
+    Searcher searcher = acquireSearcher();
+    try {
+      final long version = nextSearchVersion();
+      final List<Doc> retList = search(searcher, query, pageSize, sort, skip, version);
+      boolean searcherDone = retList == null || retList.isEmpty() || retList.size() == limit;
+      if (!searcherDone) {
+        // add the searcher to the cache. The entry is removed from the cache when the iterator
+        // completes (or) the cache ttl elapses.
+        searcherCache.put(version, searcher);
+        searcher = null;
       }
-
-      // we'll skip docs without resolving external ids.
-      final TopDocs skipDocs = searcher.search(query, skip, sort);
-      if(skipDocs.scoreDocs.length == skip){
-        // we found at least as many results as were skipped, we'll submit another query.
-        TopDocs fieldDocs = searcher.searchAfter(skipDocs.scoreDocs[skip-1], query, pageSize, sort);
-        if(fieldDocs == null) {
-          return ImmutableList.of();
-        }
-        return toDocs(fieldDocs.scoreDocs, searcher);
-      }else{
-        // there are no more results once we did the skip.
-        return Collections.emptyList();
+      return retList;
+    } finally {
+      if (searcher != null) {
+        searcher.close();
       }
+    }
+  }
 
+  private List<Doc> search(final Searcher searcher, final Query query, int pageSize, Sort sort, int skip, long version) throws IOException {
+    if (skip == 0) {
+      // don't skip anything.
+      final TopDocs fieldDocs = searcher.search(query, pageSize, sort);
+      return toDocs(fieldDocs.scoreDocs, searcher, version);
+    }
+
+    // we'll skip docs without resolving external ids.
+    final TopDocs skipDocs = searcher.search(query, skip, sort);
+    if (skipDocs.scoreDocs.length == skip) {
+      // we found at least as many results as were skipped, we'll submit another query.
+      TopDocs fieldDocs = searcher.searchAfter(skipDocs.scoreDocs[skip - 1], query, pageSize, sort);
+      if (fieldDocs == null) {
+        return ImmutableList.of();
+      }
+      return toDocs(fieldDocs.scoreDocs, searcher, version);
+    } else {
+      // there are no more results once we did the skip.
+      return Collections.emptyList();
     }
   }
 
@@ -417,6 +485,7 @@ public class LuceneSearchIndex implements AutoCloseable {
       commit();
       writer.close();
     }
+    searcherCache.invalidateAll();
     searcherManager.close();
   }
 
@@ -511,7 +580,7 @@ public class LuceneSearchIndex implements AutoCloseable {
 
     private final IndexSearcher searcher;
 
-    public Searcher(IndexSearcher searcher) {
+    Searcher(IndexSearcher searcher) {
       super();
       this.searcher = searcher;
     }

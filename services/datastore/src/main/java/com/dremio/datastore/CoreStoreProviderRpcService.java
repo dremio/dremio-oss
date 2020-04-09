@@ -31,9 +31,9 @@ public interface CoreStoreProviderRpcService extends CoreStoreProvider, Service 
 
   /**
    * Create new store for a given config or return existing store.
-   * @param config Store configuration
+   * @param name Table Name
    * @return store id
    */
-  String getOrCreateStore(StoreBuilderConfig config);
+  String getStoreID(String name);
 
 }

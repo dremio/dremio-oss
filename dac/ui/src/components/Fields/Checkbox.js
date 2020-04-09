@@ -74,8 +74,7 @@ export default class Checkbox extends Component {
       style, label, dummyInputStyle,
       inputType, labelBefore,
       className, inverted, renderDummyInput,
-      dataQa,
-      initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled,
+      dataQa, initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled, // eslint-disable-line @typescript-eslint/no-unused-vars
       ...props
     } = this.props;
     const labelSpan = <span className={labelContent}>{label}</span>;

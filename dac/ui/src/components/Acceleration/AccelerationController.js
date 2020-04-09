@@ -70,7 +70,7 @@ export class AccelerationController extends Component {
     }).then(() => this.setState({getComplete: true}));
   };
 
-  handleSubmitSuccess = (values) => {
+  handleSubmitSuccess = () => {
     this.props.onDone(null, true);
     // future: stay open with refresh (is that even needed?), OR close (user option)
   };

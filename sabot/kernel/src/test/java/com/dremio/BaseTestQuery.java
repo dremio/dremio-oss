@@ -26,16 +26,17 @@ import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.nio.file.DirectoryStream;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Random;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.arrow.vector.ValueVector;
+import org.apache.arrow.vector.VarCharVector;
 import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.hamcrest.CoreMatchers;
@@ -44,13 +45,11 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.rules.ExternalResource;
-import org.junit.rules.TestRule;
-import org.junit.rules.TestWatcher;
-import org.junit.runner.Description;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.ExecTest;
@@ -58,13 +57,14 @@ import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.proto.UserProtos.PreparedStatementHandle;
 import com.dremio.exec.record.RecordBatchLoader;
+import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.rpc.ConnectionThrottle;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotNode;
@@ -95,6 +95,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.io.Files;
 import com.google.common.io.Resources;
+import com.google.inject.AbstractModule;
+import com.google.inject.Injector;
 
 public class BaseTestQuery extends ExecTest {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BaseTestQuery.class);
@@ -107,6 +109,10 @@ public class BaseTestQuery extends ExecTest {
 
   protected static Properties defaultProperties = null;
 
+  protected static String setTableOptionQuery(String table, String optionName, String optionValue) {
+    return String.format("ALTER TABLE %s SET %s = %s", table, optionName, optionValue);
+  }
+
   @SuppressWarnings("serial")
   private static final Properties TEST_CONFIGURATIONS = new Properties() {
     {
@@ -114,52 +120,6 @@ public class BaseTestQuery extends ExecTest {
       put(PARQUET_SCHEMA_FALLBACK_DISABLED, "true");
     }
   };
-
-  public final TestRule resetWatcher = new TestWatcher() {
-    @Override
-    protected void failed(Throwable e, Description description) {
-      try {
-        resetClientAndBit();
-      } catch (Exception e1) {
-        throw new RuntimeException("Failure while resetting client.", e1);
-      }
-    }
-  };
-
-  public static final class BinderRule extends ExternalResource {
-    private static class Holder<T> {
-      private final Class<T> iface;
-      private final T impl;
-
-      private Holder(Class<T> iface, T impl) {
-        this.iface = iface;
-        this.impl = impl;
-      }
-
-      void replace(BindingCreator bindingCreator) {
-        boolean result = bindingCreator.bindIfUnbound(iface, impl);
-        if (!result) {
-          bindingCreator.replace(iface, impl);
-        }
-      }
-    }
-    private final Set<Holder<?>> registry = new HashSet<>();
-
-    @Override
-    protected void before() throws Throwable {
-      registry.clear();
-    }
-
-    public <T> void bind(Class<T> iface, T implementation) {
-      registry.add(new Holder<>(iface, implementation));
-    }
-
-    private void updateBindingCreator(BindingCreator bindingCreator) {
-      for(Holder<?> holder: registry) {
-        holder.replace(bindingCreator);
-      }
-    }
-  }
 
   public static final class SabotProviderConfig {
     private final boolean allRoles;
@@ -179,7 +139,7 @@ public class BaseTestQuery extends ExecTest {
           @Override
           public SabotNode apply(SabotProviderConfig input) {
             try {
-              return new SabotNode(config, clusterCoordinator, CLASSPATH_SCAN_RESULT, input.allRoles());
+              return new SabotNode(config, clusterCoordinator, CLASSPATH_SCAN_RESULT, input.allRoles(), modules);
             } catch (Exception e) {
               throw Throwables.propagate(e);
             }
@@ -188,9 +148,12 @@ public class BaseTestQuery extends ExecTest {
 
     private Function<SabotProviderConfig, SabotNode> provider = DEFAULT_PROVIDER;
 
+    private static final List<AbstractModule> modules = new ArrayList<>();
+
     @Override
     protected void before() throws Throwable {
       provider = DEFAULT_PROVIDER;
+      modules.clear();
     }
 
     SabotNode newSabotNode(SabotProviderConfig config) {
@@ -203,10 +166,15 @@ public class BaseTestQuery extends ExecTest {
       this.provider = Preconditions.checkNotNull(provider);
       return previous;
     }
-  }
 
-  @ClassRule
-  public static final BinderRule BINDER_RULE = new BinderRule();
+    public void register(AbstractModule module) {
+      modules.add(module);
+    }
+
+    public List<AbstractModule> getModules() {
+      return modules;
+    }
+  }
 
   @ClassRule
   public static final SabotNodeRule SABOT_NODE_RULE = new SabotNodeRule();
@@ -229,7 +197,6 @@ public class BaseTestQuery extends ExecTest {
   private static String dfsTestTmpSchemaLocation;
 
   private int[] columnWidths = new int[] { 8 };
-
 
   @BeforeClass
   public static void setupDefaultTestCluster() throws Exception {
@@ -279,6 +246,10 @@ public class BaseTestQuery extends ExecTest {
     return nodes[0].getBindingProvider();
   }
 
+  protected static Injector getInjector(){
+    return nodes[0].getInjector();
+  }
+
   protected static LocalQueryExecutor getLocalQueryExecutor() {
     Preconditions.checkState(nodes != null && nodes[0] != null, "Nodes are not setup.");
     return nodes[0].getLocalQueryExecutor();
@@ -297,12 +268,7 @@ public class BaseTestQuery extends ExecTest {
     return dfsTestTmpSchemaLocation;
   }
 
-  private static void resetClientAndBit() throws Exception{
-    closeClient();
-    openClient();
-  }
-
-  private static void openClient() throws Exception {
+  protected static void openClient() throws Exception {
     clusterCoordinator = LocalClusterCoordinator.newRunningCoordinator();
 
     dfsTestTmpSchemaLocation = TestUtilities.createTempDir();
@@ -311,7 +277,6 @@ public class BaseTestQuery extends ExecTest {
     for(int i = 0; i < nodeCount; i++) {
       // first node has all roles, and all others are only executors
       nodes[i] = SABOT_NODE_RULE.newSabotNode(new SabotProviderConfig(i == 0));
-      BINDER_RULE.updateBindingCreator(nodes[i].getBindingCreator());
       nodes[i].run();
       if(i == 0) {
         TestUtilities.addDefaultTestPlugins(nodes[i].getContext().getCatalogService(), dfsTestTmpSchemaLocation);
@@ -378,13 +343,13 @@ public class BaseTestQuery extends ExecTest {
    * Used by ITTestShadedJar test through reflection!!!
    */
   public static String getJDBCURL() {
-    Collection<NodeEndpoint> endpoints = clusterCoordinator.getServiceSet(ClusterCoordinator.Role.COORDINATOR)
-        .getAvailableEndpoints();
+    Collection<CoordinationProtos.NodeEndpoint> endpoints = clusterCoordinator.getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+      .getAvailableEndpoints();
     if (endpoints.isEmpty()) {
       return null;
     }
 
-    NodeEndpoint endpoint = endpoints.iterator().next();
+    CoordinationProtos.NodeEndpoint endpoint = endpoints.iterator().next();
     return format("jdbc:dremio:direct=%s:%d", endpoint.getAddress(), endpoint.getUserPort());
   }
 
@@ -396,6 +361,7 @@ public class BaseTestQuery extends ExecTest {
   public static void closeClient() throws Exception {
     if (client != null) {
       client.close();
+      client = null;
     }
 
     if (nodes != null) {
@@ -404,10 +370,12 @@ public class BaseTestQuery extends ExecTest {
           bit.close();
         }
       }
+      nodes = null;
     }
 
     if(clusterCoordinator != null) {
       clusterCoordinator.close();
+      clusterCoordinator = null;
     }
   }
 
@@ -555,26 +523,19 @@ public class BaseTestQuery extends ExecTest {
     return testRunAndReturn(QueryType.PHYSICAL, getFile(file));
   }
 
-  protected static void testLogicalFromFile(String file) throws Exception{
-    testLogical(getFile(file));
-  }
-
-  protected static void testSqlFromFile(String file) throws Exception{
-    test(getFile(file));
-  }
-
   /**
    * Utility method which tests given query produces a {@link UserException} and the exception message contains
    * the given message.
    * @param testSqlQuery Test query
    * @param expectedErrorMsg Expected error message.
    */
-  protected static void errorMsgTestHelper(final String testSqlQuery, final String expectedErrorMsg) throws Exception {
+  protected static void errorMsgTestHelper(final String testSqlQuery, final String expectedErrorMsg) {
     try {
       test(testSqlQuery);
       fail("Expected a UserException when running " + testSqlQuery);
     } catch (final Exception actualException) {
       try {
+        Assert.assertTrue("UserRemoteException expected", actualException instanceof UserRemoteException);
         Assert.assertThat(actualException.getMessage(), CoreMatchers.containsString(expectedErrorMsg));
       } catch (AssertionError e) {
         e.addSuppressed(actualException);
@@ -608,10 +569,10 @@ public class BaseTestQuery extends ExecTest {
     } catch (Exception ex) {
       Assert.assertTrue("UserRemoteException expected", ex instanceof UserRemoteException);
       UserRemoteException uex = ((UserRemoteException) ex);
-      Assert.assertEquals("Invalid ErrorType. Expected " + expectedErrorType + " but got " + uex.getErrorType(),
-        expectedErrorType, uex.getErrorType());
-      Assert.assertTrue("Expected message to contain " + expectedErrorMsg + " but was "
-        + uex.getOriginalMessage() + " instead", uex.getOriginalMessage().contains(expectedErrorMsg));
+      Assert.assertEquals(String.format("Invalid ErrorType. Expected [%s] but got [%s]", expectedErrorType, uex.getErrorType()),
+          expectedErrorType, uex.getErrorType());
+      Assert.assertTrue(String.format("Expected message to contain [%s] but was [%s] instead", expectedErrorMsg,
+          uex.getOriginalMessage()), uex.getOriginalMessage().contains(expectedErrorMsg));
     }
   }
 
@@ -676,19 +637,44 @@ public class BaseTestQuery extends ExecTest {
     }
   }
 
+  protected static String getSystemOptionQueryString(final String option, final String value) {
+    return String.format("alter system set %1$s%2$s%1$s = %3$s", SqlUtils.QUOTE, option, value);
+  }
+
   protected static void setSystemOption(final OptionValidator option, final String value) {
     setSystemOption(option.getOptionName(), value);
   }
 
   protected static void setSystemOption(final String option, final String value) {
-    String str = String.format("alter system set %1$s%2$s%1$s = %3$s", SqlUtils.QUOTE, option,
-      value);
+    String str = getSystemOptionQueryString(option, value);
     try {
       runSQL(str);
     } catch(final Exception e) {
       fail(String.format("Failed to run %s, Error: %s", str, e.toString()));
     }
   }
+
+  protected static AutoCloseable enableIcebergTables() {
+    setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
+    return () ->
+      setSystemOption(ExecConstants.ENABLE_ICEBERG,
+        ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+  }
+
+  protected static AutoCloseable enableHiveParquetComplexTypes() {
+    setSystemOption(ExecConstants.HIVE_COMPLEXTYPES_ENABLED, "true");
+    return () ->
+      setSystemOption(ExecConstants.HIVE_COMPLEXTYPES_ENABLED,
+        ExecConstants.HIVE_COMPLEXTYPES_ENABLED.getDefault().getBoolVal().toString());
+  }
+
+  protected static AutoCloseable disableParquetVectorization() {
+    setSystemOption(ExecConstants.PARQUET_READER_VECTORIZE, "false");
+    return () ->
+      setSystemOption(ExecConstants.PARQUET_READER_VECTORIZE,
+        ExecConstants.PARQUET_READER_VECTORIZE.getDefault().getBoolVal().toString());
+  }
+
 
   public static class SilentListener implements UserResultsListener {
     private final AtomicInteger count = new AtomicInteger();
@@ -724,14 +710,6 @@ public class BaseTestQuery extends ExecTest {
       batch.release();
     }
     return i;
-  }
-
-  protected void setColumnWidth(int columnWidth) {
-    this.columnWidths = new int[] { columnWidth };
-  }
-
-  protected void setColumnWidths(int[] columnWidths) {
-    this.columnWidths = columnWidths;
   }
 
   protected int printResult(List<QueryDataBatch> results) throws SchemaChangeException {
@@ -837,5 +815,50 @@ public class BaseTestQuery extends ExecTest {
       localFs.delete(original.getPath().getParent(), true);
       localFs.delete(withDict.getPath().getParent(), true);
     }
+  }
+
+  protected static String getValueInFirstRecord(String sql, String columnName)
+      throws Exception {
+    final List<QueryDataBatch> results = testSqlWithResults(sql);
+    final RecordBatchLoader loader = new RecordBatchLoader(getSabotContext().getAllocator());
+    final StringBuilder builder = new StringBuilder();
+    final boolean silent = config != null && config.getBoolean(QueryTestUtil.TEST_QUERY_PRINTING_SILENT);
+
+    for (final QueryDataBatch b : results) {
+      if (!b.hasData()) {
+        continue;
+      }
+
+      loader.load(b.getHeader().getDef(), b.getData());
+
+      final VectorWrapper<?> vw;
+      try {
+          vw = loader.getValueAccessorById(
+              VarCharVector.class,
+              loader.getValueVectorId(SchemaPath.getSimplePath(columnName)).getFieldIds());
+      } catch (Throwable t) {
+        throw new Exception("Looks like you did not provide an explain plan query, please add EXPLAIN PLAN FOR to the beginning of your query.");
+      }
+
+      if (!silent) {
+        System.out.println(vw.getValueVector().getField().getName());
+      }
+      final ValueVector vv = vw.getValueVector();
+      for (int i = 0; i < vv.getValueCount(); i++) {
+        final Object o = vv.getObject(i);
+        builder.append(o);
+        if (!silent) {
+          System.out.println(o);
+        }
+      }
+      loader.clear();
+      b.release();
+    }
+
+    return builder.toString();
+  }
+
+  public static void checkFirstRecordContains(String query, String column, String expected) throws Exception {
+    Assert.assertThat(getValueInFirstRecord(query, column), CoreMatchers.containsString(expected));
   }
 }

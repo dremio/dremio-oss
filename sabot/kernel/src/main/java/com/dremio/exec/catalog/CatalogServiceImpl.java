@@ -17,6 +17,7 @@ package com.dremio.exec.catalog;
 
 import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -34,7 +35,9 @@ import org.apache.calcite.tools.RuleSets;
 
 import com.dremio.common.DeferredException;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.datastore.KVStore;
+import com.dremio.config.DremioConfig;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.ops.OptimizerRulesContext;
@@ -53,8 +56,10 @@ import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.ischema.InfoSchemaConf;
+import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.coordinator.DistributedSemaphore.DistributedLease;
+import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceAttribute;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -106,55 +111,81 @@ public class CatalogServiceImpl implements CatalogService {
   private final Provider<FabricService> fabric;
   private final Provider<ConnectionReader> connectionReaderProvider;
 
-  private KVStore<NamespaceKey, SourceInternalData> sourceDataStore;
+  private LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore;
   private NamespaceService systemNamespace;
   private PluginsManager plugins;
   private BufferAllocator allocator;
   private FabricRunnerFactory tunnelFactory;
   private CatalogProtocol protocol;
+  private final Provider<BufferAllocator> bufferAllocator;
+  private final Provider<LegacyKVStoreProvider> kvStoreProvider;
+  private final Provider<DatasetListingService> datasetListingService;
+  private final Provider<OptionManager> optionManager;
+  private final DremioConfig config;
+  private final EnumSet<Role> roles;
   private final CatalogServiceMonitor monitor;
 
   public CatalogServiceImpl(
-      Provider<SabotContext> context,
-      Provider<SchedulerService> scheduler,
-      Provider<? extends Provider<ConnectionConf<?, ?>>> sysTableConfProvider,
-      Provider<FabricService> fabric,
-      Provider<ConnectionReader> connectionReaderProvider
-      ) {
-    this(context, scheduler, sysTableConfProvider, fabric, connectionReaderProvider, CatalogServiceMonitor.DEFAULT);
+    Provider<SabotContext> context,
+    Provider<SchedulerService> scheduler,
+    Provider<? extends Provider<ConnectionConf<?, ?>>> sysTableConfProvider,
+    Provider<FabricService> fabric,
+    Provider<ConnectionReader> connectionReaderProvider,
+    Provider<BufferAllocator> bufferAllocator,
+    Provider<LegacyKVStoreProvider> kvStoreProvider,
+    Provider<DatasetListingService> datasetListingService,
+    Provider<OptionManager> optionManager,
+    DremioConfig config,
+    EnumSet<Role> roles
+  ) {
+    this(context, scheduler, sysTableConfProvider, fabric, connectionReaderProvider, bufferAllocator,
+      kvStoreProvider, datasetListingService, optionManager, config, roles, CatalogServiceMonitor.DEFAULT);
   }
 
   @VisibleForTesting
   CatalogServiceImpl(
-      Provider<SabotContext> context,
-      Provider<SchedulerService> scheduler,
-      Provider<? extends Provider<ConnectionConf<?, ?>>> sysTableConfProvider,
-      Provider<FabricService> fabric,
-      Provider<ConnectionReader> connectionReaderProvider,
-      final CatalogServiceMonitor monitor
-      ) {
+    Provider<SabotContext> context,
+    Provider<SchedulerService> scheduler,
+    Provider<? extends Provider<ConnectionConf<?, ?>>> sysTableConfProvider,
+    Provider<FabricService> fabric,
+    Provider<ConnectionReader> connectionReaderProvider,
+    Provider<BufferAllocator> bufferAllocator,
+    Provider<LegacyKVStoreProvider> kvStoreProvider,
+    Provider<DatasetListingService> datasetListingService,
+    Provider<OptionManager> optionManager,
+    DremioConfig config,
+    EnumSet<Role> roles,
+    final CatalogServiceMonitor monitor
+  ) {
     this.context = context;
     this.scheduler = scheduler;
     this.sysTableConfProvider = sysTableConfProvider;
     this.fabric = fabric;
     this.connectionReaderProvider = connectionReaderProvider;
+    this.bufferAllocator = bufferAllocator;
+    this.kvStoreProvider = kvStoreProvider;
+    this.datasetListingService = datasetListingService;
+    this.optionManager = optionManager;
+    this.config = config;
+    this.roles = roles;
     this.monitor = monitor;
   }
 
   @Override
   public void start() throws Exception {
     SabotContext context = this.context.get();
-    this.allocator = context.getAllocator().newChildAllocator("catalog-protocol", 0, Long.MAX_VALUE);
+    this.allocator = bufferAllocator.get().newChildAllocator("catalog-protocol", 0, Long.MAX_VALUE);
     this.systemNamespace = context.getNamespaceService(SystemUser.SYSTEM_USERNAME);
-    sourceDataStore = context.getKVStoreProvider().getStore(CatalogSourceDataCreator.class);
-    this.plugins = new PluginsManager(context, sourceDataStore, this.scheduler.get(), this.connectionReaderProvider.get(), monitor);
+    sourceDataStore = kvStoreProvider.get().getStore(CatalogSourceDataCreator.class);
+    this.plugins = new PluginsManager(context, systemNamespace, datasetListingService.get(), optionManager.get(), config, roles, sourceDataStore, this.scheduler.get(),
+      this.connectionReaderProvider.get(), monitor);
     plugins.start();
-    this.protocol =  new CatalogProtocol(allocator, new CatalogChangeListener(), context.getConfig());
+    this.protocol =  new CatalogProtocol(allocator, new CatalogChangeListener(), config.getSabotConfig());
     tunnelFactory = fabric.get().registerProtocol(protocol);
 
-    boolean isDistributedCoordinator = context.getDremioConfig().isMasterlessEnabled()
-      && context.getRoles().contains(Role.COORDINATOR);
-    if(context.getRoles().contains(Role.MASTER) || isDistributedCoordinator) {
+    boolean isDistributedCoordinator = config.isMasterlessEnabled()
+      && roles.contains(Role.COORDINATOR);
+    if(roles.contains(Role.MASTER) || isDistributedCoordinator) {
       final CountDownLatch wasRun = new CountDownLatch(1);
       final Cancellable task = scheduler.get().schedule(ScheduleUtils.scheduleToRunOnceNow(
         LOCAL_TASK_LEADER_NAME), () -> {
@@ -173,9 +204,9 @@ public class CatalogServiceImpl implements CatalogService {
             }
 
             createSourceIfMissing(new SourceConfig()
-                    .setConnectionConf(sysTableConfProvider.get().get())
-                    .setName("sys")
-                    .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY));
+              .setConnectionConf(sysTableConfProvider.get().get())
+              .setName("sys")
+              .setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY));
 
             logger.debug("Refreshing 'sys' source");
             try {
@@ -186,7 +217,8 @@ public class CatalogServiceImpl implements CatalogService {
           } finally {
             wasRun.countDown();
           }
-      });
+        }
+      );
       if (!task.isDone()) {
         // wait till task is done only if task leader
         wasRun.await();
@@ -320,8 +352,8 @@ public class CatalogServiceImpl implements CatalogService {
   public boolean createSourceIfMissingWithThrow(SourceConfig config) {
     Preconditions.checkArgument(config.getTag() == null);
     if(!plugins.hasPlugin(config.getName())) {
-        createSource(config, SystemUser.SYSTEM_USERNAME);
-        return true;
+      createSource(config, SystemUser.SYSTEM_USERNAME);
+      return true;
     }
     return false;
   }
@@ -478,8 +510,15 @@ public class CatalogServiceImpl implements CatalogService {
   public Catalog getCatalog(MetadataRequestOptions requestOptions) {
     Preconditions.checkNotNull(requestOptions,  "request options are required");
 
-    final Catalog catalog = new CatalogImpl(context.get(), requestOptions, new Retriever(),
-        new SourceModifier(requestOptions.getSchemaConfig().getUserName()));
+    final Catalog catalog = new CatalogImpl(
+      requestOptions,
+      new Retriever(),
+      new SourceModifier(requestOptions.getSchemaConfig().getUserName()),
+      context.get().getOptionManager(),
+      context.get().getNamespaceService(SystemUser.SYSTEM_USERNAME),
+      context.get().getNamespaceServiceFactory(),
+      context.get().getDatasetListing(),
+      context.get().getViewCreatorFactoryProvider().get());
 
     final Catalog decoratedCatalog = SourceAccessChecker.secureIfNeeded(requestOptions, catalog);
     return new CachingCatalog(decoratedCatalog);

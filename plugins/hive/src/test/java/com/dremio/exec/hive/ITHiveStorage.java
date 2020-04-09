@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.hive;
 
+import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.joda.time.DateTimeZone.UTC;
 import static org.junit.Assert.assertEquals;
@@ -63,12 +64,12 @@ import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.DatasetMetadataAdapter;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
-import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.store.dfs.ImpersonationUtil;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemPartitionUpdateKey;
 import com.dremio.hive.proto.HiveReaderProto.HiveReadSignature;
 import com.dremio.hive.proto.HiveReaderProto.HiveReadSignatureType;
+import com.dremio.exec.store.hive.exec.HiveDatasetOptions;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -93,37 +94,21 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test // DRILL-4083
   public void testNativeScanWhenNoColumnIsRead() throws Exception {
-    try {
-      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+    String query = "SELECT count(*) as col FROM hive.kv_parquet";
+    testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
 
-      String query = "SELECT count(*) as col FROM hive.kv_parquet";
-      testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
-
-      testBuilder()
-          .sqlQuery(query)
-          .unOrdered()
-          .baselineColumns("col")
-          .baselineValues(5L)
-          .go();
-    } finally {
-      test(String.format("alter session set \"%s\" = %s",
-          HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS,
-              HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS_VALIDATOR.getDefault().getBoolVal() ? "true" : "false"));
-    }
+    testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("col")
+        .baselineValues(5L)
+        .go();
   }
 
   @Test
   public void testTimestampNulls() throws Exception {
-    try {
-      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-
-      String query = "SELECT * FROM hive.parquet_timestamp_nulls";
-      test(query);
-    } finally {
-      test(String.format("alter session set \"%s\" = %s",
-        HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS,
-        HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS_VALIDATOR.getDefault().getBoolVal() ? "true" : "false"));
-    }
+    String query = "SELECT * FROM hive.parquet_timestamp_nulls";
+    test(query);
   }
 
   @Test
@@ -342,7 +327,13 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void testParquetHiveFixedLenVarchar() throws Exception {
-    runSQL("ALTER TABLE hive.\"default\".parq_varchar ENABLE HIVE VARCHAR COMPATIBILITY");
+    String setOptionQuery = setTableOptionQuery("hive.\"default\".parq_varchar", HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true");
+    testBuilder().sqlQuery(setOptionQuery)
+                 .unOrdered()
+                 .baselineColumns("ok", "summary")
+                 .baselineValues(true, "Table [hive.\"default\".parq_varchar] options updated")
+                 .go();
+
     String query = "SELECT R_NAME FROM hive.parq_varchar";
     testBuilder().sqlQuery(query)
       .unOrdered()
@@ -354,7 +345,19 @@ public class ITHiveStorage extends HiveTestBase {
       .baselineValues("MIDDLE")
       .go();
 
-    runSQL("ALTER TABLE hive.\"default\".parq_char ENABLE HIVE VARCHAR COMPATIBILITY");
+    runSQL(setTableOptionQuery("hive.\"default\".parq_varchar_no_trunc", HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
+    query = "SELECT R_NAME FROM hive.parq_varchar_no_trunc";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("R_NAME")
+      .baselineValues("AFRICA")
+      .baselineValues("AMERICA")
+      .baselineValues("ASIA")
+      .baselineValues("EUROPE")
+      .baselineValues("MIDDLE EAST")
+      .go();
+
+    runSQL(setTableOptionQuery("hive.\"default\".parq_char", HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
     query = "SELECT R_NAME FROM hive.parq_char";
     testBuilder().sqlQuery(query)
       .unOrdered()
@@ -366,7 +369,31 @@ public class ITHiveStorage extends HiveTestBase {
       .baselineValues("MIDDLE")
       .go();
 
-    runSQL("ALTER TABLE hive.\"default\".parq_varchar_complex_ext ENABLE HIVE VARCHAR COMPATIBILITY");
+    runSQL(setTableOptionQuery("hive.\"default\".parq_varchar_more_types_ext",
+        HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
+    query = "SELECT Country, Capital, Lang FROM hive.parq_varchar_more_types_ext";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("Country", "Capital", "Lang")
+      .baselineValues("United Kingdom", "London", "Eng")
+      .go();
+
+    testBuilder().sqlQuery(setTableOptionQuery("hive.\"default\".parq_varchar_more_types_ext",
+        HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"))
+                 .unOrdered()
+                 .baselineColumns("ok", "summary")
+                 .baselineValues(true, "Table [hive.\"default\".parq_varchar_more_types_ext] options did not change")
+                 .go();
+
+    query = "SELECT A, B, C FROM hive.parq_varchar_more_types_ext";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("A", "B", "C")
+      .baselineValues(1, 2, 3)
+      .go();
+
+    runSQL(setTableOptionQuery("hive.\"default\".parq_varchar_complex_ext",
+        HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
     query = "SELECT Country, Capital FROM hive.parq_varchar_complex_ext";
     testBuilder().sqlQuery(query)
       .unOrdered()
@@ -374,7 +401,8 @@ public class ITHiveStorage extends HiveTestBase {
       .baselineValues("Uni", "Lon")
       .go();
 
-    runSQL("ALTER TABLE hive.\"default\".parquet_fixed_length_varchar_partition_ext ENABLE HIVE VARCHAR COMPATIBILITY");
+    runSQL(setTableOptionQuery("hive.\"default\".parquet_fixed_length_varchar_partition_ext",
+        HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
     query = "SELECT * FROM hive.parquet_fixed_length_varchar_partition_ext";
     testBuilder()
       .sqlQuery(query)
@@ -383,7 +411,8 @@ public class ITHiveStorage extends HiveTestBase {
       .baselineValues(100, "abcd")
       .go();
 
-    runSQL("ALTER TABLE hive.\"default\".parquet_fixed_length_varchar_partition_ext DISABLE HIVE VARCHAR COMPATIBILITY");
+    runSQL(setTableOptionQuery("hive.\"default\".parquet_fixed_length_varchar_partition_ext",
+        HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "false"));
     query = "SELECT * FROM hive.parquet_fixed_length_varchar_partition_ext";
     testBuilder()
       .sqlQuery(query)
@@ -392,7 +421,8 @@ public class ITHiveStorage extends HiveTestBase {
       .baselineValues(100, "abcdefgh")
       .go();
 
-    runSQL("ALTER TABLE hive.\"default\".parquet_fixed_length_char_partition_ext ENABLE HIVE VARCHAR COMPATIBILITY");
+    runSQL(setTableOptionQuery("hive.\"default\".parquet_fixed_length_char_partition_ext",
+        HiveDatasetOptions.HIVE_PARQUET_ENFORCE_VARCHAR_WIDTH, "true"));
     query = "SELECT * FROM hive.parquet_fixed_length_char_partition_ext";
     testBuilder()
       .sqlQuery(query)
@@ -638,7 +668,6 @@ public class ITHiveStorage extends HiveTestBase {
       .baselineValues("")
       .go();
   }
-
 
   @Test
   public void readTimestampToStringORC() throws Exception {
@@ -1017,53 +1046,47 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void testLowUpperCasingForParquet() throws Exception {
-    try {
-      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-      final String query = "SELECT * FROM hive.parquet_region";
+    final String query = "SELECT * FROM hive.parquet_region";
 
-      // Make sure the plan has Hive scan with native parquet reader
-      testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
+    // Make sure the plan has Hive scan with native parquet reader
+    testPhysicalPlan(query, "mode=[NATIVE_PARQUET");
 
-      testBuilder().sqlQuery(query)
-        .ordered()
-        .baselineColumns(
-          "r_regionkey",
-          "r_name",
-          "r_comment")
-        .baselineValues(
-          0L,
-          "AFRICA",
-          "lar deposits. blithe"
-        )
-        .baselineValues(
-          1L,
-          "AMERICA",
-          "hs use ironic, even "
-        )
-        .baselineValues(
-          2L,
-          "ASIA",
-          "ges. thinly even pin"
-        )
-        .baselineValues(
-          3L,
-          "EUROPE",
-          "ly final courts cajo"
-        )
-        .baselineValues(
-          4L,
-          "MIDDLE EAST",
-          "uickly special accou"
-        ).go();
-    } finally {
-      test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-    }
+    testBuilder().sqlQuery(query)
+      .ordered()
+      .baselineColumns(
+        "r_regionkey",
+        "r_name",
+        "r_comment")
+      .baselineValues(
+        0L,
+        "AFRICA",
+        "lar deposits. blithe"
+      )
+      .baselineValues(
+        1L,
+        "AMERICA",
+        "hs use ironic, even "
+      )
+      .baselineValues(
+        2L,
+        "ASIA",
+        "ges. thinly even pin"
+      )
+      .baselineValues(
+        3L,
+        "EUROPE",
+        "ly final courts cajo"
+      )
+      .baselineValues(
+        4L,
+        "MIDDLE EAST",
+        "uickly special accou"
+      ).go();
   }
 
   @Test
   public void testHiveParquetRefreshOnMissingFile() throws Exception {
     setEnableReAttempts(true);
-    setSessionOption(HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS, "true");
     try {
       final String query = "SELECT count(r_regionkey) c FROM hive.parquet_with_two_files";
 
@@ -1088,14 +1111,12 @@ public class ITHiveStorage extends HiveTestBase {
 
     } finally {
       setEnableReAttempts(false);
-      setSessionOption(HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS, "false");
     }
   }
 
   @Test
   public void testHiveOrcRefreshOnMissingFile() throws Exception {
     setEnableReAttempts(true);
-    setSessionOption(HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS, "true");
     try {
       final String query = "SELECT count(r_regionkey) c FROM hive.orc_with_two_files";
 
@@ -1117,7 +1138,6 @@ public class ITHiveStorage extends HiveTestBase {
 
     } finally {
       setEnableReAttempts(false);
-      setSessionOption(HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS, "false");
     }
   }
 
@@ -1210,16 +1230,11 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test // DRILL-3938
   public void nativeReaderIsDisabledForAlteredPartitionedTable() throws Exception {
-    try {
-      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-      final String query = "EXPLAIN PLAN FOR SELECT key, \"value\", newcol FROM hive.kv_parquet ORDER BY key LIMIT 1";
+    final String query = "EXPLAIN PLAN FOR SELECT key, \"value\", newcol FROM hive.kv_parquet ORDER BY key LIMIT 1";
 
-      // Make sure the HiveScan in plan has no native parquet reader
-      final String planStr = getPlanInString(query, OPTIQ_FORMAT);
-      assertFalse("Hive native is not expected in the plan", planStr.contains("hive-native-parquet-scan"));
-    } finally {
-      test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-    }
+    // Make sure the HiveScan in plan has no native parquet reader
+    final String planStr = getPlanInString(query, OPTIQ_FORMAT);
+    assertFalse("Hive native is not expected in the plan", planStr.contains("hive-native-parquet-scan"));
   }
 
   @Test
@@ -1236,19 +1251,9 @@ public class ITHiveStorage extends HiveTestBase {
   }
 
   @Test
-  public void testParquetLearnSchema2() throws Exception {
+  public void testParquetLearnSchema2() {
     String query = "SELECT col1 FROM hive.parqschematest_table";
     errorMsgTestHelper(query, "Field [col1] has incompatible types in file and table.");
-  }
-
-  @Test
-  public void testParquetComplexUnsupported() throws Exception {
-    // Hive parquet table has complex column but Dremio should drop that column
-    testBuilder()
-      .sqlQuery("SELECT * FROM hive.parqcomplex")
-      .unOrdered()
-      .sqlBaselineQuery("select col1 from hive.parqcomplex")
-      .go();
   }
 
   @Test
@@ -1258,13 +1263,6 @@ public class ITHiveStorage extends HiveTestBase {
       .unOrdered()
       .sqlBaselineQuery("select r_regionkey from hive.parquetschemalearntest")
       .go();
-
-    testBuilder()
-      .sqlQuery("SELECT * FROM hive.parqcomplex_ext")
-      .unOrdered()
-      .sqlBaselineQuery("select col1 from hive.parqcomplex_ext")
-      .go();
-
   }
 
   @Test // DRILL-3739
@@ -1279,18 +1277,12 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test // DRILL-3739
   public void readingFromStorageHandleBasedTable2() throws Exception {
-    try {
-      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-
-      testBuilder()
-          .sqlQuery("SELECT * FROM hive.kv_sh ORDER BY key LIMIT 2")
-          .ordered()
-          .baselineColumns("key", "value")
-          .expectsEmptyResultSet()
-          .go();
-    } finally {
-      test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-    }
+    testBuilder()
+        .sqlQuery("SELECT * FROM hive.kv_sh ORDER BY key LIMIT 2")
+        .ordered()
+        .baselineColumns("key", "value")
+        .expectsEmptyResultSet()
+        .go();
   }
 
   @Test // DRILL-3688
@@ -1447,6 +1439,9 @@ public class ITHiveStorage extends HiveTestBase {
 
   @Test
   public void testCheckHasPermission() throws Exception {
+    // TODO: enable back for MapR once DX-21902 is fixed
+    assumeNonMaprProfile();
+
     ((CatalogServiceImpl)getSabotContext().getCatalogService()).refreshSource(new NamespaceKey("hive"), CatalogService.REFRESH_EVERYTHING_NOW, CatalogServiceImpl.UpdateType.FULL);
     NamespaceService ns = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME);
 
@@ -1568,6 +1563,61 @@ public class ITHiveStorage extends HiveTestBase {
       new NamespaceKey(PathUtils.parseFullPath("hive.foo_bar")), Type.DATASET));
   }
 
+  private LocalDateTime getLocalDateTime(String dateString) {
+    return LocalDateTime.parse(dateString);
+  }
+
+  @Test
+  public void testTextAndOrcTableWithDateColumn() throws Exception {
+    LocalDateTime dateTime1 = getLocalDateTime("0001-01-01");
+    LocalDateTime dateTime2 = getLocalDateTime("1299-01-01");
+    LocalDateTime dateTime3 = getLocalDateTime("1499-01-01");
+    LocalDateTime dateTime4 = getLocalDateTime("1582-01-01");
+    LocalDateTime dateTime5 = getLocalDateTime("1699-01-01");
+
+    String textQuery = "SELECT date_col from hive.text_date";
+    String orcQuery = "SELECT date_col from hive.orc_date";
+
+    // execute query for Hive text table
+    testBuilder()
+      .sqlQuery(textQuery)
+      .unOrdered()
+      .baselineColumns("date_col")
+      .baselineValues(dateTime1)
+      .baselineValues(dateTime2)
+      .baselineValues(dateTime3)
+      .baselineValues(dateTime4)
+      .baselineValues(dateTime5)
+      .go();
+
+    // execute query for Hive non-vectorized ORC table
+    final String hiveOrcVectorize = "store.hive.orc.vectorize";
+    final String hive3OrcVectorize = "store.hive3.orc.vectorize";
+    try {
+      runSQL(getSystemOptionQueryString(hiveOrcVectorize, Boolean.FALSE.toString()));
+    } catch (Exception e) {
+      runSQL(getSystemOptionQueryString(hive3OrcVectorize, Boolean.FALSE.toString()));
+    }
+    try {
+      testBuilder()
+        .sqlQuery(orcQuery)
+        .unOrdered()
+        .baselineColumns("date_col")
+        .baselineValues(dateTime1)
+        .baselineValues(dateTime2)
+        .baselineValues(dateTime3)
+        .baselineValues(dateTime4)
+        .baselineValues(dateTime5)
+        .go();
+    } finally {
+      try {
+        runSQL(getSystemOptionQueryString(hiveOrcVectorize, Boolean.TRUE.toString()));
+      } catch (Exception e) {
+        runSQL(getSystemOptionQueryString(hive3OrcVectorize, Boolean.TRUE.toString()));
+      }
+    }
+  }
+
   @Test // DX-11011
   public void parquetSkipAllMultipleRowGroups() throws Exception {
     testBuilder()
@@ -1643,6 +1693,21 @@ public class ITHiveStorage extends HiveTestBase {
       .unOrdered()
       .baselineColumns("col3")
       .baselineValues(new BigDecimal("-0.1"))
+      .go();
+  }
+
+  @Test
+  public void testPartitionValueFormatException() throws Exception {
+    testBuilder()
+      .sqlQuery("SELECT * from hive.partition_format_exception_orc")
+      .unOrdered()
+      .sqlBaselineQuery("SELECT col1, col2 from hive.partition_format_exception_orc")
+      .go();
+
+    testBuilder()
+      .sqlQuery("SELECT * from hive.partition_format_exception_orc where col1 = 1")
+      .unOrdered()
+      .sqlBaselineQuery("SELECT * from hive.partition_format_exception_orc where col2 is null")
       .go();
   }
 }

@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.model.folder;
 
+import static com.dremio.common.utils.PathUtils.encodeURIComponent;
+
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.HashMap;
@@ -22,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import com.dremio.dac.model.common.NamespacePath;
 import com.dremio.dac.model.common.RootEntity;
@@ -35,7 +38,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Folder model.
@@ -141,9 +144,11 @@ public class Folder {
       links.put("format", folderPath.toUrlPathWithAction("folder_format"));
       links.put("format_preview", folderPath.toUrlPathWithAction("folder_preview"));
       if (queryable && fileFormat != null && fileFormat.getVersion() != null) {
+        final String version = fileFormat.getVersion();
         links.put(
           "delete_format",
-          folderPath.toUrlPathWithAction("folder_format") + "?version=" + fileFormat.getVersion()
+          folderPath.toUrlPathWithAction("folder_format") + "?version="
+            + (version == null ? version : encodeURIComponent(version))
         );
         // overwrite jobs link since this folder is queryable
         final JobFilters jobFilters = new JobFilters()
@@ -186,11 +191,11 @@ public class Folder {
   static NamespacePath parseUrlPath(String urlPath) {
     Matcher m = PARSER.matcher(urlPath);
     if (m.matches()) {
-      List<String> pathParts = FluentIterable
-          .of(new String[] { m.group(2)} )
-          .append(m.group(3).split("/"))
-          .transform(PATH_DECODER)
-          .toList();
+      List<String> pathParts = Stream.concat(
+        Stream.of(m.group(2)),
+        Stream.of(m.group(3).split("/")))
+        .map(PATH_DECODER)
+        .collect(ImmutableList.toImmutableList());
 
       if (m.group(1).equals("source")) {
         return new SourceFolderPath(pathParts);

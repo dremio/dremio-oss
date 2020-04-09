@@ -105,6 +105,24 @@ global.localStorage = (() => {
   };
 })();
 
+global.sessionStorage = (() => {
+  const store = {};
+  const getItem = (key) => {
+    return store[key];
+  };
+  const setItem = (key, value) => {
+    store[key] = value;
+  };
+  const removeItem = (key) => {
+    delete store[key];
+  };
+  return {
+    getItem,
+    setItem,
+    removeItem
+  };
+})();
+
 global.SVGPathSeg = function() {};
 global.SVGPathSegClosePath = function() {};
 global.SVGPathSegMovetoAbs = function() {};

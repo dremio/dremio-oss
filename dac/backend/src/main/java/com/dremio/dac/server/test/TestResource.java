@@ -48,7 +48,7 @@ import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
@@ -57,7 +57,8 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.options.OptionManager;
 import com.dremio.service.InitializerRegistry;
-import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.QueryProfileRequest;
+import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceException;
@@ -73,7 +74,7 @@ import com.dremio.service.users.UserService;
 @Path("/test")
 public class TestResource {
 
-  private final KVStoreProvider provider;
+  private final LegacyKVStoreProvider provider;
   private final SabotContext context;
   private final UserService userService;
   private final InitializerRegistry init;
@@ -87,7 +88,7 @@ public class TestResource {
 
   @Inject
   public TestResource(InitializerRegistry init, SabotContext context, UserService userService,
-                      KVStoreProvider provider, JobsService jobsService,
+                      LegacyKVStoreProvider provider, JobsService jobsService,
                       CatalogService catalogService, ReflectionServiceHelper reflectionHelper,
                       SecurityContext security, ConnectionReader connectionReader, CollaborationHelper collaborationService,
                       OptionManager optionManager) {
@@ -191,7 +192,13 @@ public class TestResource {
                                            @QueryParam("planphase") String planPhase) {
     final QueryProfile profile;
     try {
-      profile = jobsService.getProfile(new JobId(queryId), attempt);
+      QueryProfileRequest request = QueryProfileRequest.newBuilder()
+        .setJobId(JobProtobuf.JobId.newBuilder()
+          .setId(queryId)
+          .build())
+        .setAttempt(attempt)
+        .build();
+      profile = jobsService.getProfile(request);
     } catch (JobNotFoundException ignored) {
       // TODO: should this be JobResourceNotFoundException?
       throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));

@@ -18,7 +18,7 @@ package com.dremio.exec.work.protector;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.work.AttemptId;
+import com.dremio.common.utils.protos.AttemptId;
 
 /**
  * Context for reattempting.

@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 
 import org.apache.calcite.sql.SqlNode;
 
-import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.planner.sql.parser.SqlShowSchemas;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Function;
@@ -35,11 +35,11 @@ import com.google.common.collect.ImmutableList;
  */
 public class ShowSchemasHandler implements SqlDirectHandler<ShowSchemasHandler.SchemaResult> {
 
-  private final Catalog catalog;
+  private final EntityExplorer entityExplorer;
 
-  public ShowSchemasHandler(Catalog catalog) {
+  public ShowSchemasHandler(EntityExplorer entityExplorer) {
     super();
-    this.catalog = catalog;
+    this.entityExplorer = entityExplorer;
   }
 
   @Override
@@ -48,7 +48,7 @@ public class ShowSchemasHandler implements SqlDirectHandler<ShowSchemasHandler.S
     final Pattern likePattern = SqlNodeUtil.getPattern(node.getLikePattern());
     final Matcher m = likePattern.matcher("");
 
-    return FluentIterable.from(catalog.listSchemas(new NamespaceKey(ImmutableList.<String>of())))
+    return FluentIterable.from(entityExplorer.listSchemas(new NamespaceKey(ImmutableList.<String>of())))
         .filter(new Predicate<String>() {
           @Override
           public boolean apply(String input) {

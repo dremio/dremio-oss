@@ -133,7 +133,6 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
         functionLookupContext,
         contextInformation,
         options,
-        namespaceService,
         spillService,
         nodeDebugContextProvider,
         popConfig.getProps().getTargetBatchSize(),

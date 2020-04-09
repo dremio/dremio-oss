@@ -29,17 +29,20 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.test.TemporarySystemProperties;
 
 public class TestExampleQueries extends PlanTestBase {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestExampleQueries.class);
@@ -47,9 +50,13 @@ public class TestExampleQueries extends PlanTestBase {
   final String WORKING_PATH = TestTools.getWorkingPath();
   final String TEST_RES_PATH = WORKING_PATH + "/src/test/resources";
 
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
+
   @Before
   public void setupOptions() throws Exception {
     testNoResult("ALTER SESSION SET \"%s\" = true", ExecConstants.ENABLE_VERBOSE_ERRORS.getOptionName());
+    properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
   }
 
   @After
@@ -471,6 +478,28 @@ public class TestExampleQueries extends PlanTestBase {
         "Agg\\(group=\\[\\{0, 1\\}\\], agg\\#0=\\[.?SUM.?\\(\\$2\\)\\], agg\\#1=\\[COUNT\\(\\$2\\)\\]\\)",
         "Project\\(customer_region_id=\\[\\$0\\], fname=\\[\\$1\\], EXPR\\$2=(?:\\[\\/\\(CAST\\(\\$2\\):DOUBLE, \\$3\\)\\]|\\[\\/\\(CAST\\(CASE\\(\\=\\(\\$3, 0\\), null, \\$2\\)\\)\\:DOUBLE, \\$3\\)\\])\\)" },
         null);
+  }
+
+  @Test
+  public void testLocate() throws Exception {
+    try {
+      test("use dfs_test");
+      test("create view locateview as (select * from cp.\"customer.json\" where customer_id < 5);");
+
+
+      testBuilder()
+        .sqlQuery("select locate('Spence', lname, 1) as A from locateview")
+        .ordered()
+        .baselineColumns("A")
+        .baselineValues(0)
+        .baselineValues(0)
+        .baselineValues(0)
+        .baselineValues(1)
+        .build().run();
+
+    } finally {
+      test("drop view locateview;");
+    }
   }
 
   @Test // see DRILL-2328

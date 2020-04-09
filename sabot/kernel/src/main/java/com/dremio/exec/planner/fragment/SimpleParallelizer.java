@@ -24,10 +24,10 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.DremioStringUtils;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
+import com.dremio.exec.maestro.MaestroObserver;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalOperatorSetupException;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
@@ -38,7 +38,6 @@ import com.dremio.exec.physical.base.Receiver;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.fragment.Fragment.ExchangeFragmentPair;
 import com.dremio.exec.planner.fragment.Materializer.IndexedFragmentNode;
-import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.Collector;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
@@ -63,6 +62,7 @@ import com.dremio.service.execselector.ExecutorSelectionContext;
 import com.dremio.service.execselector.ExecutorSelectionHandle;
 import com.dremio.service.execselector.ExecutorSelectionHandleImpl;
 import com.dremio.service.execselector.ExecutorSelectionService;
+import com.dremio.service.execselector.ExecutorSelectionUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -89,7 +89,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
   private final double affinityFactor;
   private final boolean useNewAssignmentCreator;
   private final double assignmentCreatorBalanceFactor;
-  private final AttemptObserver observer;
+  private final MaestroObserver observer;
   private final ExecutionNodeMap executionMap;
   private final FragmentCodec fragmentCodec;
   private final QueryContext queryContext;
@@ -97,12 +97,12 @@ public class SimpleParallelizer implements ParallelizationParameters {
   private ExecutorSelectionService executorSelectionService;  // NB: re-assigned in unit tests, hence not final
   private final int targetNumFragsPerNode;
 
-  public SimpleParallelizer(QueryContext context, AttemptObserver observer, ExecutorSelectionService executorSelectionService) {
+  public SimpleParallelizer(QueryContext context, MaestroObserver observer, ExecutorSelectionService executorSelectionService) {
     this(context, observer, executorSelectionService, null);
   }
 
   public SimpleParallelizer(QueryContext context,
-                            AttemptObserver observer,
+                            MaestroObserver observer,
                             ExecutorSelectionService executorSelectionService,
                             ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo) {
     this.queryContext = context;
@@ -112,7 +112,9 @@ public class SimpleParallelizer implements ParallelizationParameters {
     this.parallelizationThreshold = sliceTarget > 0 ? sliceTarget : 1;
 
     final long configuredMaxWidthPerNode = context.getClusterResourceInformation().getAverageExecutorCores(optionManager);
-    Preconditions.checkState(configuredMaxWidthPerNode > 0, "Error: No executors are available");
+    if (configuredMaxWidthPerNode == 0) {
+      ExecutorSelectionUtils.throwEngineOffline(resourceSchedulingDecisionInfo.getQueueTag());
+    }
     final double maxWidthFactor = context.getWorkStatsProvider().get().getMaxWidthFactor();
     this.maxWidthPerNode = (int) Math.max(1, configuredMaxWidthPerNode * maxWidthFactor);
 
@@ -137,7 +139,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
                             int maxWidthPerNode,
                             int maxGlobalWidth,
                             double affinityFactor,
-                            AttemptObserver observer,
+                            MaestroObserver observer,
                             boolean useNewAssignmentCreator,
                             double assignmentCreatorBalanceFactor) {
     this.executionMap = new ExecutionNodeMap(Collections.<NodeEndpoint>emptyList());
@@ -292,7 +294,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
         idealNumFragments, idealNumNodes, selectedEndpoints.size(),
         handle.getPlanDetails());
     if (selectedEndpoints.isEmpty()){
-      throw UserException.resourceError().message("No executors currently available.").build(logger);
+      ExecutorSelectionUtils.throwEngineOffline(resourceSchedulingDecisionInfo.getQueueTag());
     }
 
     for (Wrapper wrapper : leafFragments) {

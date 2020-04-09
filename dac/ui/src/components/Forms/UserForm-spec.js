@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 import { shallow } from 'enzyme';
+import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import * as VersionUtils from 'utils/versionUtils';
 import UserForm, { FIELDS } from './UserForm';
 
 describe('UserForm', () => {
@@ -66,6 +68,28 @@ describe('UserForm', () => {
       const instance = shallow(<UserForm {...minimalProps} />).instance();
       instance.props.fields.tag.value = 'foo';
       expect(instance.getIsEdit()).to.be.true;
+    });
+  });
+
+  describe('instanceId field', () => {
+    it('should not show instanceId field', () => {
+      sinon.stub(localStorageUtils, 'getInstanceId').returns('iid');
+      const wrapper = shallow(<UserForm {...minimalProps} isReadMode/>);
+      const formLabels = wrapper.find('FieldWithError').map(e => e.prop('label'));
+      expect(formLabels.includes('Instance-id for Authentication')).to.be.false;
+      localStorageUtils.getInstanceId.restore();
+    });
+    it('should show instanceId field', () => {
+      sinon.stub(localStorageUtils, 'getInstanceId').returns(null);
+      sinon.stub(VersionUtils, 'getEditionFromConfig').returns('ME');
+      // global.window.dremioConfig = {edition: 'ME'};
+
+      const wrapper = shallow(<UserForm {...minimalProps} isReadMode/>);
+      const formLabels = wrapper.find('FieldWithError').map(e => e.prop('label'));
+      expect(formLabels.includes('Instance-id for Authentication')).to.be.true;
+
+      localStorageUtils.getInstanceId.restore();
+      VersionUtils.getEditionFromConfig.restore();
     });
   });
 });

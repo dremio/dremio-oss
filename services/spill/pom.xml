@@ -22,12 +22,16 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>4.1.8-202003120636020140-9c2a6b13</version>
+    <version>4.2.0-202004091958060824-8f7e141d</version>
   </parent>
   <artifactId>dremio-services-spill</artifactId>
   <name>Services - Spill management</name>
 
   <dependencies>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+    </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
@@ -43,4 +47,24 @@
       <artifactId>dremio-services-scheduler</artifactId>
     </dependency>
   </dependencies>
+  <profiles>
+    <profile>
+      <id>mapr</id>
+      <activation>
+        <property>
+          <name>mapr</name>
+        </property>
+      </activation>
+      <dependencies>
+        <!--
+            MapR shimloader requires servlet api to be present
+        -->
+        <dependency>
+          <groupId>javax.servlet</groupId>
+          <artifactId>javax.servlet-api</artifactId>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 </project>

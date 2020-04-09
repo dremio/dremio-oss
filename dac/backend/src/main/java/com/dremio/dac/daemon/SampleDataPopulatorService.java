@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.daemon;
 
+import static com.dremio.dac.server.test.DataPopulatorUtils.addDefaultDremioUser;
+
 import javax.inject.Provider;
 import javax.ws.rs.core.SecurityContext;
 
@@ -26,7 +28,7 @@ import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
@@ -44,7 +46,7 @@ import com.dremio.service.users.UserService;
 public class SampleDataPopulatorService implements Service {
   private final Provider<SabotContext> contextProvider;
   private final Provider<UserService> userService;
-  private final Provider<KVStoreProvider> kvStore;
+  private final Provider<LegacyKVStoreProvider> kvStore;
   private final Provider<InitializerRegistry> init;
   private final Provider<JobsService> jobsService;
   private final Provider<CatalogService> catalogService;
@@ -60,7 +62,7 @@ public class SampleDataPopulatorService implements Service {
 
   public SampleDataPopulatorService(
     Provider<SabotContext> contextProvider,
-    Provider<KVStoreProvider> kvStore,
+    Provider<LegacyKVStoreProvider> kvStore,
     Provider<UserService> userService,
     Provider<InitializerRegistry> init,
     Provider<JobsService> jobsService,
@@ -91,11 +93,11 @@ public class SampleDataPopulatorService implements Service {
 
   @Override
   public void start() throws Exception {
-    final KVStoreProvider kv = kvStore.get();
+    final LegacyKVStoreProvider kv = kvStore.get();
     final NamespaceService ns = contextProvider.get().getNamespaceService(SystemUser.SYSTEM_USERNAME);
 
     if (addDefaultUser) {
-      SampleDataPopulator.addDefaultFirstUser(userService.get(), ns);
+      addDefaultDremioUser(userService.get(), ns);
     }
 
     if (prepopulate) {

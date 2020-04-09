@@ -800,6 +800,7 @@ public class TestParquetWriter extends BaseTestQuery {
     ArgumentCaptor<String> pathCaptor = ArgumentCaptor.forClass(String.class);
     ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
     ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
+    ArgumentCaptor<byte[]> icebergMetadataCaptor = ArgumentCaptor.forClass(byte[].class);
 
     BigIntVector bigIntVector = new BigIntVector("key", ALLOCATOR);
     bigIntVector.allocateNew(2);
@@ -818,7 +819,9 @@ public class TestParquetWriter extends BaseTestQuery {
     container.clear();
     writer.close();
 
-    verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(), fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(), partitionCaptor.capture());
+    verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(),
+      fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
+      partitionCaptor.capture(), icebergMetadataCaptor.capture());
 
     for (FileStatus file : newFs.listStatus(targetPath)) {
       if (file.getPath().toString().endsWith(".parquet")) { //complex243_json is in here for some reason?

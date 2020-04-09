@@ -17,16 +17,15 @@ package com.dremio.service.reflection.store;
 
 import javax.inject.Provider;
 
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.KVUtil;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.VersionExtractor;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.api.LegacyStoreCreationFunction;
+import com.dremio.datastore.format.Format;
 import com.dremio.service.reflection.proto.ReflectionEntry;
 import com.dremio.service.reflection.proto.ReflectionId;
-import com.dremio.service.reflection.store.Serializers.ReflectionEntrySerializer;
-import com.dremio.service.reflection.store.Serializers.ReflectionIdSerializer;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
@@ -39,13 +38,13 @@ import com.google.common.collect.Iterables;
 public class ReflectionEntriesStore {
   private static final String TABLE_NAME = "reflection_entries";
 
-  private final Supplier<KVStore<ReflectionId, ReflectionEntry>> store;
+  private final Supplier<LegacyKVStore<ReflectionId, ReflectionEntry>> store;
 
-  public ReflectionEntriesStore(final Provider<KVStoreProvider> provider) {
+  public ReflectionEntriesStore(final Provider<LegacyKVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvstore provider cannot be null");
-    this.store = Suppliers.memoize(new Supplier<KVStore<ReflectionId, ReflectionEntry>>() {
+    this.store = Suppliers.memoize(new Supplier<LegacyKVStore<ReflectionId, ReflectionEntry>>() {
       @Override
-      public KVStore<ReflectionId, ReflectionEntry> get() {
+      public LegacyKVStore<ReflectionId, ReflectionEntry> get() {
         return provider.get().getStore(StoreCreator.class);
       }
     });
@@ -109,14 +108,14 @@ public class ReflectionEntriesStore {
   /**
    * {@link ReflectionEntriesStore} creator
    */
-  public static class StoreCreator implements StoreCreationFunction<KVStore<ReflectionId, ReflectionEntry>> {
+  public static class StoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<ReflectionId, ReflectionEntry>> {
 
     @Override
-    public KVStore<ReflectionId, ReflectionEntry> build(StoreBuildingFactory factory) {
+    public LegacyKVStore<ReflectionId, ReflectionEntry> build(LegacyStoreBuildingFactory factory) {
       return factory.<ReflectionId, ReflectionEntry>newStore()
         .name(TABLE_NAME)
-        .keySerializer(ReflectionIdSerializer.class)
-        .valueSerializer(ReflectionEntrySerializer.class)
+        .keyFormat(Format.ofProtostuff(ReflectionId.class))
+        .valueFormat(Format.ofProtostuff(ReflectionEntry.class))
         .versionExtractor(ReflectionVersionExtractor.class)
         .build();
     }

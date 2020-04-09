@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>4.1.8-202003120636020140-9c2a6b13</version>
+    <version>4.2.0-202004091958060824-8f7e141d</version>
   </parent>
   <artifactId>dremio-services-datastore</artifactId>
   <name>Services - Datastore</name>
@@ -38,7 +38,6 @@
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
-    
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-protocol</artifactId>
@@ -67,26 +66,22 @@
       <artifactId>lucene-queries</artifactId>
       <version>${lucene.version}</version>
     </dependency>
-
     <dependency>
       <groupId>cz.jirutka.rsql</groupId>
       <artifactId>rsql-parser</artifactId>
       <version>2.1.0</version>
     </dependency>
-
     <dependency>
       <groupId>com.esotericsoftware</groupId>
       <artifactId>kryo</artifactId>
       <version>3.0.3</version>
       <scope>test</scope>
     </dependency>
-
     <dependency>
       <groupId>org.rocksdb</groupId>
       <artifactId>rocksdbjni</artifactId>
       <version>${rocksdb.version}</version>
     </dependency>
-    
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
@@ -137,16 +132,31 @@
       <artifactId>commons-lang3</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-common</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.xerial.snappy</groupId>
       <artifactId>snappy-java</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.opentracing</groupId>
+      <artifactId>opentracing-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-math3</artifactId>
+      <version>3.6.1</version>
+    </dependency>
+    <dependency>
+      <groupId>io.opentracing</groupId>
+      <artifactId>opentracing-mock</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.immutables</groupId>
+      <artifactId>value</artifactId>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
 
@@ -187,6 +197,8 @@
             <include>remote_datastore.proto</include>
             <include>search_types.proto</include>
             <include>rocks.proto</include>
+            <include>dummy.proto</include>
+            <include>dummyProtobufV3.proto</include>
           </includes>
         </configuration>
         <executions>
@@ -198,11 +210,22 @@
               <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
             </configuration>
           </execution>
+          <execution>
+            <id>generate-protobuf-test</id>
+            <phase>generate-test-sources</phase>
+            <goals>
+              <goal>test-compile</goal>
+            </goals>
+            <configuration>
+              <protoTestSourceRoot>${basedir}/src/test/protobuf</protoTestSourceRoot>
+              <outputDirectory>${project.build.directory}/generated-test-sources/protobuf</outputDirectory>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
       <plugin>
-        <groupId>io.protostuff</groupId>
-        <artifactId>protostuff-maven-plugin</artifactId>
+        <groupId>com.dremio.tools</groupId>
+        <artifactId>dremio-protostuff-maven-plugin</artifactId>
         <configuration>
           <protoModules>
             <protoModule>
@@ -220,6 +243,29 @@
                 </property>
               </options>
             </protoModule>
+            <protoModules>
+                <source>${basedir}/src/test/protostuff</source>
+                <outputDir>${project.build.directory}/generated-test-sources/protostuff</outputDir>
+                <output>java_bean</output>
+                <encoding>UTF-8</encoding>
+                <options>
+                  <property>
+                    <name>generate_field_map</name>
+                  </property>
+                  <property>
+                    <name>com.dremio.exec.proto</name>
+                    <value>com.dremio.exec.proto.beans</value>
+                  </property>
+                  <property>
+                    <name>primitive_numbers_if_optional</name>
+                  </property>
+                  <property>
+                    <name>builder_pattern</name>
+                  </property>
+                  <property>
+                  </property>
+                </options>
+            </protoModules>
           </protoModules>
         </configuration>
         <executions>
@@ -230,9 +276,32 @@
               <goal>compile</goal>
             </goals>
           </execution>
+          <execution>
+            <id>generate-protostuff-test</id>
+            <phase>generate-test-sources</phase>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>proto-jar-resources</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classesDirectory>${project.basedir}/src/main/protobuf</classesDirectory>
+              <classifier>proto</classifier>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
     </plugins>
   </build>
-
 </project>

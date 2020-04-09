@@ -29,8 +29,8 @@ import com.dremio.dac.resource.ExportProfilesParams;
 import com.dremio.dac.resource.ExportProfilesResource;
 import com.dremio.dac.server.admin.profile.ProfilesExporter;
 import com.dremio.dac.util.BackupRestoreUtil;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.server.ContextService;
 import com.dremio.io.file.FileSystem;
@@ -62,7 +62,7 @@ public final class LocalAdmin {
     return INSTANCE;
   }
 
-  private KVStoreProvider getKVStoreProvider() throws UnsupportedOperationException {
+  private LegacyKVStoreProvider getKVStoreProvider() throws UnsupportedOperationException {
     return daemon.getBindingProvider().lookup(ContextService.class).get().getKVStoreProvider();
   }
 
@@ -112,7 +112,7 @@ public final class LocalAdmin {
     final FileSystem fs = HadoopFileSystem.get(backupDir, new Configuration());
     BackupRestoreUtil.checkOrCreateDirectory(fs, backupDir);
     BackupRestoreUtil.BackupOptions options = new BackupRestoreUtil.BackupOptions(path, Boolean.parseBoolean(binaryStr), Boolean.parseBoolean(includeProfilesStr));
-    BackupRestoreUtil.BackupStats backupStats = BackupRestoreUtil.createBackup(fs, options, (LocalKVStoreProvider) getKVStoreProvider(), LocalAdmin.getInstance().getHomeFileTool().getConf());
+    BackupRestoreUtil.BackupStats backupStats = BackupRestoreUtil.createBackup(fs, options, getKVStoreProvider().unwrap(LocalKVStoreProvider.class), LocalAdmin.getInstance().getHomeFileTool().getConf());
     System.out.println(format("Backup created at %s, dremio tables %d, uploaded files %d",
     backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles()));
   }

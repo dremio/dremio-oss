@@ -31,6 +31,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -59,8 +60,8 @@ import com.dremio.dac.server.TestHomeFiles;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.util.BackupRestoreUtil;
 import com.dremio.dac.util.BackupRestoreUtil.BackupOptions;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.exec.server.SabotContext;
@@ -68,9 +69,9 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.SearchJobsRequest;
 import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceUtils;
@@ -157,7 +158,7 @@ public class TestBackupManager extends BaseTestServer {
     DACConfig dacConfig = TestBackupManager.dacConfig.httpPort(httpPort);
     Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
 
-    LocalKVStoreProvider localKVStoreProvider = (LocalKVStoreProvider) l(KVStoreProvider.class);
+    LocalKVStoreProvider localKVStoreProvider = l(LegacyKVStoreProvider.class).unwrap(LocalKVStoreProvider.class);
     HomeFileConf homeFileStore = ((CatalogServiceImpl) l(CatalogService.class)).getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME).getId().getConnectionConf();
 
     // take backup 1
@@ -175,7 +176,9 @@ public class TestBackupManager extends BaseTestServer {
     Path textFile = Path.of(tmpFile.getAbsolutePath());
     TestHomeFiles.uploadFile(homeFileStore, textFile, "comma", "txt", new TextFileConfig().setFieldDelimiter(","), null);
 
-    TestHomeFiles.runQuery("comma", 4, 3, null);
+    try (BufferAllocator allocator = getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE)) {
+      runQuery(l(JobsService.class), "comma", 4, 3, null, allocator);
+    }
     CheckPoint cp2 = checkPoint();
 
     // take backup 2 using rest api
@@ -198,7 +201,7 @@ public class TestBackupManager extends BaseTestServer {
     // restart
     startDaemon(dacConfig);
 
-    localKVStoreProvider = (LocalKVStoreProvider) l(KVStoreProvider.class);
+    localKVStoreProvider = l(LegacyKVStoreProvider.class).unwrap(LocalKVStoreProvider.class);
     cp2.checkEquals(checkPoint());
     DatasetConfig dsg11 = newNamespaceService().getDataset(new DatasetPath("DG.dsg11").toNamespaceKey());
     assertNotNull(dsg11);
@@ -211,7 +214,9 @@ public class TestBackupManager extends BaseTestServer {
     }
 
     // query uploaded file
-    TestHomeFiles.runQuery("comma", 4, 3, null);
+    try (BufferAllocator allocator = getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE)) {
+      runQuery(l(JobsService.class), "comma", 4, 3, null, allocator);
+    }
 
     // destroy everything
     l(HomeFileTool.class).clearUploads();
@@ -249,11 +254,10 @@ public class TestBackupManager extends BaseTestServer {
   public void testLocalAttach() throws Exception {
     boolean binary = "binary".equals(mode);
     Path dbDir = Path.of(dacConfig.getConfig().getString(DremioConfig.DB_PATH_STRING));
-    LocalKVStoreProvider localKVStoreProvider = (LocalKVStoreProvider) l(KVStoreProvider.class);
+    LocalKVStoreProvider localKVStoreProvider = l(LegacyKVStoreProvider.class).unwrap(LocalKVStoreProvider.class);
     HomeFileConf homeFileStore = ((CatalogServiceImpl) l(CatalogService.class)).getManagedSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME).getId().getConnectionConf();
 
     final String tempPath = TEMP_FOLDER.getRoot().getAbsolutePath();
-    DremioAttach.setDremioProcessName(ManagementFactory.getRuntimeMXBean().getName().split("@")[0]);
 
     Path backupDir1 = Path.of(BackupRestoreUtil.createBackup(
       fs, new BackupOptions(BaseTestServer.folder1.newFolder().getAbsolutePath(), binary, false), localKVStoreProvider, homeFileStore).getBackupPath());
@@ -265,13 +269,14 @@ public class TestBackupManager extends BaseTestServer {
     // Backup
     final String[] backupArgs;
     if (binary) {
-      backupArgs = new String[]{"-l", "-d", tempPath};
+      backupArgs = new String[]{"backup", tempPath, "true", "false"};
     } else {
-      backupArgs = new String[]{"-l", "-d", tempPath, "-j"};
+      backupArgs = new String[]{"backup", tempPath, "false", "false"};
     }
-    Backup.main(backupArgs);
+    final String vmid = ManagementFactory.getRuntimeMXBean().getName().split("@")[0];
+    DremioAttach.main(vmid, backupArgs);
     //verify that repeated backup calls don't cause an exception
-    Backup.main(backupArgs);
+    DremioAttach.main(vmid, backupArgs);
 
     // Destroy everything
     l(HomeFileTool.class).clearUploads();
@@ -359,7 +364,7 @@ public class TestBackupManager extends BaseTestServer {
      */
     final SearchJobsRequest request = SearchJobsRequest.newBuilder()
         .setFilterString("")
-        .setUsername("tshiran")
+        .setUserName("tshiran")
         .build();
 
     checkPoint.jobs = ImmutableList.copyOf(jobsService.searchJobs(request));
@@ -373,7 +378,7 @@ public class TestBackupManager extends BaseTestServer {
     private List<DatasetConfig> datasets;
     private List<? extends User> users;
     private List<VirtualDatasetUI> virtualDatasetVersions;
-    private List<Job> jobs;
+    private List<JobSummary> jobs;
 
     private void checkEquals(CheckPoint o) {
       assertTrue(CollectionUtils.isEqualCollection(sources, o.sources));

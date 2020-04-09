@@ -24,6 +24,7 @@ import static com.dremio.sabot.Fixtures.NULL_FLOAT;
 import static com.dremio.sabot.Fixtures.NULL_INT;
 import static com.dremio.sabot.Fixtures.NULL_VARCHAR;
 import static com.dremio.sabot.Fixtures.date;
+import static com.dremio.sabot.Fixtures.interval_day;
 import static com.dremio.sabot.Fixtures.t;
 import static com.dremio.sabot.Fixtures.th;
 import static com.dremio.sabot.Fixtures.time;
@@ -101,11 +102,6 @@ public class TestNativeFunctions extends BaseTestFunction {
       {"upper(c0)", NULL_VARCHAR, NULL_VARCHAR},
       {"reverse(c0)", "hello", "olleh"},
       {"reverse(c0)", NULL_VARCHAR, NULL_VARCHAR},
-      {"replace(c0, 'world', 'wo')", "hello world", "hello wo"},
-      {"locate('world', c0)", "hello world", 7},
-      {"locate('world', c0, 3)", "hello world", 7},
-      {"castVARCHAR(c0, 5)", "helloworld", "hello"},
-      {"castVARCHAR(c0, 3)", "çåå†", "çåå"},
     });
   }
 
@@ -792,6 +788,16 @@ public class TestNativeFunctions extends BaseTestFunction {
       {"castVARCHAR(c0, c1)", ts("2019-06-26T17:20:34"), 30L, "2019-06-26 17:20:34.000"},
       {"castVARCHAR(c0, c1)", ts("2019-06-26T17:20:34"), 22L, "2019-06-26 17:20:34.00"},
       {"castVARCHAR(c0, c1)", ts("2019-06-26T17:20:34"), 0L, ""},
+    });
+  }
+
+  @Test
+  public void testIntervalDayToBigInt() throws Exception {
+    testFunctions(new Object[][]{
+        {"cast(c0 as BIGINT)", interval_day(10, 1), 864000001L},
+        {"cast(c0 as BIGINT)", interval_day(1, 1), 86400001L},
+        {"cast(c0 as BIGINT)", interval_day(-1, 0), -86400000L},
+        {"cast(c0 as BIGINT)", interval_day(-1, -1), -86400001L}
     });
   }
 

@@ -214,6 +214,7 @@
   "File.TextDelimited": "Text (delimited)",
   "File.JSON": "JSON",
   "File.Parquet": "Parquet",
+  "File.Iceberg": "Iceberg",
   "File.Excel": "Excel",
   "File.XLS": "XLS",
   "File.AddFileStep1": "Add File: Browse for File (Step 1 of 2)",
@@ -288,7 +289,7 @@
   "Queues.MaxConcurrentJobs": "Concurrency Limit",
   "Queues.MaxMemoryPerNode": "Queue Memory Limit per Node",
   "Queues.MaxQueryMemoryPerNode": "Job Memory Limit per Node",
-  "Queues.ClusterName": "Cluster Name",
+  "Queues.ClusterName": "Engine Name",
   "Rules.UnnamedQueue": "Unnamed Rule",
   "Rules.Order": "Order",
   "Rules.Rule": "Rule",
@@ -334,5 +335,7 @@
   "Explore.preview.warning": "Results based on sub-sample of data from external sources.",
   "Message.SomeReflectionsFailed": "{countFail} Reflection{countFail, plural, one {} other {s}} could not be saved ({countSuccess} Reflection{countSuccess, plural, one {} other {s}} {countSuccess, plural, one {was} other {were}} saved). See individual Reflection{countFail, plural, one {} other {s}} for details.",
   "Message.Code.WS_CLOSED.Message": "There was an issue communicating with Dremio.",
-  "Message.Code.WS_CLOSED.Details": "Your Internet connection may be offline, or WebSockets to Dremio are being blocked."
+  "Message.Code.WS_CLOSED.Details": "Your Internet connection may be offline, or WebSockets to Dremio are being blocked.",
+  "Message.ApiErr.Load.Reflections": "Failed to load reflection list with error: {err}",
+  "Message.ApiErr.Load.Dataset": "Failed to load dataset with error: {err}"
 }

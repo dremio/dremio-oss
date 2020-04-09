@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.client</groupId>
     <artifactId>dremio-client-parent</artifactId>
-    <version>4.1.8-202003120636020140-9c2a6b13</version>
+    <version>4.2.0-202004091958060824-8f7e141d</version>
   </parent>
   <artifactId>dremio-client-jdbc</artifactId>
   <name>Client - JDBC Driver</name>
@@ -44,29 +44,32 @@
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
-      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <artifactId>guice</artifactId>
+          <groupId>com.google.inject</groupId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
-      <groupId>com.dremio.sabot</groupId>
-      <artifactId>dremio-sabot-logical</artifactId>
+      <groupId>com.dremio.client</groupId>
+      <artifactId>dremio-client-base</artifactId>
       <version>${project.version}</version>
     </dependency>    
-    <dependency>
-      <groupId>com.dremio.sabot</groupId>
-      <artifactId>dremio-sabot-kernel</artifactId>
-      <version>${project.version}</version>
-    </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
       <classifier>tests</classifier>
-      <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>com.dremio.sabot</groupId>
       <artifactId>dremio-sabot-kernel</artifactId>
-      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.sabot</groupId>
+      <artifactId>dremio-sabot-kernel</artifactId>
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>

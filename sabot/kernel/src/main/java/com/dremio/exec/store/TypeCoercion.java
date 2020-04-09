@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store;
 
-import java.util.EnumSet;
-
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.types.TypeProtos.MajorType;
@@ -29,8 +27,7 @@ public interface TypeCoercion {
   /**
    * Get the target type for the field
    * @param field
-   * @param options
    * @return
    */
-  MajorType getType(Field field, EnumSet<CoercionReader.Options> options);
+  MajorType getType(Field field);
 }

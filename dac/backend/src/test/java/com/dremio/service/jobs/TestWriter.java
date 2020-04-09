@@ -32,6 +32,7 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.server.JobsServiceTestUtils;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
@@ -65,7 +66,7 @@ public class TestWriter extends BaseTestServer {
   }
 
   @Test
-  public void testDistributionInPlan() {
+  public void testDistributionInPlan() throws Exception {
     String query = String.format("create table %s.\"%s\" hash partition by (\"position\") as select \"position\", isFte, " +
       "count(rating) as \"agg-7-0\", " +
       "sum(rating) as \"agg-7-1\", " +
@@ -108,7 +109,7 @@ public class TestWriter extends BaseTestServer {
    * Tests if {@link WriterCommitterPrel} is prepended in CTAS queries
    */
   @Test
-  public void testWriterCommitterInPlan() {
+  public void testWriterCommitterInPlan() throws Exception {
     String query = String.format("create table %s.\"%s\" as select * from cp.acceleration.\"employees.json\"", DFS_TEST_PLUGIN_NAME, "xyz");
     final RelNode physical = getPlan(query);
 
@@ -141,27 +142,25 @@ public class TestWriter extends BaseTestServer {
     final AtomicReference<RelNode> physical = new AtomicReference<>(null);
 
     final SqlQuery query = new SqlQuery(queryString, DEFAULT_USERNAME);
-    final JobStatusListener capturePlanListener = new NoOpJobStatusListener() {
+
+    final PlanTransformationListener planTransformationListener = new PlanTransformationListener() {
       @Override
-      public void planRelTransform(final PlannerPhase phase, final RelNode before, final RelNode after, final long millisTaken) {
+      public void onPhaseCompletion(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
         if (phase == PlannerPhase.PHYSICAL) {
           physical.set(after);
         }
-
-        super.planRelTransform(phase, before, after, millisTaken);
       }
     };
 
-    JobsServiceUtil.waitForJobCompletion(
-      getJobsService().submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(query)
-          .setQueryType(QueryType.ACCELERATOR_CREATE)
-          .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-          .setDatasetVersion(DatasetVersion.NONE)
-          .build(),
-        capturePlanListener)
-    );
+    final JobRequest request = JobRequest.newBuilder()
+      .setSqlQuery(query)
+      .setQueryType(QueryType.ACCELERATOR_CREATE)
+      .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+      .setDatasetVersion(DatasetVersion.NONE)
+      .build();
+
+    JobsServiceTestUtils.submitJobAndWaitUntilCompletion(l(LocalJobsService.class), request,
+        planTransformationListener);
     return physical.get();
   }
 }

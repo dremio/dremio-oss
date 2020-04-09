@@ -34,6 +34,7 @@ import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -63,7 +64,7 @@ public class NamespaceTable implements DremioTable {
 
   @Override
   public RelDataType getRowType(RelDataTypeFactory relDataTypeFactory) {
-    return dataset.getSchema().toCalciteRecordType(relDataTypeFactory, SYSTEM_COLUMNS);
+    return CalciteArrowHelper.wrap(dataset.getSchema()).toCalciteRecordType(relDataTypeFactory, SYSTEM_COLUMNS);
   }
 
   public TableMetadata getDataset() {

@@ -35,6 +35,7 @@ import com.dremio.common.CloseableByteBuf;
 import com.dremio.common.DeferredException;
 import com.dremio.common.util.TestTools;
 import com.dremio.common.utils.PathUtils;
+import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
@@ -54,17 +55,13 @@ import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.proto.UserProtos.SubmissionSource;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.exec.work.AttemptId;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.user.LocalExecutionConfig;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.proto.model.attempts.AttemptReason;
-import com.google.common.base.Function;
 import com.google.common.base.StandardSystemProperty;
-import com.google.common.collect.FluentIterable;
-
-import io.netty.buffer.ByteBuf;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Tests various types of queries and commands to make sure storing query results in a table works. Basically when
@@ -95,11 +92,9 @@ public class TestStoreQueryResults extends BaseTestQuery {
         public void execDataArrived(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch result) {
           try {
             AutoCloseables.close(
-            FluentIterable.of(result.getBuffers()).transform(new Function<ByteBuf, AutoCloseable>(){
-              @Override
-              public AutoCloseable apply(ByteBuf input) {
-                return new CloseableByteBuf(input);
-              }}).toList());
+              Arrays.stream(result.getBuffers())
+                .map(CloseableByteBuf::new)
+                .collect(ImmutableList.toImmutableList()));
           } catch (Exception e) {
             exception.addException(e);
           }

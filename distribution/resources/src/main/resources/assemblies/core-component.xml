@@ -29,7 +29,7 @@
         <exclude>com.dremio.*:*-shaded</exclude>
         <exclude>com.dremio.*:*-shaded-*</exclude>
         <exclude>com.dremio.jdbc:*</exclude>
-        <exclude>com.dremio.client:*</exclude>
+        <exclude>com.dremio.client:dremio-client-jdbc:jar</exclude>
         <exclude>com.dremio.distribution:*</exclude>
         <exclude>com.dremio.provision:dremio-shimloader:jar</exclude>
         <exclude>com.dremio.*:*-hive2-plugin:jar</exclude>

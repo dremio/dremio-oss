@@ -78,7 +78,6 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
     return new CacheProperties() {};
   }
 
-
   /**
    * Defines the constants used for cloud file systems.
    */

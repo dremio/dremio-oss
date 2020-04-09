@@ -1,0 +1,80 @@
+{
+  "sourceType": "ADL",
+  "tags": [
+    "beta"
+  ],
+  "metadataRefresh": {
+    "datasetDiscovery": true,
+    "isFileSystemSource": true
+  },
+  "form": {
+    "tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Authentication",
+            "tooltip": "",
+            "elements": [
+              {
+                "propName": "config.accountName",
+                "placeholder": ""
+              },
+              {
+                "propName": "config.clientId",
+                "placeholder": ""
+              },
+              {
+                "propName": "config.clientKeyRefreshUrl",
+                "placeholder": ""
+              },
+              {
+                "propName": "config.clientKeyPassword"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.enableAsync"
+              },
+              {
+                "propName": "config.allowCreateDrop"
+              },
+              {
+                "propName": "config.rootPath"
+              }
+            ]
+          },
+          {
+            "name": "Connection Properties",
+            "elements": [
+              {
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property",
+                "propName": "config.propertyList"
+              }
+            ]
+          },
+          {
+            "name": "Cache Options",
+            "elements": [
+              {
+                "propName": "config.isCachingEnabled"
+              },
+              {
+                "propName": "config.maxCacheSpacePct"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

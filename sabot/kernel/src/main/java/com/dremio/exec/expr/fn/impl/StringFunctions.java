@@ -430,11 +430,11 @@ public class StringFunctions{
             .message("Start index (%d) must be greater than 0", start.value)
             .build();
       } else {
+        int bytePos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharPosition(str.buffer.asNettyBuffer(), str.start, str.end, start.value - 1 ,errCtx) - str.start;
         // do string match
         final int pos = com.dremio.exec.expr.fn.impl.StringFunctionUtil.stringLeftMatchUTF8(
             str.buffer.asNettyBuffer(), str.start, str.end, substr.buffer.asNettyBuffer(), substr.start, substr
-            .end, start.value
-            - 1);
+            .end, bytePos);
         if (pos < 0) {
           out.value = 0; // indicate not found a matched substr
         } else {

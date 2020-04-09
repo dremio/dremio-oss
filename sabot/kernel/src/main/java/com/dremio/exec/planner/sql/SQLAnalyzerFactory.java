@@ -33,12 +33,11 @@ import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
 import com.dremio.exec.ops.ViewExpansionContext;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
-import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.proto.UserProtos;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.store.SchemaConfig;
-import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 
 public class SQLAnalyzerFactory {
@@ -58,26 +57,19 @@ public class SQLAnalyzerFactory {
    * @param createForSqlSuggestions
    * @return SQLAnalyzer instance
    */
-  public static SQLAnalyzer createSQLAnalyzer(final String username, final SabotContext sabotContext,
-                                              final List<String> context, final boolean createForSqlSuggestions) {
-
-    // Build dependencies required to instantiate and implementation of SqlValidatorWithHints
-    UserSession session = UserSession.Builder.newBuilder()
-      .withCredentials(UserBitShared.UserCredentials.newBuilder()
-        .setUserName(username)
-        .build())
-      .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
-      .withOptionManager(sabotContext.getOptionManager())
-      .withDefaultSchema(context)
-      .build();
-
+  public static SQLAnalyzer createSQLAnalyzer(final String username,
+                                              final SabotContext sabotContext,
+                                              final List<String> context,
+                                              final boolean createForSqlSuggestions,
+                                              ProjectOptionManager projectOptionManager) {
     final ViewExpansionContext viewExpansionContext = new ViewExpansionContext(username);
-    QueryOptionManager optionManager = new QueryOptionManager(session.getOptions());
+    final QueryOptionManager optionManager = new QueryOptionManager(projectOptionManager);
+    final NamespaceKey defaultSchemaPath = context == null ? null : new NamespaceKey(context);
+
     final SchemaConfig newSchemaConfig = SchemaConfig.newBuilder(username)
-      .defaultSchema(session.getDefaultSchemaPath())
+      .defaultSchema(defaultSchemaPath)
       .optionManager(optionManager)
       .setViewExpansionContext(viewExpansionContext)
-      .exposeInternalSources(session.exposeInternalSources())
       .build();
 
     Catalog catalog = sabotContext.getCatalogService()

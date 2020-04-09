@@ -31,9 +31,9 @@ import java.util.List;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BitVector;
+import org.apache.arrow.vector.NullVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
-import org.apache.arrow.vector.ZeroVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.UnionVector;
 import org.apache.arrow.vector.complex.reader.FieldReader;
@@ -366,7 +366,7 @@ public class TestArrowFileReader extends DremioTest {
         assertTrue(Iterators.size(batchContainer.iterator()) == 1);
         for (final VectorWrapper<?> wrapper : batchContainer) {
           assertTrue(wrapper.getValueVector() instanceof ListVector);
-          assertTrue(((ListVector) (wrapper.getValueVector())).getDataVector() instanceof ZeroVector);
+          assertTrue(((ListVector) (wrapper.getValueVector())).getDataVector() instanceof NullVector);
         }
 
         releaseBatches(batchHolders);
@@ -529,6 +529,7 @@ public class TestArrowFileReader extends DremioTest {
     ArgumentCaptor<byte[]> metadataCaptor = ArgumentCaptor.forClass(byte[].class);
     ArgumentCaptor<Integer> partitionCaptor = ArgumentCaptor.forClass(Integer.class);
     ArgumentCaptor<Long> bytesWrittenCaptor = ArgumentCaptor.forClass(long.class);
+    ArgumentCaptor<byte[]> icebergMetadataCaptor = ArgumentCaptor.forClass(byte[].class);
 
     final VectorContainer incoming = batches[0];
     writer.setup(incoming, outputEntryListener, writeStatsListener);
@@ -545,7 +546,9 @@ public class TestArrowFileReader extends DremioTest {
 
     writer.close();
 
-    verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(), fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(), partitionCaptor.capture());
+    verify(outputEntryListener, times(1)).recordsWritten(recordWrittenCaptor.capture(),
+      fileSizeCaptor.capture(), pathCaptor.capture(), metadataCaptor.capture(),
+      partitionCaptor.capture(), icebergMetadataCaptor.capture());
     verify(writeStatsListener, times(batches.length)).bytesWritten(bytesWrittenCaptor.capture());
 
     Path path = new Path(dateGenFolder.getRoot().getPath());

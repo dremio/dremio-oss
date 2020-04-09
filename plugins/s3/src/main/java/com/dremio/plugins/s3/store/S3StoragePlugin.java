@@ -52,6 +52,7 @@ import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.io.file.FileSystem;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -205,21 +206,23 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
 
   @Override
   public CreateTableEntry createNewTable(
-      SchemaConfig config,
-      NamespaceKey key,
-      WriterOptions writerOptions,
-      Map<String, Object> storageOptions
+    SchemaConfig config,
+    NamespaceKey key,
+    IcebergTableProps icebergTableProps,
+    WriterOptions writerOptions,
+    Map<String, Object> storageOptions
   ) {
     Preconditions.checkArgument(key.size() >= 2, "key must be at least two parts");
     final List<String> resolvedPath = resolveTableNameToValidPath(key.getPathComponents()); // strips source name
     final String containerName = resolvedPath.get(0);
     if (resolvedPath.size() == 1) {
       throw UserException.validationError()
-          .message("Creating buckets is not supported", containerName)
-          .build(logger);
+        .message("Creating buckets is not supported", containerName)
+        .build(logger);
     }
 
-    final CreateTableEntry entry = super.createNewTable(config, key, writerOptions, storageOptions);
+    final CreateTableEntry entry = super.createNewTable(config, key,
+      icebergTableProps, writerOptions, storageOptions);
 
     final S3FileSystem fs = getSystemUserFS().unwrap(S3FileSystem.class);
 

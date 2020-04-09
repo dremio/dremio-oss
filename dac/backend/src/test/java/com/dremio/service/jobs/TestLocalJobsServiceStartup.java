@@ -32,8 +32,8 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.IndexedStore.FindByCondition;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
@@ -53,8 +53,8 @@ public class TestLocalJobsServiceStartup {
   @SuppressWarnings("unchecked")
   @Test
   public void cleanupJobStateOnStartUp() throws Exception {
-    final IndexedStore<JobId, JobResult> jobStore = (IndexedStore<JobId, JobResult>) mock(IndexedStore.class);
-    when(jobStore.find(any(FindByCondition.class)))
+    final LegacyIndexedStore<JobId, JobResult> jobStore = (LegacyIndexedStore<JobId, JobResult>) mock(LegacyIndexedStore.class);
+    when(jobStore.find(any(LegacyFindByCondition.class)))
         .thenReturn(FluentIterable.from(Sets.difference(EnumSet.allOf(JobState.class), finalJobStates))
             .transform(
                 new Function<JobState, Entry<JobId, JobResult>>() {

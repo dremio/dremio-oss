@@ -140,11 +140,11 @@ public class TestAzureAsyncReader {
       assertEquals(RuntimeException.class, e.getCause().getClass());
       assertTrue(e.getMessage().contains("InternalServerError"));
     } finally {
-      // Retries happened 4 times. Verify each attempt explicitly.
-      verify(azureAsyncReader, times(1)).read(0, buf, 0, 20, 0);
-      verify(azureAsyncReader, times(1)).read(0, buf, 0, 20, 1);
-      verify(azureAsyncReader, times(1)).read(0, buf, 0, 20, 2);
-      verify(azureAsyncReader, times(1)).read(0, buf, 0, 20, 3);
+      // Verify each attempt explicitly.
+      int expectedRetries = 10;
+      for (int retryAttempt = 0; retryAttempt < expectedRetries; retryAttempt++) {
+        verify(azureAsyncReader, times(1)).read(0, buf, 0, 20, retryAttempt);
+      }
     }
   }
 

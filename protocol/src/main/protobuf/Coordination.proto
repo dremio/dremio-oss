@@ -13,13 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+syntax = "proto2";
 package exec;
+
+import "EngineManagement.proto";
 
 option java_package = "com.dremio.exec.proto";
 option java_outer_classname = "CoordinationProtos";
 option optimize_for = SPEED;
 option java_generate_equals_and_hash = true;
-
 //
 // Content of this file is used for interoperability with Apache Drill
 //
@@ -38,6 +40,8 @@ message NodeEndpoint {
   // available number of cores per executor
   optional int32 available_cores = 104;
   optional string node_tag = 105;
+  optional exec.enginemanagement.EngineId engine_id = 201;
+  optional exec.enginemanagement.SubEngineId sub_engine_id = 202;
 }
 
 message DremioServiceInstance {

@@ -16,11 +16,17 @@
 package com.dremio.exec.physical.impl.flatten;
 
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.PlanTestBase;
+import com.dremio.config.DremioConfig;
+import com.dremio.test.TemporarySystemProperties;
 
 public class TestFlattenPlanning extends PlanTestBase {
+
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Test
   public void testFlattenPlanningAvoidUnnecessaryProject() throws Exception {
@@ -61,14 +67,19 @@ public class TestFlattenPlanning extends PlanTestBase {
 
   @Test
   public void dx8383_flatten_lost() throws Exception {
-    final String vds = "create vds dfs_test.flatten1 as SELECT float_col, int_col, int_list_col, float_list_col, bool_list_col, flatten(str_list_col) AS str_list_col, str_list_list_col, order_list, user_map, int_text_col, float_text_col, time_text_col, timestamp_text_col, date_text_col, splittable_col, address, text_col, bool_col\n" +
+    try {
+      properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
+      final String vds = "create vds dfs_test.flatten1 as SELECT float_col, int_col, int_list_col, float_list_col, bool_list_col, flatten(str_list_col) AS str_list_col, str_list_list_col, order_list, user_map, int_text_col, float_text_col, time_text_col, timestamp_text_col, date_text_col, splittable_col, address, text_col, bool_col\n" +
         "FROM cp.\"flatten/all_types_dremio.json\"";
-    testNoResult(vds);
+      testNoResult(vds);
 
-    final String onvds = "SELECT str_list_col, flatten(str_list_list_col[0]) AS A\n" +
+      final String onvds = "SELECT str_list_col, flatten(str_list_list_col[0]) AS A\n" +
         "FROM dfs_test.flatten1";
 
-    PlanTestBase.testPlanMatchingPatterns(onvds, new String[]{"(?s)Flatten\\(flattenField=\\[\\$1\\]\\).*Flatten\\(flattenField=\\[\\$0\\]\\)"}, new String[]{});
+      PlanTestBase.testPlanMatchingPatterns(onvds, new String[]{"(?s)Flatten\\(flattenField=\\[\\$1\\]\\).*Flatten\\(flattenField=\\[\\$0\\]\\)"}, new String[]{});
+    } finally {
+      properties.clear(DremioConfig.LEGACY_STORE_VIEWS_ENABLED);
+    }
   }
 
   @Test

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+syntax = "proto2";
 package exec.shared;
 
 option java_package = "com.dremio.exec.proto";
@@ -196,6 +197,12 @@ message DremioPBError{
      */
     JSON_FIELD_CHANGE = 1018;
 
+    /* Resource timeout exception
+     * This is mainly used for re-attempting the query
+     * This is a new error type not present in Apache Drill
+     */
+    RESOURCE_TIMEOUT = 1019;
+
   }
   optional string error_id = 1; // for debug tracing purposes
   optional NodeEndpoint endpoint = 2;
@@ -335,6 +342,7 @@ message QueryProfile {
   optional ResourceSchedulingProfile resource_scheduling_profile = 34;
   optional string cancel_reason = 35;
   optional int64 command_pool_wait_millis = 36;
+  optional bytes serialized_plan = 37;
 }
 
 message ResourceSchedulingProfile {

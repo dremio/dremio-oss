@@ -1,0 +1,57 @@
+{
+  "sourceType": "MAPRFS",
+  "metadataRefresh": {
+    "authorization": true,
+    "isFileSystemSource": true
+  },
+  "form": {
+    "tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "elements": [
+              {
+                "propName": "config.clusterName",
+                "placeholder": "e.g. my.cluster.com"
+              },
+              {
+                "propName": "config.enableImpersonation"
+              },
+              {
+                "propName": "config.secure"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.allowCreateDrop"
+              },
+              {
+                "propName": "config.rootPath"
+              }
+            ]
+          },
+          {
+            "name": "Connection Properties",
+            "elements": [
+              {
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property",
+                "propName": "config.propertyList"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -30,18 +30,22 @@ import com.dremio.common.DeferredException;
 import com.dremio.common.types.MinorType;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.server.JobsServiceTestUtils;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.MaterializationShuttle;
 import com.dremio.proto.model.UpdateId;
+import com.dremio.service.job.JobEvent;
+import com.dremio.service.job.JobState;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
-import com.dremio.service.jobs.JobStatusListener;
-import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.NoOpJobStatusListener;
+import com.dremio.service.jobs.LocalJobsService;
+import com.dremio.service.jobs.PlanTransformationListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.google.common.collect.ImmutableList;
+
+import io.grpc.stub.StreamObserver;
 
 /**
  * TestIncrementalUpdater
@@ -49,45 +53,51 @@ import com.google.common.collect.ImmutableList;
 public class TestIncrementalUpdater extends BaseTestServer {
   @Test
   public void testSubstitutionShuttle() throws Exception {
-    JobsService jobsService = l(JobsService.class);
+    LocalJobsService localJobsService = l(LocalJobsService.class);
     DatasetPath datsetPath = new DatasetPath(ImmutableList.of("cp", "tpch/nation.parquet"));
     final AtomicReference<RelNode> logicalPlan = new AtomicReference<>();
     final CountDownLatch latch = new CountDownLatch(1);
     final DeferredException ex = new DeferredException();
-    final JobStatusListener jobStatusListener = new NoOpJobStatusListener() {
+    final StreamObserver<JobEvent> eventObserver = new StreamObserver<JobEvent>() {
       @Override
-      public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
-        if (phase == PlannerPhase.LOGICAL) {
-          logicalPlan.set(before);
+      public void onNext(JobEvent value) {
+        if (value.hasFinalJobSummary()) {
+          if (value.getFinalJobSummary().getJobState() == JobState.CANCELED) {
+            ex.addException(new RuntimeException("Job cancelled."));
+          }
+          latch.countDown();
         }
       }
 
       @Override
-      public void jobFailed(Exception paramException) {
-        ex.addException(paramException);
+      public void onError(Throwable t) {
+        if (t instanceof RuntimeException) {
+          ex.addException((RuntimeException) t);
+        } else {
+          ex.addException(new RuntimeException(t));
+        }
         latch.countDown();
       }
 
       @Override
-      public void jobCompleted() {
-        latch.countDown();
+      public void onCompleted() {
       }
-
+    };
+    final PlanTransformationListener planTransformationListener = new PlanTransformationListener() {
       @Override
-      public void jobCancelled(String reason) {
-        ex.addException(new RuntimeException("Job cancelled."));
-        latch.countDown();
+      public void onPhaseCompletion(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
+        if (phase == PlannerPhase.LOGICAL) {
+          logicalPlan.set(before);
+        }
       }
-
     };
 
-
-    jobsService.submitJob(JobRequest.newBuilder()
-        .setSqlQuery(new SqlQuery("select n_regionkey, max(n_nationkey) as max_nation from cp.\"tpch/nation.parquet\" group by n_regionkey", SYSTEM_USERNAME))
-        .setQueryType(QueryType.JDBC)
-        .setDatasetPath(datsetPath.toNamespaceKey())
-        .setDatasetVersion(DatasetVersion.newVersion())
-        .build(), jobStatusListener);
+    localJobsService.submitJob(JobsServiceTestUtils.toSubmitJobRequest(JobRequest.newBuilder()
+      .setSqlQuery(new SqlQuery("select n_regionkey, max(n_nationkey) as max_nation from cp.\"tpch/nation.parquet\" group by n_regionkey", SYSTEM_USERNAME))
+      .setQueryType(QueryType.JDBC)
+      .setDatasetPath(datsetPath.toNamespaceKey())
+      .setDatasetVersion(DatasetVersion.newVersion())
+      .build()), eventObserver, planTransformationListener);
 
     if(!latch.await(25, TimeUnit.SECONDS)){
       Assert.fail("Acceleration job was not completed within allowed timeout.");

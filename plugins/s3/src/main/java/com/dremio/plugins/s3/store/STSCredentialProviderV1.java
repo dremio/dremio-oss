@@ -15,6 +15,7 @@
  */
 package com.dremio.plugins.s3.store;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.util.UUID;
@@ -34,9 +35,9 @@ import com.amazonaws.services.securitytoken.AWSSecurityTokenServiceClientBuilder
 /**
  * Assume role credential provider that supports aws sdk 1.11.X - used by hadoop-aws
  */
-public class STSCredentialProviderV1 implements AWSCredentialsProvider {
+public class STSCredentialProviderV1 implements AWSCredentialsProvider, Closeable {
 
-  private STSAssumeRoleSessionCredentialsProvider stsAssumeRoleSessionCredentialsProvider;
+  private final STSAssumeRoleSessionCredentialsProvider stsAssumeRoleSessionCredentialsProvider;
 
   public STSCredentialProviderV1(URI uri, Configuration conf) throws IOException {
 
@@ -75,4 +76,8 @@ public class STSCredentialProviderV1 implements AWSCredentialsProvider {
     this.stsAssumeRoleSessionCredentialsProvider.refresh();
   }
 
+  @Override
+  public void close() throws IOException {
+    stsAssumeRoleSessionCredentialsProvider.close();
+  }
 }

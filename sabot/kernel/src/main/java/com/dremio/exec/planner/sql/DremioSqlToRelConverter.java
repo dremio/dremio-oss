@@ -33,6 +33,7 @@ import com.dremio.exec.ops.ViewExpansionContext.ViewExpansionToken;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.sql.SqlConverter.RelRootPlus;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.users.UserNotFoundException;
 
 /**
  * An overridden implementation of SqlToRelConverter that redefines view expansion behavior.
@@ -69,33 +70,46 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
     return typeFlattener.rewrite(rootRel);
   }
 
+  private static RelRoot expandViewHelper(NamespaceKey path,
+                                          final String viewOwner,
+                                          final String queryString,
+                                          final List<String> context,
+                                          final SqlConverter sqlConverter) {
+    //RelDataType rowType = view.getRowType(cluster.getTypeFactory());
+    final DremioCatalogReader catalog;
+    if(viewOwner != null) {
+      catalog = sqlConverter.getCatalogReader().withSchemaPathAndUser(viewOwner, context);
+    } else {
+      catalog = sqlConverter.getCatalogReader().withSchemaPath(context);
+    }
+    final SqlConverter newConverter = new SqlConverter(sqlConverter, catalog);
+    final SqlNode parsedNode = newConverter.parse(queryString);
+    final SqlNode validatedNode = newConverter.validate(parsedNode);
+    final RelRootPlus root = newConverter.toConvertibleRelRoot(validatedNode, true);
+    if(path == null) {
+      return root;
+    }
+
+    // we need to make sure that if a inner expansion is context sensitive, we consider the current
+    // expansion context sensitive even if it isn't locally.
+    final boolean contextSensitive = root.isContextSensitive() || ExpansionNode.isContextSensitive(root.rel);
+
+    return new RelRoot(ExpansionNode.wrap(path, root.rel, root.validatedRowType, contextSensitive), root.validatedRowType, root.kind, root.fields, root.collation);
+  }
 
   public static RelRoot expandView(NamespaceKey path, final String viewOwner, final String queryString, final List<String> context, final SqlConverter sqlConverter) {
     ViewExpansionToken token = null;
 
     try {
-      //RelDataType rowType = view.getRowType(cluster.getTypeFactory());
       token = sqlConverter.getViewExpansionContext().reserveViewExpansionToken(viewOwner);
-      final DremioCatalogReader catalog;
-      if(viewOwner != null) {
-        catalog = sqlConverter.getCatalogReader().withSchemaPathAndUser(viewOwner, context);
-      } else {
-        catalog = sqlConverter.getCatalogReader().withSchemaPath(context);
-      }
-      final SqlConverter newConverter = new SqlConverter(sqlConverter, catalog);
-      final SqlNode parsedNode = newConverter.parse(queryString);
-      final SqlNode validatedNode = newConverter.validate(parsedNode);
-      final RelRootPlus root = newConverter.toConvertibleRelRoot(validatedNode, true);
-      if(path == null) {
-        return root;
+      return expandViewHelper(path, viewOwner, queryString, context, sqlConverter);
+    } catch (RuntimeException e) {
+      if (!(e.getCause() instanceof UserNotFoundException)) {
+        throw e;
       }
 
-      // we need to make sure that if a inner expansion is context sensitive, we consider the current
-      // expansion context sensitive even if it isn't locally.
-      final boolean contextSensitive = root.isContextSensitive() || ExpansionNode.isContextSensitive(root.rel);
-
-      return new RelRoot(ExpansionNode.wrap(path, root.rel, root.validatedRowType, contextSensitive), root.validatedRowType, root.kind, root.fields, root.collation);
-
+      final String delegatedUser = sqlConverter.getViewExpansionContext().getQueryUser();
+      return expandViewHelper(path, delegatedUser, queryString, context, sqlConverter);
     } finally {
       if (token != null) {
         token.release();

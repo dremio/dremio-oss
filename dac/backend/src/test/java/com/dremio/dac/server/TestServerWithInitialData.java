@@ -19,7 +19,6 @@ import static com.dremio.dac.proto.model.dataset.Direction.FROM_THE_END;
 import static com.dremio.dac.proto.model.dataset.Direction.FROM_THE_START;
 import static com.dremio.dac.proto.model.dataset.OrderDirection.ASC;
 import static com.dremio.dac.proto.model.dataset.OrderDirection.DESC;
-import static com.dremio.service.job.proto.JobState.COMPLETED;
 import static java.util.Arrays.asList;
 import static javax.ws.rs.client.Entity.entity;
 import static org.junit.Assert.assertEquals;
@@ -308,7 +307,7 @@ public class TestServerWithInitialData extends BaseTestServer {
     JobState lastItemState = lastHistoryItem.getState();
 
     // Job is always in completed state.
-    assertEquals(JSONUtil.toString(lastHistoryItem), COMPLETED, lastItemState);
+    assertEquals(JSONUtil.toString(lastHistoryItem), JobState.COMPLETED, lastItemState);
     assertEquals("SQL Edited to: select * from \"Sales-Sample\".ds3", lastHistoryItem.getTransformDescription());
 
     doc("get history");
@@ -346,7 +345,7 @@ public class TestServerWithInitialData extends BaseTestServer {
     JobState lastItemState = lastHistoryItem.getState();
 
     // Job is always in completed state.
-    assertEquals(JSONUtil.toString(lastHistoryItem), COMPLETED, lastItemState);
+    assertEquals(JSONUtil.toString(lastHistoryItem), JobState.COMPLETED, lastItemState);
     assertEquals("SQL Edited to: select * from \"Sales-Sample\".ds3", lastHistoryItem.getTransformDescription());
 
     doc("get history");

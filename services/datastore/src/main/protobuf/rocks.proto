@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+syntax = "proto2";
 package com.dremio.datastore.rocks;
 
 option java_package = "com.dremio.datastore.rocks";
 option optimize_for = SPEED;
 option java_generate_equals_and_hash = true;
 
-message BlobPointer {
+message Meta {
   enum Codec {
     UNKNOWN = 0;
     UNCOMPRESSED = 1;
@@ -28,4 +29,5 @@ message BlobPointer {
 
   optional Codec codec = 1;
   optional string path = 2;
+  optional string tag = 3;
 }

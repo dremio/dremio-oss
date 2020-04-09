@@ -73,7 +73,6 @@ import com.dremio.sabot.exec.context.CompilationOptions;
 import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.sabot.exec.context.ContextInformationImpl;
 import com.dremio.sabot.rpc.user.UserSession;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
@@ -104,7 +103,6 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   private final BufferManager bufferManager;
 
   private final Catalog catalog;
-  private final NamespaceService namespaceService;
   private final SubstitutionProviderFactory substitutionProviderFactory;
   private final FunctionImplementationRegistry functionImplementationRegistry;
 
@@ -201,7 +199,6 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     checkMetadataValidity.ifPresent(requestOptions::setCheckValidity);
     this.catalog = sabotContext.getCatalogService()
         .getCatalog(requestOptions.build());
-    this.namespaceService = sabotContext.getNamespaceService(queryUserName);
     this.substitutionProviderFactory = sabotContext.getConfig()
         .getInstance("dremio.exec.substitution.factory",
             SubstitutionProviderFactory.class,
@@ -366,10 +363,6 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
 
   public Provider<WorkStats> getWorkStatsProvider(){
     return sabotContext.getWorkStatsProvider();
-  }
-
-  public NamespaceService getNamespaceService() {
-    return namespaceService;
   }
 
   public WorkloadType getWorkloadType() {

@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.io.IOException;
 
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.complex.BaseRepeatedValueVector;
 import org.apache.arrow.vector.complex.BaseRepeatedValueVectorHelper;
 import org.apache.arrow.vector.complex.RepeatedValueVector;
@@ -225,7 +226,7 @@ public class FixedWidthRepeatedReader extends VarLengthColumn<RepeatedValueVecto
 
   @Override
   public int capacity() {
-    return valueVec.getDataVector().getDataBuffer().capacity();
+    return LargeMemoryUtil.checkedCastToInt(valueVec.getDataVector().getDataBuffer().capacity());
   }
 
   @Override

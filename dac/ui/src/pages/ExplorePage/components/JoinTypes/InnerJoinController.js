@@ -198,7 +198,7 @@ export class InnerJoinController extends Component {
   }
 }
 
-function mapStateToProps(state, ownProps) {
+function mapStateToProps(state) {
   return {
     recommendation: getExploreState(state).join.getIn(['custom', 'recommendation'])
   };

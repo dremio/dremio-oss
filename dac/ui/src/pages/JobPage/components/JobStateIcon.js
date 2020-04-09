@@ -45,6 +45,7 @@ export default class JobStateIcon extends PureComponent {
     return <Art
       src={`${src}.svg`}
       alt={this.props.intl.formatMessage({id: 'Job.State.' + state})}
+      title
       style={{height: 24, ...this.props.style}}
       className={className}
     />;
@@ -59,5 +60,6 @@ const icons = {
   'CANCELED': 'Canceled',
   'FAILED': 'ErrorSolid',
   'CANCELLATION_REQUESTED': 'CanceledGray',
-  'ENQUEUED': 'Ellipsis'
+  'ENQUEUED': 'Ellipsis',
+  'PLANNING': 'Ellipsis'
 };

@@ -15,7 +15,7 @@
  */
 package com.dremio.dac.proto.support;
 
-import "../../../../../services/jobs/src/main/protobuf/job.proto";
+import "job.proto";
 
 option java_package = "com.dremio.dac.proto.model.source";
 option optimize_for = SPEED;

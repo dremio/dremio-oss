@@ -18,14 +18,15 @@ package com.dremio.common.serde;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 
-import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 
 import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.google.common.io.ByteSource;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.ByteString.Output;
 
@@ -117,7 +118,12 @@ public final class ProtobufByteStringSerDe {
 
     if (logger.isTraceEnabled()) {
       // Costly conversion to UTF-8. Avoid if possible
-      final String value = IOUtils.toString(codec.decompress(byteString.newInput()));
+      ByteSource bs = new ByteSource() {
+        @Override
+        public InputStream openStream() throws IOException {
+          return codec.decompress(byteString.newInput());
+        }};
+      final String value = bs.asCharSource(StandardCharsets.UTF_8).read();
       logger.trace("Attempting to read {}", value);
 
       // Could reuse the value but to avoid so that logger level doesn't impact the program flow

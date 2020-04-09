@@ -37,6 +37,7 @@ import org.mockito.Mockito;
 import com.dremio.PlanTestBase;
 import com.dremio.TestBuilder;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
+import com.dremio.exec.maestro.AbstractMaestroObserver;
 import com.dremio.exec.physical.base.Exchange;
 import com.dremio.exec.physical.config.HashToRandomExchange;
 import com.dremio.exec.physical.config.UnorderedDeMuxExchange;
@@ -47,13 +48,13 @@ import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.planner.fragment.PlanFragmentsIndex;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.fragment.SimpleParallelizer;
-import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.pop.PopUnitTestBase;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.exec.util.Utilities;
 import com.dremio.options.OptionList;
 import com.dremio.sabot.rpc.user.UserSession;
@@ -91,7 +92,8 @@ public class TestLocalExchange extends PlanTestBase {
   private final static String DEMUX_EXCHANGE_CONST = "unordered-demux-exchange";
   private static final String HASH_EXCHANGE = "hash-to-random-exchange";
   private final static UserSession USER_SESSION = UserSession.Builder.newBuilder()
-      .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
+    .withSessionOptionManager(new SessionOptionManagerImpl(null))
+    .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
       .build();
 
   private SimpleParallelizer PARALLELIZER;
@@ -196,7 +198,7 @@ public class TestLocalExchange extends PlanTestBase {
         6 /*maxWidthPerNode*/,
         1000 /*maxGlobalWidth*/,
         1.2, /*affinityFactor*/
-        AbstractAttemptObserver.NOOP,
+        AbstractMaestroObserver.NOOP,
         true,
         1.5d);
   }

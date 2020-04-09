@@ -200,9 +200,9 @@ export function* getFetchDatasetMetaAction({
     } else if (finalTransformData) {
       apiAction = yield call(runTableTransform, dataset, finalTransformData, viewId, nextTable);
     } else {
-      // just preview existent dataset
+      // preview existing dataset
       if (forceDataLoad) {
-        apiAction = yield call(loadDataset, dataset, viewId);
+        apiAction = yield call(loadDataset, dataset, viewId, forceDataLoad);
       }
       navigateOptions = { replaceNav: true, preserveTip: true };
     }

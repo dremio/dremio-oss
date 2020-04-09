@@ -25,6 +25,7 @@ import com.dremio.service.namespace.file.proto.ExcelFileConfig;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.HttpLogFileConfig;
+import com.dremio.service.namespace.file.proto.IcebergFileConfig;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
@@ -54,6 +55,7 @@ import io.protostuff.Schema;
   @Type(value = JsonFileConfig.class, name = "JSON"),
   @Type(value = AvroFileConfig.class, name = "Avro"),
   @Type(value = ParquetFileConfig.class, name = "Parquet"),
+  @Type(value = IcebergFileConfig.class, name = "Iceberg"),
   @Type(value = ExcelFileConfig.class, name = "Excel"),
   @Type(value = XlsFileConfig.class, name = "XLS"),
   @Type(value = UnknownFileConfig.class, name = "Unknown")
@@ -71,6 +73,7 @@ public abstract class FileFormat {
     .put("json", FileType.JSON)
     .put("avro", FileType.AVRO)
     .put("parquet", FileType.PARQUET)
+    .put("iceberg", FileType.ICEBERG)
     .put("xlsx", FileType.EXCEL)
     .put("xls", FileType.XLS)
     .put("unknown", FileType.UNKNOWN)
@@ -126,6 +129,9 @@ public abstract class FileFormat {
 
       case PARQUET:
         return "type => 'parquet'";
+
+      case ICEBERG:
+        return "type => 'iceberg'";
 
       case AVRO:
         return "type => 'avro'";
@@ -292,6 +298,8 @@ public abstract class FileFormat {
         return new JsonFileConfig();
       case PARQUET:
         return new ParquetFileConfig();
+      case ICEBERG:
+        return new IcebergFileConfig();
       case AVRO:
         return new AvroFileConfig();
       case HTTP_LOG:

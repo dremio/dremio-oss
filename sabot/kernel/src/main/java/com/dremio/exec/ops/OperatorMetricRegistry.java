@@ -29,6 +29,7 @@ import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
 import com.dremio.sabot.op.filter.FilterStats;
 import com.dremio.sabot.op.join.nlje.NLJEOperator;
 import com.dremio.sabot.op.join.vhash.HashJoinStats;
+import com.dremio.sabot.op.metrics.MongoStats;
 import com.dremio.sabot.op.project.ProjectorStats;
 import com.dremio.sabot.op.receiver.merging.MergingReceiverOperator;
 import com.dremio.sabot.op.receiver.unordered.UnorderedReceiverOperator;
@@ -63,6 +64,7 @@ public class OperatorMetricRegistry {
     register(builder, CoreOperatorType.HASH_JOIN_VALUE, HashJoinStats.Metric.class);
     register(builder, CoreOperatorType.EXTERNAL_SORT_VALUE, ExternalSortOperator.Metric.class);
     register(builder, CoreOperatorType.HIVE_SUB_SCAN_VALUE, ScanOperator.Metric.class);
+    register(builder, CoreOperatorType.MONGO_SUB_SCAN_VALUE, MongoStats.Metric.class);
     register(builder, CoreOperatorType.PARQUET_ROW_GROUP_SCAN_VALUE, ScanOperator.Metric.class);
     register(builder, CoreOperatorType.PARQUET_WRITER_VALUE, ParquetRecordWriter.Metric.class);
     register(builder, CoreOperatorType.ARROW_WRITER_VALUE, WriterOperator.Metric.class);

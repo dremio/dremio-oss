@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import React, { Component } from 'react';
-import Immutable  from 'immutable';
+import Immutable from 'immutable';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import { injectIntl } from 'react-intl';
@@ -36,7 +36,8 @@ const itemsForStateFilter = [ // todo: `la` loc not building correctly here
   {id: 'COMPLETED', label: ('Completed'), icon: 'OKSolid'},
   {id: 'FAILED', label: ('Failed'), icon: 'ErrorSolid'},
   {id: 'CANCELED', label: ('Canceled'), icon: 'Canceled' },
-  {id: 'ENQUEUED', label: ('Enqueued'), icon: 'Ellipsis' }
+  {id: 'ENQUEUED', label: ('Enqueued'), icon: 'Ellipsis' },
+  {id: 'PLANNING', label: ('Planning'), icon: 'Ellipsis' }
 ];
 
 const itemsForQueryTypeFilter = [ // todo: `la` loc not building correctly here

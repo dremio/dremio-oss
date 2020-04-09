@@ -33,14 +33,12 @@ import org.junit.rules.TestRule;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 
 public class ITHivePartitionPruning extends HiveTestBase {
 
   @ClassRule
   public static final TestRule CLASS_TIMEOUT = TestTools.getTimeoutRule(100000, TimeUnit.SECONDS);
-
 
   // enable decimal data type
   @BeforeClass
@@ -129,21 +127,16 @@ public class ITHivePartitionPruning extends HiveTestBase {
 
   @Test
   public void pruneDataTypeSupportNativeReaders() throws Exception {
-    try {
-      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-      final String query = "EXPLAIN PLAN FOR " +
-          "SELECT * FROM hive.readtest_parquet WHERE tinyint_part = 64";
+    final String query = "EXPLAIN PLAN FOR " +
+        "SELECT * FROM hive.readtest_parquet WHERE tinyint_part = 64";
 
-      final String plan = getPlanInString(query, OPTIQ_FORMAT);
+    final String plan = getPlanInString(query, OPTIQ_FORMAT);
 
-      // Check and make sure that Filter is not present in the plan
-      assertFalse("Unexpected plan\n" + plan, plan.contains("Filter"));
+    // Check and make sure that Filter is not present in the plan
+    assertFalse("Unexpected plan\n" + plan, plan.contains("Filter"));
 
-      // Make sure the plan contains the Hive scan utilizing native parquet reader
-      assertTrue(plan, plan.contains("mode=[NATIVE_PARQUET]"));
-    } finally {
-      test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-    }
+    // Make sure the plan contains the Hive scan utilizing native parquet reader
+    assertTrue(plan, plan.contains("mode=[NATIVE_PARQUET]"));
   }
 
   @Test // DRILL-3579

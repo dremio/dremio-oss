@@ -22,13 +22,13 @@ import java.util.List;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import com.dremio.exec.maestro.AbstractMaestroObserver;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.PhysicalPlanReaderTestFactory;
 import com.dremio.exec.planner.fragment.Fragment;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.planner.fragment.PlanFragmentsIndex;
 import com.dremio.exec.planner.fragment.SimpleParallelizer;
-import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.proto.CoordExecRPC.QueryContextInformation;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared;
@@ -53,7 +53,7 @@ public class TestFragmentChecker extends PopUnitTestBase{
     System.out.println(String.format("=================Building plan fragments for [%s].  Allowing %d total Nodes.==================", fragmentFile, bitCount));
     PhysicalPlanReader ppr = PhysicalPlanReaderTestFactory.defaultPhysicalPlanReader(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT);
     Fragment fragmentRoot = getRootFragment(ppr, fragmentFile);
-    SimpleParallelizer par = new SimpleParallelizer(1000*1000, 5, 10, 1.2, AbstractAttemptObserver.NOOP, true, 1.5d);
+    SimpleParallelizer par = new SimpleParallelizer(1000*1000, 5, 10, 1.2, AbstractMaestroObserver.NOOP, true, 1.5d);
     List<NodeEndpoint> endpoints = Lists.newArrayList();
     NodeEndpoint localBit = null;
     for(int i =0; i < bitCount; i++) {

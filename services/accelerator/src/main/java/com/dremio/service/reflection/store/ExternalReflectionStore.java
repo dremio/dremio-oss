@@ -25,14 +25,15 @@ import java.util.Map.Entry;
 
 import javax.inject.Provider;
 
-import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.IndexedStore.FindByCondition;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.KVStoreProvider.DocumentConverter;
-import com.dremio.datastore.KVStoreProvider.DocumentWriter;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.VersionExtractor;
+import com.dremio.datastore.api.DocumentConverter;
+import com.dremio.datastore.api.DocumentWriter;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.api.LegacyStoreCreationFunction;
+import com.dremio.datastore.format.Format;
 import com.dremio.service.reflection.proto.ExternalReflection;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.google.common.base.Function;
@@ -46,13 +47,13 @@ import com.google.common.collect.Iterables;
  */
 public class ExternalReflectionStore {
   private static final String TABLE_NAME = "external_reflection_store";
-  private final Supplier<IndexedStore<ReflectionId, ExternalReflection>> store;
+  private final Supplier<LegacyIndexedStore<ReflectionId, ExternalReflection>> store;
 
-  public ExternalReflectionStore(final Provider<KVStoreProvider> provider) {
+  public ExternalReflectionStore(final Provider<LegacyKVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvStore provider required");
-    this.store = Suppliers.memoize(new Supplier<IndexedStore<ReflectionId, ExternalReflection>>() {
+    this.store = Suppliers.memoize(new Supplier<LegacyIndexedStore<ReflectionId, ExternalReflection>>() {
       @Override
-      public IndexedStore<ReflectionId, ExternalReflection> get() {
+      public LegacyIndexedStore<ReflectionId, ExternalReflection> get() {
         return provider.get().getStore(StoreCreator.class);
       }
     });
@@ -69,7 +70,7 @@ public class ExternalReflectionStore {
   public Iterable<ExternalReflection> findByDatasetId(String datasetId) {
     return Iterables.transform(
       store.get()
-        .find(new FindByCondition()
+        .find(new LegacyFindByCondition()
           .setCondition(
             newTermQuery(DATASET_ID, datasetId)
           )
@@ -108,13 +109,13 @@ public class ExternalReflectionStore {
   /**
    * {@link ExternalReflectionStore} creator
    */
-  public static final class StoreCreator implements StoreCreationFunction<IndexedStore<ReflectionId, ExternalReflection>> {
+  public static final class StoreCreator implements LegacyStoreCreationFunction<LegacyIndexedStore<ReflectionId, ExternalReflection>> {
     @Override
-    public IndexedStore<ReflectionId, ExternalReflection> build(StoreBuildingFactory factory) {
+    public LegacyIndexedStore<ReflectionId, ExternalReflection> build(LegacyStoreBuildingFactory factory) {
       return factory.<ReflectionId, ExternalReflection>newStore()
         .name(TABLE_NAME)
-        .keySerializer(Serializers.ReflectionIdSerializer.class)
-        .valueSerializer(Serializers.ExternalReflectionSerializer.class)
+        .keyFormat(Format.ofProtostuff(ReflectionId.class))
+        .valueFormat(Format.ofProtostuff(ExternalReflection.class))
         .versionExtractor(ExternalReflectionVersionExtractor.class)
         .buildIndexed(Converter.class);
     }

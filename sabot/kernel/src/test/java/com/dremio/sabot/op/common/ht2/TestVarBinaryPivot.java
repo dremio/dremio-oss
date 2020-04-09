@@ -18,30 +18,28 @@ package com.dremio.sabot.op.common.ht2;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import java.util.Arrays;
 import java.util.Random;
 
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.junit.Test;
 
 import com.dremio.sabot.BaseTestWithAllocator;
 import com.google.common.base.Charsets;
-import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
 
 import io.netty.buffer.ArrowBuf;
 
 public class TestVarBinaryPivot extends BaseTestWithAllocator {
 
   static void populate(VarCharVector vector, String[] values){
-    populate(vector, FluentIterable.of(values).transform(new Function<String, byte[]>(){
-      @Override
-      public byte[] apply(String input) {
-        if(input == null){
-          return null;
-        }
-        return input.getBytes(Charsets.UTF_8);
-      }}).toArray(byte[].class));
+    populate(vector, Arrays.stream(values).map(input -> {
+      if (input == null) {
+        return null;
+      }
+      return input.getBytes(Charsets.UTF_8);
+    }).toArray(byte[][]::new));
   }
 
   static void populate(VarCharVector vector, byte[][] values){
@@ -96,7 +94,7 @@ public class TestVarBinaryPivot extends BaseTestWithAllocator {
     final int dataWidth = blockWidth - LBlockHashTable.VAR_OFFSET_SIZE;
     final ArrowBuf fixedBuf = fixed.getUnderlying();
     final ArrowBuf variableBuf = variable.getUnderlying();
-    byte[] bytes = new byte[variableBuf.capacity()];
+    byte[] bytes = new byte[LargeMemoryUtil.checkedCastToInt(variableBuf.capacity())];
     variableBuf.getBytes(0, bytes);
     for(int i =0; i < expectedNulls.length; i++){
       actualNulls[i] =  (fixedBuf.getInt(((i * blockWidth) + def.getNullByteOffset())) >>> nullBitOffset) & 1;
@@ -130,15 +128,12 @@ public class TestVarBinaryPivot extends BaseTestWithAllocator {
   }
 
   private static String[] s(byte[]... values){
-    return FluentIterable.of(values).transform(new Function<byte[], String>(){
-
-      @Override
-      public String apply(byte[] input) {
-        if(input == null){
-          return null;
-        }
-        return new String(input, Charsets.UTF_8);
-      }}).toArray(String.class);
+    return Arrays.stream(values).map(input -> {
+      if (input == null) {
+        return null;
+      }
+      return new String(input, Charsets.UTF_8);
+    }).toArray(String[]::new);
   }
 
   private static byte[] b(String s){

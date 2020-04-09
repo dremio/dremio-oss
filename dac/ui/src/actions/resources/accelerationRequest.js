@@ -13,27 +13,4 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { RSAA } from 'redux-api-middleware';
-
-import { API_URL_V2 } from '@app/constants/Api';
-import { datasetAccelerationSchema } from 'schemas/acceleration';
-import {makeUncachebleURL} from 'ie11.js';
-import schemaUtils from 'utils/apiUtils/schemaUtils';
-
-export const GET_DATASET_ACCELERATION_START = 'GET_DATASET_ACCELERATION_START';
-export const GET_DATASET_ACCELERATION_SUCCESS = 'GET_DATASET_ACCELERATION_SUCCESS';
-export const GET_DATASET_ACCELERATION_FAILURE = 'GET_DATASET_ACCELERATION_FAILURE';
-
-export const getDatasetAccelerationRequest = (fullPath) => ({
-  [RSAA]: {
-    types: [
-      GET_DATASET_ACCELERATION_START,
-      schemaUtils.getSuccessActionTypeWithSchema(
-        GET_DATASET_ACCELERATION_SUCCESS, datasetAccelerationSchema, {}, 'fullPath', fullPath
-      ),
-      GET_DATASET_ACCELERATION_FAILURE
-    ],
-    method: 'GET',
-    endpoint: makeUncachebleURL(`${API_URL_V2}/dataset/${fullPath}/vote`)
-  }
-});
+export const getDatasetAccelerationRequest = () => {};

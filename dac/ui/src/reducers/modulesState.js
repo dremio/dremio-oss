@@ -47,6 +47,8 @@ const modulesStateReducer = (state = {}, action) => {
       ...rest
     } = state;
 
+    console.info('modules is removed', removedModule);
+
     return rest;
   }
   default:

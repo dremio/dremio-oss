@@ -15,8 +15,6 @@
  */
 package com.dremio.service.accelerator;
 
-import static com.dremio.service.reflection.ReflectionServiceImpl.LOCAL_TASK_LEADER_NAME;
-
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -26,16 +24,17 @@ import java.util.stream.StreamSupport;
 
 import javax.inject.Provider;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.config.DremioConfig;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.ReflectionRPC;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
-import com.dremio.service.BindingCreator;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionStatusService;
 import com.dremio.service.reflection.store.MaterializationStore;
@@ -49,36 +48,50 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
   private static final Logger logger = LoggerFactory.getLogger(AccelerationListManagerImpl.class);
 
   private final MaterializationStore materializationStore;
-  private Provider<SabotContext> contextProvider;
   private Provider<ReflectionStatusService> reflectionStatusService;
   private Provider<ReflectionService> reflectionService;
   private final Provider<FabricService> fabric;
-  private final BindingCreator bindingCreator;
   private ReflectionTunnelCreator reflectionTunnelCreator;
 
+  private final Provider<BufferAllocator> allocatorProvider;
+  private final Provider<DremioConfig> dremioConfigProvider;
+  private final boolean isMaster;
+  private final boolean isCoordinator;
+  private final Provider<Optional<NodeEndpoint>> serviceLeaderProvider;
 
-  public AccelerationListManagerImpl(Provider<KVStoreProvider> storeProvider, Provider<SabotContext> contextProvider,
-                                     Provider<ReflectionStatusService> reflectionStatusService,
-                                     Provider<ReflectionService> reflectionService,
-                                     final Provider<FabricService> fabric,
-                                     final BindingCreator bindingCreator
+  public AccelerationListManagerImpl(
+      Provider<LegacyKVStoreProvider> storeProvider,
+      Provider<ReflectionStatusService> reflectionStatusService,
+      Provider<ReflectionService> reflectionService,
+      final Provider<FabricService> fabric,
+      Provider<BufferAllocator> allocatorProvider,
+      Provider<DremioConfig> dremioConfigProvider,
+      boolean isMaster,
+      boolean isCoordinator,
+      Provider<Optional<NodeEndpoint>> serviceLeaderProvider
   ) {
     this.materializationStore = new MaterializationStore(storeProvider);
-    this.contextProvider = contextProvider;
     this.reflectionStatusService = reflectionStatusService;
     this.reflectionService = reflectionService;
     this.fabric = fabric;
-    this.bindingCreator = bindingCreator;
+    this.allocatorProvider = allocatorProvider;
+    this.dremioConfigProvider = dremioConfigProvider;
+    this.isMaster = isMaster;
+    this.isCoordinator = isCoordinator;
+    this.serviceLeaderProvider = serviceLeaderProvider;
+  }
+
+  public ReflectionTunnelCreator getReflectionTunnelCreator() {
+    return reflectionTunnelCreator;
   }
 
   @Override
   public void start() {
     final FabricRunnerFactory reflectionTunnelFactory = fabric.get().registerProtocol(new ReflectionProtocol
-      (contextProvider.get().getAllocator(), reflectionStatusService.get(), reflectionService.get(),
-        materializationStore, contextProvider.get().getConfig()));
+      (allocatorProvider.get(), reflectionStatusService.get(), reflectionService.get(),
+        materializationStore, dremioConfigProvider.get().getSabotConfig()));
 
     reflectionTunnelCreator = new ReflectionTunnelCreator(reflectionTunnelFactory);
-    bindingCreator.bindSelf(reflectionTunnelCreator);
   }
 
   @Override
@@ -88,14 +101,13 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
 
   @Override
   public Iterable<ReflectionInfo> getReflections() {
-    if (contextProvider.get().isMaster() ||
-      (contextProvider.get().isCoordinator() &&
-        contextProvider.get().getDremioConfig().isMasterlessEnabled())) {
+    if (isMaster ||
+      (isCoordinator && dremioConfigProvider.get().isMasterlessEnabled())) {
       return reflectionStatusService.get().getReflections();
     }
     // need to do RPC call
     // trying to get master
-    Optional<CoordinationProtos.NodeEndpoint> master = contextProvider.get().getServiceLeader(LOCAL_TASK_LEADER_NAME);
+    Optional<CoordinationProtos.NodeEndpoint> master = serviceLeaderProvider.get();
     if (!master.isPresent()) {
       throw UserException.connectionError().message("Unable to get task leader while trying to get Reflection Information")
         .build(logger);
@@ -114,14 +126,13 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
 
   @Override
   public Iterable<DependencyInfo> getReflectionDependencies() {
-    if (contextProvider.get().isMaster() ||
-      (contextProvider.get().isCoordinator() &&
-        contextProvider.get().getDremioConfig().isMasterlessEnabled())) {
+    if (isMaster ||
+      (isCoordinator && dremioConfigProvider.get().isMasterlessEnabled())) {
       return reflectionService.get().getReflectionDependencies();
     }
     // need to do RPC call
     // trying to get master
-    Optional<CoordinationProtos.NodeEndpoint> master = contextProvider.get().getServiceLeader(LOCAL_TASK_LEADER_NAME);
+    Optional<CoordinationProtos.NodeEndpoint> master = serviceLeaderProvider.get();
     if (!master.isPresent()) {
       throw UserException.connectionError().message("Unable to get task leader while trying to get Reflection Information")
         .build(logger);
@@ -140,14 +151,13 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
 
   @Override
   public Iterable<MaterializationInfo> getMaterializations() {
-    if (contextProvider.get().isMaster() ||
-      (contextProvider.get().isCoordinator() &&
-        contextProvider.get().getDremioConfig().isMasterlessEnabled())) {
+    if (isMaster ||
+      (isCoordinator && dremioConfigProvider.get().isMasterlessEnabled())) {
       return AccelerationMaterializationUtils.getMaterializationsFromStore(materializationStore);
     }
     // need to do RPC call
     // trying to get task leader
-    Optional<CoordinationProtos.NodeEndpoint> taskLeader = contextProvider.get().getServiceLeader(LOCAL_TASK_LEADER_NAME);
+    Optional<CoordinationProtos.NodeEndpoint> taskLeader = serviceLeaderProvider.get();
     if (!taskLeader.isPresent()) {
       throw UserException.connectionError().message("Unable to get task leader while trying to get Reflection Information")
         .build(logger);
@@ -166,15 +176,14 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
 
   @Override
   public Iterable<RefreshInfo> getRefreshInfos() {
-    if (contextProvider.get().isMaster() ||
-      (contextProvider.get().isCoordinator() &&
-        contextProvider.get().getDremioConfig().isMasterlessEnabled())) {
+    if (isMaster ||
+      (isCoordinator && dremioConfigProvider.get().isMasterlessEnabled())) {
       return StreamSupport.stream(reflectionStatusService.get().getRefreshInfos().spliterator(), false)
         .map(RefreshInfo::fromRefreshInfo).collect(Collectors.toList());
     }
     // need to do RPC call
     // trying to get master
-    Optional<CoordinationProtos.NodeEndpoint> master = contextProvider.get().getServiceLeader(LOCAL_TASK_LEADER_NAME);
+    Optional<CoordinationProtos.NodeEndpoint> master = serviceLeaderProvider.get();
     if (!master.isPresent()) {
       throw UserException.connectionError().message("Unable to get task leader while trying to get Reflection Information")
         .build(logger);

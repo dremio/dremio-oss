@@ -41,7 +41,8 @@ import io.protostuff.Tag;
 /**
  * Azure Storage (including datalake v2)
  */
-@SourceType(value = "AZURE_STORAGE", label = "Azure Storage")
+@CheckAzureConf
+@SourceType(value = "AZURE_STORAGE", label = "Azure Storage", uiConfig = "azure-storage-layout.json")
 public class AzureStorageConf extends FileSystemConf<AzureStorageConf, AzureStoragePlugin> {
 
   public static final List<String> KEY_AUTH_PROPS = ImmutableList.of(

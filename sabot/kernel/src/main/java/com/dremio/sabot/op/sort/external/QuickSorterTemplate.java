@@ -27,6 +27,7 @@ import org.apache.hadoop.util.QuickSort;
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.ExpandableHyperContainer;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.selection.SelectionVector2;
 import com.dremio.exec.record.selection.SelectionVector4;

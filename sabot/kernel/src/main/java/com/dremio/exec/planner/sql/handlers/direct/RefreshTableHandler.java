@@ -23,7 +23,7 @@ import java.util.List;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.Catalog.UpdateStatus;
+import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.service.namespace.NamespaceKey;

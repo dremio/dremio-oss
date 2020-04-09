@@ -25,7 +25,7 @@ const emptyTable = Immutable.fromJS({
   rows: []
 });
 
-function getJoinTableData(state, props) {
+function getJoinTableData(state) {
   // here data should be mutable for better perfomance
   const { entities } = state.resources;
   const joinVersion = getExploreState(state).join.getIn(['custom', 'joinVersion']);
@@ -183,10 +183,10 @@ const getInitialDataset = (location, viewState) => {
     datasetVersion: version,
     datasetType: viewState.getIn(['error', 'details', 'datasetType']),
     links: {
-      self: location.pathname + '?version=' + version
+      self: location.pathname + '?version=' + encodeURIComponent(version)
     },
     apiLinks: {
-      self: `/dataset/${constructFullPathAndEncode(fullPath)}` + (version ? `/version/${version}` : '')
+      self: `/dataset/${constructFullPathAndEncode(fullPath)}` + (version ? `/version/${encodeURIComponent(version)}` : '')
     },
     needsLoad: true
   });

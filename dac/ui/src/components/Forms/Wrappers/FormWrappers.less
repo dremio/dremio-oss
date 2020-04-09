@@ -19,7 +19,7 @@
 }
 
 .field-with-error {
-  composes: flex-column-container from '@app/uiTheme/less/layout.less';
+  composes: flex-column-container from '~@app/uiTheme/less/layout.less';
   flex: 1;
   margin-bottom: 0;
 }
@@ -45,7 +45,7 @@
 }
 
 .radio-column-wrapper {
-  composes: flex-column-container from '@app/uiTheme/less/layout.less';
+  composes: flex-column-container from '~@app/uiTheme/less/layout.less';
 }
 
 .radio-top-label {
@@ -80,7 +80,8 @@
 
 .duration-label {
   display: inline-flex;
-  align-items: left;
+  align-items: flex-start;
+  font-weight: 500;
   width: 200px;
 }
 

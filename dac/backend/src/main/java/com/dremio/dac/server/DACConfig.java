@@ -115,6 +115,10 @@ public final class DACConfig {
     return with(DremioConfig.DEBUG_ENABLED_BOOL, debug);
   }
 
+  public DACConfig jobServerEnabled(boolean enabled) {
+    return with(DremioConfig.JOBS_ENABLED_BOOL, enabled);
+  }
+
   public DACConfig autoPort(boolean autoPort) {
     return with(DremioConfig.DEBUG_AUTOPORT_BOOL, autoPort);
   }

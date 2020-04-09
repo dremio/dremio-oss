@@ -42,12 +42,13 @@ import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.auth.StsAssumeRoleCredentialsProvider;
 import software.amazon.awssdk.services.sts.model.AssumeRoleRequest;
+import software.amazon.awssdk.utils.SdkAutoCloseable;
 
 /**
  * Assume role credential provider that supports aws sdk 2.X
  */
-public class STSCredentialProviderV2 implements AwsCredentialsProvider {
-  private StsAssumeRoleCredentialsProvider stsAssumeRoleCredentialsProvider;
+public class STSCredentialProviderV2 implements AwsCredentialsProvider, SdkAutoCloseable {
+  private final StsAssumeRoleCredentialsProvider stsAssumeRoleCredentialsProvider;
 
   public STSCredentialProviderV2(Configuration conf) {
     AwsCredentialsProvider awsCredentialsProvider = null;
@@ -165,5 +166,10 @@ public class STSCredentialProviderV2 implements AwsCredentialsProvider {
     } catch (IOException ioe) {
       throw new IOException("Cannot find password option " + key, ioe);
     }
+  }
+
+  @Override
+  public void close() {
+    stsAssumeRoleCredentialsProvider.close();
   }
 }

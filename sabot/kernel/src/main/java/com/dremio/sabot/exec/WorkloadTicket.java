@@ -68,12 +68,11 @@ public class WorkloadTicket extends TicketWithChildren {
                                  final long maxAllocation,
                                  final CoordinationProtos.NodeEndpoint foreman,
                                  final CoordinationProtos.NodeEndpoint assignment,
-                                 final ExecToCoordTunnelCreator tunnelCreator,
                                  final QueryStarter queryStarter) {
     QueryTicket queryTicket = queryTickets.get(queryId);
     if (queryTicket == null) {
       final BufferAllocator queryAllocator = makeQueryAllocator(getAllocator(), queryId, maxAllocation);
-      queryTicket = new QueryTicket(this, queryId, queryAllocator, foreman, assignment, tunnelCreator, 0L);
+      queryTicket = new QueryTicket(this, queryId, queryAllocator, foreman, assignment, 0L);
       QueryTicket insertedTicket = queryTickets.putIfAbsent(queryId, queryTicket);
       if (insertedTicket == null) {
         this.reserve();

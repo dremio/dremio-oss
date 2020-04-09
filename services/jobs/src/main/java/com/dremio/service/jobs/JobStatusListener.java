@@ -15,47 +15,54 @@
  */
 package com.dremio.service.jobs;
 
-import org.apache.calcite.rel.RelNode;
-
-import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.service.job.proto.JobId;
-import com.dremio.service.jobs.metadata.QueryMetadata;
+import com.dremio.service.jobs.metadata.proto.QueryMetadata;
+
 /**
  * A listener which notifies user about the progress of a job
  *
- * TODO: This interface is a subset of {@link AttemptObserver} except the method {@link #jobSubmitted(JobId)}.
+ * TODO: This interface is a subset of {@link AttemptObserver} except the method {@link #jobStarted(JobId)}.
  * If we end up taking more methods from {@link AttemptObserver}, change this to a subclass of {@link AttemptObserver}.
  */
 public interface JobStatusListener {
 
   /**
-   * Called when the job is submitted to the query engine
-   * @param jobId the job id
+   * A job status listener that does nothing.
    */
-  void jobSubmitted(JobId jobId);
+  JobStatusListener NO_OP = new JobStatusListener() {
+  };
 
-  void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken);
+  /**
+   * Called when the {@link JobRequest} has been handled by the service. A {@link Job} entry is now present in the kvstore.
+   */
+  default void jobSubmitted() {}
+
+  /**
+   * Called if {@link #jobSubmitted()} failed
+   * @param e the exception thrown
+   */
+  default void submissionFailed(RuntimeException e) {}
 
   /**
    * Called when all query metadata has been collected.
    * @param metadata
    */
-  void metadataCollected(QueryMetadata metadata);
+  default void metadataCollected(QueryMetadata metadata) {}
 
   /**
    * Called when the job has failed
    *
    * @param e the exception thrown by the job
    */
-  void jobFailed(Exception e);
+  default void jobFailed(Exception e) {}
 
   /**
    * Called when the job has completed successfully
    */
-  void jobCompleted();
+  default void jobCompleted() {}
 
   /**
    * Called when the job was cancelled
    */
-  void jobCancelled(String reason);
+  default void jobCancelled(String reason) {}
 }

@@ -15,15 +15,20 @@
  */
 package com.dremio.service.jobs;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.File;
+import java.util.Objects;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -38,12 +43,12 @@ public class TestScratchSource extends BaseTestServer {
   @Rule
   public final TemporarySystemProperties properties = new TemporarySystemProperties();
 
-  private LocalJobsService jobsService;
+  @Rule
+  public ExpectedException expectedEx = ExpectedException.none();
 
   @Before
   public void setup() throws Exception {
     clearAllDataExceptUser();
-    jobsService = (LocalJobsService) l(JobsService.class);
   }
 
   @Test
@@ -52,16 +57,14 @@ public class TestScratchSource extends BaseTestServer {
     properties.set("dremio.datasets.auto_promote", "false");
     // Create a table
     final SqlQuery ctas = getQueryFromSQL("CREATE TABLE \"$scratch\".\"ctas\" AS select * from (VALUES (1))");
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(ctas)
-          .setQueryType(QueryType.UI_RUN)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(ctas)
+        .setQueryType(QueryType.UI_RUN)
+        .build()
     );
 
-    final FileSystemPlugin plugin = getCurrentDremioDaemon()
+    final FileSystemPlugin<?> plugin = getCurrentDremioDaemon()
         .getBindingProvider()
         .lookup(CatalogService.class)
         .getSource("$scratch");
@@ -73,16 +76,70 @@ public class TestScratchSource extends BaseTestServer {
 
     // Now drop the table
     SqlQuery dropTable = getQueryFromSQL("DROP TABLE \"$scratch\".\"ctas\""); // throws if not auto-promoted
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(dropTable)
-          .setQueryType(QueryType.ACCELERATOR_DROP)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(dropTable)
+        .setQueryType(QueryType.ACCELERATOR_DROP)
+        .build()
     );
 
     // Make sure the table data directory is deleted
     assertFalse(ctasTableDir.exists());
+  }
+
+  @Test
+  public void testIcebergCTAS() throws Exception {
+    assumeFalse(isMultinode()); // when multinode, scratch plugin uses file://
+    final String ctasIceberg = "CREATE TABLE \"$scratch\".\"ctasonpdfs\" as select * from (VALUES (1))";
+    runWithIcebergEnabled(ctasIceberg);
+
+    final FileSystemPlugin<?> plugin = getCurrentDremioDaemon()
+      .getBindingProvider()
+      .lookup(CatalogService.class)
+      .getSource("$scratch");
+
+    // Make sure the table data files exist
+    final File ctasTableDir = new File(plugin.getConfig().getPath().toString(), "ctasonpdfs");
+    assertTrue(ctasTableDir.exists());
+    assertTrue(Objects.requireNonNull(ctasTableDir.list()).length >= 1);
+
+    // not an iceberg table
+    assertEquals(0, Objects.requireNonNull(ctasTableDir.list((dir, name) -> name.equals("metadata"))).length);
+
+    // drop the table
+    SqlQuery dropTable = getQueryFromSQL("DROP TABLE \"$scratch\".\"ctasonpdfs\"");
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(dropTable)
+        .setQueryType(QueryType.ACCELERATOR_DROP)
+        .build()
+    );
+  }
+
+  @Test
+  public void testIcebergCreate() throws Exception {
+    assumeFalse(isMultinode()); // when multinode, scratch plugin uses file://
+    final String createIceberg = "CREATE TABLE \"$scratch\".\"createonpdfs\"(id int, code decimal(18, 3))";
+    expectedEx.expect(UserException.class);
+    expectedEx.expectMessage("Source [$scratch] does not support CREATE TABLE");
+    runWithIcebergEnabled(createIceberg);
+  }
+
+  private void runWithIcebergEnabled(String createIceberg) {
+    try {
+      runQuery("alter system set \"dremio.iceberg.enabled\" = true");
+      runQuery(createIceberg);
+    } finally {
+      runQuery("alter system set \"dremio.iceberg.enabled\" = false");
+    }
+  }
+
+  private void runQuery(String query) {
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromSQL(query))
+        .setQueryType(QueryType.UI_RUN)
+        .build()
+    );
   }
 }

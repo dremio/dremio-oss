@@ -116,7 +116,7 @@ public class InExpression extends LogicalExpressionBase {
   }
 
   public JClass getHolderType(JCodeModel model) {
-    return getInType().getHolderType(model);
+    return CodeModelArrowHelper.getHolderType(getInType(), model);
   }
 
   public static class LongSet {

@@ -32,6 +32,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.junit.Test;
+import org.mockito.Mockito;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.model.DatasetPath;
@@ -70,8 +71,13 @@ import com.dremio.dac.proto.model.dataset.ReplaceType;
 import com.dremio.dac.proto.model.dataset.TransformFilter;
 import com.dremio.dac.proto.model.dataset.TransformGroupBy;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.jobs.SqlQuery;
-import com.dremio.service.jobs.metadata.QueryMetadata;
+import com.dremio.service.jobs.metadata.proto.QueryMetadata;
+import com.dremio.service.namespace.dataset.proto.FieldOrigin;
+import com.dremio.service.namespace.dataset.proto.ParentDataset;
+import com.google.common.base.Optional;
 
 /**
  * SQLGenerator tests
@@ -783,7 +789,7 @@ public class TestSQLGenerator {
     TransformActor actor = new TransformActor(state, false, "test_user", executor){
       @Override
       protected QueryMetadata getMetadata(SqlQuery query) {
-        return new QueryMetadata(null, null, null, null, null, null, null, null, null, null, null, null);
+        return Mockito.mock(QueryMetadata.class);
       }
 
       @Override
@@ -791,6 +797,30 @@ public class TestSQLGenerator {
         return true;
       }
 
+      @Override
+      protected QueryMetadata getMetadata() {
+        throw new IllegalStateException("not implemented");
+      }
+
+      @Override
+      protected Optional<BatchSchema> getBatchSchema() {
+        throw new IllegalStateException("not implemented");
+      }
+
+      @Override
+      protected Optional<List<ParentDatasetInfo>> getParents() {
+        throw new IllegalStateException("not implemented");
+      }
+
+      @Override
+      protected Optional<List<FieldOrigin>> getFieldOrigins() {
+        throw new IllegalStateException("not implemented");
+      }
+
+      @Override
+      protected Optional<List<ParentDataset>> getGrandParents() {
+        throw new IllegalStateException("not implemented");
+      }
     };
 
     return tb.accept(actor);

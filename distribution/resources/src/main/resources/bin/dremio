@@ -132,7 +132,7 @@ dremio_internal_start() {
           exit 1
         fi
     fi
-    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon
+    exec $JAVA $DREMIO_JAVA_OPTS -cp "$DREMIO_CLASSPATH" com.dremio.dac.daemon.DremioDaemon $DREMIO_DAC_DEAMON_AWS_OPTIONS
 }
 
 check_before_start() {

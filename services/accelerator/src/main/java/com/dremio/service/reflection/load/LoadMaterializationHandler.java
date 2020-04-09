@@ -19,7 +19,6 @@ import static com.dremio.service.reflection.ReflectionUtils.getMaterializationPa
 
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 
 import org.apache.calcite.sql.SqlNode;
 
@@ -39,6 +38,7 @@ import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
+import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
@@ -108,7 +108,7 @@ public class LoadMaterializationHandler extends SimpleDirectHandler {
     final Materialization materialization = materializationOpt.get();
 
     // if the user already made changes to the reflection goal, let's stop right here
-    Preconditions.checkState(Objects.equals(goal.getTag(), materialization.getReflectionGoalVersion()),
+    Preconditions.checkState(ReflectionGoalsStore.checkGoalVersion(goal, materialization.getReflectionGoalVersion()),
       "materialization no longer matches its goal");
 
     refreshMetadata(goal, materialization);

@@ -16,8 +16,8 @@
 package com.dremio.service.accelerator.proto;
 
 import "acceleration-common.proto";
-import "../../../../../services/jobs/src/main/protobuf/job.proto";
-import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+import "job.proto";
+import "dataset.proto";
 
 
 option java_package = "com.dremio.service.accelerator.proto";

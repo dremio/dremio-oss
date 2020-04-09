@@ -83,9 +83,6 @@ import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
-import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.JobsServiceUtil;
-import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.dremio.service.users.SimpleUser;
@@ -137,7 +134,7 @@ public class TestServer extends BaseTestServer {
 
     doc("delete with bad version");
     final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT, getBuilder(getAPIv2().path(sourceResource).queryParam("version", 1234L)).buildDelete(), GenericErrorMessage.class);
-    assertErrorMessage(errorDelete2, "Unable to delete source, expected version 1, received version 1234.");
+    assertErrorMessage(errorDelete2, "Unable to delete source, expected version ");
 
     doc("delete");
     expectSuccess(getBuilder(getAPIv2().path(sourceResource).queryParam("version", putSource2.getTag())).buildDelete());
@@ -342,7 +339,7 @@ public class TestServer extends BaseTestServer {
 
     doc("delete with bad version");
     final GenericErrorMessage errorDelete2 = expectStatus(CONFLICT, getBuilder(getAPIv2().path(spaceResource).queryParam("version", 1234L)).buildDelete(), GenericErrorMessage.class);
-    assertErrorMessage(errorDelete2, "tried to delete version 1234, found previous version 0");
+    assertErrorMessage(errorDelete2, "Unable to delete source");
 
     doc("delete");
     expectSuccess(getBuilder(getAPIv2().path(spaceResource).queryParam("version", postFolder1.getVersion())).buildDelete());
@@ -526,45 +523,37 @@ public class TestServer extends BaseTestServer {
     DatasetUI ds3 = createDatasetFromParentAndSave(datasetPath3, "cp.\"tpch/supplier.parquet\"");
 
     doc("run jobs");
-    JobsServiceUtil.waitForJobCompletion(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(getQueryFromConfig(ds1))
-          .setQueryType(QueryType.UI_RUN)
-          .setDatasetPath(datasetPath1.toNamespaceKey())
-          .setDatasetVersion(ds1.getDatasetVersion())
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromConfig(ds1))
+        .setQueryType(QueryType.UI_RUN)
+        .setDatasetPath(datasetPath1.toNamespaceKey())
+        .setDatasetVersion(ds1.getDatasetVersion())
+        .build()
     );
-    JobsServiceUtil.waitForJobCompletion(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(getQueryFromConfig(ds2))
-          .setQueryType(QueryType.UI_RUN)
-          .setDatasetPath(datasetPath2.toNamespaceKey())
-          .setDatasetVersion(ds2.getDatasetVersion())
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromConfig(ds2))
+        .setQueryType(QueryType.UI_RUN)
+        .setDatasetPath(datasetPath2.toNamespaceKey())
+        .setDatasetVersion(ds2.getDatasetVersion())
+        .build()
     );
-    JobsServiceUtil.waitForJobCompletion(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(getQueryFromConfig(ds3))
-          .setQueryType(QueryType.UI_RUN)
-          .setDatasetPath(datasetPath3.toNamespaceKey())
-          .setDatasetVersion(ds3.getDatasetVersion())
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromConfig(ds3))
+        .setQueryType(QueryType.UI_RUN)
+        .setDatasetPath(datasetPath3.toNamespaceKey())
+        .setDatasetVersion(ds3.getDatasetVersion())
+        .build()
     );
-    JobsServiceUtil.waitForJobCompletion(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(getQueryFromConfig(ds2))
-          .setQueryType(QueryType.UI_RUN)
-          .setDatasetPath(datasetPath2.toNamespaceKey())
-          .setDatasetVersion(ds2.getDatasetVersion())
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromConfig(ds2))
+        .setQueryType(QueryType.UI_RUN)
+        .setDatasetPath(datasetPath2.toNamespaceKey())
+        .setDatasetVersion(ds2.getDatasetVersion())
+        .build()
     );
 
     doc("get home");

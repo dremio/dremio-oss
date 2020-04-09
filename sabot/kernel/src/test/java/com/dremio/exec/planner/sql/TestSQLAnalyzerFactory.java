@@ -53,7 +53,6 @@ public class TestSQLAnalyzerFactory {
     when(sabotContext.getFunctionImplementationRegistry()).thenReturn(functionImplementationRegistry);
     when(sabotContext.getCatalogService()).thenReturn(catalogService);
     when(sabotContext.getCatalogService().getCatalog(any(MetadataRequestOptions.class))).thenReturn(catalog);
-    when(sabotContext.getOptionManager()).thenReturn(mockOptions);
     when(mockOptions.getOption(PlannerSettings.ENABLE_DECIMAL_V2_KEY)).thenReturn(OptionValue
         .createBoolean(OptionValue.OptionType.SYSTEM, PlannerSettings.ENABLE_DECIMAL_V2_KEY,
           false));
@@ -61,11 +60,11 @@ public class TestSQLAnalyzerFactory {
         .createLong(OptionValue.OptionType.SYSTEM, UserSession.MAX_METADATA_COUNT.getOptionName(), 0));
 
     // Test that the correct concrete implementation is created.
-    SQLAnalyzer sqlAnalyzer = SQLAnalyzerFactory.createSQLAnalyzer(SystemUser.SYSTEM_USERNAME, sabotContext, null, true);
+    SQLAnalyzer sqlAnalyzer = SQLAnalyzerFactory.createSQLAnalyzer(SystemUser.SYSTEM_USERNAME, sabotContext, null, true, mockOptions);
     SqlValidatorWithHints validator = sqlAnalyzer.validator;
     assertTrue(validator instanceof SqlAdvisorValidator);
 
-    sqlAnalyzer = SQLAnalyzerFactory.createSQLAnalyzer(SystemUser.SYSTEM_USERNAME, sabotContext, null, false);
+    sqlAnalyzer = SQLAnalyzerFactory.createSQLAnalyzer(SystemUser.SYSTEM_USERNAME, sabotContext, null, false, mockOptions);
     validator = sqlAnalyzer.validator;
     assertTrue(validator instanceof SqlValidatorImpl);
   }

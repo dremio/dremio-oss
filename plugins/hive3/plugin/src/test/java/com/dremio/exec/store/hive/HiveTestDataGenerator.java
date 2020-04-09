@@ -304,7 +304,6 @@ public class HiveTestDataGenerator {
       "stored as parquet location '" + file1Of2.getParent() + "'";
     executeQuery(hiveDriver, parquetWithTwoFilesTable);
 
-
     final String orcRegionTable = "create table orc_region stored as orc as SELECT * FROM parquet_region";
     executeQuery(hiveDriver, orcRegionTable);
 
@@ -481,6 +480,7 @@ public class HiveTestDataGenerator {
         "LOAD DATA LOCAL INPATH '" + impalaParquetFile + "' into table db1.impala_parquet");
 
     createOrcStringTableWithComplexTypes(hiveDriver);
+
     final String[][] typeconversinoTables = {
       {"tinyint", "", "90"},
       {"smallint", "", "90"},
@@ -588,13 +588,14 @@ public class HiveTestDataGenerator {
 
     createFieldSizeLimitTables(hiveDriver, "field_size_limit_test");
 
-    createComplexParquetExternal(hiveDriver, "parqcomplex");
     createParquetSchemaChangeTestTable(hiveDriver, "parqschematest_table");
     createParquetDecimalSchemaChangeTestTable(hiveDriver, "parqdecunion_table");
     createParquetDecimalSchemaChangeFilterTestTable(hiveDriver, "parqdecimalschemachange_table");
 
     createParquetVarcharTable(hiveDriver, "parq_varchar", url);
+    createParquetVarcharTableNoTruncationReqd(hiveDriver, "parq_varchar_no_trunc", url);
     createParquetCharTable(hiveDriver, "parq_char", url);
+    createParquetVarcharWithMoreTypesTable(hiveDriver, "parq_varchar_more_types");
     createParquetVarcharWithComplexTypeTable(hiveDriver, "parq_varchar_complex");
     createPartitionTruncatedVarchar(hiveDriver, "parquet_fixed_length_varchar_partition");
     createPartitionTruncatedChar(hiveDriver, "parquet_fixed_length_char_partition");
@@ -619,12 +620,32 @@ public class HiveTestDataGenerator {
     createPartitionDecimalOverflow(hiveDriver, "parquet_decimal_partition_overflow");
     createVarcharParquetTable(hiveDriver, "parquet_varchar_t2");
 
+    createTextTableWithDateColumn(hiveDriver, "text_date");
+    createOrcTableWithDateColumn(hiveDriver, "orc_date", "text_date");
+
+    createBigIntParquetTable(hiveDriver, "parquet_bigint");
+
     createDecimalParquetTableWithHighTableScale(hiveDriver, "parquet_mixed_decimal_t15_5_f10_2");
     createDecimalParquetTableWithHighFileScale(hiveDriver, "parquet_mixed_decimal_t37_2_f37_4");
     createDecimalParquetTableWithSameScaleHighFilePrecision(hiveDriver, "parquet_mixed_decimal_t4_2_f6_2");
 
     createDecimalParquetTableWithDecimalColumnMismatch(hiveDriver, "parquet_varchar_to_decimal_with_filter");
     createTableWithMoreColumnsThanParquet(hiveDriver, "parquet_less_columns");
+
+    createTableWithList(hiveDriver, "complex_types_direct_list");
+    createTableWithStruct(hiveDriver, "complex_types_direct_struct");
+    createTableNestedList(hiveDriver, "complex_types_nested_list");
+    createTableNestedStruct(hiveDriver, "complex_types_nested_struct");
+    createTableWithUnsupportedComplexTypes(hiveDriver, "complex_types_map");
+    createTableNestedWithUnsupportedComplexTypes(hiveDriver, "complex_types_nested_map");
+    createTableMixedCaseColumnsWithComplexTypes(hiveDriver, "complex_types_case_test");
+    createTableFlagTestColumns(hiveDriver, "complex_types_flag_test");
+    createTableForPartitionValueFormatException(hiveDriver, "partition_format_exception");
+
+    // This test requires a systemop alteration. Refresh metadata on hive seems to timeout the test preventing re-use of an existing table. Hence, creating a new table.
+    createParquetDecimalSchemaChangeFilterTestTable(hiveDriver, "test_nonvc_parqdecimalschemachange_table");
+
+    createParquetTableWithDoubleFloatType(hiveDriver, "parquet_double_to_float");
     ss.close();
   }
 
@@ -697,7 +718,6 @@ public class HiveTestDataGenerator {
     String intsert_datatable = "INSERT INTO " + table + " VALUES (" + value + ")";
     executeQuery(hiveDriver, intsert_datatable);
   }
-
   private void createTypeConversionDestinationTable(final Driver hiveDriver, final String source,
                                                     final String sourcetypeargs,
                                                     final String destination,
@@ -759,18 +779,6 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insertDataCmd3);
     executeQuery(hiveDriver, alterTableCmd);
   }
-  private void createComplexParquetExternal(final Driver hiveDriver, final String table) throws Exception {
-    String createParqetTableCmd = "CREATE TABLE " + table + " (col1 int, col2 array<int>) STORED AS PARQUET";
-    String createArrayDataTable = "CREATE TABLE " + table + "_array_data" + " (col1 int)";
-    String insertArrayData = "INSERT INTO TABLE " + table + "_array_data" + " VALUES(90)";
-    String insertParquetData = "INSERT INTO TABLE " + table + " SELECT col1, array(col1) FROM " + table + "_array_data";
-    String createParquetExtTable = "CREATE EXTERNAL TABLE " + table + "_ext" + " (col1 int) STORED AS PARQUET LOCATION 'file://" + this.getWhDir() + "/" + table + "'";
-    executeQuery(hiveDriver, createParqetTableCmd);
-    executeQuery(hiveDriver, createArrayDataTable);
-    executeQuery(hiveDriver, insertArrayData);
-    executeQuery(hiveDriver, insertParquetData);
-    executeQuery(hiveDriver, createParquetExtTable);
-  }
   private void createPartitionDecimalOverflow(final Driver hiveDriver, final String table) throws Exception {
     String createParqetTableCmd = "CREATE TABLE " + table + " (col1 int) partitioned by (col2 decimal(20, 2)) STORED AS PARQUET";
     String insertData = "INSERT INTO TABLE " + table + " PARTITION(col2=123456789101214161.12) VALUES(202)";
@@ -808,6 +816,18 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, fixedLenVarchar);
   }
 
+  private void createParquetVarcharTableNoTruncationReqd(final Driver hiveDriver, final String table, final URL resourceUrl) throws Exception {
+    File parquetDir = new File(getWhDir(), "parq_varchar");
+    parquetDir.mkdirs();
+    File parquetFile = new File(parquetDir, "region_varchar.parquet");
+    parquetFile.deleteOnExit();
+    Files.write(Paths.get(parquetFile.toURI()), Resources.toByteArray(resourceUrl));
+    parquetDir.deleteOnExit();
+    String fixedLenVarchar = "create external table " + table + " (R_NAME varchar(50)) stored as parquet location '" +
+      parquetFile.getParent() + "'";
+    executeQuery(hiveDriver, fixedLenVarchar);
+  }
+
   private void createParquetCharTable(final Driver hiveDriver, final String table, final URL resourceUrl) throws Exception {
     File parquetDir = new File(getWhDir(), "parq_char");
     parquetDir.mkdirs();
@@ -818,6 +838,23 @@ public class HiveTestDataGenerator {
     String fixedLenChar = "create external table " + table + " (R_NAME char(6)) stored as parquet location '" +
       parquetFile.getParent() + "'";
     executeQuery(hiveDriver, fixedLenChar);
+  }
+
+  private void createParquetVarcharWithMoreTypesTable(final Driver hiveDriver, final String table) throws Exception {
+    String createParqetTableCmd = "CREATE TABLE " + table +
+      " (A int, Country string, B int, Capital string, C int, Lang string)" +
+      " STORED AS PARQUET";
+
+    String insertData = "INSERT INTO TABLE " + table + " SELECT" +
+      " 1, 'United Kingdom', 2, 'London', 3, 'English'";
+
+    String createParquetExtTable = "CREATE EXTERNAL TABLE " + table + "_ext" +
+      " (A int, Country varchar(50), B int, Capital string, C int, Lang varchar(3))" +
+      " STORED AS PARQUET LOCATION 'file://" + this.getWhDir() + "/" + table + "'";
+
+    executeQuery(hiveDriver, createParqetTableCmd);
+    executeQuery(hiveDriver, insertData);
+    executeQuery(hiveDriver, createParquetExtTable);
   }
 
   private void createParquetVarcharWithComplexTypeTable(final Driver hiveDriver, final String table) throws Exception {
@@ -1747,6 +1784,49 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, alterTable);
   }
 
+
+  private void createBigIntParquetTable(Driver hiveDriver, String tableName) {
+    String createTable = "CREATE TABLE " + tableName + " (int_col int) stored as parquet";
+    String alterTable = "ALTER TABLE " + tableName + " change column int_col int_col bigint";
+
+    List<String> intValuesToInsert = Lists.newArrayList("10", "-5234", "-100", "462");
+    List<String> longValuesToInsert = Lists.newArrayList("343597383688", "-343697383790");
+
+    executeQuery(hiveDriver, createTable);
+    insertValuesIntoBigIntParquetTable(hiveDriver, tableName, intValuesToInsert);
+    executeQuery(hiveDriver, alterTable);
+    insertValuesIntoBigIntParquetTable(hiveDriver, tableName, longValuesToInsert);
+  }
+
+  private void insertValuesIntoBigIntParquetTable(Driver hiveDriver, String tableName, List<String> valuesToInsert) {
+    for (String valueToInsert : valuesToInsert) {
+      String query = String.format("INSERT INTO %s (int_col) values(%s)", tableName, valueToInsert);
+      executeQuery(hiveDriver, query);
+    }
+  }
+
+  private void createTextTableWithDateColumn(Driver driver, String table) {
+    String createCmd = "CREATE TABLE " + table + " (int_col int, date_col date)";
+    String insertCmd1 = "INSERT INTO " + table + " VALUES(1, '0001-01-01')";
+    String insertCmd2 = "INSERT INTO " + table + " VALUES(2, '1299-01-01')";
+    String insertCmd3 = "INSERT INTO " + table + " VALUES(3, '1499-01-01')";
+    String insertCmd4 = "INSERT INTO " + table + " VALUES(4, '1582-01-01')";
+    String insertCmd5 = "INSERT INTO " + table + " VALUES(5, '1699-01-01')";
+    executeQuery(driver, createCmd);
+    executeQuery(driver, insertCmd1);
+    executeQuery(driver, insertCmd2);
+    executeQuery(driver, insertCmd3);
+    executeQuery(driver, insertCmd4);
+    executeQuery(driver, insertCmd5);
+  }
+
+  private void createOrcTableWithDateColumn(Driver driver, String orcTable, String textTable) {
+    String createCmd = "CREATE TABLE " + orcTable + " (int_col int, date_col date) stored as orc";
+    String insertCmd = "INSERT INTO orc_date SELECT * FROM " + textTable;
+    executeQuery(driver, createCmd);
+    executeQuery(driver, insertCmd);
+  }
+
   private void createDecimalParquetTableWithDecimalColumnMismatch(Driver hiveDriver, String table) throws Exception {
     String createTable = "CREATE TABLE " + table + " (int_col int, name varchar(4)) stored as parquet";
     String insert1 = "INSERT INTO " + table + " VALUES(1, '0.12')";
@@ -1773,5 +1853,125 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, insert1);
     executeQuery(hiveDriver, alterTable);
     executeQuery(hiveDriver, insert2);
+  }
+
+
+  private void createTableWithList(Driver hiveDriver, String table) {
+    String createTable = "create table " + table + " (str_list array<string>, int_list array<int>, bool_list array<boolean>) stored as parquet";
+    String insert = "INSERT INTO table " + table + " SELECT array('str1', 'str2', 'str3', 'str4') as str_list, array(1,2,3,4) as int_list, array(true, false) as bool_list";
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithStruct(Driver hiveDriver, String table) {
+    String createTable = "create table " + table + " (mixed_struct struct<salary:decimal(4,1), country:string, citizen:boolean, phone:int>) stored as parquet";
+    String insert = "insert into " + table + " select named_struct(\"salary\",100.1, \"country\",\"IN\", \"citizen\",false , \"phone\", 12341234) as mixed_struct";
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableNestedList(Driver hiveDriver, String table) {
+    String createTable = "create table complex_types_nested_list " +
+      "(str_list array<array<array<string>>>, " +
+      "int_list array<array<array<int>>>, " +
+      "bool_list array<array<boolean>>, " +
+      "struct_list struct<directarr:array<string>, nestedarr:array<array<string>>>) stored as parquet";
+    String insert = "insert into " + table + " select " +
+      "array(array(array('str1', 'str2', 'str3', 'str4'))) as str_list, " +
+      "array(array(array(1,2,3,4))) as int_list, " +
+      "array(array(true, false)) as bool_list, " +
+      "named_struct(\"directarr\", array('struct_str1', 'struct_str2'), \"nestedarr\", array(array('nested_struct_str1', 'nested_struct_str1'))) as struct_list";
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableNestedStruct(Driver hiveDriver, String table) {
+    String createTable = "create table " + table + " (" +
+      "struct_indirect struct<name:struct<firstname:string, lastname:string>, " +
+      "address:struct<city:struct<country:string, district:string>, name:string>>, " +
+      "list_indirect array<struct<arrstr:string>>) stored as parquet";
+    String insert = "insert into " + table + " select " +
+      "named_struct(\"name\", named_struct(\"firstname\", \"john\", \"lastname\", \"doe\"), " +
+      "             \"address\", named_struct(\"city\", named_struct(\"country\", \"IN\", \"district\", \"Hyderabad\"), \"name\", \"Hyderabad\")) as struct_indirect, " +
+      "array(named_struct(\"arrstr\", \"arrstr1\")) as list_indirect";
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableWithUnsupportedComplexTypes(Driver hiveDriver, String table) {
+    String createTable = "create table " + table + " (name_col string, map_col map<string, string>) stored as parquet";
+    String insert = "insert into " + table + " select \"name\", map(\"k1\", \"v1\") as map_col";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableNestedWithUnsupportedComplexTypes(Driver hiveDriver, String table) {
+    String createTable = "create table " + table + " (name_col string, " +
+      "map_list_col array<map<string, string>>, " +
+      "map_struct_col struct<map_col:map<string, string>>) stored as parquet";
+    String insert = "insert into " + table + " select \"name\", " +
+      "array(map(\"k1\", \"v1\")) as map_list_col, " +
+      "named_struct(\"map_col\", map(\"sk1\", \"sv1\")) as map_struct_col";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insert);
+  }
+
+  private void createTableMixedCaseColumnsWithComplexTypes(Driver hiveDriver, String table) throws IOException {
+    final File casetestDir = new File(BaseTestQuery.getTempDir("casetest"));
+    casetestDir.mkdirs();
+    final File parquetFile = new File(casetestDir, "casetestdata.parquet");
+    parquetFile.deleteOnExit();
+    casetestDir.deleteOnExit();
+    final URL url = Resources.getResource("casetestdata.parquet");
+    Files.write(Paths.get(parquetFile.toURI()), Resources.toByteArray(url));
+
+    String caseTestTable = "create table " + table +
+      " (upcase_col string, " +
+      "lwcase_col string, " +
+      "mixedcase_col string, " +
+      "upcase_struct_col struct<upcase_sub1:string, lowcase_sub2:string, mixedcase_sub3:string>, " +
+      "lwcase_struct_col struct<upcase_sub1:string, lowcase_sub2:string, mixedcase_sub3:string>) " +
+      "stored as parquet location 'file://" + parquetFile.getParent() + "'";
+    executeQuery(hiveDriver, caseTestTable);
+  }
+
+  private void createTableFlagTestColumns(Driver hiveDriver, String table) {
+    String createTable = "create table " + table + " (primary_col string, complex_col struct<subcol:string>) stored as parquet";
+    String insertTable = "insert into " + table + " select 'primary_col_val', named_struct('subcol', 'subcol_val')";
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insertTable);
+  }
+
+  private void createTableForPartitionValueFormatException(Driver hiveDriver, String table) throws IOException {
+    String createTextTable = "create table " + table + "_text" + " (col1 int, col2 double)";
+    String insertTextTable = "insert into " + table + "_text"  + " values(1, -0.18)";
+
+    executeQuery(hiveDriver, createTextTable);
+    executeQuery(hiveDriver, insertTextTable);
+
+    String createOrcTable = "create table " + table + "_orc" + " (col1 int)" + " partitioned by (col2 bigint) stored as orc";
+    String insertOrcTable = "insert into " + table + "_orc"  + " partition(col2) select * from " + table + "_text";
+
+    executeQuery(hiveDriver, createOrcTable);
+    try {
+      executeQuery(hiveDriver, insertOrcTable);
+    } catch (Exception ex) {
+      //for hive 3 this insert command is giving IndexOutOfBoundsException, but data gets created.
+      //ignoring the exception
+    }
+  }
+
+  private void createParquetTableWithDoubleFloatType(Driver hiveDriver, String table) throws IOException {
+    String createTable = "create table " + table + " (col float) stored as parquet";
+    String insertTable = "insert into " + table + " values (1.0625), (1.23), (3.45), (7.89)";
+    String createExternalTable = "CREATE EXTERNAL TABLE " + table + "_ext" +
+      " (col double)" +
+      " STORED AS PARQUET LOCATION 'file://" + this.getWhDir() + "/" + table + "'";
+
+    executeQuery(hiveDriver, createTable);
+    executeQuery(hiveDriver, insertTable);
+    executeQuery(hiveDriver, createExternalTable);
   }
 }

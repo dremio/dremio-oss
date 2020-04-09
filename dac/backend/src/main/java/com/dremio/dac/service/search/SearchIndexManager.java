@@ -18,7 +18,6 @@ package com.dremio.dac.service.search;
 import static com.dremio.datastore.SearchQueryUtils.newRangeLong;
 import static com.dremio.datastore.SearchQueryUtils.newTermQuery;
 import static com.dremio.datastore.SearchQueryUtils.or;
-import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -28,18 +27,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import javax.inject.Provider;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.dac.proto.model.search.SearchConfiguration;
 import com.dremio.dac.service.collaboration.CollaborationTagStore;
-import com.dremio.datastore.IndexedStore.FindByCondition;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.DocumentConverter;
+import com.dremio.datastore.api.DocumentWriter;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.datastore.indexed.AuxiliaryIndex;
 import com.dremio.datastore.indexed.IndexKey;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.service.namespace.DatasetIndexKeys;
 import com.dremio.service.namespace.NamespaceConverter;
 import com.dremio.service.namespace.NamespaceIndexKeys;
@@ -77,26 +78,24 @@ public class SearchIndexManager implements Runnable {
 
   private static final long WAKEUP_OVERLAP_MS = 10;
 
-  private final NamespaceService namespaceService;
-  private final SabotContext sabotContext;
+  private final Provider<NamespaceService> namespaceService;
   private final CollaborationTagStore collaborationTagStore;
   private final ConfigurationStore configurationStore;
-  private final AuxiliaryIndex<byte[], NameSpaceContainer, SearchContainer> searchIndex;
+  private final AuxiliaryIndex<String, NameSpaceContainer, SearchContainer> searchIndex;
 
   private long lastWakeupTime;
 
   SearchIndexManager(
-    SabotContext sabotContext,
+    Provider<NamespaceService> namespaceService,
     CollaborationTagStore tagStore,
     ConfigurationStore configurationStore,
-    AuxiliaryIndex<byte[], NameSpaceContainer, SearchContainer> searchIndex
+    AuxiliaryIndex<String, NameSpaceContainer, SearchContainer> searchIndex
   ) {
     this.collaborationTagStore = tagStore;
     this.configurationStore = configurationStore;
     this.searchIndex = searchIndex;
 
-    this.namespaceService = sabotContext.getNamespaceService(SYSTEM_USERNAME);
-    this.sabotContext = sabotContext;
+    this.namespaceService = namespaceService;
     this.lastWakeupTime = getSearchConfig().getLastWakeupTime();
 
     logger.info("Search manager created, last wakeup time was {}", getLastWakeupTime());
@@ -185,7 +184,7 @@ public class SearchIndexManager implements Runnable {
     // if this is our first time, index everything as entities created in the previous versions will have a null last
     // modified time (we don't necessarily reindex on upgrade).
     if (previousWakeupTime <= 0) {
-      return namespaceService.find(null);
+      return namespaceService.get().find(null);
     }
 
     final List<SearchQuery> queries = new ArrayList<>();
@@ -197,15 +196,15 @@ public class SearchIndexManager implements Runnable {
       input -> newTermQuery(DatasetIndexKeys.DATASET_UUID.getIndexFieldName(), input)
     ).collect(Collectors.toList()));
 
-    final FindByCondition condition = new FindByCondition().setCondition(or(queries));
-    return namespaceService.find(condition);
+    final LegacyFindByCondition condition = new LegacyFindByCondition().setCondition(or(queries));
+    return namespaceService.get().find(condition);
   }
 
   private Map<String, CollaborationTag> getModifiedTags(long previousWakeupTime) {
     final Map<String, CollaborationTag> collaborationTagMap = new HashMap<>();
 
     final SearchQuery modifiedTagsQuery = newRangeLong(CollaborationTagStore.LAST_MODIFIED.getIndexFieldName(), previousWakeupTime, Long.MAX_VALUE, true, false);
-    final FindByCondition newTags = new FindByCondition().setCondition(modifiedTagsQuery);
+    final LegacyFindByCondition newTags = new LegacyFindByCondition().setCondition(modifiedTagsQuery);
 
     final Iterable<Map.Entry<String, CollaborationTag>> changedTags = collaborationTagStore.find(newTags);
     StreamSupport.stream(changedTags.spliterator(), false).forEach(input -> {
@@ -228,9 +227,9 @@ public class SearchIndexManager implements Runnable {
   /**
   * DocumentConverter for the search index
   */
-  public static final class NamespaceSearchConverter implements KVStoreProvider.DocumentConverter<byte[], SearchContainer> {
+  public static final class NamespaceSearchConverter implements DocumentConverter<String, SearchContainer> {
     @Override
-    public void convert(KVStoreProvider.DocumentWriter writer, byte[] id, SearchContainer record) {
+    public void convert(DocumentWriter writer, String id, SearchContainer record) {
       final NameSpaceContainer namespaceContainer = record.getNamespaceContainer();
 
       final List<String> fullPathList = namespaceContainer.getFullPathList();

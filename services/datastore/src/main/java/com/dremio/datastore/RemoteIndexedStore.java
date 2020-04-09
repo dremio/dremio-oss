@@ -18,37 +18,29 @@ package com.dremio.datastore;
 import static java.lang.String.format;
 
 import java.io.IOException;
-import java.util.AbstractMap;
 import java.util.List;
-import java.util.Map.Entry;
 
 import com.dremio.datastore.SearchTypes.SearchQuery;
-import com.google.common.base.Function;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByCondition;
+import com.dremio.datastore.api.IndexedStore;
 import com.google.common.collect.Iterables;
-import com.google.protobuf.ByteString;
 
 /**
  * Remote indexed store.
  */
 public class RemoteIndexedStore<K, V> extends RemoteKVStore<K, V> implements IndexedStore<K, V> {
 
-  public RemoteIndexedStore(DatastoreRpcClient client, String storeId, StoreBuilderConfig config) {
-    super(client, storeId, config);
+  public RemoteIndexedStore(DatastoreRpcClient client, String storeId, StoreBuilderHelper<K, V> helper) {
+    super(client, storeId, helper);
   }
 
   @Override
-  public Iterable<Entry<K, V>> find(FindByCondition find) {
+  public Iterable<Document<K, V>> find(FindByCondition find, FindOption ... options) {
     try {
-      return Iterables.transform(getClient().find(getStoreId(), find), new Function<Entry<ByteString, ByteString>, Entry<K, V>>() {
-        @Override
-        public Entry<K, V> apply(Entry<ByteString, ByteString> input) {
-          return new AbstractMap.SimpleEntry<>(
-            getKeySerializer().deserialize(input.getKey().toByteArray()),
-            getValueSerializer().deserialize(input.getValue().toByteArray()));
-        }
-      });
+      return Iterables.transform(getClient().find(getStoreId(), find), this::convertDocument);
     } catch (IOException e) {
-      throw new DatastoreException(format("Failed to search on store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
+      throw new DatastoreException(format("Failed to search on store id: %s", getStoreId()), e);
     }
   }
 
@@ -57,7 +49,7 @@ public class RemoteIndexedStore<K, V> extends RemoteKVStore<K, V> implements Ind
     try {
       return getClient().getCounts(getStoreId(), conditions);
     } catch (IOException e) {
-      throw new DatastoreException(format("Failed to get counts on store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
+      throw new DatastoreException(format("Failed to get counts on store id: %s", getStoreId()), e);
     }
   }
 }

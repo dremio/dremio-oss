@@ -1,11 +1,8 @@
 {
   "compilerOptions": {
-    "baseUrl": "./src",
-    "paths": {
-      "@app/*": ["./*"],
-      "dyn-load/*": ["./*"]
-    }
+    "experimentalDecorators": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "build"]
+  "include": [
+    "src/**/*"
+  ]
 }

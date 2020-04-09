@@ -27,7 +27,7 @@ import org.apache.arrow.vector.util.TransferPair;
 import com.dremio.common.AutoCloseables;
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
@@ -129,17 +129,17 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
        */
       accumulatorsToClose[i] = accumulators[i];
     }
-    AutoCloseables.close((Iterable<AutoCloseable>) (Object) FluentIterable.of(accumulatorsToClose).toList());
+    AutoCloseables.close(ImmutableList.copyOf(accumulatorsToClose));
   }
 
-  public static void writeWordwise(long addr, int length, long value) {
+  public static void writeWordwise(long addr, long length, long value) {
     if (length == 0) {
       return;
     }
 
-    int nLong = length >>> 3;
-    int nBytes = length & 7;
-    for (int i = nLong; i > 0; i--) {
+    long nLong = length >>> 3;
+    int nBytes = (int) length & 7;
+    for (long i = nLong; i > 0; i--) {
       PlatformDependent.putLong(addr, value);
       addr += 8;
     }
@@ -161,17 +161,17 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
     }
   }
 
-  public static void writeWordwise(ArrowBuf buffer, int length, BigDecimal value) {
+  public static void writeWordwise(ArrowBuf buffer, long length, BigDecimal value) {
     if (length == 0) {
       return;
     }
-    int numberOfDecimals = length >>>4;
+    int numberOfDecimals = (int) length >>>4;
     IntStream.range(0, numberOfDecimals).forEach( (index) -> {
       DecimalUtility.writeBigDecimalToArrowBuf(value, buffer, index);
     });
   }
 
-  public static void fillInts(long addr, int length, int value) {
+  public static void fillInts(long addr, long length, int value) {
     if (length == 0) {
       return;
     }
@@ -179,9 +179,9 @@ abstract class BaseSingleAccumulatorNoSpill implements AccumulatorNoSpill {
     Preconditions.checkArgument((length & 3) == 0, "Error: length should be aligned at 4-byte boundary");
     /* optimize by writing word at a time */
     long valueAsLong = (((long)value) << 32) | (value & 0xFFFFFFFFL);
-    int nLong = length >>>3;
-    int remaining = length & 7;
-    for (int i = nLong; i > 0; i--) {
+    long nLong = length >>>3;
+    int remaining = (int) length & 7;
+    for (long i = nLong; i > 0; i--) {
       PlatformDependent.putLong(addr, valueAsLong);
       addr += 8;
     }

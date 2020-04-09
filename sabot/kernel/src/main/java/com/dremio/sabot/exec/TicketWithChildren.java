@@ -42,7 +42,7 @@ public class TicketWithChildren implements AutoCloseable {
   }
 
   public BufferAllocator getAllocator() {
-    Preconditions.checkState(!closed, "Trying to access a closed ticket: %s", allocator.getName());
+    //Preconditions.checkState(!closed, "Trying to access a closed ticket: %s", allocator.getName());
     return allocator;
   }
 

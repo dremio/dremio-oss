@@ -16,8 +16,11 @@
 package com.dremio.plugins.elastic;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -46,6 +49,7 @@ import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.catalog.conf.EncryptionValidationMode;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
@@ -68,14 +72,16 @@ import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.BooleanCapability;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.google.common.base.Objects;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import io.protostuff.ByteString;
+import io.protostuff.ByteStringUtil;
 
 /**
  * Storage plugin for elasticsearch.
@@ -195,7 +201,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
     int mappingHash;
     try {
       ElasticReaderProto.ElasticTableXattr oldXattr =
-        ElasticReaderProto.ElasticTableXattr.parseFrom(oldConfig.getReadDefinition().getExtendedProperty().toByteArray());
+        ElasticReaderProto.ElasticTableXattr.parseFrom(oldConfig.getReadDefinition().getExtendedProperty().asReadOnlyByteBuffer());
       mappingHash = oldXattr.getMappingHash();
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalStateException(e);
@@ -208,7 +214,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
           .build(logger);
     }
 
-    BatchSchema oldSchema = BatchSchema.fromDataset(oldConfig);
+    BatchSchema oldSchema = CalciteArrowHelper.fromDataset(oldConfig);
     if (optManager.getOption(ExecConstants.ELASTIC_ENABLE_MAPPING_CHECKSUM)) {
       final int latestMappingHash = mapping.hashCode();
       if (mappingHash != latestMappingHash) {
@@ -217,7 +223,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
                 new InvalidMetadataErrorContext(Collections.singletonList(key.getPathComponents())))
             .addContext("new mapping", mapping.toString());
 
-        final List<Pair<Field, Field>> differentFields = oldSchema.findDiff(newSchema);
+        final List<Pair<Field, Field>> differentFields = findDiff(oldSchema, newSchema);
         for (Pair<Field, Field> pair : differentFields) {
           if (pair.left == null) {
             builder.addContext("new Field", pair.right.toString());
@@ -232,7 +238,7 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
     SchemaMerger merger = new SchemaMerger(new NamespaceKey(oldConfig.getFullPathList()).toString());
 
     // Since the newlyObserved schema could be partial due to projections, we need to merge it with the original.
-    DatasetConfig newConfig = serializer.deserialize(serializer.serialize(oldConfig));
+    DatasetConfig newConfig = DATASET_CONFIG_SERIALIZER.deserialize(DATASET_CONFIG_SERIALIZER.serialize(oldConfig));
 
     BatchSchema preMergedSchema = oldSchema.merge(newSchema);
     SchemaMerger.MergeResult result = merger.merge(mapping, preMergedSchema);
@@ -240,14 +246,34 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
     try {
       // update the annotations.
       ElasticReaderProto.ElasticTableXattr xattr =
-        ElasticReaderProto.ElasticTableXattr.parseFrom(newConfig.getReadDefinition().getExtendedProperty().toByteArray());
-      newConfig.getReadDefinition().setExtendedProperty(ByteString.copyFrom(
+        ElasticReaderProto.ElasticTableXattr.parseFrom(newConfig.getReadDefinition().getExtendedProperty().asReadOnlyByteBuffer());
+      newConfig.getReadDefinition().setExtendedProperty(ByteStringUtil.wrap(
         xattr.toBuilder().clearAnnotation().addAllAnnotation(result.getAnnotations()).build().toByteArray()));
-      newConfig.setRecordSchema(ByteString.copyFrom(result.getSchema().serialize()));
+      newConfig.setRecordSchema(ByteStringUtil.wrap(result.getSchema().serialize()));
       return newConfig;
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalStateException(e);
     }
+  }
+
+
+  private static final List<Pair<Field,Field>> findDiff(BatchSchema a, BatchSchema other) {
+    List<Pair<Field,Field>> differentFields = new ArrayList<>();
+    Map<String,Field> fieldMap = FluentIterable.from(a.getFields())
+      .uniqueIndex(new Function<Field, String>() {
+        @Override
+        public String apply(Field field) {
+          return field.getName();
+        }
+      });
+
+    for (Field field : other) {
+      Field oldField = fieldMap.get(field.getName());
+      if (!Objects.equals(oldField, field)) {
+        differentFields.add(Pair.of(oldField, field));
+      }
+    }
+    return differentFields;
   }
 
   @Override
@@ -491,11 +517,11 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
         return false;
       }
       ElasticAliasMappingName castOther = (ElasticAliasMappingName) other;
-      return Objects.equal(alias, castOther.alias) && Objects.equal(mapping, castOther.mapping);
+      return Objects.equals(alias, castOther.alias) && Objects.equals(mapping, castOther.mapping);
     }
     @Override
     public int hashCode() {
-      return Objects.hashCode(alias, mapping);
+      return Objects.hash(alias, mapping);
     }
   }
 

@@ -15,15 +15,14 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2 } from '@app/constants/Api';
 import ApiUtils from 'utils/apiUtils/apiUtils';
 
 import folderSchema from 'schemas/folder';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import actionUtils from '@app/utils/actionUtils/actionUtils';
 import { sidebarMinWidth } from '@app/pages/HomePage/components/Columns.less';
-import { makeUncachebleURL } from '@app/ie11';
 import * as schemas from '@app/schemas';
+import { APIV2Call } from '@app/core/APICall';
 
 export const CONVERT_FOLDER_TO_DATASET_START = 'CONVERT_FOLDER_TO_DATASET_START';
 export const CONVERT_FOLDER_TO_DATASET_SUCCESS = 'CONVERT_FOLDER_TO_DATASET_SUCCESS';
@@ -31,6 +30,9 @@ export const CONVERT_FOLDER_TO_DATASET_FAILURE = 'CONVERT_FOLDER_TO_DATASET_FAIL
 
 function fetchConvertFolder({folder, values, viewId}) {
   const meta = {viewId, invalidateViewIds: ['HomeContents']};
+
+  const apiCall = new APIV2Call().fullpath(`${folder.getIn(['links', 'format'])}`);
+
   return {
     [RSAA]: {
       types: [
@@ -41,7 +43,7 @@ function fetchConvertFolder({folder, values, viewId}) {
       method: 'PUT',
       body: JSON.stringify(values),
       headers: {'Content-Type': 'application/json'},
-      endpoint: `${API_URL_V2}${folder.getIn(['links', 'format'])}`
+      endpoint: apiCall
     }
   };
 }
@@ -62,6 +64,9 @@ function fetchConvertDataset(entity, viewId) {
   const meta = {viewId, folderId: entity.get('id'), invalidateViewIds: ['HomeContents']};
   const successMeta = {...meta, success: true}; // doesn't invalidateViewIds without `success: true`
   const errorMessage = la('There was an error removing the format for the folder.');
+
+  const apiCall = new APIV2Call().fullpath(entity.getIn(['links', 'delete_format']));
+
   return {
     [RSAA]: {
       types: [
@@ -77,7 +82,7 @@ function fetchConvertDataset(entity, viewId) {
       ],
       method: 'DELETE',
       headers: {'Content-Type': 'application/json'},
-      endpoint: `${API_URL_V2}${entity.getIn(['links', 'delete_format'])}`
+      endpoint: apiCall
     }
   };
 }
@@ -105,8 +110,6 @@ const wikiSuccess = (dispatch, resolvePromise, wikiData, actionDetails) => {
   });
   resolvePromise(data);
 };
-
-
 
 export const loadWiki = (dispatch) => entityId => {
   if (!entityId) return;
@@ -154,13 +157,16 @@ export const setSidebarSize = size => ({
   size: Math.max(MIN_SIDEBAR_WIDTH, size)
 });
 
-
 export const contentLoadActions = actionUtils.generateRequestActions('HOME_CONTENT_LOAD');
 
 export const loadHomeContent = (getDataUrl, entityType, viewId) => {
   const entitySchema = schemas[entityType];
-
   const meta = { viewId };
+
+  const apiCall = new APIV2Call()
+    .paths(getDataUrl)
+    .uncachable();
+
   return {
     [RSAA]: {
       types: [
@@ -169,7 +175,7 @@ export const loadHomeContent = (getDataUrl, entityType, viewId) => {
         { type: contentLoadActions.failure, meta }
       ],
       method: 'GET',
-      endpoint: makeUncachebleURL(`${API_URL_V2}${getDataUrl}`)
+      endpoint: apiCall
     }
   };
 };

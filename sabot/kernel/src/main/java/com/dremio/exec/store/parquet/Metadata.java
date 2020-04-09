@@ -248,7 +248,7 @@ public class Metadata {
 
       RowGroupMetadata rowGroupMeta =
           new RowGroupMetadata(rowGroup.getStartingPos(), length, rowGroup.getRowCount(),
-              getHostAffinity(file, rowGroup.getStartingPos(), length), columnMetadataList);
+              getHostAffinity(fs, file, rowGroup.getStartingPos(), length), columnMetadataList);
 
       rowGroupMetadataList.add(rowGroupMeta);
       rowGroupIdx++;
@@ -260,13 +260,14 @@ public class Metadata {
   /**
    * Get the host affinity for a row group
    *
-   * @param fileStatus the parquet file
+   * @param fs         the filesystem
+   * @param fileAttributes the parquet file
    * @param start      the start of the row group
    * @param length     the length of the row group
    * @return
    * @throws IOException
    */
-  private Map<HostAndPort, Float> getHostAffinity(FileAttributes fileAttributes, long start, long length)
+  public static Map<HostAndPort, Float> getHostAffinity(FileSystem fs, FileAttributes fileAttributes, long start, long length)
       throws IOException {
     Iterable<FileBlockLocation> blockLocations = fs.getFileBlockLocations(fileAttributes, start, length);
     Map<HostAndPort, Float> hostAffinityMap = Maps.newHashMap();

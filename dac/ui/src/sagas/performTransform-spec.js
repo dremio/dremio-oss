@@ -297,16 +297,17 @@ describe('performTransform saga', () => {
       });
 
       it('should call loadDataset if it is existent dataset without transformation is passed as argument along with forceDataLoad = true', () => {
+        const forceDataLoad = true;
         gen = getFetchDatasetMetaAction({
           isRun: false,
           dataset,
           currentSql,
           queryContext,
           viewId,
-          forceDataLoad: true
+          forceDataLoad
         });
         goToTransformData();
-        expect(next.value).to.be.eql(call(loadDataset, dataset, viewId));
+        expect(next.value).to.be.eql(call(loadDataset, dataset, viewId, forceDataLoad));
 
         const mockApiAction = 'mock api call';
         next = gen.next(mockApiAction);

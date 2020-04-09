@@ -41,7 +41,6 @@ import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.spill.SpillService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -68,31 +67,29 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   private final ClassProducer producer;
   private final OptionManager optionManager;
   private final int targetBatchSize;
-  private final NamespaceService ns;
   private final NodeDebugContextProvider nodeDebugContextProvider;
   private final SpillService spillService;
   private final EndpointsIndex endpointsIndex;
 
   public OperatorContextImpl(
-      SabotConfig config,
-      FragmentHandle handle,
-      PhysicalOperator popConfig,
-      BufferAllocator allocator,
-      BufferAllocator fragmentOutputAllocator,
-      CodeCompiler compiler,
-      OperatorStats stats,
-      ExecutionControls executionControls,
-      ExecutorService executor,
-      FunctionLookupContext functions,
-      ContextInformation contextInformation,
-      final OptionManager optionManager,
-      NamespaceService namespaceService,
-      SpillService spillService,
-      NodeDebugContextProvider nodeDebugContextProvider,
-      int targetBatchSize,
-      TunnelProvider tunnelProvider,
-      List<FragmentAssignment> assignments,
-      EndpointsIndex endpointsIndex) throws OutOfMemoryException {
+    SabotConfig config,
+    FragmentHandle handle,
+    PhysicalOperator popConfig,
+    BufferAllocator allocator,
+    BufferAllocator fragmentOutputAllocator,
+    CodeCompiler compiler,
+    OperatorStats stats,
+    ExecutionControls executionControls,
+    ExecutorService executor,
+    FunctionLookupContext functions,
+    ContextInformation contextInformation,
+    final OptionManager optionManager,
+    SpillService spillService,
+    NodeDebugContextProvider nodeDebugContextProvider,
+    int targetBatchSize,
+    TunnelProvider tunnelProvider,
+    List<FragmentAssignment> assignments,
+    EndpointsIndex endpointsIndex) throws OutOfMemoryException {
     this.config = config;
     this.handle = handle;
     this.allocator = allocator;
@@ -109,7 +106,6 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     this.executor = executor;
     this.optionManager = optionManager;
     this.targetBatchSize = targetBatchSize;
-    this.ns = namespaceService;
     this.nodeDebugContextProvider = nodeDebugContextProvider;
     this.producer = new ClassProducerImpl(new CompilationOptions(optionManager), compiler, functions, contextInformation, manager);
     this.spillService = spillService;
@@ -126,7 +122,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       ) {
 
     this(config, null, null, allocator, allocator, null, null, null, null, null, null,
-      optionManager, null, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), null);
+      optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), null);
   }
 
   @Override
@@ -259,10 +255,6 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     return producer;
   }
 
-  @Override
-  public NamespaceService getNamespaceService() {
-    return ns;
-  }
 
   @Override
   public  NodeDebugContextProvider getNodeDebugContextProvider() {

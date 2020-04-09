@@ -17,6 +17,8 @@ package com.dremio.dac.model.system;
 
 import java.util.ArrayList;
 
+import com.dremio.dac.api.JsonISODateTime;
+import com.dremio.exec.store.sys.NodeInstance;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -32,26 +34,31 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
     private final String name;
     private final String host;
     private final String ip;
-    private final String port;
-    private final String cpu;
-    private final String memory;
+    private final Integer port;
+    private final Double cpu;
+    private final Double memory;
     private final String status;
     private final Boolean isCoordinator;
     private final Boolean isExecutor;
     private final String nodeTag;
+    private final String version;
+    private final long start;
 
     @JsonCreator
     public NodeInfo(
       @JsonProperty("name") String name,
       @JsonProperty("host") String host,
       @JsonProperty("ip") String ip,
-      @JsonProperty("port") String port,
-      @JsonProperty("cpu") String cpu,
-      @JsonProperty("memory") String memory,
+      @JsonProperty("port") Integer port,
+      @JsonProperty("cpu") Double cpu,
+      @JsonProperty("memory") Double memory,
       @JsonProperty("status") String status,
       @JsonProperty("isCoordinator") Boolean isCoordinator,
       @JsonProperty("isExecutor") Boolean isExecutor,
-      @JsonProperty("nodeTag") String nodeTag
+      @JsonProperty("nodeTag") String nodeTag,
+      @JsonProperty("version") String version,
+      @JsonISODateTime
+      @JsonProperty("start") long start
     ) {
       this.name = name;
       this.host = host;
@@ -63,6 +70,24 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
       this.isCoordinator = isCoordinator;
       this.isExecutor = isExecutor;
       this.nodeTag = nodeTag;
+      this.version = version;
+      this.start = start;
+    }
+
+    public static NodeInfo fromNodeInstance(NodeInstance nodeInstance) {
+      return new NodeInfo(
+        nodeInstance.name,
+        nodeInstance.hostname,
+        nodeInstance.ip,
+        nodeInstance.user_port,
+        nodeInstance.cpu,
+        nodeInstance.memory,
+        nodeInstance.status,
+        nodeInstance.is_coordinator,
+        nodeInstance.is_executor,
+        nodeInstance.node_tag,
+        nodeInstance.version,
+        nodeInstance.start.getMillis());
     }
 
     public String getName() {
@@ -77,15 +102,15 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
       return ip;
     }
 
-    public String getPort() {
+    public Integer getPort() {
       return port;
     }
 
-    public String getCpu() {
+    public Double getCpu() {
       return cpu;
     }
 
-    public String getMemory() {
+    public Double getMemory() {
       return memory;
     }
 
@@ -103,6 +128,14 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
 
     public String getNodeTag() {
       return nodeTag;
+    }
+
+    public String getVersion() {
+      return version;
+    }
+
+    public long getStart() {
+      return start;
     }
   }
 }

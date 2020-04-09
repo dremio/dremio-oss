@@ -22,6 +22,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
@@ -29,6 +31,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.parquet.arrow.schema.SchemaConverter;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.Type;
 
@@ -42,6 +45,7 @@ import com.dremio.common.types.TypeProtos;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.resolver.TypeCastRules;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SampleMutator;
 import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
@@ -51,12 +55,12 @@ import com.dremio.exec.store.parquet.ManagedSchema;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
+import com.dremio.exec.store.parquet.ParquetScanProjectedColumns;
 import com.dremio.exec.store.parquet.ParquetTypeHelper;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet.SingleStreamProvider;
 import com.dremio.exec.store.parquet.StreamPerColumnProvider;
 import com.dremio.exec.store.parquet.UnifiedParquetReader;
-import com.dremio.exec.resolver.TypeCastRules;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
@@ -133,7 +137,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     Preconditions.checkArgument(output instanceof SampleMutator, "Unexpected output mutator");
-    try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+    try (ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
       try {
         boolean useSingleStream =
           // option is set for single stream
@@ -198,25 +202,22 @@ public class FileSplitParquetRecordReader implements RecordReader {
           .allowMixedDecimals(true)
           .build();
 
+        final Set<String> columnsToReadSet = columnsToRead.stream()
+          .map(col -> col.getRootSegment().getNameSegment().getPath().toLowerCase()).collect(Collectors.toSet());
+        footer.getFileMetaData().getSchema().getFields().stream()
+          .filter(field -> columnsToReadSet.contains(field.getName().toLowerCase()))
+          .map(field -> ParquetTypeHelper.toField(field, schemaHelper))
+          .filter(field -> field.isPresent()).map(Optional::get)
+          .forEach(field -> output.addField(field, TypeHelper.getValueVectorClass(field)));
 
-        for (Type parquetField : footer.getFileMetaData().getSchema().getFields()) {
-          SchemaPath columnSchemaPath = SchemaPath.getCompoundPath(parquetField.getName());
-          for (SchemaPath projectedPath : columnsToRead) {
-            String name = projectedPath.getRootSegment().getNameSegment().getPath();
-            if (parquetField.getName().equalsIgnoreCase(name)) {
-              Field field = ParquetTypeHelper.createField(columnSchemaPath,
-                parquetField.asPrimitiveType(), parquetField.getOriginalType(), schemaHelper);
-              final Class<? extends ValueVector> clazz = TypeHelper.getValueVectorClass(field);
-              output.addField(field, clazz);
-              break;
-            }
-          }
-        }
-        ((SampleMutator)output).getContainer().buildSchema();
-        output.isSchemaChanged();
+        ((SampleMutator) output).getContainer().buildSchema();
+        output.getAndResetSchemaChanged();
         checkFieldTypesCompatibleWithHiveTable(output, tableSchema);
 
         final List<Integer> rowGroupNums = ParquetReaderUtility.getRowGroupNumbersFromFileSplit(fileSplit.getStart(), fileSplit.getLength(), footer);
+        oContext.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, rowGroupNums.size());
+        innerReaders = Lists.newArrayList();
+
         if (rowGroupNums.isEmpty()) {
           try {
             inputStreamProvider.close();
@@ -224,8 +225,6 @@ public class FileSplitParquetRecordReader implements RecordReader {
           }
         }
 
-        oContext.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS, rowGroupNums.size());
-        innerReaders = Lists.newArrayList();
         for (int rowGroupNum : rowGroupNums) {
           ParquetDatasetSplitScanXAttr split = ParquetDatasetSplitScanXAttr.newBuilder()
             .setRowGroupIndex(rowGroupNum)
@@ -243,7 +242,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
             oContext,
             readerFactory,
             tableSchema,
-            columnsToRead,
+            ParquetScanProjectedColumns.fromSchemaPaths(columnsToRead),
             null,
             conditions,
             readerFactory.newFilterCreator(ParquetReaderFactory.ManagedSchemaType.HIVE, managedSchema),
@@ -309,7 +308,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
   @Override
   public void close() throws Exception {
-    if ((conditions!= null) && !conditions.isEmpty()) {
+    if ((conditions != null) && !conditions.isEmpty()) {
       if (conditions.get(0).isModifiedForPushdown()) {
         this.oContext.getStats().addLongStat(ScanOperator.Metric.NUM_FILTERS_MODIFIED, 1);
       }
@@ -324,14 +323,14 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
       if (!fieldInTable.isPresent()) {
         throw UserException.validationError().message("Field [%s] not found in table schema %s", fieldInFileSchema.getName(),
-            tableSchema.getFields()).buildSilently();
+          tableSchema.getFields()).buildSilently();
       }
 
       TypeProtos.MinorType fieldTypeInFile = CompleteType.fromField(fieldInFileSchema).toMinorType();
       TypeProtos.MinorType fieldTypeInTable = CompleteType.fromField(fieldInTable.get()).toMinorType();
       if (!TypeCastRules.isHiveCompatibleTypeChange(fieldTypeInFile, fieldTypeInTable)) {
         throw UserException.schemaChangeError().message("Field [%s] has incompatible types in file and table." +
-            " Type in fileschema: [%s], type in tableschema: [%s]", fieldInFileSchema.getName(), fieldTypeInFile, fieldTypeInTable).buildSilently();
+          " Type in fileschema: [%s], type in tableschema: [%s]", fieldInFileSchema.getName(), fieldTypeInFile, fieldTypeInTable).buildSilently();
       }
     }
   }

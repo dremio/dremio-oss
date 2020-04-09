@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -40,7 +40,7 @@ public class ReflectionSettings {
   private final Provider<NamespaceService> namespace;
   private final ReflectionSettingsStore store;
 
-  public ReflectionSettings(Provider<NamespaceService> namespace, Provider<KVStoreProvider> storeProvider) {
+  public ReflectionSettings(Provider<NamespaceService> namespace, Provider<LegacyKVStoreProvider> storeProvider) {
     this.namespace = Preconditions.checkNotNull(namespace, "namespace service required");
     this.store = new ReflectionSettingsStore(storeProvider);
   }

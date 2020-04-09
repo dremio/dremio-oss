@@ -27,7 +27,7 @@ export const isUnauthorisedReason = (nextLocation) => {
 };
 
 function authMiddleware() {
-  return (store) => next => action => {
+  return () => next => action => {
     const payload = action.payload;
     // TODO put that logic to a saga
     if (action.error && payload) {

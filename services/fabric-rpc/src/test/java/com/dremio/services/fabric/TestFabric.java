@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Test;
 
+import com.dremio.common.util.concurrent.DremioFutures;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.rpc.ChannelClosedException;
@@ -61,7 +62,7 @@ public class TestFabric extends BaseTestFabric {
     {
       SimpleMessage m = new SimpleMessage(1);
       runner.runCommand(m);
-      m.getFuture().checkedGet(1000, TimeUnit.MILLISECONDS);
+      DremioFutures.getChecked(m.getFuture(), RpcException.class, 1000, TimeUnit.MILLISECONDS, RpcException::mapException);
     }
 
     closeLatch.countDown();
@@ -73,7 +74,7 @@ public class TestFabric extends BaseTestFabric {
     {
       SimpleMessage m = new SimpleMessage(1);
       runner.runCommand(m);
-      m.getFuture().checkedGet(1000, TimeUnit.MILLISECONDS);
+      DremioFutures.getChecked(m.getFuture(), RpcException.class, 1000, TimeUnit.MILLISECONDS, RpcException::mapException);
     }
 
 
@@ -85,7 +86,7 @@ public class TestFabric extends BaseTestFabric {
     FabricCommandRunner runner = factory.getCommandRunner(getFabric().getAddress(), getFabric().getPort());
     SimpleMessage m = new SimpleMessage(2);
     runner.runCommand(m);
-    m.getFuture().checkedGet(1000, TimeUnit.MILLISECONDS);
+    DremioFutures.getChecked(m.getFuture(), RpcException.class, 1000, TimeUnit.MILLISECONDS, RpcException::mapException);
   }
 
   private class SimpleMessage extends FutureBitCommand<NodeEndpoint, ProxyConnection> {

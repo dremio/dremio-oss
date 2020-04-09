@@ -15,8 +15,6 @@
  */
 package com.dremio.datastore;
 
-import com.dremio.datastore.KVStoreProvider.DocumentConverter;
-
 /**
  * Store provider for CoreKVStore and CoreIndexedStore.
  */
@@ -30,13 +28,9 @@ public interface CoreStoreProvider {
    * @param <K>
    * @param <V>
    */
-  public interface CoreStoreBuilder<K, V> {
-    public CoreStoreBuilder<K, V> name(String name);
-    public CoreStoreBuilder<K, V> keySerializer(Class<? extends Serializer<K>> keySerializerClass);
-    public CoreStoreBuilder<K, V> valueSerializer(Class<? extends Serializer<V>> valueSerializerClass);
-    public CoreStoreBuilder<K, V>  versionExtractor(Class<? extends VersionExtractor<V>> versionExtractorClass);
-    public CoreKVStore<K, V> build();
-    public CoreIndexedStore<K, V> buildIndexed(Class<? extends DocumentConverter<K, V>> documentConverterClass);
+  interface CoreStoreBuilder<K, V> {
+    CoreKVStore<K, V> build(StoreBuilderHelper<K, V> helper);
+    CoreIndexedStore<K, V> buildIndexed(StoreBuilderHelper<K, V> helper);
   }
 
 }

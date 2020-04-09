@@ -1,0 +1,87 @@
+/*
+ * Copyright (C) 2017-2019 Dremio Corporation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto3";
+
+option java_package = "com.dremio.service.jobtelemetry";
+option optimize_for = SPEED;
+option java_generate_equals_and_hash = true;
+option java_multiple_files = true;
+option java_outer_classname = "JobTelemetryServiceRPC";
+
+package dremio.jobtelemetry;
+
+import "CoordExecRPC.proto";
+import "Coordination.proto";
+import "UserBitShared.proto";
+import "google/protobuf/empty.proto";
+
+/**
+ * gRPCs exposed for updating, building and querying profiles and progress metrics.
+ */
+service JobTelemetryService {
+  // Update planning portion of the query profile.
+  rpc putQueryPlanningProfile(PutPlanningProfileRequest) returns (google.protobuf.Empty);
+
+  // Update execution profile of executor node in the query file.
+  rpc putExecutorProfile(PutExecutorProfileRequest) returns (google.protobuf.Empty);
+
+  // Update tail portion of the query profile (post termination of query).
+  rpc putQueryTailProfile(PutTailProfileRequest) returns (google.protobuf.Empty);
+
+  // Get the query profile.
+  rpc getQueryProfile(GetQueryProfileRequest) returns (GetQueryProfileResponse);
+
+  // get progress metrics for a query.
+  rpc getQueryProgressMetrics(stream GetQueryProgressMetricsRequest) returns
+  (stream GetQueryProgressMetricsResponse);
+
+  // Delete the profile and metrics for a query.
+  rpc deleteProfile(DeleteProfileRequest) returns (google.protobuf.Empty);
+}
+
+message PutPlanningProfileRequest {
+  exec.shared.QueryId query_id = 1;
+  exec.shared.QueryProfile profile = 2;
+}
+
+message PutTailProfileRequest {
+  exec.shared.QueryId query_id = 1;
+  exec.shared.QueryProfile profile = 2;
+}
+
+message PutExecutorProfileRequest {
+  exec.bit.control.ExecutorQueryProfile profile = 1;
+}
+
+message GetQueryProfileRequest {
+  exec.shared.QueryId query_id = 1;
+}
+
+message GetQueryProfileResponse {
+  exec.shared.QueryProfile profile = 1;
+}
+
+message GetQueryProgressMetricsRequest {
+  exec.shared.QueryId query_id = 1;
+}
+
+message GetQueryProgressMetricsResponse {
+  exec.bit.control.QueryProgressMetrics metrics = 1;
+}
+
+message DeleteProfileRequest {
+  exec.shared.QueryId query_id = 1;
+}

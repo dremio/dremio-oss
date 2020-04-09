@@ -13,4 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export EditAvatarModal from './EditAvatarModal';
+import EditAvatarModal from './EditAvatarModal';
+
+export {
+  EditAvatarModal
+};

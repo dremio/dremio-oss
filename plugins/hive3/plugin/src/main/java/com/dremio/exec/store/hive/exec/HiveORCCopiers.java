@@ -57,6 +57,7 @@ import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.google.common.annotations.VisibleForTesting;
 
 public class HiveORCCopiers {
 
@@ -401,11 +402,16 @@ public class HiveORCCopiers {
     }
   }
 
-  private static class ListCopier  extends ORCCopierBase {
+  static class ListCopier  extends ORCCopierBase {
     private MultiValuedColumnVector inputVector;
     private ListVector outputVector;
     private ORCCopier childCopier;
     private int childOutputIdx;
+
+    @VisibleForTesting
+    ListCopier(MultiValuedColumnVector inputVector) {
+      this.inputVector = inputVector;
+    }
 
     ListCopier(HiveColumnVectorData columnVectorData,
                int ordinalId,
@@ -437,7 +443,8 @@ public class HiveORCCopiers {
       super.ensureVectorHasRequiredCapacity(this.outputVector, required);
     }
 
-    private long countChildren(boolean noNulls, long[] lengths, int startIndex, int count) {
+    @VisibleForTesting
+    long countChildren(boolean noNulls, long[] lengths, int startIndex, int count) {
       long retCount = 0;
       if (noNulls) {
         for (int idx = 0; idx < count; ++idx) {
@@ -445,7 +452,7 @@ public class HiveORCCopiers {
         }
       } else {
         for (int idx = 0; idx < count; ++idx) {
-          if (!inputVector.isNull[idx]) {
+          if (!inputVector.isNull[startIndex + idx]) {
             retCount +=  lengths[startIndex + idx];
           }
         }

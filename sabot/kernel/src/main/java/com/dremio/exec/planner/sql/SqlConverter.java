@@ -139,7 +139,7 @@ public class SqlConverter {
     this.planner = DremioVolcanoPlanner.of(this);
     this.cluster = RelOptCluster.create(planner, new DremioRexBuilder(typeFactory));
     this.cluster.setMetadataProvider(DefaultRelMetadataProvider.INSTANCE);
-    this.viewExpansionContext = new ViewExpansionContext(catalog.getUser());
+    this.viewExpansionContext = new ViewExpansionContext(session.getCredentials().getUserName());
     this.config = config;
     this.scanResult = scanResult;
   }
@@ -292,7 +292,7 @@ public class SqlConverter {
   }
 
   public RelSerializerFactory getSerializerFactory() {
-    return RelSerializerFactory.getFactory(config, scanResult);
+    return RelSerializerFactory.getPlanningFactory(config, scanResult);
   }
 
   public SabotConfig getConfig() {

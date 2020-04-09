@@ -18,17 +18,23 @@ package com.dremio;
 import static org.junit.Assert.assertEquals;
 
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.FileUtils;
 import com.dremio.common.util.TestTools;
+import com.dremio.config.DremioConfig;
+import com.dremio.test.TemporarySystemProperties;
 
 public class TestStarQueries extends BaseTestQuery{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestStarQueries.class);
   static final String WORKING_PATH = TestTools.getWorkingPath();
   static final String TEST_RES_PATH = WORKING_PATH + "/src/test/resources";
+
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Test // see DRILL-2021
   @Ignore
@@ -239,10 +245,15 @@ public class TestStarQueries extends BaseTestQuery{
 
   @Test // DRILL-1293
   public void testStarView1() throws Exception {
-    test("use dfs_test");
-    test("create view vt1 as select * from cp.\"tpch/region.parquet\" r, cp.\"tpch/nation.parquet\" n where r.r_regionkey = n.n_regionkey");
-    test("select * from vt1");
-    test("drop view vt1");
+    try {
+      properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
+      test("use dfs_test");
+      test("create view vt1 as select * from cp.\"tpch/region.parquet\" r, cp.\"tpch/nation.parquet\" n where r.r_regionkey = n.n_regionkey");
+      test("select * from vt1");
+      test("drop view vt1");
+    } finally {
+      properties.clear(DremioConfig.LEGACY_STORE_VIEWS_ENABLED);
+    }
   }
 
   @Test  // select star for a SchemaTable.

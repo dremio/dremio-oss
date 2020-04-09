@@ -19,7 +19,7 @@ import java.util.Map.Entry;
 
 import com.dremio.common.Version;
 import com.dremio.dac.cmd.AdminLogger;
-import com.dremio.datastore.IndexedStore;
+import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
@@ -53,7 +53,7 @@ public class MinimizeJobResultsMetadata extends UpgradeTask implements LegacyUpg
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    final IndexedStore<JobId, JobResult> store = context.getKVStoreProvider().getStore(JobsStoreCreator.class);
+    final LegacyIndexedStore<JobId, JobResult> store = context.getKVStoreProvider().getStore(JobsStoreCreator.class);
 
     AdminLogger.log("  Minimizing job results metadata");
     try {

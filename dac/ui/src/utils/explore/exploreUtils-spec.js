@@ -341,11 +341,11 @@ describe('exploreUtils', () => {
   describe('method getHrefForUntitledDatasetConfig', () => {
     it('should return link for untitled dataset', () => {
       expect(exploreUtils.getHrefForUntitledDatasetConfig('path', 'vvv')).
-        to.eql('/datasets/new_untitled?parentDataset=path&newVersion=vvv&limit=150');
+        to.eql('/datasets/new_untitled/?parentDataset=path&newVersion=vvv&limit=150');
     });
     it('should return link for untitled dataset', () => {
       expect(exploreUtils.getHrefForUntitledDatasetConfig('path', '')).
-        to.eql('/datasets/new_untitled?parentDataset=path&newVersion=&limit=150');
+        to.eql('/datasets/new_untitled/?parentDataset=path&newVersion=&limit=150');
     });
   });
 

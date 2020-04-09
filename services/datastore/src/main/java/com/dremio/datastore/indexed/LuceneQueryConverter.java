@@ -25,6 +25,7 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.BoostQuery;
 import org.apache.lucene.search.FieldValueQuery;
 import org.apache.lucene.search.MatchAllDocsQuery;
+import org.apache.lucene.search.PrefixQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
@@ -109,13 +110,16 @@ public class LuceneQueryConverter {
     case CONTAINS:
       return toContainsTermQuery(query.getContainsText());
 
+    case PREFIX:
+      return toPrefixQuery(query.getPrefix());
+
     default:
       throw new AssertionError("Unknown query type: " + query);
     }
   }
 
   private StringBuilder escapeTextForWildcard(String text) {
-    StringBuilder sb = new StringBuilder(text.length());
+    final StringBuilder sb = new StringBuilder(text.length());
 
     for (int i = 0; i < text.length(); i++) {
       char currentChar = text.charAt(i);
@@ -129,7 +133,7 @@ public class LuceneQueryConverter {
   }
 
   private Query toBooleanQuery(SearchQuery.Boolean booleanQuery) {
-    BooleanQuery.Builder builder = new BooleanQuery.Builder();
+    final BooleanQuery.Builder builder = new BooleanQuery.Builder();
     final BooleanClause.Occur occur;
     switch(booleanQuery.getOp()) {
     case AND:
@@ -153,7 +157,7 @@ public class LuceneQueryConverter {
   }
 
   private Query toNotQuery(Not not) {
-    BooleanQuery.Builder builder = new BooleanQuery.Builder();
+    final BooleanQuery.Builder builder = new BooleanQuery.Builder();
     builder.add(toLuceneQuery(not.getClause()), BooleanClause.Occur.MUST_NOT);
     return builder.build();
   }
@@ -227,8 +231,12 @@ public class LuceneQueryConverter {
     return new WildcardQuery(new Term(wildcard.getField(), wildcard.getValue()));
   }
 
+  private Query toPrefixQuery(SearchQuery.Prefix prefix) {
+    return new PrefixQuery(new Term(prefix.getField(), prefix.getValue()));
+  }
+
   private Query toContainsTermQuery(SearchQuery.Contains containsQuery) {
-    StringBuilder sb = escapeTextForWildcard(containsQuery.getValue());
+    final StringBuilder sb = escapeTextForWildcard(containsQuery.getValue());
     sb.insert(0, WildcardQuery.WILDCARD_STRING).append(WildcardQuery.WILDCARD_STRING);
     return new WildcardQuery(new Term(containsQuery.getField(), sb.toString()));
   }
@@ -266,7 +274,7 @@ public class LuceneQueryConverter {
   }
 
   private Query toDoesNotExistQuery(SearchQuery.Exists exists) {
-    BooleanQuery.Builder builder = new BooleanQuery.Builder();
+    final BooleanQuery.Builder builder = new BooleanQuery.Builder();
     builder.add(new MatchAllDocsQuery(), BooleanClause.Occur.SHOULD);
     builder.add(new FieldValueQuery(exists.getField()), BooleanClause.Occur.MUST_NOT);
     return builder.build();

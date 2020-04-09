@@ -21,7 +21,7 @@
   <parent>
     <artifactId>dremio-services-parent</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>4.1.8-202003120636020140-9c2a6b13</version>
+    <version>4.2.0-202004091958060824-8f7e141d</version>
   </parent>
   <artifactId>dremio-services-coordinator</artifactId>
   <name>Services - Coordinator</name>
@@ -71,4 +71,36 @@
       <artifactId>slf4j-api</artifactId>
     </dependency>
   </dependencies>
+  <profiles>
+    <profile>
+      <id>mapr</id>
+      <activation>
+        <property>
+          <name>mapr</name>
+        </property>
+      </activation>
+      <dependencies>
+        <!--
+            MapR security module is part of maprfs jar and is required at runtime
+            for ZooKeeper communication
+        -->
+        <dependency>
+          <groupId>com.dremio.contrib</groupId>
+          <artifactId>dremio-maprfs-shaded</artifactId>
+          <version>${project.version}</version>
+          <scope>runtime</scope>
+          <exclusions>
+            <exclusion>
+              <groupId>com.mapr.hadoop</groupId>
+              <artifactId>maprfs</artifactId>
+            </exclusion>
+            <exclusion>
+              <groupId>com.google.protobuf</groupId>
+              <artifactId>protobuf-java</artifactId>
+            </exclusion>
+          </exclusions>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
 </project>

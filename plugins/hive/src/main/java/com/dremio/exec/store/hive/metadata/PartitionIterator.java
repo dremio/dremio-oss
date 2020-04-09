@@ -31,9 +31,7 @@ import com.google.common.collect.Lists;
  * Manages retrieval of Hive Partitions to help generate Dremio PartitionChunk objects.
  * <p>
  * A list of all partition names are retrieved in the constructor. The list is broken up into
- * batches of
- * {@link com.dremio.exec.store.hive.HivePluginOptions#HIVE_PARTITION_BATCH_SIZE_VALIDATOR}
- * elements.
+ * batches of HIVE_PARTITION_BATCH_SIZE_VALIDATOR elements.
  * <p>
  * Partition name batches are used to lazily load batches Hive Partition objects as the caller
  * iterates over single Hive Partition objects.

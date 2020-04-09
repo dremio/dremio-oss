@@ -19,14 +19,14 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
 
 import com.dremio.datastore.CoreKVStore;
 import com.dremio.datastore.KVStoreTuple;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.ImmutableDocument;
 import com.dremio.datastore.indexed.LuceneSearchIndex.Doc;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -36,7 +36,7 @@ import com.google.common.collect.Lists;
 /**
  * An iterable over search items.
  */
-public class CoreSearchIterable<K, V> implements Iterable<Entry<KVStoreTuple<K>, KVStoreTuple<V>>> {
+public class CoreSearchIterable<K, V> implements Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> {
 
   private enum State {
     INIT, NEXT_PENDING, NEXT_USED, DONE
@@ -69,15 +69,15 @@ public class CoreSearchIterable<K, V> implements Iterable<Entry<KVStoreTuple<K>,
   }
 
   @Override
-  public Iterator<Entry<KVStoreTuple<K>, KVStoreTuple<V>>> iterator() {
+  public Iterator<Document<KVStoreTuple<K>, KVStoreTuple<V>>> iterator() {
     return new SearchIterator();
   }
 
-  private class SearchIterator implements Iterator<Entry<KVStoreTuple<K>, KVStoreTuple<V>>> {
+  private class SearchIterator implements Iterator<Document<KVStoreTuple<K>, KVStoreTuple<V>>> {
 
-    private long returned;
-    private Iterator<DocEntry> docs;
-    private DocEntry pendingDoc;
+    private int returned;
+    private Iterator<Document<KVStoreTuple<K>, KVStoreTuple<V>>> docs;
+    private Document<KVStoreTuple<K>, KVStoreTuple<V>> pendingDoc;
     private Doc endLastIterator;
 
     private State state = State.INIT;
@@ -85,7 +85,7 @@ public class CoreSearchIterable<K, V> implements Iterable<Entry<KVStoreTuple<K>,
     public SearchIterator() {
     }
 
-    private Iterator<DocEntry> updateIterator(List<Doc> documents){
+    private Iterator<Document<KVStoreTuple<K>, KVStoreTuple<V>>> updateIterator(List<Doc> documents){
 
       final List<KVStoreTuple<K>> keys = Lists.transform(documents, new Function<Doc, KVStoreTuple<K>>(){
         @Override
@@ -93,15 +93,20 @@ public class CoreSearchIterable<K, V> implements Iterable<Entry<KVStoreTuple<K>,
           return store.newKey().setSerializedBytes(input.getKey());
         }});
 
-      final List<KVStoreTuple<V>> values = store.get(keys);
+      final Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> values = store.get(keys);
 
-      List<DocEntry> entries = new ArrayList<>(documents.size());
-      for (int i =0; i < documents.size(); i++) {
-        KVStoreTuple<V> tuple = values.get(i);
-        if(tuple.getObject() != null){
+      List<Document<KVStoreTuple<K>, KVStoreTuple<V>>> entries = new ArrayList<>(documents.size());
+      int documentIndex = 0;
+      for (final Document<KVStoreTuple<K>, KVStoreTuple<V>> doc : values) {
+        if (doc.getValue().getObject() != null) {
           // since the search index can be slightly behind the actual data, make sure to only include non-null tuples.
-          entries.add(new DocEntry(documents.get(i), keys.get(i), tuple));
+          entries.add(new ImmutableDocument.Builder<KVStoreTuple<K>, KVStoreTuple<V>>()
+            .setKey(keys.get(documentIndex))
+            .setValue(doc.getValue())
+            .setTag(doc.getTag())
+            .build());
         }
+        ++documentIndex;
       }
 
       return entries.iterator();
@@ -123,7 +128,7 @@ public class CoreSearchIterable<K, V> implements Iterable<Entry<KVStoreTuple<K>,
         }
 
         if(state == State.INIT) {
-          List<Doc> documents = index.search(searchQuery, Math.min(pageSize, limit), sort, offset);
+          List<Doc> documents = index.search(searchQuery, Math.min(pageSize, limit), limit, sort, offset);
           if(documents.isEmpty()){
             state = State.DONE;
             return false;
@@ -141,7 +146,8 @@ public class CoreSearchIterable<K, V> implements Iterable<Entry<KVStoreTuple<K>,
          */
         while (!docs.hasNext()) {
           assert endLastIterator != null;
-          List<Doc> documents = index.searchAfter(searchQuery, pageSize, sort, endLastIterator);
+          int searchPageSize = Math.min(pageSize, limit - returned);
+          List<Doc> documents = index.searchAfter(searchQuery, searchPageSize, limit - returned, sort, endLastIterator);
           if(documents.isEmpty()){
             state = State.DONE;
             return false;
@@ -160,7 +166,7 @@ public class CoreSearchIterable<K, V> implements Iterable<Entry<KVStoreTuple<K>,
   }
 
     @Override
-    public Entry<KVStoreTuple<K>, KVStoreTuple<V>> next() {
+    public Document<KVStoreTuple<K>, KVStoreTuple<V>> next() {
       Preconditions.checkArgument(state == State.NEXT_PENDING);
       state = State.NEXT_USED;
       assert pendingDoc != null;
@@ -169,7 +175,7 @@ public class CoreSearchIterable<K, V> implements Iterable<Entry<KVStoreTuple<K>,
       if(returned >= limit){
         state = State.DONE;
       }
-      DocEntry entry = pendingDoc;
+      Document<KVStoreTuple<K>, KVStoreTuple<V>> entry = pendingDoc;
       pendingDoc = null;
       return entry;
     }
@@ -180,34 +186,4 @@ public class CoreSearchIterable<K, V> implements Iterable<Entry<KVStoreTuple<K>,
     }
 
   }
-
-  private class DocEntry implements Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>> {
-    private final Doc doc;
-    private final KVStoreTuple<K> key;
-    private KVStoreTuple<V> value;
-
-    public DocEntry(Doc doc, KVStoreTuple<K> key, KVStoreTuple<V> value) {
-      super();
-      this.doc = doc;
-      this.key = key;
-      this.value = value;
-    }
-
-    @Override
-    public KVStoreTuple<K> getKey() {
-      return key;
-    }
-
-    @Override
-    public KVStoreTuple<V> getValue() {
-      return value;
-    }
-
-    @Override
-    public KVStoreTuple<V> setValue(KVStoreTuple<V> value) {
-      throw new UnsupportedOperationException();
-    }
-
-  }
-
 }

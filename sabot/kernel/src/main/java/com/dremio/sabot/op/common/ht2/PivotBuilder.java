@@ -33,7 +33,7 @@ public class PivotBuilder {
   public static final int BIT_OFFSET_MASK = 31;
 
   public static PivotDef getBlockDefinition(FieldVectorPair... fieldVectors) {
-    return getBlockDefinition(FluentIterable.of(fieldVectors).toList());
+    return getBlockDefinition(ImmutableList.copyOf(fieldVectors));
   }
 
   public static PivotDef getBlockDefinition(Iterable<FieldVectorPair> fieldVectors) {

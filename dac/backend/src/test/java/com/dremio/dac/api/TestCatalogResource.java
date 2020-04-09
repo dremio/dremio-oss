@@ -28,17 +28,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.Response;
 
-import org.apache.calcite.plan.RelOptUtil;
-import org.apache.calcite.rel.RelNode;
-import org.apache.calcite.sql.SqlExplainFormat;
-import org.apache.calcite.sql.SqlExplainLevel;
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -58,15 +53,10 @@ import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.conf.ConnectionConf;
-import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
-import com.dremio.service.jobs.JobStatusListener;
-import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.JobsServiceUtil;
-import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -80,7 +70,6 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -327,33 +316,6 @@ public class TestCatalogResource extends BaseTestServer {
     newNamespaceService().deleteSpace(new NamespaceKey(space.getName()), space.getTag());
   }
 
-  protected String getQueryPlan(final String query) {
-    final AtomicReference<String> plan = new AtomicReference<>("");
-    final JobStatusListener capturePlanListener = new NoOpJobStatusListener() {
-      @Override
-      public void planRelTransform(final PlannerPhase phase, final RelNode before, final RelNode after, final long millisTaken) {
-        if (!Strings.isNullOrEmpty(plan.get())) {
-          return;
-        }
-
-        if (phase == PlannerPhase.LOGICAL) {
-          plan.set(RelOptUtil.dumpPlan("", after, SqlExplainFormat.TEXT, SqlExplainLevel.ALL_ATTRIBUTES));
-        }
-      }
-    };
-
-    JobsServiceUtil.waitForJobCompletion(
-      p(JobsService.class).get().submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
-          .setQueryType(QueryType.UI_INTERNAL_RUN)
-          .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
-          .build(), capturePlanListener)
-    );
-
-    return plan.get();
-  }
-
   @Test
   public void testVDSInSpaceWithSameName() throws Exception {
     final String sourceName = "src_" + System.currentTimeMillis();
@@ -394,7 +356,13 @@ public class TestCatalogResource extends BaseTestServer {
     DatasetPath vdsPath = new DatasetPath(ImmutableList.of("@dremio", "myFile.json"));
     createDatasetFromSQLAndSave(vdsPath, "SELECT * FROM \"myFile.json\"", asList(sourceName));
 
-    getQueryPlan("select * from \"myFile.json\"");
+    final String query = "select * from \"myFile.json\"";
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
   }
 
   @Test
@@ -450,7 +418,7 @@ public class TestCatalogResource extends BaseTestServer {
     source.setAccelerationRefreshPeriodMs(0);
     source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildPut(Entity.json(source)), new GenericType<Source>() {});
 
-    assertEquals(source.getTag(), "1");
+    assertNotNull(source.getTag());
     assertEquals((long) source.getAccelerationRefreshPeriodMs(), 0);
 
     // adding a folder to a source should fail
@@ -769,9 +737,8 @@ public class TestCatalogResource extends BaseTestServer {
     source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildPut(Entity.json(source)), new GenericType<Source>() {});
     config = (FakeSource) source.getConfig();
 
-    assertEquals(source.getTag(), "1");
     assertFalse(config.isAwesome);
-
+    assertNotNull(source.getTag());
   }
 
   private Source createSource() {

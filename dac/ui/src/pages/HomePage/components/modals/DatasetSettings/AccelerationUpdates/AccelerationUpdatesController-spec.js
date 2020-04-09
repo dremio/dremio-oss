@@ -123,7 +123,7 @@ describe('AccelerationUpdatesController', () => {
 
       instance.receiveProps(nextProps, props);
       setTimeout(() => {
-        expect(props.loadDatasetAccelerationSettings).to.have.been.called;
+        expect(instance.loadDataset).to.have.been.called;
         done();
       }, 50);
     });
@@ -131,7 +131,7 @@ describe('AccelerationUpdatesController', () => {
     it('should not load settings when entity did not change', (done) => {
       instance.receiveProps(props, props);
       setTimeout(() => {
-        expect(props.loadDatasetAccelerationSettings).to.have.not.been.called;
+        expect(instance.loadDataset).to.have.not.been.called;
         done();
       }, 50);
     });

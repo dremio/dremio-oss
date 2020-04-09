@@ -25,11 +25,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Predicate;
 
-import org.apache.commons.io.IOUtils;
-
 import com.dremio.io.CompressionCodec;
 import com.dremio.io.CompressionCodecFactory;
 import com.dremio.io.FSInputStream;
+import com.google.common.io.ByteStreams;
 import com.google.common.io.Closeables;
 
 public class FileSystemUtils {
@@ -199,7 +198,7 @@ public class FileSystemUtils {
     } else {
       try (final InputStream in = srcFS.open(src);
           final OutputStream out = dstFS.create(dst, overwrite)) {
-        IOUtils.copy(in, out);
+        ByteStreams.copy(in, out);
       }
     }
     if (deleteSource) {

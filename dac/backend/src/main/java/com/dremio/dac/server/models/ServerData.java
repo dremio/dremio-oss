@@ -40,6 +40,7 @@ public class ServerData {
   private final String whiteLabelUrl;
   private final String clusterId;
   private final VersionInfo versionInfo;
+  private final String edition;
 
   protected ServerData(Builder builder) {
     this.serverEnvironment = builder.serverEnvironment;
@@ -58,6 +59,7 @@ public class ServerData {
     this.whiteLabelUrl = builder.whiteLabelUrl;
     this.clusterId = builder.clusterId;
     this.versionInfo = builder.versionInfo;
+    this.edition = builder.edition;
   }
 
   public String getServerEnvironment() {
@@ -124,6 +126,10 @@ public class ServerData {
     return versionInfo;
   }
 
+  public String getEdition() {
+    return edition;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -152,6 +158,7 @@ public class ServerData {
     private String whiteLabelUrl;
     private String clusterId;
     private VersionInfo versionInfo;
+    private String edition;
 
     protected Builder() {
 
@@ -174,6 +181,7 @@ public class ServerData {
       this.whiteLabelUrl = builder.whiteLabelUrl;
       this.clusterId = builder.clusterId;
       this.versionInfo = builder.versionInfo;
+      this.edition = builder.edition;
     }
 
     public Builder setServerEnvironment(String serverEnvironment) {
@@ -253,6 +261,11 @@ public class ServerData {
 
     public Builder setVersionInfo(VersionInfo versionInfo) {
       this.versionInfo = versionInfo;
+      return this;
+    }
+
+    public Builder setEdition(String edition) {
+      this.edition = edition;
       return this;
     }
 

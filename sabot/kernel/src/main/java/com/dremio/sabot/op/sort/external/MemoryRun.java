@@ -29,6 +29,7 @@ import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;

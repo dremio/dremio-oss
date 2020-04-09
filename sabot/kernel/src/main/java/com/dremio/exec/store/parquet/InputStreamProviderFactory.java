@@ -21,7 +21,6 @@ import java.util.function.BiConsumer;
 
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
-import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.io.file.FileSystem;
@@ -37,7 +36,7 @@ public interface InputStreamProviderFactory {
   String KEY = "dremio.plugins.parquet.input_stream_factory";
 
   InputStreamProvider create(FileSystemPlugin<?> plugin, FileSystem fs, OperatorContext context,
-                             Path path, long fileLength, long splitSize, List<SchemaPath> fields,
+                             Path path, long fileLength, long splitSize, ParquetScanProjectedColumns projectedColumns,
                              ParquetMetadata footerIfKnown, int rowGroupIndex, BiConsumer<Path,
                              ParquetMetadata> depletionListener, boolean readFullFile,
                              List<String> dataset, long mTime) throws IOException;
@@ -45,7 +44,7 @@ public interface InputStreamProviderFactory {
   InputStreamProviderFactory DEFAULT = new InputStreamProviderFactory() {
     @Override
     public InputStreamProvider create(FileSystemPlugin<?> plugin, FileSystem fs, OperatorContext context,
-                                      Path path, long fileLength, long splitSize, List<SchemaPath> fields,
+                                      Path path, long fileLength, long splitSize, ParquetScanProjectedColumns projectedColumns,
                                       ParquetMetadata footerIfKnown, int rowGroupIndex, BiConsumer<Path,
                                       ParquetMetadata> depletionListener, boolean readFullFile,
                                       List<String> dataset, long mTime) {
@@ -54,7 +53,7 @@ public interface InputStreamProviderFactory {
         // option is set for single stream
         options.getOption(ExecConstants.PARQUET_SINGLE_STREAM) ||
           // number of columns is above threshold
-          fields.size() >= options.getOption(ExecConstants.PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD) ||
+          projectedColumns.size() >= options.getOption(ExecConstants.PARQUET_SINGLE_STREAM_COLUMN_THRESHOLD) ||
           // split size is below multi stream size limit and the limit is enabled
           (options.getOption(ExecConstants.PARQUET_MULTI_STREAM_SIZE_LIMIT_ENABLE) &&
             splitSize < options.getOption(ExecConstants.PARQUET_MULTI_STREAM_SIZE_LIMIT)) ||

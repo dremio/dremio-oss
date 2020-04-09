@@ -34,6 +34,9 @@ public class EndpointHelper {
     if (endpoint.hasFabricPort()) {
       builder.setFabricPort(endpoint.getFabricPort());
     }
+    if (endpoint.hasEngineId()) {
+      builder.setEngineId(endpoint.getEngineId());
+    }
     return builder.build();
   }
 }

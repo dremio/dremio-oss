@@ -36,15 +36,14 @@ import com.dremio.common.Version;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetVersion;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
-import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.flatbuffers.FlatBufferBuilder;
@@ -76,16 +75,15 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
 
   @Override
   public void upgrade(UpgradeContext context) throws Exception {
-    Preconditions.checkArgument(context.getKVStoreProvider() instanceof LocalKVStoreProvider);
-    final LocalKVStoreProvider localStore = LocalKVStoreProvider.class.cast(context.getKVStoreProvider());
+    final LegacyKVStoreProvider localStore = context.getKVStoreProvider();
 
-    final KVStore<DatasetVersionMutator.VersionDatasetKey, VirtualDatasetVersion> vdsVersionStore =
+    final LegacyKVStore<DatasetVersionMutator.VersionDatasetKey, VirtualDatasetVersion> vdsVersionStore =
       localStore.getStore(DatasetVersionMutator.VersionStoreCreator.class);
 
-    final IndexedStore<byte[], NameSpaceContainer> namespaceStore =
+    final LegacyIndexedStore<String, NameSpaceContainer> namespaceStore =
       localStore.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
 
-    Iterable<Map.Entry<byte[], NameSpaceContainer>> nameSpaces = namespaceStore.find();
+    Iterable<Map.Entry<String, NameSpaceContainer>> nameSpaces = namespaceStore.find();
     StreamSupport.stream(nameSpaces.spliterator(), false)
       .filter(entry -> NameSpaceContainer.Type.DATASET == entry.getValue().getType())
       .forEach(entry -> {
@@ -184,7 +182,8 @@ public class DatasetConfigUpgrade extends UpgradeTask implements LegacyUpgradeTa
         org.apache.arrow.flatbuf.DictionaryEncoding.createDictionaryEncoding(builder,
           oldDictionaryEncoding.id(),
           intType,
-          oldDictionaryEncoding.isOrdered());
+          oldDictionaryEncoding.isOrdered(),
+          oldDictionaryEncoding.dictionaryKind());
     }
     int childrenLength = oldField.childrenLength();
     int[] childrenData = new int[childrenLength];

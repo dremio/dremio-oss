@@ -29,7 +29,7 @@ import com.dremio.service.users.SystemUser;
  * Tests for Hive3StoragePlugin
  */
 public class TestHive3StoragePlugin {
-  private final String testUserName = "testUser";
+  private static final String TEST_USER_NAME = "testUser";
 
   @Test
   public void impersonationDisabledShouldReturnSystemUser() {
@@ -39,20 +39,20 @@ public class TestHive3StoragePlugin {
 
     final Hive3StoragePlugin plugin = createHiveStoragePlugin(hiveConf, context);
 
-    final String userName = plugin.getUsername(testUserName);
+    final String userName = plugin.getUsername(TEST_USER_NAME);
     assertEquals(SystemUser.SYSTEM_USERNAME, userName);
   }
 
   @Test
-  public void impersonationEnableddShouldReturnUser() {
+  public void impersonationEnabledShouldReturnUser() {
     final HiveConf hiveConf = new HiveConf();
     hiveConf.setBoolVar(HIVE_SERVER2_ENABLE_DOAS, true);
     final SabotContext context = mock(SabotContext.class);
 
     final Hive3StoragePlugin plugin = new Hive3StoragePlugin(hiveConf, context, "foo");
 
-    final String userName = plugin.getUsername(testUserName);
-    assertEquals(testUserName, userName);
+    final String userName = plugin.getUsername(TEST_USER_NAME);
+    assertEquals(TEST_USER_NAME, userName);
   }
 
   protected Hive3StoragePlugin createHiveStoragePlugin(HiveConf hiveConf, SabotContext context) {

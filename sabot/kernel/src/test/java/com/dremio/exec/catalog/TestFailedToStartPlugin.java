@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,6 +37,7 @@ import org.junit.Test;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.config.DremioConfig;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
@@ -47,17 +49,18 @@ import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePluginRulesFactory;
-import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceKey;
@@ -84,27 +87,23 @@ public class TestFailedToStartPlugin extends DremioTest {
 
   private SabotConfig sabotConfig;
   private SabotContext sabotContext;
-  private KVStoreProvider storeProvider;
+  private LegacyKVStoreProvider storeProvider;
   private SchedulerService schedulerService;
   private static MockUpPlugin mockUpPlugin;
+  private SystemOptionManager som;
+  private NamespaceService mockNamespaceService;
+  private DatasetListingService mockDatasetListingService;
 
   private static final String MOCK_UP = "mockup-failed-to-start";
 
   @Before
   public void setup() throws Exception {
-    storeProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false);
+    storeProvider = new LegacyKVStoreProviderAdapter(
+      new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false),
+      CLASSPATH_SCAN_RESULT);
     storeProvider.start();
-    final KVPersistentStoreProvider psp = new KVPersistentStoreProvider(
-        new Provider<KVStoreProvider>() {
-          @Override
-          public KVStoreProvider get() {
-            return storeProvider;
-          }
-        },
-        true
-    );
-    final NamespaceService mockNamespaceService = mock(NamespaceService.class);
-    final DatasetListingService mockDatasetListingService = mock(DatasetListingService.class);
+    mockNamespaceService = mock(NamespaceService.class);
+    mockDatasetListingService = mock(DatasetListingService.class);
 
     mockUpPlugin = new MockUpPlugin();
     MetadataPolicy rapidRefreshPolicy = new MetadataPolicy()
@@ -146,11 +145,10 @@ public class TestFailedToStartPlugin extends DremioTest {
     final LogicalPlanPersistence lpp = new LogicalPlanPersistence(SabotConfig.create(), CLASSPATH_SCAN_RESULT);
     when(sabotContext.getLpPersistence())
         .thenReturn(lpp);
-    when(sabotContext.getStoreProvider())
-        .thenReturn(psp);
 
-    final SystemOptionManager som = new SystemOptionManager(CLASSPATH_SCAN_RESULT, lpp, psp);
-    som.init();
+    final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(CLASSPATH_SCAN_RESULT);
+    som = new SystemOptionManager(defaultOptionManager, lpp, () -> storeProvider, true);
+    som.start();
     when(sabotContext.getOptionManager())
         .thenReturn(som);
 
@@ -233,9 +231,11 @@ public class TestFailedToStartPlugin extends DremioTest {
         wakeupCounter.incrementCount();
       }
     };
-    KVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
-    try (PluginsManager plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService, ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor))
-    {
+    LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
+
+    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, som, DremioConfig.create(),
+      EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor)) {
 
       mockUpPlugin.setThrowAtStart();
       assertEquals(0, mockUpPlugin.getNumFailedStarts());
@@ -268,8 +268,11 @@ public class TestFailedToStartPlugin extends DremioTest {
       }
     };
 
-    KVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
-    try (PluginsManager plugins = new PluginsManager(sabotContext, sourceDataStore, schedulerService, ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor)) {
+    LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
+
+    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, som, DremioConfig.create(),
+      EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor)) {
 
       mockUpPlugin.setSimulateBadState(true);
       assertEquals(false, mockUpPlugin.gotDatasets());

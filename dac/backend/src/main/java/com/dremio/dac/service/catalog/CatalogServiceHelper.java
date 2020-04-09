@@ -63,7 +63,7 @@ import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.Catalog;
-import com.dremio.exec.catalog.Catalog.UpdateStatus;
+import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.server.SabotContext;
@@ -94,6 +94,7 @@ import com.dremio.service.namespace.space.proto.SpaceConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -256,7 +257,7 @@ public class CatalogServiceHelper {
     }
   }
 
-  public Optional<CatalogEntity> getCatalogEntityById(String id) throws NamespaceException {
+  public Optional<CatalogEntity> getCatalogEntityById(String id, final List<String> include) throws NamespaceException {
     Optional<?> entity = getById(id);
 
     if (!entity.isPresent()) {
@@ -847,7 +848,8 @@ public class CatalogServiceHelper {
       throw new UnsupportedOperationException(String.format("Catalog item [%s] of type [%s] can not be edited.", id, entity.getClass().getName()));
     }
 
-    Optional<CatalogEntity> newEntity = getCatalogEntityById(id);
+    // TODO(DX-18416) What to do?
+    Optional<CatalogEntity> newEntity = getCatalogEntityById(id, ImmutableList.of());
 
     if (newEntity.isPresent()) {
       return newEntity.get();

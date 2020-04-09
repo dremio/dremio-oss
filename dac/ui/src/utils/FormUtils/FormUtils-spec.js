@@ -193,14 +193,10 @@ describe('FormUtils', () => {
     });
 
     it('should return selected tab if it has errors', () => {
-      const getTabFieldsFromConfigStub = sinon.stub(FormUtils, 'getTabFieldsFromConfig');
-      getTabFieldsFromConfigStub.returns([]);
       const tabHasErrorStub = sinon.stub(FormUtils, 'tabFieldsIncludeErrorFields');
       tabHasErrorStub.returns(true);
 
       expect(FormUtils.findTabWithError(formconfig, ['a', 'b'], 'tabB').getName()).to.equal('tabB');
-
-      getTabFieldsFromConfigStub.restore();
       tabHasErrorStub.restore();
     });
 

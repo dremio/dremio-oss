@@ -44,6 +44,7 @@ import javax.ws.rs.core.MediaType;
 import org.modelmapper.AbstractConverter;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.convention.MatchingStrategies;
+import org.modelmapper.protobuf.ProtobufModule;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
@@ -90,8 +91,9 @@ public class ProvisioningResource {
   public static final String USE_EXISTING_SECRET_VALUE = "$DREMIO_EXISTING_VALUE$";
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProvisioningResource.class);
   private static final ModelMapper MODEL_MAPPER;
+
   static {
-    MODEL_MAPPER = new ModelMapper();
+    MODEL_MAPPER = new ModelMapper().registerModule(new ProtobufModule());
     MODEL_MAPPER.addConverter(new AbstractConverter<AwsConnectionProps, AwsConnectionPropsApi>(){
       @Override
       protected AwsConnectionPropsApi convert(AwsConnectionProps source) {
@@ -138,6 +140,7 @@ public class ProvisioningResource {
 
     clusterConfig.setAllowAutoStart(clusterCreateRequest.isAllowAutoStart());
     clusterConfig.setAllowAutoStop(clusterCreateRequest.isAllowAutoStop());
+    clusterConfig.setShutdownInterval(clusterCreateRequest.getShutdownInterval());
 
     if(clusterCreateRequest.getClusterType() == ClusterType.YARN) {
       YarnPropsApi props = clusterCreateRequest.getYarnProps();
@@ -262,6 +265,7 @@ public class ProvisioningResource {
 
     response.setIsAllowAutoStart(cluster.getClusterConfig().getAllowAutoStart());
     response.setIsAllowAutoStop(cluster.getClusterConfig().getAllowAutoStop());
+    response.setShutdownInterval(config.getShutdownInterval());
     response.setDynamicConfig(DynamicConfig.builder()
         .setContainerCount(cluster.getClusterConfig().getClusterSpec().getContainerCount())
         .build());
@@ -322,6 +326,7 @@ public class ProvisioningResource {
 
     clusterConfig.setAllowAutoStart(clusterModifyRequest.isAllowAutoStart());
     clusterConfig.setAllowAutoStop(clusterModifyRequest.isAllowAutoStop());
+    clusterConfig.setShutdownInterval(clusterModifyRequest.getShutdownInterval());
 
     int onHeap = 0;
     if (clusterConfig.getSubPropertyList() != null) {

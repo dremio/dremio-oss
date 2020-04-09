@@ -22,6 +22,7 @@ import com.dremio.service.namespace.file.proto.AvroFileConfig;
 import com.dremio.service.namespace.file.proto.ExcelFileConfig;
 import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.HttpLogFileConfig;
+import com.dremio.service.namespace.file.proto.IcebergFileConfig;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
@@ -69,6 +70,9 @@ public class FileFormatDefinitions {
 
     types.put(UnknownFileConfig.class, FileType.UNKNOWN);
     schemas.put(UnknownFileConfig.class, UnknownFileConfig.getSchema());
+
+    types.put(IcebergFileConfig.class, FileType.ICEBERG);
+    schemas.put(IcebergFileConfig.class, IcebergFileConfig.getSchema());
 
     FILE_TYPES = types.build();
     SCHEMAS = schemas.build();

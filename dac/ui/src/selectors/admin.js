@@ -44,4 +44,3 @@ export const getAccelerations = createSelector(
   acceleration => acceleration
 );
 
-

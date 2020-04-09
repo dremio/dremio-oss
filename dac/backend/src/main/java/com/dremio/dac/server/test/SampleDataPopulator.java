@@ -16,6 +16,8 @@
 package com.dremio.dac.server.test;
 
 import static com.dremio.dac.model.spaces.HomeName.HOME_PREFIX;
+import static com.dremio.dac.server.test.DataPopulatorUtils.addDefaultDremioUser;
+import static com.dremio.dac.server.test.DataPopulatorUtils.createUserIfNotExists;
 import static com.dremio.service.namespace.dataset.DatasetVersion.newVersion;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Arrays.asList;
@@ -49,7 +51,6 @@ import com.dremio.dac.model.sources.PhysicalDatasetPath;
 import com.dremio.dac.model.sources.SourceUI;
 import com.dremio.dac.model.sources.UIMetadataPolicy;
 import com.dremio.dac.model.spaces.HomeName;
-import com.dremio.dac.model.spaces.HomePath;
 import com.dremio.dac.model.spaces.SpaceName;
 import com.dremio.dac.model.spaces.SpacePath;
 import com.dremio.dac.proto.model.dataset.From;
@@ -66,31 +67,26 @@ import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.Views;
 import com.dremio.exec.store.dfs.NASConf;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
 import com.dremio.service.namespace.NamespaceException;
-import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PhysicalDataset;
+import com.dremio.service.namespace.dataset.proto.ViewFieldType;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
-import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
-import com.dremio.service.namespace.space.proto.HomeConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-import com.dremio.service.users.SimpleUser;
 import com.dremio.service.users.SystemUser;
-import com.dremio.service.users.User;
-import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.StandardSystemProperty;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.io.Resources;
-
 
 /**
  * Populates Dremio spaces with sample data
@@ -100,7 +96,6 @@ public class SampleDataPopulator implements AutoCloseable {
 
   public static final String PASSWORD = "dremio123";
   public static final String DEFAULT_USER_NAME = System.getProperty("dremio.test.default-username", "dremio");
-  public static final boolean ADD_PROCESS_USER = Boolean.getBoolean("dremio.test.add-processuser");
   public static final String DEFAULT_USER_FIRSTNAME = "Dre";
   public static final String DEFAULT_USER_LASTNAME = "Mio";
 
@@ -141,63 +136,7 @@ public class SampleDataPopulator implements AutoCloseable {
   public static void addDefaultFirstUser(final UserService userService,
       final NamespaceService namespaceService) throws Exception {
     if (!userService.hasAnyUser()) {
-      createUserIfNotExists(
-          userService,
-          namespaceService,
-          DEFAULT_USER_NAME,
-          PASSWORD,
-          DEFAULT_USER_FIRSTNAME,
-          DEFAULT_USER_LASTNAME);
-      // Special case for regression until we move away from views as physical files.
-      // View expansion requires the user who wrote the file on the filesystem
-      // to be present in the usergroup db
-      if (ADD_PROCESS_USER) {
-        createUserIfNotExists(
-            userService,
-            namespaceService,
-            StandardSystemProperty.USER_NAME.value(),
-            PASSWORD,
-            DEFAULT_USER_FIRSTNAME,
-            DEFAULT_USER_LASTNAME);
-      }
-    }
-  }
-
-  /**
-   * Helper method to create the user if the user doesn't already exists.
-   * @param userService
-   * @param ns Instance of {@link NamespaceService} with no user context.
-   * @param user
-   * @param passwd
-   * @param fn
-   * @param ln
-   * @param roles
-   * @throws Exception
-   */
-  private static void createUserIfNotExists(UserService userService, NamespaceService ns,
-      String user, String passwd, String fn, String ln) throws IOException, NamespaceException {
-    try {
-      userService.getUser(user);
-    } catch (UserNotFoundException e) {
-      User userConfig =
-          SimpleUser.newBuilder()
-              .setUserName(user)
-              .setEmail(user + "@dremio.test")
-              .setFirstName(fn)
-              .setLastName(ln)
-              .build();
-      userService.createUser(userConfig, passwd);
-    }
-
-    // Now create the home folder for the user
-    createHomeDir(ns, user);
-  }
-
-  private static void createHomeDir(NamespaceService ns, String user) throws NamespaceException {
-    final NamespaceKey homeKey = new HomePath(HomeName.getUserHomePath(user)).toNamespaceKey();
-    if (!ns.exists(homeKey, Type.HOME)) {
-      final HomeConfig homeConfig = new HomeConfig().setOwner(user);
-      ns.addOrUpdateHome(homeKey, homeConfig);
+      addDefaultDremioUser(userService, namespaceService);
     }
   }
 
@@ -476,8 +415,11 @@ public class SampleDataPopulator implements AutoCloseable {
       Throwables.propagateIfInstanceOf(e, UserException.class);
       throw new ServerErrorException("Produced invalid SQL:\n" + ds.getSql() + "\n" + e.getMessage(), e);
     }
-    QuerySemantics.populateSemanticFields(metadata.getRowType(), ds.getState());
-    DatasetTool.applyQueryMetadata(ds, metadata);
+
+    final List<ViewFieldType> viewFieldTypes = Views.viewToFieldTypes(Views.relDataTypeToFieldType(metadata.getRowType()));
+    QuerySemantics.populateSemanticFields(viewFieldTypes, ds.getState());
+    DatasetTool.applyQueryMetadata(ds, metadata.getParents(), metadata.getBatchSchema(), metadata.getFieldOrigins(),
+      metadata.getGrandParents(), JobsProtoUtil.toBuf(metadata));
 
     return ds;
   }

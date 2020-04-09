@@ -153,8 +153,8 @@ public final class FormatPluginOptionExtractor {
 
     if (!formatOptionsCopy.isEmpty()) {
       throw UserException.validationError()
-          .message("Unknown storage option(s): %s ", formatOptionsCopy)
-          .build(logger);
+        .message("Unknown storage option(s): %s ", formatOptionsCopy)
+        .build(logger);
     }
 
     return createConfigForTable(new TableInstance(tableSignature, params));

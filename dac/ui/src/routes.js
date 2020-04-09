@@ -20,18 +20,19 @@ import { UserIsAuthenticated, UserIsAdmin, CheckUserAuthentication } from '@app/
 
 import { ENTITY_TYPES } from '@app/constants/Constants';
 import { startExplorePageListener, explorePageLocationChanged, explorePageExit } from '@app/actions/explore/dataset/data';
-import Acceleration from 'dyn-load/pages/AdminPage/subpages/acceleration/Acceleration';
-import Roles from 'dyn-load/pages/AdminPage/subpages/Roles';
-import Votes from 'dyn-load/pages/AdminPage/subpages/Votes';
-import Queues from 'dyn-load/pages/AdminPage/subpages/WLM/Queues';
-import QAssignments from 'dyn-load/pages/AdminPage/subpages/WLM/QAssignments';
-import EulaPage from 'dyn-load/pages/EulaPage/EulaPage';
-import PATListPage from 'dyn-load/pages/AccountPage/personalAccessTokens/PATListPage';
-import SSOLandingPage from 'dyn-load/pages/AuthenticationPage/components/SSOLandingPage';
+import Acceleration from '@inject/pages/AdminPage/subpages/acceleration/Acceleration';
+import Roles from '@inject/pages/AdminPage/subpages/Roles';
+import Votes from '@inject/pages/AdminPage/subpages/Votes';
+import Queues from '@inject/pages/AdminPage/subpages/WLM/Queues';
+import QAssignments from '@inject/pages/AdminPage/subpages/WLM/QAssignments';
+import EulaPage from '@inject/pages/EulaPage/EulaPage';
+import PATListPage from '@inject/pages/AccountPage/personalAccessTokens/PATListPage';
+import SSOLandingPage from '@inject/pages/AuthenticationPage/components/SSOLandingPage';
 import { resetModuleState } from '@app/actions/modulesState';
 import { exploreStateKey } from '@app/selectors/explore';
 import { LOGIN_PATH, SIGNUP_PATH } from '@app/sagas/loginLogout';
 import { lazy } from '@app/components/Lazy';
+import Activation from '@inject/pages/AdminPage/subpages/Activation';
 
 import App from './containers/App';
 
@@ -147,6 +148,7 @@ export default dispatch => (
             <Route path='/admin/roles' component={Roles} />
             <Route path='/admin/advanced' component={Advanced} />
             <Route path='/admin/provisioning' component={Provisioning} />
+            <Route path='/admin/activation' component={Activation}/>
             <Route path='/admin/support' component={Support} />
             <Route path='/admin/votes' component={Votes} />
             <Route path='/admin/queues' component={Queues} />

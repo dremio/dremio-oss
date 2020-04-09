@@ -33,7 +33,7 @@ import com.dremio.sabot.op.scan.ScanOperator;
 final class FSDataInputStreamWithStatsWrapper extends FSInputStreamWithStatsWrapper {
   private static final Class<?> HDFS_DATA_INPUT_STREAM_CLASS = getClass("org.apache.hadoop.hdfs.client.HdfsDataInputStream");
   private static final Class<?> DFS_INPUT_STREAM_CLASS = getClass("org.apache.hadoop.hdfs.DFSInputStream");
-  private static final Class<?> READ_STATISTICS_CLASS = getClass("org.apache.hadoop.hdfs.DFSInputStream$ReadStatistics");
+  private static final Class<?> READ_STATISTICS_CLASS = getClass("org.apache.hadoop.hdfs.ReadStatistics");
 
   private static final Method HDFS_DATA_INPUT_STREAM_READ_STATISTICS_METHOD = getClassMethod(HDFS_DATA_INPUT_STREAM_CLASS, "getReadStatistics");
   private static final Method DFS_INPUT_STREAM_READ_STATISTICS_METHOD = getClassMethod(DFS_INPUT_STREAM_CLASS, "getReadStatistics");
@@ -45,16 +45,23 @@ final class FSDataInputStreamWithStatsWrapper extends FSInputStreamWithStatsWrap
   private final FSDataInputStream is;
   private final OperatorStats operatorStats;
 
-  private FSDataInputStreamWithStatsWrapper(FSDataInputStream is, OperatorStats operatorStats)
-      throws IOException {
-    super(FSDataInputStreamWrapper.of(is), operatorStats);
+  private FSDataInputStreamWithStatsWrapper(FSDataInputStream is, OperatorStats operatorStats, OperatorStats waitStats)
+    throws IOException {
+    super(FSDataInputStreamWrapper.of(is), waitStats);
     this.is = Objects.requireNonNull(is);
     this.operatorStats = Objects.requireNonNull(operatorStats);
-
   }
 
   static FSDataInputStreamWithStatsWrapper of(FSDataInputStream is, OperatorStats operatorStats) throws IOException {
-    return new FSDataInputStreamWithStatsWrapper(is, operatorStats);
+    return new FSDataInputStreamWithStatsWrapper(is, operatorStats, operatorStats);
+  }
+
+  static FSDataInputStreamWithStatsWrapper of(FSDataInputStream is, OperatorStats operatorStats, boolean recordWaitTimes) throws IOException {
+    OperatorStats waitStats = operatorStats;
+    if (!recordWaitTimes) {
+      waitStats = null;
+    }
+    return new FSDataInputStreamWithStatsWrapper(is, operatorStats, waitStats);
   }
 
   @Override

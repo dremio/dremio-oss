@@ -37,7 +37,7 @@ import io.protostuff.Tag;
 /**
  * Configuration for Amazon Elasticsearch Service storage plugin.
  */
-@SourceType(value = "AMAZONELASTIC", label = "Amazon Elasticsearch Service")
+@SourceType(value = "AMAZONELASTIC", label = "Amazon Elasticsearch Service", uiConfig = "amazon-elastic-storage-layout.json")
 public class AmazonElasticStoragePluginConfig extends BaseElasticStoragePluginConfig<AmazonElasticStoragePluginConfig, ElasticsearchStoragePlugin> {
 
   //  optional string hostname = 1;

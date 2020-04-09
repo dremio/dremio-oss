@@ -17,10 +17,10 @@
 export default function(config) {
   return Promise.resolve([
     {
-      title: la('Cluster'),
+      title: la('Engines'),
       items: [
         { name: la('Node Activity'), url: '/admin/nodeActivity' },
-        { name: la('Provisioning'), url: '/admin/provisioning' },
+        {name: la('Elastic Engines'), url: '/admin/provisioning'},
         { name: la('Support'), url: '/admin/support' },
         { name: la('Queue Control'), url: '/admin/advanced' }
       ]

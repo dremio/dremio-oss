@@ -61,7 +61,7 @@ export class SQLEditor extends PureComponent {
     height: checkHeightAndFitHeightToContentFlags // pass-thru
 
     // all others pass thru
-  }
+  };
 
   reseting = false;
   monacoEditorComponent = null;
@@ -73,7 +73,7 @@ export class SQLEditor extends PureComponent {
 
   state = {
     language: 'sql'
-  }
+  };
 
   componentDidMount() {
     if (this.props.defaultValue !== undefined) {
@@ -112,7 +112,7 @@ export class SQLEditor extends PureComponent {
       }
       this.props.onChange(...args);
     }
-  }
+  };
 
   resetValue() {
     if (!this.monacoEditorComponent.editor) return;
@@ -302,11 +302,11 @@ export class SQLEditor extends PureComponent {
     this.addKeyboardShortcuts(editor);
   };
 
-  onKbdPreview = (editor) => {
+  onKbdPreview = () => {
     this.props.previewDatasetSql();
   };
 
-  onKbdRun = (editor) => {
+  onKbdRun = () => {
     this.props.runDatasetSql();
   };
 
@@ -337,11 +337,11 @@ export class SQLEditor extends PureComponent {
 
   render() {
     const {
-      onChange,
-      errors,
+      onChange, errors,  // eslint-disable-line @typescript-eslint/no-unused-vars
       readOnly,
       contextMenu,
-      fitHeightToContent, // here to not pass it in monaco editor, as it does not support it
+      // monaco does not support fitHeightToContent, so exclude it from monacoProps
+      fitHeightToContent,  // eslint-disable-line @typescript-eslint/no-unused-vars
       ...monacoProps} = this.props;
 
     return (

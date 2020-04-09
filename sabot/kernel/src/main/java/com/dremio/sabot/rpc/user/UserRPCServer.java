@@ -32,6 +32,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.planner.sql.handlers.commands.MetadataProvider;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedStatementProvider;
 import com.dremio.exec.planner.sql.handlers.commands.ServerMetaProvider;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
@@ -64,7 +65,9 @@ import com.dremio.exec.rpc.RpcConfig;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.rpc.UserRpcException;
-import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.SessionOptionManager;
+import com.dremio.exec.server.options.SessionOptionManagerFactory;
+import com.dremio.exec.server.options.SessionOptionManagerFactoryImpl;
 import com.dremio.exec.work.foreman.TerminationListenerRegistry;
 import com.dremio.exec.work.protector.UserConnectionResponseHandler;
 import com.dremio.exec.work.protector.UserRequest;
@@ -79,7 +82,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 import com.google.protobuf.MessageLite;
+import com.google.protobuf.Parser;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelFuture;
@@ -89,6 +94,10 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.Tracer;
+import io.opentracing.noop.NoopSpan;
 
 public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClientConnectionImpl> {
   private static final org.slf4j.Logger CONNECTION_LOGGER = org.slf4j.LoggerFactory.getLogger("com.dremio.ConnectionLog");
@@ -97,24 +106,50 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   private static final String RPC_COMPATIBILITY_ENCODER = "rpc-compatibility-encoder";
   private static final String DRILL_COMPATIBILITY_ENCODER = "backward-compatibility-encoder";
 
+  private final Provider<UserService> userServiceProvider;
+  private final Provider<NodeEndpoint> nodeEndpointProvider;
+
+  private final WorkIngestor workIngestor;
   private final Provider<UserWorker> worker;
-  private final Provider<SabotContext> dbContext;
   private final InboundImpersonationManager impersonationManager;
   private final BufferAllocator allocator;
+  private final SessionOptionManagerFactory sessionOptionManagerFactory;
+  private final Tracer tracer;
 
+  @VisibleForTesting
   UserRPCServer(
       RpcConfig rpcConfig,
-      Provider<SabotContext> dbContext,
+      Provider<UserService> userServiceProvider,
+      Provider<NodeEndpoint> nodeEndpointProvider,
+      WorkIngestor workIngestor,
       Provider<UserWorker> worker,
       BufferAllocator allocator,
       EventLoopGroup eventLoopGroup,
-      InboundImpersonationManager impersonationManager
+      InboundImpersonationManager impersonationManager,
+      Tracer tracer
       ) {
     super(rpcConfig, allocator.getAsByteBufAllocator(), eventLoopGroup);
+    this.userServiceProvider = userServiceProvider;
+    this.nodeEndpointProvider = nodeEndpointProvider;
+    this.workIngestor = workIngestor;
     this.worker = worker;
-    this.dbContext = dbContext;
     this.allocator = allocator;
     this.impersonationManager = impersonationManager;
+    this.sessionOptionManagerFactory = new SessionOptionManagerFactoryImpl();
+    this.tracer = tracer;
+  }
+
+  UserRPCServer(
+    RpcConfig rpcConfig,
+    Provider<UserService> userServiceProvider,
+    Provider<NodeEndpoint> nodeEndpointProvider,
+    Provider<UserWorker> worker,
+    BufferAllocator allocator,
+    EventLoopGroup eventLoopGroup,
+    InboundImpersonationManager impersonationManager,
+    Tracer tracer
+  ) {
+    this(rpcConfig, userServiceProvider, nodeEndpointProvider, new WorkIngestorImpl(worker), worker, allocator, eventLoopGroup, impersonationManager, tracer);
   }
 
   @Override
@@ -145,102 +180,36 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   @Override
   protected void handle(UserClientConnectionImpl connection, int rpcType, byte[] pBody, ByteBuf dBody,
       ResponseSender responseSender) throws RpcException {
-    final UserWorker worker = this.worker.get();
-    final TerminationListenerRegistry registry = connection;
-    switch (rpcType) {
 
-    case RpcType.RUN_QUERY_VALUE:
-      logger.debug("Received query to run.  Returning query handle.");
-      try {
-        final RunQuery query = RunQuery.PARSER.parseFrom(pBody);
-        UserRequest request = new UserRequest(RpcType.RUN_QUERY, query);
-        final ExternalId externalId = ExternalIdHelper.generateExternalId();
-        worker.submitWork(externalId, connection.getSession(), new UserConnectionResponseHandler(connection), request, registry);
-        responseSender.send(new Response(RpcType.QUERY_HANDLE, ExternalIdHelper.toQueryId(externalId)));
-        break;
-      } catch (InvalidProtocolBufferException e) {
-        throw new RpcException("Failure while decoding RunQuery body.", e);
-      }
+    final Span span;
+    if(connection.getSession().isTracingEnabled()) {
+      span = tracer.buildSpan("user_rpc_request").start();
+    }
+    else {
+      span = NoopSpan.INSTANCE;
+    }
 
-    case RpcType.CANCEL_QUERY_VALUE:
-      try {
-        final QueryId queryId = QueryId.PARSER.parseFrom(pBody);
-        final Ack ack = worker.cancelQuery(ExternalIdHelper.toExternal(queryId),
-            connection.getSession().getCredentials().getUserName());
-        responseSender.send(new Response(RpcType.ACK, ack));
-        break;
-      } catch (InvalidProtocolBufferException e) {
-        throw new RpcException("Failure while decoding QueryId body.", e);
+    ResponseSender wrappedSender = new ResponseSender() {
+      @Override
+      public void send(Response r) {
+        responseSender.send(r);
+        span.finish();
       }
 
-    case RpcType.RESUME_PAUSED_QUERY_VALUE:
-      try {
-        final QueryId queryId = QueryId.PARSER.parseFrom(pBody);
-        final Ack ack = worker.resumeQuery(ExternalIdHelper.toExternal(queryId));
-        responseSender.send(new Response(RpcType.ACK, ack));
-        break;
-      } catch (InvalidProtocolBufferException e) {
-        throw new RpcException("Failure while decoding QueryId body.", e);
+      @Override
+      public void sendFailure(UserRpcException e) {
+        responseSender.sendFailure(e);
+        span.finish();
       }
+    };
 
-    case RpcType.GET_CATALOGS_VALUE:
-      try {
-        final GetCatalogsReq req = GetCatalogsReq.PARSER.parseFrom(pBody);
-        UserRequest request = new UserRequest(RpcType.GET_CATALOGS, req);
-        worker.submitWork(connection.getSession(), new MetadataProvider.CatalogsHandler(responseSender), request, registry);
-        break;
-      } catch (final InvalidProtocolBufferException e) {
-        throw new RpcException("Failure while decoding GetCatalogsReq body.", e);
-      }
-    case RpcType.GET_SCHEMAS_VALUE:
-      try {
-        final GetSchemasReq req = GetSchemasReq.PARSER.parseFrom(pBody);
-        UserRequest request = new UserRequest(RpcType.GET_SCHEMAS, req);
-        worker.submitWork(connection.getSession(), new MetadataProvider.SchemasHandler(responseSender), request, registry);
-        break;
-      } catch (final InvalidProtocolBufferException e) {
-        throw new RpcException("Failure while decoding GetSchemasReq body.", e);
-      }
-    case RpcType.GET_TABLES_VALUE:
-      try {
-        final GetTablesReq req = GetTablesReq.PARSER.parseFrom(pBody);
-        UserRequest request = new UserRequest(RpcType.GET_TABLES, req);
-        worker.submitWork(connection.getSession(), new MetadataProvider.TablesHandler(responseSender), request, registry);
-        break;
-      } catch (final InvalidProtocolBufferException e) {
-        throw new RpcException("Failure while decoding GetTablesReq body.", e);
-      }
-    case RpcType.GET_COLUMNS_VALUE:
-      try {
-        final GetColumnsReq req = GetColumnsReq.PARSER.parseFrom(pBody);
-        UserRequest request = new UserRequest(RpcType.GET_COLUMNS, req);
-        worker.submitWork(connection.getSession(), new MetadataProvider.ColumnsHandler(responseSender), request, registry);
-        break;
-      } catch (final InvalidProtocolBufferException e) {
-        throw new RpcException("Failure while decoding GetColumnsReq body.", e);
-      }
-    case RpcType.CREATE_PREPARED_STATEMENT_VALUE:
-      try {
-        final CreatePreparedStatementReq req =
-            CreatePreparedStatementReq.PARSER.parseFrom(pBody);
-        UserRequest request = new UserRequest(RpcType.CREATE_PREPARED_STATEMENT, req);
-        worker.submitWork(connection.getSession(), new PreparedStatementProvider.PreparedStatementHandler(responseSender), request, registry);
-        break;
-      } catch (final InvalidProtocolBufferException e) {
-        throw new RpcException("Failure while decoding CreatePreparedStatementReq body.", e);
-      }
-    case RpcType.GET_SERVER_META_VALUE:
-      try {
-        final GetServerMetaReq req =
-            GetServerMetaReq.PARSER.parseFrom(pBody);
-        UserRequest request = new UserRequest(RpcType.GET_SERVER_META, req);
-        worker.submitWork(connection.getSession(), new ServerMetaProvider.ServerMetaHandler(responseSender), request, registry);
-        break;
-      } catch (final InvalidProtocolBufferException e) {
-        throw new RpcException("Failure while decoding CreatePreparedStatementReq body.", e);
-      }
-    default:
-      throw new UnsupportedOperationException(String.format("UserServer received rpc of unknown type.  Type was %d.", rpcType));
+    span.setTag("rpc_type", RpcType.valueOf(rpcType).toString());
+    // If there's an error parsing the request, the failure will not be sent through the response sender.
+    try (Scope scope = tracer.activateSpan(span)){
+      workIngestor.feedWork(connection, rpcType, pBody, dBody, wrappedSender);
+    } catch (RpcException e){
+      span.finish();
+      throw e;
     }
   }
 
@@ -276,6 +245,11 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
     }
   }
 
+  @VisibleForTesting
+  SessionOptionManagerFactory getSessionOptionManagerFactory() {
+    return sessionOptionManagerFactory;
+  }
+
   /**
    * Interface for getting user session properties and interacting with user connection. Separating this interface from
    * {@link RemoteConnection} implementation for user connection:
@@ -307,6 +281,107 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
 
   }
 
+  /**
+   * Based on rpc type, work is either performed synch or asynchronously.
+   * If work is done asynchronously, assemble the dependencies and hand them off to the worker via submitWork.
+   */
+  static class WorkIngestorImpl implements WorkIngestor {
+
+    private final Provider<UserWorker> worker;
+
+    WorkIngestorImpl(Provider<UserWorker> worker) {
+      this.worker = worker;
+    }
+
+    private <M extends Message> M parse(byte[] body, Parser<M> parser, Class<M> type) throws RpcException {
+
+      try {
+        return parser.parseFrom(body);
+      } catch (InvalidProtocolBufferException e) {
+        throw  new RpcException(String.format("Failure while decoding %s body.", type.getSimpleName()), e);
+      }
+    }
+
+    @Override
+    public void feedWork(UserClientConnectionImpl connection, int rpcType, byte[] pBody, ByteBuf dBody,
+                         ResponseSender responseSender) throws  RpcException {
+    final UserWorker worker = this.worker.get();
+    final TerminationListenerRegistry registry = connection;
+    switch (rpcType) {
+
+      case RpcType.RUN_QUERY_VALUE: {
+        logger.debug("Received query to run.  Returning query handle.");
+        final RunQuery query = parse(pBody, RunQuery.PARSER, RunQuery.class);
+        UserRequest request = new UserRequest(RpcType.RUN_QUERY, query);
+        final ExternalId externalId = ExternalIdHelper.generateExternalId();
+        worker.submitWork(externalId, connection.getSession(), new UserConnectionResponseHandler(connection), request, registry);
+        responseSender.send(new Response(RpcType.QUERY_HANDLE, ExternalIdHelper.toQueryId(externalId)));
+        break;
+      }
+
+      case RpcType.CANCEL_QUERY_VALUE: {
+        final QueryId queryId = parse(pBody, QueryId.PARSER, QueryId.class);
+        final Ack ack = worker.cancelQuery(ExternalIdHelper.toExternal(queryId),
+          connection.getSession().getCredentials().getUserName());
+        responseSender.send(new Response(RpcType.ACK, ack));
+        break;
+      }
+
+      case RpcType.RESUME_PAUSED_QUERY_VALUE: {
+        final QueryId queryId = parse(pBody, QueryId.PARSER, QueryId.class);
+        final Ack ack = worker.resumeQuery(ExternalIdHelper.toExternal(queryId));
+        responseSender.send(new Response(RpcType.ACK, ack));
+        break;
+      }
+
+      case RpcType.GET_CATALOGS_VALUE: {
+        final GetCatalogsReq req = parse(pBody, GetCatalogsReq.PARSER, GetCatalogsReq.class);
+        UserRequest request = new UserRequest(RpcType.GET_CATALOGS, req);
+        worker.submitWork(connection.getSession(), new MetadataProvider.CatalogsHandler(responseSender), request, registry);
+        break;
+      }
+
+      case RpcType.GET_SCHEMAS_VALUE: {
+        final GetSchemasReq req = parse(pBody, GetSchemasReq.PARSER, GetSchemasReq.class);
+        UserRequest request = new UserRequest(RpcType.GET_SCHEMAS, req);
+        worker.submitWork(connection.getSession(), new MetadataProvider.SchemasHandler(responseSender), request, registry);
+        break;
+      }
+
+      case RpcType.GET_TABLES_VALUE: {
+        final GetTablesReq req = parse(pBody, GetTablesReq.PARSER, GetTablesReq.class);
+        UserRequest request = new UserRequest(RpcType.GET_TABLES, req);
+        worker.submitWork(connection.getSession(), new MetadataProvider.TablesHandler(responseSender), request, registry);
+        break;
+      }
+
+      case RpcType.GET_COLUMNS_VALUE: {
+        final GetColumnsReq req = parse(pBody, GetColumnsReq.PARSER, GetColumnsReq.class);
+        UserRequest request = new UserRequest(RpcType.GET_COLUMNS, req);
+        worker.submitWork(connection.getSession(), new MetadataProvider.ColumnsHandler(responseSender), request, registry);
+        break;
+      }
+
+      case RpcType.CREATE_PREPARED_STATEMENT_VALUE: {
+        final CreatePreparedStatementReq req = parse(pBody, CreatePreparedStatementReq.PARSER, CreatePreparedStatementReq.class);
+        UserRequest request = new UserRequest(RpcType.CREATE_PREPARED_STATEMENT, req);
+        worker.submitWork(connection.getSession(), new PreparedStatementProvider.PreparedStatementHandler(responseSender), request, registry);
+        break;
+      }
+
+      case RpcType.GET_SERVER_META_VALUE: {
+        final GetServerMetaReq req = parse(pBody, GetServerMetaReq.PARSER, GetServerMetaReq.class);
+        UserRequest request = new UserRequest(RpcType.GET_SERVER_META, req);
+        worker.submitWork(connection.getSession(), new ServerMetaProvider.ServerMetaHandler(responseSender), request, registry);
+        break;
+      }
+
+      default:
+        throw new UnsupportedOperationException(String.format("UserServer received rpc of unknown type.  Type was %d.", rpcType));
+    }
+  }
+
+  }
 
   private final static RpcEndpointInfos UNKNOWN = RpcEndpointInfos.newBuilder().build();
 
@@ -317,16 +392,20 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
     private final UUID uuid;
     private InetSocketAddress remote;
     private UserSession session;
+    private SessionOptionManager sessionOptionManager;
 
     public UserClientConnectionImpl(SocketChannel channel) {
       super(channel, "user client", false);
       uuid = UUID.randomUUID();
       remote = channel.remoteAddress();
-
     }
 
     void disableReadTimeout() {
       getChannel().pipeline().remove(TIMEOUT_HANDLER);
+    }
+
+    UUID getUuid() {
+      return uuid;
     }
 
     void setUser(final UserToBitHandshake inbound) throws IOException {
@@ -370,9 +449,8 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
 
       CONNECTION_LOGGER.info(infoMsg);
 
-
-      final UserWorker worker = UserRPCServer.this.worker.get();
       UserSession.Builder builder = UserSession.Builder.newBuilder();
+
       // Support legacy drill driver. If the client info is empty or it exists
       // and doesn't contain dremio, assume it is Apache Drill format.
       boolean legacyDriver = false;
@@ -395,9 +473,10 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
             .setSupportComplexTypes(false);
       }
 
+      sessionOptionManager = sessionOptionManagerFactory.getOrCreate(uuid.toString(), UserRPCServer.this.worker.get().getSystemOptions());
       builder
           .withCredentials(inbound.getCredentials())
-          .withOptionManager(worker.getSystemOptions())
+          .withSessionOptionManager(sessionOptionManager)
           .withUserProperties(inbound.getProperties())
           .setSupportComplexTypes(inbound.getSupportComplexTypes());
 
@@ -413,7 +492,7 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
           try {
             builder.withRecordBatchFormat(chooseDremioRecordBatchFormat(inbound));
           } catch(IllegalArgumentException e) {
-            throw new UserRpcException(dbContext.get().getEndpoint(), e.getMessage(), e);
+            throw new UserRpcException(nodeEndpointProvider.get(), e.getMessage(), e);
           }
           break;
         }
@@ -421,16 +500,22 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
         // Use legacy format
         builder = builder.withRecordBatchFormat(RecordBatchFormat.DRILL_1_0);
       }
+
       this.session = builder.build();
 
-      if(session.useLegacyCatalogName()){
-        // set this to a system option so remote reads of information schema also know about this.
-        session.getOptions().setOption(OptionValue.createBoolean(OptionType.SESSION, ExecConstants.USE_LEGACY_CATALOG_NAME.getOptionName(), true));
-      }
+      try {
+        if (session.useLegacyCatalogName()) {
+          // set this to a system option so remote reads of information schema also know about this.
+          session.getOptions().setOption(OptionValue.createBoolean(OptionType.SESSION, ExecConstants.USE_LEGACY_CATALOG_NAME.getOptionName(), true));
+        }
 
-      final String targetName = session.getTargetUserName();
-      if (impersonationManager != null && targetName != null) {
-        impersonationManager.replaceUserOnSession(targetName, session);
+        final String targetName = session.getTargetUserName();
+        if (impersonationManager != null && targetName != null) {
+          impersonationManager.replaceUserOnSession(targetName, session);
+        }
+      } catch (Exception e) {
+        sessionOptionManagerFactory.delete(uuid.toString());
+        throw e;
       }
     }
 
@@ -477,12 +562,16 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
   protected ChannelFutureListener newCloseListener(SocketChannel channel,
                                                    final UserClientConnectionImpl connection) {
     final ChannelFutureListener delegate = super.newCloseListener(channel, connection);
+
     return new ChannelFutureListener(){
 
       @Override
       public void operationComplete(ChannelFuture future) throws Exception {
         try {
           delegate.operationComplete(future);
+          if (connection != null) {
+            sessionOptionManagerFactory.delete(connection.uuid.toString());
+          }
         } finally {
             CONNECTION_LOGGER.info("[{}] Connection Closed", connection.uuid);
         }
@@ -530,8 +619,8 @@ public class UserRPCServer extends BasicServer<RpcType, UserRPCServer.UserClient
             return handleFailure(respBuilder, HandshakeStatus.RPC_VERSION_MISMATCH, errMsg, null);
           }
 
-          if (dbContext.get().isUserAuthenticationEnabled()) {
-            UserService userService = dbContext.get().getUserService();
+          UserService userService = userServiceProvider.get();
+          if (userService != null) {
             try {
               String password = "";
               final UserProperties props = inbound.getProperties();

@@ -25,7 +25,6 @@ import java.util.Map;
 
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.AllocationHelper;
-import org.apache.arrow.vector.SchemaChangeCallBack;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -106,7 +105,11 @@ public class ScanOperator implements ProducerOperator {
     JAVA_EXECUTE_TIME,
     GANDIVA_BUILD_TIME, // time taken by Gandiva (setup+evaluation) for type conversions in CoercionReader,
     GANDIVA_EXECUTE_TIME,
-    NUM_FILTERS_MODIFIED   // Number of parquet filters modified
+    NUM_FILTERS_MODIFIED,   // Number of parquet filters modified
+    NUM_HIVE_PARQUET_TRUNCATE_VARCHAR, // Number of fixed-len varchar fields in hive_parquet
+    TOTAL_HIVE_PARQUET_TRUNCATE_VARCHAR, // Total number of fixed-len varchar truncation in haveParquetCoercion
+    TOTAL_HIVE_PARQUET_TRANSFER_VARCHAR, //  Total number of fixed-len varchar transfers in haveParquetCoercion
+    HIVE_PARQUET_CHECK_VARCHAR_CAST_TIME // Time spent checking if truncation is required for a varchar field
     ;
 
     @Override
@@ -122,7 +125,7 @@ public class ScanOperator implements ProducerOperator {
   private Iterator<RecordReader> readers;
   private RecordReader currentReader;
   private final ScanMutator mutator;
-  private SchemaChangeCallBack callBack = new SchemaChangeCallBack();
+  private MutatorSchemaChangeCallBack callBack = new MutatorSchemaChangeCallBack();
   private final BatchSchema schema;
   private final ImmutableList<SchemaPath> selectedColumns;
   private final List<String> tableSchemaPath;
@@ -272,7 +275,7 @@ public class ScanOperator implements ProducerOperator {
   }
 
   private void checkAndLearnSchema(){
-    if (mutator.isSchemaChanged()) {
+    if (mutator.getSchemaChanged()) {
       outgoing.buildSchema(SelectionVectorMode.NONE);
       final BatchSchema newSchema = mutator.transformFunction.apply(outgoing.getSchema());
       if (config.mayLearnSchema() && tableSchemaPath != null) {
@@ -296,11 +299,11 @@ public class ScanOperator implements ProducerOperator {
     private final VectorContainer outgoing;
     private final Map<String, ValueVector> fieldVectorMap;
     private final OperatorContext context;
-    private final SchemaChangeCallBack callBack;
+    private final MutatorSchemaChangeCallBack callBack;
     private Function<BatchSchema, BatchSchema> transformFunction = Functions.identity();
 
     public ScanMutator(VectorContainer outgoing, Map<String, ValueVector> fieldVectorMap, OperatorContext context,
-                       SchemaChangeCallBack callBack) {
+                       MutatorSchemaChangeCallBack callBack) {
       this.outgoing = outgoing;
       this.fieldVectorMap = fieldVectorMap;
       this.context = context;
@@ -375,8 +378,15 @@ public class ScanOperator implements ProducerOperator {
     }
 
     @Override
-    public boolean isSchemaChanged() {
-      return outgoing.isNewSchema() || callBack.getSchemaChangedAndReset();
+    public boolean getAndResetSchemaChanged() {
+      boolean schemaChanged =  callBack.getSchemaChangedAndReset() || outgoing.isNewSchema();
+      Preconditions.checkState(!callBack.getSchemaChanged(), "Unexpected state");
+      return schemaChanged;
+    }
+
+    @Override
+    public boolean getSchemaChanged() {
+      return outgoing.isNewSchema() || callBack.getSchemaChanged();
     }
   }
 

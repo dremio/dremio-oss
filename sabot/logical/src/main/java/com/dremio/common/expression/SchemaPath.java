@@ -16,10 +16,8 @@
 package com.dremio.common.expression;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
 
 import org.antlr.runtime.ANTLRStringStream;
 import org.antlr.runtime.CommonTokenStream;
@@ -32,15 +30,16 @@ import com.dremio.common.expression.parser.ExprParser;
 import com.dremio.common.expression.parser.ExprParser.parse_return;
 import com.dremio.common.expression.visitors.ExprVisitor;
 import com.dremio.exec.proto.UserBitShared.NamePart;
-import com.dremio.exec.proto.UserBitShared.NamePart.Type;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.google.common.base.Preconditions;
 
-public class SchemaPath extends LogicalExpressionBase implements Comparable<SchemaPath> {
-
-  private final NameSegment rootSegment;
+public class SchemaPath extends BasePath implements LogicalExpression, Comparable<SchemaPath> {
+  // Unused but required for Kryo deserialization as it used to exist pre 4.2.
+  @Deprecated
+  private EvaluationType evaluationType;
 
   public static SchemaPath getSimplePath(String name) {
     return getCompoundPath(name);
@@ -65,64 +64,9 @@ public class SchemaPath extends LogicalExpressionBase implements Comparable<Sche
 
   @Deprecated
   public SchemaPath(String simpleName) {
-    this.rootSegment = new NameSegment(simpleName);
+    super(new NameSegment(simpleName));
     if (simpleName.contains(".")) {
       throw new IllegalStateException("This is deprecated and only supports simple paths.");
-    }
-  }
-
-  public NamePart getAsNamePart() {
-    return getNamePart(rootSegment);
-  }
-
-  public <IN, OUT> OUT accept(SchemaPathVisitor<IN, OUT> visitor, IN in){
-    return getRootSegment().accept(visitor, in);
-  }
-
-  public interface SchemaPathVisitor<IN, OUT> {
-    public OUT visitName(NameSegment segment, IN in);
-    public OUT visitArray(ArraySegment segment, IN in);
-  }
-
-  private static NamePart getNamePart(PathSegment s) {
-    if (s == null) {
-      return null;
-    }
-    NamePart.Builder b = NamePart.newBuilder();
-    if (s.getChild() != null) {
-      b.setChild(getNamePart(s.getChild()));
-    }
-
-    if (s.isArray()) {
-      if (s.getArraySegment().hasIndex()) {
-        throw new IllegalStateException("You cannot convert a indexed schema path to a NamePart.  NameParts can only reference Vectors, not individual records or values.");
-      }
-      b.setType(Type.ARRAY);
-    } else {
-      b.setType(Type.NAME);
-      b.setName(s.getNameSegment().getPath());
-    }
-    return b.build();
-  }
-
-  public List<String> getNameSegments(){
-    List<String> segments = new ArrayList<>();
-    PathSegment seg = rootSegment;
-    while(seg != null){
-      if(seg.isNamed()){
-        segments.add(seg.getNameSegment().getPath());
-      }
-      seg = seg.getChild();
-    }
-    return segments;
-  }
-
-  private static PathSegment getPathSegment(NamePart n) {
-    PathSegment child = n.hasChild() ? getPathSegment(n.getChild()) : null;
-    if (n.getType() == Type.ARRAY) {
-      return new ArraySegment(child);
-    } else {
-      return new NameSegment(n.getName(), child);
     }
   }
 
@@ -147,11 +91,11 @@ public class SchemaPath extends LogicalExpressionBase implements Comparable<Sche
   }
 
   public SchemaPath(SchemaPath path) {
-    this.rootSegment = path.rootSegment;
+    super(path.rootSegment);
   }
 
   public SchemaPath(NameSegment rootSegment) {
-    this.rootSegment = rootSegment;
+    super(rootSegment);
   }
 
   @Override
@@ -179,10 +123,6 @@ public class SchemaPath extends LogicalExpressionBase implements Comparable<Sche
   public SchemaPath getChild(int index) {
     NameSegment newRoot = rootSegment.cloneWithNewChild(new ArraySegment(index));
     return new SchemaPath(newRoot);
-  }
-
-  public NameSegment getRootSegment() {
-    return rootSegment;
   }
 
   @Override
@@ -243,27 +183,6 @@ public class SchemaPath extends LogicalExpressionBase implements Comparable<Sche
     return ExpressionStringBuilder.toString(this);
   }
 
-  public String getAsUnescapedPath() {
-    StringBuilder sb = new StringBuilder();
-    PathSegment seg = getRootSegment();
-    if (seg.isArray()) {
-      throw new IllegalStateException("Dremio doesn't currently support top level arrays");
-    }
-    sb.append(seg.getNameSegment().getPath());
-
-    while ( (seg = seg.getChild()) != null) {
-      if (seg.isNamed()) {
-        sb.append('.');
-        sb.append(seg.getNameSegment().getPath());
-      } else {
-        sb.append('[');
-        sb.append(seg.getArraySegment().getIndex());
-        sb.append(']');
-      }
-    }
-    return sb.toString();
-  }
-
   public static class De extends StdDeserializer<SchemaPath> {
 
     public De() {
@@ -303,6 +222,17 @@ public class SchemaPath extends LogicalExpressionBase implements Comparable<Sche
   @Override
   public int compareTo(SchemaPath o) {
     return this.getAsUnescapedPath().compareTo(o.getAsUnescapedPath());
+  }
+
+  @JsonIgnore
+  public int getSelfCost() {
+    return 0;
+  }
+
+  @JsonIgnore
+  @Override
+  public int getCumulativeCost() {
+    return 0;
   }
 
 }

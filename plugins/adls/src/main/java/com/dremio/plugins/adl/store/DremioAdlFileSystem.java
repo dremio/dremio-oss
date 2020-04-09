@@ -23,7 +23,7 @@ import org.apache.hadoop.fs.adl.AdlFileSystem;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.io.AsyncByteReader;
-import com.microsoft.azure.datalake.store.AdlsAsyncFileReader;
+import com.microsoft.azure.datalake.store.ADLSClient;
 
 /**
  * Specialized Hadoop FileSystem implementation for ADLS gen 1 which adds async reading capabilities.
@@ -61,7 +61,9 @@ public class DremioAdlFileSystem extends AdlFileSystem implements MayProvideAsyn
       }
     }
 
-    return new AdlsAsyncFileReader(asyncHttpClientManager.getClient(), asyncHttpClientManager.getAsyncHttpClient(),
+    return new AdlsAsyncFileReader(
+      new ADLSClient(asyncHttpClientManager.getClient()),
+      asyncHttpClientManager.getAsyncHttpClient(),
       path.toUri().getPath(), version, this, asyncHttpClientManager.getUtilityThreadPool());
   }
 }

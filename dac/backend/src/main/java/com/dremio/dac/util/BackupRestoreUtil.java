@@ -55,6 +55,7 @@ import org.apache.commons.io.IOUtils;
 
 import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
 import com.dremio.common.scanner.ClassPathScanner;
+import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.homefiles.HomeFileConf;
@@ -62,10 +63,13 @@ import com.dremio.dac.proto.model.backup.BackupFileInfo;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.tokens.TokenUtils;
 import com.dremio.datastore.CoreKVStore;
-import com.dremio.datastore.DataStoreUtils;
+import com.dremio.datastore.KVStoreInfo;
 import com.dremio.datastore.KVStoreTuple;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.datastore.StoreBuilderConfig;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.KVStore.PutOption;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.store.dfs.PseudoDistributedFileSystem;
 import com.dremio.io.file.FileAttributes;
@@ -73,7 +77,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.FileSystemUtils;
 import com.dremio.io.file.Path;
 import com.dremio.io.file.PathFilters;
-import com.dremio.service.jobs.LocalJobsService;
+import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.namespace.NamespaceException;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -134,8 +138,7 @@ public final class BackupRestoreUtil {
 
   private static <K, V> void dumpTable(FileSystem fs, Path backupRootDir, BackupFileInfo backupFileInfo, CoreKVStore<K, V> coreKVStore, boolean binary) throws IOException {
     final Path backupFile = backupRootDir.resolve(format("%s%s", backupFileInfo.getKvstoreInfo().getTablename(), binary ? BACKUP_FILE_SUFFIX_BINARY : BACKUP_FILE_SUFFIX_JSON));
-    final ObjectMapper objectMapper = new ObjectMapper();
-    final Iterator<Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>>> iterator = coreKVStore.find().iterator();
+    final Iterator<Document<KVStoreTuple<K>, KVStoreTuple<V>>> iterator = coreKVStore.find().iterator();
     long records = 0;
 
     if(binary) {
@@ -144,7 +147,7 @@ public final class BackupRestoreUtil {
           final DataOutputStream bos = new DataOutputStream(fsout);
           ){
         while (iterator.hasNext()) {
-          Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>> keyval = iterator.next();
+          Document<KVStoreTuple<K>, KVStoreTuple<V>> keyval = iterator.next();
           {
             byte[] key = keyval.getKey().getSerializedBytes();
             bos.writeInt(key.length);
@@ -162,11 +165,12 @@ public final class BackupRestoreUtil {
         backupFileInfo.setBinary(true);
       }
     } else {
+      final ObjectMapper objectMapper = new ObjectMapper();
       try (
           final OutputStream fsout = fs.create(backupFile, true);
           final BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(fsout));){
         while (iterator.hasNext()) {
-          Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>> keyval = iterator.next();
+          Document<KVStoreTuple<K>, KVStoreTuple<V>> keyval = iterator.next();
           writer.write(objectMapper.writeValueAsString(new BackupRecord(keyval.getKey().toJson(), keyval.getValue().toJson())));
           writer.newLine();
           ++records;
@@ -186,8 +190,6 @@ public final class BackupRestoreUtil {
   }
 
   private static <K, V> void restoreTable(FileSystem fs, CoreKVStore<K, V> coreKVStore, Path filePath, boolean binary, long records) throws IOException {
-    final ObjectMapper objectMapper = new ObjectMapper();
-    String line;
     if (binary) {
       try(DataInputStream dis = new DataInputStream(fs.open(filePath))) {
         for(long i =0; i < records; i++) {
@@ -205,20 +207,26 @@ public final class BackupRestoreUtil {
             dis.readFully(valueBytes);
             value.setSerializedBytes(valueBytes);
           }
-          coreKVStore.put(key, value);
+          // Use the create flag to ensure OCC-enabled KVStore tables can retrieve an initial version.
+          // For non-OCC tables, this start version will get ignored and overwritten.
+          coreKVStore.put(key, value, PutOption.CREATE);
         }
       }
       return;
     }
 
     try(final BufferedReader reader = new BufferedReader(new InputStreamReader(fs.open(filePath)));) {
+      final ObjectMapper objectMapper = new ObjectMapper();
+      String line;
       while ((line = reader.readLine()) != null) {
         final KVStoreTuple<K> key = coreKVStore.newKey();
         final BackupRecord record = objectMapper.readValue(line, BackupRecord.class);
         key.setObject(key.fromJson(record.getKey()));
         final KVStoreTuple<V> value = coreKVStore.newValue();
         value.setObject(value.fromJson(record.getValue()));
-        coreKVStore.put(key, value);
+        // Use the create flag to ensure OCC-enabled KVStore tables can retrieve an initial version.
+        // For non-OCC tables, this start version will get ignored and overwritten.
+        coreKVStore.put(key, value, PutOption.CREATE);
       }
     }
   }
@@ -303,7 +311,7 @@ public final class BackupRestoreUtil {
     FileSystem fs2 = homeFileStore.getFilesystemAndCreatePaths(hostname);
     fs2.delete(homeFileStore.getPath(), true);
     FileSystemUtils.copy(fs, uploadsBackupDir, fs2, homeFileStore.getInnerUploads(), false, false);
-    try (final DirectoryStream<FileAttributes> directoryStream = FileSystemUtils.listRecursive(fs, backupDir, PathFilters.ALL_FILES)) {
+    try (final DirectoryStream<FileAttributes> directoryStream = FileSystemUtils.listRecursive(fs, uploadsBackupDir, PathFilters.ALL_FILES)) {
       for (FileAttributes attributes: directoryStream) {
         if (attributes.isRegularFile()) {
           backupStats.incrementFiles();
@@ -384,22 +392,22 @@ public final class BackupRestoreUtil {
     }
   }
 
-  private static CompletableFuture<Void> asFuture(Executor e, Map.Entry<StoreBuilderConfig, CoreKVStore<?,?>> entry, FileSystem fs, Path backupDir, BackupOptions options, BackupStats backupStats) {
+  private static CompletableFuture<Void> asFuture(Executor e, Map.Entry<KVStoreInfo, CoreKVStore<?,?>> entry, FileSystem fs, Path backupDir, BackupOptions options, BackupStats backupStats) {
     return CompletableFuture.runAsync(() -> {
       try {
-        final StoreBuilderConfig storeBuilderConfig = entry.getKey();
-        if (TokenUtils.TOKENS_TABLE_NAME.equals(storeBuilderConfig.getName())) {
+        final KVStoreInfo kvstoreInfo = entry.getKey();
+        if (TokenUtils.TOKENS_TABLE_NAME.equals(kvstoreInfo.getTablename())) {
           // Skip creating a backup of tokens table
           // TODO: In the future, if there are other tables that should not be backed up, this could be part of
           // StoreBuilderConfig interface
           return;
         }
 
-        if (LocalJobsService.PROFILES_NAME.equals(storeBuilderConfig.getName()) && !options.isIncludeProfiles()){
+        if (LocalProfileStore.PROFILES_NAME.equals(kvstoreInfo.getTablename()) && !options.isIncludeProfiles()){
           return;
         }
 
-        final BackupFileInfo backupFileInfo = new BackupFileInfo().setKvstoreInfo(DataStoreUtils.toInfo(storeBuilderConfig));
+        final BackupFileInfo backupFileInfo = new BackupFileInfo().setKvstoreInfo(kvstoreInfo);
         dumpTable(fs, backupDir, backupFileInfo, entry.getValue(), options.isBinary());
         backupStats.incrementTables();
       } catch(IOException ex) {
@@ -416,50 +424,56 @@ public final class BackupRestoreUtil {
     if (!dbPath.isDirectory() || dbPath.list().length > 0) {
       throw new IllegalArgumentException(format("Path %s must be an empty directory.", dbDir));
     }
-    final LocalKVStoreProvider localKVStoreProvider = new LocalKVStoreProvider(ClassPathScanner.fromPrescan(dacConfig.getConfig().getSabotConfig()), dbDir, false, true, false, true);
-    localKVStoreProvider.start();
-    // TODO after we add home file store type to configuration make sure we change homefile store construction.
-    if(uploads.getScheme().equals("pdfs")){
-      uploads = UriBuilder.fromUri(uploads).scheme("file").build();
-    }
 
-    final HomeFileConf homeFileConf = new HomeFileConf(uploads.toString());
-    homeFileConf.getFilesystemAndCreatePaths(null);
-    Map<String, BackupFileInfo> tableToInfo = scanInfoFiles(fs, backupDir);
-    Map<String, Path> tableToBackupFiles = scanBackupFiles(fs, backupDir, tableToInfo);
-    final BackupStats backupStats = new BackupStats();
-    backupStats.backupPath = backupDir.toURI().getPath();
+    final ScanResult scan = ClassPathScanner.fromPrescan(dacConfig.getConfig().getSabotConfig());
+    final LocalKVStoreProvider localKVStoreProvider = new LocalKVStoreProvider(scan, dbDir, false, true);
 
-    try (CloseableThreadPool ctp  = new CloseableThreadPool("restore")) {
-      List<CompletableFuture<Void>> futures = new ArrayList<>();
-      futures.addAll(tableToInfo.keySet().stream().map(table -> {
-        return CompletableFuture.runAsync(() -> {
-          BackupFileInfo info = tableToInfo.get(table);
-          final StoreBuilderConfig storeBuilderConfig = DataStoreUtils.toBuilderConfig(info.getKvstoreInfo());
-          final CoreKVStore<?, ?> store = localKVStoreProvider.getOrCreateStore(storeBuilderConfig);
+    // We need to initialize the adapter so that we can instantiate any legacy KV store tables.
+    // Note that closing the adapter implicitly closes the wrapped provider.
+    try (final LegacyKVStoreProvider legacyStub = new LegacyKVStoreProviderAdapter(localKVStoreProvider, scan)) {
+      legacyStub.start();
+
+      // TODO after we add home file store type to configuration make sure we change homefile store construction.
+      if (uploads.getScheme().equals("pdfs")) {
+        uploads = UriBuilder.fromUri(uploads).scheme("file").build();
+      }
+
+      final HomeFileConf homeFileConf = new HomeFileConf(uploads.toString());
+      homeFileConf.getFilesystemAndCreatePaths(null);
+      Map<String, BackupFileInfo> tableToInfo = scanInfoFiles(fs, backupDir);
+      Map<String, Path> tableToBackupFiles = scanBackupFiles(fs, backupDir, tableToInfo);
+      final BackupStats backupStats = new BackupStats();
+      backupStats.backupPath = backupDir.toURI().getPath();
+
+      try (CloseableThreadPool ctp = new CloseableThreadPool("restore")) {
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        futures.addAll(tableToInfo.keySet().stream().map(table -> {
+          return CompletableFuture.runAsync(() -> {
+            BackupFileInfo info = tableToInfo.get(table);
+            final CoreKVStore<?, ?> store = localKVStoreProvider.getStore(info.getKvstoreInfo());
+            try {
+              restoreTable(fs, store, tableToBackupFiles.get(table), info.getBinary(), info.getRecords());
+            } catch (IOException e) {
+              throw new CompletionException(e);
+            }
+            backupStats.incrementTables();
+          }, ctp);
+        }).collect(Collectors.toList()));
+
+        futures.add(CompletableFuture.runAsync(() -> {
           try {
-            restoreTable(fs, store, tableToBackupFiles.get(table), info.getBinary(), info.getRecords());
+            restoreUploadedFiles(fs, backupDir, homeFileConf, backupStats, dacConfig.getConfig().getThisNode());
           } catch (IOException e) {
             throw new CompletionException(e);
           }
-          backupStats.incrementTables();
-        }, ctp);
-      }).collect(Collectors.toList()));
+        }, ctp));
 
-      futures.add(CompletableFuture.runAsync(() -> {
-        try {
-          restoreUploadedFiles(fs, backupDir, homeFileConf, backupStats, dacConfig.getConfig().getThisNode());
-        } catch (IOException e) {
-          throw new CompletionException(e);
-        }
-      }, ctp));
+        checkFutures(futures);
 
-      checkFutures(futures);
+      }
 
+      return backupStats;
     }
-    localKVStoreProvider.close();
-
-    return backupStats;
   }
 
   /**

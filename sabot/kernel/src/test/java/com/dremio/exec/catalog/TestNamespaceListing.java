@@ -33,8 +33,8 @@ import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.sample.SampleSourceMetadata;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -51,12 +51,13 @@ import com.google.common.collect.Iterators;
  */
 public class TestNamespaceListing {
 
-  private KVStoreProvider kvStoreProvider;
+  private LegacyKVStoreProvider kvStoreProvider;
   private NamespaceService namespaceService;
 
   @Before
   public void setup() throws Exception {
-    kvStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
+    kvStoreProvider =
+      new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy();
     kvStoreProvider.start();
     namespaceService = new NamespaceServiceImpl(kvStoreProvider);
   }

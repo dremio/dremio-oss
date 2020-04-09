@@ -41,9 +41,9 @@ import com.dremio.connector.metadata.DatasetSplitListing;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.sample.SampleSourceMetadata;
-import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf;
@@ -58,7 +58,7 @@ import com.google.protobuf.ByteString;
  * Unit test of the dataset metadata saver, and the subsequent fetching of splits
  */
 public class TestDatasetMetadataSaver {
-  private KVStoreProvider kvStoreProvider;
+  private LegacyKVStoreProvider kvStoreProvider;
   private NamespaceService namespaceService;
   private NamespaceService.SplitCompression currentCompression;
 
@@ -67,7 +67,8 @@ public class TestDatasetMetadataSaver {
 
   @Before
   public void setup() throws Exception {
-    kvStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
+    kvStoreProvider =
+      new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy();
     kvStoreProvider.start();
     namespaceService = new NamespaceServiceImpl(kvStoreProvider);
   }
@@ -97,7 +98,7 @@ public class TestDatasetMetadataSaver {
 
   void checkSplits(DatasetConfig dataset, int numPartitionChunksPerDataset, int numSplitsPerPartitionChunk, boolean quitBeforeSaving, boolean legacySplits) throws NamespaceException, IOException {
     List<PartitionChunkMetadata> result =
-      ImmutableList.copyOf(namespaceService.findSplits(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(dataset))));
+      ImmutableList.copyOf(namespaceService.findSplits(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(dataset))));
     assertEquals(numPartitionChunksPerDataset, result.size());
     Set<String> expectedSplits = new HashSet<>();
     for (int p = 0; p < numPartitionChunksPerDataset; p++) {
@@ -378,7 +379,7 @@ public class TestDatasetMetadataSaver {
     saveDataset(s, ds, dsConfig, dsPath, false, false, 5);
 
     List<PartitionChunkMetadata> partitionChunks =
-      ImmutableList.copyOf(namespaceService.findSplits(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(dsConfig))));
+      ImmutableList.copyOf(namespaceService.findSplits(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(dsConfig))));
 
     // ensure only 5 partition chunks are saved with split
     assertEquals(partitionChunks.size(), 10);

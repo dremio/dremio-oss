@@ -67,6 +67,15 @@ public final class FieldSizeLimitExceptionHelper {
       .build(logger);
   }
 
+  public static UserException createReadFieldSizeLimitException(int size, int maxSize) {
+    return UserException
+      .unsupportedError()
+      .message("Attempting to read a too large value for a field. Size was %d but limit was %d.", size, maxSize)
+      .addContext("size", size)
+      .addContext("limit", maxSize)
+      .build();
+  }
+
   public static UserException createReadFieldSizeLimitException(int size, int maxSize, int fieldIndex, org.slf4j.Logger logger) {
     return UserException
       .unsupportedError()

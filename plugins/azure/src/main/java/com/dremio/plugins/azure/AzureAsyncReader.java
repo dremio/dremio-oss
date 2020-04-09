@@ -42,7 +42,7 @@ import io.netty.buffer.ByteBuf;
 public class AzureAsyncReader extends ExponentialBackoff implements AutoCloseable, AsyncByteReader {
   private static final int BASE_MILLIS_TO_WAIT = 250; // set to the average latency of an async read
   private static final int MAX_MILLIS_TO_WAIT = 10 * BASE_MILLIS_TO_WAIT;
-  private static final int MAX_RETRIES = 4;
+  private static final int MAX_RETRIES = 10;
 
   private static final Logger logger = LoggerFactory.getLogger(AzureAsyncReader.class);
   private final AsyncHttpClient asyncHttpClient;

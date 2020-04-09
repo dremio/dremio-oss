@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+syntax = "proto2";
 package com.dremio.elastic.proto;
 
 option java_package = "com.dremio.elastic.proto";

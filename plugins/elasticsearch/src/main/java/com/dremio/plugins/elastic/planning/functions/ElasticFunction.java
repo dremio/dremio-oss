@@ -43,8 +43,8 @@ public abstract class ElasticFunction {
   }
 
   protected static Iterable<NullReference> nulls(FunctionRender... renders){
-    return FluentIterable.of(renders).transformAndConcat(new Function<FunctionRender, Iterable<NullReference>>(){
-
+    return FluentIterable.from(renders).
+      transformAndConcat(new Function<FunctionRender, Iterable<NullReference>>(){
       @Override
       public Iterable<NullReference> apply(FunctionRender input) {
         return input.getNulls();

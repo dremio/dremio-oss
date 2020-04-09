@@ -1,0 +1,13 @@
+{
+    "name": "arrayLimit",
+    "name0": "arrayLimit0",
+    "name1": "arrayLimit1",
+    "array": [
+        true,
+        false,
+        5,
+        3.23,
+        "string"
+    ],
+    "limitTrigger": 1
+}

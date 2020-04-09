@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.store.parquet.ParquetColumnResolver;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -44,6 +45,8 @@ class LogicalListL2Converter extends ParquetGroupConverter {
   private final WriterProvider writerProvider;
 
   LogicalListL2Converter(
+      ParquetColumnResolver columnResolver,
+      String fieldName,
       final WriterProvider writerProvider,
       OutputMutator mutator,
       GroupType schema,
@@ -52,7 +55,7 @@ class LogicalListL2Converter extends ParquetGroupConverter {
       List<Field> arrowSchema,
       SchemaDerivationHelper schemaHelper) {
     super(
-        mutator,
+      columnResolver, mutator,
         schema,
         columns,
         options,
@@ -74,7 +77,7 @@ class LogicalListL2Converter extends ParquetGroupConverter {
         .build(logger);
     }
 
-    convertChildren();
+    convertChildren(fieldName);
   }
 
   private boolean isSupportedSchema(GroupType schema) {
@@ -87,17 +90,20 @@ class LogicalListL2Converter extends ParquetGroupConverter {
   }
 
   @Override
-  protected void addChildConverter(OutputMutator mutator, List<Field> arrowSchema, Iterator<SchemaPath> colIterator, Type type, Function<String, String> childNameResolver) {
+  protected void addChildConverter(String fieldName, OutputMutator mutator, List<Field> arrowSchema, Iterator<SchemaPath> colIterator, Type type, Function<String, String> childNameResolver) {
     final String nameForChild = "inner";
+    // Column name to ID mapping creates child entry as 'columnName'.list.element
+    // So, we will append 'list.element' so that name to ID matching works correctly
+    final String fullChildName = fieldName.concat(".").concat("list.element");
     if (type.isPrimitive()) {
-      converters.add( getConverterForType(nameForChild, type.asPrimitiveType()));
+      converters.add( getConverterForType(fullChildName, type.asPrimitiveType()));
     } else {
       final GroupType groupType = type.asGroupType();
       Collection<SchemaPath> c = Lists.newArrayList(colIterator);
       if (arrowSchema != null) {
-        converters.add( groupConverterFromArrowSchema(nameForChild, "$data$", groupType, c));
+        converters.add( groupConverterFromArrowSchema(fullChildName, "$data$", groupType, c));
       } else {
-        converters.add( defaultGroupConverter(mutator, groupType, nameForChild, c, null));
+        converters.add( defaultGroupConverter(fullChildName, mutator, groupType, c, null));
       }
     }
   }

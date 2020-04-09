@@ -85,8 +85,8 @@ export class ProvisioningPage extends Component {
 
   handleRemoveProvision = (entity) => {
     this.props.showConfirmationDialog({
-      title: la('Remove Cluster'),
-      text: la('Are you sure you want to remove this cluster?'),
+      title: la('Remove Engine'),
+      text: la('Are you sure you want to remove this engine?'),
       confirmText: la('Remove'),
       confirm: () => this.removeProvision(entity)
     });
@@ -94,13 +94,13 @@ export class ProvisioningPage extends Component {
 
   handleStopProvision = (confirmCallback) => {
     this.props.showConfirmationDialog({
-      title: la('Stop Cluster'),
+      title: la('Stop Engine'),
       text: [
         la('Existing jobs will be halted.'),
-        la('Are you sure you want to stop the cluster?')
+        la('Are you sure you want to stop the engine?')
       ],
-      cancelText: la('Don\'t Stop Cluster'),
-      confirmText: la('Stop Cluster'),
+      cancelText: la('Don\'t Stop Engine'),
+      confirmText: la('Stop Engine'),
       confirm: confirmCallback
     });
   };
@@ -131,7 +131,12 @@ export class ProvisioningPage extends Component {
   };
 
   openAddProvisionModal = () => {
-    this.props.openAddProvisionModal(null);
+    // use cluster type to open form for this type if there is only one choice
+    let clusterType = null;
+    if (PROVISION_MANAGERS.length === 1) {
+      clusterType = PROVISION_MANAGERS[0].clusterType;
+    }
+    this.props.openAddProvisionModal(clusterType);
   };
 
   handleSelectClusterType = (clusterType) => {
@@ -189,7 +194,7 @@ export class ProvisioningPage extends Component {
     />;
     return (
       <div id='admin-provisioning' style={page}>
-        <Header title={la('Provisioning')} endChildren={addNewButton} />
+        <Header title={la('Elastic Engines')} endChildren={addNewButton}/>
         <ViewStateWrapper
           viewState={viewState}
           style={pageContent}

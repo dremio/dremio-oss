@@ -33,9 +33,10 @@ import javax.ws.rs.core.SecurityContext;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.job.JobsUI;
-import com.dremio.service.jobs.Job;
+import com.dremio.dac.model.job.ResultOrder;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.SearchJobsRequest;
 import com.dremio.service.namespace.NamespaceService;
 import com.google.common.collect.ImmutableList;
 import com.google.common.escape.Escaper;
@@ -72,21 +73,26 @@ public class JobsResource {
   public JobsUI getJobs(
       @QueryParam("filter") String filters,
       @QueryParam("sort") String sortColumn,
-      @QueryParam("order") SearchJobsRequest.ResultOrder order,
+      @QueryParam("order") ResultOrder order,
       @QueryParam("offset") @DefaultValue("0") int offset,
       @QueryParam("limit") @DefaultValue("100") int limit
       ) {
 
-    final SearchJobsRequest request = SearchJobsRequest.newBuilder()
-        .setFilterString(filters)
-        .setOffset(offset)
-        .setLimit(limit)
-        .setSortColumn(sortColumn)
-        .setResultOrder(order)
-        .setUsername(securityContext.getUserPrincipal().getName())
-        .build();
+    final SearchJobsRequest.Builder requestBuilder = SearchJobsRequest.newBuilder();
+    requestBuilder.setOffset(offset);
+    requestBuilder.setLimit(limit);
+    requestBuilder.setUserName(securityContext.getUserPrincipal().getName());
+    if (filters != null) {
+      requestBuilder.setFilterString(filters);
+    }
+    if (sortColumn != null) {
+      requestBuilder.setSortColumn(sortColumn);
+    }
+    if (order != null) {
+      requestBuilder.setSortOrder(order.toSortOrder());
+    }
 
-    final List<Job> jobs = ImmutableList.copyOf(jobsService.get().searchJobs(request));
+    final List<JobSummary> jobs = ImmutableList.copyOf(jobsService.get().searchJobs(requestBuilder.build()));
     return new JobsUI(
         namespace,
         jobs,
@@ -99,7 +105,7 @@ public class JobsResource {
       final int limit,
       String filter,
       String sortColumn,
-      SearchJobsRequest.ResultOrder order,
+      ResultOrder order,
       int previousReturn
   ) {
 

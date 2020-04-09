@@ -138,6 +138,11 @@ public interface ProvisioningService extends Service {
    */
   void stopClusters(Collection<ClusterId> clusters);
 
+  /**
+   * update cluster information and save it into the kvstore.
+   */
+  void updateCluster(ClusterId clusterId);
+
   public List<ClusterId> getRunningStoppableClustersByName(String name);
 
   /**

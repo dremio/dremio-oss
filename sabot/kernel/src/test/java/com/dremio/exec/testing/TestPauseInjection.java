@@ -37,6 +37,7 @@ import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.proto.UserProtos.UserProperties;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotNode;
+import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Pointer;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -45,11 +46,11 @@ import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 public class TestPauseInjection extends BaseTestQuery {
 
   private static final UserSession session = UserSession.Builder.newBuilder()
-      .withCredentials(UserCredentials.newBuilder()
+    .withSessionOptionManager(new SessionOptionManagerImpl(nodes[0].getContext().getOptionManager()))
+    .withCredentials(UserCredentials.newBuilder()
         .setUserName("foo")
         .build())
       .withUserProperties(UserProperties.getDefaultInstance())
-      .withOptionManager(nodes[0].getContext().getOptionManager())
       .build();
 
   /**
@@ -162,11 +163,11 @@ public class TestPauseInjection extends BaseTestQuery {
       final SabotContext nodeContext2 = node2.getContext();
 
       final UserSession session = UserSession.Builder.newBuilder()
+        .withSessionOptionManager(new SessionOptionManagerImpl(nodeContext1.getOptionManager()))
         .withCredentials(UserCredentials.newBuilder()
           .setUserName("foo")
           .build())
         .withUserProperties(UserProperties.getDefaultInstance())
-        .withOptionManager(nodeContext1.getOptionManager())
         .build();
 
       final NodeEndpoint nodeEndpoint1 = nodeContext1.getEndpoint();

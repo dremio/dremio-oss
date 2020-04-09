@@ -16,22 +16,22 @@
 package com.dremio.dac.server.tokens;
 
 import com.dremio.dac.proto.model.tokens.SessionState;
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
-import com.dremio.datastore.StringSerializer;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.api.LegacyStoreCreationFunction;
+import com.dremio.datastore.format.Format;
 
 /**
  * Token store creator.
  */
-public final class TokenStoreCreator implements StoreCreationFunction<KVStore<String, SessionState>> {
+public final class TokenStoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<String, SessionState>> {
 
   @Override
-  public KVStore<String, SessionState> build(final StoreBuildingFactory factory) {
+  public LegacyKVStore<String, SessionState> build(final LegacyStoreBuildingFactory factory) {
     return factory.<String, SessionState>newStore()
       .name(TokenUtils.TOKENS_TABLE_NAME)
-      .keySerializer(StringSerializer.INSTANCE.getClass())
-      .valueSerializer(SessionStateSerializer.class)
+      .keyFormat(Format.ofString())
+      .valueFormat(Format.ofProtostuff(SessionState.class))
       .build();
   }
 }

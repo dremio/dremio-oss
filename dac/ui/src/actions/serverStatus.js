@@ -15,7 +15,7 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2} from '@app/constants/Api';
+import { APIV2Call } from '@app/core/APICall';
 
 export const SCHEDULE_CHECK_SERVER_STATUS = 'SCHEDULE_CHECK_SERVER_STATUS';
 export function scheduleCheckServerStatus(delay) {
@@ -41,6 +41,9 @@ export const CHECK_SERVER_STATUS_FAILURE = 'CHECK_SERVER_STATUS_FAILURE';
 
 export function checkServerStatus(delay) {
   const meta = {viewId: CHECK_SERVER_STATUS_VIEW_ID, delay};
+
+  const apiCall = new APIV2Call().path('server_status');
+
   return {
     [RSAA]: {
       types: [
@@ -49,7 +52,7 @@ export function checkServerStatus(delay) {
         { type: CHECK_SERVER_STATUS_FAILURE, meta }
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}/server_status`
+      endpoint: apiCall
     }
   };
 }

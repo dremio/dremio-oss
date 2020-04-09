@@ -25,6 +25,8 @@ import static org.mockito.Matchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.util.EnumSet;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 import org.junit.After;
@@ -36,29 +38,30 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.config.DremioConfig;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
-import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.listing.DatasetListingServiceImpl;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.namespace.NamespaceService.Factory;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.scheduler.LocalSchedulerService;
-import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.test.DremioTest;
@@ -79,7 +82,7 @@ public class TestSystemStoragePluginInitializer {
 
   private ConnectionReader reader;
 
-  private KVStoreProvider storeProvider;
+  private LegacyKVStoreProvider storeProvider;
   private NamespaceService namespaceService;
   private DatasetListingService datasetListingService;
   private BufferAllocator allocator;
@@ -98,19 +101,43 @@ public class TestSystemStoragePluginInitializer {
     final DremioConfig dremioConfig = DremioConfig.create();
     final SabotContext sabotContext = mock(SabotContext.class);
 
-    storeProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false);
+    storeProvider =
+      new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false).asLegacy();
     storeProvider.start();
-    final KVPersistentStoreProvider psp = new KVPersistentStoreProvider(DirectProvider.wrap(storeProvider), true);
-    when(sabotContext.getStoreProvider())
-      .thenReturn(psp);
 
     namespaceService = new NamespaceServiceImpl(storeProvider);
+
+    final NamespaceService.Factory namespaceServiceFactory = new Factory() {
+      @Override
+      public NamespaceService get(String userName) {
+        return namespaceService;
+      }
+    };
+
+    final ViewCreatorFactory viewCreatorFactory = new ViewCreatorFactory() {
+      @Override
+      public ViewCreator get(String userName) {
+        return mock(ViewCreator.class);
+      }
+
+      @Override
+      public void start() throws Exception {
+      }
+
+      @Override
+      public void close() throws Exception {
+      }
+    };
+    when(sabotContext.getNamespaceServiceFactory())
+      .thenReturn(namespaceServiceFactory);
     when(sabotContext.getNamespaceService(anyString()))
       .thenReturn(namespaceService);
+    when(sabotContext.getViewCreatorFactoryProvider())
+      .thenReturn(() -> viewCreatorFactory);
 
     datasetListingService = new DatasetListingServiceImpl(DirectProvider.wrap(userName -> namespaceService));
     when(sabotContext.getDatasetListing())
-        .thenReturn(datasetListingService);
+      .thenReturn(datasetListingService);
 
     when(sabotContext.getClasspathScan())
       .thenReturn(CLASSPATH_SCAN_RESULT);
@@ -119,8 +146,9 @@ public class TestSystemStoragePluginInitializer {
     when(sabotContext.getLpPersistence())
       .thenReturn(lpp);
 
-    final SystemOptionManager som = new SystemOptionManager(CLASSPATH_SCAN_RESULT, lpp, psp);
-    som.init();
+    final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(CLASSPATH_SCAN_RESULT);
+    final SystemOptionManager som = new SystemOptionManager(defaultOptionManager, lpp, () -> storeProvider, true);
+    som.start();
     when(sabotContext.getOptionManager())
       .thenReturn(som);
 
@@ -160,11 +188,18 @@ public class TestSystemStoragePluginInitializer {
     reader = ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
 
     catalogService = new CatalogServiceImpl(
-      DirectProvider.wrap(sabotContext),
-      DirectProvider.wrap((SchedulerService) new LocalSchedulerService(1)),
-      DirectProvider.wrap(new SystemTablePluginConfigProvider()),
-      DirectProvider.wrap(fabricService),
-      DirectProvider.wrap(reader));
+      () -> sabotContext,
+      () -> new LocalSchedulerService(1),
+      () -> new SystemTablePluginConfigProvider(),
+      () -> fabricService,
+      () -> ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig),
+      () -> allocator,
+      () -> storeProvider,
+      () -> datasetListingService,
+      () -> som,
+      dremioConfig,
+      EnumSet.allOf(ClusterCoordinator.Role.class)
+    );
     catalogService.start();
   }
 

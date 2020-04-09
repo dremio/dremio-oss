@@ -59,6 +59,7 @@ import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.parquet.GlobalDictionaries;
 import com.dremio.exec.store.parquet.ParquetReaderStats;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
+import com.dremio.exec.store.parquet.ParquetScanProjectedColumns;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.exec.store.parquet.Streams;
 import com.dremio.io.file.FileSystem;
@@ -97,6 +98,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
   long totalRecordsRead;
   SeekableInputStream singleInputStream;
 
+  private ParquetScanProjectedColumns projectedColumns;
   private final SchemaDerivationHelper schemaHelper;
   private final GlobalDictionaries globalDictionaries;
   public ParquetReaderStats parquetReaderStats = new ParquetReaderStats();
@@ -109,11 +111,11 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     FileSystem fs,
     CompressionCodecFactory codecFactory,
     ParquetMetadata footer,
-    List<SchemaPath> columns,
+    ParquetScanProjectedColumns projectedColumns,
     SchemaDerivationHelper schemHelper,
     Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns,
     GlobalDictionaries globalDictionaries) throws ExecutionSetupException {
-    super(operatorContext, columns);
+    super(operatorContext, projectedColumns.getBatchSchemaProjectedColumns());
     this.fsPath = Path.of(path);
     this.fileSystem = fs;
     this.codecFactory = codecFactory;
@@ -123,6 +125,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     this.globalDictionaryColumns = globalDictionaryColumns == null? Collections.<String, GlobalDictionaryFieldInfo>emptyMap() : globalDictionaryColumns;
     this.globalDictionaries = globalDictionaries;
     this.singleInputStream = null;
+    this.projectedColumns = projectedColumns;
   }
 
   /**

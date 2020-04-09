@@ -61,6 +61,7 @@ import com.dremio.exec.expr.fn.GandivaFunctionHolderExpression;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.Project;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
@@ -70,7 +71,6 @@ import com.dremio.sabot.BaseTestFunction;
 import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.Generator;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
-import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 

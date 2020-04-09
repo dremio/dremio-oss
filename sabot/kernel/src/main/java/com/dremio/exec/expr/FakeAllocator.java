@@ -44,12 +44,12 @@ public class FakeAllocator implements BufferAllocator {
   }
 
   @Override
-  public ArrowBuf buffer(int arg0) {
+  public ArrowBuf buffer(long arg0) {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public ArrowBuf buffer(int arg0, BufferManager arg1) {
+  public ArrowBuf buffer(long arg0, BufferManager arg1) {
     throw new UnsupportedOperationException();
   }
 

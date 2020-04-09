@@ -63,11 +63,8 @@ public class AttemptsHelper {
     if (jobAttempt.getState() == JobState.ENQUEUED) {
       // job is still enqueued, compute enqueued time up to now
       schedulingEnd = System.currentTimeMillis();
-    } else if (jobAttempt.getState() == JobState.FAILED) {
-      // if the query failed during planning it is possible for schedulingEnd to be 0
-      schedulingEnd = Math.max(schedulingStart, schedulingEnd);
-    } else if (jobAttempt.getState() == JobState.CANCELED) {
-      // if the query was canceled by workload manager it is possible for schedulingEnd to be 0
+    } else {
+      // schedulingEnd should always be greater than or equal to schedulingStart
       schedulingEnd = Math.max(schedulingStart, schedulingEnd);
     }
 

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>4.1.8-202003120636020140-9c2a6b13</version>
+    <version>4.2.0-202004091958060824-8f7e141d</version>
   </parent>
 
   <artifactId>dremio-hive2-exec-shaded</artifactId>
@@ -30,7 +30,7 @@
   <name>Contrib - Shaded Hive 2 JAR</name>
 
   <properties>
-    <hive.version>2.1.1-dremio-201909161537170757-9d964f7</hive.version>
+    <hive.version>${plugin.hive2.hive.version}</hive.version>
   </properties>
 
   <!-- Need to overwrite dependency management for calcite
@@ -131,13 +131,12 @@
       </property>
     </activation>
     <properties>
-      <hive.version>2.1.1-mapr-1803-201908200826380359-c333a66</hive.version>
+      <hive.version>${plugin.hive2.mapr.hive.version}</hive.version>
     </properties>
     <dependencies>
       <dependency>
         <groupId>org.apache.avro</groupId>
         <artifactId>avro</artifactId>
-        <version>1.7.5</version>
         <scope>compile</scope>
       </dependency>
     </dependencies>
@@ -151,6 +150,10 @@
       <version>${hive.version}</version>
       <scope>compile</scope>
       <exclusions>
+        <exclusion>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-ant</artifactId>
+        </exclusion>
         <exclusion>
           <groupId>org.apache.logging.log4j</groupId>
           <artifactId>log4j-slf4j-impl</artifactId>
@@ -190,6 +193,10 @@
         <exclusion>
           <groupId>com.google.protobuf</groupId>
           <artifactId>protobuf-java</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-yarn-registry</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

@@ -40,9 +40,9 @@ import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature.MetadataValidity;
-import com.dremio.datastore.KVStore;
-import com.dremio.exec.catalog.Catalog.UpdateStatus;
+import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.exec.catalog.CatalogServiceImpl.UpdateType;
+import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceException;
@@ -94,7 +94,7 @@ class SourceMetadataManager implements AutoCloseable {
     .build();
 
   private final NamespaceKey sourceKey;
-  private final KVStore<NamespaceKey, SourceInternalData> sourceDataStore;
+  private final LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore;
   private final ManagedStoragePlugin.MetadataBridge bridge;
   private final CatalogServiceMonitor monitor;
 
@@ -109,7 +109,7 @@ class SourceMetadataManager implements AutoCloseable {
       NamespaceKey sourceName,
       SchedulerService scheduler,
       boolean isMaster,
-      KVStore<NamespaceKey, SourceInternalData> sourceDataStore,
+      LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore,
       final ManagedStoragePlugin.MetadataBridge bridge,
       final OptionManager options,
       final CatalogServiceMonitor monitor
@@ -204,7 +204,7 @@ class SourceMetadataManager implements AutoCloseable {
     }
 
     if (!runLock.tryLock()) {
-      logger.info("Source '{}' delaying refresh since an adhoc refresh is currently active.");
+      logger.info("Source '{}' delaying refresh since an adhoc refresh is currently active.", sourceKey);
       return;
     }
 
@@ -215,7 +215,8 @@ class SourceMetadataManager implements AutoCloseable {
 
       final SourceState sourceState = bridge.getState();
       if (sourceState == null || sourceState.getStatus() == SourceStatus.bad) {
-        logger.info("Source '{}' skipping metadata refresh since it is currently in a bad state of {}.", sourceKey, sourceState.toString());
+        logger.info("Source '{}' skipping metadata refresh since it is currently in a bad state of {}.",
+            sourceKey, sourceState);
         return;
       }
 
@@ -227,7 +228,7 @@ class SourceMetadataManager implements AutoCloseable {
       }
       refresh.run();
     } catch (RuntimeException e) {
-      logger.warn("Source '{}' metadata refresh failed to complete due to an exception.", e);
+      logger.warn("Source '{}' metadata refresh failed to complete due to an exception.", sourceKey, e);
     }
 
   }
@@ -351,8 +352,8 @@ class SourceMetadataManager implements AutoCloseable {
           }
         }
 
-        logger.info("Source '{}' refreshed in {} seconds. Details:\n{}", sourceKey, stopwatch.elapsed(TimeUnit.SECONDS),
-            syncStatus);
+        logger.info("Source '{}' refreshed names in {} seconds. Details:\n{}",
+            sourceKey, stopwatch.elapsed(TimeUnit.SECONDS), syncStatus);
       } catch (Exception ex) {
         logger.warn("Source '{}' shallow probe failed. Dataset listing maybe incomplete", sourceKey, ex);
       }
@@ -384,8 +385,8 @@ class SourceMetadataManager implements AutoCloseable {
       synchronizeRun.setup();
       final SyncStatus syncStatus = synchronizeRun.go();
 
-      logger.info("Source '{}' refreshed in {} seconds. Details:\n{}", sourceKey, stopwatch.elapsed(TimeUnit.SECONDS),
-          syncStatus);
+      logger.info("Source '{}' refreshed details in {} seconds. Details:\n{}",
+          sourceKey, stopwatch.elapsed(TimeUnit.SECONDS), syncStatus);
 
       return syncStatus.isRefreshed();
     }
@@ -402,7 +403,7 @@ class SourceMetadataManager implements AutoCloseable {
         sourceDataStore.put(sourceKey, srcData);
       } catch (ConcurrentModificationException e) {
         // Refresh data might already be saved in initializeRefresh
-        logger.warn("Failed to save refresh data for {}.", sourceKey, e);
+        logger.warn("Failed to save refresh data for '{}' source", sourceKey, e);
         srcData = sourceDataStore.get(sourceKey);
         if (srcData == null) {
           throw e;

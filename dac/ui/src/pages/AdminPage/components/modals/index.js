@@ -13,7 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export EditUserModal from './EditUserModal';
-export AddProvisionModal from './AddProvisionModal';
-export MoreInfoProvisionModal from './MoreInfoProvisionModal';
-export AccelerationModal from './AccelerationModal';
+import EditUserModal from './EditUserModal';
+import AddProvisionModal from './AddProvisionModal';
+import MoreInfoProvisionModal from './MoreInfoProvisionModal';
+import AccelerationModal from './AccelerationModal';
+
+export {
+  EditUserModal,
+  AddProvisionModal,
+  MoreInfoProvisionModal,
+  AccelerationModal
+};

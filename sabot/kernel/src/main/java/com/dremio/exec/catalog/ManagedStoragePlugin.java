@@ -18,6 +18,7 @@ package com.dremio.exec.catalog;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -40,12 +41,15 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
 import com.dremio.common.utils.ProtostuffUtil;
 import com.dremio.connector.ConnectorException;
+import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.connector.metadata.DatasetHandle;
+import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.SourceMetadata;
-import com.dremio.datastore.KVStore;
-import com.dremio.exec.catalog.Catalog.UpdateStatus;
+import com.dremio.connector.metadata.extensions.SupportsAlteringDatasetMetadata;
+import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.exec.catalog.CatalogServiceImpl.UpdateType;
+import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
@@ -133,7 +137,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
       boolean isMaster,
       SchedulerService scheduler,
       NamespaceService systemUserNamespaceService,
-      KVStore<NamespaceKey, SourceInternalData> sourceDataStore,
+      LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore,
       SourceConfig sourceConfig,
       OptionManager options,
       ConnectionReader reader,
@@ -494,7 +498,9 @@ public class ManagedStoragePlugin implements AutoCloseable {
 
           return state;
         } catch(Throwable e) {
-          logger.warn("Error starting new source: {}.", sourceConfig.getName(), e);
+          if (config.getType() != MissingPluginConf.TYPE) {
+            logger.warn("Error starting new source: {}", sourceConfig.getName(), e);
+          }
           state = SourceState.badState(e.getMessage());
 
           try {
@@ -550,6 +556,58 @@ public class ManagedStoragePlugin implements AutoCloseable {
         current.setName(oldName);
       }
     };
+  }
+
+  /**
+   * Alters dataset options
+   *
+   * @param key
+   * @param datasetConfig
+   * @param attributes
+   * @return if table options are modified
+   */
+  public boolean alterDataset(final NamespaceKey key, final DatasetConfig datasetConfig, final Map<String, AttributeValue> attributes) {
+    if (!(plugin instanceof SupportsAlteringDatasetMetadata)) {
+      throw UserException.unsupportedError()
+                         .message("Source [%s] doesn't support modifying options", this.name)
+                         .buildSilently();
+    }
+
+    final DatasetRetrievalOptions retrievalOptions = getDefaultRetrievalOptions();
+    final Optional<DatasetHandle> handle;
+    try {
+      handle = getDatasetHandle(key, datasetConfig, retrievalOptions);
+    } catch (ConnectorException e) {
+      throw UserException.validationError(e)
+                         .message("Failure while retrieving dataset")
+                         .buildSilently();
+    }
+
+    if (!handle.isPresent()) {
+      throw UserException.validationError()
+                         .message("Unable to find requested dataset.")
+                         .buildSilently();
+    }
+
+    boolean changed;
+    try (AutoCloseableLock l = readLock()) {
+      final DatasetMetadata oldDatasetMetadata = new DatasetMetadataAdapter(datasetConfig);
+      final DatasetMetadata newDatasetMetadata = ((SupportsAlteringDatasetMetadata) plugin).alterMetadata(handle.get(),
+          oldDatasetMetadata, attributes);
+
+      if (oldDatasetMetadata == newDatasetMetadata) {
+        changed = false;
+      } else {
+        MetadataObjectsUtils.overrideExtended(datasetConfig, newDatasetMetadata, Optional.empty(), getMaxMetadataColumns());
+        systemUserNamespaceService.addOrUpdateDataset(key, datasetConfig);
+        refreshDataset(key, getDefaultRetrievalOptions());
+        changed = true;
+      }
+    } catch (ConnectorException | NamespaceException e) {
+      throw UserException.validationError(e)
+                         .buildSilently();
+    }
+    return changed;
   }
 
   private class FixFailedToStart extends Thread {
@@ -785,7 +843,6 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * changes necessary. Starts the new plugin.
    *
    * @param config
-   * @param context
    * @param waitMillis
    * @return Whether metadata was maintained. Metdata will be maintained if the connection did not
    *         change or was changed with only non-metadata impacting changes.

@@ -36,7 +36,6 @@ import org.apache.calcite.avatica.util.Cursor;
 import org.slf4j.Logger;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -47,7 +46,6 @@ import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.rpc.ConnectionThrottle;
-import com.dremio.exec.store.ischema.InfoSchemaConstants;
 import com.dremio.jdbc.SchemaChangeListener;
 import com.dremio.jdbc.SqlTimeoutException;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
@@ -56,6 +54,10 @@ import com.google.common.collect.Queues;
 
 
 class DremioCursor implements Cursor {
+
+  /** Size of JDBC batch queue (in batches) above which throttling begins. */
+  public static final String JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD = "dremio.jdbc.batch_queue_throttling_threshold";
+  public static final String IS_CATALOG_NAME = "DREMIO";
 
   ////////////////////////////////////////
   // ResultsListener:
@@ -146,7 +148,7 @@ class DremioCursor implements Cursor {
         long remaining = shouldCompleteBefore - System.currentTimeMillis();
         if (!firstMessageReceived.await(remaining, TimeUnit.MILLISECONDS)) {
           throw new TimeoutException("Did not receive first message before timeout expiration.");
-        };
+        }
       }
 
     }
@@ -349,8 +351,7 @@ class DremioCursor implements Cursor {
 
     DremioClient client = connection.getClient();
     final int batchQueueThrottlingThreshold =
-        client.getConfig().getInt(
-            ExecConstants.JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD );
+        client.getConfig().getInt(JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD );
     resultsListener = new ResultsListener(batchQueueThrottlingThreshold);
     currentBatchHolder = new RecordBatchLoader(client.getRecordAllocator());
   }
@@ -413,7 +414,7 @@ class DremioCursor implements Cursor {
 
     // Update metadata for result set.
     columnMetaDataList.updateColumnMetaData(
-        InfoSchemaConstants.IS_CATALOG_NAME,
+        IS_CATALOG_NAME,
         UNKNOWN_NAME_STRING,  // schema name
         UNKNOWN_NAME_STRING,  // table name
         schema,

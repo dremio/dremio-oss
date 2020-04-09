@@ -21,18 +21,16 @@ package com.dremio.exec.work;
 public class CacheManagerStoragePluginInfo {
   public final String hostname;
   public final String storage_plugin_name;
-  public final long storage_plugin_id;
-  public final long sub_dir_count;
   public final long approx_file_count;
   public final long approx_size_bytes;
+  public final long max_available_space;
 
-  public CacheManagerStoragePluginInfo(String hostname, String storagePluginName, long storagePluginId, long subDirCount,
-                                       long approxFileCount, long approxSizeBytes) {
+  public CacheManagerStoragePluginInfo(String hostname, String storagePluginName, long approxFileCount,
+                                       long approxSizeBytes, long maxAvailableSpace) {
     this.hostname = hostname;
     this.storage_plugin_name = storagePluginName;
-    this.storage_plugin_id = storagePluginId;
-    this.sub_dir_count = subDirCount;
     this.approx_file_count = approxFileCount;
     this.approx_size_bytes = approxSizeBytes;
+    this.max_available_space = maxAvailableSpace;
   }
 }

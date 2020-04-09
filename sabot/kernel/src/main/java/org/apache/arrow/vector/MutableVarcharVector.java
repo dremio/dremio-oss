@@ -24,6 +24,7 @@ import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.Text;
 import org.apache.arrow.vector.util.TransferPair;
@@ -41,7 +42,7 @@ import io.netty.util.internal.PlatformDependent;
  * internally in another vector viz. 'fwdIndex'. Thus over time it may have unreferenced
  * values (called as garbage). Compaction must be preformed over time to recover space in the buffer.
  */
-public class MutableVarcharVector extends VarCharVector {
+public class MutableVarcharVector extends BaseVariableWidthVector {
   private int garbageSizeInBytes;
   private double compactionThreshold;
 
@@ -72,7 +73,7 @@ public class MutableVarcharVector extends VarCharVector {
    *                            is more than the threshold, then compaction gets triggered on next update.
    */
   public MutableVarcharVector(String name, FieldType fieldType, BufferAllocator allocator, double compactionThreshold) {
-    super(name, fieldType, allocator);
+    super(new Field(name, fieldType, null), allocator);
 
     this.compactionThreshold = compactionThreshold;
     fwdIndex = new UInt2Vector(name, allocator);
@@ -201,7 +202,7 @@ public class MutableVarcharVector extends VarCharVector {
     if (super.isSet(actualIndex) == 0) {
       throw new IllegalStateException("Value at index is null");
     }
-    final int startOffset = getstartOffset(actualIndex);
+    final int startOffset = getStartOffset(actualIndex);
     final int dataLength =
       offsetBuffer.getInt((actualIndex + 1) * OFFSET_WIDTH) - startOffset;
     final byte[] result = new byte[dataLength];

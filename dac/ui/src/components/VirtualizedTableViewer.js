@@ -44,27 +44,27 @@ export default class VirtualizedTableViewer extends Component {
     style: PropTypes.object,
     resetScrollTop: PropTypes.bool
     // other props passed into react-virtualized Table
-  }
+  };
 
   static defaultProps = {
     tableData: Immutable.List()
-  }
+  };
 
   state = {
     sortBy: this.props.defaultSortBy,
     sortDirection: this.props.defaultSortDirection
-  }
+  };
 
-  lastScrollTop = 0
-  lastScrollTime = Date.now()
-  lastSpeed = 0
+  lastScrollTop = 0;
+  lastScrollTime = Date.now();
+  lastSpeed = 0;
 
   sort = ({ sortBy, sortDirection }) => {
     this.setState({
       sortBy,
       sortDirection
     });
-  }
+  };
 
   rowClassName(rowData, index) {
     return ((rowData && rowData.rowClassName) || '') + ' ' + (index % 2 ? 'odd' : 'even');
@@ -81,7 +81,7 @@ export default class VirtualizedTableViewer extends Component {
     this.lastScrollTop = scrollTop;
     this.lastScrollTime = Date.now();
     this.lastSpeed = speed;
-  }
+  };
 
   renderHeader = ({ label, dataKey, sortBy, sortDirection },
     /* column */ { style, infoContent, headerStyle }) => {
@@ -103,9 +103,9 @@ export default class VirtualizedTableViewer extends Component {
         </span>}
       </div>
     );
-  }
+  };
 
-  renderCell({rowData, rowIndex, isScrolling}, column) {
+  renderCell({rowData, isScrolling}, column) {
     // NOTE: factoring in this.lastSpeed here is too slow
     return <DeferredRenderer defer={isScrolling} render={() => rowData.data[column].node()}/>;
   }
@@ -205,13 +205,13 @@ export class DeferredRenderer extends Component {
   static propTypes = {
     render: PropTypes.func.isRequired,
     defer: PropTypes.bool
-  }
+  };
   static defaultProps = {
     defer: true
   };
   state = {
     initial: this.props.defer
-  }
+  };
   componentWillMount() {
     if (this.props.defer) this.constructor._deferredRendererSet.add(this);
   }

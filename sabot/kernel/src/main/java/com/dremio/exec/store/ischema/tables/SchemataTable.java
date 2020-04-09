@@ -19,9 +19,9 @@ import java.util.LinkedHashSet;
 import java.util.Map.Entry;
 import java.util.Objects;
 
-import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.exec.store.ischema.tables.SchemataTable.Schema;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceException;
@@ -63,7 +63,7 @@ public class SchemataTable extends BaseInfoSchemaTable<Schema> {
         query = SearchQueryUtils.and(query, filterDatasets);
       }
 
-      searchResults = service.find(username, new FindByCondition().setCondition(query));
+      searchResults = service.find(username, new LegacyFindByCondition().setCondition(query));
     } catch (NamespaceException e) {
       throw new RuntimeException(e);
     }

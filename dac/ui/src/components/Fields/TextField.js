@@ -71,7 +71,7 @@ export default class TextField extends Component {
     // remove "initialFocus" from rendered input properties to avoid react warning
     const {
       className,
-      initialFocus, initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled,
+      initialFocus, initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled, // eslint-disable-line @typescript-eslint/no-unused-vars
       placeholder,
       ...props
     } = this.props;

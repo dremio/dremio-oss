@@ -17,6 +17,7 @@ package com.dremio.exec.store.hive;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -60,22 +61,21 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.FilterableScan;
 import com.dremio.exec.store.dfs.PruneableScan;
 import com.dremio.exec.store.hive.orc.ORCFilterPushDownRule;
+import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
-import com.dremio.options.OptionManager;
 import com.github.slugify.Slugify;
 import com.google.common.base.Objects;
-import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
-  * Rules factory for Hive. This must be instance based because any matches
-  * on Hive nodes are ClassLoader-specific, which are tied to a plugin.
-  *
-  * Note that Calcite uses the description field in RelOptRule to uniquely
-  * identify different rules so the description must be based on the plugin for
-  * all rules.
-  */
+ * Rules factory for Hive. This must be instance based because any matches
+ * on Hive nodes are ClassLoader-specific, which are tied to a plugin.
+ *
+ * Note that Calcite uses the description field in RelOptRule to uniquely
+ * identify different rules so the description must be based on the plugin for
+ * all rules.
+ */
 public class HiveRulesFactory implements StoragePluginRulesFactory {
   private static final Slugify SLUGIFY = new Slugify();
 
@@ -105,13 +105,28 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
   public static class HiveScanDrel extends ScanRelBase implements Rel, FilterableScan, PruneableScan {
 
     private final ScanFilter filter;
+    private final HiveReaderProto.ReaderType readerType;
 
     public HiveScanDrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
         TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
         ScanFilter filter) {
+      this(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment, filter, null);
+    }
+
+    private HiveScanDrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
+                        TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
+                        ScanFilter filter, HiveReaderProto.ReaderType readerType) {
       super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
       assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
       this.filter = filter;
+      this.readerType = Optional.ofNullable(readerType)
+        .orElseGet(() -> {
+          try {
+            return HiveTableXattr.parseFrom(getTableMetadata().getReadDefinition().getExtendedProperty().asReadOnlyByteBuffer()).getReaderType();
+          } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException("Unable to retrieve the reader type table attribute.", e);
+          }
+        });
     }
 
     @Override
@@ -124,6 +139,10 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
 
     public ScanFilter getFilter() {
       return filter;
+    }
+
+    public HiveReaderProto.ReaderType getReaderType() {
+      return readerType;
     }
 
     @Override
@@ -152,36 +171,34 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
       }
     }
 
-
-
     @Override
     public FilterableScan applyFilter(ScanFilter filter) {
-      return new HiveScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, getProjectedColumns(), observedRowcountAdjustment, filter);
+      return new HiveScanDrel(getCluster(), traitSet, table, pluginId, tableMetadata, getProjectedColumns(),
+        observedRowcountAdjustment, filter, readerType);
     }
 
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return new HiveScanDrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, filter);
+      return new HiveScanDrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
+        observedRowcountAdjustment, filter, readerType);
     }
 
     @Override
     public RelNode applyDatasetPointer(TableMetadata newDatasetPointer) {
       return new HiveScanDrel(getCluster(), traitSet, new RelOptNamespaceTable(newDatasetPointer, getCluster()),
-          pluginId, newDatasetPointer, getProjectedColumns(), observedRowcountAdjustment, filter);
+        pluginId, newDatasetPointer, getProjectedColumns(), observedRowcountAdjustment, filter, readerType);
     }
 
     @Override
     public HiveScanDrel cloneWithProject(List<SchemaPath> projection) {
-      return new HiveScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, projection, observedRowcountAdjustment, filter);
+      return new HiveScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, projection,
+        observedRowcountAdjustment, filter, readerType);
     }
 
     @Override
     public RelWriter explainTerms(RelWriter pw) {
       pw = super.explainTerms(pw);
-      if(filter != null){
-        return pw.item("filters",  filter);
-      }
-      return pw;
+      return pw.itemIf("filters",  filter, filter != null);
     }
 
     @Override
@@ -220,25 +237,14 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
   public static class HiveScanPrel extends ScanPrelBase implements PruneableScan {
 
     private final ScanFilter filter;
+    private final HiveReaderProto.ReaderType readerType;
 
     public HiveScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-        TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-        ScanFilter filter) {
+                        TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
+                        ScanFilter filter, HiveReaderProto.ReaderType readerType) {
       super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
       this.filter = filter;
-    }
-
-    private HiveTableXattr extended;
-
-    private HiveTableXattr getExtended(){
-      if(extended == null){
-        try {
-          extended = HiveTableXattr.parseFrom(getTableMetadata().getReadDefinition().getExtendedProperty().toByteArray());
-        } catch (InvalidProtocolBufferException e) {
-          throw Throwables.propagate(e);
-        }
-      }
-      return extended;
+      this.readerType = readerType;
     }
 
     @Override
@@ -248,20 +254,22 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
 
     @Override
     public RelNode applyDatasetPointer(TableMetadata newDatasetPointer) {
-      return new HiveScanPrel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer, projectedColumns, observedRowcountAdjustment, filter);
+      return new HiveScanPrel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer, getProjectedColumns(),
+        observedRowcountAdjustment, filter, readerType);
     }
 
     @Override
     public HiveScanPrel cloneWithProject(List<SchemaPath> projection) {
-      return new HiveScanPrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, filter);
+      return new HiveScanPrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, getProjectedColumns(),
+        observedRowcountAdjustment, filter, readerType);
     }
 
     @Override
     public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-      final BatchSchema schema = tableMetadata.getSchema().maskAndReorder(projectedColumns);
+      final BatchSchema schema = tableMetadata.getSchema().maskAndReorder(getProjectedColumns());
       return new HiveGroupScan(
-        creator.props(this, tableMetadata.getUser(), schema, HivePluginOptions.RESERVE, HivePluginOptions.LIMIT),
-        tableMetadata, projectedColumns, filter, creator.getContext());
+        creator.props(this, tableMetadata.getUser(), schema, HiveSettings.RESERVE, HiveSettings.LIMIT),
+        tableMetadata, getProjectedColumns(), filter, creator.getContext());
     }
 
     @Override
@@ -272,11 +280,8 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     @Override
     public RelWriter explainTerms(RelWriter pw) {
       pw = super.explainTerms(pw);
-      pw = pw.item("mode", getExtended().getReaderType().name());
-      if(filter != null){
-        return pw.item("filters", filter);
-      }
-      return pw;
+      pw = pw.item("mode", readerType.name());
+      return pw.itemIf("filters", filter, filter != null);
     }
 
     @Override
@@ -304,7 +309,8 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
 
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-      return new HiveScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, projectedColumns, observedRowcountAdjustment, filter);
+      return new HiveScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
+        observedRowcountAdjustment, filter, readerType);
     }
 
   }
@@ -321,8 +327,8 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
     public RelNode convert(RelNode rel) {
       HiveScanDrel drel = (HiveScanDrel) rel;
       return new HiveScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL), drel.getTable(),
-          drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
-          drel.getObservedRowcountAdjustment(), drel.getFilter());
+        drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
+        drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.getReaderType());
     }
   }
 
@@ -335,34 +341,33 @@ public class HiveRulesFactory implements StoragePluginRulesFactory {
   @Override
   public Set<RelOptRule> getRules(OptimizerRulesContext optimizerContext, PlannerPhase phase, StoragePluginId pluginId) {
     switch(phase){
-    case LOGICAL:
-      ImmutableSet.Builder<RelOptRule> builder = ImmutableSet.builder();
-      builder.add(new HiveScanDrule(pluginId));
-      builder.add(new EliminateEmptyScans(pluginId));
+      case LOGICAL:
+        ImmutableSet.Builder<RelOptRule> builder = ImmutableSet.builder();
+        builder.add(new HiveScanDrule(pluginId));
+        builder.add(new EliminateEmptyScans(pluginId));
 
 
-      final PlannerSettings plannerSettings = optimizerContext.getPlannerSettings();
+        final PlannerSettings plannerSettings = optimizerContext.getPlannerSettings();
 
-      if (plannerSettings.isPartitionPruningEnabled()) {
-        builder.add(new PruneScanRuleFilterOnProject<>(pluginId, HiveScanDrel.class, optimizerContext));
-        builder.add(new PruneScanRuleFilterOnScan<>(pluginId, HiveScanDrel.class, optimizerContext));
-      }
+        if (plannerSettings.isPartitionPruningEnabled()) {
+          builder.add(new PruneScanRuleFilterOnProject<>(pluginId, HiveScanDrel.class, optimizerContext));
+          builder.add(new PruneScanRuleFilterOnScan<>(pluginId, HiveScanDrel.class, optimizerContext));
+        }
 
-      final OptionManager options = plannerSettings.getOptions();
-      if (options.getOption(HivePluginOptions.HIVE_ORC_READER_VECTORIZE) &&
-          options.getOption(HivePluginOptions.ENABLE_FILTER_PUSHDOWN_HIVE_ORC)) {
-        builder.add(new ORCFilterPushDownRule(pluginId));
-      }
+        final HiveSettings hiveSettings = new HiveSettings(plannerSettings.getOptions());
+        if (hiveSettings.vectorizeOrcReaders() && hiveSettings.enableOrcFilterPushdown()) {
+          builder.add(new ORCFilterPushDownRule(pluginId));
+        }
 
-      return builder.build();
+        return builder.build();
 
-    case PHYSICAL:
-      return ImmutableSet.of(
+      case PHYSICAL:
+        return ImmutableSet.of(
           new HiveScanPrule(pluginId)
-          );
+        );
 
-    default:
-      return ImmutableSet.of();
+      default:
+        return ImmutableSet.of();
 
     }
   }

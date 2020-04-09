@@ -173,7 +173,7 @@ public class YarnDefaultsConfigurator implements ProvisioningDefaultsConfigurato
     private static String APP_CLASSPATH = File.separatorChar + "jars" + File.separatorChar
       + "bundled" + File.separatorChar + "dremio-shimloader-.*.jar"
       + "," + File.separatorChar + "jars" + File.separatorChar
-      + "3rdparty" + File.separatorChar + "maprfs-.*.jar";
+      + "3rdparty" + File.separatorChar + "dremio-maprfs-shaded-.*.jar";
 
 
     private static ImmutableMap<String, String> createMaprFSDefaultProps() {

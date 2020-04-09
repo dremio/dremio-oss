@@ -72,8 +72,19 @@ class TimeUtils {
     return t.isValid() ? t.format('L HH:mm:ss') : invalidDateString;
   }
 
+  formatTimeWithTZ(time, invalidDateString = la('Invalid date'), locale = window.navigator.language) {
+    moment.locale(locale);
+    const t = moment(time, 'x');
+    return t.isValid() ? t.format('L HH:mm:ss Z') : invalidDateString;
+  }
+
   formatTimeDiff(timeDiffMs, format = 'H:mm:ss') {
     return moment.utc(timeDiffMs).format(format);
+  }
+
+  isMoreThanYearsFromNow(time, years) {
+    const last = moment().add(years, 'y');
+    return moment(time).isAfter(last);
   }
 }
 

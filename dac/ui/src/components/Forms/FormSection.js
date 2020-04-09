@@ -79,7 +79,12 @@ export default class FormSection extends Component {
               const { size } = elementConfig.getConfig();
               const isFixedSize = typeof size === 'number' && size > 0;
               const isHalfWidth = size === 'half';
-              const style = isFixedSize ? { width: size } : null;
+              let style = null;
+              if (isFixedSize) {
+                style = {width: size};
+              } else if (isHalfWidth) {
+                style = {flex: 'none'};
+              }
 
               const fieldClass = classNames({
                 [elementLayoutRow]: isLayoutRow,
@@ -117,7 +122,7 @@ export default class FormSection extends Component {
     if (!sectionConfigJson.collapsible) return null;
 
     const {collapsed} = this.state;
-    const iconType = collapsed ? 'TriangleRight.svg' : 'TriangleDown.svg';
+    const iconType = collapsed ? 'ArrowRight.svg' : 'ArrowDownSmall.svg';
     const iconAlt = collapsed ? 'Expand Section' : 'Collapse Section';
 
     return <div data-qa='section-toggle' style={styles.collapser}>
@@ -189,11 +194,16 @@ export default class FormSection extends Component {
 
 const styles = {
   iconStyle: {
-    width: 24,
-    height: 24
+    width: 32,
+    height: 32,
+    marginBottom: 10
   },
   collapser: {
-    marginLeft: 10,
-    paddingTop: 5
+    color: '#555555',
+    fontSize: '18px',
+    fontWeight: 300,
+    cursor: 'pointer',
+    marginTop: 20,
+    marginLeft: 10
   }
 };

@@ -15,12 +15,14 @@
  */
 package com.dremio.dac.daemon;
 
-import  static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
+import static com.dremio.common.TestProfileHelper.assumeNonMaprProfile;
+import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static org.junit.Assert.assertEquals;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -37,6 +39,7 @@ import com.dremio.common.perf.Timer;
 import com.dremio.common.util.FileUtils;
 import com.dremio.dac.daemon.DACDaemon.ClusterMode;
 import com.dremio.dac.model.folder.SourceFolderPath;
+import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.namespace.NamespaceTree;
 import com.dremio.dac.model.sources.SourceName;
 import com.dremio.dac.server.BaseTestServer;
@@ -44,19 +47,16 @@ import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.JSONUtil;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.BaseTestMiniDFS;
 import com.dremio.exec.catalog.CatalogServiceImpl;
+import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.HDFSConf;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.Binder;
-import com.dremio.service.jobs.Job;
-import com.dremio.service.jobs.JobDataFragment;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.JobsServiceUtil;
-import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.proto.EntityId;
@@ -64,7 +64,6 @@ import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.UserService;
 import com.dremio.test.DremioTest;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
-
 
 /**
  * HDFS tests.
@@ -79,9 +78,38 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
   private static final String SOURCE_NAME = "dachdfs_parquettests";
   private static final String SOURCE_ID = "12346";
   private static final String SOURCE_DESC = "TestHdfsAsyncParquet";
+  private BufferAllocator allocator;
 
   @ClassRule
   public static final TemporaryFolder folder = new TemporaryFolder();
+
+  private static void setupSchemaLearnTest() throws Exception{
+    fs.mkdirs(new Path("/parquet/"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    fs.copyFromLocalFile(false, true, new Path(FileUtils.getResourceAsFile("/schemalearn").getAbsolutePath()),
+      new Path("/parquet/"));
+    fs.setPermission(new Path("/parquet/schemalearn"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+  }
+
+  private static void setupIntUnionTest() throws Exception {
+    fs.mkdirs(new Path("/parquet/"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    fs.copyFromLocalFile(false, true, new Path(FileUtils.getResourceAsFile("/intunionschemalearn").getAbsolutePath()),
+      new Path("/parquet/"));
+    fs.setPermission(new Path("/parquet/intunionschemalearn"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+  }
+
+  private static void setupStructSchemaChangeTest() throws Exception {
+    fs.mkdirs(new Path("/parquet/"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    fs.copyFromLocalFile(false, true, new Path(FileUtils.getResourceAsFile("/schemachangestruct").getAbsolutePath()),
+      new Path("/parquet/"));
+    fs.setPermission(new Path("/parquet/schemachangestruct"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+  }
+
+  private static void setupStructWithDifferentCaseTest() throws Exception {
+    fs.mkdirs(new Path("/parquet/"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    fs.copyFromLocalFile(false, true, new Path(FileUtils.getResourceAsFile("/parquet_struct_with_different_case").getAbsolutePath()),
+      new Path("/parquet/"));
+    fs.setPermission(new Path("/parquet/parquet_struct_with_different_case"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+  }
 
   @BeforeClass
   public static void init() throws Exception {
@@ -90,10 +118,10 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
     String[] hostPort = dfsCluster.getNameNode().getHostAndPort().split(":");
     host = hostPort[0];
     port = Integer.parseInt(hostPort[1]);
-    fs.mkdirs(new Path("/parquet/"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
-    fs.copyFromLocalFile(false, true, new Path(FileUtils.getResourceAsFile("/schemalearn").getAbsolutePath()),
-      new Path("/parquet/"));
-    fs.setPermission(new Path("/parquet/schemalearn"), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    setupSchemaLearnTest();
+    setupIntUnionTest();
+    setupStructSchemaChangeTest();
+    setupStructWithDifferentCaseTest();
     try (Timer.TimedBlock b = Timer.time("TestHdfsAsyncParquet.@BeforeClass")) {
       dremioDaemon = DACDaemon.newDremioDaemon(
         DACConfig
@@ -132,7 +160,8 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
 
   @Before
   public void setup() throws Exception {
-      SampleDataPopulator.addDefaultFirstUser(l(UserService.class), new NamespaceServiceImpl(l(KVStoreProvider.class)));
+    {
+      SampleDataPopulator.addDefaultFirstUser(l(UserService.class), new NamespaceServiceImpl(l(LegacyKVStoreProvider.class)));
       final HDFSConf hdfsConfig = new HDFSConf();
       hdfsConfig.hostname = host;
       hdfsConfig.port = port;
@@ -142,13 +171,15 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
       source.setConnectionConf(hdfsConfig);
       source.setId(new EntityId(SOURCE_ID));
       source.setDescription(SOURCE_DESC);
-
+      allocator = l(BootStrapContext.class).getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
       ((CatalogServiceImpl)l(CatalogService.class)).getSystemUserCatalog().createSource(source);
+    }
   }
 
   @After
   public void cleanup() throws Exception {
-      TestUtilities.clear(l(CatalogService.class), l(KVStoreProvider.class), null, null);
+    TestUtilities.clear(l(CatalogService.class), l(LegacyKVStoreProvider.class), null, null);
+    allocator.close();
   }
 
   @Test
@@ -169,15 +200,64 @@ public class TestHdfsAsyncParquet extends BaseTestMiniDFS {
 
   @Test
   public void testQueryOnFile() throws Exception {
-    final Job job = JobsServiceUtil.waitForJobCompletion(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery("SELECT * FROM "+SOURCE_NAME+".parquet.schemalearn", SampleDataPopulator.DEFAULT_USER_NAME))
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    );
-    JobDataFragment jobData = job.getData().truncate(500);
-    assertEquals(2, jobData.getReturnedRowCount());
-    assertEquals(3, jobData.getSchema().getFieldCount());
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("SELECT * FROM "+SOURCE_NAME+".parquet.schemalearn", SampleDataPopulator.DEFAULT_USER_NAME))
+        .build(), 0, 500, allocator)) {
+      assertEquals(2, jobData.getReturnedRowCount());
+      assertEquals(3, jobData.getColumns().size());
+    }
+  }
+
+  @Test
+  public void testIntUnion() throws Exception {
+    // DX-21572 - test case
+    // Test has two files
+    // File 1: two int64 columns
+    // File 2: two int32 columns and one column name is common with File 1
+    // When select * succeeds it should contain total of three columns
+    // (1 common column, remaining column from File 1, remaining column from File 2)
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("SELECT * FROM "+SOURCE_NAME+".parquet.intunionschemalearn", SampleDataPopulator.DEFAULT_USER_NAME))
+        .build(), 0, 500, allocator)) {
+      assertEquals(100, jobData.getReturnedRowCount());
+      assertEquals(3, jobData.getColumns().size());
+    }
+  }
+
+  @Test
+  public void testSchemaChangeStruct() throws Exception {
+    // DX-21572 - test case
+    // Test has two files
+    // File 1: one int column and one struct column with f1, f2 int fields
+    // File 2: same int column and same struct column but with fields f1, f3 int fields
+    // When select * succeeds it should contain total of two columns and two rows
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("SELECT * FROM "+SOURCE_NAME+".parquet.schemachangestruct", SampleDataPopulator.DEFAULT_USER_NAME))
+        .build(), 0, 500, allocator)) {
+      assertEquals(2, jobData.getReturnedRowCount());
+      assertEquals(2, jobData.getColumns().size());
+    }
+  }
+
+  @Test
+  public void testStructWithDifferentCase() throws Exception {
+    // DX-21926 - test case
+    // Test has two files
+    // File 1: parquet file with 'EXPR$1' as one of its struct type column names
+    // File 2: parquet file with 'expr$1' as one of its struct type column names
+    // When select EXPR$1 succeeds, it should contain two rows
+    // by doing case insensitive column name mapping
+    try (final JobDataFragment jobData = submitJobAndGetData(l(JobsService.class),
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(
+          "SELECT \"parquet_struct_with_different_case\".\"EXPR$1\".age FROM " +
+            SOURCE_NAME+".parquet.parquet_struct_with_different_case", SampleDataPopulator.DEFAULT_USER_NAME))
+        .build(), 0, 500, allocator)) {
+      assertEquals(2, jobData.getReturnedRowCount());
+      assertEquals(1, jobData.getColumns().size());
+    }
   }
 }

@@ -21,10 +21,12 @@ import java.util.List;
 import com.dremio.service.accelerator.AccelerationDetailsUtils;
 import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.dremio.service.accelerator.proto.ReflectionRelationship;
+import com.dremio.service.job.JobDetails;
+import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobCancellationInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ResourceSchedulingInfo;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -126,44 +128,45 @@ public class JobStatus {
     return cancellationReason;
   }
 
-  public static JobStatus fromJob(Job job) {
-    JobState state = job.getJobAttempt().getState();
+  public static JobStatus fromJob(JobDetails jobDetails) {
+    JobAttempt lastAttempt = JobsProtoUtil.getLastAttempt(jobDetails);
+    JobState state = lastAttempt.getState();
     String errorMessage = "";
     String cancellationReason = "";
     JobAccelerationStatus accelerationStatus = null;
 
     switch (state) {
     case FAILED:
-      errorMessage = job.getJobAttempt().getInfo().getFailureInfo();
+      errorMessage = lastAttempt.getInfo().getFailureInfo();
       break;
     case COMPLETED:
-      AccelerationDetails details = AccelerationDetailsUtils.deserialize(job.getJobAttempt().getAccelerationDetails());
+      AccelerationDetails details = AccelerationDetailsUtils.deserialize(lastAttempt.getAccelerationDetails());
       if (details != null && details.getReflectionRelationshipsList() != null) {
         accelerationStatus = JobAccelerationStatus.fromAccelerationDetails(details);
       }
       break;
     case CANCELED:
-      final JobCancellationInfo cancellationInfo = job.getJobAttempt().getInfo().getCancellationInfo();
+      final JobCancellationInfo cancellationInfo = lastAttempt.getInfo().getCancellationInfo();
       cancellationReason = cancellationInfo == null ? "Query was cancelled" : cancellationInfo.getMessage();
       break;
     default:
       // nothing
     }
 
-    final ResourceSchedulingInfo rsi = job.getJobAttempt().getInfo().getResourceSchedulingInfo();
+    final ResourceSchedulingInfo rsi = lastAttempt.getInfo().getResourceSchedulingInfo();
     final String queueName = rsi == null ? null : rsi.getQueueName();
     final String queueId = rsi == null ? null : rsi.getQueueId();
     final Long resourceSchedulingStartedAt = rsi == null ? null : rsi.getResourceSchedulingStart();
     final Long resourceSchedulingEndedAt = rsi == null ? null : rsi.getResourceSchedulingEnd();
 
     return new JobStatus(
-      job.getJobAttempt().getState(),
-      job.getJobAttempt().getDetails().getOutputRecords(),
+      lastAttempt.getState(),
+      lastAttempt.getDetails().getOutputRecords(),
       errorMessage,
-      job.getJobAttempt().getInfo().getStartTime(),
-      job.getJobAttempt().getInfo().getFinishTime(),
+      lastAttempt.getInfo().getStartTime(),
+      lastAttempt.getInfo().getFinishTime(),
       accelerationStatus,
-      job.getJobAttempt().getInfo().getQueryType().toString(),
+      lastAttempt.getInfo().getQueryType().toString(),
       queueName,
       queueId,
       resourceSchedulingStartedAt,

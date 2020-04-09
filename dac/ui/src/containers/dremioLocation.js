@@ -44,7 +44,7 @@ function getDisplayName(WrappedComponent) {
 }
 
 export const withLocation = (Comp) => {
-  const witLocationComp = class extends Component {
+  const WithLocationComp = class extends Component {
 
     static contextTypes = {
       [contextKey]: PropTypes.object.isRequired
@@ -57,8 +57,8 @@ export const withLocation = (Comp) => {
       return (<Comp {...this.props} location={location} />);
     }
   };
-  witLocationComp.displayName = `withLocation(${getDisplayName(Comp)})`;
+  WithLocationComp.displayName = `withLocation(${getDisplayName(Comp)})`;
 
 
-  return witLocationComp;
+  return WithLocationComp;
 };

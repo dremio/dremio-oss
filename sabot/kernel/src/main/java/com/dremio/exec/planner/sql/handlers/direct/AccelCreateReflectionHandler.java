@@ -33,6 +33,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.SchemaUtilities.TableWithPath;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection;
@@ -193,7 +194,7 @@ public class AccelCreateReflectionHandler extends SimpleDirectHandler {
 
   private static List<NameAndMeasures> qualifyColumnsWithMeasures(DremioTable table, List<NameAndMeasures> measures){
     // we are using getSchema() instead of getRowType() as it doesn't always report the correct field types for View tables
-    final RelDataType type = table.getSchema().toCalciteRecordType(JavaTypeFactoryImpl.INSTANCE);
+    final RelDataType type = CalciteArrowHelper.wrap(table.getSchema()).toCalciteRecordType(JavaTypeFactoryImpl.INSTANCE);
     return measures.stream().map(input -> {
         RelDataTypeField field = type.getField(input.getName(), false, false);
         if(field == null){

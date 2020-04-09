@@ -15,10 +15,10 @@
  */
 import { RSAA } from 'redux-api-middleware';
 import { push } from 'react-router-redux';
-import { API_URL_V2 } from '@app/constants/Api';
+import { APIV2Call } from '@app/core/APICall';
 import { saveAsDataset } from 'actions/explore/dataset/save';
 
-import { showConfirmationDialog, hideConfirmationDialog } from 'actions/confirmation';
+import { hideConfirmationDialog, showConfirmationDialog } from 'actions/confirmation';
 import { POWER_BI_MANUAL } from '@app/constants/links.json';
 
 import FileUtils from 'utils/FileUtils';
@@ -41,6 +41,11 @@ export const DOWNLOAD_DATASET_FAILURE = 'DOWNLOAD_DATASET_FAILURE';
 const fetchDownloadDataset = (dataset, format) => {
   const meta = { dataset, notification: true };
   const href = dataset.getIn(['apiLinks', 'self']) + '/download';
+
+  const apiCall = new APIV2Call()
+    .fullpath(href)
+    .params({downloadFormat: format});
+
   return {
     [RSAA]: {
       types: [
@@ -50,7 +55,7 @@ const fetchDownloadDataset = (dataset, format) => {
       ],
       method: 'GET',
       headers: {Accept: 'application/json'},
-      endpoint: `${API_URL_V2}${href}?downloadFormat=${format}`
+      endpoint: apiCall
     }
   };
 };
@@ -115,26 +120,30 @@ export const LOAD_TABLEAU_START   = 'LOAD_TABLEAU_START';
 export const LOAD_TABLEAU_SUCCESS = 'LOAD_TABLEAU_SUCCESS';
 export const LOAD_TABLEAU_FAILURE = 'LOAD_TABLEAU_FAILURE';
 
-const fetchDownloadTableau = ({ href }) => ({
-  [RSAA]: {
-    types: [
-      LOAD_TABLEAU_START,
-      {type: LOAD_TABLEAU_SUCCESS, payload: (action, state, res) => FileUtils.getFileDownloadConfigFromResponse(res)},
-      {
-        type: LOAD_TABLEAU_FAILURE,
-        meta: {
-          notification: {
-            message: la('There was an error preparing for Tableau.'),
-            level: 'error'
+const fetchDownloadTableau = ({ href }) => {
+  const apiCall = new APIV2Call().fullpath(href);
+
+  return {
+    [RSAA]: {
+      types: [
+        LOAD_TABLEAU_START,
+        {type: LOAD_TABLEAU_SUCCESS, payload: (action, state, res) => FileUtils.getFileDownloadConfigFromResponse(res)},
+        {
+          type: LOAD_TABLEAU_FAILURE,
+          meta: {
+            notification: {
+              message: la('There was an error preparing for Tableau.'),
+              level: 'error'
+            }
           }
         }
-      }
-    ],
-    headers: { Accept: config.tdsMimeType },
-    method: 'GET',
-    endpoint: `${API_URL_V2}${href}`
-  }
-});
+      ],
+      headers: {Accept: config.tdsMimeType},
+      method: 'GET',
+      endpoint: apiCall
+    }
+  };
+};
 
 export const openTableau = (dataset) => {
   return (dispatch) => {

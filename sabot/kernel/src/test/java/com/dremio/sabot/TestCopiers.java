@@ -136,13 +136,13 @@ public class TestCopiers extends BaseTestOperator {
     }
 
     @Override
-    public ArrowBuf buffer(int i) {
+    public ArrowBuf buffer(long i) {
       numAllocs++;
       return actual.buffer(i);
     }
 
     @Override
-    public ArrowBuf buffer(int i, BufferManager bufferManager) {
+    public ArrowBuf buffer(long i, BufferManager bufferManager) {
       numAllocs++;
       return actual.buffer(i, bufferManager);
     }

@@ -32,10 +32,10 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
 import com.dremio.dac.proto.model.collaboration.CollaborationWiki;
 import com.dremio.dac.service.search.SearchService;
-import com.dremio.datastore.IndexedStore.FindByCondition;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
@@ -60,7 +60,7 @@ public class CollaborationHelper {
   private final SearchService searchService;
 
   @Inject
-  public CollaborationHelper(KVStoreProvider kvStoreProvider, SabotContext sabotContext,
+  public CollaborationHelper(LegacyKVStoreProvider kvStoreProvider, SabotContext sabotContext,
                              NamespaceService namespaceService, SecurityContext context, SearchService searchService) {
     this.tagsStore = new CollaborationTagStore(kvStoreProvider);
     this.wikiStore = new CollaborationWikiStore(kvStoreProvider);
@@ -128,12 +128,10 @@ public class CollaborationHelper {
           "\n" +
           "![Gnarly Catalog](https://d33wubrfki0l68.cloudfront.net/c1a54376c45a9276c080f3d10ed25ce61c17bcd2/2b946/img/home/open-source-for-everyone.svg)\n" +
           "\n" +
-          "Starting with Dremio 3.0, you can now:\n" +
-          "* Add wikis to datasets, spaces and sources.\n" +
-          "* Tag datasets and search using tags.\n" +
+          "You are reading the wiki for your home space! You can create and edit this information for any source, space, or folder." +
           "\n" +
           "\n" +
-          "You are reading the wiki for your home space!  This sidebar always shows the wiki for the current source, space or folder you are browsing.\n" +
+          "This sidebar always shows the wiki for the current source, space or folder you are browsing.\n" +
           "\n" +
           "When previewing datasets, click on the `Catalog` tab to create a wiki or add tags to that dataset.\n" +
           "\n" +
@@ -223,7 +221,7 @@ public class CollaborationHelper {
     }
   }
 
-  public static int pruneOrphans(KVStoreProvider kvStoreProvider) {
+  public static int pruneOrphans(LegacyKVStoreProvider kvStoreProvider) {
     final AtomicInteger results = new AtomicInteger();
     final NamespaceServiceImpl namespaceService = new NamespaceServiceImpl(kvStoreProvider);
 
@@ -266,7 +264,7 @@ public class CollaborationHelper {
     // If you alter this number, alter a message in TagsAlert.js
     final int maxTagRequestCount = 200;
 
-    FindByCondition findByCondition = new FindByCondition();
+    LegacyFindByCondition findByCondition = new LegacyFindByCondition();
     Map<String, CollaborationTag> tags = new HashMap<>();
 
     List<SearchQuery> queries = new ArrayList<>();

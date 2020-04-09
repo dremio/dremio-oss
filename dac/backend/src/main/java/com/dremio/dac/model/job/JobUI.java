@@ -21,22 +21,23 @@ import static java.lang.String.format;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.dac.proto.model.job.JobAttemptUI;
 import com.dremio.dac.proto.model.job.JobInfoUI;
+import com.dremio.service.job.JobDetails;
+import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobNotFoundException;
+import com.dremio.service.jobs.JobsProtoUtil;
+import com.dremio.service.jobs.JobsService;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.Futures;
 
 /**
  * Job represents details of a currently running or completed query on a dataset.
@@ -48,16 +49,22 @@ public class JobUI {
   private final List<JobAttemptUI> attempts;
   private final JobData data;
 
-  public JobUI(Job job) {
-    this.jobId = job.getJobId();
-    this.attempts = FluentIterable.from(job.getAttempts())
-      .transform(new Function<JobAttempt, JobAttemptUI>() {
-        @Override
-        public JobAttemptUI apply(JobAttempt input) {
-          return toUI(input);
-        }
-      }).toList();
-    this.data = new JobDataWrapper(job.getData());
+  public JobUI(JobsService jobsService, JobId jobId, String userName) {
+    this.jobId = jobId;
+
+    JobDetailsRequest jobDetailsRequest = JobDetailsRequest.newBuilder()
+      .setJobId(JobsProtoUtil.toBuf(jobId))
+      .setUserName(userName)
+      .build();
+    try {
+      JobDetails jobDetails = jobsService.getJobDetails(jobDetailsRequest);
+      this.attempts = jobDetails.getAttemptsList().stream()
+        .map(input -> toUI(JobsProtoUtil.toStuff(input)))
+        .collect(Collectors.toList());
+    } catch (JobNotFoundException e) {
+      throw new IllegalArgumentException("Invalid JobId");
+    }
+    this.data = new JobDataWrapper(jobsService, jobId, userName);
   }
 
   @JsonCreator
@@ -107,14 +114,6 @@ public class JobUI {
       }
     }
     return false;
-  }
-
-  /**
-   * Wait until submitted job has completed, then return its data
-   */
-  public static JobData getJobData(CompletableFuture<Job> jobFuture) {
-    final Job job = Futures.getUnchecked(jobFuture);
-    return new JobUI(job).getData();
   }
 
   private static JobInfoUI convertJobInfo(JobInfo info) {

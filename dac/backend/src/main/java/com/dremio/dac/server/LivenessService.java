@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.server;
 
+import static com.dremio.telemetry.api.metrics.Metrics.MetricServletFactory.createMetricsServlet;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -87,7 +89,9 @@ public class LivenessService implements Service {
 
     ServletHandler handler = new ServletHandler();
     embeddedLivenessJetty.setHandler(handler);
+
     handler.addServletWithMapping(new ServletHolder(new LivenessServlet()), "/live");
+    handler.addServletWithMapping(new ServletHolder(createMetricsServlet()), "/metrics");
 
     embeddedLivenessJetty.start();
     livenessPort = serverConnector.getLocalPort();

@@ -17,26 +17,24 @@ package com.dremio.telemetry.api;
 
 import java.io.IOException;
 import java.net.URL;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
+import java.util.ServiceLoader;
 import java.util.function.Consumer;
 
 import javax.inject.Provider;
 
-import com.dremio.common.collections.Tuple;
-import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.service.SingletonRegistry;
 import com.dremio.telemetry.api.config.AutoRefreshConfigurator;
+import com.dremio.telemetry.api.config.AutoRefreshConfigurator.CompleteRefreshConfig;
+import com.dremio.telemetry.api.config.ConfigModule;
 import com.dremio.telemetry.api.config.MetricsConfigurator;
-import com.dremio.telemetry.api.config.RefreshConfiguration;
-import com.dremio.telemetry.api.config.ReporterConfigurator;
 import com.dremio.telemetry.api.config.TelemetryConfigurator;
 import com.dremio.telemetry.api.config.TracerConfigurator;
 import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.telemetry.utils.TracerFacade;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
 
 import io.opentracing.Tracer;
@@ -49,9 +47,8 @@ public final class Telemetry {
   private static final String CONFIG_FILE = "dremio-telemetry.yaml";
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Telemetry.class);
 
-  // The refresher just refreshes our Metrics Config (That's the only thing in the telemetryConfig we care about).
-  private static AutoRefreshConfigurator<Tuple<Collection<MetricsConfigurator>, TracerConfigurator>> configRefresher;
-  private static TelemetryConfigListener configRefreshListener;
+  private static AutoRefreshConfigurator<InnerTelemetryConf> CONFIG_REFRESHER;
+  private static InnerTelemetryConfigListener CONFIG_REFRESH_LISTENER;
 
   /**
    * Reads the telemetry config file and sets itself up to listen for changes.
@@ -59,40 +56,43 @@ public final class Telemetry {
    * will be added to the registry.
    */
   @SuppressWarnings("unchecked")
-  public static void startTelemetry(ScanResult scan, SingletonRegistry bootstrapRegistry) {
+  public static void startTelemetry() {
 
-    if (configRefreshListener != null) {
-      // Update the new registry with the present tracer.
+    if (CONFIG_REFRESH_LISTENER != null) {
       // No need to restart.
-      configRefreshListener.addRegistry(bootstrapRegistry);
       return;
     }
 
     final ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+    ImmutableList.Builder<ConfigModule> modulesBuilder = ImmutableList.builder();
+    ServiceLoader.load(ConfigModule.class).forEach(modulesBuilder::add);
+    ImmutableList<ConfigModule> modules = modulesBuilder.build();
 
-    Collection<Class<? extends ReporterConfigurator>> metricsConfigurators = scan.getImplementations(ReporterConfigurator.class);
-    Collection<Class<? extends TracerConfigurator>> tracerConfigurators = scan.getImplementations(TracerConfigurator.class);
-
-    mapper.registerSubtypes((Collection<Class<?>>) (Object) metricsConfigurators);
-    mapper.registerSubtypes((Collection<Class<?>>) (Object) tracerConfigurators);
+    if (modules.isEmpty()) {
+      logger.warn("Unable to discover any modules for telemetry config. Will not refresh config.");
+      return;
+    }
+    mapper.registerModules(modules);
 
     final ObjectReader reader = mapper.readerFor(TelemetryConfigurator.class);
 
-    Provider<Tuple<RefreshConfiguration, Tuple<Collection<MetricsConfigurator>, TracerConfigurator>>> configurationProvider =
-      new Provider<Tuple<RefreshConfiguration, Tuple<Collection<MetricsConfigurator>, TracerConfigurator>>>() {
+    Provider<CompleteRefreshConfig<InnerTelemetryConf>> configurationProvider =
+      new Provider<CompleteRefreshConfig<InnerTelemetryConf>>() {
 
         private final ExceptionWatcher exceptionWatcher =
           new ExceptionWatcher((ex) -> logger.warn("Failure reading telemetry configuration. Leaving telemetry as is.", ex));
 
         @Override
-        public Tuple<RefreshConfiguration, Tuple<Collection<MetricsConfigurator>, TracerConfigurator>> get() {
+        public CompleteRefreshConfig<InnerTelemetryConf> get() {
           final URL resource;
-          Tuple<RefreshConfiguration, Tuple<Collection<MetricsConfigurator>, TracerConfigurator>> ret = null;
+          CompleteRefreshConfig<InnerTelemetryConf> ret = null;
           try {
             resource = Resources.getResource(CONFIG_FILE);
             final TelemetryConfigurator fromConfig = reader.readValue(resource);
 
-            ret = Tuple.of(fromConfig.getRefreshConfig(), Tuple.of(fromConfig.getMetricsConfigs(), fromConfig.getTracerConfig()));
+            final InnerTelemetryConf telemConf = new InnerTelemetryConf(fromConfig.getMetricsConfigs(), fromConfig.getTracerConfig());
+
+            ret = new CompleteRefreshConfig<>(fromConfig.getRefreshConfig(), telemConf);
             exceptionWatcher.reset();
           } catch (IllegalArgumentException | IOException ex) {
             exceptionWatcher.notify(ex);
@@ -101,8 +101,8 @@ public final class Telemetry {
         }
       };
 
-    configRefreshListener = new TelemetryConfigListener(bootstrapRegistry);
-    configRefresher = new AutoRefreshConfigurator<>(configurationProvider, configRefreshListener);
+    CONFIG_REFRESH_LISTENER = new InnerTelemetryConfigListener(TracerFacade.INSTANCE);
+    CONFIG_REFRESHER = new AutoRefreshConfigurator<>(configurationProvider, CONFIG_REFRESH_LISTENER);
 
   }
 
@@ -129,50 +129,60 @@ public final class Telemetry {
     }
   }
 
+  private static class InnerTelemetryConf {
+    private final Collection<MetricsConfigurator> metricsConf;
+    private final TracerConfigurator tracerConf;
+
+    InnerTelemetryConf(Collection<MetricsConfigurator> metricsConfigurators, TracerConfigurator tracerConf) {
+      this.metricsConf = metricsConfigurators;
+      this.tracerConf = tracerConf;
+    }
+
+    public Collection<MetricsConfigurator> getMetricsConf() {
+      return metricsConf;
+    }
+
+    public TracerConfigurator getTracerConf() {
+      return tracerConf;
+    }
+  }
+
   /**
-   * Listens to changes on telemetry config.
+   * Listens to changes on telemetry config. Does not receive updates regarding refresh setting changes.
    */
-  static class TelemetryConfigListener implements Consumer<Tuple<Collection<MetricsConfigurator>, TracerConfigurator>> {
-    private AutoRefreshConfigurator.ValueChangeDetector<Collection<MetricsConfigurator>> rememberedMetrics;
-    private AutoRefreshConfigurator.ValueChangeDetector<TracerConfigurator> rememberedTracer;
+  static class InnerTelemetryConfigListener implements Consumer<InnerTelemetryConf> {
+    private final AutoRefreshConfigurator.ValueChangeDetector<Collection<MetricsConfigurator>> rememberedMetrics;
+    private final AutoRefreshConfigurator.ValueChangeDetector<TracerConfigurator> rememberedTracer;
 
-    private volatile List<SingletonRegistry> registries = new ArrayList<>();
+    InnerTelemetryConfigListener(TracerFacade tracerFacade) {
+      rememberedMetrics = configChangeConsumer("metrics", Metrics::onChange);
+      rememberedTracer = configChangeConsumer("tracer",
+          (tracerConf) -> {
+            final Tracer newTracer = tracerConf == null ? NoopTracerFactory.create() : tracerConf.getTracer();
+            tracerFacade.setTracer(newTracer);
+          });
+    }
 
-    TelemetryConfigListener(SingletonRegistry bootstrapRegistry) {
-      this.registries.add(bootstrapRegistry);
-      bootstrapRegistry.bind(Tracer.class, NoopTracerFactory.create());
-
-      rememberedMetrics = new AutoRefreshConfigurator.ValueChangeDetector<>(Metrics::onChange);
-      rememberedTracer = new AutoRefreshConfigurator.ValueChangeDetector<>(this::onTracerConfChange);
+    private static <T> AutoRefreshConfigurator.ValueChangeDetector<T> configChangeConsumer(String type, Consumer<T> consumer) {
+      return new AutoRefreshConfigurator.ValueChangeDetector<>((t) -> {
+        logger.debug("Updating {} configuration", type);
+        consumer.accept(t);
+        logger.debug("Updated {} configuration", type);
+      });
     }
 
     @Override
-    public synchronized void accept(Tuple<Collection<MetricsConfigurator>, TracerConfigurator> update) {
+    public synchronized void accept(InnerTelemetryConf update) {
       Collection<MetricsConfigurator> newMetrics = null;
       TracerConfigurator newTrace = null;
 
       if (update != null) {
-        newMetrics = update.first;
-        newTrace = update.second;
+        newMetrics = update.getMetricsConf();
+        newTrace = update.getTracerConf();
       }
 
       rememberedMetrics.checkNewValue(newMetrics);
       rememberedTracer.checkNewValue(newTrace);
     }
-
-    private synchronized void onTracerConfChange(TracerConfigurator tracerConf) {
-      final Tracer newTracer = tracerConf == null ? NoopTracerFactory.create() : tracerConf.getTracer();
-      registries.forEach((reg) -> reg.replace(Tracer.class, newTracer));
-    }
-
-    /**
-     * Allows multiple registries to depend on the same config file.
-     * @param registry
-     */
-    private synchronized void addRegistry(SingletonRegistry registry) {
-      final TracerConfigurator traceConf = rememberedTracer.getLastValue();
-      registry.bind(Tracer.class, traceConf == null ? NoopTracerFactory.create() : traceConf.getTracer());
-    }
-
   }
 }

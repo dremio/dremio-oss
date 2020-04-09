@@ -52,7 +52,7 @@ export class WikiModalView extends PureComponent {
     if (editorComp) {
       editorComp.focus();
     }
-  }
+  };
 
   onSave = () => {
     const {
@@ -61,7 +61,7 @@ export class WikiModalView extends PureComponent {
     } = this.props;
 
     save(this.editor ? this.editor.getValue() : wikiValue);
-  }
+  };
 
   render() {
     const {
@@ -157,13 +157,15 @@ export class WikiModalWithSave extends PureComponent {
       }, 3).then((response) => {
       this.resetError();
       this.wikiChanged = false;
-      response.json().then(save);
+      response.json().then(save,
+        () => {
+        }); // ignore json parsing error, but if save it not called, wiki will stay in edit mode
     }, async (response) => {
       this.setState({
         wikiViewState: fromJS({
           isFailed: true,
           error: {
-            message: await ApiUtils.getErrorMessage(la('Wiki is not saved'), response),
+            message: await ApiUtils.getErrorMessage(la('Wiki is not saved.'), response),
             id: '' + Math.random()
           }
         })
@@ -204,7 +206,7 @@ export class WikiModalWithSave extends PureComponent {
     if (onChange) {
       onChange();
     }
-  }
+  };
 
   render() {
     const {

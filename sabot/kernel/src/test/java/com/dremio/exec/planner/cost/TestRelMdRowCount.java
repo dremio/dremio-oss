@@ -42,8 +42,10 @@ import org.mockito.Mockito;
 
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.exec.catalog.StoragePluginId;
-import com.dremio.exec.exception.StoreException;
 import com.dremio.exec.planner.physical.HashJoinPrel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
@@ -51,16 +53,13 @@ import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.physical.UnionExchangePrel;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
-import com.dremio.exec.serialization.InstanceSerializer;
 import com.dremio.exec.server.ClusterResourceInformation;
+import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.TableMetadata;
-import com.dremio.exec.store.sys.PersistentStore;
-import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.SystemPluginConf;
 import com.dremio.exec.store.sys.SystemScanPrel;
 import com.dremio.exec.store.sys.SystemTable;
-import com.dremio.exec.store.sys.store.KVPersistentStore.PersistentStoreCreator;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
@@ -76,31 +75,33 @@ public class TestRelMdRowCount {
   private static final RelTraitSet traits = RelTraitSet.createEmpty().plus(Prel.PHYSICAL);
   private static final RelDataTypeFactory typeFactory = JavaTypeFactoryImpl.INSTANCE;
   private static final RexBuilder rexBuilder = new RexBuilder(typeFactory);
-
+  private LegacyKVStoreProvider storeProvider;
   private RelOptCluster cluster;
 
   @Before
   public void setup() throws Exception {
-    SystemOptionManager optionManager = new SystemOptionManager(DremioTest.CLASSPATH_SCAN_RESULT, new LogicalPlanPersistence(DremioTest.DEFAULT_SABOT_CONFIG, DremioTest.CLASSPATH_SCAN_RESULT), new PersistentStoreProvider() {
-
+    final LegacyKVStoreProvider storeProvider = new LegacyKVStoreProvider() {
       @Override
-      public void close() throws Exception {
+      public <T extends LegacyKVStore<?, ?>> T getStore(Class<? extends LegacyStoreCreationFunction<T>> creator) {
+        LegacyKVStore<?,?> store = mock(LegacyKVStore.class);
+        when(store.find()).thenReturn(Collections.emptyList());
+        return (T) store;
       }
 
       @Override
       public void start() throws Exception {
+
       }
 
       @Override
-      public <V> PersistentStore<V> getOrCreateStore(String storeName, Class<? extends PersistentStoreCreator> storeCreator,
-          InstanceSerializer<V> serializer) throws StoreException {
-        @SuppressWarnings("unchecked")
-        final PersistentStore<V> store = mock(PersistentStore.class);
-        when(store.getAll()).thenReturn(Collections.emptyIterator());
-        return store;
+      public void close() throws Exception {
+
       }
-    });
-    optionManager.init();
+    };
+    final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(DremioTest.CLASSPATH_SCAN_RESULT);
+    final SystemOptionManager optionManager = new SystemOptionManager(defaultOptionManager, new LogicalPlanPersistence(DremioTest.DEFAULT_SABOT_CONFIG, DremioTest.CLASSPATH_SCAN_RESULT),
+      () -> storeProvider, false);
+    optionManager.start();
 
     ClusterResourceInformation info = mock(ClusterResourceInformation.class);
     when(info.getExecutorNodeCount()).thenReturn(1);

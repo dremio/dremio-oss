@@ -32,7 +32,7 @@ const responsePayload = Immutable.fromJS({
       [datasetVersion]: {
         datasetVersion,
         links: {
-          self: `${nextDatasetLink}?version=${datasetVersion}`
+          self: `${nextDatasetLink}?version=${encodeURIComponent(datasetVersion)}`
         }
       }
     }

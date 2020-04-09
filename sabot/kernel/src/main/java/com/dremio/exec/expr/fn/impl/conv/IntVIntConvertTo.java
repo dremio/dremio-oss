@@ -52,6 +52,6 @@ public class IntVIntConvertTo implements SimpleFunction {
     com.dremio.exec.util.ByteBufUtil.HadoopWritables.writeVLong(errorContext, buffer, 0, 9, in.value);
     out.buffer = buffer;
     out.start = 0;
-    out.end = buffer.readableBytes();
+    out.end = (int) buffer.readableBytes();
   }
 }

@@ -1,0 +1,129 @@
+{
+  "sourceType": "AZURE_STORAGE",
+  "metadataRefresh": {
+    "datasetDiscovery": true,
+    "isFileSystemSource": true
+  },
+  "form": {
+    "tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "elements": [
+              {
+                "propName": "config.accountName"
+              },
+              {
+                "tooltip": "Force encrypted connection over SSL",
+                "propName": "config.enableSSL"
+              },
+              {
+                "propName": "config.accountKind"
+              }
+            ]
+          },
+          {
+            "name": "Authentication",
+            "tooltip": "",
+            "elements": [
+              {
+                "propName": "config.credentialsType",
+                "uiType": "container_selection",
+                "options": [
+                  {
+                    "value": "ACCESS_KEY",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.accessKey",
+                          "size": "half",
+                          "errMsg": "Access key is required for Azure storage accounts",
+                          "secure": true
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value": "AZURE_ACTIVE_DIRECTORY",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.clientId",
+                          "size": "half",
+                          "errMsg": "ApplicationId is required for Azure Active Directory OAuth 2.0"
+                        },
+                        {
+                          "propName": "config.tokenEndpoint",
+                          "size": "half",
+                          "errMsg": "Token endpoint is required for Azure Active Directory OAuth 2.0"
+                        },
+                        {
+                          "propName": "config.clientSecret",
+                          "size": "half",
+                          "errMsg": "Client secret is required for Azure Active Directory OAuth 2.0",
+                          "secure": true
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.enableAsync"
+              },
+              {
+                "propName": "config.allowCreateDrop"
+              },
+              {
+                "propName": "config.rootPath"
+              }
+            ]
+          },
+          {
+            "elements": [
+              {
+                "label": "Advanced Properties",
+                "emptyLabel": "No properties added",
+                "addLabel": "Add property",
+                "propName": "config.propertyList"
+              }
+            ]
+          },
+          {
+            "elements": [
+              {
+                "emptyLabel": "No values added",
+                "addLabel": "Add value",
+                "uiType": "value_list",
+                "propName": "config.containers[]"
+              }
+            ]
+          },
+          {
+            "name": "Cache Options",
+            "elements": [
+              {
+                "propName": "config.isCachingEnabled"
+              },
+              {
+                "propName": "config.maxCacheSpacePct"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

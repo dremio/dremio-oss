@@ -32,10 +32,12 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.admin.LocalAdmin;
 import com.dremio.dac.server.DACConfig;
+import com.dremio.dac.server.DremioServer;
 import com.dremio.dac.server.LivenessService;
 import com.dremio.dac.server.WebServer;
 import com.dremio.dac.service.exec.MasterStatusListener;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.client.DremioClient;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.SingletonRegistry;
@@ -94,16 +96,20 @@ public final class DACDaemon implements AutoCloseable {
   private DACDaemon(
       DremioConfig incomingConfig,
       final ScanResult scanResult,
-      DACModule dacModule
+      DACModule dacModule,
+      DremioServer server
       ) throws IOException {
 
     // ensure that the zookeeper option for sabot is same as dremio config.
     final DremioConfig config = incomingConfig
         .withSabotValue(ExecConstants.ZK_CONNECTION, incomingConfig.getString(DremioConfig.ZOOKEEPER_QUORUM))
-        .withSabotValue(ExecConstants.INITIAL_USER_PORT, incomingConfig.getString(DremioConfig.CLIENT_PORT_INT))
+        .withSabotValue(DremioClient.INITIAL_USER_PORT, incomingConfig.getString(DremioConfig.CLIENT_PORT_INT))
         .withSabotValue(ExecConstants.SPILL_DIRS, incomingConfig.getList(DremioConfig.SPILLING_PATH_STRING))
         .withSabotValue(ExecConstants.REGISTRATION_ADDRESS, incomingConfig.getString(DremioConfig.REGISTRATION_ADDRESS))
-        .withSabotValue(ExecConstants.ZK_SESSION_TIMEOUT, incomingConfig.getString(DremioConfig.ZK_CLIENT_SESSION_TIMEOUT));
+        .withSabotValue(ExecConstants.ZK_SESSION_TIMEOUT, incomingConfig.getString(DremioConfig.ZK_CLIENT_SESSION_TIMEOUT))
+        .withSabotValue(ExecConstants.ZK_RETRY_UNLIMITED, incomingConfig.getString(DremioConfig.ZK_CLIENT_RETRY_UNLIMITED))
+        .withSabotValue(ExecConstants.ZK_RETRY_LIMIT, incomingConfig.getString(DremioConfig.ZK_CLIENT_RETRY_LIMIT))
+        .withSabotValue(ExecConstants.ZK_INITIAL_TIMEOUT_MS, incomingConfig.getString(DremioConfig.ZK_CLIENT_INITIAL_TIMEOUT_MS));
 
     // This should be the first thing to do.
     setupHadoopUserUsingKerberosKeytab(config);
@@ -170,6 +176,11 @@ public final class DACDaemon implements AutoCloseable {
       registry = new NonMasterSingletonRegistry(bootstrapRegistry.provider(MasterStatusListener.class));
     }
 
+    if (server == null) {
+      registry.bind(DremioServer.class, new DremioServer());
+    } else {
+      registry.bind(DremioServer.class, server);
+    }
     dacModule.bootstrap(shutdownHook, bootstrapRegistry, scanResult, dacConfig, isMaster);
     dacModule.build(bootstrapRegistry, registry, scanResult, dacConfig, isMaster);
   }
@@ -256,6 +267,10 @@ public final class DACDaemon implements AutoCloseable {
     return registry.lookup(WebServer.class);
   }
 
+  public ServerHealthMonitor getServerHealthMonitor() {
+    return registry.lookup(ServerHealthMonitor.class);
+  }
+
   public LivenessService getLivenessService() {
     return registry.provider(LivenessService.class).get();
   }
@@ -282,10 +297,18 @@ public final class DACDaemon implements AutoCloseable {
   public static DACDaemon newDremioDaemon(
       DACConfig dacConfig,
       ScanResult scanResult,
-      DACModule dacModule) throws IOException {
+      DACModule dacModule,
+      DremioServer server) throws IOException {
     try (TimedBlock b = Timer.time("newDaemon")) {
-      return new DACDaemon(dacConfig.getConfig(), scanResult, dacModule);
+      return new DACDaemon(dacConfig.getConfig(), scanResult, dacModule, server);
     }
+  }
+
+  public static DACDaemon newDremioDaemon(
+    DACConfig dacConfig,
+    ScanResult scanResult,
+    DACModule dacModule) throws IOException {
+    return newDremioDaemon(dacConfig, scanResult, dacModule, null);
   }
 
   public static void main(final String[] args) throws Exception {

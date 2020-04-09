@@ -30,7 +30,7 @@ describe('crudFactory', () => {
   it('POST', () => {
     const req = actions.post({a: 1}, meta)[RSAA];
     expect(req.method).to.eql('POST');
-    expect(req.endpoint.endsWith('/ents/')).to.be.true;
+    expect(req.endpoint.toString().endsWith('/ents')).to.be.true;
     expect(req.headers).to.eql({'Content-Type': 'application/json'});
     expect(req.types.map(e => e.meta)).to.eql(new Array(3).fill(meta));
     expect(req.body).to.eql(JSON.stringify({a: 1}));
@@ -39,7 +39,7 @@ describe('crudFactory', () => {
   it('GET', () => {
     const req = actions.get('id', meta)[RSAA];
     expect(req.method).to.eql('GET');
-    expect(req.endpoint.endsWith('/ents/id')).to.be.true;
+    expect(req.endpoint.toString().endsWith('/ents/id')).to.be.true;
     expect(req.headers).to.eql({'Content-Type': 'application/json'});
     expect(req.types.map(e => e.meta)).to.eql(new Array(3).fill(meta));
     expect(req.body).to.be.undefined;
@@ -48,7 +48,7 @@ describe('crudFactory', () => {
   it('PUT', () => {
     const req = actions.put({a: 1, id: 'id'}, meta)[RSAA];
     expect(req.method).to.eql('PUT');
-    expect(req.endpoint.endsWith('/ents/id')).to.be.true;
+    expect(req.endpoint.toString().endsWith('/ents/id')).to.be.true;
     expect(req.headers).to.eql({'Content-Type': 'application/json'});
     expect(req.types.map(e => e.meta)).to.eql(new Array(3).fill(meta));
     expect(req.body).to.eql(JSON.stringify({a: 1, id: 'id'}));
@@ -57,7 +57,7 @@ describe('crudFactory', () => {
   it('DELETE', () => {
     const req = actions.delete({id: 'id'}, meta)[RSAA];
     expect(req.method).to.eql('DELETE');
-    expect(req.endpoint.endsWith('/ents/id')).to.be.true;
+    expect(req.endpoint.toString().endsWith('/ents/id')).to.be.true;
     expect(req.headers).to.eql({'Content-Type': 'application/json'});
     expect(req.types.map(e => e.meta)).to.eql(
       [meta, {...meta, success: true, entityRemovePaths: [['ent', 'id']]}, meta]
@@ -68,7 +68,7 @@ describe('crudFactory', () => {
   it('DELETE with version', () => {
     const req = actions.delete({id: 'id', version: 0}, meta)[RSAA];
     expect(req.method).to.eql('DELETE');
-    expect(req.endpoint.endsWith('/ents/id?version=0')).to.be.true;
+    expect(req.endpoint.toString().endsWith('/ents/id/?version=0')).to.be.true;
     expect(req.headers).to.eql({'Content-Type': 'application/json'});
     expect(req.types.map(e => e.meta)).to.eql(
       [meta, {...meta, success: true, entityRemovePaths: [['ent', 'id']]}, meta]
@@ -79,7 +79,7 @@ describe('crudFactory', () => {
   it('GET all', () => {
     const req = actions.getAll(meta)[RSAA];
     expect(req.method).to.eql('GET');
-    expect(req.endpoint.endsWith('/ents/')).to.be.true;
+    expect(req.endpoint.toString().endsWith('/ents')).to.be.true;
     expect(req.headers).to.eql({'Content-Type': 'application/json'});
     expect(req.types.map(e => e.meta)).to.eql([meta, {...meta, entityClears: ['ent']}, meta]);
     expect(req.body).to.be.undefined;
@@ -88,7 +88,7 @@ describe('crudFactory', () => {
   it('useLegacyPluralization = true', () => {
     actions = crudFactory('ent', {useLegacyPluralization: true});
     const req = actions.get('id', meta)[RSAA];
-    expect(req.endpoint.endsWith('/ent/id')).to.be.true;
+    expect(req.endpoint.toString().endsWith('/ent/id')).to.be.true;
   });
 
 });

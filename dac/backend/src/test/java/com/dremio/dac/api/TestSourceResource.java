@@ -103,10 +103,9 @@ public class TestSourceResource extends BaseTestServer {
 
     SourceResource.SourceDeprecated source = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildPut(Entity.entity(updatedSource, JSON)), SourceResource.SourceDeprecated.class);
 
-    assertEquals(source.getDescription(), "Desc");
-    assertEquals(source.getTag(), "1");
+    assertEquals("Desc", source.getDescription());
     assertNotNull(source.getState());
-
+    assertNotNull(source.getTag());
     deleteSource(source.getName());
   }
 

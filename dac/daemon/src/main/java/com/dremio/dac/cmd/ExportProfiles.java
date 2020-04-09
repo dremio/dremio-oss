@@ -22,7 +22,6 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 import com.beust.jcommander.IStringConverter;
 import com.beust.jcommander.JCommander;
@@ -36,7 +35,8 @@ import com.dremio.dac.resource.ExportProfilesResource;
 import com.dremio.dac.resource.ExportProfilesStats;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.admin.profile.ProfilesExporter;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Local date time parser.
@@ -65,7 +65,7 @@ public class ExportProfiles {
    * Command line options for export profiles
    */
   @Parameters(separators = "=")
-  private static final class ExportProfilesOptions {
+  static final class ExportProfilesOptions {
 
     @Parameter(names={"-h", "--help"}, description="show usage", help=true)
     private boolean help = false;
@@ -165,15 +165,13 @@ public class ExportProfiles {
         exportOnline(options, options.userName, options.password, options.acceptAll, dacConfig);
       }
     }
-
-
   }
 
   private static Long getMilliseconds(LocalDateTime date, ZoneOffset zoneOffset) {
-    return date == null ? null : TimeUnit.SECONDS.toMillis(date.toEpochSecond(zoneOffset));
+    return date == null ? null : date.toInstant(zoneOffset).toEpochMilli();
   }
 
-  private  static ExportProfilesParams getAPIExportParams(ExportProfilesOptions options) {
+  static ExportProfilesParams getAPIExportParams(ExportProfilesOptions options) {
     ZoneOffset zoneOffset = OffsetDateTime.now().getOffset();
     return new ExportProfilesParams(options.outputFilePath, options.writeMode,
       getMilliseconds(options.fromDate, zoneOffset),
@@ -192,26 +190,32 @@ public class ExportProfiles {
 
   private static void exportOffline(ExportProfilesOptions options, DACConfig dacConfig)
     throws Exception {
-    Optional<LocalKVStoreProvider> providerOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig());
+    Optional<LegacyKVStoreProvider> providerOptional = CmdUtils.getLegacyKVStoreProvider(dacConfig.getConfig());
     if (!providerOptional.isPresent()) {
       AdminLogger.log("No database found. Profiles are not exported");
       return;
     }
-    try (LocalKVStoreProvider provider = providerOptional.get()) {
-      provider.start();
-
-      ProfilesExporter exporter = ExportProfilesResource.getExporter(getAPIExportParams(options));
-      AdminLogger.log(exporter.export(provider).retrieveStats());
+    try (LegacyKVStoreProvider kvStoreProvider = providerOptional.get()) {
+      kvStoreProvider.start();
+      exportOffline(options, kvStoreProvider);
     }
   }
 
-  private static void setPath(ExportProfilesOptions options) {
+  static void exportOffline(ExportProfilesOptions options, LegacyKVStoreProvider provider)
+    throws Exception {
+      ProfilesExporter exporter = ExportProfilesResource.getExporter(getAPIExportParams(options));
+      AdminLogger.log(exporter.export(provider).retrieveStats());
+  }
+
+  @VisibleForTesting
+  static void setPath(ExportProfilesOptions options) {
     if (options.outputFilePath == null) {
       options.outputFilePath = options.localPath;
     }
   }
 
-  private static void setTime(ExportProfilesOptions options) {
+  @VisibleForTesting
+  static void setTime(ExportProfilesOptions options) {
     if (options.toDate == null) {
       options.toDate = LocalDateTime.now();
     }

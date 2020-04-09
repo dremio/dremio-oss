@@ -16,22 +16,25 @@
 package com.dremio.datastore;
 
 import java.util.List;
-import java.util.Map;
 
-import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByCondition;
 
 /**
  * Core indexed store.
  */
 public interface CoreIndexedStore<K, V> extends CoreKVStore<K, V> {
 
+  String ID_FIELD_NAME = "_id";
+
   /**
    * Search kvstore and return matching values for given condition.
    * @param find contains search queries/sorting conditions to search for.
+   * @param options the search options.
    * @return matching key values
    */
-  Iterable<Map.Entry<KVStoreTuple<K>, KVStoreTuple<V>>> find(FindByCondition find);
+  Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> find(FindByCondition find, FindOption... options);
 
   /**
    * Provide a count of the number of documents that match each of the requested

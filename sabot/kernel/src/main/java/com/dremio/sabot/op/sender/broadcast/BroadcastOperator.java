@@ -164,7 +164,7 @@ public class BroadcastOperator extends BaseSender {
         @Nullable
         @Override
         public ArrowBuf apply(@Nullable ArrowBuf buf) {
-          int writerIndex = buf.writerIndex();
+          long writerIndex = buf.writerIndex();
           ArrowBuf newBuf = buf.getReferenceManager().transferOwnership(buf, context.getAllocator())
             .getTransferredBuffer();
           newBuf.writerIndex(writerIndex);

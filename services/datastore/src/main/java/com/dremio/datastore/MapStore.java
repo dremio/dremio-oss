@@ -19,9 +19,15 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentSkipListMap;
 
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.ImmutableDocument;
+import com.dremio.datastore.api.options.VersionOption;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -33,8 +39,42 @@ import com.google.common.primitives.UnsignedBytes;
  */
 class MapStore implements ByteStore {
 
-  private final ConcurrentSkipListMap<byte[], ByteBuffer> map;
+  private final ConcurrentSkipListMap<byte[], VersionedEntry> map;
   private final String name;
+
+  static class VersionedEntry {
+    private final String tag;
+    private final ByteBuffer value;
+
+    VersionedEntry(String tag, ByteBuffer value) {
+      this.tag = tag;
+      this.value = value;
+    }
+
+    String getTag() {
+      return tag;
+    }
+
+    ByteBuffer getValue() {
+      return value;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(tag, value);
+    }
+
+    @Override
+    public boolean equals(Object rhs) {
+      if (!(rhs instanceof VersionedEntry)) {
+        return false;
+      }
+
+      final VersionedEntry that = (VersionedEntry) rhs;
+      return Objects.equals(tag, that.tag) &&
+        Objects.equals(value, that.value);
+    }
+  }
 
   public MapStore(String name){
     this.map = new ConcurrentSkipListMap<>(UnsignedBytes.lexicographicalComparator());
@@ -42,46 +82,76 @@ class MapStore implements ByteStore {
   }
 
   @Override
-  public byte[] get(byte[] key) {
-    final ByteBuffer arr = map.get(key);
-    return arr == null ? null : arr.array();
+  public Document<byte[], byte[]> get(byte[] key, GetOption... options) {
+    final VersionedEntry entry = map.get(key);
+    return entry == null ? null : new ImmutableDocument.Builder<byte[], byte[]>()
+      .setKey(key)
+      .setValue(entry.getValue().array())
+      .setTag(entry.getTag())
+      .build();
   }
 
   @Override
-  public List<byte[]> get(List<byte[]> keys) {
-    List<byte[]> values = new ArrayList<>();
+  public Iterable<Document<byte[], byte[]>> get(List<byte[]> keys, GetOption... options) {
+    List<Document<byte[], byte[]>> values = new ArrayList<>();
     for(byte[] key : keys){
-      values.add(get(key));
+      values.add(get(key, options));
     }
     return values;
   }
 
   @Override
-  public void put(byte[] key, byte[] v) {
+  public Document<byte[], byte[]> put(byte[] key, byte[] v, PutOption... options) {
     Preconditions.checkNotNull(v);
-    map.put(key, ByteBuffer.wrap(v));
+    final String newTag = ByteStore.generateTagFromBytes(v);
+    map.put(key, new VersionedEntry(newTag, ByteBuffer.wrap(v)));
+    return new ImmutableDocument.Builder<byte[], byte[]>()
+      .setKey(key)
+      .setValue(v)
+      .setTag(newTag)
+      .build();
   }
 
   @Override
-  public boolean contains(byte[] key) {
+  public boolean contains(byte[] key, ContainsOption... options) {
     return map.containsKey(key);
   }
 
   @Override
-  public void delete(byte[] key) {
+  public void delete(byte[] key, DeleteOption... options) {
     map.remove(key);
   }
 
-  @Override
-  public Iterable<Entry<byte[], byte[]>> find(com.dremio.datastore.KVStore.FindByRange<byte[]> find) {
-    return Iterables.transform(ImmutableMap.copyOf(map.subMap(find.getStart(), find.isStartInclusive(), find.getEnd(), find.isEndInclusive())).entrySet(), TRANSFORMER);
+  private Iterable<Document<byte[], byte[]>> toIterableDocs(Map<byte[], VersionedEntry> m) {
+    return Iterables.transform(ImmutableMap.copyOf(m).entrySet(), TRANSFORMER);
   }
 
-  private static Function<Entry<byte[], ByteBuffer>, Entry<byte[], byte[]>> TRANSFORMER = new Function<Entry<byte[], ByteBuffer>, Entry<byte[], byte[]>>(){
+  @Override
+  public Iterable<Document<byte[], byte[]>> find(FindByRange<byte[]> find, FindOption... options) {
+
+    final boolean startIsNull = find.getStart() == null;
+    final boolean endIsNull = find.getEnd() == null;
+    if (startIsNull || endIsNull) {
+      if (!endIsNull) {
+        return toIterableDocs(map.headMap(find.getEnd(), find.isEndInclusive()));
+      }
+
+      if (!startIsNull) {
+        return toIterableDocs(map.tailMap(find.getStart(), find.isStartInclusive()));
+      }
+
+      // only case left is both are null
+      return toIterableDocs(map);
+    }
+
+    return toIterableDocs(map.subMap(find.getStart(), find.isStartInclusive(), find.getEnd(), find.isEndInclusive()));
+  }
+
+  private static Function<Entry<byte[], VersionedEntry>, Document<byte[], byte[]>> TRANSFORMER = new Function<Entry<byte[], VersionedEntry>, Document<byte[], byte[]>>(){
 
     @Override
-    public Entry<byte[], byte[]> apply(final Entry<byte[], ByteBuffer> input) {
-      return new Entry<byte[], byte[]>(){
+    public Document<byte[], byte[]> apply(final Entry<byte[], VersionedEntry> input) {
+      return new Document<byte[], byte[]>(){
 
         @Override
         public byte[] getKey() {
@@ -91,29 +161,23 @@ class MapStore implements ByteStore {
         @Override
         public byte[] getValue() {
           if(input.getValue() != null){
-            return input.getValue().array();
+            return input.getValue().getValue().array();
           } else {
             return null;
           }
         }
 
         @Override
-        public byte[] setValue(byte[] value) {
-          throw new UnsupportedOperationException();
+        public String getTag() {
+          return input.getValue().getTag();
         }
-
       };
     }};
 
 
   @Override
-  public Iterable<Entry<byte[], byte[]>> find() {
-    return Iterables.transform(ImmutableMap.copyOf(map).entrySet(), TRANSFORMER);
-  }
-
-  @Override
-  public void delete(byte[] key, String previousVersion) {
-    throw new UnsupportedOperationException("You must use a versioned store to delete by version.");
+  public Iterable<Document<byte[], byte[]>> find(FindOption... options) {
+    return toIterableDocs(map);
   }
 
   @Override
@@ -127,35 +191,62 @@ class MapStore implements ByteStore {
   }
 
   @Override
-  public boolean validateAndPut(byte[] key, byte[] newValue, ByteValidator validator) {
+  public Document<byte[], byte[]> validateAndPut(byte[] key, byte[] newValue, VersionOption.TagInfo versionInfo, PutOption... options) {
     Preconditions.checkNotNull(newValue);
-    byte[] oldValue = get(key);
+    Preconditions.checkNotNull(versionInfo);
+    Preconditions.checkArgument(versionInfo.hasCreateOption() || versionInfo.getTag() != null);
+    final Document<byte[], byte[]> oldEntry = get(key);
 
-    if (!validator.validate(oldValue)) {
-      return false;
+    // Validity check fails if the CREATE option is used but there is an existing entry,
+    // or there's an existing entry and the tag doesn't match.
+    if ((versionInfo.hasCreateOption() && oldEntry != null) || (!versionInfo.hasCreateOption() && oldEntry == null)
+      || (versionInfo.getTag() != null && !versionInfo.getTag().equals(oldEntry.getTag()))) {
+      return null;
     }
 
-    if (oldValue == null) {
-      return map.putIfAbsent(key, ByteBuffer.wrap(newValue)) == null;
+    final boolean succeeded;
+    final String newTag = ByteStore.generateTagFromBytes(newValue);
+    if (oldEntry == null) {
+      succeeded = map.putIfAbsent(key, new VersionedEntry(newTag, ByteBuffer.wrap(newValue))) == null;
     } else {
-      return map.replace(key, ByteBuffer.wrap(oldValue), ByteBuffer.wrap(newValue));
+      final byte[] oldValue = oldEntry.getValue();
+      succeeded = map.replace(key, new VersionedEntry(oldEntry.getTag(), ByteBuffer.wrap(oldValue)), new VersionedEntry(newTag, ByteBuffer.wrap(newValue)));
     }
+
+    if (succeeded) {
+      return new ImmutableDocument.Builder<byte[], byte[]>()
+        .setKey(key)
+        .setValue(newValue)
+        .setTag(newTag)
+        .build();
+    }
+
+    return null;
   }
 
   @Override
-  public boolean validateAndDelete(byte[] key, ByteValidator validator) {
-    byte[] oldValue = get(key);
+  public boolean validateAndDelete(byte[] key, VersionOption.TagInfo versionInfo, DeleteOption... options) {
+    Preconditions.checkNotNull(versionInfo);
+    Preconditions.checkArgument(!versionInfo.hasCreateOption());
+    Preconditions.checkNotNull(versionInfo.getTag());
+    final Document<byte[], byte[]> oldEntry = get(key);
 
-    if (!validator.validate(oldValue)) {
+    // An entry is expected and the tags must match.
+    if (oldEntry == null || !versionInfo.getTag().equals(oldEntry.getTag())) {
       return false;
     }
 
-    return map.remove(key, ByteBuffer.wrap(oldValue));
+    return map.remove(key, new VersionedEntry(oldEntry.getTag(), ByteBuffer.wrap(oldEntry.getValue())));
   }
 
   @Override
   public KVAdmin getAdmin() {
     return new MapKVAdmin();
+  }
+
+  @Override
+  public String getName() {
+    return name;
   }
 
   private class MapKVAdmin extends KVAdmin {

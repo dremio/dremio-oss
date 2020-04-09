@@ -42,7 +42,7 @@ class IntercomUtils {
    *  is missing. If callback is missing, a error is logged using console.error
    * @returns {boolean}
    */
-  ifChatAllowed(errorCallback) {
+  ifChatAllowed() {
     // return this._ifAllowed(true, errorCallback); // disabling chat per DX-16804
     return false;
   }

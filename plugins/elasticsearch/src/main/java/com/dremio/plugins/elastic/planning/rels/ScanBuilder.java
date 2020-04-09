@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.dremio.exec.physical.base.OpProps;
 import org.apache.calcite.plan.RelOptTable;
 import org.elasticsearch.action.Action;
 import org.elasticsearch.action.ActionFuture;
@@ -43,7 +42,9 @@ import com.dremio.elastic.proto.ElasticReaderProto.ElasticTableXattr;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.GroupScan;
+import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.planner.physical.PrelUtil;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.plugins.elastic.ElasticsearchConf;
 import com.dremio.plugins.elastic.planning.ElasticsearchGroupScan;
@@ -204,7 +205,7 @@ public class ScanBuilder {
       includesOrderedByOriginalTable = new String[0];
     } else {
       includesOrderedByOriginalTable =
-          scan.getBatchSchema().mask(scan.getProjectedColumns(), false)
+          CalciteArrowHelper.wrap(scan.getBatchSchema().mask(scan.getProjectedColumns(), false))
             .toCalciteRecordType(scan.getCluster().getTypeFactory()).getFieldNames().toArray(new String[0]);
     }
 

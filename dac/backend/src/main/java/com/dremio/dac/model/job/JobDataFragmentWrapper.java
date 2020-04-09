@@ -40,8 +40,8 @@ import com.dremio.dac.explore.model.DataJsonOutput;
 import com.dremio.dac.model.job.JobDataFragmentWrapper.JobDataFragmentSerializer;
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.store.EventBasedRecordWriter;
-import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.RecordBatchHolder;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -84,7 +84,7 @@ public class JobDataFragmentWrapper implements JobDataFragment {
   }
 
   @Override
-  public void close() throws Exception {
+  public void close() {
     delegate.close();
 
   }
@@ -97,6 +97,16 @@ public class JobDataFragmentWrapper implements JobDataFragment {
   @Override
   public List<Column> getColumns() {
     return columns;
+  }
+
+  @Override
+  public List<Field> getFields() {
+    return delegate.getSchema().getFields();
+  }
+
+  @Override
+  public List<RecordBatchHolder> getRecordBatches() {
+    return delegate.getRecordBatches();
   }
 
   @Override

@@ -17,7 +17,7 @@ import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 import { ApiError } from 'redux-api-middleware/lib/errors';
 
-import {Support} from './Support';
+import {Support, RESERVED} from './Support';
 import { LABELS } from './settingsConfig';
 
 describe('Support', () => {
@@ -227,4 +227,10 @@ describe('Support', () => {
     });
   });
 
+});
+
+describe('RESERVED', () => {
+  it('should include only email fields', () => {
+    expect(RESERVED.size).to.equal(2);
+  });
 });

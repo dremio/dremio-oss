@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+syntax = "proto2";
 package exec.bit.control;
 
 option java_package = "com.dremio.exec.proto";
@@ -38,7 +39,37 @@ enum RpcType {
   REQ_FRAGMENT_STATUS = 5;
   REQ_QUERY_DATA = 6;
   REQ_NODE_QUERY_STATUS = 7;
-  
+  REQ_QUERY_METADATA = 8;
+
+  REQ_NODE_QUERY_SCREEN_COMPLETION = 11;
+  REQ_NODE_QUERY_COMPLETION = 12;
+  REQ_NODE_QUERY_ERROR = 13;
+  REQ_NODE_QUERY_PROFILE = 14;
+
+  REQ_NODE_STATS = 9;
+  RESP_NODE_STATS = 10;
+}
+
+message NodeStatResp {
+  optional NodeEndpoint endpoint = 1;
+  optional NodeStats node_stats = 2;
+}
+
+message NodeStatReq {
+}
+
+message NodeStats {
+  optional string name = 1;
+  optional string ip = 2;
+  optional int32 port = 3;
+  optional double memory = 4;
+  optional double cpu = 5;
+  optional string version = 6;
+  optional string status = 7;
+  optional double load = 8;
+  optional int32 configured_max_width = 9;
+  optional int32 actual_max_with = 10;
+  optional bool current = 11;
 }
 
 message BitStatus {
@@ -146,20 +177,6 @@ message QueryContextInformation {
   optional exec.shared.QueryId last_query_id = 7;
 }
 
-message NodeQueryStatus {
-  optional exec.shared.QueryId id = 1;
-  optional NodeEndpoint endpoint = 2;
-  repeated NodePhaseStatus phase_status = 3;
-  optional int64 max_memory_used = 4;
-  optional int64 time_enqueued_before_submit_ms = 5;  // Time spent enqueued after query arrived at executor, and before
-                                                      // being submitted for execution. Measured in milliseconds
-}
-
-message NodePhaseStatus {
-  optional int32 major_fragment_id = 1;
-  optional int64 max_memory_used = 2;
-}
-
 message HBaseSubScanSpec {
   optional string namespace = 1;
   optional string table_name = 2;
@@ -181,4 +198,65 @@ message MinorFragmentIndexEndpoint {
 // List of fragment end-points.
 message MinorFragmentIndexEndpointList {
   repeated MinorFragmentIndexEndpoint frags = 1;
+}
+
+// executor > coordinator : completion of screen operator for a query
+message NodeQueryScreenCompletion {
+  optional exec.shared.QueryId id = 1;
+  optional NodeEndpoint endpoint = 2;
+}
+
+// executor > coordinator : completion of all fragments on an executor for a query
+message NodeQueryCompletion {
+  optional exec.shared.QueryId id = 1;
+  optional NodeEndpoint endpoint = 2;
+  optional bool results_sent = 3;
+
+  // error, if any, during execution
+  optional exec.shared.DremioPBError first_error = 4;
+  optional int32 error_major_fragment_id = 5;
+  optional int32 error_minor_fragment_id = 6;
+}
+
+// executor > coordinator : report first error for a query on an executor
+message NodeQueryFirstError {
+  optional FragmentHandle handle = 1;
+  optional NodeEndpoint endpoint = 2;
+  optional exec.shared.DremioPBError error = 3;
+}
+
+// progress metrics
+message QueryProgressMetrics {
+  optional int64 rows_processed = 1;
+}
+
+// node level metrics, for a query.
+message NodeQueryStatus {
+  optional exec.shared.QueryId id = 1 [ deprecated = true ];
+  optional NodeEndpoint endpoint = 2 [ deprecated = true ];
+  repeated NodePhaseStatus phase_status = 3;
+  optional int64 max_memory_used = 4;
+  optional int64 time_enqueued_before_submit_ms = 5;  // Time spent enqueued after query arrived at executor, and before
+  // being submitted for execution. Measured in milliseconds
+}
+
+// phase level metrics, for a query.
+message NodePhaseStatus {
+  optional int32 major_fragment_id = 1;
+  optional int64 max_memory_used = 2;
+}
+
+// profile and metrics from one executor node.
+message ExecutorQueryProfile {
+  optional exec.shared.QueryId queryId = 1;
+  optional NodeEndpoint endpoint = 2;
+
+  // progress metrics
+  optional QueryProgressMetrics progress = 3;
+
+  // node level status
+  optional NodeQueryStatus node_status = 4;
+
+  // fragment statuses
+  repeated FragmentStatus fragments = 5;
 }

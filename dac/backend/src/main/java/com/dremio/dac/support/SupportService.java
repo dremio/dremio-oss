@@ -28,13 +28,12 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -48,7 +47,6 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.apache.calcite.rel.RelNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,20 +69,19 @@ import com.dremio.dac.service.datasets.DatasetDownloadManager.DownloadDataRespon
 import com.dremio.dac.service.support.SupportRPC;
 import com.dremio.dac.service.support.SupportRPC.ClusterIdentityRequest;
 import com.dremio.dac.service.support.SupportRPC.ClusterIdentityResponse;
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.ProtostuffSerializer;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
-import com.dremio.datastore.StringSerializer;
+import com.dremio.dac.util.JobRequestUtil;
 import com.dremio.datastore.VersionExtractor;
-import com.dremio.exec.planner.PlannerPhase;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.api.LegacyStoreCreationFunction;
+import com.dremio.datastore.format.Format;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.rpc.RpcException;
-import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.options.OptionManager;
@@ -93,19 +90,22 @@ import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.StringValidator;
 import com.dremio.service.Pointer;
 import com.dremio.service.Service;
+import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.ClusterCoordinator.Role;
+import com.dremio.service.job.JobDetailsRequest;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.JobSummaryRequest;
+import com.dremio.service.job.QueryProfileRequest;
+import com.dremio.service.job.QueryType;
+import com.dremio.service.job.SqlQuery;
+import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.proto.JobId;
-import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.GetJobRequest;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.CompletionListener;
 import com.dremio.service.jobs.JobNotFoundException;
-import com.dremio.service.jobs.JobRequest;
-import com.dremio.service.jobs.JobStatusListener;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.SqlQuery;
-import com.dremio.service.jobs.metadata.QueryMetadata;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.source.proto.SourceConfig;
-import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.User;
 import com.dremio.service.users.UserNotFoundException;
 import com.dremio.service.users.UserService;
@@ -119,7 +119,6 @@ import com.dremio.services.fabric.simple.SentResponseMessage;
 import com.google.common.base.Preconditions;
 import com.google.common.io.ByteStreams;
 import com.google.common.net.MediaType;
-import com.google.common.util.concurrent.Futures;
 
 import io.netty.buffer.ArrowBuf;
 import io.protostuff.ByteString;
@@ -162,10 +161,12 @@ public class SupportService implements Service {
   private static final int POST_TIME_BUFFER_MS = 10 * 1000;
 
   private final DACConfig config;
-  private final Provider<KVStoreProvider> kvStoreProvider;
-  private final Provider<SabotContext> executionContextProvider;
+  private final Provider<LegacyKVStoreProvider> kvStoreProvider;
   private final Provider<JobsService> jobsService;
   private final Provider<UserService> userService;
+  private final Provider<ClusterCoordinator> clusterCoordinatorProvider;
+  private final Provider<SystemOptionManager> optionManagerProvider;
+  private final Provider<NamespaceService> namespaceServiceProvider;
   private final Provider<CatalogService> catalogServiceProvider;
   private final Provider<FabricService> fabricServiceProvider;
   private Path supportPath;
@@ -177,18 +178,22 @@ public class SupportService implements Service {
 
   public SupportService(
       DACConfig config,
-      Provider<KVStoreProvider> kvStoreProvider,
+      Provider<LegacyKVStoreProvider> kvStoreProvider,
       Provider<JobsService> jobsService,
       Provider<UserService> userService,
-      Provider<SabotContext> executionContextProvider,
+      Provider<ClusterCoordinator> clusterCoordinatorProvider,
+      Provider<SystemOptionManager> optionManagerProvider,
+      Provider<NamespaceService> namespaceServiceProvider,
       Provider<CatalogService> catalogServiceProvider,
       Provider<FabricService> fabricServiceProvider,
       BufferAllocator allocator
       ) {
     this.kvStoreProvider = kvStoreProvider;
-    this.executionContextProvider = executionContextProvider;
     this.jobsService = jobsService;
     this.userService = userService;
+    this.clusterCoordinatorProvider = clusterCoordinatorProvider;
+    this.optionManagerProvider = optionManagerProvider;
+    this.namespaceServiceProvider = namespaceServiceProvider;
     this.catalogServiceProvider = catalogServiceProvider;
     this.fabricServiceProvider = fabricServiceProvider;
     this.allocator = allocator;
@@ -250,7 +255,7 @@ public class SupportService implements Service {
     final ClusterIdentityResponse response;
     ClusterIdentity id;
     try {
-      Collection<NodeEndpoint> coordinators = executionContextProvider.get().getCoordinators();
+      Collection<NodeEndpoint> coordinators = clusterCoordinatorProvider.get().getServiceSet(Role.COORDINATOR).getAvailableEndpoints();
       if (coordinators.isEmpty()) {
         throw new RpcException("Unable to fetch Cluster Identity, no endpoints are available");
       }
@@ -291,12 +296,12 @@ public class SupportService implements Service {
     return id;
   }
 
-  public static Optional<ClusterIdentity> getClusterIdentity(KVStoreProvider provider) {
+  public static Optional<ClusterIdentity> getClusterIdentity(LegacyKVStoreProvider provider) {
     ConfigurationStore store = new ConfigurationStore(provider);
     return getClusterIdentityFromStore(store, provider);
   }
 
-  private static Optional<ClusterIdentity> getClusterIdentityFromStore(ConfigurationStore store, KVStoreProvider provider) {
+  private static Optional<ClusterIdentity> getClusterIdentityFromStore(ConfigurationStore store, LegacyKVStoreProvider provider) {
     final ConfigurationEntry entry = store.get(SupportService.CLUSTER_ID);
 
     if (entry == null) {
@@ -314,8 +319,8 @@ public class SupportService implements Service {
     }
   }
 
-  private static Optional<ClusterIdentity> upgradeToNewSupportStore(KVStoreProvider provider) {
-    final KVStore<String, ClusterIdentity> oldSupportStore = provider.getStore(OldSupportStoreCreator.class);
+  private static Optional<ClusterIdentity> upgradeToNewSupportStore(LegacyKVStoreProvider provider) {
+    final LegacyKVStore<String, ClusterIdentity> oldSupportStore = provider.getStore(OldSupportStoreCreator.class);
     ClusterIdentity clusterIdentity = oldSupportStore.get(CLUSTER_ID);
 
     if (clusterIdentity != null) {
@@ -329,24 +334,15 @@ public class SupportService implements Service {
   /**
    * Old support creator - used for upgrade
    */
-  public static class OldSupportStoreCreator implements StoreCreationFunction<KVStore<String, ClusterIdentity>> {
+  public static class OldSupportStoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<String, ClusterIdentity>> {
     @Override
-    public KVStore<String, ClusterIdentity> build(StoreBuildingFactory factory) {
+    public LegacyKVStore<String, ClusterIdentity> build(LegacyStoreBuildingFactory factory) {
       return factory.<String, ClusterIdentity>newStore()
         .name("identity")
-        .keySerializer(StringSerializer.class)
-        .valueSerializer(ClusterIdSerializer.class)
+        .keyFormat(Format.ofString())
+        .valueFormat(Format.ofProtostuff(ClusterIdentity.class))
         .versionExtractor(ClusterIdentityVersionExtractor.class)
         .build();
-    }
-  }
-
-  /**
-   * Serializer used for serializing cluster identity.
-   */
-  public static class ClusterIdSerializer extends ProtostuffSerializer<ClusterIdentity> {
-    public ClusterIdSerializer() {
-      super(ClusterIdentity.getSchema());
     }
   }
 
@@ -375,8 +371,8 @@ public class SupportService implements Service {
     }
   }
 
-  public static void updateClusterIdentity(KVStoreProvider provider, ClusterIdentity identity) {
-    final KVStore<String, ConfigurationEntry> supportStore = provider.getStore(ConfigurationStore.ConfigurationStoreCreator.class);
+  public static void updateClusterIdentity(LegacyKVStoreProvider provider, ClusterIdentity identity) {
+    final LegacyKVStore<String, ConfigurationEntry> supportStore = provider.getStore(ConfigurationStore.ConfigurationStoreCreator.class);
 
     final ConfigurationEntry entry = new ConfigurationEntry();
     entry.setType(CLUSTER_IDENTITY);
@@ -480,7 +476,7 @@ public class SupportService implements Service {
   }
 
   public OptionManager getOptions(){
-    return executionContextProvider.get().getOptionManager();
+    return optionManagerProvider.get();
   }
 
   /**
@@ -557,11 +553,12 @@ public class SupportService implements Service {
       zip.putNextEntry(new ZipEntry("header.json"));
       recordHeader(zip, jobId, config, submissionId);
 
-      GetJobRequest request = GetJobRequest.newBuilder()
-        .setJobId(jobId)
+      JobSummaryRequest request = JobSummaryRequest.newBuilder()
+        .setJobId(JobsProtoUtil.toBuf(jobId))
+        .setUserName(config.getUserName())
         .build();
-      final Job job = jobsService.get().getJob(request);
-      for(int attemptIndex = 0; attemptIndex < job.getAttempts().size() ; attemptIndex++) {
+      final JobSummary jobSummary = jobsService.get().getJobSummary(request);
+      for(int attemptIndex = 0; attemptIndex < jobSummary.getNumAttempts() ; attemptIndex++) {
         zip.putNextEntry(new ZipEntry(String.format("profile_attempt_%d.json", attemptIndex)));
         QueryProfile profile = recordProfile(zip, jobId, attemptIndex);
 
@@ -589,10 +586,11 @@ public class SupportService implements Service {
     SupportHeader header = new SupportHeader();
 
     header.setClusterInfo(getClusterInfo());
-    GetJobRequest request = GetJobRequest.newBuilder()
-      .setJobId(id)
+    JobDetailsRequest jobDetailsRequest = JobDetailsRequest.newBuilder()
+      .setJobId(JobsProtoUtil.toBuf(id))
+      .setUserName(user.getUserName())
       .build();
-    header.setJob(jobsService.get().getJob(request).getJobAttempt());
+    header.setJob(JobsProtoUtil.getLastAttempt(jobsService.get().getJobDetails(jobDetailsRequest)));
 
     Submission submission = new Submission()
         .setSubmissionId(submissionId)
@@ -604,14 +602,23 @@ public class SupportService implements Service {
     header.setSubmission(submission);
 
     // record the dremio version that was used to run the query in the header
-    header.setDremioVersion(jobsService.get().getProfile(id, 0).getDremioVersion());
+    QueryProfileRequest request = QueryProfileRequest.newBuilder()
+      .setJobId(JobsProtoUtil.toBuf(id))
+      .setAttempt(0)
+      .build();
+    QueryProfile profile = jobsService.get().getProfile(request);
+    header.setDremioVersion(profile.getDremioVersion());
 
     ProtostuffUtil.toJSON(output, header, SupportHeader.getSchema(), false);
     return true;
   }
 
   private QueryProfile recordProfile(OutputStream out, JobId id, int attempt) throws IOException, JobNotFoundException {
-    QueryProfile profile = jobsService.get().getProfile(id, attempt);
+    QueryProfileRequest request = QueryProfileRequest.newBuilder()
+      .setJobId(JobsProtoUtil.toBuf(id))
+      .setAttempt(attempt)
+      .build();
+    QueryProfile profile = jobsService.get().getProfile(request);
     ProtobufUtils.writeAsJSONTo(out, profile);
     return profile;
   }
@@ -621,39 +628,31 @@ public class SupportService implements Service {
       final String startTime = JodaDateUtility.formatTimeStampMilli.print(start - PRE_TIME_BUFFER_MS);
       final String endTime = JodaDateUtility.formatTimeStampMilli.print(end + POST_TIME_BUFFER_MS);
 
-      final SqlQuery query = new SqlQuery(
-          String.format(LOG_QUERY, SqlUtils.quoteIdentifier(submissionId), startTime, endTime, "%" + id.getId() + "%"),
-          Arrays.asList(LOGS_STORAGE_PLUGIN), userId);
-      final CompletionListener listener = new CompletionListener();
+      final SqlQuery query = JobRequestUtil.createSqlQuery(
+        String.format(LOG_QUERY, SqlUtils.quoteIdentifier(submissionId), startTime, endTime, "%" + id.getId() + "%"),
+        Collections.singletonList(LOGS_STORAGE_PLUGIN), userId);
 
-      Futures.getUnchecked(
-        jobsService.get().submitJob(JobRequest.newBuilder()
-          .setSqlQuery(query)
-          .setQueryType(QueryType.UI_INTERNAL_RUN)
-          .build(), listener)
-      );
+      final CompletionListener completionListener = new CompletionListener();
 
-      boolean completed;
+      jobsService.get().submitJob(SubmitJobRequest.newBuilder().setSqlQuery(query).setQueryType(QueryType.UI_INTERNAL_RUN).build(), completionListener);
+
+
       try {
-        completed = listener.latch.await(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
+        completionListener.await(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
-        completed = false;
+        throw new RuntimeException("Log search took more than " + TIMEOUT_IN_SECONDS + " seconds to complete.");
       }
 
-      if (!completed) {
-        throw new RuntimeException("Log search took more than " + TIMEOUT_IN_SECONDS + " seconds to complete.");
-      } else if(listener.ex != null) {
-        throw listener.ex;
-      } else if(!listener.success){
-          throw new RuntimeException("Log search was cancelled or failed.");
-      } else {
-        Path outputFile = supportPath.resolve(submissionId).resolve("0_0_0.json");
-        try(FileInputStream fis = new FileInputStream(outputFile.toFile())){
-          ByteStreams.copy(fis, output);
-        }
-        return true;
+      if (!completionListener.isCompleted()) {
+        throw new RuntimeException("Log search was cancelled or failed.");
       }
-    } catch (Exception ex){
+
+      Path outputFile = supportPath.resolve(submissionId).resolve("0_0_0.json");
+      try (FileInputStream fis = new FileInputStream(outputFile.toFile())) {
+        ByteStreams.copy(fis, output);
+      }
+      return true;
+    } catch (Exception ex) {
       logger.warn("Failure while attempting to query log files for support submission.", ex);
       PrintWriter writer = new PrintWriter(output);
       writer.write(String.format("{\"message\": \"Log searching failed with exception %s.\"}", ex.getMessage()));
@@ -667,17 +666,17 @@ public class SupportService implements Service {
     SoftwareVersion version = new SoftwareVersion().setVersion(DremioVersionInfo.getVersion());
 
     List<Source> sources = new ArrayList<>();
-    final NamespaceService ns = executionContextProvider.get().getNamespaceService(SystemUser.SYSTEM_USERNAME);
+    final NamespaceService ns = namespaceServiceProvider.get();
     for(SourceConfig source : ns.getSources()){
       String type = source.getType() == null ? source.getLegacySourceTypeEnum().name() : source.getType();
       sources.add(new Source().setName(source.getName()).setType(type));
     }
     List<Node> nodes = new ArrayList<>();
-    for(NodeEndpoint ep : executionContextProvider.get().getExecutors()){
+    for(NodeEndpoint ep : clusterCoordinatorProvider.get().getServiceSet(Role.EXECUTOR).getAvailableEndpoints()){
       nodes.add(new Node().setName(ep.getAddress()).setRole("executor"));
     }
 
-    for(NodeEndpoint ep : executionContextProvider.get().getCoordinators()){
+    for(NodeEndpoint ep : clusterCoordinatorProvider.get().getServiceSet(Role.COORDINATOR).getAvailableEndpoints()){
       nodes.add(new Node().setName(ep.getAddress()).setRole("coordinator"));
     }
 
@@ -700,44 +699,6 @@ public class SupportService implements Service {
    * @return the current edition that's running. Other editions should override this value
    */
   public String getEditionInfo() { return "community"; }
-
-  private class CompletionListener implements JobStatusListener {
-    private final CountDownLatch latch = new CountDownLatch(1);
-
-    private Exception ex;
-    private boolean success = false;
-
-    @Override
-    public void jobSubmitted(JobId jobId) {
-    }
-
-    @Override
-    public void planRelTransform(PlannerPhase phase, RelNode before, RelNode after, long millisTaken) {
-
-    }
-
-    @Override
-    public void metadataCollected(QueryMetadata metadata) {
-    }
-
-    @Override
-    public void jobFailed(Exception e) {
-      latch.countDown();
-      ex = e;
-    }
-
-    @Override
-    public void jobCompleted() {
-      latch.countDown();
-      success = true;
-    }
-
-    @Override
-    public void jobCancelled(String reason) {
-      latch.countDown();
-    }
-
-  }
 
   // this query should be improved once we support converting from ISO8660 time format.
   private static final String LOG_QUERY =

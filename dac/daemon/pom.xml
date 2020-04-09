@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>4.1.8-202003120636020140-9c2a6b13</version>
+    <version>4.2.0-202004091958060824-8f7e141d</version>
   </parent>
 
   <artifactId>dremio-dac-daemon</artifactId>
@@ -52,7 +52,17 @@
     </dependency>
     <dependency>
       <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-hdfs-plugin</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.plugins</groupId>
       <artifactId>dremio-mongo-plugin</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-nas-plugin</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -164,6 +174,14 @@
       <artifactId>dremio-attach-tool</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-jobs</artifactId>
+      <version>${project.version}</version>
+      <classifier>tests</classifier>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -267,7 +285,7 @@
         <dependency>
           <groupId>com.amazon.redshift</groupId>
           <artifactId>redshift-jdbc42-no-awssdk</artifactId>
-          <version>1.2.34.1058</version>
+          <version>1.2.36.1060</version>
         </dependency>
         <dependency>
           <groupId>com.oracle.ojdbc</groupId>
@@ -299,6 +317,13 @@
           </plugin>
         </plugins>
       </build>
+      <dependencies>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-maprfs-plugin</artifactId>
+          <version>${project.version}</version>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>notmapr</id>

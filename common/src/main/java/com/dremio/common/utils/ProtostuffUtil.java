@@ -18,11 +18,10 @@ package com.dremio.common.utils;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-
-import org.apache.commons.io.output.ByteArrayOutputStream;
 
 import com.dremio.common.exceptions.UserException;
 import com.fasterxml.jackson.core.JsonEncoding;
@@ -42,7 +41,7 @@ public final class ProtostuffUtil {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProtostuffUtil.class);
 
-  private ProtostuffUtil() {};
+  private ProtostuffUtil() {}
 
   /**
    * Clone  a Protostuff object

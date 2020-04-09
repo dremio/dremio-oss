@@ -58,4 +58,7 @@ public interface JobDataFragment extends AutoCloseable {
    * @return the cell value
    */
   Object extractValue(String columnName, int row);
+
+  @Override
+  void close();
 }

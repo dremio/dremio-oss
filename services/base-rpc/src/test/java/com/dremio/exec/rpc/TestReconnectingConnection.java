@@ -61,7 +61,7 @@ public class TestReconnectingConnection {
 
   @Test
   public void ensureTimeoutFailAndRecover() {
-    TestReConnection c = conn(200,1,1,
+    TestReConnection c = conn(200,100,1,
         r -> {
           wt(100);
           r.connectionFailed(FailureType.CONNECTION, new IllegalStateException());

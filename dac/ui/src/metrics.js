@@ -18,26 +18,21 @@ import ApiUtils from 'utils/apiUtils/apiUtils';
 
 export default {
   fetchClusterStats() {
-    return ApiUtils.fetch('cluster/stats').then((response) => {
-      const endpoints = new Map();
+    return ApiUtils.fetchJson('cluster/stats?showCompactStats=true', json => {
+      return json;
+    }, () => {
+    }); //ignore errors
+  },
 
-      // anonymize the endpoint - give it a simple index based id and remove the address.
-      function anonymize(endpoint) {
-        if (!endpoints.has(endpoint.address)) {
-          endpoints.set(endpoint.address, endpoints.size);
-        }
+  fetchDailyJobStats() {
+    return ApiUtils.fetchJson('cluster/jobstats', json => {
+      return json;
+    }, () => {}); //ignore errors
+  },
 
-        const index = endpoints.get(endpoint.address);
-        endpoint.id = index;
-        delete endpoint.address;
-      }
-
-      return response.json().then((data) => {
-        data.coordinators.forEach(anonymize);
-        data.executors.forEach(anonymize);
-
-        return data;
-      });
-    });
+  fetchUserStats() {
+    return ApiUtils.fetchJson('stats/user', json => {
+      return json;
+    }, () => {}); //ignore errors
   }
 };

@@ -241,7 +241,7 @@ public class PrelTransformer {
             public RelNode visit(TableScan scan) {
               if (scan instanceof FilesystemScanDrel) {
                 FilesystemScanDrel scanDrel = (FilesystemScanDrel) scan;
-                FilesystemScanDrel newScanDrel = new FilesystemScanDrel(
+                return new FilesystemScanDrel(
                   scanDrel.getCluster(),
                   scanDrel.getTraitSet(),
                   scanDrel.getTable(),
@@ -249,10 +249,6 @@ public class PrelTransformer {
                   scanDrel.getTableMetadata(),
                   scanDrel.getProjectedColumns(),
                   1.0);
-                if (scanDrel.getFilter() != null) {
-                  newScanDrel = newScanDrel.applyFilter(scanDrel.getFilter());
-                }
-                return newScanDrel;
               }
               return super.visit(scan);
             }
@@ -753,7 +749,7 @@ public class PrelTransformer {
     return op;
   }
 
-  public static PhysicalPlan convertToPlan(SqlHandlerConfig config, PhysicalOperator op) {
+  public static PhysicalPlan convertToPlan(SqlHandlerConfig config, PhysicalOperator op, Runnable committer) {
     PlanPropertiesBuilder propsBuilder = PlanProperties.builder();
     propsBuilder.type(PlanType.PHYSICAL);
     propsBuilder.version(1);
@@ -763,7 +759,11 @@ public class PrelTransformer {
     List<PhysicalOperator> ops = Lists.newArrayList();
     PopCollector c = new PopCollector();
     op.accept(c, ops);
-    return new PhysicalPlan(propsBuilder.build(), ops);
+    return new PhysicalPlan(propsBuilder.build(), ops, committer);
+  }
+
+  public static PhysicalPlan convertToPlan(SqlHandlerConfig config, PhysicalOperator op) {
+    return convertToPlan(config, op, null);
   }
 
   private static class PopCollector extends AbstractPhysicalVisitor<Void, Collection<PhysicalOperator>, RuntimeException> {

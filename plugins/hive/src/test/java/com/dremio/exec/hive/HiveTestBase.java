@@ -27,7 +27,6 @@ import com.dremio.PlanTestBase;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.GuavaPatcherRunner;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.hive.HivePluginOptions;
 import com.dremio.exec.store.hive.HiveTestDataGenerator;
 
 /**
@@ -54,12 +53,10 @@ public class HiveTestBase extends PlanTestBase {
 
     hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
     hiveTest.addHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());
-    test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
   }
 
   @AfterClass
-  public static void cleanupHiveTestData() throws Exception{
-    test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
+  public static void cleanupHiveTestData() {
     if (hiveTest != null) {
       hiveTest.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME, getSabotContext().getCatalogService());
       hiveTest.deleteHiveTestPlugin(HiveTestDataGenerator.HIVE_TEST_PLUGIN_NAME_WITH_WHITESPACE, getSabotContext().getCatalogService());

@@ -29,9 +29,19 @@ import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.CoreStoreProvider.CoreStoreBuilder;
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.AbstractStoreBuilder;
+import com.dremio.datastore.api.DocumentConverter;
+import com.dremio.datastore.api.IndexedStore;
+import com.dremio.datastore.api.KVStore;
+import com.dremio.datastore.api.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.StoreBuildingFactory;
+import com.dremio.datastore.api.StoreCreationFunction;
 import com.dremio.datastore.indexed.AuxiliaryIndex;
 import com.dremio.datastore.indexed.AuxiliaryIndexImpl;
 import com.dremio.datastore.indexed.LocalIndexedStore;
+import com.dremio.datastore.utility.StoreLoader;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.service.DirectProvider;
@@ -63,22 +73,23 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
 
   @VisibleForTesting
   public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed) {
-    this(scan, baseDirectory, inMemory, timed, true, false);
+    this(scan, null, null, null, baseDirectory, inMemory, timed);
   }
 
   @VisibleForTesting
-  public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed, boolean validateOCC) {
-    this(scan, null, null, null, baseDirectory, inMemory, timed, validateOCC, false);
+  public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed, boolean noDBOpenRetry) {
+    this(scan, null, null, null, baseDirectory, inMemory, timed, noDBOpenRetry);
   }
 
-  @VisibleForTesting
-  public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed, boolean validateOCC, boolean disableOCC) {
-    this(scan, null, null, null, baseDirectory, inMemory, timed, validateOCC, disableOCC);
-  }
-
-  @VisibleForTesting
-  public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed, boolean validateOCC, boolean disableOCC, boolean noDBOpenRetry) {
-    this(scan, null, null, null, baseDirectory, inMemory, timed, validateOCC, disableOCC, noDBOpenRetry);
+  public LocalKVStoreProvider(
+      ScanResult scan,
+      Provider<FabricService> fabricService,
+      BufferAllocator allocator,
+      String hostName,
+      String baseDirectory,
+      boolean inMemory,
+      boolean timed) {
+    this(scan, fabricService, allocator, hostName, baseDirectory, inMemory, timed, false);
   }
 
   public LocalKVStoreProvider(
@@ -89,25 +100,10 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
       String baseDirectory,
       boolean inMemory,
       boolean timed,
-      boolean validateOCC,
-      boolean disableOCC) {
-    this(scan, fabricService, allocator, hostName, baseDirectory, inMemory, timed, validateOCC, disableOCC, false);
-  }
-
-  public LocalKVStoreProvider(
-      ScanResult scan,
-      Provider<FabricService> fabricService,
-      BufferAllocator allocator,
-      String hostName,
-      String baseDirectory,
-      boolean inMemory,
-      boolean timed,
-      boolean validateOCC,
-      boolean disableOCC,
       boolean noDBOpenRetry
   ) {
 
-    coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, validateOCC, disableOCC, noDBOpenRetry);
+    coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, noDBOpenRetry);
     this.fabricService = fabricService;
     this.allocator = allocator;
     this.hostName = hostName;
@@ -129,14 +125,12 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
       Boolean.valueOf(Preconditions.checkNotNull(config.get(DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL),
         String.format("Missing %s in dremio.conf", DremioConfig.DEBUG_USE_MEMORY_STRORAGE_BOOL)).toString()),
       Boolean.valueOf(Preconditions.checkNotNull(config.get(CONFIG_TIMED), String.format(ERR_FMT, CONFIG_TIMED)).toString()),
-      Boolean.parseBoolean(Preconditions.checkNotNull(config.get(CONFIG_VALIDATEOCC), String.format(ERR_FMT, CONFIG_VALIDATEOCC)).toString()),
-      Boolean.parseBoolean(Preconditions.checkNotNull(config.get(CONFIG_DISABLEOCC), String.format(ERR_FMT, CONFIG_DISABLEOCC)).toString()),
       false
     );
   }
 
   @VisibleForTesting
-  <K, V> StoreBuilder<K, V> newStore(){
+  public <K, V> StoreBuilder<K, V> newStore(){
     return new LocalStoreBuilder<>(coreStoreProvider.<K, V>newStore());
   }
 
@@ -146,7 +140,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     return (T) Preconditions.checkNotNull(stores.get(creator), "Unknown store creator %s", creator.getName());
   }
 
-  public <K, V, T> AuxiliaryIndex<K, V, T> getAuxiliaryIndex(String name, String kvStoreName, Class<? extends KVStoreProvider.DocumentConverter<K, T>> converter) throws InstantiationException, IllegalAccessException {
+  public <K, V, T> AuxiliaryIndex<K, V, T> getAuxiliaryIndex(String name, String kvStoreName, Class<? extends DocumentConverter<K, T>> converter) throws InstantiationException, IllegalAccessException {
     CoreKVStore<K, V> store = (CoreKVStore<K, V>) coreStoreProvider.getStore(kvStoreName);
     return new AuxiliaryIndexImpl<>(name, store, coreStoreProvider.getIndex(name), converter);
   }
@@ -155,21 +149,8 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
   public void start() throws Exception {
     logger.info("Starting LocalKVStoreProvider");
     coreStoreProvider.start();
-    if (fabricService != null) {
-      final DefaultDataStoreRpcHandler rpcHandler = new LocalDataStoreRpcHandler(hostName, coreStoreProvider);
-      final NodeEndpoint thisNode = NodeEndpoint.newBuilder()
-          .setAddress(hostName)
-          .setFabricPort(fabricService.get().getPort())
-          .build();
-      try {
-        // DatastoreRpcService registers itself with fabric
-        //noinspection ResultOfObjectAllocationIgnored
-        new DatastoreRpcService(DirectProvider.wrap(thisNode), fabricService.get(), allocator, rpcHandler);
-      } catch (RpcException e) {
-        throw new DatastoreException("Failed to start rpc service", e);
-      }
-    }
 
+    // Build all stores before starting up the DatastoreRpcService.
     stores = StoreLoader.buildStores(scan, new StoreBuildingFactory() {
       @Override
       public <K, V> StoreBuilder<K, V> newStore() {
@@ -179,6 +160,22 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
 
     // recover after the stores are built
     coreStoreProvider.recoverIfPreviouslyCrashed();
+
+    if (fabricService != null) {
+      final DefaultDataStoreRpcHandler rpcHandler = new LocalDataStoreRpcHandler(hostName, coreStoreProvider);
+      final NodeEndpoint thisNode = NodeEndpoint.newBuilder()
+        .setAddress(hostName)
+        .setFabricPort(fabricService.get().getPort())
+        .build();
+      try {
+        // DatastoreRpcService registers itself with fabric
+        //noinspection ResultOfObjectAllocationIgnored
+        new DatastoreRpcService(DirectProvider.wrap(thisNode), fabricService.get(), allocator, rpcHandler);
+      } catch (RpcException e) {
+        throw new DatastoreException("Failed to start rpc service", e);
+      }
+    }
+
 
     logger.info("LocalKVStoreProvider is up");
   }
@@ -199,12 +196,12 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     logger.info("Stopped LocalKVStoreProvider");
   }
 
-  public Map<StoreBuilderConfig, CoreKVStore<?, ?>> getStores() {
+  public Map<KVStoreInfo, CoreKVStore<?, ?>> getStores() {
     return coreStoreProvider.getStores();
   }
 
-  public CoreKVStore<?, ?> getOrCreateStore(StoreBuilderConfig config) {
-    final String storeId = (coreStoreProvider).getOrCreateStore(config);
+  public CoreKVStore<?, ?> getStore(KVStoreInfo config) {
+    final String storeId = (coreStoreProvider).getStoreID(config.getTablename());
     return coreStoreProvider.getStore(storeId);
   }
 
@@ -222,51 +219,32 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     return coreStoreProvider.reIndex(id);
   }
 
+  public LegacyKVStoreProvider asLegacy() {
+    return new LegacyKVStoreProviderAdapter(this, scan);
+  }
+
   /**
-   * Store builder for master store provider.
+   * Store builder for master/Raas store provider.
    * @param <K>
    * @param <V>
    */
-  public static class LocalStoreBuilder<K, V> implements StoreBuilder<K, V> {
+  public static class LocalStoreBuilder<K, V> extends AbstractStoreBuilder<K, V> {
 
     private CoreStoreBuilder<K, V> coreStoreBuilder;
 
-    LocalStoreBuilder(CoreStoreBuilder<K, V> coreStoreBuilder) {
+    public LocalStoreBuilder(CoreStoreBuilder<K, V> coreStoreBuilder) {
       this.coreStoreBuilder = coreStoreBuilder;
     }
 
     @Override
-    public StoreBuilder<K, V> name(String name) {
-      coreStoreBuilder = coreStoreBuilder.name(name);
-      return this;
-    }
-
-    @Override
-    public StoreBuilder<K, V> keySerializer(Class<? extends Serializer<K>> keySerializerClass) {
-      coreStoreBuilder = coreStoreBuilder.keySerializer(keySerializerClass);
-      return this;
-    }
-
-    @Override
-    public StoreBuilder<K, V> valueSerializer(Class<? extends Serializer<V>> valueSerializerClass) {
-      coreStoreBuilder = coreStoreBuilder.valueSerializer(valueSerializerClass);
-      return this;
-    }
-
-    @Override
-    public StoreBuilder<K, V> versionExtractor(Class<? extends VersionExtractor<V>> versionExtractorClass) {
-      coreStoreBuilder = coreStoreBuilder.versionExtractor(versionExtractorClass);
-      return this;
-    }
-
-    @Override
     public KVStore<K, V> build() {
-      return new LocalKVStore<>(coreStoreBuilder.build());
+      return new LocalKVStore<>(coreStoreBuilder.build(getStoreBuilderHelper()));
     }
 
     @Override
     public IndexedStore<K, V> buildIndexed(Class<? extends DocumentConverter<K, V>> documentConverterClass) {
-      return new LocalIndexedStore<>(coreStoreBuilder.buildIndexed(documentConverterClass));
+      getStoreBuilderHelper().documentConverter(documentConverterClass);
+      return new LocalIndexedStore<>(coreStoreBuilder.buildIndexed(getStoreBuilderHelper()));
     }
   }
 }

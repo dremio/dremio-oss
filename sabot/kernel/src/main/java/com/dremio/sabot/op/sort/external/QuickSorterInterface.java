@@ -21,6 +21,7 @@ import org.apache.arrow.vector.SimpleIntVector;
 import com.dremio.exec.compile.TemplateClassDefinition;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.ExpandableHyperContainer;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
 

@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlSetOption;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.Catalog;
@@ -36,36 +37,49 @@ import com.dremio.exec.planner.sql.handlers.direct.AccelAddExternalReflectionHan
 import com.dremio.exec.planner.sql.handlers.direct.AccelCreateReflectionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AccelDropReflectionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.AccelToggleHandler;
+import com.dremio.exec.planner.sql.handlers.direct.AddColumnsHandler;
+import com.dremio.exec.planner.sql.handlers.direct.AlterTableSetOptionHandler;
+import com.dremio.exec.planner.sql.handlers.direct.ChangeColumnHandler;
+import com.dremio.exec.planner.sql.handlers.direct.CreateEmptyTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.CreateViewHandler;
 import com.dremio.exec.planner.sql.handlers.direct.DescribeTableHandler;
+import com.dremio.exec.planner.sql.handlers.direct.DropColumnHandler;
 import com.dremio.exec.planner.sql.handlers.direct.DropTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.DropViewHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ExplainHandler;
+import com.dremio.exec.planner.sql.handlers.direct.ExplainJsonHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ForgetTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.RefreshSourceStatusHandler;
 import com.dremio.exec.planner.sql.handlers.direct.RefreshTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SetApproxHandler;
-import com.dremio.exec.planner.sql.handlers.direct.SetHiveVarcharCompatibilityHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SetOptionHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ShowSchemasHandler;
 import com.dremio.exec.planner.sql.handlers.direct.ShowTablesHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SimpleDirectHandler;
 import com.dremio.exec.planner.sql.handlers.direct.SqlDirectHandler;
+import com.dremio.exec.planner.sql.handlers.direct.TruncateTableHandler;
 import com.dremio.exec.planner.sql.handlers.direct.UseSchemaHandler;
 import com.dremio.exec.planner.sql.handlers.query.CreateTableHandler;
+import com.dremio.exec.planner.sql.handlers.query.InsertTableHandler;
 import com.dremio.exec.planner.sql.handlers.query.NormalHandler;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.parser.SqlAccelToggle;
 import com.dremio.exec.planner.sql.parser.SqlAddExternalReflection;
+import com.dremio.exec.planner.sql.parser.SqlAlterTableAddColumns;
+import com.dremio.exec.planner.sql.parser.SqlAlterTableChangeColumn;
+import com.dremio.exec.planner.sql.parser.SqlAlterTableDropColumn;
+import com.dremio.exec.planner.sql.parser.SqlAlterTableSetOption;
+import com.dremio.exec.planner.sql.parser.SqlCreateEmptyTable;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection;
 import com.dremio.exec.planner.sql.parser.SqlDropReflection;
+import com.dremio.exec.planner.sql.parser.SqlExplainJson;
 import com.dremio.exec.planner.sql.parser.SqlForgetTable;
 import com.dremio.exec.planner.sql.parser.SqlRefreshSourceStatus;
 import com.dremio.exec.planner.sql.parser.SqlRefreshTable;
 import com.dremio.exec.planner.sql.parser.SqlSetApprox;
-import com.dremio.exec.planner.sql.parser.SqlSetHiveVarcharCompatible;
 import com.dremio.exec.planner.sql.parser.SqlShowSchemas;
 import com.dremio.exec.planner.sql.parser.SqlShowTables;
+import com.dremio.exec.planner.sql.parser.SqlTruncateTable;
 import com.dremio.exec.planner.sql.parser.SqlUseSchema;
 import com.dremio.exec.proto.ExecProtos.ServerPreparedStatementState;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -83,10 +97,7 @@ import com.dremio.exec.work.foreman.ForemanException;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.protector.UserRequest;
-import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
-import com.dremio.resource.ResourceAllocator;
 import com.dremio.service.Pointer;
-import com.dremio.service.execselector.ExecutorSelectionService;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -99,9 +110,6 @@ public class CommandCreator {
   private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(CommandCreator.class);
 
   private final QueryContext context;
-  private final CoordToExecTunnelCreator tunnelCreator;
-  private final ResourceAllocator queryResourceManager;
-  private final ExecutorSelectionService executorSelectionService;
   private final UserRequest request;
   private final AttemptObserver observer;
   private final SabotContext dbContext;
@@ -112,24 +120,18 @@ public class CommandCreator {
   public CommandCreator(
       SabotContext dbContext,
       QueryContext context,
-      CoordToExecTunnelCreator tunnelCreator,
       UserRequest request,
       AttemptObserver observer,
       Cache<Long, PreparedPlan> plans,
       Pointer<QueryId> prepareId,
-      int attemptNumber,
-      ResourceAllocator queryResourceManager,
-      ExecutorSelectionService executorSelectionService) {
+      int attemptNumber) {
     this.context = context;
-    this.tunnelCreator = tunnelCreator;
     this.request = request;
     this.observer = observer;
     this.dbContext = dbContext;
     this.plans = plans;
     this.prepareId = prepareId;
     this.attemptNumber = attemptNumber;
-    this.queryResourceManager = queryResourceManager;
-    this.executorSelectionService = executorSelectionService;
   }
 
   public CommandRunner<?> toCommand() throws ForemanException {
@@ -193,8 +195,7 @@ public class CommandCreator {
                             .getCredentials()
                             .getUserName()));
                 }
-                return new PrepareToExecution(plan, context, observer, dbContext.getPlanReader(), tunnelCreator,
-                    queryResourceManager, executorSelectionService);
+                return new PrepareToExecution(plan, observer);
               }
             }
 
@@ -211,8 +212,7 @@ public class CommandCreator {
           return getSqlCommand(query.getPlan(), false);
 
         case PHYSICAL: // should be deprecated once tests are removed.
-          return new PhysicalPlanCommand(tunnelCreator, context, dbContext.getPlanReader(), observer,
-              query.getPlanBytes(), queryResourceManager, executorSelectionService);
+          return new PhysicalPlanCommand(dbContext.getPlanReader(), query.getPlanBytes());
 
         default:
           throw new IllegalArgumentException(
@@ -274,7 +274,11 @@ public class CommandCreator {
         return direct.create(new ExplainHandler(config));
 
       case SET_OPTION:
-        return direct.create(new SetOptionHandler(context.getSession()));
+        if (sqlNode instanceof SqlAlterTableSetOption) {
+          return direct.create(new AlterTableSetOptionHandler(catalog));
+        } else if (sqlNode instanceof SqlSetOption) {
+          return direct.create(new SetOptionHandler(context.getSession()));
+        }
 
       case DESCRIBE_TABLE:
         return direct.create(new DescribeTableHandler(reader));
@@ -291,10 +295,24 @@ public class CommandCreator {
       case CREATE_TABLE:
         return async.create(new CreateTableHandler(), config);
 
+      case ALTER_TABLE:
+        if (sqlNode instanceof SqlAlterTableAddColumns) {
+          return direct.create(new AddColumnsHandler(catalog, config));
+        } else if (sqlNode instanceof SqlAlterTableChangeColumn) {
+          return direct.create(new ChangeColumnHandler(catalog, config));
+        } else if (sqlNode instanceof SqlAlterTableDropColumn) {
+          return direct.create(new DropColumnHandler(catalog, config));
+        }
+
+      case INSERT:
+        return async.create(new InsertTableHandler(), config);
+
       case OTHER:
       case OTHER_DDL:
         if (sqlNode instanceof SqlShowSchemas) {
           return direct.create(new ShowSchemasHandler(catalog));
+        } else if (sqlNode instanceof SqlExplainJson) {
+          return direct.create(new ExplainJsonHandler(config));
         } else if (sqlNode instanceof SqlShowTables) {
           return direct.create(new ShowTablesHandler(catalog));
         } else if (sqlNode instanceof SqlUseSchema) {
@@ -308,15 +326,17 @@ public class CommandCreator {
         } else if (sqlNode instanceof SqlDropReflection) {
           return direct.create(new AccelDropReflectionHandler(catalog, context.getAccelerationManager()));
         } else if (sqlNode instanceof SqlForgetTable) {
-          return direct.create(new ForgetTableHandler(catalog, context.getNamespaceService()));
+          return direct.create(new ForgetTableHandler(catalog));
         } else if (sqlNode instanceof SqlRefreshTable) {
           return direct.create(new RefreshTableHandler(catalog));
         } else if (sqlNode instanceof SqlRefreshSourceStatus) {
           return direct.create(new RefreshSourceStatusHandler(catalog));
         } else if (sqlNode instanceof SqlSetApprox) {
-          return direct.create(new SetApproxHandler(catalog, context.getNamespaceService()));
-        } else if (sqlNode instanceof SqlSetHiveVarcharCompatible) {
-          return direct.create(new SetHiveVarcharCompatibilityHandler(catalog, context.getNamespaceService()));
+          return direct.create(new SetApproxHandler(catalog));
+        } else if (sqlNode instanceof SqlCreateEmptyTable) {
+          return direct.create(new CreateEmptyTableHandler(catalog, config));
+        } else if (sqlNode instanceof SqlTruncateTable) {
+          return direct.create(new TruncateTableHandler(config));
         }
 
         // fallthrough
@@ -381,8 +401,7 @@ public class CommandCreator {
       if(prepare){
         return new HandlerToPreparePlan(context, sqlNode, handler, plans, sql, observer, config);
       }
-      return new HandlerToExec(tunnelCreator, context, dbContext.getPlanReader(), observer, sql, sqlNode,
-          handler, config, queryResourceManager, executorSelectionService);
+      return new HandlerToExec(observer, sql, sqlNode, handler, config);
     }
   }
 

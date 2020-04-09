@@ -216,9 +216,6 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "parquet_varchar_to_decimal_with_filter_ext")
         .baselineValues("hive.default", "orcmap")
         .baselineValues("hive.default", "orcmaporc")
-        .baselineValues("hive.default", "parqcomplex")
-        .baselineValues("hive.default", "parqcomplex_array_data")
-        .baselineValues("hive.default", "parqcomplex_ext")
         .baselineValues("hive.default", "orc_more_columns")
         .baselineValues("hive.default", "orc_more_columns_ext")
         .baselineValues("hive.default", "field_size_limit_test")
@@ -226,6 +223,9 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "parqschematest_table")
         .baselineValues("hive.default", "orc_strings")
         .baselineValues("hive.default", "orc_strings_complex")
+        .baselineValues("hive.default", "text_date")
+        .baselineValues("hive.default", "orc_date")
+        .baselineValues("hive.default", "parquet_bigint")
         .baselineValues("hive.default", "timestamptostring")
         .baselineValues("hive.default", "timestamptostring_orc")
         .baselineValues("hive.default", "timestamptostring_orc_ext")
@@ -241,6 +241,9 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "parquet_decimal_partition_overflow_ext")
         .baselineValues("hive.default", "parq_varchar")
         .baselineValues("hive.default", "parq_char")
+        .baselineValues("hive.default", "parq_varchar_no_trunc")
+        .baselineValues("hive.default", "parq_varchar_more_types")
+        .baselineValues("hive.default", "parq_varchar_more_types_ext")
         .baselineValues("hive.default", "parq_varchar_complex")
         .baselineValues("hive.default", "parq_varchar_complex_ext")
         .baselineValues("hive.default", "parquet_fixed_length_varchar_partition")
@@ -252,6 +255,19 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "parquet_mixed_decimal_t37_2_f37_4")
         .baselineValues("hive.default", "parquet_mixed_decimal_t4_2_f6_2")
         .baselineValues("hive.default", "parquet_less_columns")
+        .baselineValues("hive.default", "complex_types_direct_list")
+        .baselineValues("hive.default", "complex_types_direct_struct")
+        .baselineValues("hive.default", "complex_types_nested_list")
+        .baselineValues("hive.default", "complex_types_nested_struct")
+        .baselineValues("hive.default", "complex_types_map")
+        .baselineValues("hive.default", "complex_types_nested_map")
+        .baselineValues("hive.default", "complex_types_case_test")
+        .baselineValues("hive.default", "complex_types_flag_test")
+        .baselineValues("hive.default", "partition_format_exception_text")
+        .baselineValues("hive.default", "partition_format_exception_orc")
+        .baselineValues("hive.default", "test_nonvc_parqdecimalschemachange_table")
+        .baselineValues("hive.default", "parquet_double_to_float")
+        .baselineValues("hive.default", "parquet_double_to_float_ext")
       .go();
 
     testBuilder()
@@ -354,12 +370,12 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
   @Test
   public void describeTable5() throws Exception {
     testBuilder()
-        .sqlQuery("DESCRIBE \"hive.db1\".kv_db1")
-        .unOrdered()
-        .baselineColumns(baselineCols)
-        .baselineValues("key", "CHARACTER VARYING", "YES", null, null)
-        .baselineValues("value", "CHARACTER VARYING", "YES", null, null)
-        .go();
+      .sqlQuery("DESCRIBE \"hive.db1\".kv_db1")
+      .unOrdered()
+      .baselineColumns(baselineCols)
+      .baselineValues("key", "CHARACTER VARYING", "YES", null, null)
+      .baselineValues("value", "CHARACTER VARYING", "YES", null, null)
+      .go();
   }
 
   // When current default schema is just the top-level schema name and the table has no schema qualifier. It should

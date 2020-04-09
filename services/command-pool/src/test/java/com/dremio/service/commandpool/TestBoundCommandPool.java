@@ -25,12 +25,18 @@ import org.junit.Test;
 
 import com.google.common.util.concurrent.Futures;
 
+import io.opentracing.noop.NoopTracerFactory;
+
 /**
  * Tests for {@link BoundCommandPool}
  */
 public class TestBoundCommandPool {
 
   private final AtomicInteger counter = new AtomicInteger();
+
+  private CommandPool newTestCommandPool() {
+    return new BoundCommandPool(1, NoopTracerFactory.create());
+  }
 
   @Before
   public void resetCounter() {
@@ -40,7 +46,7 @@ public class TestBoundCommandPool {
   @Test
   public void testSamePrioritySuppliers() throws Exception {
     // single threaded pool to have a deterministic ordering of execution
-    final CommandPool pool = new BoundCommandPool(1);
+    final CommandPool pool = newTestCommandPool();
 
     final BlockingCommand blocking = new BlockingCommand();
     pool.submit(CommandPool.Priority.HIGH, "test", blocking, false);
@@ -61,7 +67,7 @@ public class TestBoundCommandPool {
   @Test
   public void testDifferentPrioritySuppliers() {
     // single threaded pool to have a deterministic ordering of execution
-    final CommandPool pool = new BoundCommandPool(1);
+    final CommandPool pool = newTestCommandPool();
 
     final BlockingCommand blocking = new BlockingCommand();
     pool.submit(CommandPool.Priority.HIGH, "test", blocking, false);

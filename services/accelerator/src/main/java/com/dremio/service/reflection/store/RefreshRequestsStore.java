@@ -17,12 +17,12 @@ package com.dremio.service.reflection.store;
 
 import javax.inject.Provider;
 
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
-import com.dremio.datastore.StringSerializer;
 import com.dremio.datastore.VersionExtractor;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.api.LegacyStoreCreationFunction;
+import com.dremio.datastore.format.Format;
 import com.dremio.service.reflection.proto.RefreshRequest;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -34,13 +34,13 @@ import com.google.common.base.Suppliers;
 public class RefreshRequestsStore {
   private static final String TABLE_NAME = "refresh_requests";
 
-  private final Supplier<KVStore<String, RefreshRequest>> store;
+  private final Supplier<LegacyKVStore<String, RefreshRequest>> store;
 
-  public RefreshRequestsStore(final Provider<KVStoreProvider> provider) {
+  public RefreshRequestsStore(final Provider<LegacyKVStoreProvider> provider) {
     Preconditions.checkNotNull(provider, "kvStore provider required");
-    store = Suppliers.memoize(new Supplier<KVStore<String, RefreshRequest>>() {
+    store = Suppliers.memoize(new Supplier<LegacyKVStore<String, RefreshRequest>>() {
       @Override
-      public KVStore<String, RefreshRequest> get() {
+      public LegacyKVStore<String, RefreshRequest> get() {
         return provider.get().getStore(StoreCreator.class);
       }
     });
@@ -79,13 +79,13 @@ public class RefreshRequestsStore {
   /**
    * {@link RefreshRequestsStore} creator
    */
-  public static final class StoreCreator implements StoreCreationFunction<KVStore<String, RefreshRequest>> {
+  public static final class StoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<String, RefreshRequest>> {
     @Override
-    public KVStore<String, RefreshRequest> build(StoreBuildingFactory factory) {
+    public LegacyKVStore<String, RefreshRequest> build(LegacyStoreBuildingFactory factory) {
       return factory.<String, RefreshRequest>newStore()
         .name(TABLE_NAME)
-        .keySerializer(StringSerializer.class)
-        .valueSerializer(Serializers.RefreshRequestSerializer.class)
+        .keyFormat(Format.ofString())
+        .valueFormat(Format.ofProtostuff(RefreshRequest.class))
         .versionExtractor(VExtractor.class)
         .build();
     }

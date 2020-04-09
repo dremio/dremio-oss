@@ -26,6 +26,7 @@ import org.apache.calcite.util.Pair;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.Serializer;
 import com.dremio.exec.physical.PhysicalPlan;
@@ -36,6 +37,7 @@ import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.ExtendedToRelContext;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
@@ -48,7 +50,6 @@ import com.dremio.exec.planner.sql.parser.SqlRefreshReflection;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
-import com.dremio.exec.work.AttemptId;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.reflection.ReflectionService;
@@ -64,8 +65,8 @@ import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.RefreshDecision;
 import com.dremio.service.reflection.store.MaterializationStore;
+import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.dremio.service.users.SystemUser;
-import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
@@ -79,7 +80,7 @@ public class RefreshHandler implements SqlToPlanHandler {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RefreshHandler.class);
 
   public static final String DECISION_NAME = RefreshDecision.class.getName();
-  public static final Serializer<RefreshDecision> SERIALIZER = ProtostuffSerializer.of(RefreshDecision.getSchema());
+  public static final Serializer<RefreshDecision, byte[]> ABSTRACT_SERIALIZER = ProtostuffSerializer.of(RefreshDecision.getSchema());
 
   private String textPlan;
 
@@ -115,7 +116,7 @@ public class RefreshHandler implements SqlToPlanHandler {
         throw SqlExceptionHelper.parseError("Unknown reflection id.", sql, materialize.getReflectionIdPos()).build(logger);
       }
       final ReflectionEntry entry = entryOpt.get();
-      if(!Objects.equal(goal.getTag(), entry.getGoalVersion())) {
+      if(!ReflectionGoalsStore.checkGoalVersion(goal, entry.getGoalVersion())) {
         throw UserException.validationError().message("Reflection has been updated since reflection was scheduled.").build(logger);
       }
 
@@ -124,7 +125,7 @@ public class RefreshHandler implements SqlToPlanHandler {
         throw SqlExceptionHelper.parseError("Unknown materialization id.", sql, materialize.getReflectionIdPos()).build(logger);
       }
       final Materialization materialization = materializationOpt.get();
-      if(!Objects.equal(goal.getTag(), materialization.getReflectionGoalVersion())) {
+      if(!ReflectionGoalsStore.checkGoalVersion(goal, materialization.getReflectionGoalVersion())) {
         throw UserException.validationError().message("Reflection has been updated since reflection was scheduled.").build(logger);
       }
 
@@ -134,7 +135,7 @@ public class RefreshHandler implements SqlToPlanHandler {
         .build(logger);
       }
 
-      observer.planValidated(RecordWriter.SCHEMA.toCalciteRecordType(config.getConverter().getCluster().getTypeFactory()), materialize, watch.elapsed(TimeUnit.MILLISECONDS));
+      observer.planValidated(CalciteArrowHelper.wrap(RecordWriter.SCHEMA).toCalciteRecordType(config.getConverter().getCluster().getTypeFactory()), materialize, watch.elapsed(TimeUnit.MILLISECONDS));
 
       watch.reset();
 
@@ -171,7 +172,7 @@ public class RefreshHandler implements SqlToPlanHandler {
 
       final Rel writerDrel = new WriterRel(drel.getCluster(), drel.getCluster().traitSet().plus(Rel.LOGICAL),
           drel, config.getContext().getCatalog().createNewTable(
-              new NamespaceKey(tablePath),
+              new NamespaceKey(tablePath), null,
               getWriterOptions(0, goal, fields), ImmutableMap.of()
               ), initial.getRowType());
 
@@ -258,7 +259,7 @@ public class RefreshHandler implements SqlToPlanHandler {
     RefreshDecision decision = planGenerator.getRefreshDecision();
 
     // save the decision for later.
-    context.recordExtraInfo(DECISION_NAME, SERIALIZER.serialize(decision));
+    context.recordExtraInfo(DECISION_NAME, ABSTRACT_SERIALIZER.serialize(decision));
 
     logger.trace("Refresh decision: {}", decision);
     if(logger.isTraceEnabled()) {

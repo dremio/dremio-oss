@@ -375,26 +375,8 @@ public class ParquetGroupScanUtils {
         }
         RowGroupInfo rowGroupInfo = new RowGroupInfo(file.getFileAttributes(), rg.getStart(), rg.getLength(), rgIndex, rg.getRowCount(), rowGroupColumnValueCounts);
 
-        EndpointByteMap endpointByteMap = new EndpointByteMapImpl();
-        for (HostAndPort host : rg.getHostAffinity().keySet()) {
-          HostAndPort endpoint = null;
-          if (!host.hasPort()) {
-            if (hostEndpointMap.contains(host)) {
-              endpoint = host;
-            }
-          } else {
-            // multi executor deployment and affinity provider is sensitive to the port
-            // picking the map late as it allows a source that contains files in HDFS and S3
-            if (hostPortEndpointMap.contains(host)) {
-              endpoint = host;
-            }
-          }
-
-          if (endpoint != null) {
-            endpointByteMap
-                .add(endpoint, (long) (rg.getHostAffinity().get(host) * rg.getLength()));
-          }
-        }
+        EndpointByteMap endpointByteMap = buildEndpointByteMap(hostEndpointMap, hostPortEndpointMap, rg.getHostAffinity(),
+          rg.getLength());
         rowGroupInfo.setEndpointByteMap(endpointByteMap);
         rgIndex++;
         rowGroupInfos.add(rowGroupInfo);
@@ -488,6 +470,32 @@ public class ParquetGroupScanUtils {
 
     logger.debug("Table: {}, partition columns {}", selectionRoot, columnTypeMap.keySet());
     logger.debug("Took {} ms to gather Parquet table metadata.", watch.elapsed(TimeUnit.MILLISECONDS));
+  }
+
+  public static EndpointByteMap buildEndpointByteMap(
+    Set<HostAndPort> activeHostMap, Set<HostAndPort> activeHostPortMap,
+    Map<com.google.common.net.HostAndPort, Float> affinities, long totalLength) {
+
+    EndpointByteMap endpointByteMap = new EndpointByteMapImpl();
+    for (HostAndPort host : affinities.keySet()) {
+      HostAndPort endpoint = null;
+      if (!host.hasPort()) {
+        if (activeHostMap.contains(host)) {
+          endpoint = host;
+        }
+      } else {
+        // multi executor deployment and affinity provider is sensitive to the port
+        // picking the map late as it allows a source that contains files in HDFS and S3
+        if (activeHostPortMap.contains(host)) {
+          endpoint = host;
+        }
+      }
+
+      if (endpoint != null) {
+        endpointByteMap.add(endpoint, (long) (affinities.get(host) * totalLength));
+      }
+    }
+    return endpointByteMap;
   }
 
   private void eliminateSomePartitionColumns() {

@@ -13,8 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-export FormBody from './FormBody';
-export ModalForm from './ModalForm';
-export { modalFormProps } from './ModalForm';
-export FormTitle from './FormTitle';
-export { connectComplexForm } from './connectComplexForm';
+import FormBody from './FormBody';
+import ModalForm from './ModalForm';
+import { modalFormProps } from './ModalForm';
+import FormTitle from './FormTitle';
+import { connectComplexForm } from './connectComplexForm';
+
+export {
+  FormBody,
+  ModalForm,
+  modalFormProps,
+  FormTitle,
+  connectComplexForm
+};

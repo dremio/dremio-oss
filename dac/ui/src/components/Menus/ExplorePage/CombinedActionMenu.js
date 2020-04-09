@@ -22,10 +22,10 @@ import { injectIntl } from 'react-intl';
 
 import HoverHelp from '@app/components/HoverHelp';
 import DividerHr from '@app/components/Menus/DividerHr';
+import MenuItem from '@app/components/Menus/MenuItem';
 import {getJobProgress} from '@app/selectors/explore';
 
 import Menu from './Menu';
-import MenuItem from './MenuItem';
 import MenuLabel from './MenuLabel';
 import ExportMenu from './ExportMenu';
 import BiToolsMenu from './BiToolsMenu';

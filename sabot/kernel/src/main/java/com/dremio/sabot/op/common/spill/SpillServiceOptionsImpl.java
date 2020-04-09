@@ -18,37 +18,21 @@ package com.dremio.sabot.op.common.spill;
 import javax.inject.Provider;
 
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.options.OptionManager;
 import com.dremio.service.spill.SpillServiceOptions;
-import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Provides options to the spill service
  */
 public class SpillServiceOptionsImpl implements SpillServiceOptions {
-  final Provider<SabotContext> contextProvider;
-  final OptionManager options;
+  final Provider<OptionManager> optionManager;
 
-  public SpillServiceOptionsImpl(final Provider<SabotContext> contextProvider) {
-    this.contextProvider = contextProvider;
-    this.options = null;
-  }
-
-  /**
-   * Test-only function: initialize spill service options from a given option manager
-   */
-  @VisibleForTesting
-  public SpillServiceOptionsImpl(OptionManager optionManager) {
-    this.contextProvider = null;
-    this.options = optionManager;
+  public SpillServiceOptionsImpl(final Provider<OptionManager> optionManager) {
+    this.optionManager = optionManager;
   }
 
   private OptionManager options() {
-    if (contextProvider != null) {
-      return contextProvider.get().getOptionManager();
-    }
-    return options;
+    return optionManager.get();
   }
 
   @Override

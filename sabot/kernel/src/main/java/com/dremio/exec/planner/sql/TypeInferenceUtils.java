@@ -140,7 +140,7 @@ public class TypeInferenceUtils {
    * Given a Dremio's TypeProtos.MinorType, return a Calcite's corresponding SqlTypeName
    */
   public static SqlTypeName getCalciteTypeFromMinorType(final TypeProtos.MinorType type) {
-    return CompleteType.getCalciteTypeFromMinorType(type);
+    return CalciteArrowHelper.getCalciteTypeFromMinorType(type);
   }
 
   /**

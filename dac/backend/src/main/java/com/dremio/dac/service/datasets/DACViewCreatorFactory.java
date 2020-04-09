@@ -21,6 +21,8 @@ import java.util.List;
 import javax.inject.Provider;
 import javax.ws.rs.core.SecurityContext;
 
+import org.apache.arrow.memory.BufferAllocator;
+
 import com.dremio.dac.explore.DatasetTool;
 import com.dremio.dac.explore.DatasetVersionResource;
 import com.dremio.dac.explore.QueryExecutor;
@@ -31,7 +33,7 @@ import com.dremio.dac.proto.model.dataset.FromSQL;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.util.DatasetsUtil;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
@@ -42,7 +44,6 @@ import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
-import com.dremio.service.reflection.ReflectionService;
 import com.google.common.base.Throwables;
 
 /**
@@ -50,28 +51,28 @@ import com.google.common.base.Throwables;
  */
 public class DACViewCreatorFactory implements ViewCreatorFactory {
   private final Provider<InitializerRegistry> initializerRegistry;
-  private final Provider<KVStoreProvider> kvStoreProvider;
+  private final Provider<LegacyKVStoreProvider> kvStoreProvider;
   private final Provider<JobsService> jobsService;
   private final Provider<NamespaceService.Factory> namespaceServiceFactory;
-  private final Provider<ReflectionService> reflectionService;
   private final Provider<ContextService> contextService;
   private final Provider<CatalogService> catalogService;
+  private final BufferAllocator allocator;
 
   public DACViewCreatorFactory(Provider<InitializerRegistry> initializerRegistry,
-                                Provider<KVStoreProvider> kvStoreProvider,
+                                Provider<LegacyKVStoreProvider> kvStoreProvider,
                                 Provider<JobsService> jobsService,
                                 Provider<NamespaceService.Factory> namespaceServiceFactory,
-                                Provider<ReflectionService> reflectionService,
                                 Provider<CatalogService> catalogService,
-                                Provider<ContextService> contextService
+                                Provider<ContextService> contextService,
+                                Provider<BufferAllocator> allocator
   ) {
     this.initializerRegistry = initializerRegistry;
     this.kvStoreProvider = kvStoreProvider;
     this.jobsService = jobsService;
     this.namespaceServiceFactory = namespaceServiceFactory;
     this.catalogService = catalogService;
-    this.reflectionService = reflectionService;
     this.contextService = contextService;
+    this.allocator = allocator.get().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
   }
 
   @Override
@@ -104,10 +105,10 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
       try {
         DatasetVersion version = DatasetVersion.newVersion();
         DatasetPath datasetPath = new DatasetPath(path);
-        InitialPreviewResponse response = tool.newUntitled(new FromSQL(sql), version, sqlContext, null, true, 0, true);
+        InitialPreviewResponse response = tool.newUntitled(allocator, new FromSQL(sql), version, sqlContext, null,true, 0, true);
         DatasetPath tmpPath = new DatasetPath(response.getDataset().getFullPath());
         VirtualDatasetUI vds = datasetService.getVersion(tmpPath, response.getDataset().getDatasetVersion());
-        newDatasetVersionResource(securityContext, tool, version, tmpPath).save(vds, datasetPath, null, attributes);
+        newDatasetVersionResource(securityContext, tool, version, tmpPath, allocator).save(vds, datasetPath, null, attributes);
       } catch (Exception e) {
         throw Throwables.propagate(e);
       }
@@ -127,7 +128,7 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
         DatasetPath datasetPath = new DatasetPath(path);
         final VirtualDatasetUI virtualDataset = datasetService.get(datasetPath);
 
-        Transformer transformer = new Transformer(contextService.get().get(), namespaceService, datasetService, executor, securityContext);
+        Transformer transformer = new Transformer(contextService.get().get(), jobsService, namespaceService, datasetService, executor, securityContext);
         TransformUpdateSQL transformUpdateSQL = new TransformUpdateSQL();
         transformUpdateSQL.setSql(sql);
         transformUpdateSQL.setSqlContextList(sqlContext);
@@ -178,8 +179,8 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
     }
 
     protected DatasetVersionResource newDatasetVersionResource(SecurityContext securityContext, DatasetTool tool,
-        DatasetVersion version, DatasetPath tmpPath) {
-      return new DatasetVersionResource(null, datasetService, null, null, null, tool, null, securityContext, tmpPath, version);
+        DatasetVersion version, DatasetPath tmpPath, BufferAllocator allocator) {
+      return new DatasetVersionResource(null, datasetService, jobsService, null, null, null, tool, null, securityContext, tmpPath, version, allocator);
     }
 
     @Override
@@ -196,7 +197,9 @@ public class DACViewCreatorFactory implements ViewCreatorFactory {
   }
 
   @Override
-  public void close() {}
+  public void close() {
+    allocator.close();
+  }
 
   @Override
   public void start() {}

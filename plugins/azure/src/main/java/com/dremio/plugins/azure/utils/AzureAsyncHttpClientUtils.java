@@ -49,6 +49,7 @@ public final class AzureAsyncHttpClientUtils {
 
   private static final Logger logger = LoggerFactory.getLogger(AzureAsyncHttpClientUtils.class);
   private static final int DEFAULT_IDLE_TIME = 60_000;
+  private static final int DEFAULT_REQUEST_TIMEOUT = 10_000;
   private static final int DEFAULT_CLEANER_PERIOD = 1_000;
   private static final int MAX_RETRIES = 4;
   private static final String AZURE_ENDPOINT = "blob.core.windows.net";
@@ -69,6 +70,7 @@ public final class AzureAsyncHttpClientUtils {
       // TODO: Confirm a new thread pool is not getting created everytime
       .setThreadPoolName(accountName + "-azurestorage-async-client")
       .setChannelPool(new DefaultChannelPool(DEFAULT_IDLE_TIME, -1, poolTimer, DEFAULT_CLEANER_PERIOD))
+      .setRequestTimeout(DEFAULT_REQUEST_TIMEOUT)
       .setResponseBodyPartFactory(AsyncHttpClientConfig.ResponseBodyPartFactory.LAZY)
       .setMaxRequestRetry(MAX_RETRIES);
 
@@ -81,7 +83,6 @@ public final class AzureAsyncHttpClientUtils {
     }
 
     poolTimer.start();
-
     return asyncHttpClient(configBuilder.build());
   }
 

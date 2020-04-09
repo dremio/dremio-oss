@@ -16,7 +16,6 @@
  */
 package com.dremio.dac.support;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
@@ -29,13 +28,12 @@ import com.dremio.dac.proto.model.source.UpgradeStatus;
 import com.dremio.dac.proto.model.source.UpgradeTaskId;
 import com.dremio.dac.proto.model.source.UpgradeTaskRun;
 import com.dremio.dac.proto.model.source.UpgradeTaskStore;
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.ProtostuffSerializer;
-import com.dremio.datastore.Serializer;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.VersionExtractor;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.api.LegacyStoreCreationFunction;
+import com.dremio.datastore.format.Format;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -49,9 +47,9 @@ public class UpgradeStore {
 
   private static final String TABLE_NAME = "upgrade";
 
-  private KVStore<UpgradeTaskId, UpgradeTaskStore> store;
+  private LegacyKVStore<UpgradeTaskId, UpgradeTaskStore> store;
 
-  public UpgradeStore(KVStoreProvider storeProvider) {
+  public UpgradeStore(LegacyKVStoreProvider storeProvider) {
     // by this time store should be created
     store = storeProvider.getStore(UpgradeTaskStoreCreator.class);
   }
@@ -226,75 +224,19 @@ public class UpgradeStore {
   /**
    * UpgradeTaskStoreCreator
    */
-  public static class UpgradeTaskStoreCreator implements StoreCreationFunction<KVStore<UpgradeTaskId,
-    UpgradeTaskStore>> {
+  public static class UpgradeTaskStoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<UpgradeTaskId,
+        UpgradeTaskStore>> {
 
     @Override
-    public KVStore<UpgradeTaskId, UpgradeTaskStore> build(StoreBuildingFactory factory) {
+    public LegacyKVStore<UpgradeTaskId, UpgradeTaskStore> build(LegacyStoreBuildingFactory factory) {
       return factory.<UpgradeTaskId, UpgradeTaskStore>newStore()
         .name(TABLE_NAME)
-        .keySerializer(UpgradeTaskIdSerializer.class)
-        .valueSerializer(UpgradeTaskSerializer.class)
+        .keyFormat(Format.ofProtostuff(UpgradeTaskId.class))
+        .valueFormat(Format.ofProtostuff(UpgradeTaskStore.class))
         .versionExtractor(UpgradeTaskVersion.class)
         .build();
     }
   }
-
-  /**
-   * UpgradeTaskIdSerializer
-   */
-  private static final class UpgradeTaskIdSerializer extends Serializer<UpgradeTaskId> {
-    private final Serializer<UpgradeTaskId> serializer = ProtostuffSerializer.of(UpgradeTaskId.getSchema());
-
-    @Override
-    public byte[] convert(final UpgradeTaskId id) {
-      return serializer.convert(id);
-    }
-
-    @Override
-    public UpgradeTaskId revert(final byte[] data) {
-      return serializer.revert(data);
-    }
-
-    @Override
-    public String toJson(final UpgradeTaskId v) throws IOException {
-      return serializer.toJson(v);
-    }
-
-    @Override
-    public UpgradeTaskId fromJson(final String v) throws IOException {
-      return serializer.fromJson(v);
-    }
-
-  }
-
-  /**
-   * UpgradeTaskSerializer
-   */
-  private static final class UpgradeTaskSerializer extends Serializer<UpgradeTaskStore> {
-    private final Serializer<UpgradeTaskStore> serializer = ProtostuffSerializer.of(UpgradeTaskStore.getSchema());
-
-    @Override
-    public byte[] convert(final UpgradeTaskStore v) {
-      return serializer.convert(v);
-    }
-
-    @Override
-    public UpgradeTaskStore revert(final byte[] data) {
-      return serializer.revert(data);
-    }
-
-    @Override
-    public String toJson(final UpgradeTaskStore v) throws IOException {
-      return serializer.toJson(v);
-    }
-
-    @Override
-    public UpgradeTaskStore fromJson(final String v) throws IOException {
-      return serializer.fromJson(v);
-    }
-  }
-
 
   /**
    * UpgradeTaskVersion

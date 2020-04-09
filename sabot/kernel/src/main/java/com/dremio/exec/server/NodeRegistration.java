@@ -20,10 +20,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ThreadFactory;
 
+import javax.inject.Inject;
 import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.NamedThreadFactory;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.Roles;
@@ -43,22 +45,31 @@ public class NodeRegistration implements Service {
   private final Provider<FragmentWorkManager> fragmentManager;
   private final Provider<ForemenWorkManager> foremenManager;
   private final Provider<ClusterCoordinator> coord;
-  private final Provider<SabotContext> context;
+  private final Provider<NodeEndpoint> nodeEndpoint;
+  private final Provider<DremioConfig> dremioConfig;
   private final List<RegistrationHandle> registrationHandles = new ArrayList<>();
 
   private String endpointName;
   private volatile boolean closed = false;
 
-  public NodeRegistration(Provider<SabotContext> context, Provider<FragmentWorkManager> fragmentManager, Provider<ForemenWorkManager> foremenManager, Provider<ClusterCoordinator> coord) {
-    this.context = context;
+  @Inject
+  public NodeRegistration(
+      Provider<NodeEndpoint> nodeEndpoint,
+      Provider<FragmentWorkManager> fragmentManager,
+      Provider<ForemenWorkManager> foremenManager,
+      Provider<ClusterCoordinator> coord,
+      Provider<DremioConfig> dremioConfig
+  ) {
+    this.nodeEndpoint = nodeEndpoint;
     this.fragmentManager = fragmentManager;
     this.foremenManager = foremenManager;
     this.coord = coord;
+    this.dremioConfig = dremioConfig;
   }
 
   @Override
   public void start() throws Exception {
-    final NodeEndpoint endpoint = context.get().getEndpoint();
+    final NodeEndpoint endpoint = nodeEndpoint.get();
     endpointName = endpoint.getAddress() + ":" + endpoint.getUserPort();
     logger.info("Starting NodeRegistration for {}", endpointName);
     Roles roles = endpoint.getRoles();
@@ -104,7 +115,7 @@ public class NodeRegistration implements Service {
 
         t.start();
         try {
-          t.join(context.get().getConfig().getInt(ExecConstants.ZK_REFRESH) * 2);
+          t.join(dremioConfig.get().getSabotConfig().getInt(ExecConstants.ZK_REFRESH) * 2);
           if (t.isAlive()) {
             logger.warn("Timeout expired while trying to unregister node");
           }

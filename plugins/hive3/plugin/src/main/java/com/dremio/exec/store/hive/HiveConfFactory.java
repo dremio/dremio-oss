@@ -165,9 +165,9 @@ public class HiveConfFactory {
       setConf(hiveConf, FS_S3_IMPL, FS_S3_IMPL_DEFAULT);
     }
 
+    ADL_PROPS.entrySet().asList().forEach(entry->setConf(hiveConf, entry.getKey(), entry.getValue()));
     WASB_PROPS.entrySet().asList().forEach(entry->setConf(hiveConf, entry.getKey(), entry.getValue()));
     ABFS_PROPS.entrySet().asList().forEach(entry->setConf(hiveConf, entry.getKey(), entry.getValue()));
-    ADL_PROPS.entrySet().asList().forEach(entry->setConf(hiveConf, entry.getKey(), entry.getValue()));
   }
 
   protected static void setConf(HiveConf configuration, String name, String value) {

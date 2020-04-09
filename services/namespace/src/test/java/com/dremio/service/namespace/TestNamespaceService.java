@@ -45,11 +45,12 @@ import org.junit.rules.ExpectedException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
-import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -88,7 +89,8 @@ public class TestNamespaceService {
 
   @Test
   public void testSources() throws Exception {
-    try(final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false)) {
+    try(final LegacyKVStoreProvider kvstore =
+          new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy()) {
       kvstore.start();
 
       final NamespaceService namespaceService = new NamespaceServiceImpl(kvstore);
@@ -116,8 +118,8 @@ public class TestNamespaceService {
       // updates
       src1.setCtime(2001L);
       src2.setCtime(2001L);
-      namespaceService.addOrUpdateSource(new NamespaceKey(src1.getName()), src1.setTag("0"));
-      namespaceService.addOrUpdateSource(new NamespaceKey(src2.getName()), src2.setTag("0"));
+      namespaceService.addOrUpdateSource(new NamespaceKey(src1.getName()), src1);
+      namespaceService.addOrUpdateSource(new NamespaceKey(src2.getName()), src2);
 
       SourceConfig newSrc1 = namespaceService.getSource(new NamespaceKey(src1.getName()));
       SourceConfig newSrc2 = namespaceService.getSource(new NamespaceKey(src2.getName()));
@@ -177,8 +179,9 @@ public class TestNamespaceService {
   @Test
   public void testSpaces() throws Exception {
     try(
-        final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
-        ) {
+      final LegacyKVStoreProvider kvstore = new LegacyKVStoreProviderAdapter(
+        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false),
+        DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final NamespaceService namespaceService = new NamespaceServiceImpl(kvstore);
       final SpaceConfig space1 = new SpaceConfig();
@@ -338,8 +341,9 @@ public class TestNamespaceService {
   @Test
   public void testNamespaceTree() throws Exception {
     try (
-      final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
-    ) {
+      final LegacyKVStoreProvider kvstore = new LegacyKVStoreProviderAdapter(
+        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false),
+        DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final NamespaceService ns = new NamespaceServiceImpl(kvstore);
       addSource(ns, "src1"); // src1
@@ -443,8 +447,9 @@ public class TestNamespaceService {
   @Test
   public void testDatasetUnderFolderOrSpace() throws Exception {
     try (
-        final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
-    ) {
+      final LegacyKVStoreProvider kvstore = new LegacyKVStoreProviderAdapter(
+        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false),
+        DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final NamespaceService ns = new NamespaceServiceImpl(kvstore);
       addSpace(ns, "a");
@@ -471,8 +476,9 @@ public class TestNamespaceService {
   @Test
   public void testDatasetsUnderHome() throws Exception {
     try (
-      final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
-    ) {
+      final LegacyKVStoreProvider kvstore = new LegacyKVStoreProviderAdapter(
+        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false),
+        DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final NamespaceService ns = new NamespaceServiceImpl(kvstore);
       addHome(ns, "a");
@@ -498,7 +504,9 @@ public class TestNamespaceService {
 
   @Test
   public void testGetDatasetCount() throws Exception {
-    try (final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false)) {
+    try (final LegacyKVStoreProvider kvstore = new LegacyKVStoreProviderAdapter(
+      new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false),
+      DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final NamespaceService ns = new NamespaceServiceImpl(kvstore);
 
@@ -608,8 +616,9 @@ public class TestNamespaceService {
   @Test
   public void testDataSetSchema() throws Exception {
     try(
-            final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
-    ) {
+      final LegacyKVStoreProvider kvstore = new LegacyKVStoreProviderAdapter(
+        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false),
+        DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final NamespaceService ns = new NamespaceServiceImpl(kvstore);
       Field field1 = new Field("a", true, new Int(32, true), null);
@@ -630,8 +639,9 @@ public class TestNamespaceService {
   @Test
   public void testRename() throws Exception {
     try(
-        final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
-    ) {
+      final LegacyKVStoreProvider kvstore = new LegacyKVStoreProviderAdapter(
+        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false),
+        DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final NamespaceService ns = new NamespaceServiceImpl(kvstore);
       addHome(ns, "blue");
@@ -766,7 +776,9 @@ public class TestNamespaceService {
 
   @Test
   public void insertingDifferentEntityTypesAtSamePath() throws Exception {
-    try (final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false)) {
+    try (final LegacyKVStoreProvider kvstore = new LegacyKVStoreProviderAdapter(
+      new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false),
+      DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final NamespaceService ns = new NamespaceServiceImpl(kvstore);
       addSpace(ns, "a");
@@ -796,7 +808,9 @@ public class TestNamespaceService {
 
   @Test
   public void testDatasetSplitsUpdates() throws Exception {
-    try (final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false)) {
+    try (final LegacyKVStoreProvider kvstore = new LegacyKVStoreProviderAdapter(
+      new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false),
+      DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final NamespaceService ns = new NamespaceServiceImpl(kvstore);
       Long lastSplitVersion = System.currentTimeMillis();
@@ -831,7 +845,7 @@ public class TestNamespaceService {
       addSource(ns, "test");
       ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, partitionChunks);
 
-      assertEquals(10, ns.getPartitionChunkCount(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
+      assertEquals(10, ns.getPartitionChunkCount(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
       expectSplits(partitionChunks, ns, datasetConfig);
       Long newSplitVersion = datasetConfig.getReadDefinition().getSplitVersion();
       assertTrue(newSplitVersion > lastSplitVersion);
@@ -839,14 +853,14 @@ public class TestNamespaceService {
 
       // insert same splits again and make sure version does't change
       ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, partitionChunks);
-      assertEquals(10, ns.getPartitionChunkCount(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
+      assertEquals(10, ns.getPartitionChunkCount(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
       expectSplits(partitionChunks, ns, datasetConfig);
       assertEquals(newSplitVersion, datasetConfig.getReadDefinition().getSplitVersion());
 
       // change row count for the first split
       partitionChunks.set(0, partitionChunks.get(0).toBuilder().setRowCount(11L).build());
       ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, partitionChunks);
-      assertEquals(10, ns.getPartitionChunkCount(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
+      assertEquals(10, ns.getPartitionChunkCount(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
       expectSplits(partitionChunks, ns, datasetConfig);
       newSplitVersion = datasetConfig.getReadDefinition().getSplitVersion();
       assertTrue(newSplitVersion > lastSplitVersion);
@@ -855,7 +869,7 @@ public class TestNamespaceService {
       // remove 8th split
       partitionChunks.remove(8);
       ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, partitionChunks);
-      assertEquals(9, ns.getPartitionChunkCount(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
+      assertEquals(9, ns.getPartitionChunkCount(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
       expectSplits(partitionChunks, ns, datasetConfig);
       newSplitVersion = datasetConfig.getReadDefinition().getSplitVersion();
       assertTrue(newSplitVersion > lastSplitVersion);
@@ -872,16 +886,16 @@ public class TestNamespaceService {
         .build());
 
       ns.addOrUpdateDataset(new NamespaceKey(datasetConfig.getFullPathList()), datasetConfig, partitionChunks);
-      assertEquals(10, ns.getPartitionChunkCount(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
+      assertEquals(10, ns.getPartitionChunkCount(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig))));
       expectSplits(partitionChunks, ns, datasetConfig);
       newSplitVersion = datasetConfig.getReadDefinition().getSplitVersion();
       assertTrue(newSplitVersion > lastSplitVersion);
 
       // Checking that orphan splits get cleaned
       SearchQuery searchQuery = SearchQueryUtils.newTermQuery(DatasetSplitIndexKeys.DATASET_ID, datasetConfig.getId().getId());
-      int count = ns.getPartitionChunkCount(new IndexedStore.FindByCondition().setCondition(searchQuery));
+      int count = ns.getPartitionChunkCount(new LegacyIndexedStore.LegacyFindByCondition().setCondition(searchQuery));
       int deleted = ns.deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY);
-      int newCount = ns.getPartitionChunkCount(new IndexedStore.FindByCondition().setCondition(searchQuery));
+      int newCount = ns.getPartitionChunkCount(new LegacyIndexedStore.LegacyFindByCondition().setCondition(searchQuery));
 
       // Only 10 splits should be left in the kvstore for that dataset
       assertEquals(10, newCount);
@@ -890,7 +904,7 @@ public class TestNamespaceService {
   }
 
   private void expectSplits(List<PartitionChunk> expectedSplits, NamespaceService ns, DatasetConfig datasetConfig) {
-    Iterable<PartitionChunkMetadata> nsSplits = ns.findSplits(new IndexedStore.FindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig)));
+    Iterable<PartitionChunkMetadata> nsSplits = ns.findSplits(new LegacyIndexedStore.LegacyFindByCondition().setCondition(PartitionChunkId.getSplitsQuery(datasetConfig)));
 
     final ImmutableMap.Builder<PartitionChunkId, PartitionChunkMetadata> builder = ImmutableMap.builder();
     for (PartitionChunkMetadata nsSplit: nsSplits) {
@@ -919,7 +933,9 @@ public class TestNamespaceService {
 
   @Test
   public void testDeleteEntityNotFound() throws Exception {
-    try (final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false)) {
+    try (final LegacyKVStoreProvider kvstore = new LegacyKVStoreProviderAdapter(
+      new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false),
+      DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final NamespaceServiceImpl ns = new NamespaceServiceImpl(kvstore);
 

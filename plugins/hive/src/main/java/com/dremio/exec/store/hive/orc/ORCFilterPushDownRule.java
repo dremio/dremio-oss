@@ -73,7 +73,7 @@ public class ORCFilterPushDownRule extends RelOptRule {
     }
     try {
       final HiveTableXattr tableXattr =
-          HiveTableXattr.parseFrom(scan.getTableMetadata().getReadDefinition().getExtendedProperty().toByteArray());
+          HiveTableXattr.parseFrom(scan.getTableMetadata().getReadDefinition().getExtendedProperty().asReadOnlyByteBuffer());
       final Optional<String> inputFormat = HiveReaderProtoUtil.getTableInputFormat(tableXattr);
       return inputFormat.isPresent() && inputFormat.get().equals(OrcInputFormat.class.getCanonicalName());
     } catch (InvalidProtocolBufferException e) {
@@ -101,7 +101,7 @@ public class ORCFilterPushDownRule extends RelOptRule {
           ORCFindRelevantFilters.convertBooleanInputRefToFunctionCall(rexBuilder, filterThatCanBePushed);
 
       final HiveTableXattr tableXattr =
-        HiveTableXattr.parseFrom(scan.getTableMetadata().getReadDefinition().getExtendedProperty().toByteArray());
+        HiveTableXattr.parseFrom(scan.getTableMetadata().getReadDefinition().getExtendedProperty().asReadOnlyByteBuffer());
       final List<HiveReaderProto.ColumnInfo> columnInfos = tableXattr.getColumnInfoList();
       List<HiveReaderProto.ColumnInfo> selectedColumnInfos = new ArrayList<>();
       final List<String> columnNames = scan.getRowType().getFieldNames();

@@ -22,13 +22,16 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
+import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
 import com.dremio.datastore.KVAdmin;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.jobs.LocalJobsService;
 import com.dremio.service.jobs.LocalJobsService.DeleteResult;
+import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.PartitionChunkId;
 
@@ -145,13 +148,13 @@ public class Clean {
       throw new UnsupportedOperationException("Cleanup should be run on master node");
     }
 
-    Optional<LocalKVStoreProvider> providerOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig());
+    Optional<LegacyKVStoreProvider> providerOptional = CmdUtils.getLegacyKVStoreProvider(dacConfig.getConfig());
     if (!providerOptional.isPresent()) {
       AdminLogger.log("No KVStore detected.");
       return;
     }
 
-    try (LocalKVStoreProvider provider = providerOptional.get()) {
+    try (LegacyKVStoreProvider provider = providerOptional.get()) {
       provider.start();
 
 
@@ -162,7 +165,7 @@ public class Clean {
         AdminLogger.log("No operation requested, printing store Stats.");
       }
 
-      for(StoreWithId id : provider) {
+      for(StoreWithId id : provider.unwrap(LocalKVStoreProvider.class)) {
         KVAdmin admin = id.getStore().getAdmin();
         AdminLogger.log(admin.getStats());
       }
@@ -186,7 +189,7 @@ public class Clean {
 
       if(options.hasActiveOperation()) {
         AdminLogger.log("\n\nFinal Store Status.");
-        for(StoreWithId id : provider) {
+        for(StoreWithId id : provider.unwrap(LocalKVStoreProvider.class)) {
           KVAdmin admin = id.getStore().getAdmin();
           AdminLogger.log(admin.getStats());
         }
@@ -206,35 +209,37 @@ public class Clean {
   }
 
 
-  private static void deleteOldJobs(LocalKVStoreProvider provider, int maxDays) {
+  private static void deleteOldJobs(LegacyKVStoreProvider provider, int maxDays) {
     AdminLogger.log("Deleting jobs details & profiles older {} days... ", maxDays);
     DeleteResult result = LocalJobsService.deleteOldJobs(provider, TimeUnit.DAYS.toMillis(maxDays));
+    for (AttemptId attemptId : result.getDeletedAttemptIds()) {
+      LocalProfileStore.deleteOldProfile(provider, attemptId);
+    }
     AdminLogger.log("Completed. Deleted {} jobs and {} profiles.", result.getJobsDeleted(), result.getProfilesDeleted());
-
   }
 
-  private static void deleteSplitOrphans(LocalKVStoreProvider provider) {
+  private static void deleteSplitOrphans(LegacyKVStoreProvider provider) {
     AdminLogger.log("Deleting split orphans... ");
     NamespaceServiceImpl service = new NamespaceServiceImpl(provider);
     AdminLogger.log("Completed. Deleted {} orphans.",
       service.deleteSplitOrphans(PartitionChunkId.SplitOrphansRetentionPolicy.KEEP_CURRENT_VERSION_ONLY));
   }
 
-  private static void deleteCollaborationOrphans(LocalKVStoreProvider provider) {
+  private static void deleteCollaborationOrphans(LegacyKVStoreProvider provider) {
     AdminLogger.log("Deleting collaboration orphans... ");
     AdminLogger.log("Completed. Deleted {} orphans.", CollaborationHelper.pruneOrphans(provider));
   }
 
-  private static void reindexData(LocalKVStoreProvider provider) throws Exception {
-    for(StoreWithId s : provider) {
+  private static void reindexData(LegacyKVStoreProvider provider) throws Exception {
+    for(StoreWithId s : provider.unwrap(LocalKVStoreProvider.class)) {
       AdminLogger.log("Reindexing {}... ", s.getId());
       s.getStore().getAdmin().reindex();
       AdminLogger.log("Completed.");
     }
   }
 
-  private static void compactStore(LocalKVStoreProvider provider) throws Exception {
-    for(StoreWithId s : provider) {
+  private static void compactStore(LegacyKVStoreProvider provider) throws Exception {
+    for(StoreWithId s : provider.unwrap(LocalKVStoreProvider.class)) {
       AdminLogger.log("Compacting {}... ", s.getId());
       s.getStore().getAdmin().compactKeyValues();
       AdminLogger.log("Completed.");

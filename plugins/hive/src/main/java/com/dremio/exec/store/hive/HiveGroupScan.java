@@ -43,6 +43,8 @@ import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
 import com.dremio.service.namespace.dataset.proto.ReadDefinition;
 import com.google.common.base.Preconditions;
 
+import io.protostuff.ByteStringUtil;
+
 public class HiveGroupScan extends AbstractGroupScan {
 
   private final ScanFilter filter;
@@ -90,7 +92,7 @@ public class HiveGroupScan extends AbstractGroupScan {
     final ReadDefinition readDefinition = dataset.getReadDefinition();
     final StoragePluginId pluginId = dataset.getStoragePluginId();
     final HiveProxiedSubScan proxiedSubScan = new HiveSubScan(props, splits, schema, dataset.getName().getPathComponents(),
-      filter, pluginId, columns, readDefinition.getPartitionColumnsList(), readDefinition.getExtendedProperty().toByteArray());
+      filter, pluginId, columns, readDefinition.getPartitionColumnsList(), ByteStringUtil.unwrap(readDefinition.getExtendedProperty()));
 
     return new HiveProxyingSubScan(pluginId.getName(), proxiedSubScan);
   }

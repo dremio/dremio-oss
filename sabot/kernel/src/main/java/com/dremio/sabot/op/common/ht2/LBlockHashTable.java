@@ -19,11 +19,13 @@ import static java.util.Arrays.asList;
 import static java.util.Arrays.copyOfRange;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Formatter;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
@@ -32,10 +34,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.ObjectArrays;
+import com.google.common.collect.Streams;
 import com.google.common.primitives.Longs;
 import com.koloboke.collect.hash.HashConfig;
 import com.koloboke.collect.impl.hash.HashConfigWrapper;
@@ -483,8 +485,8 @@ public final class LBlockHashTable implements AutoCloseable {
     }
 
     /* bump these stats iff we are going to skip ordinals */
-    final int curFixedBlockWritePos = fixedBlocks[currentChunkIndex].getBufferLength();
-    final int curVarBlockWritePos = variableBlocks[currentChunkIndex].getBufferLength();
+    final long curFixedBlockWritePos = fixedBlocks[currentChunkIndex].getBufferLength();
+    final long curVarBlockWritePos = variableBlocks[currentChunkIndex].getBufferLength();
     unusedForFixedBlocks += fixedBlocks[currentChunkIndex].getCapacity() - curFixedBlockWritePos;
     unusedForVarBlocks += variableBlocks[currentChunkIndex].getCapacity() - curVarBlockWritePos;
 
@@ -600,7 +602,7 @@ public final class LBlockHashTable implements AutoCloseable {
    */
   public int getRecordsInBatch(final int batchIndex) {
     Preconditions.checkArgument(batchIndex < blocks(), "Error: invalid batch index");
-    final int records = (fixedBlocks[batchIndex].getUnderlying().readableBytes())/pivot.getBlockWidth();
+    final int records = LargeMemoryUtil.checkedCastToInt((fixedBlocks[batchIndex].getUnderlying().readableBytes())/pivot.getBlockWidth());
     Preconditions.checkArgument(records <= MAX_VALUES_PER_BATCH, "Error: detected invalid number of records in batch");
     return records;
   }
@@ -903,7 +905,13 @@ public final class LBlockHashTable implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close((Iterable<AutoCloseable>) Iterables.concat(FluentIterable.of(controlBlocks).toList(), FluentIterable.of(fixedBlocks).toList(), FluentIterable.of(variableBlocks).toList()));
+    AutoCloseables.close(
+      Streams.concat(
+        Arrays.stream(controlBlocks),
+        Arrays.stream(fixedBlocks),
+        Arrays.stream(variableBlocks)
+      ).collect(ImmutableList.toImmutableList())
+    );
   }
 
   private void tryRehashForExpansion() {

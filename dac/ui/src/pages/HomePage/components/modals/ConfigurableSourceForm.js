@@ -109,7 +109,7 @@ export default class ConfigurableSourceFormWrapper extends Component {
     this.setState({ selectedTabName: tabConfig.getName() });
 
     const errorIcon = {name: 'Error.svg', alt: 'Errors', style: {height: 19, width: 19}};
-    const updatedTabs = this.state.navTabs.update(tabConfig.getName(), value => {
+    const updatedTabs = this.state.navTabs.update(tabConfig.getName(), () => {
       return (FormUtils.tabHasError(tabConfig, fieldsWithError)) ?
         {text: tabConfig.getName(), icon: errorIcon} :
         {text: tabConfig.getName()};

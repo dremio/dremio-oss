@@ -30,7 +30,7 @@ public class AllocatorUtil {
    * @param allocator
    * @param headRoom
    */
-  public static void ensureHeadroom(BufferAllocator allocator, int headRoom) throws OutOfMemoryException {
+  public static void ensureHeadroom(BufferAllocator allocator, long headRoom) throws OutOfMemoryException {
     if (allocator.getHeadroom() >= headRoom) {
       // nothing to do in this case.
       return;

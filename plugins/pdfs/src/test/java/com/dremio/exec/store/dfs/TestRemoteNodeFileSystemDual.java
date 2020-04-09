@@ -58,6 +58,8 @@ import com.dremio.test.DremioTest;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 
+import io.opentracing.noop.NoopTracerFactory;
+
 /**
  * End-to-end test for {@link RemoteNodeFileSystem} using a Fabric server
  */
@@ -164,7 +166,7 @@ public class TestRemoteNodeFileSystemDual extends BaseTestFabric {
           .setRoles(Roles.newBuilder().setJavaExecutor(mode == PDFSMode.DATA))
           .build();
 
-      service = new PDFSService(DirectProvider.wrap((FabricService) fabric), DirectProvider.wrap(endpoint), nodeProvider, DremioTest.DEFAULT_SABOT_CONFIG, this.allocator, mode);
+      service = new PDFSService(DirectProvider.wrap((FabricService) fabric), DirectProvider.wrap(endpoint), nodeProvider, NoopTracerFactory.create(), DremioTest.DEFAULT_SABOT_CONFIG, this.allocator, mode);
       service.start();
       fileSystem = service.createFileSystem();
     }

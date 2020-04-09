@@ -190,7 +190,6 @@ public class YarnController {
     // note that DremioConfig.LOCAL_WRITE_PATH_STRING is unset; YarnDaemon creates the local write path on startup
     basicJVMOptions.put(DremioConfig.DIST_WRITE_PATH_STRING, yarnConfiguration.get(DremioConfig.DIST_WRITE_PATH_STRING,
       dremioConfig.getString(DremioConfig.DIST_WRITE_PATH_STRING)));
-    basicJVMOptions.put("dremio.classpath.scanning.cache.enabled", "false");
     basicJVMOptions.put(DremioConfig.DEBUG_AUTOPORT_BOOL, "true");
     basicJVMOptions.put(DremioConfig.ENABLE_COORDINATOR_BOOL, "false");
     basicJVMOptions.put(DremioConfig.ENABLE_EXECUTOR_BOOL, "true");

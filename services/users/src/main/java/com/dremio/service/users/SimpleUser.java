@@ -37,11 +37,12 @@ public final class SimpleUser implements User {
     private long createdAt;
     private long modifiedAt;
     private String version;
+    private String extra;
 
     private Builder() {}
 
     private Builder(UID uid, String userName, String firstName, String lastName, String email,
-        long createdAt, long modifiedAt, String version) {
+        long createdAt, long modifiedAt, String version, String extra) {
       super();
       this.uid = uid;
       this.userName = userName;
@@ -51,6 +52,7 @@ public final class SimpleUser implements User {
       this.createdAt = createdAt;
       this.modifiedAt = modifiedAt;
       this.version = version;
+      this.extra = extra;
     }
 
     public UID getUID() {
@@ -125,8 +127,17 @@ public final class SimpleUser implements User {
       return this;
     }
 
+    public String getExtra() {
+      return extra;
+    }
+
+    public Builder setExtra(String extra) {
+      this.extra = extra;
+      return this;
+    }
+
     public SimpleUser build() {
-      return new SimpleUser(uid, userName, firstName, lastName, email, createdAt, modifiedAt, version);
+      return new SimpleUser(uid, userName, firstName, lastName, email, createdAt, modifiedAt, version, extra);
     }
   }
 
@@ -138,6 +149,7 @@ public final class SimpleUser implements User {
   private final long createdAt;
   private final long modifiedAt;
   private final String version;
+  private final String extra;
 
   @JsonCreator
   private SimpleUser(
@@ -148,7 +160,8 @@ public final class SimpleUser implements User {
       @JsonProperty("email") String email,
       @JsonProperty("createdAt") long createdAt,
       @JsonProperty("modifiedAt") long modifiedAt,
-      @JsonProperty("version") String version) {
+      @JsonProperty("version") String version,
+      @JsonProperty("extra") String extra) {
     super();
     this.uid = uid;
     this.userName = userName;
@@ -158,6 +171,7 @@ public final class SimpleUser implements User {
     this.createdAt = createdAt;
     this.modifiedAt = modifiedAt;
     this.version = version;
+    this.extra = extra;
   }
 
   @Override
@@ -200,8 +214,13 @@ public final class SimpleUser implements User {
   }
 
   @Override
+  public String getExtra() {
+    return extra;
+  }
+
+  @Override
   public int hashCode() {
-    return Objects.hash(uid, userName, firstName, lastName, email, createdAt, modifiedAt, version);
+    return Objects.hash(uid, userName, firstName, lastName, email, createdAt, modifiedAt, version, extra);
   }
 
   @Override
@@ -216,20 +235,21 @@ public final class SimpleUser implements User {
 
     SimpleUser other = (SimpleUser) obj;
     return Objects.equals(uid, other.uid)
-        && Objects.equals(userName, other.userName)
-        && Objects.equals(firstName, other.firstName)
-        && Objects.equals(lastName, other.lastName)
-        && Objects.equals(email, other.email)
-        && Objects.equals(createdAt, other.createdAt)
-        && Objects.equals(modifiedAt, other.modifiedAt)
-        && Objects.equals(version, other.version);
+      && Objects.equals(userName, other.userName)
+      && Objects.equals(firstName, other.firstName)
+      && Objects.equals(lastName, other.lastName)
+      && Objects.equals(email, other.email)
+      && Objects.equals(createdAt, other.createdAt)
+      && Objects.equals(modifiedAt, other.modifiedAt)
+      && Objects.equals(version, other.version)
+      && Objects.equals(extra, other.extra);
   }
 
   @Override
   public String toString() {
     return "SimpleUser [uid=" + uid + ", userName=" + userName + ", firstName=" + firstName + ", lastName=" + lastName
         + ", email=" + email + ", createdAt=" + createdAt + ", modifiedAt=" + modifiedAt
-        + ", version=" + version + "]";
+        + ", version=" + version + ", extra=" + extra + "]";
   }
 
   public static Builder newBuilder() {
@@ -238,6 +258,6 @@ public final class SimpleUser implements User {
 
   public static Builder newBuilder(User user) {
     return new Builder(user.getUID(), user.getUserName(), user.getFirstName(), user.getLastName(),
-        user.getEmail(), user.getCreatedAt(), user.getModifiedAt(), user.getVersion());
+        user.getEmail(), user.getCreatedAt(), user.getModifiedAt(), user.getVersion(), user.getExtra());
   }
 }

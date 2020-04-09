@@ -23,7 +23,7 @@ import org.apache.commons.codec.binary.Base64;
 /**
  * A NOP serializer
  */
-public class PassThroughSerializer extends Serializer<byte[]> {
+public class PassThroughSerializer extends Serializer<byte[], byte[]> {
   private static final PassThroughSerializer INSTANCE = new PassThroughSerializer();
 
   public PassThroughSerializer() {
@@ -49,7 +49,7 @@ public class PassThroughSerializer extends Serializer<byte[]> {
     return Base64.decodeBase64(v);
   }
 
-  public static Serializer<byte[] > instance() {
+  public static Serializer<byte[], byte[]> instance() {
     return INSTANCE;
   }
 }

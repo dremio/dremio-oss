@@ -15,11 +15,15 @@
  */
 package com.dremio.datastore;
 
+import java.util.ConcurrentModificationException;
 import java.util.List;
-import java.util.Map;
 
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.ImmutableFindByRange;
+import com.dremio.datastore.api.options.VersionOption;
 import com.google.common.base.Function;
-import com.google.common.base.Objects;
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -29,22 +33,18 @@ import com.google.common.collect.Lists;
  */
 public class CoreKVStoreImpl<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
 
-  private final KVStore<byte[], byte[]> rawStore;
-  private final Serializer<KEY> keySerializer;
-  private final Serializer<VALUE> valueSerializer;
-  private final VersionExtractor<VALUE> versionExtractor;
+  private final ByteStore rawStore;
+  private final Serializer<KEY, byte[]> keySerializer;
+  private final Serializer<VALUE, byte[]> valueSerializer;
 
   private final Function<KVStoreTuple<KEY>, byte[]> keyToBytes = KVStoreTuple::getSerializedBytes;
-  private final Function<byte[], KVStoreTuple<VALUE>> bytesToValue = input -> newValue().setSerializedBytes(input);
 
-  public CoreKVStoreImpl(KVStore<byte[], byte[]> rawStore,
-                     Serializer<KEY> keySerializer,
-                     Serializer<VALUE> valueSerializer,
-                     VersionExtractor<VALUE> versionExtractor) {
+  public CoreKVStoreImpl(ByteStore rawStore,
+                         Serializer<KEY, byte[]> keySerializer,
+                         Serializer<VALUE, byte[]> valueSerializer) {
     this.rawStore = rawStore;
     this.keySerializer = keySerializer;
     this.valueSerializer = valueSerializer;
-    this.versionExtractor = versionExtractor;
   }
 
   @Override
@@ -54,91 +54,106 @@ public class CoreKVStoreImpl<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
 
   @Override
   public KVStoreTuple<VALUE> newValue() {
-    return new KVStoreTuple<>(valueSerializer, versionExtractor);
+    return new KVStoreTuple<>(valueSerializer);
   }
 
   @Override
-  public KVStoreTuple<VALUE> get(KVStoreTuple<KEY> key) {
-    return newValue().setSerializedBytes(rawStore.get(key.getSerializedBytes()));
+  public Document<KVStoreTuple<KEY>, KVStoreTuple<VALUE>> get(KVStoreTuple<KEY> key, GetOption... options) {
+    return fromDocument(rawStore.get(key.getSerializedBytes(), options));
   }
 
   @Override
-  public List<KVStoreTuple<VALUE>> get(List<KVStoreTuple<KEY>> keys) {
-    List<byte[]> convertedKeys = Lists.transform(keys, keyToBytes);
-    List<byte[]> convertedValues = rawStore.get(convertedKeys);
-    return Lists.transform(convertedValues, bytesToValue);
+  public Iterable<Document<KVStoreTuple<KEY>, KVStoreTuple<VALUE>>> get(List<KVStoreTuple<KEY>> keys, GetOption... options) {
+    final List<byte[]> convertedKeys = Lists.transform(keys, keyToBytes);
+    final Iterable<Document<byte[], byte[]>> convertedResults = rawStore.get(convertedKeys, options);
+    return Iterables.transform(convertedResults, this::fromDocument);
   }
 
   @Override
-  public void put(KVStoreTuple<KEY> key, KVStoreTuple<VALUE> value) {
-    rawStore.put(key.getSerializedBytes(), value.getSerializedBytes());
+  public Document<KVStoreTuple<KEY>, KVStoreTuple<VALUE>> put(KVStoreTuple<KEY> key, KVStoreTuple<VALUE> value, PutOption... options) {
+    final VersionOption.TagInfo tagInfo = VersionOption.getTagInfo(options);
+    final Document<byte[], byte[]> result = (tagInfo.hasVersionOption()) ?
+        rawStore.validateAndPut(key.getSerializedBytes(), value.getSerializedBytes(), tagInfo, options) :
+        rawStore.put(key.getSerializedBytes(), value.getSerializedBytes());
+
+    if (result == null) {
+      final Document<byte[], byte[]> currentEntry = rawStore.get(key.getSerializedBytes());
+
+      final String expectedAction = tagInfo.getTag() == null ? "create" : "update version " + tagInfo.getTag();
+      final String previousValueDesc = currentEntry == null || Strings.isNullOrEmpty(currentEntry.getTag()) ?
+        "no tag" : "tag " + currentEntry.getTag();
+      throw new ConcurrentModificationException(String.format("Tried to %s, found %s", expectedAction, previousValueDesc));
+
+    }
+
+    return fromDocument(result);
   }
 
   @Override
-  public boolean validateAndPut(KVStoreTuple<KEY> key, KVStoreTuple<VALUE> newValue, ValueValidator<VALUE> validator) {
-    return  ((ByteStore) rawStore).validateAndPut(key.getSerializedBytes(), newValue.getSerializedBytes(),
-      (oldValue) -> {
-        // run the validation one level up
-        KVStoreTuple<VALUE> oldValueTuple = newValue().setSerializedBytes(oldValue);
-        return validator.validate(oldValueTuple);
+  public boolean contains(KVStoreTuple<KEY> key, ContainsOption... options) {
+    return rawStore.contains(key.getSerializedBytes(), options);
+  }
+
+  @Override
+  public void delete(KVStoreTuple<KEY> key, DeleteOption... options) {
+    final VersionOption.TagInfo tagInfo = VersionOption.getTagInfo(options);
+
+    if (tagInfo.hasVersionOption()) {
+      if (!rawStore.validateAndDelete(key.getSerializedBytes(), tagInfo, options)) {
+        Document<byte[], byte[]> current = rawStore.get(key.getSerializedBytes());
+        throw new ConcurrentModificationException(
+          String.format("Unable to delete source, expected tag %s but found tag %s", tagInfo.getTag(), current.getTag()));
       }
-    );
+    } else {
+      rawStore.delete(key.getSerializedBytes(), options);
+    }
   }
 
   @Override
-  public boolean contains(KVStoreTuple<KEY> key) {
-    return rawStore.contains(key.getSerializedBytes());
+  public Iterable<Document<KVStoreTuple<KEY>, KVStoreTuple<VALUE>>> find(FindByRange<KVStoreTuple<KEY>> find, FindOption... options) {
+    final ImmutableFindByRange.Builder<byte[]> rangeBuilder = new ImmutableFindByRange.Builder<>();
+
+    if (find.getStart() != null) {
+      rangeBuilder.setStart(find.getStart().getSerializedBytes())
+        .setIsStartInclusive(find.isStartInclusive());
+    }
+
+    if (find.getEnd() != null) {
+      rangeBuilder.setEnd(find.getEnd().getSerializedBytes())
+        .setIsEndInclusive(find.isEndInclusive());
+    }
+
+    final Iterable<Document<byte[], byte[]>> range = rawStore.find(rangeBuilder.build(), options);
+    return Iterables.transform(range, this::fromDocument);
   }
 
   @Override
-  public void delete(KVStoreTuple<KEY> key) {
-    rawStore.delete(key.getSerializedBytes());
-  }
-
-  /**
-   * Validate the currently stored value before removing from the store
-   *
-   * @param key the key
-   * @param validator a ValueValidator that ensures that the current item stored in the store for the key is valid
-   * @return if the validation succeeded or not
-   */
-  public boolean validateAndDelete(KVStoreTuple<KEY> key, ValueValidator<VALUE> validator) {
-    return  ((ByteStore) rawStore).validateAndDelete(key.getSerializedBytes(),
-      (oldValue) -> {
-        // run the validation one level up
-        KVStoreTuple<VALUE> oldValueTuple = newValue().setSerializedBytes(oldValue);
-        return validator.validate(oldValueTuple);
-      }
-    );
+  public Iterable<Document<KVStoreTuple<KEY>, KVStoreTuple<VALUE>>> find(FindOption... options) {
+    return Iterables.transform(rawStore.find(options), this::fromDocument);
   }
 
   @Override
-  public Iterable<Map.Entry<KVStoreTuple<KEY>, KVStoreTuple<VALUE>>> find(FindByRange<KVStoreTuple<KEY>> find) {
-    final FindByRange<byte[]> convertedRange = new FindByRange<byte[]>()
-      .setStart(find.getStart().getSerializedBytes(), find.isStartInclusive())
-      .setEnd(find.getEnd().getSerializedBytes(), find.isEndInclusive());
-    final Iterable<Map.Entry<byte[], byte[]>> range = rawStore.find(convertedRange);
-    return Iterables.transform(range, CoreKVStoreEntry::new);
+  public String getName() {
+    return rawStore.getName();
   }
 
-  @Override
-  public Iterable<Map.Entry<KVStoreTuple<KEY>, KVStoreTuple<VALUE>>> find() {
-    return Iterables.transform(rawStore.find(), CoreKVStoreEntry::new);
+  CoreKVStoreDocument fromDocument(Document<byte[], byte[]> input) {
+    if (input == null) {
+      return null;
+    }
+    return new CoreKVStoreDocument(input);
   }
 
-  @Override
-  public void delete(KVStoreTuple<KEY> key, String previousVersion) {
-    rawStore.delete(key.getSerializedBytes(), previousVersion);
-  }
-
-  final class CoreKVStoreEntry implements Map.Entry<KVStoreTuple<KEY>, KVStoreTuple<VALUE>> {
+  final class CoreKVStoreDocument implements Document<KVStoreTuple<KEY>, KVStoreTuple<VALUE>> {
 
     private final KVStoreTuple<KEY> key;
     private final KVStoreTuple<VALUE> value;
+    private final String tag;
 
-    public CoreKVStoreEntry(final Map.Entry<byte[], byte[]> input) {
+    private CoreKVStoreDocument(final Document<byte[], byte[]> input) {
       this.key = newKey().setSerializedBytes(input.getKey());
       this.value = newValue().setSerializedBytes(input.getValue());
+      this.tag = input.getTag();
     }
 
     @Override
@@ -152,26 +167,8 @@ public class CoreKVStoreImpl<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
     }
 
     @Override
-    public KVStoreTuple<VALUE> setValue(KVStoreTuple<VALUE> value) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hashCode(getKey(), getValue());
-    }
-
-    @SuppressWarnings("unchecked")
-    public boolean equals(Object o) {
-      if (!(o instanceof Map.Entry)) {
-        return false;
-      }
-
-      final Map.Entry<?, ?> other = (Map.Entry<?, ?>) o;
-      final KVStoreTuple<KEY> otherKey = (KVStoreTuple<KEY>) other.getKey();
-      final KVStoreTuple<VALUE> otherValue = (KVStoreTuple<VALUE>) other.getValue();
-
-      return Objects.equal(getKey(), otherKey) && Objects.equal(getValue(), otherValue);
+    public String getTag() {
+      return tag;
     }
   }
 
@@ -179,5 +176,4 @@ public class CoreKVStoreImpl<KEY, VALUE> implements CoreKVStore<KEY, VALUE> {
   public KVAdmin getAdmin() {
     return rawStore.getAdmin();
   }
-
 }

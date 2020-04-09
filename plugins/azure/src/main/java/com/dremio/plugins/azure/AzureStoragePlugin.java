@@ -42,11 +42,13 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.IcebergTableProps;
 import com.dremio.io.file.FileSystem;
 import com.dremio.plugins.util.ContainerFileSystem.ContainerFailure;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
+import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Storage plugin for Microsoft Azure Storage
@@ -148,21 +150,15 @@ class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
 
   @Override
   public CreateTableEntry createNewTable(
-      SchemaConfig config,
-      NamespaceKey key,
-      WriterOptions writerOptions,
-      Map<String, Object> storageOptions
+    SchemaConfig config,
+    NamespaceKey key,
+    IcebergTableProps icebergTableProps,
+    WriterOptions writerOptions,
+    Map<String, Object> storageOptions
   ) {
-    Preconditions.checkArgument(key.size() >= 2, "key must be at least two parts");
-    final List<String> resolvedPath = resolveTableNameToValidPath(key.getPathComponents()); // strips source name
-    final String containerName = resolvedPath.get(0);
-    if (resolvedPath.size() == 1) {
-      throw UserException.validationError()
-          .message("Creating containers is not supported.", containerName)
-          .build(logger);
-    }
-
-    final CreateTableEntry entry = super.createNewTable(config, key, writerOptions, storageOptions);
+    final String containerName = getAndCheckContainerName(key);
+    final CreateTableEntry entry = super.createNewTable(config, key,
+      icebergTableProps, writerOptions, storageOptions);
 
     final AzureStorageFileSystem fs = getSystemUserFS().unwrap(AzureStorageFileSystem.class);
 
@@ -183,6 +179,19 @@ class AzureStoragePlugin extends FileSystemPlugin<AzureStorageConf> {
 //    }
 
     return entry;
+  }
+
+  @VisibleForTesting
+  String getAndCheckContainerName(NamespaceKey key) {
+    Preconditions.checkArgument(key.size() >= 2, "key must be at least two parts");
+    final List<String> resolvedPath = resolveTableNameToValidPath(key.getPathComponents()); // strips source name
+    final String containerName = resolvedPath.get(0);
+    if (resolvedPath.size() == 1) {
+      throw UserException.validationError()
+        .message("Creating containers is not supported.", containerName)
+        .build(logger);
+    }
+    return containerName;
   }
 
   @Override

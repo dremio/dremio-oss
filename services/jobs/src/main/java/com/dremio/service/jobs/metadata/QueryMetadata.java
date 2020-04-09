@@ -53,6 +53,7 @@ import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -84,17 +85,17 @@ public class QueryMetadata {
   private final Optional<List<ParentDataset>> grandParents;
   private final Optional<RelOptCost> cost;
   private final Optional<PlanningSet> planningSet;
-  private final Optional<RelNode> serializableLogicalPlan;
-  private final BatchSchema batchSchema;
+  private final Optional<BatchSchema> batchSchema;
   private final List<ScanPath> scanPaths;
+  private final String querySql;
+  private final List<String> queryContext;
 
-  public QueryMetadata(List<SqlIdentifier> ancestors,
+  QueryMetadata(List<SqlIdentifier> ancestors,
                        List<FieldOrigin> fieldOrigins, List<JoinInfo> joins, List<ParentDatasetInfo> parents,
                        SqlNode sqlNode, RelDataType rowType,
                        List<ParentDataset> grandParents, final RelOptCost cost, final PlanningSet planningSet,
-                       final RelNode serializableLogicalPlan,
                        BatchSchema batchSchema,
-                       List<ScanPath> scanPaths) {
+                       List<ScanPath> scanPaths, String querySql, List<String> queryContext) {
     this.rowType = rowType;
 
     this.ancestors = Optional.fromNullable(ancestors);
@@ -105,11 +106,13 @@ public class QueryMetadata {
     this.grandParents = Optional.fromNullable(grandParents);
     this.cost = Optional.fromNullable(cost);
     this.planningSet = Optional.fromNullable(planningSet);
-    this.serializableLogicalPlan = Optional.fromNullable(serializableLogicalPlan);
-    this.batchSchema = batchSchema;
+    this.batchSchema = Optional.fromNullable(batchSchema);
     this.scanPaths = scanPaths;
+    this.querySql = querySql;
+    this.queryContext = queryContext;
   }
 
+  @VisibleForTesting
   public Optional<List<String>> getReferredTables() {
     if (!ancestors.isPresent()) {
       return Optional.absent();
@@ -127,10 +130,12 @@ public class QueryMetadata {
     return grandParents;
   }
 
+  @VisibleForTesting
   public Optional<SqlNode> getSqlNode() {
     return sqlNode;
   }
 
+  @VisibleForTesting
   public Optional<List<SqlIdentifier>> getAncestors() {
     return ancestors;
   }
@@ -151,11 +156,7 @@ public class QueryMetadata {
     return parents;
   }
 
-  public Optional<RelNode> getSerializableLogicalPlan() {
-    return serializableLogicalPlan;
-  }
-
-  public BatchSchema getBatchSchema() {
+  public Optional<BatchSchema> getBatchSchema() {
     return batchSchema;
   }
 
@@ -172,6 +173,14 @@ public class QueryMetadata {
 
   public Optional<PlanningSet> getPlanningSet() {
     return planningSet;
+  }
+
+  public String getQuerySql() {
+    return querySql;
+  }
+
+  public List<String> getQueryContext() {
+    return queryContext;
   }
 
   /**
@@ -198,11 +207,22 @@ public class QueryMetadata {
     private SqlNode sql;
     private RelOptCost cost;
     private PlanningSet planningSet;
-    private RelNode serializablePlan;
     private BatchSchema batchSchema;
+    private String querySql;
+    private List<String> queryContext;
 
     Builder(NamespaceService namespace){
       this.namespace = namespace;
+    }
+
+    public Builder addQuerySql(String sql) {
+      this.querySql = sql;
+      return this;
+    }
+
+    public Builder addQueryContext(List<String> context) {
+      this.queryContext = context;
+      return this;
     }
 
     public Builder addRowType(RelDataType rowType){
@@ -233,11 +253,6 @@ public class QueryMetadata {
 
     public Builder addCost(final RelOptCost cost) {
       this.cost = cost;
-      return this;
-    }
-
-    public Builder addSerializablePlan(final RelNode serializablePlan) {
-      this.serializablePlan = serializablePlan;
       return this;
     }
 
@@ -302,9 +317,10 @@ public class QueryMetadata {
         getGrandParents(ancestors), // list of all parents to be stored with dataset
         cost, // query cost past logical
         planningSet,
-        serializablePlan,
         batchSchema,
-        scanPaths
+        scanPaths,
+        querySql,
+        queryContext
       );
     }
 

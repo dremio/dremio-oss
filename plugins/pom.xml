@@ -24,7 +24,7 @@
   <parent>
     <artifactId>dremio-parent</artifactId>
     <groupId>com.dremio</groupId>
-    <version>4.1.8-202003120636020140-9c2a6b13</version>
+    <version>4.2.0-202004091958060824-8f7e141d</version>
   </parent>
 
   <groupId>com.dremio.plugins</groupId>
@@ -34,10 +34,12 @@
 
   <modules>
     <module>elasticsearch</module>
+    <module>hdfs</module>
     <module>hive-function-registry</module>
     <module>jdbc</module>
     <module>pdfs</module>
     <module>mongo</module>
+    <module>nas</module>
     <module>hive-common</module>
     <module>hive</module>
     <module>hive2</module>
@@ -56,6 +58,17 @@
         <module>azure</module>
         <module>s3</module>
         <module>hive3</module>
+      </modules>
+    </profile>
+    <profile>
+      <id>mapr</id>
+      <activation>
+        <property>
+          <name>mapr</name>
+        </property>
+      </activation>
+      <modules>
+        <module>maprfs</module>
       </modules>
     </profile>
   </profiles>

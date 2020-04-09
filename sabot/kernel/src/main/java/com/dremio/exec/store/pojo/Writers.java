@@ -25,6 +25,7 @@ import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
+import org.joda.time.DateTime;
 
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
@@ -190,14 +191,20 @@ public class Writers {
 
     public TimeStampMilliWriter(Field field) {
       super(field, TYPE);
-      if (field.getType() != Timestamp.class) {
+      if ((field.getType() != Timestamp.class) && (field.getType() != DateTime.class)) {
         throw new IllegalStateException();
       }
     }
 
     @Override
     public void writeField(Object pojo, int outboundIndex) throws IllegalArgumentException, IllegalAccessException {
-      Timestamp o = (Timestamp) field.get(pojo);
+      Timestamp o;
+      if (field.getType() == DateTime.class) {
+        DateTime dateTime = (DateTime) field.get(pojo);
+        o = new Timestamp(dateTime.toDate().getTime());
+      } else {
+        o = (Timestamp) field.get(pojo);
+      }
       if (o != null) {
         vector.setSafe(outboundIndex, o.getTime());
       }

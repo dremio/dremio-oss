@@ -21,6 +21,7 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ClassGenerator.BlockType;
 import com.dremio.exec.expr.ClassGenerator.HoldingContainer;
+import com.dremio.exec.expr.CodeModelArrowHelper;
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.sun.codemodel.JBlock;
@@ -123,7 +124,7 @@ public class SimpleFunctionHolder extends BaseFunctionHolder {
     g.getEvalBlock().add(topSub);
 
 
-    JVar internalOutput = sub.decl(JMod.FINAL, resolvedOutput.getHolderType(g.getModel()), getReturnName(), JExpr._new(resolvedOutput.getHolderType(g.getModel())));
+    JVar internalOutput = sub.decl(JMod.FINAL, CodeModelArrowHelper.getHolderType(resolvedOutput, g.getModel()), getReturnName(), JExpr._new(CodeModelArrowHelper.getHolderType(resolvedOutput, g.getModel())));
     addProtectedBlock(g, sub, body, inputVariables, workspaceJVars, false);
 
     if (sub != topSub || inputVariables.length == 0) {

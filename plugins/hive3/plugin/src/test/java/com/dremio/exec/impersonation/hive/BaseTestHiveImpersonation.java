@@ -36,6 +36,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.dotfile.DotFileType;
+import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.impersonation.BaseTestImpersonation;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.hive.Hive3StoragePluginConfig;

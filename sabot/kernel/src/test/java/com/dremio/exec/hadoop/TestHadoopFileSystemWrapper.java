@@ -264,6 +264,43 @@ public class TestHadoopFileSystemWrapper {
   }
 
   @Test
+  public void testNoWaitTime() throws Exception {
+    FileSystem dfs = null;
+    InputStream is = null;
+    Configuration conf = new Configuration();
+    OpProfileDef profileDef = new OpProfileDef(0 /*operatorId*/, 0 /*operatorType*/, 0 /*inputCount*/);
+    OperatorStats stats = new OperatorStats(profileDef, null /*allocator*/);
+
+    // start wait time method in OperatorStats expects the OperatorStats state to be in "processing"
+    stats.startProcessing();
+
+    try {
+      org.apache.hadoop.fs.FileSystem fs = org.apache.hadoop.fs.FileSystem.getLocal(conf);
+      dfs = HadoopFileSystem.get(fs, stats, true);
+      Path path = Path.of(tempFilePath);
+      org.apache.hadoop.fs.Path hadoopPath = new org.apache.hadoop.fs.Path(path.toURI());
+      is = ((HadoopFileSystem) dfs).newFSDataInputStreamWrapper(Path.of(tempFilePath), fs.open(hadoopPath) , stats, false);
+
+      byte[] buf = new byte[8000];
+      while (is.read(buf, 0, buf.length) != -1) {
+      }
+    } finally {
+      stats.stopProcessing();
+
+      if (is != null) {
+        is.close();
+      }
+
+      if (dfs != null) {
+        dfs.close();
+      }
+    }
+
+    OperatorProfile operatorProfile = stats.getProfile();
+    assertTrue("Expected wait time is zero, but got non-zero wait time", operatorProfile.getWaitNanos() == 0);
+  }
+
+  @Test
   public void testHiddenFilesAreIgnored() throws IOException {
     Configuration conf = new Configuration();
     try (FileSystem dfs = HadoopFileSystem.getLocal(conf)) {

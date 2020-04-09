@@ -158,10 +158,10 @@ public class MetadataUtils {
           return PartitionValue.of(name, ByteBuffer.wrap((byte[]) value), partitionType);
         } else if (value instanceof Integer) {
           BigInteger decimal = BigInteger.valueOf(((Number) value).intValue());
-          return PartitionValue.of(name,  ByteBuffer.wrap(decimal.toByteArray()), partitionType);
+          return PartitionValue.of(name, ByteBuffer.wrap(decimal.toByteArray()), partitionType);
         } else if (value instanceof Long) {
           BigInteger decimal = BigInteger.valueOf(((Number) value).longValue());
-          return PartitionValue.of(name,  ByteBuffer.wrap(decimal.toByteArray()), partitionType);
+          return PartitionValue.of(name, ByteBuffer.wrap(decimal.toByteArray()), partitionType);
         }
         return PartitionValue.of(name, partitionType);
 

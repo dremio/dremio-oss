@@ -23,6 +23,7 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFamily;
 import org.apache.calcite.rel.type.RelDataTypeField;
@@ -36,13 +37,16 @@ import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
+import com.dremio.service.job.SqlQuery;
+import com.dremio.service.job.SubmitJobRequest;
+import com.dremio.service.job.VersionedDatasetPath;
+import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.CompletionListener;
+import com.dremio.service.jobs.JobDataClientUtils;
 import com.dremio.service.jobs.JobDataFragment;
-import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.NoOpJobStatusListener;
-import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Function;
@@ -53,7 +57,6 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
-import com.google.common.util.concurrent.Futures;
 
 /**
  * Analyzes acceleration and generates statistics.
@@ -97,10 +100,12 @@ public class ReflectionAnalyzer {
 
   private final JobsService jobsService;
   private final CatalogService catalogService;
+  private final BufferAllocator bufferAllocator;
 
-  public ReflectionAnalyzer(final JobsService jobsService, final CatalogService catalogService) {
+  public ReflectionAnalyzer(final JobsService jobsService, final CatalogService catalogService, final BufferAllocator allocator) {
     this.catalogService = Preconditions.checkNotNull(catalogService, "Catalog service is required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "Jobs service is required");
+    this.bufferAllocator = Preconditions.checkNotNull(allocator, "Buffer allocator is required");
   }
 
   public TableStats analyze(final NamespaceKey path) {
@@ -148,39 +153,37 @@ public class ReflectionAnalyzer {
 
     final String sql = String.format("select %s from %s", selection, pathString);
 
-    final SqlQuery query = new SqlQuery(sql, SYSTEM_USERNAME);
+    final SqlQuery query = SqlQuery.newBuilder()
+      .setSql(sql)
+      .addAllContext(Collections.<String>emptyList())
+      .setUsername(SYSTEM_USERNAME)
+      .build();
 
-    final Job job = Futures.getUnchecked(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(query)
-          .setQueryType(QueryType.UI_INTERNAL_PREVIEW)
-          .setDatasetPath(NONE_PATH)
-          .build(),
-        new NoOpJobStatusListener() {
+    final CompletionListener completionListener = new CompletionListener();
+    final JobId jobId = jobsService.submitJob(
+      SubmitJobRequest.newBuilder()
+        .setSqlQuery(query)
+        .setQueryType(JobsProtoUtil.toBuf(QueryType.UI_INTERNAL_PREVIEW))
+        .setVersionedDataset(VersionedDatasetPath.newBuilder().addAllPath(NONE_PATH.getPathComponents()).build())
+        .build(),
+      completionListener
+    );
+    completionListener.awaitUnchecked();
+    try (JobDataFragment data = JobDataClientUtils.getJobData(jobsService, bufferAllocator, jobId, 0, 1)) {
+      final List<ColumnStats> columns = FluentIterable.from(fields)
+        .transform(new Function<RelDataTypeField, ColumnStats>() {
+          @Nullable
           @Override
-          public void jobFailed(final Exception e) {
-            logger.warn("query analysis failed for {}", query, e);
+          public ColumnStats apply(@Nullable final RelDataTypeField input) {
+            return buildColumn(data, input);
           }
         })
-    );
+        .toList();
 
-    // trunc blocks until job completion
-    final JobDataFragment data = job.getData().truncate(1);
+      Long count = getCount(data);
 
-    final List<ColumnStats> columns = FluentIterable.from(fields)
-      .transform(new Function<RelDataTypeField, ColumnStats>() {
-        @Nullable
-        @Override
-        public ColumnStats apply(@Nullable final RelDataTypeField input) {
-          return buildColumn(data, input);
-        }
-      })
-      .toList();
-
-    Long count = getCount(data);
-
-    return new TableStats().setColumns(columns).setCount(count);
+      return new TableStats().setColumns(columns).setCount(count);
+    }
   }
 
   public RelDataType getRowType(final NamespaceKey path) {

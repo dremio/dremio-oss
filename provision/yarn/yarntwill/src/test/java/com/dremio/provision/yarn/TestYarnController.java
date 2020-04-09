@@ -87,7 +87,7 @@ public class TestYarnController {
     shimFilePath.createNewFile();
     File randomFilePath = new File(finalPath, "some-jar-to-load.jar");
     randomFilePath.createNewFile();
-    File maprfsJar = new File(thirdrdPartyDir, "maprfs-5.1.0-mapr.jar");
+    File maprfsJar = new File(thirdrdPartyDir, "dremio-maprfs-shaded-5.1.0-mapr.jar");
     maprfsJar.createNewFile();
   }
 
@@ -237,7 +237,7 @@ public class TestYarnController {
 
     String flatNames = names.toString();
     assertTrue(flatNames.contains(SHIM_LOADER_NAME));
-    assertTrue(flatNames.contains("maprfs-5.1.0-mapr.jar"));
+    assertTrue(flatNames.contains("dremio-maprfs-shaded-5.1.0-mapr.jar"));
     assertTrue(flatNames.contains(SOME_JAR_TO_LOAD));
     System.clearProperty("provisioning.yarn.classpath");
   }
@@ -288,7 +288,7 @@ public class TestYarnController {
 
     String flatNames = names.toString();
     assertTrue(flatNames.contains(SHIM_LOADER_NAME));
-    assertTrue(flatNames.contains("maprfs-5.1.0-mapr.jar"));
+    assertTrue(flatNames.contains("dremio-maprfs-shaded-5.1.0-mapr.jar"));
   }
 
   @Test
@@ -301,7 +301,7 @@ public class TestYarnController {
       }
     };
     File shimFilePath = new File(finalPath, SHIM_LOADER_NAME);
-    File maprfsJar = new File(thirdrdPartyDir, "maprfs-5.1.0-mapr.jar");
+    File maprfsJar = new File(thirdrdPartyDir, "dremio-maprfs-shaded-5.1.0-mapr.jar");
 
     try {
       shimFilePath.delete();

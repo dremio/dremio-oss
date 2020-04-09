@@ -31,7 +31,7 @@ import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.catalog.ViewCreatorFactory.ViewCreator;
@@ -45,7 +45,6 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
-import com.dremio.exec.store.sys.PersistentStoreProvider;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.work.WorkStats;
@@ -73,7 +72,6 @@ public class SabotContext implements AutoCloseable {
   private final FunctionImplementationRegistry functionRegistry;
   private final DecimalFunctionImplementationRegistry decimalFunctionImplementationRegistry;
   private final SystemOptionManager systemOptions;
-  private final PersistentStoreProvider provider;
   private final Provider<WorkStats> workStatsProvider;
   private final CodeCompiler compiler;
   private final ScanResult classpathScan;
@@ -81,7 +79,7 @@ public class SabotContext implements AutoCloseable {
   private final Provider<MaterializationDescriptorProvider> materializationProvider;
   private final NamespaceService.Factory namespaceServiceFactory;
   private final DatasetListingService datasetListing;
-  private final KVStoreProvider kvStoreProvider;
+  private final LegacyKVStoreProvider kvStoreProvider;
   private final UserService userService;
   private final Provider<QueryObserverFactory> queryObserverFactory;
   private final Provider<AccelerationManager> accelerationManager;
@@ -95,7 +93,7 @@ public class SabotContext implements AutoCloseable {
   private final ClusterResourceInformation clusterInfo;
   private final FileSystemWrapper fileSystemWrapper;
   private final CredentialsService credentialsService;
-  private final JobResultSchemaProvider jobResultSchemaProvider;
+  private final JobResultInfoProvider jobResultInfoProvider;
   private final List<RulesFactory> rules;
 
   public SabotContext(
@@ -107,9 +105,8 @@ public class SabotContext implements AutoCloseable {
       LogicalPlanPersistence lpPersistence,
       BufferAllocator allocator,
       ClusterCoordinator coord,
-      PersistentStoreProvider provider,
       Provider<WorkStats> workStatsProvider,
-      KVStoreProvider kvStoreProvider,
+      LegacyKVStoreProvider kvStoreProvider,
       NamespaceService.Factory namespaceServiceFactory,
       DatasetListingService datasetListing,
       UserService userService,
@@ -123,7 +120,8 @@ public class SabotContext implements AutoCloseable {
       Provider<SpillService> spillService,
       Provider<ConnectionReader> connectionReaderProvider,
       CredentialsService credentialsService,
-      JobResultSchemaProvider jobResultSchemaProvider
+      JobResultInfoProvider jobResultInfoProvider,
+      SystemOptionManager systemOptionManager
   ) {
     this.dremioConfig = dremioConfig;
     this.config = config;
@@ -133,14 +131,13 @@ public class SabotContext implements AutoCloseable {
     this.classpathScan = scan;
     this.coord = coord;
     this.endpoint = checkNotNull(endpoint);
-    this.provider = provider;
     this.lpPersistence = lpPersistence;
     this.accelerationManager = accelerationManager;
     this.accelerationListManager = accelerationListManager;
     this.connectionReaderProvider = connectionReaderProvider;
 
     this.reader = new PhysicalPlanReader(config, classpathScan, lpPersistence, endpoint, catalogService, this);
-    this.systemOptions = new SystemOptionManager(classpathScan, lpPersistence, provider);
+    this.systemOptions = systemOptionManager;
     this.functionRegistry = new FunctionImplementationRegistry(config, classpathScan, systemOptions);
     this.decimalFunctionImplementationRegistry = new DecimalFunctionImplementationRegistry(config, classpathScan, systemOptions);
     this.compiler = new CodeCompiler(config, systemOptions);
@@ -165,7 +162,7 @@ public class SabotContext implements AutoCloseable {
       new ServiceSetDecorator(coord.getServiceSet(Role.EXECUTOR)),
       endpoint);
     this.credentialsService = credentialsService;
-    this.jobResultSchemaProvider = jobResultSchemaProvider;
+    this.jobResultInfoProvider = jobResultInfoProvider;
     this.rules = getRulesFactories(scan);
   }
 
@@ -190,9 +187,8 @@ public class SabotContext implements AutoCloseable {
     LogicalPlanPersistence lpPersistence,
     BufferAllocator allocator,
     ClusterCoordinator coord,
-    PersistentStoreProvider provider,
     Provider<WorkStats> workStatsProvider,
-    KVStoreProvider kvStoreProvider,
+    LegacyKVStoreProvider kvStoreProvider,
     NamespaceService.Factory namespaceServiceFactory,
     DatasetListingService datasetListing,
     UserService userService,
@@ -206,7 +202,7 @@ public class SabotContext implements AutoCloseable {
     Provider<SpillService> spillService,
     Provider<ConnectionReader> connectionReaderProvider,
     CredentialsService credentialsService,
-    JobResultSchemaProvider jobResultSchemaProvider,
+    JobResultInfoProvider jobResultInfoProvider,
     PhysicalPlanReader physicalPlanReader,
     SystemOptionManager systemOptionManager,
     FunctionImplementationRegistry functionImplementationRegistry,
@@ -223,7 +219,6 @@ public class SabotContext implements AutoCloseable {
     this.classpathScan = scan;
     this.coord = coord;
     this.endpoint = checkNotNull(endpoint);
-    this.provider = provider;
     this.lpPersistence = lpPersistence;
     this.accelerationManager = accelerationManager;
     this.accelerationListManager = accelerationListManager;
@@ -249,7 +244,7 @@ public class SabotContext implements AutoCloseable {
     this.clusterInfo = clusterInfo;
     this.fileSystemWrapper = fileSystemWrapper;
     this.credentialsService = credentialsService;
-    this.jobResultSchemaProvider = jobResultSchemaProvider;
+    this.jobResultInfoProvider = jobResultInfoProvider;
     this.rules = getRulesFactories(scan);
   }
 
@@ -258,8 +253,7 @@ public class SabotContext implements AutoCloseable {
   }
 
   // TODO: rationalize which methods are executor only or coordinator only
-
-  protected NamespaceService.Factory getNamespaceServiceFactory() {
+  public NamespaceService.Factory getNamespaceServiceFactory() {
     return namespaceServiceFactory;
   }
 
@@ -355,10 +349,6 @@ public class SabotContext implements AutoCloseable {
     return reader;
   }
 
-  public PersistentStoreProvider getStoreProvider() {
-    return provider;
-  }
-
   public ClusterCoordinator getClusterCoordinator() {
     return coord;
   }
@@ -401,7 +391,7 @@ public class SabotContext implements AutoCloseable {
     return connectionReaderProvider;
   }
 
-  public KVStoreProvider getKVStoreProvider() {
+  public LegacyKVStoreProvider getKVStoreProvider() {
     return kvStoreProvider;
   }
 
@@ -424,7 +414,7 @@ public class SabotContext implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(fileSystemWrapper, systemOptions);
+    AutoCloseables.close(fileSystemWrapper);
   }
 
   public Provider<WorkStats> getWorkStatsProvider() {
@@ -467,7 +457,7 @@ public class SabotContext implements AutoCloseable {
     return credentialsService;
   }
 
-  public JobResultSchemaProvider getJobResultSchemaProvider() {
-    return jobResultSchemaProvider;
+  public JobResultInfoProvider getJobResultInfoProvider() {
+    return jobResultInfoProvider;
   }
 }

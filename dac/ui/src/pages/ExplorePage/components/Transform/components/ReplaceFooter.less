@@ -15,24 +15,24 @@
  */
 
  .base {
-  composes: row-of-inputs-spacing from '@app/uiTheme/less/forms.less';
-  composes: section-margin from '@app/uiTheme/less/layout.less'; // TODO move this margin out of component. Component should not have any margins
-  max-height: 43px; // do we need that?  
+  composes: row-of-inputs-spacing from '~@app/uiTheme/less/forms.less';
+  composes: section-margin from '~@app/uiTheme/less/layout.less'; // TODO move this margin out of component. Component should not have any margins
+  max-height: 43px; // do we need that?
   margin-bottom: 10px;
   display: flex;
  }
 
 .wrap {
-  composes: flex-column-container from '@app/uiTheme/less/layout.less';
+  composes: flex-column-container from '~@app/uiTheme/less/layout.less';
 }
 
 .replacement-type {
-  composes: row-margin from '@app/uiTheme/less/forms.less';
+  composes: row-margin from '~@app/uiTheme/less/forms.less';
 }
 
 .replacement-value {
   composes: replacement-type;
-  composes: row-of-inputs-spacing from '@app/uiTheme/less/forms.less';
+  composes: row-of-inputs-spacing from '~@app/uiTheme/less/forms.less';
   display: flex;
 }
 

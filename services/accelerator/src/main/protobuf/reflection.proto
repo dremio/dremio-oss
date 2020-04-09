@@ -15,11 +15,11 @@
  */
 package com.dremio.service.reflection.proto;
 
-import "../../../../../services/jobs/src/main/protobuf/job.proto";
+import "job.proto";
 
 import "reflection-common.proto";
 import "reflection-intent.proto";
-import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+import "dataset.proto";
 
 option java_package = "com.dremio.service.reflection.proto";
 option optimize_for = SPEED;

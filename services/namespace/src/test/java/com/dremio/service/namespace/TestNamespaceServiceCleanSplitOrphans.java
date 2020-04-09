@@ -36,10 +36,11 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.SearchQueryUtils;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.namespace.PartitionChunkId.SplitOrphansRetentionPolicy;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
@@ -67,16 +68,17 @@ public class TestNamespaceServiceCleanSplitOrphans {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  private LocalKVStoreProvider kvstore;
+  private LegacyKVStoreProvider kvstore;
   private NamespaceService namespaceService;
-  private IndexedStore<byte[], NameSpaceContainer> namespaceStore;
-  private IndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore;
+  private LegacyIndexedStore<String, NameSpaceContainer> namespaceStore;
+  private LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore;
 
   private long now;
 
   @Before
   public void populate() throws Exception {
-    kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
+    kvstore =
+      new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy();
     kvstore.start();
 
     namespaceService = new NamespaceServiceImpl(kvstore);
@@ -127,7 +129,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
   public void testKeepCurrentVersion() throws Exception {
     namespaceService.deleteSplitOrphans(KEEP_CURRENT_VERSION_ONLY);
     assertThat(
-        namespaceService.getPartitionChunkCount(new FindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())),
+        namespaceService.getPartitionChunkCount(new LegacyFindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())),
         is(10 + 20 + 100 + 1000 + 100));
 
 
@@ -154,7 +156,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
   public void testKeepValidSplits() throws Exception {
     namespaceService.deleteSplitOrphans(SplitOrphansRetentionPolicy.KEEP_VALID_SPLITS);
     assertThat(
-        namespaceService.getPartitionChunkCount(new FindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())),
+        namespaceService.getPartitionChunkCount(new LegacyFindByCondition().setCondition(SearchQueryUtils.newMatchAllQuery())),
         is(10 + 20 + 24 * 100 + 1000 + 24 * 100));
     DatasetConfig dataset1 = namespaceService.getDataset(new NamespaceKey(Arrays.asList("test", "dataset1")));
     for(int i = 23; i >= 0; i--) {
@@ -227,9 +229,9 @@ public class TestNamespaceServiceCleanSplitOrphans {
 
   private DatasetConfig saveDataset(List<String> path, DatasetType type, Function<DatasetConfig, DatasetConfig> transformer) throws NamespaceException {
     final NamespaceKey key = new NamespaceKey(path);
-    final byte[] binaryKey = NamespaceServiceImpl.getKey(key);
+    final String stringKey = NamespaceServiceImpl.getKey(key);
 
-    final Optional<DatasetConfig> oldDataset = Optional.ofNullable(namespaceStore.get(binaryKey)).map(NameSpaceContainer::getDataset);
+    final Optional<DatasetConfig> oldDataset = Optional.ofNullable(namespaceStore.get(stringKey)).map(NameSpaceContainer::getDataset);
 
     final DatasetConfig datasetConfig = transformer.apply(new DatasetConfig()
         .setId(oldDataset.map(DatasetConfig::getId).orElse(new EntityId().setId(UUID.randomUUID().toString())))
@@ -243,7 +245,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
         .setType(NameSpaceContainer.Type.DATASET)
         .setFullPathList(path)
         .setDataset(datasetConfig);
-    namespaceStore.put(binaryKey, container);
+    namespaceStore.put(stringKey, container);
 
     return datasetConfig;
   }

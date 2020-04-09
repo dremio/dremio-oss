@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 import { RSAA } from 'redux-api-middleware';
-import { API_URL_V2 } from '@app/constants/Api';
-
-import {makeUncachebleURL} from 'ie11.js';
 
 import sourceSchema from 'dyn-load/schemas/source';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
+import { APIV2Call } from '@app/core/APICall';
 
 export const LOAD_SOURCE_STARTED = 'LOAD_SOURCE_STARTED';
 export const LOAD_SOURCE_SUCCESS = 'LOAD_SOURCE_SUCCESS';
@@ -29,6 +27,11 @@ function fetchSourceData(href) {
   const resourcePath = href;
   const meta = { resourcePath };
   const uiPropsForEntity = [{key: 'resourcePath', value: resourcePath}];
+
+  const apiCall = new APIV2Call()
+    .paths(resourcePath)
+    .uncachable();
+
   return {
     [RSAA]: {
       types: [
@@ -37,7 +40,7 @@ function fetchSourceData(href) {
         { type: LOAD_SOURCE_FAILURE, meta}
       ],
       method: 'GET',
-      endpoint: makeUncachebleURL(`${API_URL_V2}${resourcePath}`)
+      endpoint: apiCall
     }
   };
 }

@@ -15,13 +15,13 @@
  */
 package com.dremio.service.accelerator.proto;
 
-import "../../../../../services/jobs/src/main/protobuf/job.proto";
+import "job.proto";
 
 import "acceleration-common.proto";
 import "acceleration-intent.proto";
 import "reflection-materialization.proto";
-import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
-import "../../../../../protocol/src/main/protobuf/UserBitShared.proto";
+import "dataset.proto";
+import "UserBitShared.proto";
 
 option java_package = "com.dremio.service.accelerator.proto";
 option optimize_for = SPEED;

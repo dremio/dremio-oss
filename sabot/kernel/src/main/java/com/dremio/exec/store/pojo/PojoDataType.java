@@ -21,6 +21,7 @@ import java.sql.Timestamp;
 import java.util.List;
 
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.DateTime;
 
 import com.dremio.exec.store.RecordDataType;
 import com.google.common.base.Objects;
@@ -58,7 +59,7 @@ public class PojoDataType extends RecordDataType {
         types.add(SqlTypeName.VARCHAR);
       } else if(type.isEnum()) {
         types.add(SqlTypeName.VARCHAR);
-      } else if (type == Timestamp.class) {
+      } else if (type == Timestamp.class || type == DateTime.class) {
         types.add(SqlTypeName.TIMESTAMP);
       } else {
         throw new RuntimeException(String.format("PojoDataType doesn't yet support conversions from type [%s].", type));

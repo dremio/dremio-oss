@@ -58,7 +58,7 @@ describe('ExportMenu', () => {
 
     it('should render menu item with href', () => {
       const menuItem = wrapper.find('MenuItem').at(0);
-      expect(menuItem.props().href).to.equal('///apiv2/job/abc123/download?downloadFormat=JSON&Authorization=test_token');
+      expect(menuItem.props().href).to.equal('///apiv2/job/abc123/download/?downloadFormat=JSON&Authorization=test_token');
     });
 
     it('should render appropriate menu item label', () => {

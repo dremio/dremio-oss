@@ -32,6 +32,7 @@ import com.dremio.exec.store.easy.arrow.ArrowFormatPluginConfig;
 import com.dremio.exec.store.easy.json.JSONFormatPlugin;
 import com.dremio.exec.store.easy.text.TextFormatPlugin;
 import com.dremio.exec.store.easy.text.TextFormatPlugin.TextFormatConfig;
+import com.dremio.exec.store.iceberg.IcebergFormatConfig;
 import com.dremio.exec.store.parquet.ParquetFormatConfig;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -83,6 +84,9 @@ public class FormatCreator {
   /** FormatMatchers for all configured plugins */
   private List<FormatMatcher> formatMatchers;
 
+  /** FormatMatchers for "layer formats" which can potentially contain files of many formats. */
+  private List<FormatMatcher> layeredFormatMatchers;
+
   /** The format plugin classes retrieved from classpath scanning */
   private final Collection<Class<? extends FormatPlugin>> pluginClasses;
   /** a Map from the FormatPlugin Config class to the constructor of the format plugin that accepts it.*/
@@ -102,6 +106,7 @@ public class FormatCreator {
     defaultFormats.put("parquet", new ParquetFormatConfig());
     defaultFormats.put("json", new JSONFormatPlugin.JSONFormatConfig());
     defaultFormats.put("dremarrow1", new ArrowFormatPluginConfig());
+    defaultFormats.put("iceberg", new IcebergFormatConfig());
     return defaultFormats;
   }
 
@@ -138,6 +143,7 @@ public class FormatCreator {
     Map<String, FormatPlugin> pluginsByName = Maps.newHashMap();
     Map<FormatPluginConfig, FormatPlugin> pluginsByConfig = Maps.newHashMap();
     List<FormatMatcher> formatMatchers = Lists.newArrayList();
+    List<FormatMatcher> layeredFormatMatchers = Lists.newArrayList();
 
 
     final Map<String, FormatPluginConfig> formats = getDefaultFormats();
@@ -152,7 +158,14 @@ public class FormatCreator {
           FormatPlugin formatPlugin = (FormatPlugin) c.newInstance(e.getKey(), context, e.getValue(), fsPlugin);
           pluginsByName.put(e.getKey(), formatPlugin);
           pluginsByConfig.put(formatPlugin.getConfig(), formatPlugin);
-          formatMatchers.add(formatPlugin.getMatcher());
+
+          if (formatPlugin.isLayered()) {
+            layeredFormatMatchers.add(formatPlugin.getMatcher());
+            // add the layer ones at the top, so that they get checked first.
+            formatMatchers.add(0, formatPlugin.getMatcher());
+          } else {
+            formatMatchers.add(formatPlugin.getMatcher());
+          }
         } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e1) {
           logger.warn("Failure initializing storage config named '{}' of type '{}'.", e.getKey(), e.getValue().getClass().getName(), e1);
         }
@@ -171,7 +184,14 @@ public class FormatCreator {
           }
           pluginsByName.put(plugin.getName(), plugin);
           pluginsByConfig.put(plugin.getConfig(), plugin);
-          formatMatchers.add(plugin.getMatcher());
+
+          if (plugin.isLayered()) {
+            layeredFormatMatchers.add(plugin.getMatcher());
+            // add the layer ones at the top, so that they get checked first.
+            formatMatchers.add(0, plugin.getMatcher());
+          } else {
+            formatMatchers.add(plugin.getMatcher());
+          }
         } catch (Exception e) {
           logger.warn(String.format("Failure while trying instantiate FormatPlugin %s.", pluginClass.getName()), e);
         }
@@ -180,6 +200,7 @@ public class FormatCreator {
     this.pluginsByName = Collections.unmodifiableMap(pluginsByName);
     this.pluginsByConfig = Collections.unmodifiableMap(pluginsByConfig);
     this.formatMatchers = Collections.unmodifiableList(formatMatchers);
+    this.layeredFormatMatchers = Collections.unmodifiableList(layeredFormatMatchers);
   }
 
   public FileSystemPlugin getPlugin(){
@@ -211,6 +232,13 @@ public class FormatCreator {
    */
   public List<FormatMatcher> getFormatMatchers() {
     return formatMatchers;
+  }
+
+  /**
+   * @return List of format matchers for all configured layer format plugins.
+   */
+  public List<FormatMatcher> getLayeredFormatMatchers() {
+    return layeredFormatMatchers;
   }
 
   /**

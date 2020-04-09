@@ -20,10 +20,10 @@ import java.sql.SQLException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.calcite.avatica.util.Cursor.Accessor;
 
-import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.vector.accessor.BoundCheckingAccessor;
 import com.dremio.exec.vector.accessor.SqlAccessor;
+import com.dremio.exec.vector.accessor.SqlAccessorBuilder;
 import com.dremio.jdbc.JdbcApiSqlException;
 
 
@@ -60,7 +60,7 @@ class DremioAccessorList extends BasicList<Accessor> {
       final ValueVector vector = currentBatch.getValueAccessorById(null, i).getValueVector();
       final SqlAccessor acc =
           new TypeConvertingSqlAccessor(
-              new BoundCheckingAccessor(vector, TypeHelper.getSqlAccessor(vector))
+              new BoundCheckingAccessor(vector, SqlAccessorBuilder.getSqlAccessor(vector))
               );
       accessors[i] = new SqlAccessorWrapper(acc, cursor);
     }

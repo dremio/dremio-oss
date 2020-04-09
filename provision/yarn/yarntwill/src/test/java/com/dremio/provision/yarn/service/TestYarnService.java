@@ -63,10 +63,9 @@ import org.slf4j.Logger;
 
 import com.dremio.common.nodes.NodeProvider;
 import com.dremio.config.DremioConfig;
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.options.OptionManager;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterConfig;
 import com.dremio.provision.ClusterCreateRequest;
@@ -345,7 +344,7 @@ public class TestYarnService {
     @Test
   public void testMemoryLimit() throws Exception {
     Provider provider = Mockito.mock(Provider.class);
-    ProvisioningService service = new ProvisioningServiceImpl(DremioConfig.create(), provider, Mockito.mock(NodeProvider.class), null, null);
+    ProvisioningService service = new ProvisioningServiceImpl(DremioConfig.create(), provider, Mockito.mock(NodeProvider.class), null, null, null);
 
     ClusterConfig clusterConfig = new ClusterConfig();
     clusterConfig.setClusterType(ClusterType.YARN);
@@ -365,14 +364,13 @@ public class TestYarnService {
   public void testStartServiceFailure() throws Exception {
     assumeNonMaprProfile();
     try(
-      final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
-    ) {
+      final LegacyKVStoreProvider kvstore =
+        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy()) {
       SingletonRegistry registry = new SingletonRegistry();
-      registry.bind(KVStoreProvider.class, kvstore);
-      kvstore.start();
+      registry.bind(LegacyKVStoreProvider.class, kvstore);
       registry.start();
-      ProvisioningService service = new ProvisioningServiceImpl(DremioConfig.create(), registry.provider(KVStoreProvider.class), Mockito.mock(NodeProvider.class), DremioTest
-        .CLASSPATH_SCAN_RESULT, DirectProvider.<OptionManager>wrap(null));
+      ProvisioningService service = new ProvisioningServiceImpl(DremioConfig.create(), registry.provider(LegacyKVStoreProvider.class), Mockito.mock(NodeProvider.class), DremioTest
+        .CLASSPATH_SCAN_RESULT, DirectProvider.wrap(null), DirectProvider.wrap(null));
       service.start();
       final ClusterConfig clusterConfig = new ClusterConfig();
       clusterConfig.setName("DremioDaemon");
@@ -402,18 +400,18 @@ public class TestYarnService {
   public void testMemorySplit() throws Exception {
     assumeNonMaprProfile();
     try (
-      final KVStoreProvider kvstore = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
-    ) {
+      final LegacyKVStoreProvider kvstore =
+        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy()) {
       SingletonRegistry registry = new SingletonRegistry();
-      registry.bind(KVStoreProvider.class, kvstore);
-      kvstore.start();
+      registry.bind(LegacyKVStoreProvider.class, kvstore);
       registry.start();
       ProvisioningService service = Mockito.spy(new ProvisioningServiceImpl(
-          DremioConfig.create(),
-          registry.provider(KVStoreProvider.class),
-          Mockito.mock(NodeProvider.class),
-          DremioTest.CLASSPATH_SCAN_RESULT,
-          DirectProvider.<OptionManager>wrap(null)));
+        DremioConfig.create(),
+        registry.provider(LegacyKVStoreProvider.class),
+        Mockito.mock(NodeProvider.class),
+        DremioTest.CLASSPATH_SCAN_RESULT,
+        DirectProvider.wrap(null),
+        DirectProvider.wrap(null)));
       service.start();
       ProvisioningResource resource = new ProvisioningResource(service);
 
@@ -438,8 +436,8 @@ public class TestYarnService {
         // as we did not fill out ClusterEnriched it will lead to NPE
         // but it is not subject of the test here
       }
-      KVStore<ClusterId, Cluster> store =
-        registry.provider(KVStoreProvider.class).get().getStore(ProvisioningServiceImpl.ProvisioningStoreCreator.class);
+      LegacyKVStore<ClusterId, Cluster> store =
+        registry.provider(LegacyKVStoreProvider.class).get().getStore(ProvisioningServiceImpl.ProvisioningStoreCreator.class);
       Iterable<Map.Entry<ClusterId, Cluster>> entries = store.find();
       assertTrue(entries.iterator().hasNext());
       int count = 0;
@@ -849,7 +847,7 @@ public class TestYarnService {
   private DefaultTwillRunResources createResource(int seed) {
     DefaultTwillRunResources resource = new DefaultTwillRunResources(seed,
       "container_e04_1487533082952_0033_01_00000"+seed,
-      2, 8192, "container-host", 0, ImmutableMap.of(Logger.ROOT_LOGGER_NAME,LogEntry.Level.INFO));
+      2, 8192, 4096, "container-host", 0, ImmutableMap.of(Logger.ROOT_LOGGER_NAME,LogEntry.Level.INFO));
 
     return resource;
   }

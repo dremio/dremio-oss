@@ -23,6 +23,7 @@ import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 
 /**
  * cmd utils.
@@ -38,9 +39,12 @@ public final class CmdUtils {
    * @return store provider
    * @throws FileNotFoundException
    */
-  public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan)
-    throws FileNotFoundException {
+  public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan) {
     return getKVStoreProvider(dremioConfig, classPathScan, true);
+  }
+
+  public static Optional<LegacyKVStoreProvider> getLegacyKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan, boolean noDBOpenRetry) {
+    return getKVStoreProvider(dremioConfig, classPathScan, noDBOpenRetry).map(LocalKVStoreProvider::asLegacy);
   }
 
   /**
@@ -49,10 +53,8 @@ public final class CmdUtils {
    * @param classPathScan
    * @param noDBOpenRetry
    * @return store provider
-   * @throws FileNotFoundException
    */
-  public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan, boolean noDBOpenRetry)
-    throws FileNotFoundException {
+  public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan, boolean noDBOpenRetry) {
     final String dbDir = dremioConfig.getString(DremioConfig.DB_PATH_STRING);
     final File dbFile = new File(dbDir);
 
@@ -67,11 +69,15 @@ public final class CmdUtils {
       return Optional.empty();
     }
 
-    return Optional.of(new LocalKVStoreProvider(classPathScan, dbDir, false, true, true, false, noDBOpenRetry));
+    return Optional.of(
+      new LocalKVStoreProvider(classPathScan, dbDir, false, true, noDBOpenRetry));
   }
 
-  public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig)
-    throws FileNotFoundException {
+  public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig) {
     return CmdUtils.getKVStoreProvider(dremioConfig, ClassPathScanner.fromPrescan(dremioConfig.getSabotConfig()));
+  }
+
+  public static Optional<LegacyKVStoreProvider> getLegacyKVStoreProvider(DremioConfig dremioConfig) {
+    return getKVStoreProvider(dremioConfig).map(LocalKVStoreProvider::asLegacy);
   }
 }

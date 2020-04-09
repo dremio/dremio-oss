@@ -178,7 +178,7 @@ public class HadoopFileSystem
   @Override
   public FSInputStream open(Path f) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return newFSDataInputStreamWrapper(f, underlyingFs.open(toHadoopPath(f)), operatorStats);
+      return newFSDataInputStreamWrapper(f, underlyingFs.open(toHadoopPath(f)), operatorStats, true);
     } catch(FSError e) {
       throw propagateFSError(e);
     }
@@ -559,8 +559,7 @@ public class HadoopFileSystem
         throw new FileNotFoundException("mtime of file has changed " + path);
       }
 
-      // set operatorStats to null so that wait time isn't tracked here.
-      FSInputStream inputStream = newFSDataInputStreamWrapper(fileKey.getPath(), underlyingFs.open(path), null);
+      FSInputStream inputStream = newFSDataInputStreamWrapper(fileKey.getPath(), underlyingFs.open(path), operatorStats, false);
       return new HadoopAsyncByteReader(fileKey.getPath(), inputStream);
     }
   }
@@ -608,10 +607,10 @@ public class HadoopFileSystem
     }
   }
 
-  FSInputStream newFSDataInputStreamWrapper(Path f, final FSDataInputStream is, OperatorStats stats) throws IOException {
-    FSInputStream result = FSDataInputStreamWrapper.of(is);
+  FSInputStream newFSDataInputStreamWrapper(Path f, final FSDataInputStream is, OperatorStats stats, boolean recordWaitTimes) throws IOException {
+    FSInputStream result;
     if (stats != null) {
-      result = FSDataInputStreamWithStatsWrapper.of(is, stats);
+      result = FSDataInputStreamWithStatsWrapper.of(is, stats, recordWaitTimes);
     } else {
       result = FSDataInputStreamWrapper.of(is);
     }

@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.Dictionary;
 import org.apache.parquet.column.Encoding;
@@ -268,7 +269,7 @@ public class PageReader {
 
     byteLength = pageHeader.uncompressed_page_size;
 
-    final ByteBuffer pageDataBuffer = pageData.nioBuffer(0, pageData.capacity());
+    final ByteBuffer pageDataBuffer = pageData.nioBuffer(0, LargeMemoryUtil.checkedCastToInt(pageData.capacity()));
 
     readPosInBytes = 0;
     if (parentColumnReader.getColumnDescriptor().getMaxRepetitionLevel() > 0) {

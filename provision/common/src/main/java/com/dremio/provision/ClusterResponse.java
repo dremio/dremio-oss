@@ -18,6 +18,7 @@ package com.dremio.provision;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
+import org.immutables.value.Value.Default;
 import org.immutables.value.Value.Immutable;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -58,6 +59,7 @@ public interface ClusterResponse {
 
   boolean isAllowAutoStart();
   boolean isAllowAutoStop();
+  @Default default long getShutdownInterval() { return 300_000; }
 
   public static ImmutableClusterResponse.Builder builder() {
     return new ImmutableClusterResponse.Builder();

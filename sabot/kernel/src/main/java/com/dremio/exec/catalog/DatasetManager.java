@@ -33,12 +33,13 @@ import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.SourceMetadata;
-import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchQueryUtils;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.exec.catalog.ManagedStoragePlugin.MetadataAccessType;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.NamespaceTable;
@@ -137,7 +138,7 @@ class DatasetManager {
      * - only consider keys that have the same leaf value (since ambiguity isn't allowed there)
      * - return the first key by ordering the keys by segment (cis then cs).
      */
-    final FindByCondition condition = new FindByCondition();
+    final LegacyFindByCondition condition = new LegacyFindByCondition();
     condition.setCondition(SearchQueryUtils.newTermQuery(NamespaceIndexKeys.UNQUOTED_LC_PATH, key.toUnescapedString().toLowerCase()));
     List<DatasetConfig> possibleMatches = FluentIterable.from(userNamespaceService.find(condition)).filter(new Predicate<Entry<NamespaceKey, NameSpaceContainer>>() {
       @Override
@@ -408,7 +409,7 @@ class DatasetManager {
       );
 
       // 1.4.0 and earlier didn't correctly save virtual dataset schema information.
-      BatchSchema schema = DatasetHelper.getSchemaBytes(datasetConfig) != null ? BatchSchema.fromDataset(datasetConfig) : null;
+      BatchSchema schema = DatasetHelper.getSchemaBytes(datasetConfig) != null ? CalciteArrowHelper.fromDataset(datasetConfig) : null;
       return new ViewTable(new NamespaceKey(datasetConfig.getFullPathList()), view, datasetConfig, schema);
     } catch (Exception e) {
       logger.warn("Failure parsing virtual dataset, not including in available schema.", e);

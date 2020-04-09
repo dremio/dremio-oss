@@ -1380,4 +1380,13 @@ public class TestFunctionsQuery extends BaseTestQuery {
 
   }
 
+  @Test
+  public void testFlattenOnEmpty() throws Exception {
+    final String query = "select flatten(col2) from cp.\"parquet/listofemptystruct.parquet\"";
+    testBuilder()
+        .unOrdered()
+        .sqlQuery(query)
+        .schemaBaseLine(ImmutableList.of(Pair.of(SchemaPath.getSimplePath("EXPR$0"), Types.optional(MinorType.STRUCT))))
+        .go();
+  }
 }

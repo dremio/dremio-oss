@@ -16,19 +16,20 @@
 package com.dremio.exec.work.user;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.CloseableByteBuf;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.google.common.base.Function;
 import com.google.common.base.Throwables;
-import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 
 import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
@@ -113,20 +114,13 @@ public class LocalUserUtil {
     @Override
     public void close() {
       try{
-        AutoCloseables.close(FluentIterable.of(buffers).transform(new Function<ByteBuf, AutoCloseable>(){
-          @Override
-          public AutoCloseable apply(final ByteBuf input) {
-            return new AutoCloseable(){
-              @Override
-              public void close() throws Exception {
-                input.release();
-              }};
-          }}).toList());
-      }catch(Exception ex){
+        AutoCloseables.close(Arrays.stream(buffers)
+          .map(CloseableByteBuf::new)
+          .collect(ImmutableList.toImmutableList()));
+      } catch(Exception ex){
         throw new RuntimeException(ex);
       }
     }
-
   }
 }
 

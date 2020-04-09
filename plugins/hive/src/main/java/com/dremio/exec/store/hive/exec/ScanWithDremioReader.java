@@ -18,7 +18,6 @@ package com.dremio.exec.store.hive.exec;
 import java.io.IOException;
 import java.security.PrivilegedAction;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,7 +28,6 @@ import org.apache.hadoop.security.UserGroupInformation;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.store.CoercionReader;
 import com.dremio.exec.store.HiveParquetCoercionReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.ScanFilter;
@@ -145,9 +143,8 @@ class ScanWithDremioReader {
               );
               final TypeCoercion hiveTypeCoercion = new HiveTypeCoercion(hiveSchema);
               RecordReader wrappedRecordReader = compositeReader.wrapIfNecessary(context.getAllocator(), innerReader, hiveParquetSplit.getDatasetSplit());
-              return new HiveParquetCoercionReader(context, compositeReader.getInnerColumns(),
-                      wrappedRecordReader, config.getFullSchema(), EnumSet.of(CoercionReader
-                      .Options.NULL_DECIMAL_OVERFLOW, CoercionReader.Options.SET_VARCHAR_WIDTH), hiveTypeCoercion, filterConditions);
+              return HiveParquetCoercionReader.newInstance(context, compositeReader.getInnerColumns(),
+                      wrappedRecordReader, config.getFullSchema(), hiveTypeCoercion, filterConditions);
             }
           });
         });

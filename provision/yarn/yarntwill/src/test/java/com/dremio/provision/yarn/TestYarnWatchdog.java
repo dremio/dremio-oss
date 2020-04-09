@@ -15,9 +15,12 @@
  */
 package com.dremio.provision.yarn;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -25,6 +28,11 @@ import java.io.InputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.lang.reflect.Field;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Formatter;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -327,5 +335,26 @@ public class TestYarnWatchdog {
   public void testProcessDeath() throws Exception {
     // kill 'cat' process after 300ms
     doProcessTest(ProcessTestMode.FAIL_PROCESS, 300);
+  }
+
+  @Test
+  public void testLog() throws Exception {
+    LogRecord record = new LogRecord(Level.INFO, "test message {0} {1} {2} {3}");
+    record.setLoggerName("foo.bar");
+    record.setMillis(0); // epoch
+    record.setParameters(new Object[] {"arg1", "arg2", "arg3", "arg4"});
+    record.setSourceClassName(TestYarnWatchdog.class.getName());
+    record.setSourceMethodName("testLog");
+
+    final FutureTask<String> task = new FutureTask<>(()-> {
+      Formatter formatter = new YarnWatchdog.YarnWatchdogFormatter();
+      return formatter.format(record);
+    });
+    Thread t = new Thread(task, "test-log-thread");
+    t.start();
+
+    String result = task.get(60, TimeUnit.SECONDS);  // make sure to have some timeout
+    // Make sure TZ is set to UTC...
+    assertThat(result, is(equalTo("1970-01-01 00:00:00,000 [test-log-thread] INFO    com.dremio.provision.yarn.TestYarnWatchdog - test message arg1 arg2 arg3 arg4 \n")));
   }
 }

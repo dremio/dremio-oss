@@ -46,7 +46,7 @@ import com.dremio.connector.metadata.DatasetStats;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
-import com.dremio.datastore.KVStore;
+import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.options.OptionManager;
@@ -112,12 +112,12 @@ public class TestSourceMetadataManager {
         new NamespaceKey("joker"),
         mock(SchedulerService.class),
         true,
-        mock(KVStore.class),
+        mock(LegacyKVStore.class),
         msp,
         optionManager,
         CatalogServiceMonitor.DEFAULT);
 
-    assertEquals(Catalog.UpdateStatus.DELETED,
+    assertEquals(DatasetCatalog.UpdateStatus.DELETED,
         manager.refreshDataset(new NamespaceKey(""), DatasetRetrievalOptions.DEFAULT));
     assertTrue(deleted[0]);
   }
@@ -153,13 +153,13 @@ public class TestSourceMetadataManager {
         new NamespaceKey("joker"),
         mock(SchedulerService.class),
         true,
-        mock(KVStore.class),
+        mock(LegacyKVStore.class),
         msp,
         optionManager,
         CatalogServiceMonitor.DEFAULT);
 
 
-    assertEquals(Catalog.UpdateStatus.UNCHANGED,
+    assertEquals(DatasetCatalog.UpdateStatus.UNCHANGED,
         manager.refreshDataset(new NamespaceKey(""),
             DatasetRetrievalOptions.DEFAULT.toBuilder()
                 .setDeleteUnavailableDatasets(false)
@@ -201,12 +201,12 @@ public class TestSourceMetadataManager {
         new NamespaceKey("joker"),
         mock(SchedulerService.class),
         true,
-        mock(KVStore.class),
+        mock(LegacyKVStore.class),
         msp,
         optionManager,
         CatalogServiceMonitor.DEFAULT);
 
-    assertEquals(Catalog.UpdateStatus.DELETED,
+    assertEquals(DatasetCatalog.UpdateStatus.DELETED,
         manager.refreshDataset(new NamespaceKey(""), DatasetRetrievalOptions.DEFAULT));
     assertTrue(deleted[0]);
   }
@@ -240,12 +240,12 @@ public class TestSourceMetadataManager {
         new NamespaceKey("joker"),
         mock(SchedulerService.class),
         true,
-        mock(KVStore.class),
+        mock(LegacyKVStore.class),
         msp,
         optionManager,
         CatalogServiceMonitor.DEFAULT);
 
-    assertEquals(Catalog.UpdateStatus.UNCHANGED,
+    assertEquals(DatasetCatalog.UpdateStatus.UNCHANGED,
         manager.refreshDataset(new NamespaceKey(""),
             DatasetRetrievalOptions.DEFAULT.toBuilder()
                 .setDeleteUnavailableDatasets(false)
@@ -293,7 +293,7 @@ public class TestSourceMetadataManager {
         new NamespaceKey("joker"),
         mock(SchedulerService.class),
         true,
-        mock(KVStore.class),
+        mock(LegacyKVStore.class),
         msp,
         optionManager,
         CatalogServiceMonitor.DEFAULT
@@ -360,13 +360,13 @@ public class TestSourceMetadataManager {
       dataSetKey,
       mock(SchedulerService.class),
       true,
-      mock(KVStore.class),
+      mock(LegacyKVStore.class),
       msp,
       optionManager,
       CatalogServiceMonitor.DEFAULT
     );
 
-    assertEquals(Catalog.UpdateStatus.CHANGED,
+    assertEquals(DatasetCatalog.UpdateStatus.CHANGED,
       manager.refreshDataset(dataSetKey,
         DatasetRetrievalOptions.DEFAULT.toBuilder()
           .build())
@@ -406,7 +406,7 @@ public class TestSourceMetadataManager {
         new NamespaceKey("joker"),
         mock(SchedulerService.class),
         true,
-        mock(KVStore.class),
+        mock(LegacyKVStore.class),
         msp,
         optionManager,
         CatalogServiceMonitor.DEFAULT

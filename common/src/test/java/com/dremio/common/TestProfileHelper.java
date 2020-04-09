@@ -26,8 +26,12 @@ public final class TestProfileHelper {
 
   }
 
+  public static void assumeMaprProfile() {
+    Assume.assumeTrue("mapr profile", isMaprProfile());
+  }
+
   public static void assumeNonMaprProfile() {
-    Assume.assumeTrue("non mapr profile", System.getProperty("dremio.mapr.profile")==null);
+    Assume.assumeFalse("non mapr profile", isMaprProfile());
   }
 
   public static boolean isMaprProfile() {

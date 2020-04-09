@@ -34,6 +34,7 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.queries.TermsQuery;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
+import org.apache.lucene.search.Query;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.SortField;
 import org.apache.lucene.search.TermQuery;
@@ -44,14 +45,16 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import com.dremio.datastore.IndexedStore;
+import com.dremio.datastore.CoreIndexedStore;
 import com.dremio.datastore.SearchQueryUtils;
+import com.dremio.datastore.indexed.LuceneSearchIndex.Doc;
 import com.google.common.collect.Maps;
 
 /**
  * Indexing test
  */
 public class TestLuceneIndexer {
+  private static final String DOC_NAME_FIELD = "name";
 
   @Rule
   public final TemporaryFolder folder = new TemporaryFolder();
@@ -61,7 +64,7 @@ public class TestLuceneIndexer {
     try (LuceneSearchIndex index = new LuceneSearchIndex(null, "test", true, CommitWrapper.NO_OP)) {
 
       final Document doc1 = new Document();
-      doc1.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef("1".getBytes()), Store.YES));
+      doc1.add(new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef("1".getBytes()), Store.YES));
       doc1.add(new StringField("ds", "space1.ds1", Field.Store.NO));
       doc1.add(new StringField("job", "job1", Field.Store.YES));
       // since we want to sort on version add docvalues
@@ -71,7 +74,7 @@ public class TestLuceneIndexer {
       doc1.add(new SortedDocValuesField("foo", new BytesRef("bar1")));
 
       final Document doc2 = new Document();
-      doc2.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef("2".getBytes()), Store.YES));
+      doc2.add(new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef("2".getBytes()), Store.YES));
       doc2.add(new StringField("ds", "space1.ds1", Field.Store.NO));
       doc2.add(new StringField("job", "job3", Field.Store.YES));
       doc2.add(new StringField("version", "v2", Field.Store.NO));
@@ -80,7 +83,7 @@ public class TestLuceneIndexer {
       doc2.add(new SortedDocValuesField("foo", new BytesRef("bar2")));
 
       final Document doc3 = new Document();
-      doc3.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef("3".getBytes()), Store.YES));
+      doc3.add(new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef("3".getBytes()), Store.YES));
       doc3.add(new StringField("ds", "space2.ds2", Field.Store.NO));
       doc3.add(new StringField("job", "job2", Field.Store.YES));
       doc3.add(new StringField("version", "v1", Field.Store.NO));
@@ -139,33 +142,62 @@ public class TestLuceneIndexer {
       }
 
       assertEquals(4, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
-        .newContainsTerm(documentNameField, "Jam"))));
+        .newContainsTerm(DOC_NAME_FIELD, "Jam"))));
       assertEquals(5, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
-        .newContainsTerm(documentNameField, "am"))));
+        .newContainsTerm(DOC_NAME_FIELD, "am"))));
       assertEquals(1, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
-        .newContainsTerm(documentNameField, "*"))));
+        .newContainsTerm(DOC_NAME_FIELD, "*"))));
       assertEquals(1, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
-        .newContainsTerm(documentNameField, "?"))));
+        .newContainsTerm(DOC_NAME_FIELD, "?"))));
       assertEquals(1, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
-        .newContainsTerm(documentNameField, "\\"))));
+        .newContainsTerm(DOC_NAME_FIELD, "\\"))));
       assertEquals(3, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
-        .newContainsTerm(documentNameField, "es"))));
+        .newContainsTerm(DOC_NAME_FIELD, "es"))));
       assertEquals(0, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
-        .newContainsTerm(documentNameField, "amal"))));
+        .newContainsTerm(DOC_NAME_FIELD, "amal"))));
       assertEquals(0, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
-        .newContainsTerm(documentNameField, "ama*"))));
+        .newContainsTerm(DOC_NAME_FIELD, "ama*"))));
       assertEquals(0, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
-        .newContainsTerm(documentNameField, "ama?"))));
+        .newContainsTerm(DOC_NAME_FIELD, "ama?"))));
       assertEquals(0, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
-        .newContainsTerm(documentNameField, "Ja\\*"))));
+        .newContainsTerm(DOC_NAME_FIELD, "Ja\\*"))));
     }
   }
 
-  private final String documentNameField = "name";
+  @Test
+  public void testPrefixQuery() throws IOException {
+    try (LuceneSearchIndex index = new LuceneSearchIndex(null, "test", true, CommitWrapper.NO_OP)) {
+      int id = 1;
+      for (String docName : Arrays.asList("Ja*mes", "Ja*mile", "Ja*mes", "Jam?es", "Jam?ie", "Ja*me\\s",
+        "*James", "*Jamie", "?James", "??James", "\\James", "\\Jamie", "*?\\Jamie")) {
+        addSimpleDocument(index, docName, Integer.toString(id++));
+      }
+
+      assertEquals(4, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newPrefixQuery(DOC_NAME_FIELD, "Ja*"))));
+      assertEquals(3, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newPrefixQuery(DOC_NAME_FIELD, "*"))));
+      assertEquals(2, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newPrefixQuery(DOC_NAME_FIELD, "?"))));
+      assertEquals(2, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newPrefixQuery(DOC_NAME_FIELD, "\\"))));
+      assertEquals(2, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newPrefixQuery(DOC_NAME_FIELD, "*Ja"))));
+      assertEquals(1, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newPrefixQuery(DOC_NAME_FIELD, "?Ja"))));
+      assertEquals(1, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newPrefixQuery(DOC_NAME_FIELD, "*?\\"))));
+      assertEquals(2, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newPrefixQuery(DOC_NAME_FIELD, "\\Ja"))));
+      assertEquals(0, index.count(LuceneQueryConverter.INSTANCE.toLuceneQuery(SearchQueryUtils
+        .newPrefixQuery(DOC_NAME_FIELD, "abc"))));
+    }
+  }
+
   private void addSimpleDocument(LuceneSearchIndex index, String docName, String id) {
     final Document document = new Document();
-    document.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef(id), Store.YES));
-    document.add(new StringField(documentNameField, docName, Store.YES));
+    document.add(new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef(id), Store.YES));
+    document.add(new StringField(DOC_NAME_FIELD, docName, Store.YES));
     index.add(document);
   }
 
@@ -281,24 +313,92 @@ public class TestLuceneIndexer {
     }
   }
 
+  @Test(expected = StaleSearcherException.class)
+  public void testSearcherCacheTTL() throws Exception {
+    try (LuceneSearchIndex index = new LuceneSearchIndex(null, "multithreaded-search", true, CommitWrapper.NO_OP, 500)) {
+      for (int i = 0; i < 10; ++i) {
+        final Document doc = new Document();
+        doc.add(
+            new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef(Integer.toString(i).getBytes()), Store.YES));
+        doc.add(new StringField("user", "u1", Field.Store.YES));
+        index.add(doc);
+      }
+
+      Query query = new TermQuery(new Term("user", "u1"));
+      List<Doc> docs = index.search(query, 4, 10, new Sort(), 0);
+      assertEquals(4, docs.size());
+
+      // sleep to force cache expiry.
+      Thread.sleep(1000);
+
+      docs = index.searchAfter(query, 6, 6, new Sort(), docs.get(3));
+      assertEquals(6, docs.size());
+    }
+  }
+
+  // tests that after reaching the limit, the searcher isn't present in the cache.
+  @Test(expected = StaleSearcherException.class)
+  public void testSearcherCacheAfterLimitHit() throws Exception {
+    try (LuceneSearchIndex index = new LuceneSearchIndex(null, "searcher-cache-after-limit", true, CommitWrapper.NO_OP)) {
+      for (int i = 0; i < 10; ++i) {
+        final Document doc = new Document();
+        doc.add(
+          new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef(Integer.toString(i).getBytes()), Store.YES));
+        doc.add(new StringField("user", "u1", Field.Store.YES));
+        index.add(doc);
+      }
+
+      // search with limit=4
+      Query query = new TermQuery(new Term("user", "u1"));
+      List<Doc> docs = index.search(query, 4, 4, new Sort(), 0);
+      assertEquals(4, docs.size());
+
+      // iterate after hitting limit, should fail (not in cache any more).
+      docs = index.searchAfter(query, 6, 6, new Sort(), docs.get(3));
+      assertEquals(6, docs.size());
+    }
+  }
+
+  @Test
+  public void testSearcherCache() throws Exception {
+    try (LuceneSearchIndex index = new LuceneSearchIndex(null, "searcher-cache", true, CommitWrapper.NO_OP)) {
+      for (int i = 0; i < 10; ++i) {
+        final Document doc = new Document();
+        doc.add(
+          new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef(Integer.toString(i).getBytes()), Store.YES));
+        doc.add(new StringField("user", "u1", Field.Store.YES));
+        index.add(doc);
+      }
+
+      // search without limit, returns 10 docs.
+      Query query = new TermQuery(new Term("user", "u1"));
+      List<Doc> docs = index.search(query, 1000, Integer.MAX_VALUE, new Sort(), 0);
+      assertEquals(10, docs.size());
+
+      // no more docs, search should return empty.
+      docs = index.searchAfter(query, 1000, Integer.MAX_VALUE, new Sort(), docs.get(9));
+      assertEquals(0, docs.size());
+    }
+  }
+
   @Test
   public void testIndexClose() throws Exception {
     try (LuceneSearchIndex index = new LuceneSearchIndex(folder.getRoot(), "close", false, CommitWrapper.NO_OP)) {
       final Document doc1 = new Document();
-      doc1.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef("1".getBytes()), Store.YES));
+      doc1.add(new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef("1".getBytes()), Store.YES));
       doc1.add(new StringField("user", "u1", Field.Store.YES));
       index.add(doc1);
     }
 
     try (LuceneSearchIndex index = new LuceneSearchIndex(folder.getRoot(), "close", false, CommitWrapper.NO_OP)) {
       final Document doc2 = new Document();
-      doc2.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef("2".getBytes()), Store.YES));
+      doc2.add(new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef("2".getBytes()), Store.YES));
       doc2.add(new StringField("user", "u2", Field.Store.YES));
       index.add(doc2);
     }
     try (LuceneSearchIndex index = new LuceneSearchIndex(folder.getRoot(), "close", false, CommitWrapper.NO_OP)) {
       final Document doc3 = new Document();
-      doc3.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef("3".getBytes()), Store.YES));
+      doc3.add(new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef("3".getBytes()), Store.YES));
       doc3.add(new StringField("user", "u3", Field.Store.YES));
       index.add(doc3);
     }
@@ -335,7 +435,7 @@ public class TestLuceneIndexer {
     try (LuceneSearchIndex index =
              new LuceneSearchIndex(null, "commit-wrapper", true, commitWrapper)) { // commit#1
       final Document doc1 = new Document();
-      doc1.add(new StringField(IndexedStore.ID_FIELD_NAME, new BytesRef("1".getBytes()), Store.YES));
+      doc1.add(new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef("1".getBytes()), Store.YES));
       doc1.add(new StringField("user", "u1", Field.Store.YES));
       index.add(doc1);
       index.delete(); // commit#2

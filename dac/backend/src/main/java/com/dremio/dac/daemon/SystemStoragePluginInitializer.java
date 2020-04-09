@@ -137,12 +137,12 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     final int maxCacheSpacePercent = config.hasPath(DremioConfig.DEBUG_DIST_MAX_CACHE_SPACE_PERCENT)?
       config.getInt(DremioConfig.DEBUG_DIST_MAX_CACHE_SPACE_PERCENT) : MAX_CACHE_SPACE_PERCENT;
 
+    final boolean enableAsyncForAcceleration = enable(config, DremioConfig.DEBUG_DIST_ASYNC_ENABLED);
+
     boolean enableCachingForAcceleration = enable(config, DremioConfig.DEBUG_DIST_CACHING_ENABLED);
     if (FileSystemConf.isCloudFileSystemScheme(accelerationPath.getScheme())) {
       enableCachingForAcceleration = sabotContext.getOptionManager().getOption(CLOUD_CACHING_ENABLED) ;
     }
-
-    final boolean enableAsyncForAcceleration = enable(config, DremioConfig.DEBUG_DIST_ASYNC_ENABLED);
     createSafe(catalogService, ns,
         AccelerationStoragePluginConfig.create(accelerationPath, enableAsyncForAcceleration,
             enableCachingForAcceleration, maxCacheSpacePercent), deferred);

@@ -28,7 +28,8 @@ import com.dremio.exec.planner.serialization.kryo.KryoRelSerializerFactory;
  */
 public abstract class RelSerializerFactory {
 
-  private static final String PATH = "dremio.planning.serializer";
+  private static final String PLANNING_PATH = "dremio.planning.serializer";
+  private static final String PROFILE_PATH = "dremio.profile.serializer";
   public final static RelSerializerFactory DEFAULT = new KryoRelSerializerFactory(null);
 
   /**
@@ -50,10 +51,19 @@ public abstract class RelSerializerFactory {
       final DremioCatalogReader catalog,
       final FunctionImplementationRegistry registry);
 
-  public static RelSerializerFactory getFactory(SabotConfig config, ScanResult scanResult) {
-    if(config.hasPath(PATH)) {
-      return config.getInstance(PATH, RelSerializerFactory.class, scanResult);
+  public static RelSerializerFactory getPlanningFactory(SabotConfig config, ScanResult scanResult) {
+    return getFactory(config, scanResult, PLANNING_PATH);
+  }
+
+  public static RelSerializerFactory getProfileFactory(SabotConfig config, ScanResult scanResult) {
+    return getFactory(config, scanResult, PROFILE_PATH);
+  }
+
+  private static RelSerializerFactory getFactory(SabotConfig config, ScanResult scanResult, String property) {
+    if(config.hasPath(property)) {
+      return config.getInstance(property, RelSerializerFactory.class, scanResult);
     }
     return DEFAULT;
   }
+
 }

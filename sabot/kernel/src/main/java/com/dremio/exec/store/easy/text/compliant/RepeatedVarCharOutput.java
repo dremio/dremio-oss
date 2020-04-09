@@ -21,6 +21,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
@@ -152,7 +153,7 @@ class RepeatedVarCharOutput extends TextOutput {
 
     FieldSizeLimitExceptionHelper.checkWriteSizeLimit(charLengthOffset, maxCellLimit, fieldIndex, logger);
 
-    byte[] tmp = new byte[tmpBuf.capacity()];
+    byte[] tmp = new byte[LargeMemoryUtil.checkedCastToInt(tmpBuf.capacity())];
     tmpBuf.getBytes(0, tmp);
     tmpBuf = tmpBuf.reallocIfNeeded(Math.min(tmpBuf.capacity() * 2, maxCellLimit + 1));
     tmpBuf.setBytes(0, tmp);

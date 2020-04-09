@@ -52,7 +52,7 @@ export default class DataFreshnessSection extends Component {
     return ['accelerationRefreshPeriod', 'accelerationGracePeriod', 'accelerationNeverExpire', 'accelerationNeverRefresh'];
   }
 
-  static validate(values, props) {
+  static validate(values) {
     const errors = {};
 
     if (values.accelerationRefreshPeriod  && values.accelerationRefreshPeriod < MIN_DURATION) {

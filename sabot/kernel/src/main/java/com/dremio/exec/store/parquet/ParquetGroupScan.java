@@ -26,6 +26,7 @@ import com.dremio.exec.physical.base.AbstractGroupScan;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitAndPartitionInfo;
@@ -61,7 +62,7 @@ public class ParquetGroupScan extends AbstractGroupScan {
 
   @Override
   public SubScan getSpecificScan(List<SplitWork> work) {
-    final BatchSchema schema = cachedRelDataType == null ? getDataset().getSchema():  BatchSchema.fromCalciteRowType(cachedRelDataType);
+    final BatchSchema schema = cachedRelDataType == null ? getDataset().getSchema():  CalciteArrowHelper.fromCalciteRowType(cachedRelDataType);
 
     List<SplitAndPartitionInfo> splits = work.stream()
         .map(SplitWork::getSplitAndPartitionInfo)

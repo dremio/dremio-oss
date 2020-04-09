@@ -18,28 +18,30 @@ package com.dremio.exec.work.protector;
 import static com.dremio.exec.ExecConstants.MAX_FOREMEN_PER_COORDINATOR;
 
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
 import org.apache.arrow.util.VisibleForTesting;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.CloseableExecutorService;
+import com.dremio.common.concurrent.CloseableSchedulerThreadPool;
+import com.dremio.common.concurrent.ContextMigratingExecutorService.ContextMigratingCloseableExecutorService;
 import com.dremio.common.concurrent.ExtendedLatch;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.maestro.MaestroService;
 import com.dremio.exec.planner.observer.OutOfBandQueryObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
-import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
-import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryData;
@@ -51,137 +53,146 @@ import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.work.SafeExit;
 import com.dremio.exec.work.foreman.TerminationListenerRegistry;
 import com.dremio.exec.work.rpc.CoordProtocol;
-import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.exec.work.rpc.CoordTunnelCreator;
 import com.dremio.exec.work.user.LocalExecutionConfig;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.exec.work.user.OptionProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.resource.QueryCancelTool;
-import com.dremio.resource.ResourceAllocator;
-import com.dremio.sabot.rpc.ExecToCoordHandler;
-import com.dremio.sabot.rpc.Protocols;
+import com.dremio.sabot.rpc.CoordExecService.NoExecToCoordResultsHandler;
+import com.dremio.sabot.rpc.ExecToCoordResultsHandler;
 import com.dremio.sabot.rpc.user.UserRpcUtils;
 import com.dremio.sabot.rpc.user.UserSession;
-import com.dremio.service.BindingCreator;
 import com.dremio.service.Service;
 import com.dremio.service.commandpool.CommandPool;
-import com.dremio.service.coordinator.ClusterCoordinator;
-import com.dremio.service.execselector.ExecutorSelectionService;
+import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.telemetry.api.metrics.Metrics;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.protobuf.Empty;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+import io.opentracing.Tracer;
 
 /**
  * Manages all work associated with query oversight and coordination.
  */
 public class ForemenWorkManager implements Service, SafeExit {
-  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ForemenWorkManager.class);
+  private static final Logger logger = LoggerFactory.getLogger(ForemenWorkManager.class);
 
   // Not making this a system/session option as we initialize this in the beginning of the node start and
   // changing system/session option is not going to have any effect.
   private static final String PREPARE_HANDLE_TIMEOUT_MS = "dremio.prepare.handle.timeout_ms";
 
+  // send profile updates to the job-telemetry-service for all active queries at this
+  // interval.
+  private static final int PROFILE_SEND_INTERVAL_SECONDS = 5;
+
   // cache of prepared statement queries.
   private final Cache<Long, PreparedPlan> preparedHandles = CacheBuilder.newBuilder()
-      .maximumSize(1000)
-      // Prepared statement handles are memory intensive. If there is memory pressure,
-      // let GC release them as last resort before running OOM.
-      .softValues()
-      .expireAfterWrite(Long.getLong(PREPARE_HANDLE_TIMEOUT_MS, 60_000L), TimeUnit.MILLISECONDS)
-      .build();
+          .maximumSize(1000)
+          // Prepared statement handles are memory intensive. If there is memory pressure,
+          // let GC release them as last resort before running OOM.
+          .softValues()
+          .expireAfterWrite(Long.getLong(PREPARE_HANDLE_TIMEOUT_MS, 60_000L), TimeUnit.MILLISECONDS)
+          .build();
 
   // single map of currently running queries, mapped by their external ids.
   private final ConcurrentMap<ExternalId, ManagedForeman> externalIdToForeman = Maps.newConcurrentMap();
-  private final NodeStatusListener nodeListener = new NodeStatusListener();
-  private final Provider<ClusterCoordinator> coord;
   private final Provider<SabotContext> dbContext;
   private final Provider<FabricService> fabric;
-  private final BindingCreator bindingCreator;
-  private final Provider<ResourceAllocator> queryResourceManager;
   private final Provider<CommandPool> commandPool;
-  private final Provider<ExecutorSelectionService> executorSelectionService;
-  private final ForemanStatusThread statusThread;
+  protected final Provider<MaestroService> maestroService;
+  protected final Provider<JobTelemetryClient> jobTelemetryClient;
+  private final ForemenTool foremenTool;
+  private final QueryCancelTool queryCancelTool;
 
-  private ClusterCoordinator coordinator;
   private ExtendedLatch exitLatch = null; // This is used to wait to exit when things are still running
-  private CloseableThreadPool pool = new CloseableThreadPool("foreman");
-  private CoordToExecTunnelCreator tunnelCreator;
+  private CloseableExecutorService pool;
+  private ExecToCoordResultsHandler execToCoordResultsHandler;
+  private CoordTunnelCreator coordTunnelCreator;
+  private UserWorker userWorker;
+  private LocalQueryExecutor localQueryExecutor;
+  private final CloseableSchedulerThreadPool profileSender;
 
   public ForemenWorkManager(
-      final Provider<ClusterCoordinator> coord,
-      final Provider<FabricService> fabric,
-      final Provider<SabotContext> dbContext,
-      final Provider<ResourceAllocator> queryResourceManager,
-      final Provider<CommandPool> commandPool,
-      final Provider<ExecutorSelectionService> executorSelectionService,
-      final BindingCreator bindingCreator) {
-    this.coord = coord;
+          final Provider<FabricService> fabric,
+          final Provider<SabotContext> dbContext,
+          final Provider<CommandPool> commandPool,
+          final Provider<MaestroService> maestroService,
+          final Provider<JobTelemetryClient> jobTelemetryClient,
+          final Tracer tracer) {
     this.dbContext = dbContext;
     this.fabric = fabric;
-    this.bindingCreator = bindingCreator;
-    this.queryResourceManager = queryResourceManager;
     this.commandPool = commandPool;
-    this.executorSelectionService = executorSelectionService;
-    this.statusThread = new ForemanStatusThread();
+    this.maestroService = maestroService;
+    this.jobTelemetryClient = jobTelemetryClient;
+
+    this.pool = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("foreman"), tracer);
+    this.execToCoordResultsHandler = new NoExecToCoordResultsHandler();
+    this.foremenTool = new ForemenToolImpl();
+    this.queryCancelTool = new QueryCancelToolImpl();
+    this.profileSender = new CloseableSchedulerThreadPool("profile-sender", 1);
+  }
+
+  public ExecToCoordResultsHandler getExecToCoordResultsHandler() {
+    return execToCoordResultsHandler;
+  }
+
+  public ForemenTool getForemenTool() {
+    return foremenTool;
+  }
+
+  public CoordTunnelCreator getCoordTunnelCreator() {
+    return coordTunnelCreator;
+  }
+
+  public QueryCancelTool getQueryCancelTool() {
+    return queryCancelTool;
+  }
+
+  public UserWorker getUserWorker() {
+    return userWorker;
+  }
+
+  public LocalQueryExecutor getLocalQueryExecutor() {
+    return localQueryExecutor;
   }
 
   @Override
   public void start() throws Exception {
-
     Metrics.newGauge(Metrics.join("jobs","active"), () -> externalIdToForeman.size());
 
-    coordinator = coord.get();
-    coordinator.getServiceSet(ClusterCoordinator.Role.EXECUTOR).addNodeStatusListener(nodeListener);
-    tunnelCreator = new CoordToExecTunnelCreator(fabric.get().getProtocol(Protocols.COORD_TO_EXEC));
-    bindingCreator.replace(ExecToCoordHandler.class, new ExecToCoordHandlerImpl());
-
-    statusThread.start();
-
-    final ForemenTool tool = new ForemenToolImpl();
-    boolean succeeded = bindingCreator.bindIfUnbound(ForemenTool.class, tool);
-    if (!succeeded) {
-      // then it is already bound, force set by replacing
-      bindingCreator.replace(ForemenTool.class, tool);
-    }
+    execToCoordResultsHandler = new ExecToCoordResultsHandlerImpl();
 
     final FabricRunnerFactory coordFactory = fabric.get()
-        .registerProtocol(new CoordProtocol(dbContext.get().getAllocator(), tool, dbContext.get().getConfig()));
-    bindingCreator.bindSelf(new CoordTunnelCreator(coordFactory));
+            .registerProtocol(new CoordProtocol(dbContext.get().getAllocator(), foremenTool, dbContext.get().getConfig()));
+    this.coordTunnelCreator = new CoordTunnelCreator(coordFactory);
 
-    final QueryCancelTool queryCancelTool = new QueryCancelToolImpl();
-    succeeded = bindingCreator.bindIfUnbound(QueryCancelTool.class, queryCancelTool);
-    if (!succeeded) {
-      bindingCreator.replace(QueryCancelTool.class, queryCancelTool);
-    }
-
-    // accept enduser rpc requests (replaces noop implementation).
-    bindingCreator.bind(UserWorker.class, new UserWorkerImpl(dbContext.get().getOptionManager(), pool));
-
-    // accept local query execution requests.
-    bindingCreator.bind(LocalQueryExecutor.class, new LocalQueryExecutorImpl(dbContext.get().getOptionManager(), pool));
+    this.userWorker = new UserWorkerImpl(dbContext.get().getOptionManager(), pool);
+    this.localQueryExecutor = new LocalQueryExecutorImpl(dbContext.get().getOptionManager(), pool);
+    this.profileSender.scheduleWithFixedDelay(this::sendAllProfiles,
+      PROFILE_SEND_INTERVAL_SECONDS, PROFILE_SEND_INTERVAL_SECONDS, TimeUnit.SECONDS);
   }
 
   @Override
   public void close() throws Exception {
-    if(coordinator != null){
-      coordinator.getServiceSet(ClusterCoordinator.Role.EXECUTOR).removeNodeStatusListener(nodeListener);
-    }
-    AutoCloseables.close(statusThread, pool);
+    AutoCloseables.close(pool, profileSender);
   }
 
   @VisibleForTesting
@@ -205,7 +216,7 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     final DelegatingCompletionListener delegate = new DelegatingCompletionListener();
     final Foreman foreman = newForeman(pool, commandPool.get(), delegate, externalId, observer, session, request,
-      config, attemptHandler, tunnelCreator, preparedHandles);
+            config, attemptHandler, preparedHandles);
     final ManagedForeman managed = new ManagedForeman(registry, foreman);
     externalIdToForeman.put(foreman.getExternalId(), managed);
     delegate.setListener(managed);
@@ -213,11 +224,10 @@ public class ForemenWorkManager implements Service, SafeExit {
   }
 
   protected Foreman newForeman(Executor executor, CommandPool commandPool, CompletionListener listener, ExternalId externalId,
-      QueryObserver observer, UserSession session, UserRequest request, OptionProvider config,
-      ReAttemptHandler attemptHandler, CoordToExecTunnelCreator tunnelCreator,
-      Cache<Long, PreparedPlan> plans) {
+                               QueryObserver observer, UserSession session, UserRequest request, OptionProvider config,
+                               ReAttemptHandler attemptHandler, Cache<Long, PreparedPlan> plans) {
     return new Foreman(dbContext.get(), executor, commandPool, listener, externalId, observer, session, request, config,
-      attemptHandler, tunnelCreator, plans, queryResourceManager.get(), executorSelectionService.get());
+            attemptHandler, plans, maestroService.get(), jobTelemetryClient.get());
   }
 
   /**
@@ -256,13 +266,6 @@ public class ForemenWorkManager implements Service, SafeExit {
       this.registry = registry;
     }
 
-    /**
-     * Publish query progress.
-     */
-    private void publishProgress() {
-      foreman.publishProgress();
-    }
-
     private class ConnectionClosedListener implements GenericFutureListener<Future<Void>> {
 
       public ConnectionClosedListener() {
@@ -287,102 +290,6 @@ public class ForemenWorkManager implements Service, SafeExit {
 
       indicateIfSafeToExit();
     }
-  }
-
-  /**
-   * @return list of external Ids strings for all active foremen
-   */
-  private List<String> getForemenExternalIds() {
-    return externalIdToForeman.keySet().stream().map((e) -> ExternalIdHelper.toString(e)).collect(Collectors.toList());
-  }
-
-  /*
-   * publish progress over all foremen
-   */
-  @VisibleForTesting
-  public void publishAllProgress() {
-    try {
-      for (ManagedForeman managedForeman : externalIdToForeman.values()) {
-        managedForeman.publishProgress();
-      }
-    } catch (final Exception ignored) {
-      // ignored
-    }
-  }
-
-  /**
-   * Thread to gather statistics about Job completeness. {@link ForemenWorkManager} looks
-   * over each foreman and gathers statistics in the updateFragmentStatus method in
-   * {@link QueryManager}.
-   */
-  private class ForemanStatusThread extends Thread implements AutoCloseable {
-    private final long STATUS_PERIOD_MS = TimeUnit.SECONDS.toMillis(5);
-
-    ForemanStatusThread() {
-      setDaemon(true);
-      setName("foreman-status-reporter");
-    }
-
-    @Override
-    public void run() {
-      while (true) {
-        publishAllProgress();
-
-        try {
-          Thread.sleep(STATUS_PERIOD_MS);
-        } catch (final InterruptedException ignored) {
-          logger.debug("Status thread exiting.");
-          break;
-        }
-      }
-    }
-
-    @Override
-    public void close() {
-      interrupt();
-    }
-  }
-
-  /**
-   * Alerts Foremen to node changes. Simplified code over constantly adding and deleting registrations for each foreman (since that would be wasteful).
-   */
-  private class NodeStatusListener implements com.dremio.service.coordinator.NodeStatusListener {
-
-    @Override
-    public void nodesUnregistered(Set<NodeEndpoint> unregisteredNodes) {
-      if (logger.isDebugEnabled()) {
-        logger.debug("nodes Unregistered {}, all of the following queries are going to be cancelled {}",
-          unregisteredNodes, getForemenExternalIds());
-      }
-
-      for (ManagedForeman f : externalIdToForeman.values()) {
-        try {
-          f.foreman.nodesUnregistered(unregisteredNodes);
-        } catch (Exception e) {
-          logger.warn("Foreman {} failed to handle unregistered nodes {}",
-            ExternalIdHelper.toString(f.foreman.getExternalId()), unregisteredNodes, e);
-        } catch (Throwable e) {
-          // the assumption is that the system is in bad state and this will most likely cause it shutdown. That's why
-          // we do nothing about the exception, but just in case it doesn't we want to at least get it in the log in case
-          // some of those queries get stuck
-          logger.error("Throwable exception was thrown in Foreman.nodesUnregistered, some of the following queries may get stuck {}",
-            getForemenExternalIds(), e);
-          throw e;
-        }
-      }
-    }
-
-    @Override
-    public void nodesRegistered(Set<NodeEndpoint> registeredNodes) {
-      for(ManagedForeman f : externalIdToForeman.values()){
-        try {
-          f.foreman.nodesRegistered(registeredNodes);
-        } catch (Exception e) {
-          logger.warn("Foreman {} failed to handle registered nodes {}", ExternalIdHelper.toString(f.foreman.getExternalId()), registeredNodes, e);
-        }
-      }
-    }
-
   }
 
   /**
@@ -413,6 +320,10 @@ public class ForemenWorkManager implements Service, SafeExit {
     return false;
   }
 
+  @VisibleForTesting
+  public int getActiveQueryCount() {
+    return externalIdToForeman.size();
+  }
 
   private ReAttemptHandler newInternalAttemptHandler(OptionManager options, boolean failIfNonEmpty) {
     if (options.getOption(ExecConstants.ENABLE_REATTEMPTS)) {
@@ -430,20 +341,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     }
   }
 
-  private class ExecToCoordHandlerImpl implements ExecToCoordHandler {
-
-    @Override
-    public void fragmentStatusUpdate(FragmentStatus status) throws RpcException {
-      ExternalId id = ExternalIdHelper.toExternal(status.getHandle().getQueryId());
-      ManagedForeman managed = externalIdToForeman.get(id);
-      if (managed == null) {
-        logger.debug("A fragment status message arrived post query termination, dropping. Fragment [{}] reported a state of {}.", QueryIdHelper.getFragmentId(status.getHandle()), status.getProfile().getState());
-      } else {
-        managed.foreman.updateStatus(status);
-      }
-    }
-
-
+  private class ExecToCoordResultsHandlerImpl implements ExecToCoordResultsHandler {
     @Override
     public void dataArrived(QueryData header, ByteBuf data, ResponseSender sender) throws RpcException {
       ExternalId id = ExternalIdHelper.toExternal(header.getQueryId());
@@ -452,18 +350,6 @@ public class ForemenWorkManager implements Service, SafeExit {
         logger.debug("User data arrived post query termination, dropping. Data was from QueryId: {}.", QueryIdHelper.getQueryId(header.getQueryId()));
       } else {
         managed.foreman.dataFromScreenArrived(header, data, sender);
-      }
-    }
-
-    @Override
-    public void nodeQueryStatusUpdate(NodeQueryStatus status) throws RpcException {
-      ExternalId id = ExternalIdHelper.toExternal(status.getId());
-      ManagedForeman managed = externalIdToForeman.get(id);
-      if (managed == null) {
-        logger.debug("A node query status message arrived post query termination, dropping. Query [{}] from node {}.",
-          QueryIdHelper.getQueryId(status.getId()), status.getEndpoint());
-      } else {
-        managed.foreman.updateNodeQueryStatus(status);
       }
     }
   }
@@ -521,16 +407,18 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     @Override
     public void submitLocalQuery(
-        ExternalId externalId,
-        QueryObserver observer,
-        Object query,
-        boolean prepare,
-        LocalExecutionConfig config,
-        boolean runInSameThread) {
+            ExternalId externalId,
+            QueryObserver observer,
+            Object query,
+            boolean prepare,
+            LocalExecutionConfig config,
+            boolean runInSameThread) {
       try{
         // make sure we keep a local observer out of band.
         final QueryObserver oobJobObserver = new OutOfBandQueryObserver(observer, executor);
-        UserSession session = UserSession.Builder.newBuilder()
+
+        final UserSession session = UserSession.Builder.newBuilder()
+            .withSessionOptionManager(new SessionOptionManagerImpl(options))
             .setSupportComplexTypes(true)
             .withCredentials(UserCredentials
                 .newBuilder()
@@ -539,14 +427,13 @@ public class ForemenWorkManager implements Service, SafeExit {
             .exposeInternalSources(config.isExposingInternalSources())
             .withDefaultSchema(config.getSqlContext())
             .withSubstitutionSettings(config.getSubstitutionSettings())
-            .withOptionManager(options)
             .withClientInfos(UserRpcUtils.getRpcEndpointInfos("Dremio Java local client"))
             .build();
 
         final ReAttemptHandler attemptHandler = newInternalAttemptHandler(options, config.isFailIfNonEmptySent());
         final UserRequest userRequest = new UserRequest(prepare ? RpcType.CREATE_PREPARED_STATEMENT : RpcType.RUN_QUERY, query, runInSameThread);
         submit(externalId, oobJobObserver, session, userRequest, TerminationListenerRegistry.NOOP, config, attemptHandler);
-      }catch(Exception ex){
+      } catch(Exception ex){
         throw Throwables.propagate(ex);
       }
     }
@@ -569,28 +456,28 @@ public class ForemenWorkManager implements Service, SafeExit {
 
     @Override
     public void submitWork(ExternalId externalId, UserSession session,
-      UserResponseHandler responseHandler, UserRequest request, TerminationListenerRegistry registry) {
+                           UserResponseHandler responseHandler, UserRequest request, TerminationListenerRegistry registry) {
       commandPool.get().<Void>submit(CommandPool.Priority.HIGH,
-        ExternalIdHelper.toString(externalId) + ":work-submission",
-        (waitInMillis) -> {
-          if (!canAcceptWork()) {
-            throw UserException.resourceError()
-              .message(UserException.QUERY_REJECTED_MSG)
-              .buildSilently();
-          }
+              ExternalIdHelper.toString(externalId) + ":work-submission",
+              (waitInMillis) -> {
+                if (!canAcceptWork()) {
+                  throw UserException.resourceError()
+                          .message(UserException.QUERY_REJECTED_MSG)
+                          .buildSilently();
+                }
 
-          if (waitInMillis > CommandPool.WARN_DELAY_MS) {
-            logger.warn("Work submission {} waited too long in the command pool: wait was {}ms",
-              ExternalIdHelper.toString(externalId), waitInMillis);
-          }
-          session.incrementQueryCount();
-          final QueryObserver observer = dbContext.get().getQueryObserverFactory().get().createNewQueryObserver(
-            externalId, session, responseHandler);
-          final QueryObserver oobObserver = new OutOfBandQueryObserver(observer, executor);
-          final ReAttemptHandler attemptHandler = newExternalAttemptHandler(session.getOptions());
-          submit(externalId, oobObserver, session, request, registry, null, attemptHandler);
-          return null;
-        }, false);
+                if (waitInMillis > CommandPool.WARN_DELAY_MS) {
+                  logger.warn("Work submission {} waited too long in the command pool: wait was {}ms",
+                          ExternalIdHelper.toString(externalId), waitInMillis);
+                }
+                session.incrementQueryCount();
+                final QueryObserver observer = dbContext.get().getQueryObserverFactory().get().createNewQueryObserver(
+                        externalId, session, responseHandler);
+                final QueryObserver oobObserver = new OutOfBandQueryObserver(observer, executor);
+                final ReAttemptHandler attemptHandler = newExternalAttemptHandler(session.getOptions());
+                submit(externalId, oobObserver, session, request, registry, null, attemptHandler);
+                return null;
+              }, false);
     }
 
     @Override
@@ -623,7 +510,7 @@ public class ForemenWorkManager implements Service, SafeExit {
     public Optional<QueryProfile> getProfile(ExternalId id) {
       ManagedForeman managed = externalIdToForeman.get(id);
       if(managed == null){
-        return Optional.absent();
+        return Optional.empty();
       }
 
       return managed.foreman.getCurrentProfile();
@@ -635,6 +522,28 @@ public class ForemenWorkManager implements Service, SafeExit {
     @Override
     public boolean cancel(ExternalId id, String reason) {
       return ForemenWorkManager.this.cancel(id, reason, false);
+    }
+  }
+
+  private void sendAllProfiles() {
+    final List<ListenableFuture<Empty>> futures = Lists.newArrayList();
+
+    for (ManagedForeman managedForeman : externalIdToForeman.values()) {
+      try {
+        Optional<ListenableFuture<Empty>> future =
+         managedForeman.foreman.sendPlanningProfile();
+        future.ifPresent(futures::add);
+      } catch (final Exception e) {
+        // Exception ignored. Profile sender thread should not die due to a random
+        // exception
+      }
+    }
+
+    // we'll wait to complete so we don't back up if the cluster is moving slowly.
+    try {
+      Futures.successfulAsList(futures).get();
+    } catch (final Exception ex) {
+      logger.info("Failure while sending profile to JobTelemetryService", ex);
     }
   }
 }

@@ -23,6 +23,7 @@ export const isProduction = () => {
 
 export default { // defaults, and defaults for unit tests
   serverStatus: SERVER_STATUS_OK,
+  edition: 'OSS',
   intercomAppId: null,
   shouldEnableBugFiling: !isProductionBuild,
   shouldEnableRSOD: !isProductionBuild,

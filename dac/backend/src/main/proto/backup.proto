@@ -15,7 +15,7 @@
  */
 package com.dremio.dac.proto.model.backup;
 
-import "../../../../../services/datastore/src/main/protobuf/kvstore.proto";
+import "kvstore.proto";
 
 option java_package = "com.dremio.dac.proto.model.backup";
 option optimize_for = SIZE;

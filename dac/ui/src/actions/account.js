@@ -15,12 +15,9 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2} from '@app/constants/Api';
-
 import intercomUtils from 'utils/intercomUtils';
 import { addNotification } from 'actions/notification';
-import { makeUncachebleURL } from '@app/ie11';
-
+import { APIV2Call } from '@app/core/APICall';
 
 export const LOGIN_USER_START = 'LOGIN_USER_START';
 export const LOGIN_USER_SUCCESS = 'LOGIN_USER_SUCCESS';
@@ -50,6 +47,8 @@ export function loginUser(form) {
   const { userName } = form;
   const meta = getLoginMeta(userName);
 
+  const apiCall = new APIV2Call().path('login');
+
   return {
     [RSAA]: {
       types: [
@@ -61,7 +60,7 @@ export function loginUser(form) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
-      endpoint: `${API_URL_V2}/login`
+      endpoint: apiCall
     }
   };
 }
@@ -103,6 +102,8 @@ export const LOGOUT_USER_SUCCESS = 'LOGOUT_USER_SUCCESS';
 export const LOGOUT_USER_FAILURE = 'LOGOUT_USER_FAILURE';
 
 export function logoutUser() {
+  const apiCall = new APIV2Call().path('login');
+
   return {
     [RSAA]: {
       types: [
@@ -111,7 +112,7 @@ export function logoutUser() {
         { type: LOGOUT_USER_FAILURE }
       ],
       method: 'DELETE',
-      endpoint: `${API_URL_V2}/login`
+      endpoint: apiCall
     }
   };
 }
@@ -142,6 +143,12 @@ export const EDIT_ACCOUNT_FAILURE = 'EDIT_ACCOUNT_FAILURE';
 
 const fetchEditAccount = (accountData, oldName) => {
   const meta = { notification: { message: 'Changes were successfully saved', level: 'success' } };
+
+  const apiCall = new APIV2Call()
+    .path('user')
+    .path(oldName ? oldName : accountData.userName)
+    .params({version: accountData.version});
+
   return {
     [RSAA]: {
       types: [
@@ -152,7 +159,7 @@ const fetchEditAccount = (accountData, oldName) => {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(accountData),
-      endpoint: `${API_URL_V2}/user/${oldName ? oldName : accountData.userName}?version=${accountData.version}`
+      endpoint: apiCall
     }
   };
 };
@@ -183,6 +190,10 @@ export const CHECK_USER_FAILURE = 'CHECK_USER_FAILURE';
  * b) Status = 401 if user is not authorized
  */
 export const checkUser = () => {
+  const apiCall = new APIV2Call()
+    .path('login')
+    .uncachable();
+
   return {
     [RSAA]: {
       types: [
@@ -191,7 +202,7 @@ export const checkUser = () => {
         CHECK_USER_FAILURE
       ],
       method: 'GET',
-      endpoint: makeUncachebleURL(`${API_URL_V2}/login`)
+      endpoint: apiCall
     }
   };
 };

@@ -43,7 +43,7 @@ class BlockStoreInputStream extends InputStream {
 
     Preconditions.checkState(startBlock != POIFSConstants.END_OF_CHAIN, "startBlock cannot be END_OF_CHAIN");
 
-    // count number of blocks that are part of the stream chain
+    // count number of blocks that are part of the stream chain, including current block!
     remainingBlocks = 0;
     int block = nextBlock;
     while (block != POIFSConstants.END_OF_CHAIN) {
@@ -73,6 +73,10 @@ class BlockStoreInputStream extends InputStream {
   @Override
   public int read() {
     if (offsetInBlock == blockSize) {
+      if (remainingBlocks == 1) {
+        // no next block left to seek
+        return -1;
+      }
       seekNextBlock();
     }
     offsetInBlock++;

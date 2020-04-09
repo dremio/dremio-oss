@@ -131,7 +131,7 @@ class ReflectionPlanNormalizer implements RelTransformer {
 
     Iterable<DremioTable> requestedTables = sqlHandlerConfig.getContext().getCatalog().getAllRequestedTables();
 
-    final RelSerializerFactory serializerFactory = RelSerializerFactory.getFactory(config, sqlHandlerConfig.getScanResult());
+    final RelSerializerFactory serializerFactory = RelSerializerFactory.getPlanningFactory(config, sqlHandlerConfig.getScanResult());
 
     this.refreshDecision = RefreshDecisionMaker.getRefreshDecision(
       entry,

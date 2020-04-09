@@ -45,11 +45,15 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.serialization.InstanceSerializer;
 import com.dremio.exec.serialization.ProtoSerializer;
-import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.ProjectOptionManager;
+import com.dremio.service.job.CancelJobRequest;
+import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.jobs.JobException;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobWarningException;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
 import com.google.common.annotations.VisibleForTesting;
 
@@ -66,13 +70,13 @@ public class ProfileResource {
   @VisibleForTesting
   public static final InstanceSerializer<QueryProfile> SERIALIZER = ProtoSerializer.of(QueryProfile.class);
   private final JobsService jobsService;
-  private final SabotContext context;
+  private final ProjectOptionManager projectOptionManager;
   private final SecurityContext securityContext;
 
   @Inject
-  public ProfileResource(JobsService jobsService, SabotContext context, SecurityContext securityContext) {
+  public ProfileResource(JobsService jobsService, ProjectOptionManager projectOptionManager, SecurityContext securityContext) {
     this.jobsService = jobsService;
-    this.context = context;
+    this.projectOptionManager = projectOptionManager;
     this.securityContext = securityContext;
   }
 
@@ -81,8 +85,12 @@ public class ProfileResource {
   @Produces(MediaType.TEXT_PLAIN)
   public NotificationResponse cancelQuery(@PathParam("queryid") String queryId) {
     try {
-      jobsService.cancel(null, new JobId(queryId), String.format("Query cancelled by user '%s'",
-          securityContext.getUserPrincipal().getName()));
+      final String username = securityContext.getUserPrincipal().getName();
+      jobsService.cancel(CancelJobRequest.newBuilder()
+          .setUsername(username)
+          .setJobId(JobsProtoUtil.toBuf(new JobId(queryId)))
+          .setReason(String.format("Query cancelled by user '%s'", username))
+          .build());
       return new NotificationResponse(ResponseType.OK, "Job cancellation requested");
     } catch(JobWarningException e) {
       return new NotificationResponse(ResponseType.WARN, e.getMessage());
@@ -98,7 +106,13 @@ public class ProfileResource {
       @QueryParam("attempt") @DefaultValue("0") int attempt) throws IOException {
     final QueryProfile profile;
     try {
-      profile = jobsService.getProfile(new JobId(queryId), attempt);
+      QueryProfileRequest request = QueryProfileRequest.newBuilder()
+        .setJobId(JobProtobuf.JobId.newBuilder()
+          .setId(queryId)
+          .build())
+        .setAttempt(attempt)
+        .build();
+      profile = jobsService.getProfile(request);
     } catch (JobNotFoundException ignored) {
       // TODO: should this be JobResourceNotFoundException?
       throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
@@ -113,12 +127,18 @@ public class ProfileResource {
       @QueryParam("attempt") @DefaultValue("0") int attempt) {
     final QueryProfile profile;
     try {
-      profile = jobsService.getProfile(new JobId(queryId), attempt);
+      QueryProfileRequest request = QueryProfileRequest.newBuilder()
+        .setJobId(JobProtobuf.JobId.newBuilder()
+          .setId(queryId)
+          .build())
+        .setAttempt(attempt)
+        .build();
+      profile = jobsService.getProfile(request);
     } catch (JobNotFoundException ignored) {
       // TODO: should this be JobResourceNotFoundException?
       throw new NotFoundException(format("Profile for JobId [%s] and Attempt [%d] not found.", queryId, attempt));
     }
-    final boolean debug = context.getOptionManager().getOption(ExecConstants.DEBUG_QUERY_PROFILE);
+    final boolean debug = projectOptionManager.getOption(ExecConstants.DEBUG_QUERY_PROFILE);
     return renderProfile(profile, debug);
   }
 

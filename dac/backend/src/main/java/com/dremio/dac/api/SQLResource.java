@@ -17,8 +17,6 @@ package com.dremio.dac.api;
 
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
-import java.util.concurrent.CompletableFuture;
-
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -27,21 +25,18 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.SecurityContext;
 
-import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.dac.annotations.APIResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.explore.model.CreateFromSQL;
+import com.dremio.dac.util.JobRequestUtil;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.proto.UserBitShared.ExternalId;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.Job;
-import com.dremio.service.jobs.JobRequest;
+import com.dremio.exec.server.options.ProjectOptionManager;
+import com.dremio.service.job.QueryType;
+import com.dremio.service.job.SqlQuery;
+import com.dremio.service.job.SubmitJobRequest;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.jobs.JobSubmittedListener;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.JobsServiceUtil;
-import com.dremio.service.jobs.NoOpJobStatusListener;
-import com.dremio.service.jobs.SqlQuery;
-import com.google.common.util.concurrent.Futures;
 
 /**
  * run external sql
@@ -55,7 +50,7 @@ import com.google.common.util.concurrent.Futures;
 public class SQLResource {
   private final JobsService jobs;
   private final SecurityContext securityContext;
-  private final SabotContext sabotContext;
+  private final ProjectOptionManager projectOptionManager;
 
   /**
    * Query details
@@ -80,28 +75,26 @@ public class SQLResource {
   }
 
   @Inject
-  public SQLResource(JobsService jobs, SecurityContext securityContext, SabotContext sabotContext) {
+  public SQLResource(JobsService jobs, SecurityContext securityContext, ProjectOptionManager projectOptionManager) {
     this.jobs = jobs;
     this.securityContext = securityContext;
-    this.sabotContext = sabotContext;
+    this.projectOptionManager = projectOptionManager;
   }
 
   @POST
   public QueryDetails runQuery(CreateFromSQL sql) {
-    SqlQuery query = new SqlQuery(sql.getSql(), sql.getContext(), securityContext);
-
-    final ExternalId externalId = ExternalIdHelper.generateExternalId();
-    final CompletableFuture<Job> jobFuture = jobs.submitJob(externalId,
-      JobRequest.newBuilder()
-        .setSqlQuery(query)
-        .setQueryType(QueryType.REST)
-        .build(), NoOpJobStatusListener.INSTANCE);
+    final SqlQuery sqlQuery = JobRequestUtil.createSqlQuery(sql.getSql(), sql.getContext(),securityContext.getUserPrincipal().getName());
+    final JobSubmittedListener listener = new JobSubmittedListener();
+    final JobId jobId = jobs.submitJob(SubmitJobRequest.newBuilder()
+      .setSqlQuery(sqlQuery)
+      .setQueryType(QueryType.REST)
+      .build(), listener);
 
     // if async disabled, wait until job has been submitted then return
-    if (!sabotContext.getOptionManager().getOption(ExecConstants.REST_API_RUN_QUERY_ASYNC)) {
-      Futures.getUnchecked(jobFuture);
+    if (!projectOptionManager.getOption(ExecConstants.REST_API_RUN_QUERY_ASYNC)) {
+      listener.await();
     }
 
-    return new QueryDetails(JobsServiceUtil.getExternalIdAsJobId(externalId).getId());
+    return new QueryDetails(jobId.getId());
   }
 }

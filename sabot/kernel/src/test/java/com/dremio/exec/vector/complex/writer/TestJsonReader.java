@@ -34,14 +34,19 @@ import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
+import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.PlanTestBase;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.util.FileUtils;
+import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CatalogOptions;
+import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.RecordBatchLoader;
@@ -227,6 +232,53 @@ public class TestJsonReader extends PlanTestBase {
     long[] rowCounts = {5};
     String filename = "/store/json/clicks.json";
     runTestsOnFile(filename, UserBitShared.QueryType.SQL, queries, rowCounts);
+  }
+
+  @Test
+  public void testLeafLimitInnerDoc() throws Exception {
+    testLeafLimit("/store/json/nestedDoc.json");
+  }
+
+  @Test
+  public void testLeafMixed() throws Exception {
+    testLeafLimit("/store/json/mixedTypes.json");
+  }
+
+  @Test
+  public void testLeafArrayMixed() throws Exception {
+    testLeafLimit("/store/json/arrayMixedTypes.json");
+  }
+
+  @Test
+  public void testTextLeafLimitInnerDoc() throws Exception {
+    try (AutoCloseable op = withOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR, true)) {
+      testLeafLimit("/store/json/nestedDoc.json");
+    }
+  }
+
+  @Test
+  public void testTextLeafMixed() throws Exception {
+    try (AutoCloseable op = withOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR, true)) {
+      testLeafLimit("/store/json/mixedTypes.json");
+    }
+  }
+
+  @Test
+  public void testTextLeafArrayMixed() throws Exception {
+    try (AutoCloseable op = withOption(ExecConstants.JSON_READER_ALL_TEXT_MODE_VALIDATOR, true)) {
+      testLeafLimit("/store/json/arrayMixedTypes.json");
+    }
+  }
+
+  private void testLeafLimit(String file) throws Exception {
+    try (AutoCloseable op1 = withOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX, 4)) {
+      String[] queries = {"select * from cp.\"" + file + "\" t"};
+      long[] rowCounts = {1};
+      runTestsOnFile(file, UserBitShared.QueryType.SQL, queries, rowCounts);
+      Assert.fail("Expected ColumnCountTooLargeException from exceeding metadata max leaf limit");
+    } catch (UserException e) {
+      Assert.assertEquals(ColumnCountTooLargeException.class.getCanonicalName(), e.getOrCreatePBError(false).getException().getExceptionClass());
+    }
   }
 
   @Test

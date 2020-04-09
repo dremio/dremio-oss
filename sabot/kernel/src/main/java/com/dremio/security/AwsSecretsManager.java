@@ -74,22 +74,20 @@ public class AwsSecretsManager implements Vault {
      * to EC2 machine. This will be further enhanced, once we have more requirements on it.
      */
     AwsCredentialsProvider awsCredentialsProvider = getAwsCredentials();
-    SecretsManagerClient secretsManagerClient = SecretsManagerClient.builder()
-      .region(Region.of(region)).credentialsProvider(awsCredentialsProvider).build();
     GetSecretValueRequest secretValueRequest = GetSecretValueRequest.builder().secretId(secretName)
       .versionStage(AWS_CURRENT).build();
-    GetSecretValueResponse secretValueResponse;
 
-    try {
-      secretValueResponse = secretsManagerClient.getSecretValue(secretValueRequest);
+    try (final SecretsManagerClient secretsManagerClient = SecretsManagerClient.builder()
+          .region(Region.of(region))
+          .credentialsProvider(awsCredentialsProvider)
+          .build()) {
+      final GetSecretValueResponse secretValueResponse = secretsManagerClient.getSecretValue(secretValueRequest);
+      return (secretValueResponse.secretString() != null) ?
+        secretValueResponse.secretString() : secretValueResponse.secretBinary().toString();
     } catch (SdkException e) {
       logger.debug("Unable to retrieve secret for secret {} as {}", secretName, e.getMessage());
       throw new IOException(e.getMessage(), e);
     }
-
-    return  (secretValueResponse.secretString() != null) ?
-      secretValueResponse.secretString() : secretValueResponse.secretBinary().toString();
-
   }
 
   private String getSecretName(String secret) {

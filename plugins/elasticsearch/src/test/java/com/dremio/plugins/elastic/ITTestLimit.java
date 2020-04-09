@@ -21,10 +21,10 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.text.ParseException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
-
-import javax.annotation.Nullable;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -32,6 +32,7 @@ import org.junit.Test;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.CloseableByteBuf;
 import com.dremio.common.DeferredException;
+import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
@@ -46,19 +47,13 @@ import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.proto.UserProtos.SubmissionSource;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.RpcOutcomeListener;
-import com.dremio.exec.work.AttemptId;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.user.LocalExecutionConfig;
 import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.plugins.elastic.ElasticsearchCluster.ColumnData;
 import com.dremio.proto.model.attempts.AttemptReason;
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
 import com.google.common.base.StandardSystemProperty;
-import com.google.common.collect.FluentIterable;
-
-import io.netty.buffer.ByteBuf;
+import com.google.common.collect.ImmutableList;
 
 public class ITTestLimit extends ElasticBaseTestQuery {
 
@@ -522,13 +517,10 @@ public class ITTestLimit extends ElasticBaseTestQuery {
     getLocalQueryExecutor().submitLocalQuery(ExternalIdHelper.generateExternalId(), grabber, queryCmd, false, config, false);
     QueryProfile profile = grabber.getProfile();
 
-    Optional<OperatorProfile> scanProfile = FluentIterable.from(profile.getFragmentProfile(0).getMinorFragmentProfile(0).getOperatorProfileList())
-      .firstMatch(new Predicate<OperatorProfile>() {
-        @Override
-        public boolean apply(@Nullable OperatorProfile operatorProfile) {
-          return operatorProfile.getOperatorType() == CoreOperatorType.ELASTICSEARCH_SUB_SCAN_VALUE;
-        }
-      });
+    Optional<OperatorProfile> scanProfile = profile.getFragmentProfile(0)
+      .getMinorFragmentProfile(0).getOperatorProfileList().stream()
+      .filter(operatorProfile -> operatorProfile.getOperatorType() == CoreOperatorType.ELASTICSEARCH_SUB_SCAN_VALUE)
+      .findFirst();
     assertEquals(1L, scanProfile.get().getInputProfile(0).getRecords());
   }
 
@@ -544,11 +536,9 @@ public class ITTestLimit extends ElasticBaseTestQuery {
         public void execDataArrived(RpcOutcomeListener<Ack> outcomeListener, QueryWritableBatch result) {
           try {
             AutoCloseables.close(
-              FluentIterable.of(result.getBuffers()).transform(new Function<ByteBuf, AutoCloseable>(){
-                @Override
-                public AutoCloseable apply(ByteBuf input) {
-                  return new CloseableByteBuf(input);
-                }}).toList());
+              Arrays.stream(result.getBuffers())
+                .map(CloseableByteBuf::new)
+                .collect(ImmutableList.toImmutableList()));
           } catch (Exception e) {
             exception.addException(e);
           }

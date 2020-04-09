@@ -20,6 +20,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 
+import javax.inject.Provider;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -59,7 +60,7 @@ import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.JSONUtil;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.server.NodeRegistration;
 import com.dremio.exec.server.SabotContext;
@@ -67,6 +68,8 @@ import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.InitializerRegistry;
+import com.dremio.service.jobs.HybridJobsService;
+import com.dremio.service.jobs.JobsServer;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.users.SystemUser;
@@ -116,6 +119,7 @@ public class TestMasterDown extends BaseClientUtils {
           .addDefaultUser(true)
           .allowTestApis(true)
           .serveUI(false)
+          .jobServerEnabled(false)
           .inMemoryStorage(true)
           .writePath(folder1.getRoot().getAbsolutePath())
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
@@ -268,6 +272,8 @@ public class TestMasterDown extends BaseClientUtils {
   @Test
   public void testMasterDown() throws Exception {
     final long timeoutMs = 5_000; // Timeout when checking if a node reached a given status
+    Provider<Integer> jobsPortProvider = () -> currentDremioDaemon.getBindingProvider().lookup(JobsServer.class).getPort();
+
     masterDremioDaemon.startPreServices();
 
     currentDremioDaemon.startPreServices();
@@ -283,12 +289,14 @@ public class TestMasterDown extends BaseClientUtils {
         }
       }
     });
+    currentDremioDaemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
     t1.start();
 
     BindingProvider mp = currentDremioDaemon.getBindingProvider();
     assertEquals(ServerStatus.MASTER_DOWN, mp.lookup(ServerHealthMonitor.class).getStatus());
 
     masterDremioDaemon.startServices();
+    masterDremioDaemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
     t1.join();
     initClient();
     initMasterClient();
@@ -299,7 +307,7 @@ public class TestMasterDown extends BaseClientUtils {
 
     final DatasetVersionMutator datasetVersionMutator = new DatasetVersionMutator(
         mp.lookup(InitializerRegistry.class),
-        mp.lookup(KVStoreProvider.class),
+        mp.lookup(LegacyKVStoreProvider.class),
         ns,
         mp.lookup(JobsService.class),
         mp.lookup(CatalogService.class),
@@ -314,7 +322,7 @@ public class TestMasterDown extends BaseClientUtils {
         datasetVersionMutator,
         sabotContext.getCatalogService(),
         mp.lookup(ReflectionServiceHelper.class),
-        new CollaborationHelper(mp.lookup(KVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
+        new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
         ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG),
         dacSecurityContext
       ),

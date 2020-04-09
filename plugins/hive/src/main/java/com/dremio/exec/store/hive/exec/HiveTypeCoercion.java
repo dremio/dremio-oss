@@ -16,7 +16,6 @@
 package com.dremio.exec.store.hive.exec;
 
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.Map;
 
 import org.apache.arrow.vector.types.pojo.Field;
@@ -25,7 +24,6 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.MajorTypeHelper;
-import com.dremio.exec.store.CoercionReader;
 import com.dremio.exec.store.TypeCoercion;
 import com.dremio.exec.store.parquet.ManagedSchema;
 import com.dremio.exec.store.parquet.ManagedSchemaField;
@@ -45,11 +43,10 @@ public class HiveTypeCoercion implements TypeCoercion {
   }
 
   @Override
-  public TypeProtos.MajorType getType(Field field, EnumSet<CoercionReader.Options> options) {
+  public TypeProtos.MajorType getType(Field field) {
     TypeProtos.MajorType majorType = MajorTypeHelper.getMajorTypeForField(field);
-    if (options.contains(CoercionReader.Options.SET_VARCHAR_WIDTH) && (majorType.getMinorType().equals(TypeProtos.MinorType
-      .VARCHAR) ||
-      majorType.getMinorType().equals(TypeProtos.MinorType.VARBINARY))) {
+    if (majorType.getMinorType().equals(TypeProtos.MinorType.VARCHAR) ||
+      majorType.getMinorType().equals(TypeProtos.MinorType.VARBINARY)) {
       int width = varcharWidthMap.getOrDefault(field.getName(), CompleteType.DEFAULT_VARCHAR_PRECISION);
       majorType = majorType.toBuilder().setWidth(width).build();
     }

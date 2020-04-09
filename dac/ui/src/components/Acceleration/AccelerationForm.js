@@ -15,23 +15,23 @@
  */
 import { Component } from 'react';
 import ReactDOM from 'react-dom';
-import { connectComplexForm, FormBody, FormTitle, ModalForm, modalFormProps } from 'components/Forms';
 import Immutable from 'immutable';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
 import uuid from 'uuid';
 import deepEqual from 'deep-equal';
 
-import reflectionActions from 'actions/resources/reflection';
-import { getListErrorsFromNestedReduxFormErrorEntity } from 'utils/validation';
+import {connectComplexForm, FormBody, FormTitle, ModalForm, modalFormProps} from '@app/components/Forms';
+import reflectionActions from '@app/actions/resources/reflection';
+import {getListErrorsFromNestedReduxFormErrorEntity} from '@app/utils/validation';
 import {
   areReflectionFormValuesBasic,
   areReflectionFormValuesUnconfigured,
   createReflectionFormValues,
   fixupReflection,
   forceChangesForDatasetChange
-} from 'utils/accelerationUtils';
-import ApiUtils from 'utils/apiUtils/apiUtils';
+} from '@app/utils/accelerationUtils';
+import ApiUtils from '@app/utils/apiUtils/apiUtils';
 
 import Button from '../Buttons/Button';
 import Message from '../Message';
@@ -160,39 +160,38 @@ export class AccelerationForm extends Component {
 
   fetchRecommendations() {
     this.setState({waitingForRecommendations: true});
-    ApiUtils.fetch(`dataset/${encodeURIComponent(this.props.dataset.get('id'))}/reflection/recommendation`, {method: 'POST'}).then((response) => {
-      return response.json().then(({data: reflections}) => {
-        ReactDOM.unstable_batchedUpdates(() => {
-          if (!this.state.waitingForRecommendations || this.unmounted) return;
-          if (this.state.mode === 'ADVANCED' || !reflections.length || !reflections.some(r => r.type === 'AGGREGATION')) {
-            // protect - ensure we get at least one agg or if user switched to advanced mode
-            this.setState({ waitingForRecommendations: false });
-            return;
-          }
+    const endpoint = `dataset/${encodeURIComponent(this.props.dataset.get('id'))}/reflection/recommendation`;
 
-          const {aggregationReflections} = this.props.fields;
-          aggregationReflections.forEach(() => aggregationReflections.removeField());
+    return ApiUtils.fetchJson(endpoint, ({data: reflections}) => { //handle json with data
+      ReactDOM.unstable_batchedUpdates(() => {
+        if (!this.state.waitingForRecommendations || this.unmounted) return;
+        if (this.state.mode === 'ADVANCED' || !reflections.length || !reflections.some(r => r.type === 'AGGREGATION')) {
+          // protect - ensure we get at least one agg or if user switched to advanced mode
+          this.setState({waitingForRecommendations: false});
+          return;
+        }
 
-          for (const reflection of reflections) {
-            if (reflection.type !== 'AGGREGATION') continue;
-            // we want to disable recommendations
-            reflection.enabled = false;
-            const values = createReflectionFormValues(reflection);
-            this.suggestions[values.id] = values;
-            aggregationReflections.addField(values);
-          }
+        const {aggregationReflections} = this.props.fields;
+        aggregationReflections.forEach(() => aggregationReflections.removeField());
 
-          this.setState({ waitingForRecommendations: false });
-          this.updateInitialValues();
-        });
+        for (const reflection of reflections) {
+          if (reflection.type !== 'AGGREGATION') continue;
+          // we want to disable recommendations
+          reflection.enabled = false;
+          const values = createReflectionFormValues(reflection);
+          this.suggestions[values.id] = values;
+          aggregationReflections.addField(values);
+        }
+
+        this.setState({waitingForRecommendations: false});
+        this.updateInitialValues();
       });
-    }).catch((error) => {
+    }, error => {
       if (this.unmounted) return;
-
       // quietly treat recommendation failures as "no recommendations"
       console.error(error);
       this.setState({waitingForRecommendations: false});
-    });
+    }, {method: 'POST'});
   }
 
   skipRecommendations = () => {
@@ -361,7 +360,7 @@ export class AccelerationForm extends Component {
       let cleanup;
       if (!reflection.tag) { // new, unsaved, reflections have fake ids for tracking, but no tag
         delete reflection.id;
-        delete reflection.tag; // todo: need to do?
+        delete reflection.tag;
 
         promise = this.props.postReflection(reflection);
         cleanup = ({id, tag}) => {
@@ -376,8 +375,8 @@ export class AccelerationForm extends Component {
           });
         };
       } else {
-        promise = this.props.putReflection(reflection); // todo: assign tag
-        cleanup = ({id, tag}) => {
+        promise = this.props.putReflection(reflection);
+        cleanup = ({tag}) => {
           this.updateReflection(reflectionId, {tag}); // tag may have updated
         };
       }
@@ -411,7 +410,7 @@ export class AccelerationForm extends Component {
       });
     });
 
-    return Promise.all(promises).then((data) => {
+    return Promise.all(promises).then(() => {
       this.setState({saving: false});
       this.updateInitialValues();
 
@@ -420,7 +419,7 @@ export class AccelerationForm extends Component {
   };
 
   createSubmitErrorWrapper(reflectionSaveErrors, totalCount) {
-    reflectionSaveErrors = Immutable.Map(reflectionSaveErrors).map((message, reflectionId) => Immutable.fromJS({
+    reflectionSaveErrors = Immutable.Map(reflectionSaveErrors).map((message) => Immutable.fromJS({
       id: uuid.v4(),
       message
     }));
@@ -616,7 +615,7 @@ const styles = {
   }
 };
 
-function mapStateToProps(state, props) {
+function mapStateToProps(state) {
   return {
     location: state.routing.locationBeforeTransitions
   };

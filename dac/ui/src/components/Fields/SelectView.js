@@ -55,7 +55,7 @@ export class SelectView extends PureComponent {
 
   static defaultProps = {
     useLayerForClickAway: true
-  }
+  };
 
   state = {
     anchorEl: null
@@ -71,9 +71,9 @@ export class SelectView extends PureComponent {
       });
     }
     return nodeOrProps;
-  }
+  };
 
-  openDD = (e) => {
+  openDD = () => {
     const { beforeOpen, disabled } = this.props;
 
     if (disabled) {
@@ -85,7 +85,7 @@ export class SelectView extends PureComponent {
     this.setState({
       anchorEl: this.contentRef.current
     });
-  }
+  };
 
   closeDD = () => {
     if (this.props.beforeClose) {
@@ -94,9 +94,9 @@ export class SelectView extends PureComponent {
     this.setState({
       anchorEl: null
     });
-  }
+  };
 
-  isOpen = () => !this.props.disabled && Boolean(this.state.anchorEl)
+  isOpen = () => !this.props.disabled && Boolean(this.state.anchorEl);
 
   render() {
     const {

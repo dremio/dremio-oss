@@ -23,7 +23,7 @@ import java.util.List;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.catalog.SourceCatalog;
 import com.dremio.exec.planner.sql.parser.SqlRefreshSourceStatus;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
@@ -34,10 +34,10 @@ import com.dremio.service.namespace.SourceState;
 public class RefreshSourceStatusHandler extends SimpleDirectHandler {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ForgetTableHandler.class);
 
-  private final Catalog catalog;
+  private final SourceCatalog sourceCatalog;
 
-  public RefreshSourceStatusHandler(Catalog catalog) {
-    this.catalog = catalog;
+  public RefreshSourceStatusHandler(SourceCatalog sourceCatalog) {
+    this.sourceCatalog = sourceCatalog;
   }
 
   @Override
@@ -52,7 +52,7 @@ public class RefreshSourceStatusHandler extends SimpleDirectHandler {
 
     final String source = sqlRefreshSourceStatus.getSource().toString();
 
-    SourceState sourceState = catalog.refreshSourceStatus(path);
+    SourceState sourceState = sourceCatalog.refreshSourceStatus(path);
     SourceState.SourceStatus sourceStatus = sourceState.getStatus();
 
     final String state = " New status is: " + sourceState.toString();

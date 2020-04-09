@@ -15,7 +15,6 @@
  */
 package com.dremio.provision.service;
 
-import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,6 +27,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import javax.annotation.Nullable;
 import javax.inject.Provider;
@@ -39,13 +39,13 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.nodes.NodeProvider;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.ProtostuffSerializer;
-import com.dremio.datastore.Serializer;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
 import com.dremio.datastore.VersionExtractor;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.api.LegacyStoreCreationFunction;
+import com.dremio.datastore.format.Format;
+import com.dremio.edition.EditionProvider;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.options.OptionManager;
 import com.dremio.provision.AwsProps;
@@ -86,23 +86,25 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
   private final Map<ClusterType, ProvisioningServiceDelegate> concreteServices = Maps.newHashMap();
   private final NodeProvider executionNodeProvider;
   private final ScanResult classpathScan;
-  private final Provider<KVStoreProvider> kvStoreProvider;
+  private final Provider<LegacyKVStoreProvider> kvStoreProvider;
   private final Provider<OptionManager> optionProvider;
+  private final Provider<EditionProvider> editionProvider;
   private final CloseableThreadPool pool = new CloseableThreadPool("start-executor");
 
-  private KVStore<ClusterId, Cluster> store;
+  private LegacyKVStore<ClusterId, Cluster> store;
 
   public ProvisioningServiceImpl(
-      final DremioConfig config,
-      final Provider<KVStoreProvider> storeProvider,
-      final NodeProvider executionNodeProvider,
-      ScanResult classpathScan,
-      Provider<OptionManager> optionProvider) {
+    final DremioConfig config,
+    final Provider<LegacyKVStoreProvider> storeProvider,
+    final NodeProvider executionNodeProvider,
+    ScanResult classpathScan,
+    Provider<OptionManager> optionProvider, Provider<EditionProvider> editionProvider) {
     this.dremioConfig = config;
     this.kvStoreProvider = Preconditions.checkNotNull(storeProvider, "store provider is required");
     this.executionNodeProvider = executionNodeProvider;
     this.classpathScan = classpathScan;
     this.optionProvider = optionProvider;
+    this.editionProvider = editionProvider;
   }
 
   @Override
@@ -114,29 +116,53 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     for (Class<? extends ProvisioningServiceDelegate> provisioningServiceClass : serviceClasses) {
       try {
         Constructor<? extends ProvisioningServiceDelegate> ctor =
-          provisioningServiceClass.getConstructor(DremioConfig.class, ProvisioningStateListener.class, NodeProvider.class, OptionManager.class);
-        ProvisioningServiceDelegate provisioningService = ctor.newInstance(dremioConfig, this, executionNodeProvider, optionProvider.get());
+          provisioningServiceClass.getConstructor(DremioConfig.class, ProvisioningStateListener.class, NodeProvider.class, OptionManager.class,
+            EditionProvider.class);
+        ProvisioningServiceDelegate provisioningService = ctor.newInstance(dremioConfig, this, executionNodeProvider, optionProvider.get(),
+          editionProvider.get());
         provisioningService.start();
         concreteServices.put(provisioningService.getType(), provisioningService);
+        ClusterConfig defaultClusterConfig = provisioningService.defaultCluster();
+        if (defaultClusterConfig != null && !exists(defaultClusterConfig.getName())) {
+          Cluster cluster = initializeCluster(defaultClusterConfig);
+          //set desired state to STOPPED to avoid starting the cluster automatically
+          cluster.setDesiredState(ClusterState.STOPPED);
+          store.put(cluster.getId(), cluster);
+          stopCluster(cluster.getId());
+        }
       } catch (InstantiationException e) {
         logger.error("Unable to create instance of % class", provisioningServiceClass.getName(), e);
       } catch (IllegalAccessException e) {
         logger.error("Unable to create instance of % class", provisioningServiceClass.getName(), e);
       }
     }
+
+    syncClusters();
+  }
+
+  private void syncClusters() {
+    for (Map.Entry<ClusterId, Cluster> entry : store.find()) {
+      final Cluster cluster = entry.getValue();
+      concreteServices.get(cluster.getClusterConfig().getClusterType()).syncCluster(cluster);
+      store.put(entry.getKey(), cluster);
+    }
+  }
+
+  private boolean exists(String name) {
+    return StreamSupport.stream(store.find().spliterator(), false).anyMatch(e -> name.equals(e.getValue().getClusterConfig().getName()));
   }
 
   /**
    * Cluster Store creator
    */
-  public static class ProvisioningStoreCreator implements StoreCreationFunction<KVStore<ClusterId, Cluster>> {
+  public static class ProvisioningStoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<ClusterId, Cluster>> {
 
     @Override
-    public KVStore<ClusterId, Cluster> build(StoreBuildingFactory factory) {
+    public LegacyKVStore<ClusterId, Cluster> build(LegacyStoreBuildingFactory factory) {
       return factory.<ClusterId, Cluster>newStore()
         .name(TABLE_NAME)
-        .keySerializer(ClusterIdSerializer.class)
-        .valueSerializer(ClusterSerializer.class)
+        .keyFormat(Format.ofProtostuff(ClusterId.class))
+        .valueFormat(Format.ofProtostuff(Cluster.class))
         .versionExtractor(ClusterVersion.class)
         .build();
     }
@@ -157,14 +183,8 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
         MIN_MEMORY_REQUIRED_MB + "MB");
     }
 
-    ClusterId clusterId = newRandomClusterId();
-    Cluster cluster = new Cluster();
-    cluster.setId(clusterId);
-    cluster.setState(ClusterState.CREATED);
-    cluster.setDesiredState(ClusterState.RUNNING);
-    cluster.setClusterConfig(clusterConfig);
-
-    store.put(clusterId, cluster);
+    Cluster cluster = initializeCluster(clusterConfig);
+    ClusterId clusterId = cluster.getId();
 
     try {
       return startCluster(clusterId);
@@ -172,6 +192,25 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
       store.delete(clusterId);
       throw e;
     }
+  }
+
+  private Cluster initializeCluster(ClusterConfig clusterConfig) {
+    ClusterId clusterId = newRandomClusterId();
+    Cluster cluster = new Cluster();
+    cluster.setId(clusterId);
+    cluster.setState(ClusterState.CREATED);
+    cluster.setDesiredState(ClusterState.RUNNING);
+    cluster.setClusterConfig(clusterConfig);
+    store.put(clusterId, cluster);
+    return cluster;
+  }
+
+  @Override
+  public void updateCluster(ClusterId clusterId) {
+    Cluster cluster = store.get(clusterId);
+    long ts = System.currentTimeMillis();
+    logger.debug("update cluster idle time at ts: {}", ts);
+    store.put(clusterId, cluster.setIdleTime(ts));
   }
 
   @Override
@@ -311,12 +350,12 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     } else {
       long ts = System.currentTimeMillis();
       logger.debug("Starting cluster. ts: {}", ts);
-      store.put(clusterId, cluster.setStartTime(ts));
+      store.put(clusterId, cluster.setStartTime(ts).setIdleTime(ts));
       updatedCluster = service.startCluster(cluster);
     }
     long ts = System.currentTimeMillis();
     logger.debug("Started cluster. ts: {}", ts);
-    store.put(clusterId, updatedCluster.getCluster().setStartTime(ts));
+    store.put(clusterId, updatedCluster.getCluster().setStartTime(ts).setIdleTime(ts));
     return updatedCluster;
   }
 
@@ -468,6 +507,7 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     final ClusterConfig clusterConfig = new ClusterConfig();
     clusterConfig.setAllowAutoStart(request.getAllowAutoStart());
     clusterConfig.setAllowAutoStop(request.getAllowAutoStop());
+    clusterConfig.setShutdownInterval(request.getShutdownInterval());
     clusterConfig.setTag(request.getTag());
     if (storedCluster.getClusterConfig().getName() != null) {
       clusterConfig.setName(Optional.fromNullable(request.getName()).or(
@@ -588,30 +628,25 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     pool.submit(() -> {
       try {
         Cluster cluster = initialCluster;
-        if(cluster.getState() == desiredState) {
-          return;
-        }
+
         Boolean autoStart = cluster.getClusterConfig().getAllowAutoStart();
         if(desiredState == ClusterState.RUNNING && (autoStart == null || !autoStart)) {
           throw new ActionDisallowed();
         }
 
-        Boolean autoStop = cluster.getClusterConfig().getAllowAutoStart();
+        Boolean autoStop = cluster.getClusterConfig().getAllowAutoStop();
         if(desiredState == ClusterState.STOPPED && (autoStop == null || !autoStop) ) {
           throw new ActionDisallowed();
         }
 
         ClusterId id = cluster.getId();
-        if (shouldModifyCluster(cluster.getState(), desiredState)) {
-          logger.info("Applying action {} on cluster '{}'.", desiredState.name(), name);
-          try {
-            modifyCluster(id, desiredState, cluster.getClusterConfig());
-          } catch (ConcurrentModificationException ex) {
-            // could happen if multiple queries try to start the same cluster at the same time. Shouldn't cause us to fail.
-            logger.debug("Autostart failed due to concurrent modification of cluster. Monitoring for desired state anyway.", ex);
-          }
-        } else {
-          logger.debug("Cluster {} already {}", cluster.getClusterConfig().getName(), cluster.getState());
+
+        logger.info("Applying action {} on cluster '{}'.", desiredState.name(), name);
+        try {
+          modifyCluster(id, desiredState, cluster.getClusterConfig());
+        } catch (ConcurrentModificationException ex) {
+          // could happen if multiple queries try to start the same cluster at the same time. Shouldn't cause us to fail.
+          logger.debug("Autostart failed due to concurrent modification of cluster. Monitoring for desired state anyway.", ex);
         }
         int i = 0;
         while(i < 3600) {
@@ -635,19 +670,6 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
       }
     });
     return future;
-  }
-
-  private boolean shouldModifyCluster(ClusterState state, ClusterState desiredState) {
-    switch(state) {
-    case RUNNING:
-    case STARTING:
-      return ClusterState.STOPPED == desiredState;
-    case STOPPED:
-    case STOPPING:
-      return ClusterState.RUNNING == desiredState;
-    default:
-      return true;
-    }
   }
 
   @Override
@@ -683,9 +705,14 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
       throw new IllegalStateException("Cluster in the process of deletion. No modification is allowed");
     }
 
-    if (ClusterState.STOPPING == storedCluster.getState() || ClusterState.STARTING == storedCluster.getState()) {
-      throw new IllegalStateException("Cluster in the process of stopping/restarting. No modification is " +
-        "allowed");
+    if (ClusterState.STARTING == storedCluster.getState()
+    && ClusterState.RUNNING == modifiedCluster.getState()) {
+      return Action.NONE;
+    }
+
+    if((ClusterType.YARN == modifiedCluster.getClusterConfig().getClusterType()) &&
+      (ClusterState.STOPPING == storedCluster.getState())) {
+      throw new IllegalStateException("YARN Cluster in the process of stopping. No modification is allowed");
     }
 
     if (Objects.equal(storedCluster,modifiedCluster)) {
@@ -772,55 +799,6 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
     return concreteServices;
   }
 
-  private static final class ClusterSerializer extends Serializer<Cluster> {
-    private final Serializer<Cluster> serializer = ProtostuffSerializer.of(Cluster.getSchema());
-
-    @Override
-    public byte[] convert(final Cluster v) {
-      return serializer.convert(v);
-    }
-
-    @Override
-    public Cluster revert(final byte[] data) {
-      return serializer.revert(data);
-    }
-
-    @Override
-    public String toJson(final Cluster v) throws IOException {
-      return serializer.toJson(v);
-    }
-
-    @Override
-    public Cluster fromJson(final String v) throws IOException {
-      return serializer.fromJson(v);
-    }
-  }
-
-  private static final class ClusterIdSerializer extends Serializer<ClusterId> {
-    private final Serializer<ClusterId> serializer = ProtostuffSerializer.of(ClusterId.getSchema());
-
-    @Override
-    public byte[] convert(final ClusterId id) {
-      return serializer.convert(id);
-    }
-
-    @Override
-    public ClusterId revert(final byte[] data) {
-      return serializer.revert(data);
-    }
-
-    @Override
-    public String toJson(final ClusterId v) throws IOException {
-      return serializer.toJson(v);
-    }
-
-    @Override
-    public ClusterId fromJson(final String v) throws IOException {
-      return serializer.fromJson(v);
-    }
-
-  }
-
   private static final class ClusterVersion implements VersionExtractor<Cluster> {
 
     @Override
@@ -860,7 +838,6 @@ public class ProvisioningServiceImpl implements ProvisioningService, Provisionin
         continue;
       }
       if(cluster.getState() == ClusterState.RUNNING) {
-        // TODO: Check if the cluster can be stopped.
         logger.debug("Adding {} to be stopped", c.getKey());
         ids.add(c.getKey());
       }

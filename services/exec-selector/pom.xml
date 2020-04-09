@@ -21,7 +21,7 @@
   <parent>
     <artifactId>dremio-services-parent</artifactId>
     <groupId>com.dremio.services</groupId>
-    <version>4.1.8-202003120636020140-9c2a6b13</version>
+    <version>4.2.0-202004091958060824-8f7e141d</version>
   </parent>
 
   <artifactId>dremio-services-execselector</artifactId>
@@ -48,11 +48,6 @@
       <groupId>com.dremio.provision</groupId>
       <artifactId>dremio-provision-common</artifactId>
     </dependency>
-    <dependency>
-      <groupId>com.google.errorprone</groupId>
-      <artifactId>error_prone_annotations</artifactId>
-      <version>2.3.3</version>
-      <scope>compile</scope>
-    </dependency>
   </dependencies>
+
 </project>

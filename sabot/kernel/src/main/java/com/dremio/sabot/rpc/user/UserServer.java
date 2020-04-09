@@ -16,33 +16,42 @@
 package com.dremio.sabot.rpc.user;
 
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.config.SabotConfig;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.client.DremioClient;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.EventLoopCloseable;
 import com.dremio.exec.rpc.TransportCheck;
-import com.dremio.exec.server.BootStrapContext;
-import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.work.protector.UserWorker;
 import com.dremio.service.Service;
+import com.dremio.service.users.UserService;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.base.Preconditions;
 
 import io.netty.channel.EventLoopGroup;
+import io.opentracing.Tracer;
 
 /**
  * Manages the lifecycle of a {@link UserRPCServer}, which allows for communication with non-web clients.
  */
 public class UserServer implements Service {
 
-  private final BootStrapContext context;
+  private final DremioConfig config;
+  private final Provider<ExecutorService> executorService;
+  private final Provider<BufferAllocator> bufferAllocator;
+  private final Provider<UserService> userServiceProvider;
+  private final Provider<NodeEndpoint> nodeEndpointProvider;
   private final Provider<UserWorker> worker;
   private final boolean allowPortHunting;
-  private final Provider<SabotContext> dbContext;
+  protected final Tracer tracer;
 
   private EventLoopCloseable eventLoopCloseable;
   private BufferAllocator allocator;
@@ -51,15 +60,23 @@ public class UserServer implements Service {
   private volatile int port = -1;
 
   public UserServer(
-      BootStrapContext context,
-      Provider<SabotContext> dbContext,
-      Provider<UserWorker> worker,
-      boolean allowPortHunting
+    DremioConfig config,
+    Provider<ExecutorService> executorService,
+    Provider<BufferAllocator> bufferAllocator,
+    Provider<UserService> userServiceProvider,
+    Provider<NodeEndpoint> nodeEndpointProvider,
+    Provider<UserWorker> worker,
+    boolean allowPortHunting,
+    Tracer tracer
   ) {
-    this.context = context;
+    this.config = config;
+    this.executorService = executorService;
+    this.bufferAllocator = bufferAllocator;
+    this.userServiceProvider = userServiceProvider;
+    this.nodeEndpointProvider = nodeEndpointProvider;
     this.worker = worker;
     this.allowPortHunting = allowPortHunting;
-    this.dbContext = dbContext;
+    this.tracer = tracer;
   }
 
   public int getPort() {
@@ -69,21 +86,22 @@ public class UserServer implements Service {
 
   @Override
   public void start() throws Exception {
-    allocator = context.getAllocator()
+    final SabotConfig sabotConfig = config.getSabotConfig();
+    allocator = bufferAllocator.get()
         .newChildAllocator(
             "rpc:user",
-            context.getConfig().getLong("dremio.exec.rpc.user.server.memory.reservation"),
-            context.getConfig().getLong("dremio.exec.rpc.user.server.memory.maximum"));
+            sabotConfig.getLong("dremio.exec.rpc.user.server.memory.reservation"),
+          sabotConfig.getLong("dremio.exec.rpc.user.server.memory.maximum"));
 
     final EventLoopGroup eventLoopGroup = TransportCheck
-        .createEventLoopGroup(context.getConfig().getInt(ExecConstants.USER_SERVER_RPC_THREADS), "UserServer-");
+        .createEventLoopGroup(sabotConfig.getInt(ExecConstants.USER_SERVER_RPC_THREADS), "UserServer-");
     eventLoopCloseable = new EventLoopCloseable(eventLoopGroup);
 
     server = newUserRPCServer(eventLoopGroup);
 
     Metrics.newGauge("rpc.user.current", allocator::getAllocatedMemory);
     Metrics.newGauge("rpc.user.peak", allocator::getPeakMemoryAllocation);
-    int initialPort = context.getConfig().getInt(ExecConstants.INITIAL_USER_PORT);
+    int initialPort = sabotConfig.getInt(DremioClient.INITIAL_USER_PORT);
     if(allowPortHunting){
       initialPort += 333;
     }
@@ -97,25 +115,29 @@ public class UserServer implements Service {
   }
 
   protected UserRPCServer newUserRPCServer(EventLoopGroup eventLoopGroup) throws Exception {
+    final SabotConfig sabotConfig = config.getSabotConfig();
+
     return new UserRPCServer(
-        UserRpcConfig.getMapping(context.getConfig(), context.getExecutor(), Optional.empty()),
-        getDbContext(),
+        UserRpcConfig.getMapping(sabotConfig, executorService.get(), Optional.empty()),
+        userServiceProvider,
+        nodeEndpointProvider,
         getWorker(),
         getAllocator(),
         eventLoopGroup,
-        null);
+        null,
+        tracer);
   }
 
-  protected BootStrapContext getContext() {
-    return context;
+  protected Provider<UserService> getUserServiceProvider() {
+    return userServiceProvider;
+  }
+
+  protected Provider<NodeEndpoint> getNodeEndpointProvider() {
+    return nodeEndpointProvider;
   }
 
   protected Provider<UserWorker> getWorker() {
     return worker;
-  }
-
-  protected Provider<SabotContext> getDbContext() {
-    return dbContext;
   }
 
   protected BufferAllocator getAllocator() {

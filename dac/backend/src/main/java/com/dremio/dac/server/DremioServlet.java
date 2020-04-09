@@ -31,6 +31,7 @@ import org.eclipse.jetty.servlet.DefaultServlet;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 
+import com.dremio.common.util.DremioEdition;
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.ServerHealthMonitor;
@@ -135,7 +136,8 @@ public class DremioServlet implements Servlet {
       .setTdsMimeType(options.getOption(UIOptions.TABLEAU_TDS_MIMETYPE))
       .setWhiteLabelUrl(options.getOption(UIOptions.WHITE_LABEL_URL))
       .setClusterId(supportService.get().getClusterId().getIdentity())
-      .setVersionInfo(getVersionInfo());
+      .setVersionInfo(getVersionInfo())
+      .setEdition(DremioEdition.getAsString());
   }
 
   protected Provider<SupportService> getSupportService() {

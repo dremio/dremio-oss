@@ -15,8 +15,6 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2 } from '@app/constants/Api';
-
 import fileSchema from 'schemas/file';
 import fileFormatSchema from 'schemas/fileFormat';
 
@@ -24,6 +22,7 @@ import schemaUtils from 'utils/apiUtils/schemaUtils';
 import addFileModalMapper from 'utils/mappers/addFileModalMapper';
 import apiUtils from '@app/utils/apiUtils/apiUtils';
 import { getHomeEntity } from '@app/selectors/home';
+import { APIV2Call } from '@app/core/APICall';
 
 export const UPLOAD_FILE_REQUEST = 'UPLOAD_FILE_REQUEST';
 export const UPLOAD_FILE_SUCCESS = 'UPLOAD_FILE_SUCCESS';
@@ -40,6 +39,11 @@ export const uploadFileToPath = (file, fileConfig, extension, viewId) => (dispat
   formData.append('fileName', uploadFileName);
   const parentPath = parentEntity.getIn(['links', 'upload_start']);
   const meta = {viewId};
+
+  const apiCall = new APIV2Call()
+    .paths(parentPath)
+    .params({extension});
+
   return dispatch({
     isFileUpload: true, // see headerMiddleware.js
     [RSAA]: {
@@ -50,7 +54,7 @@ export const uploadFileToPath = (file, fileConfig, extension, viewId) => (dispat
       ],
       method: 'POST',
       body: formData,
-      endpoint: `${API_URL_V2}${parentPath}/?extension=${extension}`
+      endpoint: apiCall
     }
   });
 };
@@ -61,6 +65,9 @@ export const FILE_FORMAT_PREVIEW_FAILURE = 'FILE_FORMAT_PREVIEW_FAILURE';
 
 export function loadFilePreview(urlPath, values, viewId) {
   const meta = {viewId};
+
+  const apiCall = new APIV2Call().paths(urlPath);
+
   return {
     [RSAA]: {
       types: [
@@ -74,7 +81,7 @@ export function loadFilePreview(urlPath, values, viewId) {
         'Content-Type': 'application/json',
         ...apiUtils.getJobDataNumbersAsStringsHeader()
       },
-      endpoint: `${API_URL_V2}${urlPath}`
+      endpoint: apiCall
     }
   };
 }
@@ -104,13 +111,16 @@ export function loadFileFormat(formatUrl, viewId) {
   const nonAbortableMeta = {...meta, abortInfo};
   // if AbortController is supported by browser/polyfill, then use it in meta and add options signal to fetch
   const abortableMeta = { ...meta, abortInfo: {...abortInfo, abortController}};
+
+  const apiCall = new APIV2Call().paths(formatUrl);
+
   const rsaa = {
     types: [
       {type: FILE_FORMAT_LOAD_REQUEST, meta: abortableMeta},
       schemaUtils.getSuccessActionTypeWithSchema(FILE_FORMAT_LOAD_SUCCESS, fileFormatSchema, nonAbortableMeta),
       {type: FILE_FORMAT_LOAD_FAILURE, meta: nonAbortableMeta}],
     method: 'GET',
-    endpoint: `${API_URL_V2}${formatUrl}`
+    endpoint: apiCall
   };
   if (abortController) {
     rsaa.options = {signal: abortController.signal};
@@ -133,6 +143,8 @@ export function saveFileFormat(resourcePath, values, viewId) {
   const abortInfo = apiUtils.getAbortInfo(loadAndSaveGroupName);
   const nonAbortableMeta = {...meta, abortInfo};
 
+  const apiCall = new APIV2Call().paths(resourcePath);
+
   return {
     [RSAA]: {
       types: [
@@ -143,7 +155,7 @@ export function saveFileFormat(resourcePath, values, viewId) {
       method: 'PUT',
       body: addFileModalMapper.unescapeFilePayload(values),
       headers: {'Content-Type': 'application/json'},
-      endpoint: `${API_URL_V2}${resourcePath}`
+      endpoint: apiCall
     }
   };
 }
@@ -159,6 +171,9 @@ function postUploadFinish(file, values, viewId) {
     viewId,
     invalidateViewIds: ['HomeContents']
   };
+
+  const apiCall = new APIV2Call().fullpath(resourcePath);
+
   return {
     [RSAA]: {
       types: [
@@ -169,7 +184,7 @@ function postUploadFinish(file, values, viewId) {
       method: 'POST',
       body: addFileModalMapper.unescapeFilePayload(values),
       headers: {'Content-Type': 'application/json'},
-      endpoint: `${API_URL_V2}${resourcePath}`
+      endpoint: apiCall
     }
   };
 }
@@ -186,6 +201,9 @@ export const UPLOAD_CANCEL_FAILURE = 'UPLOAD_CANCEL_FAILURE';
 
 function postUploadCancel(file) {
   const resourcePath = file.getIn(['links', 'upload_cancel']);
+
+  const apiCall = new APIV2Call().fullpath(resourcePath);
+
   return {
     [RSAA]: {
       types: [
@@ -196,7 +214,7 @@ function postUploadCancel(file) {
       method: 'POST',
       body: addFileModalMapper.unescapeFilePayload(file.get('fileFormat').toJS()),
       headers: {'Content-Type': 'application/json'},
-      endpoint: `${API_URL_V2}${resourcePath}`
+      endpoint: apiCall
     }
   };
 }

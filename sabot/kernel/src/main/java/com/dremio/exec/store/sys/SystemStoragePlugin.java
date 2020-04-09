@@ -22,7 +22,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.dremio.common.utils.SqlUtils;
+import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.metadata.BytesOutput;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetHandleListing;
@@ -37,8 +37,7 @@ import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.planner.logical.ViewTable;
-import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.server.JobResultSchemaProvider;
+import com.dremio.exec.server.JobResultInfoProvider;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
@@ -66,7 +65,7 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
 
   private final SabotContext context;
   private final Predicate<String> userPredicate;
-  private final JobResultSchemaProvider schemaProvider;
+  private final JobResultInfoProvider jobResultInfoProvider;
 
   SystemStoragePlugin(SabotContext context, String name) {
     this(context, name, s -> true);
@@ -76,7 +75,7 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
     Preconditions.checkArgument("sys".equals(name));
     this.context = context;
     this.userPredicate = userPredicate;
-    this.schemaProvider = context.getJobResultSchemaProvider();
+    this.jobResultInfoProvider = context.getJobResultInfoProvider();
   }
 
   SabotContext getSabotContext() {
@@ -101,18 +100,19 @@ public class SystemStoragePlugin implements StoragePlugin, SupportsReadSignature
     }
 
     final String jobId = Iterables.getLast(tableSchemaPath);
-    final Optional<BatchSchema> batchSchema = schemaProvider.getResultSchema(jobId, schemaConfig.getUserName());
+    final Optional<JobResultInfoProvider.JobResultInfo> jobResultInfo =
+      jobResultInfoProvider.getJobResultInfo(jobId, schemaConfig.getUserName());
 
-    return batchSchema.map(schema -> {
-      final View view = Views.fieldTypesToView(jobId, getJobResultsQuery(jobId),
-          ViewFieldsHelper.getBatchSchemaFields(schema), null);
+    return jobResultInfo.map(info -> {
+      final View view = Views.fieldTypesToView(jobId, getJobResultsQuery(info.getResultDatasetPath()),
+        ViewFieldsHelper.getBatchSchemaFields(info.getBatchSchema()), null);
 
-      return new ViewTable(new NamespaceKey(tableSchemaPath), view, SystemUser.SYSTEM_USERNAME, schema);
+      return new ViewTable(new NamespaceKey(tableSchemaPath), view, SystemUser.SYSTEM_USERNAME, info.getBatchSchema());
     }).orElse(null);
   }
 
-  private static String getJobResultsQuery(String jobId) {
-    return String.format("SELECT * FROM %s.%s", JOBS_STORAGE_PLUGIN_NAME, SqlUtils.quoteIdentifier(jobId));
+  private static String getJobResultsQuery(List<String> resultDatasetPath) {
+    return String.format("SELECT * FROM %s", PathUtils.constructFullPath(resultDatasetPath));
   }
 
   @Override

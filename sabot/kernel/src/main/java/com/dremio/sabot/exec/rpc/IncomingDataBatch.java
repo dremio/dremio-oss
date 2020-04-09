@@ -16,6 +16,7 @@
 package com.dremio.sabot.exec.rpc;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 
 import com.dremio.common.memory.AllocatorUtil;
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
@@ -87,6 +88,6 @@ public class IncomingDataBatch {
       return 0;
     }
 
-    return body.getPossibleMemoryConsumed();
+    return LargeMemoryUtil.checkedCastToInt(body.getPossibleMemoryConsumed());
   }
 }

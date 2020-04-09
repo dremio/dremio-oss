@@ -25,9 +25,9 @@ import java.util.UUID;
 import org.junit.Test;
 
 import com.dremio.common.config.LogicalPlanPersistence;
-import com.dremio.datastore.KVStore;
-import com.dremio.datastore.KVStoreProvider;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.conf.AWSAuthenticationType;
 import com.dremio.exec.catalog.conf.ConnectionConf;
@@ -67,9 +67,10 @@ public class TestUpdateS3CredentialType extends DremioTest {
   }
 
   private void checkUpdateHelper(S3PluginConfig s3OldPluginConfig, AWSAuthenticationType authenticationType) throws Exception {
-    try (final KVStoreProvider kvStoreProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false)) {
+    try (final LegacyKVStoreProvider kvStoreProvider =
+      new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false).asLegacy()) {
       kvStoreProvider.start();
-      KVStore<byte[], NameSpaceContainer> namespace = kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
+      LegacyKVStore<String, NameSpaceContainer> namespace = kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
       newS3Source(namespace, "s3 plugin config", s3OldPluginConfig);
       // Performing upgrade
       UpdateS3CredentialType task = new UpdateS3CredentialType();
@@ -90,7 +91,7 @@ public class TestUpdateS3CredentialType extends DremioTest {
     }
   }
 
-  private void newS3Source(KVStore<byte[], NameSpaceContainer> namespace, String path, S3PluginConfig s3PluginConfig) {
+  private void newS3Source(LegacyKVStore<String, NameSpaceContainer> namespace, String path, S3PluginConfig s3PluginConfig) {
     final List<String> fullPathList = Arrays.asList(path);
 
     final SourceConfig config = new SourceConfig()

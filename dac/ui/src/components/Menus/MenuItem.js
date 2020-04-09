@@ -55,7 +55,7 @@ export default class MenuItem extends Component {
     }
   };
 
-  delayedCloseTimer = null
+  delayedCloseTimer = null;
 
   shouldClose(evt) {
     const enteredElement = evt.relatedTarget;
@@ -70,25 +70,25 @@ export default class MenuItem extends Component {
   handleMouseOver = () => {
     this.handleRequestOpen();
     clearTimeout(this.delayedCloseTimer);
-  }
+  };
 
   handleMouseLeave = (evt) => {
     if (this.shouldClose(evt)) {
       this.delayedCloseTimer = setTimeout(this.handleRequestClose, CLOSE_SUBMENU_DELAY);
     }
-  }
+  };
 
   handleRequestOpen = () => {
     this.setState({
       open: true
     });
-  }
+  };
 
   handleRequestClose = () => {
     this.setState({
       open: false
     });
-  }
+  };
 
   render() {
     const { menuItems, rightIcon, onClick, disabled, selected, isInformational, style } = this.props;
@@ -143,7 +143,7 @@ export default class MenuItem extends Component {
 
 const styles = {
   resetStyle: {
-    minHeight: 25,
+    minHeight: 24,
     padding: 0,
     margin: 0
   },

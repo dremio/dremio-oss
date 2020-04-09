@@ -71,6 +71,8 @@ public class DremioConfig extends NestedConfig {
   public static final String KERBEROS_PRINCIPAL = "services.kerberos.principal";
   public static final String KERBEROS_KEYTAB_PATH = "services.kerberos.keytab.file.path";
 
+  public static final String JOBS_ENABLED_BOOL = "services.jobs.enabled";
+
   /**
    * Path where ui config is located
    */
@@ -79,7 +81,8 @@ public class DremioConfig extends NestedConfig {
   /**
    * Config values related to plugins
    */
-  public static final String PLUGINS_ROOT_PATH_PROPERTY = "dremio.plugins.path";;
+  public static final String PLUGINS_ROOT_PATH_PROPERTY = "dremio.plugins.path";
+  public static final String LEGACY_STORE_VIEWS_ENABLED = "legacy.dremio.store.views.enabled";
 
   public static final String CLIENT_PORT_INT = "services.coordinator.client-endpoint.port";
   public static final String SERVER_PORT_INT = "services.fabric.port";
@@ -97,6 +100,9 @@ public class DremioConfig extends NestedConfig {
 
   public static final String ZOOKEEPER_QUORUM = "zookeeper";
   public static final String ZK_CLIENT_SESSION_TIMEOUT = "zk.client.session.timeout";
+  public static final String ZK_CLIENT_RETRY_UNLIMITED = "zk.client.retry.unlimited";
+  public static final String ZK_CLIENT_RETRY_LIMIT = "zk.client.retry.limit";
+  public static final String ZK_CLIENT_INITIAL_TIMEOUT_MS = "zk.client.retry.initial_timeout_ms";
 
   // Provisioning options
   public static final String YARN_ENABLED_BOOL = "provisioning.yarn.enabled";
@@ -104,6 +110,7 @@ public class DremioConfig extends NestedConfig {
   public static final String YARN_CLASSPATH = "provisioning.yarn.classpath";
   public static final String YARN_APP_CLASSPATH = "provisioning.yarn.app.classpath";
   public static final String YARN_APP_CLASSPATH_PREFIX = "provisioning.yarn.app.classpath-prefix";
+  public static final String EC2_EFS_FSID = "provisioning.ec2.efs.fsid";
 
   /**
    * Path where debug options are located

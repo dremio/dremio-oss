@@ -185,7 +185,7 @@ export class QlikStateModal extends Component {
 
   retry = () => {
     this.props.openQlikSense(this.props.qlikShowDialogDataset);
-  }
+  };
 
   hide = () => {
     this.props.hideQlikModal();
@@ -193,7 +193,7 @@ export class QlikStateModal extends Component {
     if (this.props.hide) {
       this.props.hide();
     }
-  }
+  };
 
   render() {
     const { qlikDialogVisible, intl } = this.props;
@@ -212,7 +212,7 @@ export class QlikStateModal extends Component {
   }
 }
 
-function mapStateToProps(state, props) {
+function mapStateToProps(state) {
   const data = getExploreState(state);
   const ui = data ? data.ui : new Immutable.Map(); //todo explore page state should not be here
   return {

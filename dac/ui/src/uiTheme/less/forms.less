@@ -17,11 +17,11 @@
 @import "~@app/uiTheme/less/color-schema.less";
 
 .title {
-  composes: form-label from '@app/uiTheme/less/typography.less';
+  composes: form-label from '~@app/uiTheme/less/typography.less';
 }
 
 .form-body {
-  composes: horizontal-content-padding from '@app/uiTheme/less/layout.less';
+  composes: horizontal-content-padding from '~@app/uiTheme/less/layout.less';
   padding-top: 20px;
   padding-bottom: 20px;
 }
@@ -60,7 +60,7 @@
 
 .section-title {
   composes: title;
-  composes: section-margin from '@app/uiTheme/less/layout.less';
+  composes: section-margin from '~@app/uiTheme/less/layout.less';
 }
 
 .input-for-radio {
@@ -72,7 +72,7 @@
   margin-top: @row-content-margin;
 }
 
-.stacked-container {  
+.stacked-container {
   > *:not(:first-child) {
     .row-margin;
   }
@@ -84,7 +84,7 @@
 }
 
 .text-input {
-  composes: form-default form-placeholder from '@app/uiTheme/less/typography.less';
+  composes: form-default form-placeholder from '~@app/uiTheme/less/typography.less';
   padding-left: 5px;
   border: 1px solid rgba(0,0,0,0.1);
   border-radius: 2px;
@@ -130,7 +130,7 @@
   margin-bottom: 6px;
 }
 
-.table-row-element-margin { // it is padding for table like view. See 
+.table-row-element-margin { // it is padding for table like view. See
   margin-left: @row-content-margin;
 }
 
@@ -148,7 +148,7 @@
 }
 
 .view-state-wrapper {
-  composes: flex-column-container from '@app/uiTheme/less/layout.less';
+  composes: flex-column-container from '~@app/uiTheme/less/layout.less';
   overflow: hidden;
 }
 

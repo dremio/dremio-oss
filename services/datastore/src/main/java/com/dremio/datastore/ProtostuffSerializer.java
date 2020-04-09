@@ -28,7 +28,7 @@ import io.protostuff.Schema;
  * a Serializer implementation for protostuff generated classes
  * @param <T> a protostuff generated class
  */
-public class ProtostuffSerializer<T extends Message<T>> extends Serializer<T> {
+public class ProtostuffSerializer<T extends Message> extends Serializer<T, byte[]> {
 
   private Schema<T> schema;
 

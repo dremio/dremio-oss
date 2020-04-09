@@ -50,7 +50,7 @@ export const INIT_VALUES = {};
  *
  * @type {Array}
  */
-export const PROVISION_MANAGERS = [ // todo: loc
+const provisionManagersList = [ // todo: loc
   {
     clusterType: 'YARN',
     label: 'YARN',
@@ -91,7 +91,7 @@ export const PROVISION_MANAGERS = [ // todo: loc
   // },
   // {
   //   clusterType: 'EC2',
-  //   label: 'AWS Cluster',
+  //   label: 'AWS Engine',
   //   iconType: 'Amazon',
   //   connected: true
   // }
@@ -108,3 +108,6 @@ export const PROVISION_MANAGERS = [ // todo: loc
   //   connected: false
   // }
 ];
+
+export const PROVISION_MANAGERS = provisionManagersList;
+

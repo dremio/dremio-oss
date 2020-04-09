@@ -15,17 +15,17 @@
  */
 package com.dremio.service.jobs;
 
-import static java.lang.Thread.sleep;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.SearchJobsRequest;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -33,40 +33,32 @@ import com.google.common.collect.ImmutableList;
  */
 public class TestJobSubmit extends BaseTestServer {
 
-  private LocalJobsService jobsService;
-
   @Before
   public void setup() throws Exception {
     clearAllDataExceptUser();
-    jobsService = (LocalJobsService) l(JobsService.class);
   }
 
   @Test
-  public void testFailedToSubmitJob() throws Exception {
+  public void testFailedToSubmitJob() {
 
     SqlQuery query = getQueryFromSQL("alter system set \"planner.memory_limit\"=10485760000");
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(query).build(), NoOpJobStatusListener.INSTANCE)
-    );
+    submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build());
 
     query = getQueryFromSQL("alter system set \"planner.reservation_bytes\"=10485760000");
-    JobsServiceUtil.waitForJobCompletion(
-      jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(query).build(), NoOpJobStatusListener.INSTANCE)
-    );
+    submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build());
 
     query = getQueryFromSQL("SELECT 1");
-    CompletableFuture<Job> job = jobsService.submitJob(JobRequest.newBuilder().setSqlQuery(query).build(), NoOpJobStatusListener.INSTANCE);
-
-    while (!job.isDone()) {
-      sleep(1);
+    try {
+      submitJobAndWaitUntilCompletion(JobRequest.newBuilder().setSqlQuery(query).build());
+      fail("job should fail");
+    } catch (Exception e) {
+      // expected
     }
 
-    assertTrue(job.isCompletedExceptionally());
-
-    List<Job> jobs = ImmutableList.copyOf(
-        jobsService.searchJobs(SearchJobsRequest.newBuilder()
+    List<JobSummary> jobs = ImmutableList.copyOf(
+        l(JobsService.class).searchJobs(SearchJobsRequest.newBuilder()
         .setFilterString("jst==FAILED")
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build()));
     assertEquals(1, jobs.size());
   }

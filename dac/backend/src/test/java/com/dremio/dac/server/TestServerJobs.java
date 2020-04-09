@@ -42,22 +42,24 @@ import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.resource.JobResource;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.service.job.JobDetails;
+import com.dremio.service.job.JobDetailsRequest;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.SearchJobsRequest;
+import com.dremio.service.job.VersionedDatasetPath;
+import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.Job;
 import com.dremio.service.jobs.JobDataFragment;
 import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.JobsServiceUtil;
-import com.dremio.service.jobs.NoOpJobStatusListener;
-import com.dremio.service.jobs.SearchJobsRequest;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.Futures;
 
 /**
  * Tests for jobs api.
@@ -78,19 +80,17 @@ public class TestServerJobs extends BaseTestServer {
     final DatasetVersionMutator datasetService = newDatasetVersionMutator();
     final DatasetPath datasetPath = new DatasetPath("testA.dsA1");
     final VirtualDatasetUI ds1 = datasetService.get(datasetPath);
-    Job job = Futures.getUnchecked(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery(ds1.getSql(), ds1.getState().getContextList(), DEFAULT_USERNAME))
-          .setQueryType(QueryType.UI_RUN)
-          .setDatasetPath(datasetPath.toNamespaceKey())
-          .setDatasetVersion(ds1.getVersion())
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    final JobId jobId = submitAndWaitUntilSubmitted(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(ds1.getSql(), ds1.getState().getContextList(), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_RUN)
+        .setDatasetPath(datasetPath.toNamespaceKey())
+        .setDatasetVersion(ds1.getVersion())
+        .build()
     );
     boolean runningState;
     while (true) {
-      final  JobUI jip = expectSuccess(getBuilder(getAPIv2().path("job/" + job.getJobId().getId())).buildGet(), JobUI.class);
+      final  JobUI jip = expectSuccess(getBuilder(getAPIv2().path("job/" + jobId.getId())).buildGet(), JobUI.class);
       if (jip.getJobAttempt().getState() == JobState.RUNNING) {
         final JobsUI all = expectSuccess(getBuilder(getAPIv2().path("jobs")).buildGet(), JobsUI.class);
         assertEquals(1, all.getJobs().size());
@@ -102,7 +102,6 @@ public class TestServerJobs extends BaseTestServer {
         break;
       }
     }
-    job.getData().loadIfNecessary();
     assertTrue("jobState should have changed to RUNNING at least once", runningState);
   }
 
@@ -129,25 +128,29 @@ public class TestServerJobs extends BaseTestServer {
     TestSpacesStoragePlugin.setup(getCurrentDremioDaemon());
     expectSuccess(getBuilder(getAPIv2().path("dataset/testA.dsA1/data").queryParam("limit", "10000")).buildGet(), JobDataFragment.class);
     final SearchJobsRequest request1 = SearchJobsRequest.newBuilder()
-        .setDatasetPath(new DatasetPath("testA.dsA1").toNamespaceKey())
+        .setDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(new DatasetPath("testA.dsA1").toPathList())
+          .build())
         .setLimit(100)
         .build();
-    List<Job> jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(request1));
+    List<JobSummary> jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(request1));
     assertNotNull(jobs);
     assertTrue(jobs.size() > 0);
-    JobUI job1 = waitForCompleteJobInIndex(jobs.get(0).getJobId());
+    JobUI job1 = waitForCompleteJobInIndex(JobsProtoUtil.toStuff(jobs.get(0).getJobId()));
     // get list of jobs and job again
     final SearchJobsRequest request = SearchJobsRequest.newBuilder()
-        .setDatasetPath(new DatasetPath("testA.dsA1").toNamespaceKey())
+        .setDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(new DatasetPath("testA.dsA1").toPathList())
+          .build())
         .setLimit(100)
         .build();
     jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(request));
     job1 = expectSuccess(getBuilder(getAPIv2().path("job/" + job1.getJobId().getId())).buildGet(), JobUI.class);
     assertEquals(jobs.get(0).getJobId(), job1.getJobId());
-    assertEquals(jobs.get(0).getJobAttempt().getInfo().getSql(), job1.getJobAttempt().getInfo().getSql());
-    assertEquals(jobs.get(0).getJobAttempt().getInfo().getDatasetPathList(), job1.getJobAttempt().getInfo().getDatasetPathList());
-    assertEquals(jobs.get(0).getJobAttempt().getInfo().getDatasetVersion(), job1.getJobAttempt().getInfo().getDatasetVersion());
-    assertEquals(jobs.get(0).getJobAttempt().getInfo().getParentsList(), job1.getJobAttempt().getInfo().getParentsList());
+    assertEquals(jobs.get(0).getSql(), job1.getJobAttempt().getInfo().getSql());
+    assertEquals(jobs.get(0).getDatasetPathList(), job1.getJobAttempt().getInfo().getDatasetPathList());
+    assertEquals(jobs.get(0).getDatasetVersion(), job1.getJobAttempt().getInfo().getDatasetVersion());
+    assertEquals(jobs.get(0).getParent(), job1.getJobAttempt().getInfo().getParentsList().get(0));
   }
 
   @Test
@@ -156,31 +159,30 @@ public class TestServerJobs extends BaseTestServer {
     final DatasetPath datasetPath = new DatasetPath("DG.dsg1");
     final DatasetUI dsg1 = getDataset(datasetPath);
     final JobsService jobsService = l(JobsService.class);
-    Job job = Futures.getUnchecked(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(getQueryFromConfig(dsg1))
-          .setQueryType(QueryType.UI_RUN)
-          .setDatasetPath(datasetPath.toNamespaceKey())
-          .setDatasetVersion(dsg1.getDatasetVersion())
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    final JobId jobId = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromConfig(dsg1))
+        .setQueryType(QueryType.UI_RUN)
+        .setDatasetPath(datasetPath.toNamespaceKey())
+        .setDatasetVersion(dsg1.getDatasetVersion())
+        .build()
     );
-    job.getData().loadIfNecessary();
-    assertEquals(1, job.getJobAttempt().getInfo().getParentsList().size());
-    assertEquals(DEFAULT_USERNAME, job.getJobAttempt().getInfo().getUser());
-    assertEquals("/job/"+job.getJobId().getId()+"/data", JobResource.getPaginationURL(job.getJobId()));
-    assertEquals(Arrays.asList("LocalFS1", "dac-sample1.json"), job.getJobAttempt().getInfo().getParentsList().get(0).getDatasetPathList());
-    assertEquals(DatasetType.PHYSICAL_DATASET_SOURCE_FILE, job.getJobAttempt().getInfo().getParentsList().get(0).getType());
+    final JobDetails jobDetails = jobsService.getJobDetails(JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    final JobAttempt jobAttempt = JobsProtoUtil.getLastAttempt(jobDetails);
+    assertEquals(1, jobAttempt.getInfo().getParentsList().size());
+    assertEquals(DEFAULT_USERNAME, jobAttempt.getInfo().getUser());
+    assertEquals("/job/"+jobDetails.getJobId().getId()+"/data", JobResource.getPaginationURL(JobsProtoUtil.toStuff(jobDetails.getJobId())));
+    assertEquals(Arrays.asList("LocalFS1", "dac-sample1.json"), jobAttempt.getInfo().getParentsList().get(0).getDatasetPathList());
+    assertEquals(DatasetType.PHYSICAL_DATASET_SOURCE_FILE, jobAttempt.getInfo().getParentsList().get(0).getType());
     @SuppressWarnings("unused")
-    JobUI job1 = expectSuccess(getBuilder(getAPIv2().path("job/" + job.getJobId().getId())).buildGet(), JobUI.class);
-    assertEquals(1, job.getJobAttempt().getInfo().getParentsList().size());
-    assertEquals(Arrays.asList("LocalFS1", "dac-sample1.json"), job.getJobAttempt().getInfo().getParentsList().get(0).getDatasetPathList());
-    assertEquals(DatasetType.PHYSICAL_DATASET_SOURCE_FILE, job.getJobAttempt().getInfo().getParentsList().get(0).getType());
+    JobUI job1 = expectSuccess(getBuilder(getAPIv2().path("job/" + jobDetails.getJobId().getId())).buildGet(), JobUI.class);
+    assertEquals(1, jobAttempt.getInfo().getParentsList().size());
+    assertEquals(Arrays.asList("LocalFS1", "dac-sample1.json"), jobAttempt.getInfo().getParentsList().get(0).getDatasetPathList());
+    assertEquals(DatasetType.PHYSICAL_DATASET_SOURCE_FILE, jobAttempt.getInfo().getParentsList().get(0).getType());
 
-    JobDetailsUI jobDetails = expectSuccess(getBuilder(getAPIv2().path("job/" + job.getJobId().getId() + "/details")).buildGet(), JobDetailsUI.class);
+    JobDetailsUI jobDetailsUI = expectSuccess(getBuilder(getAPIv2().path("job/" + jobDetails.getJobId().getId() + "/details")).buildGet(), JobDetailsUI.class);
     assertNotNull(jobDetails);
-    assertEquals(JobResource.getPaginationURL(job.getJobId()), jobDetails.getPaginationUrl());
+    assertEquals(JobResource.getPaginationURL(JobsProtoUtil.toStuff(jobDetails.getJobId())), jobDetailsUI.getPaginationUrl());
   }
 
   @Test
@@ -189,26 +191,25 @@ public class TestServerJobs extends BaseTestServer {
     final DatasetPath datasetPath = new DatasetPath("DG.dsg10");
     final VirtualDatasetUI dsg1 = newDatasetVersionMutator().get(datasetPath);
     final JobsService jobsService = l(JobsService.class);
-    Job job = Futures.getUnchecked(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(getQueryFromConfig(dsg1))
-          .setQueryType(QueryType.UI_RUN)
-          .setDatasetPath(datasetPath.toNamespaceKey())
-          .setDatasetVersion(dsg1.getVersion())
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    final JobId jobId = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromConfig(dsg1))
+        .setQueryType(QueryType.UI_RUN)
+        .setDatasetPath(datasetPath.toNamespaceKey())
+        .setDatasetVersion(dsg1.getVersion())
+        .build()
     );
-    job.getData().loadIfNecessary();
-    assertEquals(2, job.getJobAttempt().getInfo().getParentsList().size());
-    assertEquals(DEFAULT_USERNAME, job.getJobAttempt().getInfo().getUser());
-    assertEquals("/job/"+job.getJobId().getId()+"/data", JobResource.getPaginationURL(job.getJobId()));
-    for (ParentDatasetInfo parentDataset : job.getJobAttempt().getInfo().getParentsList()) {
+    final JobDetails jobDetails = jobsService.getJobDetails(JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    final JobAttempt jobAttempt = JobsProtoUtil.getLastAttempt(jobDetails);
+    assertEquals(2, jobAttempt.getInfo().getParentsList().size());
+    assertEquals(DEFAULT_USERNAME, jobAttempt.getInfo().getUser());
+    assertEquals("/job/"+jobDetails.getJobId().getId()+"/data", JobResource.getPaginationURL(JobsProtoUtil.toStuff(jobDetails.getJobId())));
+    for (ParentDatasetInfo parentDataset : jobAttempt.getInfo().getParentsList()) {
       assertEquals(DatasetType.VIRTUAL_DATASET, parentDataset.getType());
       assertTrue(format("Parents for %s must be DG.dsg9 and DG.dsg8",  datasetPath),
               Arrays.asList("DG", "dsg9").equals(parentDataset.getDatasetPathList()) || (Arrays.asList("DG","dsg8").equals(parentDataset.getDatasetPathList())));
     }
-    JobUI job1 = expectSuccess(getBuilder(getAPIv2().path("job/" + job.getJobId().getId())).buildGet(), JobUI.class);
+    JobUI job1 = expectSuccess(getBuilder(getAPIv2().path("job/" + jobDetails.getJobId().getId())).buildGet(), JobUI.class);
     assertEquals(2, job1.getJobAttempt().getInfo().getParentsList().size());
     for (ParentDatasetInfo parentDataset : job1.getJobAttempt().getInfo().getParentsList()) {
       assertEquals(DatasetType.VIRTUAL_DATASET, parentDataset.getType());
@@ -217,30 +218,29 @@ public class TestServerJobs extends BaseTestServer {
                       (Arrays.asList("DG", "dsg8").equals(parentDataset.getDatasetPathList())));
     }
 
-    JobDetailsUI jobDetails = expectSuccess(getBuilder(getAPIv2().path("job/" + job.getJobId().getId() + "/details")).buildGet(), JobDetailsUI.class);
+    JobDetailsUI jobDetailsUI = expectSuccess(getBuilder(getAPIv2().path("job/" + jobDetails.getJobId().getId() + "/details")).buildGet(), JobDetailsUI.class);
     assertNotNull(jobDetails);
-    assertEquals(JobResource.getPaginationURL(job.getJobId()), jobDetails.getPaginationUrl());
+    assertEquals(JobResource.getPaginationURL(JobsProtoUtil.toStuff(jobDetails.getJobId())), jobDetailsUI.getPaginationUrl());
   }
 
   @Test
   public void testJobPhysicalDatasetParentTableau() throws Exception {
     populateInitialData();
     final JobsService jobsService = l(JobsService.class);
-    Job job = Futures.getUnchecked(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery("select * from \"LocalFS1\".\"dac-sample1.json\"", USERNAME))
-          .setQueryType(QueryType.UI_RUN)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    final JobId jobId = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from \"LocalFS1\".\"dac-sample1.json\"", USERNAME))
+        .setQueryType(QueryType.UI_RUN)
+        .build()
     );
-    job.getData().loadIfNecessary();
-    assertEquals(1, job.getJobAttempt().getInfo().getParentsList().size());
-    assertEquals(Arrays.asList("LocalFS1", "dac-sample1.json"), job.getJobAttempt().getInfo().getParentsList().get(0).getDatasetPathList());
+    final JobDetails jobDetails = jobsService.getJobDetails(JobDetailsRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    final JobAttempt jobAttempt = JobsProtoUtil.getLastAttempt(jobDetails);
+    assertEquals(1, jobAttempt.getInfo().getParentsList().size());
+    assertEquals(Arrays.asList("LocalFS1", "dac-sample1.json"), jobAttempt.getInfo().getParentsList().get(0).getDatasetPathList());
     @SuppressWarnings("unused")
-    JobUI job1 = expectSuccess(getBuilder(getAPIv2().path("job/" + job.getJobId().getId())).buildGet(), JobUI.class);
-    assertEquals(1, job.getJobAttempt().getInfo().getParentsList().size());
-    assertEquals(Arrays.asList("LocalFS1", "dac-sample1.json"), job.getJobAttempt().getInfo().getParentsList().get(0).getDatasetPathList());
+    JobUI job1 = expectSuccess(getBuilder(getAPIv2().path("job/" + jobDetails.getJobId().getId())).buildGet(), JobUI.class);
+    assertEquals(1, jobAttempt.getInfo().getParentsList().size());
+    assertEquals(Arrays.asList("LocalFS1", "dac-sample1.json"), jobAttempt.getInfo().getParentsList().get(0).getDatasetPathList());
   }
 
   // TODO (Amit H) Flaky tests
@@ -250,15 +250,17 @@ public class TestServerJobs extends BaseTestServer {
     TestSpacesStoragePlugin.setup(getCurrentDremioDaemon());
     expectSuccess(getBuilder(getAPIv2().path("dataset/testA.dsA1/data").queryParam("limit", "10000")).buildGet(), JobDataFragment.class);
     final SearchJobsRequest request = SearchJobsRequest.newBuilder()
-        .setDatasetPath(new DatasetPath("testA.dsA1").toNamespaceKey())
+        .setDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(new DatasetPath("testA.dsA1").toPathList())
+          .build())
         .setLimit(100)
         .build();
-    List<Job> jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(request));
+    List<JobSummary> jobs = ImmutableList.copyOf(l(JobsService.class).searchJobs(request));
     JobDetailsUI jobDetails = expectSuccess(getBuilder(getAPIv2().path("job/" + jobs.get(0).getJobId().getId() + "/details")).buildGet(), JobDetailsUI.class);
     assertNotNull(jobDetails);
     assertNotNull(jobs);
     assertTrue(jobs.size() > 0);
-    waitForCompleteJobInIndex(jobs.get(0).getJobId());
+    waitForCompleteJobInIndex(JobsProtoUtil.toStuff(jobs.get(0).getJobId()));
     jobDetails = expectSuccess(getBuilder(getAPIv2().path("job/" + jobs.get(0).getJobId().getId() + "/details")).buildGet(), JobDetailsUI.class);
     assertEquals(1, jobDetails.getTableDatasetProfiles().size());
     assertEquals(500, (long) jobDetails.getOutputRecords());
@@ -314,66 +316,72 @@ public class TestServerJobs extends BaseTestServer {
     DatasetVersion v2 = DatasetVersion.newVersion();
     doc("Submitting job for dataset testB.dsB1 dataset for version " + v2.getVersion());
 
-    JobsServiceUtil.waitForJobCompletion(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(getQueryFromConfig(dsGet))
-          .setQueryType(QueryType.UI_PREVIEW)
-          .setDatasetPath(getDatasetPath(dsGet).toNamespaceKey())
-          .setDatasetVersion(v2)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromConfig(dsGet))
+        .setQueryType(QueryType.UI_PREVIEW)
+        .setDatasetPath(getDatasetPath(dsGet).toNamespaceKey())
+        .setDatasetVersion(v2)
+        .build()
     );
 
-    JobsServiceUtil.waitForJobCompletion(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery(dsGet.getSql(), dsGet.getContext(), USERNAME))
-          .setQueryType(QueryType.UI_PREVIEW)
-          .setDatasetPath(getDatasetPath(dsGet).toNamespaceKey())
-          .setDatasetVersion(v2)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(dsGet.getSql(), dsGet.getContext(), USERNAME))
+        .setQueryType(QueryType.UI_PREVIEW)
+        .setDatasetPath(getDatasetPath(dsGet).toNamespaceKey())
+        .setDatasetVersion(v2)
+        .build()
     );
 
     final SearchJobsRequest request = SearchJobsRequest.newBuilder()
-        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
+        .setDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(new DatasetPath("testB.dsB1").toPathList())
+          .build())
         .setLimit(1000)
         .build();
-    List<Job> jobs2  = ImmutableList.copyOf(jobsService.searchJobs(request));
+    List<JobSummary> jobs2  = ImmutableList.copyOf(jobsService.searchJobs(request));
     assertEquals(3, jobs2.size()); // we have already run that query for the latest version in the previous call
 
     final SearchJobsRequest request1 = SearchJobsRequest.newBuilder()
-        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
-        .setDatasetVersion(dsGet.getDatasetVersion())
+        .setDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(new DatasetPath("testB.dsB1").toPathList())
+          .setVersion(dsGet.getDatasetVersion().getVersion())
+          .build())
         .setLimit(1000)
         .build();
     jobs2 = ImmutableList.copyOf(jobsService.searchJobs(request1));
     assertEquals(dsB1JobsVersion, jobs2.size());
 
     final SearchJobsRequest request4 = SearchJobsRequest.newBuilder()
-        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
-        .setDatasetVersion(dsGet.getDatasetVersion())
+        .setDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(new DatasetPath("testB.dsB1").toPathList())
+          .setVersion(dsGet.getDatasetVersion().getVersion())
+          .build())
         .setLimit(1000)
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build();
     jobs2  = ImmutableList.copyOf(jobsService.searchJobs(request4));
     assertEquals(1, jobs2.size());
 
     final SearchJobsRequest request3 = SearchJobsRequest.newBuilder()
-        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
-        .setDatasetVersion(v2)
+        .setDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(new DatasetPath("testB.dsB1").toPathList())
+          .setVersion(v2.getVersion())
+          .build())
         .setLimit(1000)
-        .setUsername(DEFAULT_USERNAME)
+        .setUserName(DEFAULT_USERNAME)
         .build();
     jobs2  = ImmutableList.copyOf(jobsService.searchJobs(request3));
     assertEquals(1, jobs2.size());
 
     final SearchJobsRequest request2 = SearchJobsRequest.newBuilder()
-        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
-        .setDatasetVersion(v2)
+        .setDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(new DatasetPath("testB.dsB1").toPathList())
+          .setVersion(v2.getVersion())
+          .build())
         .setLimit(1000)
-        .setUsername(USERNAME)
+        .setUserName(USERNAME)
         .build();
     jobs2  = ImmutableList.copyOf(jobsService.searchJobs(request2));
     assertEquals(1, jobs2.size());
@@ -427,43 +435,49 @@ public class TestServerJobs extends BaseTestServer {
 
     DatasetVersion v2 = DatasetVersion.newVersion();
     doc("Submitting job for dataset testB.dsB1 dataset for version " + v2.getVersion());
-    JobsServiceUtil.waitForJobCompletion(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(getQueryFromConfig(dsGet))
-          .setQueryType(QueryType.UI_RUN)
-          .setDatasetPath(getDatasetPath(dsGet).toNamespaceKey())
-          .setDatasetVersion(v2)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromConfig(dsGet))
+        .setQueryType(QueryType.UI_RUN)
+        .setDatasetPath(getDatasetPath(dsGet).toNamespaceKey())
+        .setDatasetVersion(v2)
+        .build()
     );
 
     final SearchJobsRequest request3 = SearchJobsRequest.newBuilder()
-        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
-        .setDatasetVersion(dsGet.getDatasetVersion())
+        .setDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(new DatasetPath("testB.dsB1").toPathList())
+          .setVersion(dsGet.getDatasetVersion().getVersion())
+          .build())
         .setLimit(1000)
         .build();
-    List<Job> jobs  = ImmutableList.copyOf(jobsService.searchJobs(request3));
+    List<JobSummary> jobs  = ImmutableList.copyOf(jobsService.searchJobs(request3));
     assertEquals(dsB1JobsVersion, jobs.size());
 
     final SearchJobsRequest request2 = SearchJobsRequest.newBuilder()
-        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
-        .setDatasetVersion(new DatasetVersion(v2.getVersion()))
+        .setDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(new DatasetPath("testB.dsB1").toPathList())
+          .setVersion(new DatasetVersion(v2.getVersion()).getVersion())
+          .build())
         .setLimit(1000)
         .build();
     jobs  = ImmutableList.copyOf(jobsService.searchJobs(request2));
     assertEquals(v2.getVersion(), 1, jobs.size());
 
     final SearchJobsRequest request1 = SearchJobsRequest.newBuilder()
-        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
-        .setDatasetVersion(dsGet.getDatasetVersion())
+        .setDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(new DatasetPath("testB.dsB1").toPathList())
+          .setVersion(dsGet.getDatasetVersion().getVersion())
+          .build())
         .setLimit(1000)
         .build();
     jobs  = ImmutableList.copyOf(jobsService.searchJobs(request1));
     assertEquals(dsB1JobsVersion, jobs.size());
 
     final SearchJobsRequest request = SearchJobsRequest.newBuilder()
-        .setDatasetPath(new DatasetPath("testB.dsB1").toNamespaceKey())
+        .setDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(new DatasetPath("testB.dsB1").toPathList())
+          .build())
         .setLimit(1000)
         .build();
     jobs  = ImmutableList.copyOf(jobsService.searchJobs(request));
@@ -510,15 +524,13 @@ public class TestServerJobs extends BaseTestServer {
 
     // run dataset twice. We do a run and a preview since subsequent previews won't actually rerun...
     getPreview(dataset);
-    JobsServiceUtil.waitForJobCompletion(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(getQueryFromConfig(dataset))
-          .setQueryType(QueryType.UI_RUN)
-          .setDatasetPath(getDatasetPath(dataset).toNamespaceKey())
-          .setDatasetVersion(dataset.getDatasetVersion())
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(getQueryFromConfig(dataset))
+        .setQueryType(QueryType.UI_RUN)
+        .setDatasetPath(getDatasetPath(dataset).toNamespaceKey())
+        .setDatasetVersion(dataset.getDatasetVersion())
+        .build()
     );
 
     return dataset;

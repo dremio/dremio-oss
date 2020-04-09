@@ -22,6 +22,7 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.List;
 
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.FieldVector;
 
 import com.dremio.exec.cache.AbstractStreamSerializable;
@@ -380,7 +381,7 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
    */
 
   private void writeArrowBuf(final ArrowBuf buffer, final OutputStream output) throws IOException {
-    final int bufferLength = buffer.readableBytes();
+    final int bufferLength = LargeMemoryUtil.checkedCastToInt(buffer.readableBytes());
     for (int writePos = 0; writePos < bufferLength; writePos += ioBuffer.length) {
       final int lengthToWrite = Math.min(ioBuffer.length, bufferLength - writePos);
       buffer.getBytes(writePos, ioBuffer, 0, lengthToWrite);
@@ -402,8 +403,8 @@ public class VectorizedHashAggPartitionSerializable extends AbstractStreamSerial
   private void writeBatchDefinition(final HashAggPartitionBatchDefinition batchDefinition,
                                     final OutputStream output) throws IOException {
     try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      output.write(getByteArrayFromInt(batchDefinition.fixedBufferLength));
-      output.write(getByteArrayFromInt(batchDefinition.variableBufferLength));
+      output.write(getByteArrayFromInt(LargeMemoryUtil.checkedCastToInt(batchDefinition.fixedBufferLength)));
+      output.write(getByteArrayFromInt(LargeMemoryUtil.checkedCastToInt(batchDefinition.variableBufferLength)));
       output.write(getByteArrayFromInt(batchDefinition.numAccumulators));
       output.write(batchDefinition.accumulatorTypes);
       batchDefinition.accumulatorBatchDef.writeDelimitedTo(output);

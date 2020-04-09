@@ -18,6 +18,8 @@ package com.dremio.sabot.op.aggregate.vectorized;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.arrow.memory.util.LargeMemoryUtil;
+
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.op.common.ht2.LBlockHashTable;
@@ -171,8 +173,8 @@ public class HashAggPartitionWritableBatch {
     /* get total length of buffers, this is why readerIndex and writerIndex are appropriately
      * set by LBlockHashTable when it writes to these buffers during insertion.
      */
-    final int fixedBufferLength = fixedBlockBuffer.readableBytes();
-    final int variableBufferLength = variableBlockBuffer.readableBytes();
+    final int fixedBufferLength = LargeMemoryUtil.checkedCastToInt(fixedBlockBuffer.readableBytes());
+    final int variableBufferLength = LargeMemoryUtil.checkedCastToInt(variableBlockBuffer.readableBytes());
     final int numRecordsInChunk = fixedBufferLength/blockWidth;
     Preconditions.checkArgument(numRecordsInChunk <= maxValuesPerBatch, "Error: detected invalid number of records in batch");
 

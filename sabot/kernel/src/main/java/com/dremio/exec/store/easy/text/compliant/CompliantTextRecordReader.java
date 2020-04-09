@@ -368,7 +368,12 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
     }
 
     @Override
-    public boolean isSchemaChanged() {
+    public boolean getAndResetSchemaChanged() {
+      return false;
+    }
+
+    @Override
+    public boolean getSchemaChanged() {
       return false;
     }
 

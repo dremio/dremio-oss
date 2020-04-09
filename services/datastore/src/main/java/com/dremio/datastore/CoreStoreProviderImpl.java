@@ -39,12 +39,11 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.utils.ProtostuffUtil;
-import com.dremio.datastore.KVStoreProvider.DocumentConverter;
+import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.indexed.CommitWrapper;
 import com.dremio.datastore.indexed.CoreIndexedStoreImpl;
 import com.dremio.datastore.indexed.LuceneSearchIndex;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -53,7 +52,6 @@ import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 
 /**
  * Service that manages creation and management of various store types.
@@ -94,8 +92,6 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
 
   private final boolean timed;
   private final boolean inMemory;
-  private final boolean validateOCC;
-  private final boolean disableOCC;
   private final IndexManager indexManager;
   private final ByteStoreManager byteManager;
   private final String baseDirectory;
@@ -103,37 +99,20 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
 
   private final AtomicBoolean closed = new AtomicBoolean(false);
 
-  private final Set<String> storeNames = Sets.newConcurrentHashSet();
-
-  private final LoadingCache<StoreBuilderConfig, StoreWithId> stores = CacheBuilder.newBuilder()
-      .removalListener(new RemovalListener<StoreBuilderConfig, StoreWithId>() {
+  private final LoadingCache<String, StoreWithId> stores = CacheBuilder.newBuilder()
+      .removalListener(new RemovalListener<String, StoreWithId>() {
         @Override
-        public void onRemoval(RemovalNotification<StoreBuilderConfig, StoreWithId> notification) {
+        public void onRemoval(RemovalNotification<String, StoreWithId> notification) {
         }
       })
-      .build(new CacheLoader<StoreBuilderConfig, StoreWithId>() {
+      .build(new CacheLoader<String, StoreWithId>() {
         @Override
-        public StoreWithId load(StoreBuilderConfig builderConfig) throws Exception {
-          // check if some other service has created this table name earlier under different configuration
-          if (!storeNames.add(builderConfig.getName())) {
-            throw new DatastoreFatalException("Duplicate datastore " + builderConfig.toString());
+        public StoreWithId load(String tableName) throws Exception {
+          if (!idToStore.containsKey(tableName)) {
+            throw new DatastoreFatalException("Cannot find store " + tableName);
           }
 
-          final FinalStoreBuilderConfig resolvedConfig = new FinalStoreBuilderConfig(builderConfig);
-          final StoreWithId store;
-          // write table's configuration to a file first
-          if (!inMemory) {
-            createMetaDataFile(builderConfig);
-          }
-
-          if(resolvedConfig.hasDocumentConverter()){
-            store = new StoreWithId(builderConfig, buildIndexed(resolvedConfig));
-          }else{
-            store = new StoreWithId(builderConfig, build(resolvedConfig));
-          }
-
-          idToStore.put(store.id, store);
-          return store;
+          return idToStore.get(tableName);
         }
       });
 
@@ -141,10 +120,10 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
 
   @VisibleForTesting
   CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed) {
-    this(baseDirectory, inMemory, timed, true, false, false);
+    this(baseDirectory, inMemory, timed, false);
   }
 
-  CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed, boolean validateOCC, boolean disableOCC, boolean noDBOpenRetry) {
+  public CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed, boolean noDBOpenRetry) {
     super();
     switch(MODE){
     case DISK:
@@ -157,8 +136,6 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
     }
 
     this.timed = timed;
-    this.validateOCC = validateOCC; // occ store is created but validations are skipped
-    this.disableOCC = disableOCC; // occ store is not created.
     this.inMemory = inMemory;
 
     this.byteManager = new ByteStoreManager(baseDirectory, inMemory, noDBOpenRetry);
@@ -258,9 +235,7 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
       final boolean status = byteManager.replayDelta(
           reIndexer,
           s -> idToStore.containsKey(s) && // to skip removed and auxiliary indexes
-              idToStore.get(s)
-                  .getStoreBuilderConfig()
-                  .getDocumentConverterClassName() != null
+              idToStore.get(s).getStoreBuilderHelper().hasDocumentConverter()
       );
       logger.info("Partial re-indexing status: {}, metrics:\n{}", status, reIndexer.getMetrics());
       return status;
@@ -268,11 +243,6 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
       logger.warn("Partial reindexing failed", e);
       return false;
     }
-  }
-
-  @VisibleForTesting
-  KVStore<byte[], byte[]> getDB(String name) {
-    return byteManager.getStore(name);
   }
 
   @Override
@@ -297,84 +267,21 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
     return new CoreStoreBuilderImpl<>();
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public CoreKVStore<Object, Object> getStore(String storeId) {
     StoreWithId storeWithId = idToStore.get(storeId);
     if(storeWithId != null){
-      return storeWithId.store;
+      return (CoreKVStore<Object, Object>) storeWithId.store;
     }
 
     throw new DatastoreException("Invalid store id " + storeId);
   }
 
   @Override
-  public String getOrCreateStore(StoreBuilderConfig config) {
-    return checkedGet(config).id;
-  }
-
-  final class CoreStoreBuilderImpl<K, V> implements CoreStoreBuilder<K, V> {
-    private String name;
-    private final StoreBuilderConfig builderConfig;
-
-    public CoreStoreBuilderImpl() {
-      builderConfig = new StoreBuilderConfig();
-    }
-
-    @Override
-    public CoreStoreBuilder<K, V> name(String name) {
-      this.name = name;
-      builderConfig.setName(name);
-      return this;
-    }
-
-    @Override
-    public CoreStoreBuilder<K, V> keySerializer(Class<? extends Serializer<K>> keySerializerClass) {
-      Preconditions.checkNotNull(keySerializerClass);
-      builderConfig.setKeySerializerClassName(keySerializerClass.getName());
-      return this;
-    }
-
-    @Override
-    public CoreStoreBuilder<K, V> valueSerializer(Class<? extends Serializer<V>> valueSerializerClass) {
-      Preconditions.checkNotNull(valueSerializerClass);
-      builderConfig.setValueSerializerClassName(valueSerializerClass.getName());
-      return this;
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public CoreKVStore<K, V> build() {
-      return (CoreKVStore<K, V>) checkedGet(builderConfig).store;
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public CoreIndexedStore<K, V> buildIndexed(Class<? extends DocumentConverter<K, V>> documentConverterClass) {
-      Preconditions.checkNotNull(documentConverterClass);
-      builderConfig.setDocumentConverterClassName(documentConverterClass.getName());
-      return (CoreIndexedStore<K, V>) checkedGet(builderConfig).store;
-    }
-
-    @Override
-    public CoreStoreBuilder<K, V> versionExtractor(Class<? extends VersionExtractor<V>> versionExtractorClass) {
-      Preconditions.checkNotNull(versionExtractorClass);
-      builderConfig.setVersionExtractorClassName(versionExtractorClass.getName());
-      return this;
-    }
-
-  }
-
-  public Map<StoreBuilderConfig, CoreKVStore<?, ?>> getStores() {
-    final Map<StoreBuilderConfig, CoreKVStore<?, ?>> coreKVStores = Maps.newHashMap();
-    for (StoreWithId store : stores.asMap().values()) {
-      coreKVStores.put(store.storeBuilderConfig, store.store);
-    }
-    return coreKVStores;
-  }
-
-  private StoreWithId checkedGet(StoreBuilderConfig key) throws DatastoreException {
+  public String getStoreID(String name) {
     try{
-      return stores.get(key);
+      return stores.get(name).id;
     } catch (ExecutionException ex){
       Throwables.propagateIfInstanceOf(ex.getCause(), DatastoreException.class);
       throw new DatastoreException(ex);
@@ -382,83 +289,121 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
   }
 
   /**
-   * Class used to resolve class names to instances.
+   * Takes a core store and wraps it in whatever unique decorators are necessary.
+   * CoreKvStores and CoreIndexedStores share a lot of setup code. This makes
+   * it easier to see how they are setup differently/similarly compared
+   * to deeply nested helper functions with if statements.
+   * @param <K> Key type.
+   * @param <V> Value type.
+   * @param <STORE> Store type. Either indexed or CoreKVStore.
    */
-  private class FinalStoreBuilderConfig {
-    private final String name;
-    private final Serializer<Object> keySerializer;
-    private final Serializer<Object> valueSerializer;
-    private final DocumentConverter<Object,Object> documentConverter;
-    private final VersionExtractor<Object> versionExtractor;
+  @FunctionalInterface
+  private interface StoreAssembler<K, V, STORE extends CoreKVStore<K, V>> {
 
-    @SuppressWarnings("unchecked")
-    public FinalStoreBuilderConfig(StoreBuilderConfig config) {
-      name = Preconditions.checkNotNull(config.getName(), "Name must be defined");
-      keySerializer = DataStoreUtils.getInstance(config.getKeySerializerClassName(), Serializer.class, true);
-      valueSerializer = DataStoreUtils.getInstance(config.getValueSerializerClassName(), Serializer.class, true);
-      documentConverter = DataStoreUtils.getInstance(config.getDocumentConverterClassName(), DocumentConverter.class, false);
-      versionExtractor = DataStoreUtils.getInstance(config.getVersionExtractorClassName(), VersionExtractor.class, false);
-    }
-
-    public boolean hasDocumentConverter() {
-      return documentConverter != null;
-    }
-
-    public boolean hasVersionExtractor() {
-      return versionExtractor != null;
-
-    }
+    STORE run(CoreKVStore<K, V> coreKVStore) throws Exception;
   }
 
-  private CoreKVStore<Object, Object> getCoreStore(FinalStoreBuilderConfig builderConfig) {
+  final class CoreStoreBuilderImpl<K, V> implements CoreStoreBuilder<K, V> {
 
-    final ByteStore rawStore = byteManager.getStore(builderConfig.name);
+    private StoreBuilderHelper<K, V> helper;
 
-    final CoreKVStore<Object, Object> coreKVStore =
-        new CoreKVStoreImpl<>(
-            rawStore,
-            builderConfig.keySerializer,
-            builderConfig.valueSerializer,
-            builderConfig.versionExtractor);
-    if (!disableOCC && builderConfig.hasVersionExtractor()) {
-      return new OCCStore<>(coreKVStore, !validateOCC);
-    } else {
-      return coreKVStore;
+    public CoreStoreBuilderImpl() {
     }
-  }
 
-  private CoreKVStore<Object, Object> build(FinalStoreBuilderConfig config){
-    final CoreKVStore<Object, Object> coreStore = getCoreStore(config);
-    if (timed) {
-      final CoreKVStore<Object, Object> timedStore = new CoreBaseTimedStore.TimedStoreImplCore<>(config.name, coreStore);
-      return timedStore;
-    } else {
-      return coreStore;
+    @Override
+    public CoreKVStore<K, V> build(StoreBuilderHelper<K, V> helper) {
+      this.helper = helper;
+      return this.build(this::assembler);
     }
-  }
 
-  private CoreIndexedStore<Object, Object> buildIndexed(FinalStoreBuilderConfig config){
-    final String name = config.name;
-    CoreIndexedStore<Object, Object> store = new CoreIndexedStoreImpl<>(name, getCoreStore(config), indexManager.getIndex(name), config.documentConverter);
-    if (timed) {
-      return new CoreBaseTimedStore.TimedIndexedStoreImplCore<>(name, store);
-    } else {
+    @Override
+    public CoreIndexedStore<K, V> buildIndexed(StoreBuilderHelper<K, V> helper) {
+      this.helper = helper;
+      return this.build(this::indexedAssembler);
+    }
+
+    private CoreIndexedStore<K, V> indexedAssembler(CoreKVStore<K, V> coreKVStore) throws Exception {
+      final DocumentConverter<K, V> documentConverter = helper.getDocumentConverter();
+      final String name = helper.getName();
+      CoreIndexedStore<K, V> store = new CoreIndexedStoreImpl<>(name, coreKVStore, indexManager.getIndex(name), documentConverter);
+      if (timed) {
+        store = new CoreBaseTimedStore.TimedIndexedStoreImplCore<>(name, store);
+      }
       return store;
     }
+
+    private CoreKVStore<K, V> assembler(CoreKVStore<K, V> coreKVStore) {
+
+      if (timed) {
+        coreKVStore = new CoreBaseTimedStore.TimedStoreImplCore<>(helper.getName(), coreKVStore);
+      }
+
+      return coreKVStore;
+    }
+
+    /**
+     * Build a common base CoreKVStore then delegates the final build steps to the StoreAssembler.
+     * Also, adds the final store to the CoreStore provider's registry.
+     * @param assembler Converts the base CoreKvStore into its final form.
+     * @param <STORE> Final CoreKVStore type. Could be indexed or not indexed.
+     * @return STORE returned by assembler.
+     */
+    private <STORE extends CoreKVStore<K, V>> STORE build(StoreAssembler<K, V, STORE> assembler) {
+      try{
+
+        final KVStoreInfo kvStoreInfo = helper.getKVStoreInfo();
+
+        // Stores are created sequentially.
+        // If the store is not present at the start of load, there is no duplication.
+        if (idToStore.containsKey(kvStoreInfo.getTablename())) {
+          throw new DatastoreFatalException("Duplicate datastore " + kvStoreInfo.toString());
+        }
+
+        final Serializer<K, byte[]> keySerializer = (Serializer<K, byte[]>) helper.getKeyFormat().apply(ByteSerializerFactory.INSTANCE);
+        final Serializer<V, byte[]> valueSerializer = (Serializer<V, byte[]>) helper.getValueFormat().apply(ByteSerializerFactory.INSTANCE);
+
+        // write table's configuration to a file first
+        if (!inMemory) {
+          createMetaDataFile(kvStoreInfo);
+        }
+
+        final ByteStore rawStore = byteManager.getStore(kvStoreInfo.getTablename());
+
+        CoreKVStore<K, V> coreKVStore =
+          new CoreKVStoreImpl<>(
+            rawStore,
+            keySerializer,
+            valueSerializer);
+
+        final STORE store = assembler.run(coreKVStore);
+        final StoreWithId<K, V> storeWithId = new StoreWithId<>(helper, store);
+
+        idToStore.put(storeWithId.id, storeWithId);
+        return store;
+      } catch (Exception ex) {
+        Throwables.propagateIfInstanceOf(ex.getCause(), DatastoreException.class);
+        throw new DatastoreException(ex);
+      }
+    }
+  }
+
+  public Map<KVStoreInfo, CoreKVStore<?, ?>> getStores() {
+    final Map<KVStoreInfo, CoreKVStore<?, ?>> coreKVStores = Maps.newHashMap();
+    idToStore.values().forEach((v) -> coreKVStores.put(v.getStoreBuilderHelper().getKVStoreInfo(), v.store));
+    return coreKVStores;
   }
 
   /**
-   * A description of a Store along with an associated name.
+   * A description of a Store along with an associated setName.
    */
-  public static class StoreWithId {
+  public static class StoreWithId<K, V> {
     private final String id;
-    private final StoreBuilderConfig storeBuilderConfig;
-    private final CoreKVStore<Object, Object> store;
+    private final StoreBuilderHelper<K, V> helper;
+    private final CoreKVStore<K, V> store;
 
-    public StoreWithId(StoreBuilderConfig storeBuilderConfig, CoreKVStore<Object, Object> store) {
-      super();
-      this.storeBuilderConfig = storeBuilderConfig;
-      this.id = storeBuilderConfig.getName();
+    public StoreWithId(StoreBuilderHelper<K, V> helper, CoreKVStore<K, V> store) {
+      this.helper = helper;
+      this.id = helper.getName();
       this.store = store;
     }
 
@@ -466,18 +411,17 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
       return id;
     }
 
-    public StoreBuilderConfig getStoreBuilderConfig() {
-      return storeBuilderConfig;
+    public StoreBuilderHelper<K, V> getStoreBuilderHelper() {
+      return helper;
     }
 
-    public CoreKVStore<Object, Object> getStore() {
+    public CoreKVStore<?, ?> getStore() {
       return store;
     }
   }
 
-  private void createMetaDataFile(StoreBuilderConfig builderConfig) throws IOException {
-    final KVStoreInfo kvStoreInfo = DataStoreUtils.toInfo(builderConfig);
-    final Path metadataFile = Paths.get(metaDataFilesDir.getAbsolutePath(), format("%s%s", builderConfig.getName(), METADATA_FILE_SUFFIX));
+  private void createMetaDataFile(KVStoreInfo kvStoreInfo) throws IOException {
+    final Path metadataFile = Paths.get(metaDataFilesDir.getAbsolutePath(), format("%s%s", kvStoreInfo.getTablename(), METADATA_FILE_SUFFIX));
     try (OutputStream metaDataOut = Files.newOutputStream(metadataFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
       ProtostuffUtil.toJSON(metaDataOut, kvStoreInfo, KVStoreInfo.getSchema(), false);
     }
@@ -493,8 +437,7 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
         final KVStoreInfo metadata = new KVStoreInfo();
         ProtostuffUtil.fromJSON(headerBytes, metadata, KVStoreInfo.getSchema(), false);
 
-        final StoreBuilderConfig storeBuilderConfig = DataStoreUtils.toBuilderConfig(metadata);
-        getOrCreateStore(storeBuilderConfig);
+        getStore(metadata.getTablename());
       }
     }
   }

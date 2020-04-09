@@ -205,7 +205,7 @@ export class UpdateDatasetView extends Component {
           {this.renderFormBody()}
           {this.renderLocationBlock()}
         </div>
-        <ModalFooter styles={style.footerStyle}>
+        <ModalFooter>
           {this.renderButtons()}
         </ModalFooter>
       </div>
@@ -223,9 +223,3 @@ export default connectComplexForm({
   fields: ['datasetName', 'selectedEntity'],
   validate
 }, [], mapStateToProps)(UpdateDatasetView);
-
-const style = {
-  footerStyle: {
-    position: 'absolute'
-  }
-};

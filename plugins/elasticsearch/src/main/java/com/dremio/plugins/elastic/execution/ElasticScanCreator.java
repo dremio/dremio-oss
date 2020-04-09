@@ -53,7 +53,7 @@ public class ElasticScanCreator implements ProducerOperator.Creator<Elasticsearc
       final ElasticsearchStoragePlugin plugin = fec.getStoragePlugin(subScan.getPluginId());
       List<RecordReader> readers = new ArrayList<>();
       ElasticsearchScanSpec spec = subScan.getSpec();
-      ElasticTableXattr tableAttributes = ElasticTableXattr.parseFrom(subScan.getExtendedProperty().toByteArray());
+      ElasticTableXattr tableAttributes = ElasticTableXattr.parseFrom(subScan.getExtendedProperty().asReadOnlyByteBuffer());
       final WorkingBuffer workingBuffer = new WorkingBuffer(context.getManagedBuffer());
       final boolean useEdgeProject = context.getOptions().getOption(ExecConstants.ELASTIC_RULES_EDGE_PROJECT);
       final ImmutableMap<SchemaPath, FieldAnnotation> annotations = FieldAnnotation.getAnnotationMap(tableAttributes.getAnnotationList());

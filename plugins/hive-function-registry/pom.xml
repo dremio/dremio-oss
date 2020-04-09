@@ -22,19 +22,20 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-plugin-parent</artifactId>
-    <version>4.1.8-202003120636020140-9c2a6b13</version>
+    <version>4.2.0-202004091958060824-8f7e141d</version>
   </parent>
 
   <artifactId>dremio-hive-function-registry</artifactId>
   <packaging>jar</packaging>
   <name>Plugins - Hive Functions</name>
   <properties>
-    <hadoop.version>2.8.3</hadoop.version>
-    <datanucleus-api-jdo.version>4.2.1</datanucleus-api-jdo.version>
-    <datanucleus-core.version>4.1.6</datanucleus-core.version>
-    <datanucleus-rdbms.version>4.1.7</datanucleus-rdbms.version>
-    <datanucleus-jdo.version>3.2.0-m3</datanucleus-jdo.version>
-    <jdo-api.version>3.0.1</jdo-api.version>
+    <hadoop.version>${plugin.hive2.hadoop.version}</hadoop.version>
+    <hive.version>${plugin.hive2.hive.version}</hive.version>
+    <datanucleus-api-jdo.version>${plugin.hive2.datanucleus-api-jdo.version}</datanucleus-api-jdo.version>
+    <datanucleus-core.version>${plugin.hive2.datanucleus-core.version}</datanucleus-core.version>
+    <datanucleus-rdbms.version>${plugin.hive2.datanucleus-rdbms.version}</datanucleus-rdbms.version>
+    <datanucleus-jdo.version>${plugin.hive2.datanucleus-jdo.version}</datanucleus-jdo.version>
+    <jdo-api.version>${plugin.hive2.jdo-api.version}</jdo-api.version>
   </properties>
 
   <dependencies>
@@ -48,6 +49,16 @@
       <artifactId>dremio-hive-plugin</artifactId>
       <version>${project.version}</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-hbase-handler</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hbase</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.dremio.plugins</groupId>
@@ -55,6 +66,16 @@
       <classifier>tests</classifier>
       <version>${project.version}</version>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hive</groupId>
+          <artifactId>hive-hbase-handler</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hbase</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>com.dremio.sabot</groupId>
@@ -73,6 +94,7 @@
     <dependency>
       <groupId>org.apache.hive</groupId>
       <artifactId>hive-contrib</artifactId>
+      <version>${hive.version}</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -105,6 +127,12 @@
       <version>${hadoop.version}</version>
       <classifier>tests</classifier>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.directory.server</groupId>
+          <artifactId>apacheds-kerberos-codec</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency> <!-- needed for Hive test data generator -->
       <groupId>org.apache.hive</groupId>
@@ -308,6 +336,7 @@
                 -Xmx3G
                 -XX:MaxDirectMemorySize=5120M
                 -XX:+CMSClassUnloadingEnabled
+                @{argLine}
               </argLine>
             </configuration>
           </plugin>

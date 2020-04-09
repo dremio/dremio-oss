@@ -181,7 +181,7 @@ public class ArrowRecordWriter implements RecordWriter {
               .setPath(relativePath)
               .build();
 
-      outputEntryListener.recordsWritten(recordCount, fileSize, currentFile.toString(), lastFileMetadata.toByteArray(), null);
+      outputEntryListener.recordsWritten(recordCount, fileSize, currentFile.toString(), lastFileMetadata.toByteArray(), null, null);
     }
   }
 

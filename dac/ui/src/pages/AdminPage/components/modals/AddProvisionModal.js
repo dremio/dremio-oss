@@ -78,12 +78,12 @@ export class AddProvisionModal extends Component {
   promptEditProvisionRestart(values) {
     return new Promise((resolve, reject) => {
       this.props.showConfirmationDialog({
-        title: la('Restart Cluster'),
+        title: la('Restart Engine'),
         confirmText: la('Restart'),
         confirm: () => resolve(this.editProvision(values)),
         cancel: reject,
         text: [
-          la('Saving these settings requires a restart of the cluster. Existing jobs will be halted.'),
+          la('Saving these settings requires a restart of the engine. Existing jobs will be halted.'),
           la('Are you sure you want to continue?')
         ]
       });

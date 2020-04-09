@@ -31,7 +31,7 @@ import com.dremio.proto.model.UpdateId;
  */
 public class UpdateIdWrapper {
   private static final Logger logger = LoggerFactory.getLogger(UpdateIdWrapper.class);
-  public static final Serializer<UpdateId> UPDATE_ID_SERIALIZER = ProtostuffSerializer.of(UpdateId.getSchema());
+  public static final Serializer<UpdateId, byte[]> UPDATE_ID_ABSTRACT_SERIALIZER = ProtostuffSerializer.of(UpdateId.getSchema());
 
 
   private UpdateId updateId;
@@ -204,11 +204,11 @@ public class UpdateIdWrapper {
   }
 
   public byte[] serialize() {
-    return UPDATE_ID_SERIALIZER.serialize(updateId);
+    return UPDATE_ID_ABSTRACT_SERIALIZER.serialize(updateId);
   }
 
   public static UpdateId deserialize(byte[] bytes) {
-    return UPDATE_ID_SERIALIZER.deserialize(bytes);
+    return UPDATE_ID_ABSTRACT_SERIALIZER.deserialize(bytes);
   }
 
   public static MinorType getMinorTypeFromSqlTypeName(SqlTypeName type) {

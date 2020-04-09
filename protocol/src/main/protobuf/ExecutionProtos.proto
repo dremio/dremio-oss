@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+syntax = "proto2";
 package exec.bit;
 
 option java_package = "com.dremio.exec.proto";
@@ -20,7 +21,6 @@ option java_outer_classname = "ExecProtos";
 option optimize_for = SPEED;
 option java_generate_equals_and_hash = true;
 
-import "Coordination.proto";
 import "UserBitShared.proto";
 
 message FragmentHandle {

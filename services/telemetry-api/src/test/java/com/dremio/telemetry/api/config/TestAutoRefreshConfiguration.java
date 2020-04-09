@@ -28,7 +28,7 @@ import javax.inject.Provider;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.dremio.common.collections.Tuple;
+import com.dremio.telemetry.api.config.AutoRefreshConfigurator.CompleteRefreshConfig;
 
 /**
  * Ensure that AutoRefreshConfigurator appropriately picks up new config and passes it to the listener when unique.
@@ -66,17 +66,16 @@ public class TestAutoRefreshConfiguration {
     listener = new TestConfListener();
   }
 
-  public Tuple<RefreshConfiguration, Integer> makeDefaultTuple(Integer val) {
-    return Tuple.of(defaultRefreshEnabled, val);
+  public CompleteRefreshConfig<Integer> makeDefaultConfig(Integer val) {
+    return new CompleteRefreshConfig<>(defaultRefreshEnabled, val);
   }
 
   @Test
   public void testInitialStateNoChanges()  throws InterruptedException{
     final Integer staleInt = 42;
-    final Tuple wholeConf = Tuple.of(defaultRefreshEnabled, staleInt);
+    final CompleteRefreshConfig<Integer> wholeConf = new CompleteRefreshConfig<>(defaultRefreshEnabled, staleInt);
 
-
-    Provider<Tuple<RefreshConfiguration, Integer>> unchangingGetter =  () -> wholeConf;
+    Provider<CompleteRefreshConfig<Integer>> unchangingGetter =  () -> wholeConf;
 
     AutoRefreshConfigurator<Integer> refresher = new AutoRefreshConfigurator<>(unchangingGetter, listener, 0);
 
@@ -89,12 +88,7 @@ public class TestAutoRefreshConfiguration {
   @Test
   public void testBadInitialRead()  throws InterruptedException{
     final Integer staleInt = null;
-    final Tuple wholeConf = Tuple.of(defaultRefreshEnabled, staleInt);
-
-
-
-    Provider<Tuple<RefreshConfiguration, Integer>> evolvingGetter = makeDynamicConfig(Arrays.asList(null, Tuple.of(disabledRefreshConf, 13)));
-
+    Provider<CompleteRefreshConfig<Integer>> evolvingGetter = makeDynamicConfig(Arrays.asList(null, new CompleteRefreshConfig<Integer>(disabledRefreshConf, 13)));
     AutoRefreshConfigurator<Integer> refresher = new AutoRefreshConfigurator<>(evolvingGetter, listener, defaultRefreshInterval);
 
     defaultSleep();
@@ -105,16 +99,14 @@ public class TestAutoRefreshConfiguration {
 
   @Test
   public void testChangingConfig()  throws InterruptedException{
-
-
-    Provider<Tuple<RefreshConfiguration, Integer>> evolvingGetter = makeDynamicConfig(Arrays.asList(
-      makeDefaultTuple(0),
-      makeDefaultTuple(-1),
-      makeDefaultTuple(null), // Should not register because null isn't a valid return value for config.
-      makeDefaultTuple(-1),
-      makeDefaultTuple(-1),
+    Provider<CompleteRefreshConfig<Integer>> evolvingGetter = makeDynamicConfig(Arrays.asList(
+      makeDefaultConfig(0),
+      makeDefaultConfig(-1),
+      makeDefaultConfig(null), // Should not register because null isn't a valid return value for config.
+      makeDefaultConfig(-1),
+      makeDefaultConfig(-1),
       null, // Should continue refreshing despite null because of present settings.
-      Tuple.of(disabledRefreshConf, 42)
+      new CompleteRefreshConfig<Integer>(disabledRefreshConf, 42)
     ));
 
     AutoRefreshConfigurator<Integer> refresher = new AutoRefreshConfigurator<>(evolvingGetter, listener, 0);
@@ -125,15 +117,15 @@ public class TestAutoRefreshConfiguration {
     assertEquals(listener.log, Arrays.asList(0, -1, null, -1, 42));
   }
 
-  private Provider<Tuple<RefreshConfiguration, Integer>> makeDynamicConfig(List<Tuple<RefreshConfiguration, Integer>> results) {
+  private Provider<CompleteRefreshConfig<Integer>> makeDynamicConfig(List<CompleteRefreshConfig<Integer>> results) {
 
-    Provider<Tuple<RefreshConfiguration, Integer>> evolvingGetter =  new Provider<Tuple<RefreshConfiguration, Integer>>() {
+    Provider<CompleteRefreshConfig<Integer>> evolvingGetter =  new Provider<CompleteRefreshConfig<Integer>>() {
       private int onGet = 1;
 
       @Override
-      public Tuple<RefreshConfiguration, Integer> get() {
+      public CompleteRefreshConfig<Integer> get() {
         if (results.size() >= onGet) {
-          final Tuple<RefreshConfiguration, Integer> ret = results.get(onGet - 1);
+          final CompleteRefreshConfig<Integer> ret = results.get(onGet - 1);
           ++onGet;
           return ret;
         }

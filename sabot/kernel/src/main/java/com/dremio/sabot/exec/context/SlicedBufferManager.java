@@ -22,6 +22,6 @@ import io.netty.buffer.ArrowBuf;
 
 public interface SlicedBufferManager extends BufferManager {
 
-  ArrowBuf getManagedBufferSliced(int size);
+  ArrowBuf getManagedBufferSliced(long size);
 
 }

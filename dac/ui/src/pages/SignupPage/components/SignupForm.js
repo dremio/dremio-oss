@@ -29,6 +29,7 @@ import { getViewState } from 'selectors/resources';
 import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm.js';
 import { divider, formRow } from 'uiTheme/radium/forms';
 import { Link } from 'react-router';
+import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 
 import UserForm from 'components/Forms/UserForm';
 
@@ -52,13 +53,15 @@ export class SignupForm extends Component {
   }
 
   submit = (form) => {
+    const instanceId = localStorageUtils.getInstanceId();
     const mappedValues = {
       'userName' : form.userName,
       'firstName' : form.firstName,
       'lastName' : form.lastName,
       'email' : form.email,
       'createdAt' : new Date().getTime(),
-      'password': form.password
+      'password': form.password,
+      'extra': form.extra || instanceId
     };
     const viewId = SIGNUP_FORM_VIEW_ID;
     return this.props.createFirstUser(mappedValues, {viewId});

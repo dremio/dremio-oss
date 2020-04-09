@@ -17,6 +17,8 @@ package com.dremio.exec.store.dfs;
 
 import java.io.IOException;
 
+import org.apache.arrow.vector.types.pojo.Field;
+
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.logical.FormatPluginConfig;
 import com.dremio.exec.catalog.StoragePluginId;
@@ -25,6 +27,9 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.planner.physical.WriterPrel;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.store.CatalogService;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -44,12 +49,14 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
   private final FormatPlugin formatPlugin;
   private final String location;
   private final WriterOptions options;
+  private final IcebergTableProps icebergTableProps;
 
   @JsonCreator
   public FileSystemCreateTableEntry(@JsonProperty("userName") String userName,
                                     @JsonProperty("pluginId") StoragePluginId pluginId,
                                     @JsonProperty("formatConfig") FormatPluginConfig formatConfig,
                                     @JsonProperty("location") String location,
+                                    @JsonProperty("icebergTableProps") IcebergTableProps icebergTableProps,
                                     @JsonProperty("options") WriterOptions options,
                                     @JacksonInject CatalogService catalogService)
       throws ExecutionSetupException {
@@ -58,6 +65,7 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
     this.formatPlugin = plugin.getFormatPlugin(formatConfig);
     this.location = location;
     this.options = options;
+    this.icebergTableProps = icebergTableProps;
   }
 
   /**
@@ -73,12 +81,14 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
       FileSystemPlugin plugin,
       FormatPlugin formatPlugin,
       String location,
+      IcebergTableProps icebergTableProps,
       WriterOptions options) {
     this.userName = userName;
     this.plugin = plugin;
     this.formatPlugin = formatPlugin;
     this.location = location;
     this.options = options;
+    this.icebergTableProps = icebergTableProps;
   }
 
   @JsonProperty("pluginId")
@@ -102,7 +112,7 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
   }
 
   public FileSystemCreateTableEntry cloneWithNewLocation(String newLocation){
-    return new FileSystemCreateTableEntry(userName, plugin, formatPlugin, newLocation, options);
+    return new FileSystemCreateTableEntry(userName, plugin, formatPlugin, newLocation, icebergTableProps, options);
   }
 
   public String getUserName() {
@@ -114,10 +124,32 @@ public class FileSystemCreateTableEntry implements CreateTableEntry {
       OpProps props,
       PhysicalOperator child
       ) throws IOException {
+    if (child != null && child.getProps() != null && icebergTableProps != null) {
+      BatchSchema writerSchema = child.getProps().getSchema();
+      SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
+      // current parquet writer uses a few extra columns in the schema for partitioning and distribution
+      // For iceberg, filter those extra columns
+      for (Field field : writerSchema) {
+        if (field.getName().equalsIgnoreCase(WriterPrel.PARTITION_COMPARATOR_FIELD)) {
+          continue;
+        }
+        if (field.getName().equalsIgnoreCase(WriterPrel.BUCKET_NUMBER_FIELD)) {
+          continue;
+        }
+        schemaBuilder.addField(field);
+      }
+      writerSchema = schemaBuilder.build();
+      icebergTableProps.setFullSchema(writerSchema);
+    }
     return formatPlugin.getWriter(child, location, plugin, options, props);
   }
 
   public WriterOptions getOptions() {
     return options;
   }
+
+  public IcebergTableProps getIcebergTableProps() {
+    return icebergTableProps;
+  }
+
 }

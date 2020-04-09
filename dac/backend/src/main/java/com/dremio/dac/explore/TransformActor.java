@@ -107,8 +107,13 @@ import com.dremio.dac.proto.model.dataset.TransformTrim;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetState;
 import com.dremio.dac.service.errors.ClientErrorException;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.jobs.SqlQuery;
-import com.dremio.service.jobs.metadata.QueryMetadata;
+import com.dremio.service.jobs.metadata.proto.QueryMetadata;
+import com.dremio.service.namespace.dataset.proto.FieldOrigin;
+import com.dremio.service.namespace.dataset.proto.ParentDataset;
+import com.google.common.base.Optional;
 
 /**
  * Abstract class that actually applies a single transformation. Uses a visitor
@@ -142,13 +147,23 @@ abstract class TransformActor implements TransformBase.TransformVisitor<Transfor
   @Override
   public TransformResult visit(TransformUpdateSQL updateSQL) throws Exception {
     final SqlQuery query = new SqlQuery(updateSQL.getSql(), updateSQL.getSqlContextList(), username);
-    m.setSql(query, getMetadata(query));
+    m.setSql(getMetadata(query));
     return m.result();
   }
 
   protected abstract QueryMetadata getMetadata(SqlQuery query);
 
   protected abstract boolean hasMetadata();
+
+  protected abstract QueryMetadata getMetadata();
+
+  protected abstract Optional<BatchSchema> getBatchSchema();
+
+  protected abstract Optional<List<ParentDatasetInfo>> getParents();
+
+  protected abstract Optional<List<FieldOrigin>> getFieldOrigins();
+
+  protected abstract Optional<List<ParentDataset>> getGrandParents();
 
   @Override
   public TransformResult visit(TransformJoin join) throws Exception {

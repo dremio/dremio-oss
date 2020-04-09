@@ -82,7 +82,7 @@ export class EditSourceView extends Component {
 
   state = {
     didLoadFail: false
-  }
+  };
 
   componentWillMount() {
     const { sourceName, sourceType } = this.props;
@@ -91,11 +91,9 @@ export class EditSourceView extends Component {
   }
 
   setStateWithSourceTypeConfigFromServer(typeCode) {
-    ApiUtils.fetch(`source/type/${typeCode}`).then(response => {
-      response.json().then((result) => {
-        const combinedConfig = SourceFormJsonPolicy.getCombinedConfig(typeCode, processUiConfig(result));
-        this.setState({isTypeSelected:true, isConfigLoaded: true, selectedFormType: combinedConfig});
-      });
+    ApiUtils.fetchJson(`source/type/${typeCode}`, json => {
+      const combinedConfig = SourceFormJsonPolicy.getCombinedConfig(typeCode, processUiConfig(json));
+      this.setState({isTypeSelected: true, isConfigLoaded: true, selectedFormType: combinedConfig});
     }, () => {
       this.setState({didLoadFail: true});
     });

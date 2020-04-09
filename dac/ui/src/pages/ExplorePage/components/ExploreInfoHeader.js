@@ -46,6 +46,7 @@ import { startDownloadDataset } from 'actions/explore/download';
 import { performNextAction, NEXT_ACTIONS } from 'actions/explore/nextAction';
 
 import DatasetAccelerationButton from 'dyn-load/components/Acceleration/DatasetAccelerationButton';
+import ExploreInfoHeaderMixin from 'dyn-load/pages/ExplorePage/components/ExploreInfoHeaderMixin';
 
 import SaveMenu, { DOWNLOAD_TYPES } from 'components/Menus/ExplorePage/SaveMenu';
 import CombinedActionMenu from '@app/components/Menus/ExplorePage/CombinedActionMenu';
@@ -66,6 +67,7 @@ export const QLIK_TOOL_NAME = 'Qlik Sense';
 
 @injectIntl
 @Radium
+@ExploreInfoHeaderMixin
 export class ExploreInfoHeader extends PureComponent {
   static propTypes = {
     dataset: PropTypes.instanceOf(Immutable.Map).isRequired,
@@ -370,7 +372,7 @@ export class ExploreInfoHeader extends PureComponent {
   }
 
   renderAccelerationButton = () => {
-    if (!this.isCreatedAndNamedDataset()) {
+    if (!this.showAccelerationButton()) {
       return null;
     }
     const fullPath = ExploreInfoHeader.getFullPathListForDisplay(this.props.dataset);

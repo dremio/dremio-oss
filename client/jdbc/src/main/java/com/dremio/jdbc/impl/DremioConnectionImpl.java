@@ -107,7 +107,7 @@ class DremioConnectionImpl extends AvaticaConnection
       // (Include cause exception's text in wrapping exception's text so
       // it's more likely to get to user (e.g., via SQLLine), and use
       // toString() since getMessage() text doesn't always mention error:)
-      throw new SQLException("Failure in connecting to Dremio: " + e, e);
+      throw DremioExceptionMapper.map(e, "Failure in connecting to Dremio: %s", e.toString());
     }
   }
 

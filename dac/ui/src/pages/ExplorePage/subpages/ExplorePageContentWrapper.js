@@ -21,7 +21,7 @@ import PropTypes from 'prop-types';
 import classNames from 'classnames';
 import Mousetrap from 'mousetrap';
 
-import DataGraph from 'dyn-load/pages/ExplorePage/subpages/datagraph/DataGraph';
+import DataGraph from '@inject/pages/ExplorePage/subpages/datagraph/DataGraph';
 import DetailsWizard from 'components/Wizards/DetailsWizard';
 import { HISTORY_PANEL_SIZE } from 'uiTheme/radium/sizes';
 import { WHITE } from 'uiTheme/radium/colors.js';

@@ -47,7 +47,7 @@ import io.protostuff.Tag;
  * Azure Data Lake (ADL)
  * https://hadoop.apache.org/docs/current/hadoop-azure-datalake/index.html
  */
-@SourceType(value = "ADL", label = "Azure Data Lake Storage Gen1")
+@SourceType(value = "ADL", label = "Azure Data Lake Storage Gen1", uiConfig = "adl-layout.json")
 public class AzureDataLakeConf extends FileSystemConf<AzureDataLakeConf, AzureDataLakeStoragePlugin> {
   /**
    * Type ADL Auth

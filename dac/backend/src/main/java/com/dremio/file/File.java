@@ -15,6 +15,8 @@
  */
 package com.dremio.file;
 
+import static com.dremio.common.utils.PathUtils.encodeURIComponent;
+
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.HashMap;
@@ -22,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import com.dremio.dac.explore.model.FileFormatUI;
 import com.dremio.dac.model.common.NamespacePath;
@@ -32,7 +35,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 
 /**
  * File model.
@@ -132,7 +135,9 @@ public class File {
     } else {
       links.put("format_preview", filePath.toUrlPathWithAction("file_preview"));
       if (!isHomeFile) {
-        links.put("delete_format", filePath.toUrlPathWithAction("file_format") + "?version=" + fileFormat.getFileFormat().getVersion());
+        final String version = fileFormat.getFileFormat().getVersion();
+        links.put("delete_format", filePath.toUrlPathWithAction("file_format") + "?version="
+          + (version == null ? version : encodeURIComponent(version)));
       }
     }
     // always include query url because set file format response doesn't include it.
@@ -155,11 +160,11 @@ public class File {
   private static NamespacePath parseUrlPath(String urlPath) {
     Matcher m = PARSER.matcher(urlPath);
     if (m.matches()) {
-      List<String> pathParts = FluentIterable
-          .of(new String[] { m.group(2)} )
-          .append(m.group(3).split("/"))
-          .transform(PATH_DECODER)
-          .toList();
+      List<String> pathParts = Stream.concat(
+        Stream.of(m.group(2)),
+        Stream.of(m.group(3).split("/")))
+        .map(PATH_DECODER)
+        .collect(ImmutableList.toImmutableList());
 
       if (m.group(1).equals("home")) {
         return new FilePath(pathParts);

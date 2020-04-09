@@ -19,8 +19,8 @@ import java.util.Map.Entry;
 
 import org.apache.calcite.schema.Schema.TableType;
 
-import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -45,7 +45,7 @@ public class TablesTable extends BaseInfoSchemaTable<TablesTable.Table> {
   public Iterable<Table> asIterable(final String catalogName, String username, DatasetListingService service, SearchQuery query) {
     final Iterable<Entry<NamespaceKey, NameSpaceContainer>> searchResults;
     try {
-      searchResults = service.find(username, query == null ? null : new FindByCondition().setCondition(query));
+      searchResults = service.find(username, query == null ? null : new LegacyFindByCondition().setCondition(query));
     } catch (NamespaceException e) {
       throw new RuntimeException(e);
     }

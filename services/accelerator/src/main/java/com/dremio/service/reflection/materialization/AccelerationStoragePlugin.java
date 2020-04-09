@@ -33,7 +33,7 @@ import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.connector.metadata.options.MaxLeafFieldCount;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.FileConfigOption;
 import com.dremio.exec.catalog.SortColumnsOption;
@@ -89,7 +89,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
   @Override
   public void start() throws IOException {
     super.start();
-    materializationStore = new MaterializationStore(DirectProvider.<KVStoreProvider>wrap(getContext().getKVStoreProvider()));
+    materializationStore = new MaterializationStore(DirectProvider.<LegacyKVStoreProvider>wrap(getContext().getKVStoreProvider()));
     formatPlugin = (ParquetFormatPlugin) formatCreator.getFormatPluginByConfig(new ParquetFormatConfig());
   }
 
@@ -227,7 +227,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
   }
 
   @Override
-  public void dropTable(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
+  public void dropTable(List<String> tableSchemaPath, boolean isLayered, SchemaConfig schemaConfig) {
     final List<String> components = normalizeComponents(tableSchemaPath);
     if (components == null) {
       throw UserException.validationError().message("Unable to find any materialization or associated refreshes.").build(logger);
@@ -273,7 +273,7 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
           .addAll(PathUtils.toPathComponents(r.getPath()))
           .build();
         logger.debug("deleting refresh {}", tableSchemaPath);
-        super.dropTable(tableSchemaPath, schemaConfig);
+        super.dropTable(tableSchemaPath, false, schemaConfig);
       } catch (Exception e) {
         logger.warn("Couldn't delete refresh {}", r.getId().getId(), e);
       } finally {

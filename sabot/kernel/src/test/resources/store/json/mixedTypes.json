@@ -1,0 +1,7 @@
+{
+    "boolTrue": true,
+    "boolFalse": false,
+    "int": 5,
+    "number": 3.23,
+    "string": "string"
+}

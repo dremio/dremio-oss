@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.contrib</groupId>
     <artifactId>dremio-contrib-parent</artifactId>
-    <version>4.1.8-202003120636020140-9c2a6b13</version>
+    <version>4.2.0-202004091958060824-8f7e141d</version>
   </parent>
 
   <artifactId>dremio-hive3-exec-shaded</artifactId>
@@ -30,7 +30,7 @@
   <name>Contrib - Shaded Hive 3 JAR</name>
 
   <properties>
-    <hive.version>3.1.1-dremio-201909111144580113-04156e1</hive.version>
+    <hive.version>${plugin.hive3.hive.version}</hive.version>
   </properties>
 
   <!-- Need to overwrite dependency management for calcite
@@ -121,6 +121,10 @@
         <exclusion>
           <groupId>com.google.protobuf</groupId>
           <artifactId>protobuf-java</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-yarn-registry</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

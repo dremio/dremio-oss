@@ -19,7 +19,9 @@ import transformModelMapper from 'utils/mappers/ExplorePage/Transform/transformM
 import simpleTransformMappers from 'utils/mappers/ExplorePage/simpleTransformMappers';
 import mapConvertDataType from 'utils/mappers/ExplorePage/convertDataType';
 import dataStoreUtils from 'utils/dataStoreUtils';
-import { TEXT, INTEGER, FLOAT, DECIMAL, BOOLEAN, DATE, DATETIME, TIME, LIST, MAP } from '@app/constants/DataTypes';
+import { copyTextToClipboard } from '@app/utils/clipboard/clipboardUtils';
+import { BOOLEAN, DATE, DATETIME, DECIMAL, FLOAT, INTEGER, LIST, MAP, TEXT, TIME } from '@app/constants/DataTypes';
+import { APIV2Call } from '@app/core/APICall';
 
 const DROP_WIDTH = 150;
 const ARROW_WIDTH = 20;
@@ -374,26 +376,70 @@ class ExploreUtils {
   }
 
   getHrefForUntitledDatasetConfig = (dottedFullPath, newVersion, doNotWaitJobCompletion) => {
-    const pathParam = encodeURIComponent(dottedFullPath);
-    return `/datasets/new_untitled?parentDataset=${pathParam}&newVersion=${newVersion}&limit=${doNotWaitJobCompletion ? 0 : ROWS_LIMIT}`;
+    const apiCall = new APIV2Call()
+      .paths('/datasets/new_untitled')
+      .params({
+        parentDataset: dottedFullPath,
+        newVersion,
+        limit: doNotWaitJobCompletion ? 0 : ROWS_LIMIT
+      });
+
+    return apiCall.toPath();
+  };
+
+  getAPICallForUntitledDatasetConfig = (dottedFullPath, newVersion, doNotWaitJobCompletion) => {
+    const apiCall = new APIV2Call()
+      .paths('/datasets/new_untitled')
+      .params({
+        parentDataset: dottedFullPath,
+        newVersion,
+        limit: doNotWaitJobCompletion ? 0 : ROWS_LIMIT
+      });
+
+    return apiCall;
   };
 
   getHrefForDatasetConfig = (resourcePath) => `${resourcePath}?view=explore&limit=50`;
   getPreviewLink = (dataset, tipVersion) => {
-    return `${dataset.getIn(['apiLinks', 'self'])}/preview?view=explore` +
-        `${tipVersion ? `&tipVersion=${tipVersion}` : ''}&limit=0`;
+    const apiCall = new APIV2Call()
+      .paths(`${dataset.getIn(['apiLinks', 'self'])}/preview`)
+      .params({
+        view: 'explore',
+        limit: 0
+      });
+
+    if (tipVersion) {
+      apiCall.params({tipVersion});
+    }
+
+    return apiCall.toPath();
   };
 
-  getReviewLink = (dataset, tipVersion) =>
-    `${dataset.getIn(['apiLinks', 'self'])}/review?jobId=${dataset.get('jobId')}&view=explore` +
-        `${tipVersion ? `&tipVersion=${tipVersion}` : ''}&limit=0`;
+  getReviewLink = (dataset, tipVersion) => {
+    const apiCall = new APIV2Call()
+      .paths(`${dataset.getIn(['apiLinks', 'self'])}/review`)
+      .params({
+        jobId: dataset.get('jobId'),
+        view: 'explore',
+        limit: 0
+      });
+
+    if (tipVersion) {
+      apiCall.params({tipVersion});
+    }
+
+    return apiCall.toPath();
+  };
 
   getHrefForTransform({ resourceId, tableId }, location) {
     // TODO this should be moved into dataset decorator
     const { version } = location.query;
     const fullPath = location.query.mode === 'edit' ? `${encodeURIComponent(resourceId)}.${encodeURIComponent(tableId)}` : 'tmp.UNTITLED';
     const resourcePath = `dataset/${fullPath}`;
-    return `/${resourcePath}/version/${version}`;
+
+    const apiCall = new APIV2Call().paths(`${resourcePath}/version/${version}`);
+
+    return apiCall.toPath();
   }
 
   getNewDatasetVersion = () => '000' + rand(40, 10);
@@ -409,26 +455,26 @@ class ExploreUtils {
   };
 
   getPreviewTransformationLink(dataset, newVersion) {
-    const end = `transformAndPreview?newVersion=${newVersion}&limit=0`;
+    const end = `transformAndPreview?newVersion=${encodeURIComponent(newVersion)}&limit=0`;
     return `${dataset.getIn(['apiLinks', 'self'])}/${end}`;
   }
 
   getTransformPeekHref(dataset) {
     const newVersion = this.getNewDatasetVersion();
-    const end = `transformPeek?newVersion=${newVersion}&limit=${ROWS_LIMIT}`;
+    const end = `transformPeek?newVersion=${encodeURIComponent(newVersion)}&limit=${ROWS_LIMIT}`;
     return `${dataset.getIn(['apiLinks', 'self'])}/${end}`;
   }
 
   getRunTransformationLink({fullPath, version, newVersion, type}) {
-    return `/dataset/${fullPath.join('.')}/version/${version}/${type}?newVersion=${newVersion}&limit=${ROWS_LIMIT}`;
+    return `/dataset/${fullPath.join('.')}/version/${version}/${type}?newVersion=${encodeURIComponent(newVersion)}&limit=${ROWS_LIMIT}`;
   }
 
   getUntitledSqlHref({newVersion}) {
-    return `/datasets/new_untitled_sql?newVersion=${newVersion}&limit=0`;
+    return `/datasets/new_untitled_sql?newVersion=${encodeURIComponent(newVersion)}&limit=0`;
   }
 
   getUntitledSqlAndRunHref({newVersion}) {
-    return `/datasets/new_untitled_sql_and_run?newVersion=${newVersion}`; // does not need limit=0 as does not return data in all cases
+    return `/datasets/new_untitled_sql_and_run?newVersion=${encodeURIComponent(newVersion)}`; // does not need limit=0 as does not return data in all cases
   }
 
   getMappedDataForTransform(item, detailsType) {
@@ -486,37 +532,9 @@ class ExploreUtils {
     if (elementOrText === null) return;
 
     const isText = typeof elementOrText === 'string';
-    const selectionElement = isText ? this._createFakeElement(elementOrText) : elementOrText;
-
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      const text = isText ? elementOrText : selectionElement.innerText;
-      return navigator.clipboard.writeText(text)
-        .then(() => {
-          return true;
-        }).catch(err => {
-          console.error('Could not copy to clipboard text: ', err);
-          return false;
-        });
-    }
-
-    if (isText) {
-      selectionElement.select();
-      selectionElement.setSelectionRange(0, selectionElement.value.length);
-    } else {
-      const sel = window.getSelection();
-      const range = document.createRange();
-      range.selectNodeContents(selectionElement);
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-
-    document.execCommand('copy');
-
-    window.getSelection().removeAllRanges();
-
-    if (isText) {
-      document.body.removeChild(selectionElement);
-    }
+    const text = isText ? elementOrText : elementOrText.innerText;
+    // for some strange reason it works only in async mode. See clipboardUtils for details
+    window.setTimeout(copyTextToClipboard.bind(this, text), 1); // copyTextToClipboard(text);
   };
 
   escapeFieldNameForSQL(value) {

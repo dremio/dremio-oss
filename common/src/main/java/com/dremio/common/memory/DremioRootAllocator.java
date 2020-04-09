@@ -61,12 +61,12 @@ public class DremioRootAllocator extends RootAllocator {
   }
 
   @Override
-  public ArrowBuf buffer(final int initialRequestSize) {
+  public ArrowBuf buffer(final long initialRequestSize) {
     throw new UnsupportedOperationException("Dremio's root allocator should not be used for direct allocations");
   }
 
   @Override
-  public ArrowBuf buffer(final int initialRequestSize, BufferManager manager) {
+  public ArrowBuf buffer(final long initialRequestSize, BufferManager manager) {
     throw new UnsupportedOperationException("Dremio's root allocator should not be used for direct allocations");
   }
 

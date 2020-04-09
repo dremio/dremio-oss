@@ -64,7 +64,6 @@ describe('ExploreTable', () => {
 
     wrapper = shallow(<ExploreTable {...commonProps}/>, {context});
     instance = wrapper.instance();
-    sinon.stub(instance, 'debouncedUpdateSize');
   });
 
   it('should render .fixed-data-table', () => {
@@ -301,7 +300,6 @@ describe('ExploreTable', () => {
   describe('handleColumnResizeEnd', () => {
     beforeEach(() => {
       sinon.stub(instance, 'renderColumns');
-      sinon.stub(instance, 'hasHorizontalScroll');
       sinon.stub(instance, 'getScrollToColumn');
       sinon.stub(instance, 'updateSize');
     });

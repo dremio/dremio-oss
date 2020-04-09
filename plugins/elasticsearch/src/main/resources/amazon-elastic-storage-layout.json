@@ -1,0 +1,151 @@
+{
+  "sourceType": "AMAZONELASTIC",
+  "metadataRefresh": {
+    "datasetDiscovery": true
+  },
+  "form": {
+    "tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "layout": "row",
+            "tooltip": "",
+            "elements": [
+              {
+                "propName": "config.hostname",
+                "size": "half",
+                "validate": {
+                  "isRequired": true
+                }
+              },
+              {
+                "propName": "config.port",
+                "size": "half",
+                "validate": {
+                  "isRequired": true
+                }
+              }
+            ]
+          },
+          {
+            "name": "Authentication",
+            "elements": [
+              {
+                "propName": "config.authenticationType",
+                "uiType": "container_selection",
+                "options": [
+                  {
+                    "value": "ACCESS_KEY",
+                    "container": {
+                      "elements": [
+                        {
+                          "propName": "config.accessKey",
+                          "size": "half",
+                          "errMsg": "Both access secret and key are required for accessing Amazon Elasticsearch Service."
+                        },
+                        {
+                          "propName": "config.accessSecret",
+                          "size": "half",
+                          "errMsg": "Both access secret and key are required for accessing Amazon Elasticsearch Service.",
+                          "secure": true
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "value": "EC2_METADATA",
+                    "container": {}
+                  },
+                  {
+                    "value": "NONE",
+                    "container": {}
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "name": "Elasticsearch",
+            "elements": [
+              {
+                "propName": "config.showHiddenIndices"
+              },
+              {
+                "propName": "config.usePainless"
+              },
+              {
+                "propName": "config.showIdColumn"
+              },
+              {
+                "propName": "config.allowPushdownOnNormalizedOrAnalyzedFields"
+              },
+              {
+                "propName": "config.scriptsEnabled"
+              },
+              {
+                "propName": "config.warnOnRowCountMismatch"
+              },
+              {
+                "propName": "config.readTimeoutMillis",
+                "size": "half",
+                "validate": {
+                  "isNumber": true
+                },
+                "scale": "1:1000",
+                "label": "Read timeout (seconds)"
+              },
+              {
+                "propName": "config.scrollTimeoutMillis",
+                "size": "half",
+                "validate": {
+                  "isNumber": true
+                },
+                "scale": "1:1000",
+                "label": "Scroll timeout (seconds)"
+              },
+              {
+                "propName": "config.scrollSize",
+                "tooltip": "Configure scroll size for Elasticsearch requests Dremio makes. This setting must be less than or equal to your Elasticsearch's setting for index.max_result_window setting (typically defaults to 10,000).",
+                "size": "half"
+              }
+            ]
+          },
+          {
+            "name": "Encryption",
+            "elements": [
+              {
+                "propName": "config.encryptionValidationMode"
+              }
+            ]
+          },
+          {
+            "name": "AWS",
+            "elements": [
+              {
+                "uiType": "check_enabled_container",
+                "propName": "config.overwriteRegion",
+                "container": {
+                  "elements": [
+                    {
+                      "propName": "config.regionName",
+                      "size": "half",
+                      "errMsg": "Region is required unless you uncheck the checkbox."
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

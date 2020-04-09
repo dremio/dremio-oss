@@ -56,7 +56,7 @@ export default class TextWrapper extends Component {
       // special case in source forms: source name can not be changed after initial creation
       elementConfig.getPropName() === 'name' && this.props.editing) ? {disabled: true} : null;
 
-    const {value, onChange, onBlur, onUpdate, ...fieldProps} = field;
+    const {value, onChange, onBlur, onUpdate, ...fieldProps} = field; // eslint-disable-line @typescript-eslint/no-unused-vars
     const currentValue = (numberField) ? FormUtils.scaleValue(value, scale) : value;
     const onChangeHandler = (numberField) ? this.onChangeHandler : onChange;
 

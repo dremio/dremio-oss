@@ -26,6 +26,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.easy.json.JsonProcessor.ReadState;
 import com.dremio.exec.store.easy.json.reader.CountingJsonReader;
@@ -149,8 +150,9 @@ public class JSONRecordReader extends AbstractRecordReader {
         this.jsonReader = new CountingJsonReader();
       } else {
         final int sizeLimit = Math.toIntExact(this.context.getOptions().getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
+        final int maxLeafLimit = Math.toIntExact(this.context.getOptions().getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
         this.jsonReader = new JsonReader(
-          context.getManagedBuffer(), ImmutableList.copyOf(getColumns()), sizeLimit, enableAllTextMode, true, readNumbersAsDouble);
+          context.getManagedBuffer(), ImmutableList.copyOf(getColumns()), sizeLimit, maxLeafLimit, enableAllTextMode, true, readNumbersAsDouble);
       }
       setupParser();
     }catch(final Exception e){

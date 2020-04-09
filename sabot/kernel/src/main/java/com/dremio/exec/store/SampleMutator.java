@@ -20,7 +20,6 @@ import java.util.Map;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
-import org.apache.arrow.vector.SchemaChangeCallBack;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
@@ -31,6 +30,7 @@ import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
+import com.dremio.sabot.op.scan.MutatorSchemaChangeCallBack;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.collect.Maps;
 
@@ -45,7 +45,7 @@ public class SampleMutator implements OutputMutator, AutoCloseable {
   private static final Logger logger = LoggerFactory.getLogger(SampleMutator.class);
 
   private final Map<String, ValueVector> fieldVectorMap = Maps.newHashMap();
-  private final SchemaChangeCallBack callBack = new SchemaChangeCallBack();
+  private final MutatorSchemaChangeCallBack callBack = new MutatorSchemaChangeCallBack();
   private final VectorContainer container = new VectorContainer();
   private final BufferAllocator allocator;
   private final BufferManager bufferManager;
@@ -114,8 +114,13 @@ public class SampleMutator implements OutputMutator, AutoCloseable {
   }
 
   @Override
-  public boolean isSchemaChanged() {
-    return container.isNewSchema() || callBack.getSchemaChangedAndReset();
+  public boolean getAndResetSchemaChanged() {
+    return callBack.getSchemaChangedAndReset() || container.isNewSchema();
+  }
+
+  @Override
+  public boolean getSchemaChanged() {
+    return container.isNewSchema() || callBack.getSchemaChanged();
   }
 
   /**

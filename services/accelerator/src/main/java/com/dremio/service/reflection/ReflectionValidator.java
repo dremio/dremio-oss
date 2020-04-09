@@ -29,8 +29,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.catalog.EntityExplorer;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.planner.sql.handlers.direct.AccelCreateReflectionHandler;
 import com.dremio.exec.planner.sql.parser.SqlCreateReflection.MeasureType;
@@ -81,14 +81,14 @@ public class ReflectionValidator {
     ReflectionUtils.validateReflectionGoalWithoutSchema(goal);
 
     // The dataset that the reflection refers to must exist.
-    final Catalog catalog = catalogService.get()
+    final EntityExplorer entityExplorer = catalogService.get()
         .getCatalog(MetadataRequestOptions.newBuilder(
             SchemaConfig.newBuilder(SystemUser.SYSTEM_USERNAME)
                 .build())
             .setCheckValidity(false)
             .build());
 
-    final DremioTable table = catalog.getTable(goal.getDatasetId());
+    final DremioTable table = entityExplorer.getTable(goal.getDatasetId());
     Preconditions.checkNotNull(table, "datasetId must reference an existing dataset");
     final List<ViewFieldType> schemaFields = ViewFieldsHelper.getBatchSchemaFields(table.getSchema());
 

@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { call, put, takeEvery, select, race, take } from 'redux-saga/effects';
+import { call, put, race, select, take, takeEvery } from 'redux-saga/effects';
 import qsocks from 'qsocks';
 
-import { API_URL_V2 } from '@app/constants/Api';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 
 import * as Actions from 'actions/explore/download';
 import * as QlikActions from 'actions/qlik';
-import { showQlikError, showQlikModal, showQlikProgress, hideQlikError } from 'actions/explore/ui';
+import { hideQlikError, showQlikError, showQlikModal, showQlikProgress } from 'actions/explore/ui';
 import { showConfirmationDialog } from 'actions/confirmation';
 
 import { getUserName } from 'selectors/account';
 import { getLocation } from 'selectors/routing';
 
 import { constructFullPath, constructFullPathAndEncode, getUniqueName } from 'utils/pathUtils';
+import { APIV2Call } from '@app/core/APICall';
 import { getLocationChangePredicate } from './utils';
 
 export const DSN = 'Dremio Connector';
@@ -51,7 +51,10 @@ export function* fetchQlikApp(dataset) {
   if (localStorageUtils) {
     headers.append('Authorization', localStorageUtils.getAuthToken());
   }
-  const response = yield call(fetch, `${API_URL_V2}${href}`, {method: 'GET', headers});
+
+  const apiCall = new APIV2Call().fullpath(href);
+
+  const response = yield call(fetch, apiCall.toString(), {method: 'GET', headers});
   const responseText = yield response.text();
   if (!response.ok) {
     throw new Error(responseText);
@@ -59,7 +62,7 @@ export function* fetchQlikApp(dataset) {
   return responseText;
 }
 
-export function* checkDsnList(qlikGlobal, dataset) {
+export function* checkDsnList(qlikGlobal) {
   const dsns = yield call([qlikGlobal, qlikGlobal.getOdbcDsns]);
   let dsnDetected = false;
   for (let i = 0; i < dsns.length; i++) {

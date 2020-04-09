@@ -36,8 +36,8 @@ import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.common.SourceLogicalConverter;
 import com.dremio.exec.store.dfs.easy.EasyScanPrel;
 import com.dremio.exec.store.parquet.ParquetScanPrel;
+import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
-import com.dremio.service.namespace.file.proto.FileType;
 import com.google.common.collect.ImmutableSet;
 
 /**
@@ -132,6 +132,6 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
   }
 
   private static boolean isParquetDataset(TableMetadata datasetPointer) {
-    return datasetPointer.getFormatSettings().getType() == FileType.PARQUET;
+    return DatasetHelper.hasParquetDataFiles(datasetPointer.getFormatSettings());
   }
 }

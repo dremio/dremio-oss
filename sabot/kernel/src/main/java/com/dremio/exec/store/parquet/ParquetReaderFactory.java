@@ -22,19 +22,19 @@ import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
-import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 public interface ParquetReaderFactory {
   enum ManagedSchemaType {
     HIVE,
-  };
+    ICEBERG
+  }
 
   boolean isSupported(ColumnChunkMetaData chunk);
 
   RecordReader newReader(OperatorContext context,
-      List<SchemaPath> columns,
+      ParquetScanProjectedColumns projectedColumns,
       String path,
       CompressionCodecFactory codecFactory,
       List<ParquetFilterCondition> conditions,
@@ -59,10 +59,20 @@ public interface ParquetReaderFactory {
     }
 
     @Override
-    public RecordReader newReader(OperatorContext context, List<SchemaPath> columns, String path,
-        CompressionCodecFactory codecFactory, List<ParquetFilterCondition> conditions, ParquetFilterCreator filterCreator, ParquetDictionaryConvertor dictionaryConvertor, boolean enableDetailedTracing,
-        ParquetMetadata footer, int rowGroupIndex, SimpleIntVector deltas, SchemaDerivationHelper schemaHelper,
-        InputStreamProvider inputStreamProvider) {
+    public RecordReader newReader(OperatorContext context,
+                                  ParquetScanProjectedColumns projectedColumns,
+                                  String path,
+                                  CompressionCodecFactory codecFactory,
+                                  List<ParquetFilterCondition> conditions,
+                                  ParquetFilterCreator filterCreator,
+                                  ParquetDictionaryConvertor dictionaryConvertor,
+                                  boolean enableDetailedTracing,
+                                  ParquetMetadata footer,
+                                  int rowGroupIndex,
+                                  SimpleIntVector deltas,
+                                  SchemaDerivationHelper schemaHelper,
+                                  InputStreamProvider inputStreamProvider) {
+
       throw new UnsupportedOperationException();
     }
 

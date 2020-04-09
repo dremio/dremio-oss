@@ -23,7 +23,7 @@ import com.dremio.options.OptionValue.OptionType;
 
 /**
  * {@link OptionManager} that hold options in memory rather than in a persistent store. Option stored in
- * {@link SessionOptionManager}, {@link QueryOptionManager}, and {@link FragmentOptionManager} are held in memory
+ * {@link SessionOptionManagerImpl}, {@link QueryOptionManager}, and {@link FragmentOptionManager} are held in memory
  * (see {@link #options}) whereas {@link SystemOptionManager} stores options in a persistent store.
  */
 public abstract class InMemoryOptionManager extends FallbackOptionManager {

@@ -15,6 +15,7 @@
  */
 package com.dremio.datastore;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 
@@ -88,6 +89,11 @@ public class LegacyProtobufSerializer<T extends Message> extends ProtobufSeriali
    */
   public static <M extends Message> M parseFrom(Parser<M> parser, byte[] bytes)
       throws InvalidProtocolBufferException {
+    return rewriteProtostuff(parser.parseFrom(bytes));
+  }
+
+  public static <M extends Message> M parseFrom(Parser<M> parser, ByteBuffer bytes)
+    throws InvalidProtocolBufferException {
     return rewriteProtostuff(parser.parseFrom(bytes));
   }
 

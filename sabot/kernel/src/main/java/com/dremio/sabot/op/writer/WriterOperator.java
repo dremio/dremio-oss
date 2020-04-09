@@ -62,6 +62,7 @@ public class WriterOperator implements SingleInputOperator {
   private VarCharVector fragmentIdVector;
   private VarCharVector pathVector;
   private VarBinaryVector metadataVector;
+  private VarBinaryVector icebergMetadataVector;
   private IntVector partitionNumberVector;
 
   private PartitionWriteManager partitionManager;
@@ -98,7 +99,8 @@ public class WriterOperator implements SingleInputOperator {
     state.is(State.NEEDS_SETUP);
 
     if(options.hasPartitions() || options.hasDistributions()){
-      partitionManager = new PartitionWriteManager(options, incoming);
+      partitionManager = new PartitionWriteManager(options, incoming,
+        options.getIcebergWriterOperation() != WriterOptions.IcebergWriterOperation.NONE);
       this.maskedContainer = partitionManager.getMaskedContainer();
       recordWriter.setup(maskedContainer, listener, statsListener);
     } else {
@@ -112,6 +114,7 @@ public class WriterOperator implements SingleInputOperator {
     fileSizeVector = output.addOrGet(RecordWriter.FILESIZE);
     metadataVector = output.addOrGet(RecordWriter.METADATA);
     partitionNumberVector = output.addOrGet(RecordWriter.PARTITION);
+    icebergMetadataVector = output.addOrGet(RecordWriter.ICEBERG_METADATA);
     output.buildSchema();
     output.setInitialCapacity(context.getTargetBatchSize());
     state = State.CAN_CONSUME;
@@ -185,6 +188,10 @@ public class WriterOperator implements SingleInputOperator {
         metadataVector.setSafe(i, e.metadata, 0, e.metadata.length);
       }
 
+      if (e.icebergMetadata != null) {
+        icebergMetadataVector.setSafe(i, e.icebergMetadata, 0, e.icebergMetadata.length);
+      }
+
       if (e.path != null) {
         byte[] bytePath = e.path.getBytes(Charsets.UTF_8);
         pathVector.setSafe(i, bytePath, 0, bytePath.length);
@@ -244,8 +251,8 @@ public class WriterOperator implements SingleInputOperator {
     private final List<OutputEntry> entries = new ArrayList<>();
 
     @Override
-    public void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber) {
-      entries.add(new OutputEntry(recordCount, fileSize, path, metadata, partitionNumber));
+    public void recordsWritten(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber, byte[] icebergMetadata) {
+      entries.add(new OutputEntry(recordCount, fileSize, path, metadata, icebergMetadata, partitionNumber));
     }
 
   }
@@ -262,13 +269,15 @@ public class WriterOperator implements SingleInputOperator {
     private final long fileSize;
     private final String path;
     private final byte[] metadata;
+    private final byte[] icebergMetadata;
     private final Integer partitionNumber;
 
-    OutputEntry(long recordCount, long fileSize, String path, byte[] metadata, Integer partitionNumber) {
+    OutputEntry(long recordCount, long fileSize, String path, byte[] metadata, byte[] icebergMetadata, Integer partitionNumber) {
       this.recordCount = recordCount;
       this.fileSize = fileSize;
       this.path = path;
       this.metadata = metadata;
+      this.icebergMetadata = icebergMetadata;
       this.partitionNumber = partitionNumber;
     }
 

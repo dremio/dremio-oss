@@ -18,10 +18,10 @@ package com.dremio.exec.store;
 import java.io.IOException;
 import java.util.List;
 
-import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.datastore.Serializer;
 import com.dremio.exec.planner.logical.ViewTable;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.Service;
 import com.dremio.service.namespace.DatasetHelper;
@@ -37,7 +37,7 @@ import io.protostuff.ByteString;
  * Registry that's used to register a source with catalog service.
  */
 public interface StoragePlugin extends Service, SourceMetadata {
-  Serializer<DatasetConfig> serializer = Serializer.of(DatasetConfig.getSchema());
+  Serializer<DatasetConfig, byte[]> DATASET_CONFIG_SERIALIZER = Serializer.of(DatasetConfig.getSchema());
 
   /**
    * Whether the given user can access the entity at the given location
@@ -84,10 +84,10 @@ public interface StoragePlugin extends Service, SourceMetadata {
     if (DatasetHelper.getSchemaBytes(oldConfig) == null) {
       merge = newSchema;
     } else {
-      merge = BatchSchema.fromDataset(oldConfig).merge(newSchema);
+      merge = CalciteArrowHelper.fromDataset(oldConfig).merge(newSchema);
     }
 
-    DatasetConfig newConfig = serializer.deserialize(serializer.serialize(oldConfig));
+    DatasetConfig newConfig = DATASET_CONFIG_SERIALIZER.deserialize(DATASET_CONFIG_SERIALIZER.serialize(oldConfig));
     newConfig.setRecordSchema(ByteString.copyFrom(merge.serialize()));
 
     return newConfig;
@@ -107,15 +107,4 @@ public interface StoragePlugin extends Service, SourceMetadata {
 
   @Override
   void start() throws IOException;
-
-  /**
-   * sets hive varchar compatibility to {@param compatible}
-   * returns true if value is changed
-   * @param config
-   * @param compatible
-   * @return
-   */
-  default boolean updateVarcharCompatibility(DatasetConfig config, boolean compatible) {
-    throw UserException.unsupportedError().message("Attempted to update hive table property with non-hive plugin").buildSilently();
-  }
 }

@@ -20,12 +20,16 @@ import static com.dremio.exec.planner.physical.PlannerSettings.QUERY_RESULTS_STO
 import static com.dremio.exec.planner.physical.PlannerSettings.STORE_QUERY_RESULTS;
 
 import java.util.AbstractList;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
 import org.apache.calcite.rel.RelNode;
@@ -34,11 +38,12 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
 import org.apache.calcite.sql.parser.SqlParser;
-import org.apache.calcite.tools.RelConversionException;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.tools.ValidationException;
 import org.apache.commons.lang3.text.StrTokenizer;
 
@@ -53,6 +58,12 @@ import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.PlannerSettings.StoreQueryResultsPolicy;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
+import com.dremio.exec.planner.sql.SqlExceptionHelper;
+import com.dremio.exec.planner.sql.parser.SqlColumnDeclaration;
+import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
+import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
@@ -74,20 +85,25 @@ public class SqlHandlerUtil {
    *                        Ex. CREATE TABLE newTblName(col1, medianOfCol2, avgOfCol3) AS
    *                        SELECT col1, median(col2), avg(col3) FROM sourcetbl GROUP BY col1;
    * @throws ValidationException If table's fields list and field list specified in table definition are not valid.
-   * @throws RelConversionException If failed to convert the table definition into a RelNode.
    */
   public static RelNode resolveNewTableRel(boolean isNewTableView, List<String> tableFieldNames,
-      RelDataType validatedRowtype, RelNode queryRelNode) throws ValidationException, RelConversionException {
+                                           RelDataType validatedRowtype, RelNode queryRelNode) throws ValidationException {
+    return resolveNewTableRel(isNewTableView, tableFieldNames, validatedRowtype, queryRelNode,
+        false /* disallow duplicates cols in select query */);
+  }
+
+  public static RelNode resolveNewTableRel(boolean isNewTableView, List<String> tableFieldNames,
+                                           RelDataType validatedRowtype, RelNode queryRelNode,
+                                           boolean allowDuplicatesInSelect) throws ValidationException {
 
     validateRowType(isNewTableView, tableFieldNames, validatedRowtype);
     if (tableFieldNames.size() > 0) {
-
-
       return MoreRelOptUtil.createRename(queryRelNode, tableFieldNames);
     }
 
-    // As the column names of the view are derived from SELECT query, make sure the query has no duplicate column names
-    ensureNoDuplicateColumnNames(validatedRowtype.getFieldNames());
+    if (!allowDuplicatesInSelect) {
+      ensureNoDuplicateColumnNames(validatedRowtype.getFieldNames());
+    }
 
     return queryRelNode;
   }
@@ -286,9 +302,94 @@ public class SqlHandlerUtil {
     // store table as system user.
     final CreateTableEntry createTableEntry = context.getCatalog()
         .resolveCatalog(SystemUser.SYSTEM_USERNAME)
-        .createNewTable(new NamespaceKey(storeTable), writerOptions, storageOptions);
+        .createNewTable(new NamespaceKey(storeTable), null, writerOptions, storageOptions);
 
     final RelTraitSet traits = inputRel.getCluster().traitSet().plus(Rel.LOGICAL);
     return new WriterRel(inputRel.getCluster(), traits, inputRel, createTableEntry, inputRel.getRowType());
+  }
+
+  /**
+   * Checks if new columns list has duplicates or has columns from existing schema
+   * @param newColumsDeclaration
+   * @param existingSchema
+   */
+  public static void checkForDuplicateColumns(List<SqlColumnDeclaration> newColumsDeclaration, BatchSchema existingSchema, String sql) {
+    Set<String> existingColumns = existingSchema.getFields().stream().map(Field::getName).map(String::toUpperCase)
+        .collect(Collectors.toSet());
+    Set<String> newColumns = new HashSet<>();
+    String column;
+    for (SqlColumnDeclaration columnDecl : newColumsDeclaration) {
+      column = columnDecl.getName().getSimple().toUpperCase();
+      if (existingColumns.contains(column)) {
+        throw SqlExceptionHelper.parseError(String.format("Column [%s] already in the table.", column), sql,
+            columnDecl.getParserPosition()).buildSilently();
+      }
+      if (newColumns.contains(column)) {
+        throw SqlExceptionHelper.parseError(String.format("Column [%s] specified multiple times.", column), sql,
+            columnDecl.getParserPosition()).buildSilently();
+      }
+      newColumns.add(column);
+    }
+  }
+
+  /**
+   * Create arrow field from sql column declaration
+   *
+   * @param config
+   * @param column
+   * @return
+   */
+  public static Field fieldFromSqlColDeclaration(SqlHandlerConfig config, SqlColumnDeclaration column, String sql) {
+    if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == null) {
+      throw SqlExceptionHelper.parseError(String.format("Invalid column type [%s] specified for column [%s].",
+          column.getDataType(), column.getName().getSimple()),
+          sql, column.getParserPosition()).buildSilently();
+    }
+
+    if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == SqlTypeName.DECIMAL &&
+        column.getDataType().getPrecision() > RelDataTypeSystemImpl.MAX_NUMERIC_PRECISION) {
+      throw SqlExceptionHelper.parseError(String.format("Precision larger than %s is not supported.",
+          RelDataTypeSystemImpl.MAX_NUMERIC_PRECISION), sql, column.getParserPosition()).buildSilently();
+    }
+
+    if (SqlTypeName.get(column.getDataType().getTypeName().getSimple()) == SqlTypeName.DECIMAL &&
+        column.getDataType().getScale() > RelDataTypeSystemImpl.MAX_NUMERIC_SCALE) {
+      throw SqlExceptionHelper.parseError(String.format("Scale larger than %s is not supported.",
+          RelDataTypeSystemImpl.MAX_NUMERIC_SCALE), sql, column.getParserPosition()).buildSilently();
+    }
+
+    return CalciteArrowHelper.fieldFromCalciteRowType(column.getName().getSimple(), column.getDataType()
+        .deriveType(config.getConverter().getTypeFactory())).orElseThrow(
+        () -> SqlExceptionHelper.parseError(String.format("Invalid type [%s] specified for column [%s].",
+            column.getDataType(), column.getName().getSimple()), sql, column.getParserPosition()).buildSilently());
+  }
+
+  /**
+   * create BatchSchema from table schema specified in sql as list of columns
+   * @param config
+   * @param newColumsDeclaration
+   * @return
+   */
+  public static BatchSchema batchSchemaFromSqlSchemaSpec(SqlHandlerConfig config, List<SqlColumnDeclaration> newColumsDeclaration, String sql) {
+    SchemaBuilder schemaBuilder = BatchSchema.newBuilder();
+    for (SqlColumnDeclaration column : newColumsDeclaration) {
+      schemaBuilder.addField(fieldFromSqlColDeclaration(config, column, sql));
+    }
+    return schemaBuilder.build();
+  }
+
+  /**
+   * create sql column declarations from SqlNodeList
+   */
+  public static List<SqlColumnDeclaration> columnDeclarationsFromSqlNodes(SqlNodeList columnList, String sql) {
+    List<SqlColumnDeclaration> columnDeclarations = new ArrayList<>();
+    for (SqlNode node : columnList.getList()) {
+      if (node instanceof SqlColumnDeclaration) {
+        columnDeclarations.add((SqlColumnDeclaration) node);
+      } else {
+        throw SqlExceptionHelper.parseError("Column type not specified", sql, node.getParserPosition()).buildSilently();
+      }
+    }
+    return columnDeclarations;
   }
 }

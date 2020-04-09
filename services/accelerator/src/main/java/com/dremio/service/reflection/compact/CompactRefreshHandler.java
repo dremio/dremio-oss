@@ -44,6 +44,7 @@ import com.dremio.exec.planner.logical.WriterRel;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
@@ -68,8 +69,8 @@ import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
+import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.dremio.service.users.SystemUser;
-import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
@@ -138,7 +139,7 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
         throw SqlExceptionHelper.parseError("Unknown reflection id.", sql, compact.getParserPosition()).build(logger);
       }
       final ReflectionEntry entry = entryOpt.get();
-      if(!Objects.equal(goal.getTag(), entry.getGoalVersion())) {
+      if(!ReflectionGoalsStore.checkGoalVersion(goal, entry.getGoalVersion())) {
         throw UserException.validationError().message("Reflection has been updated since reflection was scheduled.").build(logger);
       }
 
@@ -159,7 +160,7 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
       }
       final Materialization newMaterialization = newMaterializationOpt.get();
 
-      observer.planValidated(RecordWriter.SCHEMA.toCalciteRecordType(config.getConverter().getCluster().getTypeFactory()), compact, watch.elapsed(TimeUnit.MILLISECONDS));
+      observer.planValidated(CalciteArrowHelper.wrap(RecordWriter.SCHEMA).toCalciteRecordType(config.getConverter().getCluster().getTypeFactory()), compact, watch.elapsed(TimeUnit.MILLISECONDS));
 
       watch.reset();
 
@@ -176,7 +177,7 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
       final Rel writerDrel = new WriterRel(drel.getCluster(), drel.getCluster().traitSet().plus(Rel.LOGICAL),
         drel, config.getContext().getCatalog().createNewTable(
           new NamespaceKey(ReflectionUtils.getMaterializationPath(newMaterialization)),
-          getWriterOptions((int) ringCount, goal, fields), ImmutableMap.of()),
+        null, getWriterOptions((int) ringCount, goal, fields), ImmutableMap.of()),
         initial.getRowType()
       );
 

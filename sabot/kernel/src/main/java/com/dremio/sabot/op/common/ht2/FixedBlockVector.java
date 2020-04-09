@@ -16,6 +16,7 @@
 package com.dremio.sabot.op.common.ht2;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 
 import com.dremio.common.util.Numbers;
 import com.google.common.annotations.VisibleForTesting;
@@ -134,10 +135,10 @@ public class FixedBlockVector implements AutoCloseable {
   }
 
   public int getBufferLength() {
-    return buf.writerIndex();
+    return LargeMemoryUtil.checkedCastToInt(buf.writerIndex());
   }
 
   int getCapacity() {
-    return buf != null ? buf.capacity() : 0;
+    return buf != null ? LargeMemoryUtil.checkedCastToInt(buf.capacity()) : 0;
   }
 }

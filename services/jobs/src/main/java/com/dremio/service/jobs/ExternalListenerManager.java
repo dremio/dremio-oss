@@ -18,46 +18,68 @@ package com.dremio.service.jobs;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.dremio.service.job.JobEvent;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.jobs.metadata.proto.QueryMetadata;
+
+import io.grpc.stub.StreamObserver;
+
 /**
  * Manages status listeners for a particular job. Is thread safe, ensuring that
  * any register listener is informed of a completion event, whether or not there
  * is a race.
  */
 class ExternalListenerManager {
-  private final List<ExternalStatusListener> statusListeners = new CopyOnWriteArrayList<>();
+  private final List<StreamObserver<JobEvent>> statusObservers = new CopyOnWriteArrayList<>();
 
   private volatile boolean active = true;
-  private volatile Job job;
+  private volatile JobSummary jobSummary;
 
-  public synchronized void register(ExternalStatusListener listener) {
+  public synchronized void register(StreamObserver<JobEvent> observer, JobSummary jobSummary) {
     if (!active) {
-      listener.queryCompleted(job);
+      sendQueryCompletedEvent(this.jobSummary, observer);
     } else {
-      statusListeners.add(listener);
+      statusObservers.add(observer);
+      sendQueryProgressedEvent(jobSummary, observer);
     }
   }
 
-  public synchronized void queryUpdate(Job job) {
+  private void sendQueryProgressedEvent(JobSummary jobSummary, StreamObserver<JobEvent> observer) {
+    observer.onNext(JobEvent.newBuilder()
+      .setProgressJobSummary(jobSummary)
+      .build());
+  }
+
+  private void sendQueryCompletedEvent(JobSummary jobSummary, StreamObserver<JobEvent> observer) {
+    observer.onNext(JobEvent.newBuilder()
+      .setFinalJobSummary(jobSummary)
+      .build());
+    observer.onCompleted();
+  }
+
+  public synchronized void queryProgressed(JobSummary jobSummary) {
     if (active) {
-      for (ExternalStatusListener listener : statusListeners) {
-        listener.profileUpdated(job);
+      for (StreamObserver<JobEvent> observer : statusObservers) {
+        sendQueryProgressedEvent(jobSummary, observer);
       }
     }
   }
 
-  public synchronized void close(Job job) {
+  public synchronized void metadataAvailable(QueryMetadata metadata) {
+    if (active) {
+      for (StreamObserver<JobEvent> observer: statusObservers) {
+        observer.onNext(JobEvent.newBuilder()
+          .setQueryMetadata(metadata)
+          .build());
+    }
+    }
+  }
+
+  public synchronized void close(JobSummary jobSummary) {
     active = false;
-    this.job = job;
-    for (ExternalStatusListener listener : statusListeners) {
-      listener.queryCompleted(job);
-    }
-  }
-
-  public synchronized void reportRecordCount(Job job, long currentRecordCount) {
-    if (active) {
-      for (ExternalStatusListener listener : statusListeners) {
-        listener.reportRecordCount(job, currentRecordCount);
-      }
+    this.jobSummary = jobSummary;
+    for (StreamObserver<JobEvent> observer : statusObservers) {
+      sendQueryCompletedEvent(jobSummary, observer);
     }
   }
 }

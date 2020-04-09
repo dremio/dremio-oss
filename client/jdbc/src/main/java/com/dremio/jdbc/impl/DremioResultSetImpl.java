@@ -52,7 +52,6 @@ import org.apache.calcite.avatica.util.Cursor;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
-import com.dremio.exec.ExecConstants;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryResult;
@@ -93,8 +92,7 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     connection = (DremioConnectionImpl) statement.getConnection();
     client = connection.getClient();
     final int batchQueueThrottlingThreshold =
-        client.getConfig().getInt(
-            ExecConstants.JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD );
+        client.getConfig().getInt(DremioCursor.JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD );
     resultsListener = new ResultsListener(batchQueueThrottlingThreshold);
     batchLoader = new RecordBatchLoader(client.getRecordAllocator());
     cursor = new DremioCursor(connection, statement, signature);

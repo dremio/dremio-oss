@@ -24,7 +24,7 @@ import org.apache.calcite.util.Pair;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.util.DremioGetObject;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.sabot.op.sort.external.RecordBatchData;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.service.job.proto.JobId;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;

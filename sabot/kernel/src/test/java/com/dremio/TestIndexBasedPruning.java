@@ -220,19 +220,19 @@ public class TestIndexBasedPruning extends DremioTest {
     @Override
     public RelNode applyDatasetPointer(TableMetadata newDatasetPointer) {
       return new TestScanRel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer,
-          projectedColumns, observedRowcountAdjustment, hasFilter);
+          getProjectedColumns(), observedRowcountAdjustment, hasFilter);
     }
 
     @Override
     public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
       return new TestScanRel(getCluster(), traitSet, getTable(), pluginId, tableMetadata,
-          projectedColumns, observedRowcountAdjustment, hasFilter);
+          getProjectedColumns(), observedRowcountAdjustment, hasFilter);
     }
 
     @Override
     public ScanRelBase cloneWithProject(List<SchemaPath> projection) {
       return new TestScanRel(getCluster(), traitSet, getTable(), pluginId, tableMetadata,
-          projectedColumns, observedRowcountAdjustment, hasFilter);
+          getProjectedColumns(), observedRowcountAdjustment, hasFilter);
     }
   }
 
@@ -320,7 +320,7 @@ public class TestIndexBasedPruning extends DremioTest {
 
     indexPrunableScan = new TestScanRel(cluster, TRAITS, table, pluginId, indexPrunableMetadata, PROJECTED_COLUMNS, 0, false);
     filter = new FilterRel(cluster, TRAITS, indexPrunableScan, rexNode);
-    rule = new PruneScanRuleBase.PruneScanRuleFilterOnScan<TestScanRel>(pluginId.getType(), TestScanRel.class, mock(OptimizerRulesContext.class));
+    rule = new PruneScanRuleBase.PruneScanRuleFilterOnScan<>(pluginId.getType(), TestScanRel.class, mock(OptimizerRulesContext.class));
   }
 
 

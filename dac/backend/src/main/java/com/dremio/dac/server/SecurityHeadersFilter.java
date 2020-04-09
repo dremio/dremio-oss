@@ -29,7 +29,7 @@ import javax.servlet.http.HttpServletResponse;
 /**
  * Filter that adds several security related HTTP headers
  */
-public class SecurityHeadersFilter implements Filter {
+public class      SecurityHeadersFilter implements Filter {
   private static final long STS_MAX_AGE = TimeUnit.SECONDS.toDays(356);
 
   @Override

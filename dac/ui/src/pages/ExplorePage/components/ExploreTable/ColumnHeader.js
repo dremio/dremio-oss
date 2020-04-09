@@ -76,7 +76,7 @@ export default class ColumnHeader extends Component {
     };
   }
 
-  doTypeAction(type, e) {
+  doTypeAction(type) {
     if (this.isActionsPrevented()) {
       return false;
     }
@@ -129,7 +129,7 @@ export default class ColumnHeader extends Component {
         });
       }, 0);
     }
-  }
+  };
 
   handleUpdateColumnName(name, e) {
     if (e.target.value) {
@@ -152,7 +152,7 @@ export default class ColumnHeader extends Component {
     if (this.input) {
       this.input.focus();
     }
-  }
+  };
 
   renderEditableColumnName(column, label, cellWidth) {
     const style = {

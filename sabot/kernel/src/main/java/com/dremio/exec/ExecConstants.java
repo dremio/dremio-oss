@@ -43,11 +43,10 @@ public interface ExecConstants {
   String ZK_SESSION_TIMEOUT = "dremio.exec.zk.session.timeout";
   String ZK_ROOT = "dremio.exec.zk.root";
   String ZK_REFRESH = "dremio.exec.zk.refresh";
-  String BIT_RETRY_TIMES = "dremio.exec.rpc.bit.server.retry.count";
-  String BIT_RETRY_DELAY = "dremio.exec.rpc.bit.server.retry.delay";
-  String INITIAL_USER_PORT = "dremio.exec.rpc.user.server.port";
-  String USER_RPC_TIMEOUT = "dremio.exec.rpc.user.timeout";
-  String CLIENT_RPC_THREADS = "dremio.exec.rpc.user.client.threads";
+  String ZK_RETRY_UNLIMITED = "dremio.exec.zk.retry.unlimited";
+  String ZK_RETRY_LIMIT = "dremio.exec.zk.retry.limit";
+  String ZK_INITIAL_TIMEOUT_MS = "dremio.exec.zk.retry.initial_timeout_ms";
+
   String BIT_SERVER_RPC_THREADS = "dremio.exec.rpc.bit.server.threads";
   String USER_SERVER_RPC_THREADS = "dremio.exec.rpc.user.server.threads";
   String REGISTRATION_ADDRESS = "dremio.exec.rpc.publishedhost";
@@ -106,8 +105,6 @@ public interface ExecConstants {
 
   PositiveLongValidator CODE_GEN_NESTED_METHOD_THRESHOLD = new PositiveLongValidator("exec.operator.codegen.nested_method.threshold", Integer.MAX_VALUE, 100);
 
-  /** Size of JDBC batch queue (in batches) above which throttling begins. */
-  String JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD = "dremio.jdbc.batch_queue_throttling_threshold";
 
   String JDBC_ROW_COUNT_QUERY_TIMEOUT = "store.jdbc.row_count_query_timeout_seconds";
   LongValidator JDBC_ROW_COUNT_QUERY_TIMEOUT_VALIDATOR = new PositiveLongValidator(JDBC_ROW_COUNT_QUERY_TIMEOUT, Integer.MAX_VALUE, 5);
@@ -132,7 +129,7 @@ public interface ExecConstants {
   String OPERATOR_TARGET_BATCH_BYTES = "dremio.exec.operator_batch_bytes";
   OptionValidator OPERATOR_TARGET_BATCH_BYTES_VALIDATOR = new LongValidator(OPERATOR_TARGET_BATCH_BYTES, 10*1024*1024);
 
-  String CLIENT_SUPPORT_COMPLEX_TYPES = "dremio.client.supports-complex-types";
+
 
   BooleanValidator ENABLE_VECTORIZED_HASHAGG = new BooleanValidator("exec.operator.aggregate.vectorize", true);
   BooleanValidator ENABLE_VECTORIZED_HASHJOIN = new BooleanValidator("exec.operator.join.vectorize", true);
@@ -375,6 +372,9 @@ public interface ExecConstants {
   DoubleValidator PARQUET_FULL_FILE_READ_COLUMN_RATIO = new RangeDoubleValidator("store.parquet.full_file_read.column_ratio", 0.0, 1.0, 0.25);
   BooleanValidator PARQUET_CACHED_ENTITY_SET_FILE_SIZE = new BooleanValidator("store.parquet.set_file_length",true);
   BooleanValidator PARQUET_COLUMN_ORDERING = new BooleanValidator("store.parquet.column_ordering", false);
+
+  BooleanValidator HIVE_COMPLEXTYPES_ENABLED = new BooleanValidator("store.hive.parquet.support_complex_types", false);
+
   LongValidator RESULTS_MAX_AGE_IN_DAYS = new LongValidator("results.max.age_in_days", 1);
   // At what hour of the day to do job results cleanup - 0-23
   RangeLongValidator JOB_RESULTS_CLEANUP_START_HOUR = new RangeLongValidator("job.results.cleanup.start_at_hour", 0, 23, 0);
@@ -425,4 +425,6 @@ public interface ExecConstants {
 
   BooleanValidator ENABLE_HEAP_MONITORING = new BooleanValidator("exec.heap.monitoring.enable", true);
   RangeLongValidator HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE = new RangeLongValidator("exec.heap.monitoring.thresh.percentage", 50, 100, 85);
+
+  BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", false);
 }

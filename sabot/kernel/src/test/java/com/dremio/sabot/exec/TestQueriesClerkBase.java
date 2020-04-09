@@ -18,9 +18,7 @@ package com.dremio.sabot.exec;
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -36,7 +34,6 @@ import org.junit.Before;
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.proto.CoordExecRPC;
-import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.exec.rpc.ExecToCoordTunnel;
@@ -122,8 +119,7 @@ public class TestQueriesClerkBase {
   protected QueriesClerk makeClerk(WorkloadTicketDepot ticketDepot) {
     ExecToCoordTunnelCreator mockTunnelCreator = mock(ExecToCoordTunnelCreator.class);
     ExecToCoordTunnel mockTunnel = mock(ExecToCoordTunnel.class);
-    when(mockTunnelCreator.getTunnel(any(CoordinationProtos.NodeEndpoint.class))).thenReturn(mockTunnel);
-    return new QueriesClerk(ticketDepot, mockTunnelCreator);
+    return new QueriesClerk(ticketDepot);
   }
 
   public final class TestAllocator implements BufferAllocator {
@@ -149,10 +145,10 @@ public class TestQueriesClerkBase {
     }
 
     // NB: None of the functions below are implemented
-    public ArrowBuf buffer(int var1) {
+    public ArrowBuf buffer(long var1) {
       throw new UnsupportedOperationException();
     }
-    public ArrowBuf buffer(int var1, BufferManager var2) {
+    public ArrowBuf buffer(long var1, BufferManager var2) {
       throw new UnsupportedOperationException();
     }
     public ByteBufAllocator getAsByteBufAllocator() {

@@ -15,9 +15,9 @@
  */
 package com.dremio.service.reflection.proto;
 
-import "../../../../../sabot/kernel/src/main/protobuf/updateid.proto";
-import "../../../../../services/jobs/src/main/protobuf/job.proto";
-import "../../../../../services/namespace/src/main/protobuf/dataset.proto";
+import "updateid.proto";
+import "job.proto";
+import "dataset.proto";
 import "reflection-common.proto";
 
 option java_package = "com.dremio.service.reflection.proto";

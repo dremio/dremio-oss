@@ -23,12 +23,17 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
+import com.dremio.config.DremioConfig;
+import com.dremio.test.TemporarySystemProperties;
 
 public class TestTpchDistributed extends BaseTestQuery {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestTpchDistributed.class);
 
   @Rule
   public final TestRule TIMEOUT = TestTools.getTimeoutRule(15, TimeUnit.SECONDS);
+
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   private static void testDistributed(final String fileName) throws Exception {
     final String query = getFile(fileName);
@@ -109,7 +114,12 @@ public class TestTpchDistributed extends BaseTestQuery {
 
   @Test
   public void tpch15() throws Exception{
-    testDistributed("queries/tpch/15.sql");
+    try {
+      properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
+      testDistributed("queries/tpch/15.sql");
+    } finally {
+      properties.clear(DremioConfig.LEGACY_STORE_VIEWS_ENABLED);
+    }
   }
 
   @Test

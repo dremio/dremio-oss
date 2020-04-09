@@ -22,44 +22,13 @@ import CopyButtonIcon from '@app/components/Buttons/CopyButtonIcon';
 import { getPaginationJobId } from '@app/selectors/explore';
 import { escapeDblQuotes } from '@app/utils/regExpUtils';
 import ApiUtils from '@app/utils/apiUtils/apiUtils';
+import { copyTextToClipboard } from '@app/utils/clipboard/clipboardUtils';
 
 const MAX_ROWS_TO_CLIPBOARD = 5000;
 const MSG_CLEAR_DELAY_SEC = 3;
 const isFirefox = platform.name === 'Firefox';
 const isSafari = platform.name === 'Safari';
 const isEdge = platform.name === 'Microsoft Edge';
-
-// Copies a string to the clipboard. Must be called from within an event handler such as click.
-// May return false if it failed, but this is not always
-// possible. Browser support for Chrome 43+, Firefox 42+, Edge and IE 10+.
-// No Safari support, as of (Nov. 2015). Returns false.
-// IE: The clipboard feature may be disabled by an adminstrator. By default a prompt is
-// shown the first time the clipboard is used (per session).
-// Inspired by: Greg Lowe https://jsfiddle.net/fx6a6n6x/
-function copyTextToClipboard(text) {
-  if (window.clipboardData && window.clipboardData.setData) {
-    // IE specific code path to prevent textarea being shown while dialog is visible.
-    return window.clipboardData.setData('Text', text);
-  }
-  if (document.queryCommandSupported && document.queryCommandSupported('copy')) {
-    let success = false;
-    const textarea = document.createElement('textarea');
-    textarea.textContent = text;
-    textarea.style.position = 'fixed';  // Prevent scrolling to bottom of page in MS Edge.
-    textarea.style.zIndex = '-1';
-    document.body.appendChild(textarea);
-    textarea.select();
-    try {
-      success = document.execCommand('copy');  // Security exception may be thrown by some browsers.
-    } catch (ex) {
-      console.warn('Copy to clipboard failed.', ex);
-    } finally {
-      document.body.removeChild(textarea);
-    }
-    return success;
-  }
-  return false;
-}
 
 
 export class ExploreCopyTableButton extends PureComponent {
@@ -159,25 +128,23 @@ export class ExploreCopyTableButton extends PureComponent {
     const url = `job/${jobId}/data?offset=0&limit=${MAX_ROWS_TO_CLIPBOARD + 1}`;
     const options = {headers: ApiUtils.getJobDataNumbersAsStringsHeader()};
     this.setState({isPreparing: true});
-    ApiUtils.fetch(url, options, 2).then(response => {
+    ApiUtils.fetchJson(url, (json) => {
       // get tableData from response, make textToCopy, copy, setState
-      return response.json().then(data => {
-        this.textToCopy = ExploreCopyTableButton.makeCopyTextFromTableData(data);
-        this.isMaxReached = data.returnedRowCount > MAX_ROWS_TO_CLIPBOARD;
-        if (isFirefox || isSafari) {
-          // firefox and safari do not allow copy to clipboard here
-          this.props.addNotification(la('Due to browser security settings please click copy icon again.'), 'info', MSG_CLEAR_DELAY_SEC);
-          this.setState({isPreparing: false});
-        } else {
-          this.copyText();
-        }
-      });
-    }, error => {
-      this.props.addNotification(`${la('Error fetching data for clipboard')}: ${error.errorMessage}`, 'error', MSG_CLEAR_DELAY_SEC);
-      console.error('Error fetching data for clipboard');
+      this.textToCopy = ExploreCopyTableButton.makeCopyTextFromTableData(json);
+      this.isMaxReached = json.returnedRowCount > MAX_ROWS_TO_CLIPBOARD;
+      if (isFirefox || isSafari) {
+        // firefox and safari do not allow copy to clipboard here
+        this.props.addNotification(la('Due to browser security settings please click copy icon again.'), 'info', MSG_CLEAR_DELAY_SEC);
+        this.setState({isPreparing: false});
+      } else {
+        this.copyText();
+      }
+    }, error => { // handle error for both api and json parse
+      const msg = la('Error fetching data for clipboard.');
+      this.props.addNotification(`${msg}: ${error.errorMessage}`, 'error', MSG_CLEAR_DELAY_SEC);
+      console.error(msg);
       this.setState({isPreparing: false});
-    });
-
+    }, options, 2);
   };
 
   render() {

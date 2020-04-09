@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.io.IOException;
 
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VectorDefinitionSetter;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -101,8 +102,8 @@ abstract class NullableColumnReader<V extends ValueVector> extends ColumnReader<
       // Write the nulls if any
       //
       if (nullRunLength > 0) {
-        int writerIndex = valueVec.getDataBuffer().writerIndex();
-        valueVec.getDataBuffer().setIndex(0, writerIndex + (int) Math.ceil(nullRunLength * dataTypeLengthInBits / 8.0));
+        long writerIndex = valueVec.getDataBuffer().writerIndex();
+        valueVec.getDataBuffer().setIndex(0, LargeMemoryUtil.checkedCastToInt(writerIndex + (int) Math.ceil(nullRunLength * dataTypeLengthInBits / 8.0)));
         writeCount += nullRunLength;
         valuesReadInCurrentPass += nullRunLength;
         recordsReadInThisIteration += nullRunLength;

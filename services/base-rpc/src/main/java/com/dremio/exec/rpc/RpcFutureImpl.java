@@ -15,23 +15,19 @@
  */
 package com.dremio.exec.rpc;
 
+import com.google.common.util.concurrent.AbstractFuture;
+import com.google.common.util.concurrent.ForwardingListenableFuture;
+
 import io.netty.buffer.ByteBuf;
 
-import com.google.common.util.concurrent.AbstractCheckedFuture;
-import com.google.common.util.concurrent.AbstractFuture;
-
-class RpcFutureImpl<V> extends AbstractCheckedFuture<V, RpcException> implements RpcFuture<V>, RpcOutcomeListener<V>{
+class RpcFutureImpl<V> extends ForwardingListenableFuture.SimpleForwardingListenableFuture<V>
+  implements RpcFuture<V>, RpcOutcomeListener<V>{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RpcFutureImpl.class);
 
   private volatile ByteBuf buffer;
 
   public RpcFutureImpl() {
     super(new InnerFuture<V>());
-  }
-
-  @Override
-  protected RpcException mapException(Exception ex) {
-    return RpcException.mapException(ex);
   }
 
   private static class InnerFuture<T> extends AbstractFuture<T> {

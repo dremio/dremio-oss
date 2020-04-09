@@ -15,8 +15,14 @@
  */
 package com.dremio.datastore.indexed;
 
-import com.dremio.datastore.KVStoreProvider;
+import org.junit.Ignore;
+import org.junit.Test;
+
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.IndexedStore;
+import com.dremio.datastore.api.KVStoreProvider;
+import com.dremio.datastore.indexed.doughnut.Doughnut;
+import com.dremio.datastore.indexed.doughnut.DoughnutIndexedStore;
 import com.dremio.test.DremioTest;
 
 /**
@@ -24,9 +30,21 @@ import com.dremio.test.DremioTest;
  */
 public class TestLocalIndexedStore extends AbstractTestIndexedStore {
   @Override
-  KVStoreProvider createKKStoreProvider() throws Exception {
-    LocalKVStoreProvider provider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
+  protected KVStoreProvider createKVStoreProvider() throws Exception {
+    final KVStoreProvider provider =
+      new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false);
     provider.start();
     return provider;
+  }
+
+  @Override
+  protected IndexedStore<String, Doughnut> supplyStore() {
+    return getProvider().getStore(DoughnutIndexedStore.class);
+  }
+
+  @Ignore("[DX-9909] Not query doesn't work as expected for RocksDB.")
+  @Test
+  @Override
+  public void not() {
   }
 }

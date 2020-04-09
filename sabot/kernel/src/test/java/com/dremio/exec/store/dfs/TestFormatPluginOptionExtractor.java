@@ -66,6 +66,10 @@ public class TestFormatPluginOptionExtractor extends ExecTest {
           assertEquals(d.typeName, "(type: String, sheet: String, extractHeader: boolean, hasMergedCells: boolean, xls: boolean)",
               d.presentParams());
           break;
+        case "iceberg":
+          assertEquals(d.typeName, "(type: String, metaStoreType: IcebergMetaStoreType, dataFormatType: FileType, dataFormatConfig: FormatPluginConfig)",
+            d.presentParams());
+          break;
         default:
           fail("add validation for format plugin type " + d.typeName);
       }

@@ -48,7 +48,7 @@ export default class TextArea extends Component {
 
   render() {
     const {
-      initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled,
+      initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled, // eslint-disable-line @typescript-eslint/no-unused-vars
       ...props
     } = this.props;
     return (

@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>4.1.8-202003120636020140-9c2a6b13</version>
+    <version>4.2.0-202004091958060824-8f7e141d</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -30,6 +30,51 @@
   <name>Analyst Center - backend</name>
 
   <dependencies>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-accelerator</artifactId>
+      <classifier>proto</classifier>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-jobs</artifactId>
+      <classifier>proto</classifier>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-jobs</artifactId>
+      <version>${project.version}</version>
+      <classifier>tests</classifier>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-namespace</artifactId>
+      <classifier>proto</classifier>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-protocol</artifactId>
+      <classifier>proto</classifier>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.sabot</groupId>
+      <artifactId>dremio-sabot-kernel</artifactId>
+      <classifier>proto</classifier>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-datastore</artifactId>
+      <classifier>proto</classifier>
+      <version>${project.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>com.dremio</groupId>
       <artifactId>dremio-common</artifactId>
@@ -49,6 +94,10 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-datastore</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-grpc</artifactId>
     </dependency>
     <dependency>
       <groupId>com.dremio.services</groupId>
@@ -148,7 +197,6 @@
     <dependency>
       <groupId>de.huxhorn.lilith</groupId>
       <artifactId>de.huxhorn.lilith.logback.appender.multiplex-classic</artifactId>
-      <version>0.9.44</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -251,7 +299,11 @@
         </exclusion>
       </exclusions>
     </dependency>
-
+    <dependency>
+      <groupId>io.opentracing</groupId>
+      <artifactId>opentracing-mock</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.apache.zookeeper</groupId>
       <artifactId>zookeeper</artifactId>
@@ -278,6 +330,11 @@
       <classifier>tests</classifier>
       <version>${project.version}</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.plugins</groupId>
+      <artifactId>dremio-nas-plugin</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>com.dremio</groupId>
@@ -377,10 +434,33 @@
       <groupId>org.glassfish</groupId>
       <artifactId>javax.el</artifactId>
     </dependency>
+      <dependency>
+          <groupId>com.dremio.services</groupId>
+          <artifactId>dremio-services-jobtelemetry-server</artifactId>
+          <version>${project.version}</version>
+          <scope>compile</scope>
+      </dependency>
   </dependencies>
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <configuration>
+          <excludes combine.children="append">
+            <!-- external CSS/javascript code -->
+            <exclude>src/main/resources/rest/static/css/bootstrap.min.css</exclude>
+            <exclude>src/main/resources/rest/static/js/bootstrap.min.js</exclude>
+            <exclude>src/main/resources/rest/static/js/d3.v3.js</exclude>
+            <exclude>src/main/resources/rest/static/js/dagre-d3.min.js</exclude>
+            <exclude>src/main/resources/rest/static/js/html5shiv.js</exclude>
+            <exclude>src/main/resources/rest/static/js/jquery.form.js</exclude>
+            <exclude>src/main/resources/rest/static/js/jquery.min.js</exclude>
+            <exclude>src/main/resources/rest/static/js/respond.min.js</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
@@ -435,15 +515,33 @@
               </resources>
             </configuration>
           </execution>
+          <execution>
+            <id>copy-test-sources-as-resources</id>
+            <phase>process-test-sources</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.testOutputDirectory}</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/src/test/java</directory>
+                  <includes>
+                    <include>com/dremio/service/jobs/WaitFunction.java</include>
+                  </includes>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
       <plugin>
-        <groupId>io.protostuff</groupId>
-        <artifactId>protostuff-maven-plugin</artifactId>
+        <groupId>com.dremio.tools</groupId>
+        <artifactId>dremio-protostuff-maven-plugin</artifactId>
         <configuration>
           <protoModules>
             <protoModule>
-              <source>src/main/proto</source>
+              <source>${project.basedir}/src/main/proto</source>
               <outputDir>${project.build.directory}/generated-sources/protostuff</outputDir>
               <output>com/dremio/protostuff/compiler/dremio_java_bean.java.stg</output>
               <!-- <output>io/protostuff/compiler/java_bean_dac.java.stg</output> -->
@@ -507,35 +605,22 @@
           </execution>
         </executions>
       </plugin>
-    </plugins>
-  </build>
-  <profiles>
-  <profile>
-  <id>normal-tests</id>
-  <activation>
-    <property>
-      <name>!dremio_multinode</name>
-    </property>
-  </activation>
-  <build>
-    <plugins>
       <plugin>
-        <groupId>com.mycila</groupId>
-        <artifactId>license-maven-plugin</artifactId>
-        <version>3.0</version>
-        <configuration>
-          <excludes combine.children="append">
-            <!-- external CSS/javascript code -->
-            <exclude>src/main/resources/rest/static/css/bootstrap.min.css</exclude>
-            <exclude>src/main/resources/rest/static/js/bootstrap.min.js</exclude>
-            <exclude>src/main/resources/rest/static/js/d3.v3.js</exclude>
-            <exclude>src/main/resources/rest/static/js/dagre-d3.min.js</exclude>
-            <exclude>src/main/resources/rest/static/js/html5shiv.js</exclude>
-            <exclude>src/main/resources/rest/static/js/jquery.form.js</exclude>
-            <exclude>src/main/resources/rest/static/js/jquery.min.js</exclude>
-            <exclude>src/main/resources/rest/static/js/respond.min.js</exclude>
-          </excludes>
-        </configuration>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>proto-jar-resources</id>
+            <phase>package</phase>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+            <configuration>
+              <classesDirectory>${project.basedir}/src/main/proto</classesDirectory>
+              <classifier>proto</classifier>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
@@ -544,77 +629,33 @@
           <trimStackTrace>false</trimStackTrace>
           <argLine>
             -XX:+HeapDumpOnOutOfMemoryError
-            -Ddremio.exec.http.enabled=false
-            -Ddremio.test.query.printing.silent=true
             -Xms512m
             -Xmx3g
             -XX:MaxDirectMemorySize=3072M
             -XX:+CMSClassUnloadingEnabled
             -XX:-OmitStackTraceInFastThrow
             -ea
-            ${surefire.extra.argLine}
+            @{argLine}
           </argLine>
           <systemPropertyVariables>
+            <dremio.test.query.printing.silent>true</dremio.test.query.printing.silent>
+            <dremio.service.jobs.over_socket>false</dremio.service.jobs.over_socket>
             <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
+            <services.jobs.port>0</services.jobs.port>
           </systemPropertyVariables>
         </configuration>
-      </plugin>
-    </plugins>
-  </build>
-  </profile>
-    <profile>
-      <id>multi-node-integration-tests</id>
-      <activation>
-        <property>
-          <name>dremio_multinode</name>
-        </property>
-      </activation>
-        
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-surefire-plugin</artifactId>
+        <!-- Extra executions (on top of default-test) -->
+        <executions>
+          <execution>
+            <id>multinode-test</id>
+            <goals>
+              <goal>test</goal>
+            </goals>
             <configuration>
-              <skipTests>true</skipTests>
-            </configuration>
-          </plugin>
-          <plugin>
-            <artifactId>maven-failsafe-plugin</artifactId>
-            <executions>
-              <execution>
-                <goals>
-                  <goal>integration-test</goal>
-                  <goal>verify</goal>
-                </goals>
-              </execution>
-            </executions>            
-            <configuration>
-              <forkCount>${forkCount}</forkCount>
-              <trimStackTrace>false</trimStackTrace>
               <reportNameSuffix>multinode</reportNameSuffix>
-              <argLine>
-                -XX:+HeapDumpOnOutOfMemoryError
-                -Ddremio.exec.http.enabled=false
-                -Ddremio.test.query.printing.silent=true
-                -Xms512m
-                -Xmx3g
-                -XX:MaxDirectMemorySize=3072M
-                -XX:+CMSClassUnloadingEnabled
-                -XX:-OmitStackTraceInFastThrow
-                -Ddremio_multinode
-                -ea
-                ${surefire.extra.argLine}
-              </argLine>
-<!--                 -Dservices.coordinator.master.embedded-zookeeper.enabled=false -->
-<!--                 -Dzookeeper=localhost:2181 -->
-              <!-- include normal tests but run as integration tests with zookeeper. -->
-              <includes>
-                <include>**/Test*.java</include>
-                <include>**/*Test.java</include>
-                <include>**/*TestCase.java</include>
-              </includes>
               <systemPropertyVariables>
-                <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
+                <dremio_multinode>true</dremio_multinode>
+                <dremio.service.jobs.over_socket>true</dremio.service.jobs.over_socket>
               </systemPropertyVariables>
               <excludes>
                 <exclude>com.dremio.dac.server.TestBackupManager</exclude>
@@ -622,30 +663,25 @@
                 <exclude>com.dremio.dac.resource.TestBootstrapResource</exclude>
               </excludes>
             </configuration>
-          </plugin>
-          
-<!--           <plugin> -->
-<!--             <groupId>net.revelc.code</groupId> -->
-<!--             <artifactId>zookeeper-maven-plugin</artifactId> -->
-<!--             <version>1.0.1</version> -->
-<!--             <configuration> -->
-<!--               <shutdownString>aUniqueShutDownString</shutdownString> -->
-<!--               <shutdownPort>21122</shutdownPort> -->
-<!--               <clientPort>2181</clientPort> -->
-<!--               <clientPortAddress>localhost</clientPortAddress> -->
-<!--             </configuration> -->
-<!--             <executions> -->
-<!--               <execution> -->
-<!--                 <id>run-zookeeper</id> -->
-<!--                 <goals> -->
-<!--                   <goal>start</goal> -->
-<!--                   <goal>stop</goal> -->
-<!--                 </goals> -->
-<!--               </execution> -->
-<!--             </executions> -->
-<!--           </plugin> -->
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
+          </execution>
+          <execution>
+            <id>jobs-over-socket-test</id>
+            <goals>
+              <goal>test</goal>
+            </goals>
+            <configuration>
+              <reportNameSuffix>remote_jobsservice</reportNameSuffix>
+              <systemPropertyVariables>
+                <dremio.service.jobs.over_socket>true</dremio.service.jobs.over_socket>
+              </systemPropertyVariables>
+              <includes>
+                <include>**/Test*Job*.java</include>
+                <include>**/*Job*Test.java</include>
+              </includes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

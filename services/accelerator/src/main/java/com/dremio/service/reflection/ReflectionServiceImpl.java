@@ -44,12 +44,15 @@ import java.util.concurrent.Future;
 import javax.annotation.Nullable;
 import javax.inject.Provider;
 
+import org.apache.arrow.memory.BufferAllocator;
+
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.WakeupHandler;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.common.utils.protos.AttemptId;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.planner.acceleration.CachedMaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
@@ -62,16 +65,15 @@ import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
-import com.dremio.exec.work.AttemptId;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.rpc.user.UserSession;
-import com.dremio.service.BindingCreator;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -148,6 +150,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     void update(Materialization m) throws CacheException;
   }
 
+  private MaterializationDescriptorProvider materializationDescriptorProvider;
+  private AccelerationManager accelerationManager;
   private final Provider<SchedulerService> schedulerService;
   private final Provider<JobsService> jobsService;
   private final Provider<NamespaceService> namespaceService;
@@ -156,6 +160,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   private final Provider<ReflectionStatusService> reflectionStatusService;
   private final ReflectionSettings reflectionSettings;
   private final ExecutorService executorService;
+  private final BufferAllocator allocator;
 
   private final ReflectionGoalsStore userStore;
   private final ReflectionEntriesStore internalStore;
@@ -163,7 +168,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   private final ExternalReflectionStore externalReflectionStore;
   private final DependenciesStore dependenciesStore;
   private final RefreshRequestsStore requestsStore;
-  private final BindingCreator bindingCreator;
   private final boolean isMaster;
   private final CacheHelperImpl cacheHelper = new CacheHelperImpl();
   /** set of all reflections that need to be updated next time the reflection manager wakes up */
@@ -187,24 +191,24 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   private final ReflectionValidator validator;
 
   private final MaterializationDescriptorFactory materializationDescriptorFactory;
+
   public ReflectionServiceImpl(
     SabotConfig config,
-    Provider<KVStoreProvider> storeProvider,
+    Provider<LegacyKVStoreProvider> storeProvider,
     Provider<SchedulerService> schedulerService,
     Provider<JobsService> jobsService,
     Provider<CatalogService> catalogService,
     final Provider<SabotContext> sabotContext,
     Provider<ReflectionStatusService> reflectionStatusService,
     ExecutorService executorService,
-    BindingCreator bindingCreator,
-    boolean isMaster) {
+    boolean isMaster,
+    BufferAllocator allocator) {
     this.schedulerService = Preconditions.checkNotNull(schedulerService, "scheduler service required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobs service required");
     this.catalogService = Preconditions.checkNotNull(catalogService, "catalog service required");
     this.sabotContext = Preconditions.checkNotNull(sabotContext, "acceleration plugin required");
     this.reflectionStatusService = Preconditions.checkNotNull(reflectionStatusService, "reflection status service required");
     this.executorService = Preconditions.checkNotNull(executorService, "executor service required");
-    this.bindingCreator = Preconditions.checkNotNull(bindingCreator, "binding creator required");
     this.namespaceService = new Provider<NamespaceService>() {
       @Override
       public NamespaceService get() {
@@ -213,6 +217,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     };
     this.reflectionSettings = new ReflectionSettings(namespaceService, storeProvider);
     this.isMaster = isMaster;
+    this.allocator = allocator.newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
 
     userStore = new ReflectionGoalsStore(storeProvider);
     internalStore = new ReflectionEntriesStore(storeProvider);
@@ -244,10 +249,17 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         DEFAULT_MATERIALIZATION_DESCRIPTOR_FACTORY);
   }
 
+  public MaterializationDescriptorProvider getMaterializationDescriptor() {
+    return materializationDescriptorProvider;
+  }
+
+  public AccelerationManager getAccelerationManager() {
+    return accelerationManager;
+  }
+
   @Override
   public void start() {
-
-    bindingCreator.replace(MaterializationDescriptorProvider.class, new MaterializationDescriptorProviderImpl());
+    this.materializationDescriptorProvider = new MaterializationDescriptorProviderImpl();
 
     // populate the materialization cache
     materializationCache = new MaterializationCache(cacheHelper, namespaceService.get(), reflectionStatusService.get());
@@ -311,7 +323,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         }
       );
     }
-    bindingCreator.replace(AccelerationManager.class, new AccelerationManagerImpl(this, namespaceService.get()));
+
+    this.accelerationManager = new AccelerationManagerImpl(this, namespaceService.get());
 
     scheduleNextCacheRefresh(new CacheRefresher());
   }
@@ -357,7 +370,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
           wakeupManager(reason);
         }
       },
-      expansionHelper);
+      expansionHelper,
+      allocator);
     wakeupHandler = new WakeupHandler(executorService, manager);
   }
 
@@ -408,8 +422,8 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       .setUserName(SYSTEM_USERNAME)
       .build();
     return UserSession.Builder.newBuilder()
+      .withSessionOptionManager(new SessionOptionManagerImpl(options))
       .withCredentials(credentials)
-      .withOptionManager(options)
       .exposeInternalSources(true)
       .build();
   }
@@ -439,6 +453,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
   @Override
   public void close() throws Exception {
+    allocator.close();
   }
 
   @Override
@@ -740,7 +755,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       throw new NotFoundException("Dataset not found");
     }
 
-    ReflectionAnalyzer analyzer = new ReflectionAnalyzer(jobsService.get(), catalogService.get());
+    ReflectionAnalyzer analyzer = new ReflectionAnalyzer(jobsService.get(), catalogService.get(), allocator);
 
     TableStats tableStats = analyzer.analyze(new NamespaceKey(datasetConfig.getFullPathList()));
 
@@ -797,7 +812,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
   private MaterializationDescriptor getDescriptor(Materialization materialization) throws CacheException {
     final ReflectionGoal goal = userStore.get(materialization.getReflectionId());
-    if (!goal.getTag().equals(materialization.getReflectionGoalVersion())) {
+    if (!ReflectionGoalsStore.checkGoalVersion(goal, materialization.getReflectionGoalVersion())) {
       // reflection goal changed and corresponding materialization is no longer valid
       throw new CacheException("Unable to expand materialization " + materialization.getId().getId() +
         " as it no longer matches its reflection goal");

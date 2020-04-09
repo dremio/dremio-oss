@@ -27,6 +27,7 @@ import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.proto.EntityId;
 import com.dremio.service.namespace.source.proto.SourceConfig;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
@@ -36,6 +37,10 @@ public class Source implements CatalogEntity {
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXTERNAL_PROPERTY, property = "type")
   @Valid
   private ConnectionConf<?, ?> config;
+  private SourceConfig sourceConfig;
+  private AccelerationSettings settings;
+  private ConnectionReader reader;
+
   private SourceState state;
   private String id;
   private String tag;
@@ -57,6 +62,10 @@ public class Source implements CatalogEntity {
   }
 
   public Source(SourceConfig config, AccelerationSettings settings, ConnectionReader reader) {
+    this.sourceConfig = config;
+    this.settings = settings;
+    this.reader = reader;
+
     this.id = config.getId().getId();
     this.tag = config.getTag();
     this.type = config.getType() == null ? config.getLegacySourceTypeEnum().name() : config.getType();
@@ -83,6 +92,33 @@ public class Source implements CatalogEntity {
 
     // TODO: use our own config classes
     this.config = reader.getConnectionConf(config);
+  }
+
+  @JsonIgnore
+  SourceConfig getSourceConfig() {
+    return this.sourceConfig;
+  }
+
+  void setSourceConfig(SourceConfig sourceConfig) {
+    this.sourceConfig = sourceConfig;
+  }
+
+  @JsonIgnore
+  AccelerationSettings getSettings() {
+    return settings;
+  }
+
+  void setSettings(AccelerationSettings settings) {
+    this.settings = settings;
+  }
+
+  @JsonIgnore
+  ConnectionReader getReader() {
+    return reader;
+  }
+
+  void setReader(ConnectionReader reader) {
+    this.reader = reader;
   }
 
   public String getId() {

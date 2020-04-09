@@ -30,8 +30,7 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.proto.model.acceleration.SystemSettingsApiDescriptor;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.service.reflection.ReflectionOptions;
 import com.google.common.base.Preconditions;
@@ -45,12 +44,13 @@ import com.google.common.base.Preconditions;
 @Path("/development_options")
 public class DevelopmentOptionsResource {
   private ReflectionServiceHelper reflectionServiceHelper;
-  private SabotContext context;
+  private ProjectOptionManager projectOptionManager;
 
   @Inject
-  public DevelopmentOptionsResource(ReflectionServiceHelper reflectionServiceHelper, SabotContext context) {
+  public DevelopmentOptionsResource(ReflectionServiceHelper reflectionServiceHelper,
+                                    ProjectOptionManager projectOptionManager) {
     this.reflectionServiceHelper = reflectionServiceHelper;
-    this.context = context;
+    this.projectOptionManager = projectOptionManager;
   }
 
   @GET
@@ -80,12 +80,11 @@ public class DevelopmentOptionsResource {
   @Path("/acceleration/settings")
   @Produces(MediaType.APPLICATION_JSON)
   public SystemSettingsApiDescriptor getSystemSettings() {
-    SystemOptionManager optionManager = context.getOptionManager();
     return new SystemSettingsApiDescriptor()
-      .setLimit((int) optionManager.getOption(ReflectionOptions.MAX_AUTOMATIC_REFLECTIONS))
-      .setAccelerateAggregation(optionManager.getOption(ReflectionOptions.ENABLE_AUTOMATIC_AGG_REFLECTIONS))
-      .setAccelerateRaw(optionManager.getOption(ReflectionOptions.ENABLE_AUTOMATIC_RAW_REFLECTIONS))
-      .setLayoutRefreshMaxAttempts((int) optionManager.getOption(ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS));
+      .setLimit((int) projectOptionManager.getOption(ReflectionOptions.MAX_AUTOMATIC_REFLECTIONS))
+      .setAccelerateAggregation(projectOptionManager.getOption(ReflectionOptions.ENABLE_AUTOMATIC_AGG_REFLECTIONS))
+      .setAccelerateRaw(projectOptionManager.getOption(ReflectionOptions.ENABLE_AUTOMATIC_RAW_REFLECTIONS))
+      .setLayoutRefreshMaxAttempts((int) projectOptionManager.getOption(ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS));
   }
 
 
@@ -99,13 +98,11 @@ public class DevelopmentOptionsResource {
     Preconditions.checkArgument(descriptor.getAccelerateAggregation() != null, "accelerateAggregation is required");
     Preconditions.checkArgument(descriptor.getAccelerateRaw() != null, "accelerateRaw is required");
 
-    SystemOptionManager optionManager = context.getOptionManager();
-
-    optionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ReflectionOptions.MAX_AUTOMATIC_REFLECTIONS.getOptionName(), descriptor.getLimit()));
-    optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ReflectionOptions.ENABLE_AUTOMATIC_AGG_REFLECTIONS.getOptionName(), descriptor.getAccelerateAggregation()));
-    optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ReflectionOptions.ENABLE_AUTOMATIC_RAW_REFLECTIONS.getOptionName(), descriptor.getAccelerateRaw()));
+    projectOptionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ReflectionOptions.MAX_AUTOMATIC_REFLECTIONS.getOptionName(), descriptor.getLimit()));
+    projectOptionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ReflectionOptions.ENABLE_AUTOMATIC_AGG_REFLECTIONS.getOptionName(), descriptor.getAccelerateAggregation()));
+    projectOptionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM, ReflectionOptions.ENABLE_AUTOMATIC_RAW_REFLECTIONS.getOptionName(), descriptor.getAccelerateRaw()));
     if (descriptor.getLayoutRefreshMaxAttempts() != null) {
-      optionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getOptionName(), descriptor.getLayoutRefreshMaxAttempts()));
+      projectOptionManager.setOption(OptionValue.createLong(OptionValue.OptionType.SYSTEM, ExecConstants.LAYOUT_REFRESH_MAX_ATTEMPTS.getOptionName(), descriptor.getLayoutRefreshMaxAttempts()));
     }
   }
 }

@@ -318,7 +318,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     assertEquals(RequestStatus.OK, resp1.getStatus());
 
     final List<ColumnMetadata> columns1 = resp1.getColumnsList();
-    assertEquals(192, columns1.size());
+    assertEquals(206, columns1.size());
     assertTrue("incremental update column shouldn't be returned",
       columns1.stream().noneMatch(input -> input.getColumnName().equals(IncrementalUpdateUtils.UPDATE_COLUMN)));
   }
@@ -332,7 +332,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<ColumnMetadata> columns = resp.getColumnsList();
-    assertEquals(21, columns.size());
+    assertEquals(20, columns.size());
 
 
     Iterator<ColumnMetadata> iterator = columns.iterator();
@@ -358,7 +358,6 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyColumn("sys.cache", "mount_points", "mount_point_path", iterator.next());
     verifyColumn("sys.cache", "mount_points", "mount_point_id", iterator.next());
     verifyColumn("sys.cache", "storage_plugins", "storage_plugin_name", iterator.next());
-    verifyColumn("sys.cache", "storage_plugins", "storage_plugin_id", iterator.next());
   }
 
   @Test

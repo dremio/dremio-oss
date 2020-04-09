@@ -94,7 +94,7 @@ export class JoinController extends Component {
 
   recommendationsPromise = null; // eslint-disable-line react/sort-comp
 
-  componentWillMount() {
+  componentDidMount() {
     this.props.resetJoins();
     this.tryToLoadRecommendations(this.props);
   }

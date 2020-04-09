@@ -30,6 +30,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.util.Text;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.logical.LogicalProject;
@@ -48,23 +49,27 @@ import com.dremio.exec.planner.acceleration.MaterializationDescriptor.Reflection
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.ReflectionType;
 import com.dremio.exec.store.RecordWriter;
-import com.dremio.exec.work.user.SubstitutionSettings;
 import com.dremio.io.file.Path;
 import com.dremio.proto.model.UpdateId;
 import com.dremio.service.accelerator.AccelerationUtils;
+import com.dremio.service.job.MaterializationSettings;
+import com.dremio.service.job.SqlQuery;
+import com.dremio.service.job.SubmitJobRequest;
+import com.dremio.service.job.SubstitutionSettings;
+import com.dremio.service.job.VersionedDatasetPath;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
+import com.dremio.service.job.proto.JobProtobuf;
 import com.dremio.service.job.proto.JobStats;
-import com.dremio.service.job.proto.MaterializationSummary;
 import com.dremio.service.job.proto.QueryType;
-import com.dremio.service.jobs.Job;
-import com.dremio.service.jobs.JobData;
+import com.dremio.service.jobs.JobDataClientUtils;
 import com.dremio.service.jobs.JobDataFragment;
-import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobStatusListener;
+import com.dremio.service.jobs.JobSubmittedListener;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.SqlQuery;
+import com.dremio.service.jobs.MultiJobStatusListener;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -102,7 +107,6 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.Futures;
 
 /**
  * Helper functions for Reflection management
@@ -145,25 +149,35 @@ public class ReflectionUtils {
 
   public static JobId submitRefreshJob(JobsService jobsService, NamespaceService namespaceService, ReflectionEntry entry,
       Materialization materialization, String sql, JobStatusListener jobStatusListener) {
-    final SqlQuery query = new SqlQuery(sql, SYSTEM_USERNAME);
+    final SqlQuery query = SqlQuery.newBuilder()
+      .setSql(sql)
+      .addAllContext(Collections.<String>emptyList())
+      .setUsername(SYSTEM_USERNAME)
+      .build();
     NamespaceKey datasetPathList = new NamespaceKey(namespaceService.findDatasetByUUID(entry.getDatasetId()).getFullPathList());
-    MaterializationSummary materializationSummary = new MaterializationSummary()
+    JobProtobuf.MaterializationSummary materializationSummary = JobProtobuf.MaterializationSummary.newBuilder()
       .setDatasetId(entry.getDatasetId())
       .setReflectionId(entry.getId().getId())
       .setLayoutVersion(entry.getTag())
       .setMaterializationId(materialization.getId().getId())
       .setReflectionName(entry.getName())
-      .setReflectionType(entry.getType().toString());
+      .setReflectionType(entry.getType().toString())
+      .build();
 
-    return Futures.getUnchecked(
-      jobsService.submitJob(
-        JobRequest.newMaterializationJobBuilder(materializationSummary, new SubstitutionSettings(ImmutableList.of()))
-          .setSqlQuery(query)
-          .setQueryType(QueryType.ACCELERATOR_CREATE)
-          .setDatasetPath(datasetPathList)
-          .build(),
-        jobStatusListener)
-    ).getJobId();
+    final JobSubmittedListener submittedListener = new JobSubmittedListener();
+    final JobId jobId = jobsService.submitJob(
+      SubmitJobRequest.newBuilder()
+        .setMaterializationSettings(MaterializationSettings.newBuilder()
+          .setMaterializationSummary(materializationSummary)
+          .setSubstitutionSettings(SubstitutionSettings.newBuilder().addAllExclusions(ImmutableList.of()).build())
+          .build())
+        .setSqlQuery(query)
+        .setQueryType(JobsProtoUtil.toBuf(QueryType.ACCELERATOR_CREATE))
+        .setVersionedDataset(VersionedDatasetPath.newBuilder().addAllPath(datasetPathList.getPathComponents()).build())
+        .build(),
+      new MultiJobStatusListener(submittedListener, jobStatusListener));
+    submittedListener.await();
+    return jobId;
   }
 
   public static List<String> getMaterializationPath(Materialization materialization) {
@@ -540,20 +554,21 @@ public class ReflectionUtils {
       .setJob(details);
   }
 
-  public static List<String> getRefreshPath(final JobId jobId, final JobData jobData, final Path accelerationBasePath) {
+  public static List<String> getRefreshPath(final JobId jobId, final Path accelerationBasePath, JobsService jobsService, BufferAllocator allocator) {
     // extract written path from writer's metadata
-    JobDataFragment data = jobData.range(0, 1);
-    Text text = (Text) Preconditions.checkNotNull(data.extractValue(RecordWriter.PATH_COLUMN, 0),
-      "Empty write path for job %s", jobId.getId());
+    try (JobDataFragment data = JobDataClientUtils.getJobData(jobsService, allocator, jobId, 0, 1)) {
+      Text text = (Text) Preconditions.checkNotNull(data.extractValue(RecordWriter.PATH_COLUMN, 0),
+        "Empty write path for job %s", jobId.getId());
 
-    // relative path to the acceleration base path
-    final String path = PathUtils.relativePath(Path.of(text.toString()), accelerationBasePath);
+      // relative path to the acceleration base path
+      final String path = PathUtils.relativePath(Path.of(text.toString()), accelerationBasePath);
 
-    // extract first 2 components of the path "<reflection-id>."<modified-materialization-id>"
-    List<String> components = PathUtils.toPathComponents(path);
-    Preconditions.checkState(components.size() >= 2, "Refresh path %s is incomplete", path);
+      // extract first 2 components of the path "<reflection-id>."<modified-materialization-id>"
+      List<String> components = PathUtils.toPathComponents(path);
+      Preconditions.checkState(components.size() >= 2, "Refresh path %s is incomplete", path);
 
-    return ImmutableList.of(ACCELERATOR_STORAGEPLUGIN_NAME, components.get(0), components.get(1));
+      return ImmutableList.of(ACCELERATOR_STORAGEPLUGIN_NAME, components.get(0), components.get(1));
+    }
   }
 
   public static JobDetails computeJobDetails(final JobAttempt jobAttempt) {
@@ -582,24 +597,26 @@ public class ReflectionUtils {
       .toList();
   }
 
-  public static MaterializationMetrics computeMetrics(Job job) {
+  public static MaterializationMetrics computeMetrics(com.dremio.service.job.JobDetails jobDetails, JobsService jobsService, BufferAllocator allocator, JobId jobId) {
     final int fetchSize = 1000;
-    final JobData completeJobData = job.getData();
 
     // collect the size of all files
     final List<Long> fileSizes = Lists.newArrayList();
     int offset = 0;
     long footprint = 0;
-    JobDataFragment data = completeJobData.range(offset, fetchSize);
-    while (data.getReturnedRowCount() > 0) {
-      for (int i = 0; i < data.getReturnedRowCount(); i++) {
-        final long fileSize = (Long) data.extractValue(RecordWriter.FILESIZE_COLUMN, i);
-        footprint += fileSize;
-        fileSizes.add(fileSize);
-      }
 
-      offset += data.getReturnedRowCount();
-      data = completeJobData.range(offset, fetchSize);
+    while (true) {
+      try (final JobDataFragment data = JobDataClientUtils.getJobData(jobsService, allocator, jobId, offset, fetchSize)) {
+        if (data.getReturnedRowCount() <= 0) {
+          break;
+        }
+        for (int i = 0; i < data.getReturnedRowCount(); i++) {
+          final long fileSize = (Long) data.extractValue(RecordWriter.FILESIZE_COLUMN, i);
+          footprint += fileSize;
+          fileSizes.add(fileSize);
+        }
+        offset += data.getReturnedRowCount();
+      }
     }
 
     final int numFiles = fileSizes.size();
@@ -609,7 +626,7 @@ public class ReflectionUtils {
 
     return new MaterializationMetrics()
       .setFootprint(footprint)
-      .setOriginalCost(job.getJobAttempt().getInfo().getOriginalCost())
+      .setOriginalCost(JobsProtoUtil.getLastAttempt(jobDetails).getInfo().getOriginalCost())
       .setMedianFileSize(medianFileSize)
       .setNumFiles(numFiles);
   }

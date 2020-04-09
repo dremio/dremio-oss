@@ -15,8 +15,8 @@
  */
 package com.dremio.exec.planner.observer;
 
+import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.exec.planner.fragment.PlanningSet;
-import com.dremio.exec.work.AttemptId;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.proto.model.attempts.AttemptReason;
 

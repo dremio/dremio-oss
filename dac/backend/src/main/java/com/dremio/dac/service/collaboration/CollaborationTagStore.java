@@ -22,15 +22,16 @@ import org.apache.commons.collections.map.HashedMap;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
-import com.dremio.datastore.IndexedStore;
-import com.dremio.datastore.IndexedStore.FindByCondition;
-import com.dremio.datastore.KVStoreProvider;
-import com.dremio.datastore.StoreBuildingFactory;
-import com.dremio.datastore.StoreCreationFunction;
-import com.dremio.datastore.StringSerializer;
 import com.dremio.datastore.VersionExtractor;
+import com.dremio.datastore.api.DocumentConverter;
+import com.dremio.datastore.api.DocumentWriter;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.api.LegacyStoreBuildingFactory;
+import com.dremio.datastore.api.LegacyStoreCreationFunction;
+import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
-import com.dremio.service.reflection.store.SchemaSerializer;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -48,11 +49,11 @@ public class CollaborationTagStore {
     .build();
 
   private static final String TAGS_STORE = "collaboration_tags";
-  private final Supplier<IndexedStore<String, CollaborationTag>> tagsStore;
+  private final Supplier<LegacyIndexedStore<String, CollaborationTag>> tagsStore;
 
   private static final long MAX_TAG_LENGTH = 128;
 
-  public CollaborationTagStore(final KVStoreProvider storeProvider) {
+  public CollaborationTagStore(final LegacyKVStoreProvider storeProvider) {
     Preconditions.checkNotNull(storeProvider, "kvStore provider required");
     tagsStore = Suppliers.memoize(() -> storeProvider.getStore(CollaborationTagsStoreCreator.class));
   }
@@ -77,7 +78,7 @@ public class CollaborationTagStore {
     tagsStore.get().delete(id);
   }
 
-  public Iterable<Map.Entry<String, CollaborationTag>> find(FindByCondition condition) {
+  public Iterable<Map.Entry<String, CollaborationTag>> find(LegacyFindByCondition condition) {
     return tagsStore.get().find(condition);
   }
 
@@ -105,21 +106,15 @@ public class CollaborationTagStore {
   /**
    * store creator
    */
-  public static final class CollaborationTagsStoreCreator implements StoreCreationFunction<IndexedStore<String, CollaborationTag>> {
+  public static final class CollaborationTagsStoreCreator implements LegacyStoreCreationFunction<LegacyIndexedStore<String, CollaborationTag>> {
     @Override
-    public IndexedStore<String, CollaborationTag> build(StoreBuildingFactory factory) {
+    public LegacyIndexedStore<String, CollaborationTag> build(LegacyStoreBuildingFactory factory) {
       return factory.<String, CollaborationTag>newStore()
         .name(TAGS_STORE)
-        .keySerializer(StringSerializer.class)
-        .valueSerializer(CollaborationTagSerializer.class)
+        .keyFormat(Format.ofString())
+        .valueFormat(Format.ofProtostuff(CollaborationTag.class))
         .versionExtractor(CollaborationTagVersionExtractor.class)
         .buildIndexed(CollaborationTagConverter.class);
-    }
-  }
-
-  private static final class CollaborationTagSerializer extends SchemaSerializer<CollaborationTag> {
-    CollaborationTagSerializer() {
-      super(CollaborationTag.getSchema());
     }
   }
 
@@ -145,9 +140,9 @@ public class CollaborationTagStore {
     }
   }
 
-  private static final class CollaborationTagConverter implements KVStoreProvider.DocumentConverter<String, CollaborationTag> {
+  private static final class CollaborationTagConverter implements DocumentConverter<String, CollaborationTag> {
     @Override
-    public void convert(KVStoreProvider.DocumentWriter writer, String id, CollaborationTag record) {
+    public void convert(DocumentWriter writer, String id, CollaborationTag record) {
       writer.write(ENTITY_ID, record.getEntityId());
       writer.write(LAST_MODIFIED, record.getLastModified());
     }

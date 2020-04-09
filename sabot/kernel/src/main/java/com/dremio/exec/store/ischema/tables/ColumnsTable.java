@@ -25,12 +25,12 @@ import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.slf4j.Logger;
 
-import com.dremio.datastore.IndexedStore.FindByCondition;
 import com.dremio.datastore.SearchTypes.SearchQuery;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.planner.types.RelDataTypeSystemImpl;
-import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -56,7 +56,7 @@ public class ColumnsTable extends BaseInfoSchemaTable<ColumnsTable.Column> {
   public Iterable<Column> asIterable(final String catalogName, String username, DatasetListingService service, SearchQuery query) {
     final Iterable<Entry<NamespaceKey, NameSpaceContainer>> searchResults;
     try {
-      searchResults = service.find(username, query == null ? null : new FindByCondition().setCondition(query));
+      searchResults = service.find(username, query == null ? null : new LegacyFindByCondition().setCondition(query));
     } catch (NamespaceException e) {
       throw new RuntimeException(e);
     }
@@ -83,7 +83,7 @@ public class ColumnsTable extends BaseInfoSchemaTable<ColumnsTable.Column> {
           @Override
           public Iterable<Column> apply(Entry<NamespaceKey, NameSpaceContainer> input) {
 
-            final RelDataType rowType = BatchSchema.fromDataset(input.getValue().getDataset())
+            final RelDataType rowType = CalciteArrowHelper.wrap(CalciteArrowHelper.fromDataset(input.getValue().getDataset()))
                 .toCalciteRecordType(JavaTypeFactoryImpl.INSTANCE);
             final String schemaName = input.getKey().getParent().toUnescapedString();
             final String tableName = input.getKey().getName();

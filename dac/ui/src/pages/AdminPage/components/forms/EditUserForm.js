@@ -45,7 +45,8 @@ const formFields = [
   getPair('lastName'),
   getPair('tag'),
   getPair('email'),
-  getPair('password')
+  getPair('password'),
+  getPair('extra')
 ];
 
 const formToEntity = formFields.reduce((map, field) => {
@@ -109,6 +110,7 @@ export class EditUserForm extends Component {
       className={isModal ? formBody : null}
       passwordHolderStyles={passwordHasPadding ? styles.passwordHolder : null}
       fields={fields}
+      noExtras
     />;
     return (
       <Fragment>

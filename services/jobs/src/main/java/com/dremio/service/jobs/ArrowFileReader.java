@@ -36,6 +36,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.cache.VectorAccessibleSerializable;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.easy.arrow.ArrowFileFooter;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
@@ -45,7 +46,6 @@ import com.dremio.io.FSInputStream;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
-import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
 

@@ -76,7 +76,8 @@ public class UnifiedParquetReader implements RecordReader {
   private final boolean vectorize;
   private final boolean enableDetailedTracing;
   private final BatchSchema tableSchema;
-  private final List<SchemaPath> realFields;
+  private ParquetScanProjectedColumns projectedColumns;
+  private ParquetColumnResolver columnResolver;
   private final FileSystem fs;
   private final GlobalDictionaries dictionaries;
   private final CompressionCodecFactory codecFactory;
@@ -90,8 +91,6 @@ public class UnifiedParquetReader implements RecordReader {
   private List<RecordReader> delegates = new ArrayList<>();
   private final List<SchemaPath> nonVectorizableReaderColumns = new ArrayList<>();
   private final List<SchemaPath> vectorizableReaderColumns = new ArrayList<>();
-  private final Map<String, ValueVector> vectorizedMap = new HashMap<>();
-  private final Map<String, ValueVector> nonVectorizedMap = new HashMap<>();
   private InputStreamProvider inputStreamProvider;
   private boolean ignoreSchemaLearning;
 
@@ -99,7 +98,7 @@ public class UnifiedParquetReader implements RecordReader {
       OperatorContext context,
       ParquetReaderFactory readerFactory,
       BatchSchema tableSchema,
-      List<SchemaPath> realFields,
+      ParquetScanProjectedColumns projectedColumns,
       Map<String, GlobalDictionaryFieldInfo> globalDictionaryFieldInfoMap,
       List<ParquetFilterCondition> filterConditions,
       ParquetFilterCreator filterCreator,
@@ -125,7 +124,8 @@ public class UnifiedParquetReader implements RecordReader {
     this.readEntry = readEntry;
     this.vectorize = vectorize;
     this.tableSchema = tableSchema;
-    this.realFields = realFields;
+    this.projectedColumns = projectedColumns;
+    this.columnResolver = null;
     this.dictionaries = dictionaries;
     this.codecFactory = CodecFactory.createDirectCodecFactory(new Configuration(), new ParquetDirectByteBufferAllocator(context.getAllocator()), 0);
     this.enableDetailedTracing = enableDetailedTracing;
@@ -141,7 +141,9 @@ public class UnifiedParquetReader implements RecordReader {
       computeLocality(footer);
     }
 
-    splitColumns(this.realFields, footer, vectorizableReaderColumns, nonVectorizableReaderColumns);
+    this.columnResolver = this.projectedColumns.getColumnResolver(
+      footer.getFileMetaData().getSchema());
+    splitColumns(footer, vectorizableReaderColumns, nonVectorizableReaderColumns);
 
     final ExecutionPath execPath = getExecutionPath();
     delegates = execPath.getReaders(this);
@@ -149,15 +151,6 @@ public class UnifiedParquetReader implements RecordReader {
     Preconditions.checkArgument(!delegates.isEmpty(), "There should be at least one delegated RecordReader");
     for (RecordReader delegateReader : delegates) {
       delegateReader.setup(output);
-    }
-
-    for (SchemaPath path : vectorizableReaderColumns) {
-      String name = path.getRootSegment().getNameSegment().getPath();
-      vectorizedMap.put(name, output.getVector(name));
-    }
-    for (SchemaPath path : nonVectorizableReaderColumns) {
-      String name = path.getRootSegment().getNameSegment().getPath();
-      nonVectorizedMap.put(name, output.getVector(name));
     }
 
     context.getStats().setLongStat(Metric.PARQUET_EXEC_PATH, execPath.ordinal());
@@ -255,8 +248,7 @@ public class UnifiedParquetReader implements RecordReader {
     AutoCloseables.close(closeables);
   }
 
-  private void splitColumns(final List<SchemaPath> projectedColumns,
-                            final ParquetMetadata footer,
+  private void splitColumns(final ParquetMetadata footer,
                             List<SchemaPath> vectorizableReaderColumns,
                             List<SchemaPath> nonVectorizableReaderColumns) {
     final BlockMetaData block = footer.getBlocks().get(readEntry.getRowGroupIndex());
@@ -278,9 +270,10 @@ public class UnifiedParquetReader implements RecordReader {
       if (this.ignoreSchemaLearning) {
         // check if parquet field is in projected columns, if not, then ignore it
         boolean ignoreThisField = true;
-        for (SchemaPath projectedPath : projectedColumns) {
+        for (SchemaPath projectedPath : this.columnResolver.getBatchSchemaProjectedColumns()) {
           String name = projectedPath.getRootSegment().getNameSegment().getPath();
-          if (parquetField.getName().equalsIgnoreCase(name)) {
+          String parquetColumnName = this.columnResolver.getParquetColumnName(name);
+          if (parquetColumnName != null && parquetField.getName().equalsIgnoreCase(parquetColumnName)) {
             ignoreThisField = false;
             break;
           }
@@ -310,11 +303,10 @@ public class UnifiedParquetReader implements RecordReader {
         }
       }
       for (Type type : nonVectorizableTypes) {
-        if (type.getName().equals(name)) {
+        if (type.getName().equalsIgnoreCase(name)) {
+          // path will be given to parquet rowise reader as input, which should be able to
+          // map path to correct parquet column descriptor by doing case insensitive mapping
           nonVectorizableReaderColumns.add(path);
-          break;
-        } else if (type.getName().equalsIgnoreCase(name)) {
-          nonVectorizableReaderColumns.add(SchemaPath.getSimplePath(type.getName()));
           break;
         }
       }
@@ -340,10 +332,10 @@ public class UnifiedParquetReader implements RecordReader {
   }
 
   private Collection<SchemaPath> getResolvedColumns(List<ColumnChunkMetaData> metadata){
-    if(!ColumnUtils.isStarQuery(realFields)){
+    if(!ColumnUtils.isStarQuery(this.columnResolver.getBatchSchemaProjectedColumns())){
       // Return all selected columns + any additional columns that are not present in the table schema (for schema
       // learning purpose)
-      List<SchemaPath> columnsToRead = Lists.newArrayList(realFields);
+      List<SchemaPath> columnsToRead = Lists.newArrayList(this.columnResolver.getProjectedParquetColumns());
       Set<String> columnsTableDef = Sets.newHashSet();
       Set<String> columnsTableDefLowercase = Sets.newHashSet();
       tableSchema.forEach(f -> columnsTableDef.add(f.getName()));
@@ -352,8 +344,10 @@ public class UnifiedParquetReader implements RecordReader {
         final String columnInParquetFile = c.getPath().iterator().next();
         // Column names in parquet are case sensitive, in Dremio they are case insensitive
         // First try to find the column with exact case. If not found try the case insensitive comparision.
-        if (!columnsTableDef.contains(columnInParquetFile) &&
-            !columnsTableDefLowercase.contains(columnInParquetFile.toLowerCase())) {
+        String batchSchemaColumnName = this.columnResolver.getBatchSchemaColumnName(columnInParquetFile);
+        if (batchSchemaColumnName != null &&
+            !columnsTableDef.contains(batchSchemaColumnName) &&
+            !columnsTableDefLowercase.contains(batchSchemaColumnName.toLowerCase())) {
           columnsToRead.add(SchemaPath.getSimplePath(columnInParquetFile));
         }
       }
@@ -415,7 +409,7 @@ public class UnifiedParquetReader implements RecordReader {
               unifiedReader.readEntry.getPath(), unifiedReader.readEntry.getRowGroupIndex(), unifiedReader.fs,
               unifiedReader.codecFactory,
               unifiedReader.getFooter(),
-              unifiedReader.realFields,
+              unifiedReader.projectedColumns,
               unifiedReader.schemaHelper,
               unifiedReader.globalDictionaryFieldInfoMap,
               unifiedReader.dictionaries
@@ -434,7 +428,7 @@ public class UnifiedParquetReader implements RecordReader {
             unifiedReader.getFooter(),
             unifiedReader.readEntry.getRowGroupIndex(),
             unifiedReader.readEntry.getPath(),
-            unifiedReader.realFields,
+            unifiedReader.projectedColumns,
             unifiedReader.fs,
             unifiedReader.schemaHelper,
             unifiedReader.inputStreamProvider,
@@ -461,7 +455,8 @@ public class UnifiedParquetReader implements RecordReader {
           returnList.add(
               unifiedReader.readerFactory.newReader(
                   unifiedReader.context,
-                  unifiedReader.vectorizableReaderColumns,
+                  unifiedReader.projectedColumns.cloneForSchemaPaths(
+                    unifiedReader.columnResolver.getBatchSchemaColumns(unifiedReader.vectorizableReaderColumns)),
                   unifiedReader.readEntry.getPath(),
                   unifiedReader.codecFactory,
                   unifiedReader.filterConditions,
@@ -483,7 +478,9 @@ public class UnifiedParquetReader implements RecordReader {
               unifiedReader.getFooter(),
               unifiedReader.readEntry.getRowGroupIndex(),
               unifiedReader.readEntry.getPath(),
-              unifiedReader.nonVectorizableReaderColumns,
+              unifiedReader.projectedColumns.cloneForSchemaPaths(
+                unifiedReader.columnResolver.getBatchSchemaColumns(unifiedReader.nonVectorizableReaderColumns)
+              ),
               unifiedReader.fs,
               unifiedReader.schemaHelper,
               deltas,

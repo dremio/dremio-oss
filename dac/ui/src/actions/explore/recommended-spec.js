@@ -17,8 +17,8 @@ import { expect } from 'chai';
 import { RSAA } from 'redux-api-middleware';
 
 import transformModelMapper from 'utils/mappers/ExplorePage/Transform/transformModelMapper';
-import { API_URL_V2 } from '@app/constants/Api';
 
+import { APIV2Call } from '@app/core/APICall';
 import * as Actions from './recommended.js';
 
 describe('recommended actions', () => {
@@ -42,6 +42,9 @@ describe('recommended actions', () => {
         actionType,
         viewId: Actions.LOAD_TRANSFORM_CARDS_VIEW_ID
       };
+
+      const apiCall = new APIV2Call().paths('/dataset/tmp.UNTITLED/version/12345/extract');
+
       const expectedResult = {
         [RSAA]: {
           types: [
@@ -52,7 +55,7 @@ describe('recommended actions', () => {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify(transformModelMapper.transformExportPostMapper(data, actionType)),
-          endpoint: `${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/${actionType}`
+          endpoint: apiCall
         }
       };
       const realResult = Actions.loadTransformCards(data, transform, dataset, actionType)((obj) => obj)[RSAA];
@@ -81,6 +84,10 @@ describe('recommended actions', () => {
         transformType: 'extract',
         method: 'default',
         actionType, index };
+
+      const apiCall = new APIV2Call()
+        .paths('/dataset/tmp.UNTITLED/version/12345/extract_preview');
+
       const expectedResult = {
         [RSAA]: {
           types: [
@@ -91,7 +98,7 @@ describe('recommended actions', () => {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify(transformModelMapper.transformDynamicPreviewMapper(data, actionType)),
-          endpoint: `${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/${actionType}_preview`
+          endpoint: apiCall
         }
       };
       const realResult = Actions.loadTransformCardPreview(data, transform, dataset, actionType, index)(
@@ -120,7 +127,10 @@ describe('recommended actions', () => {
         transformType: 'extract',
         method: 'default'
       };
-      const url = `${API_URL_V2}${dataset.getIn(['apiLinks', 'self'])}/${actionType}_values_preview`;
+
+      const apiCall = new APIV2Call()
+        .paths('/dataset/tmp.UNTITLED/version/12345/extract_values_preview');
+
       const expectedResult = {
         [RSAA]: {
           types: [
@@ -131,7 +141,7 @@ describe('recommended actions', () => {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify(transformModelMapper.mapTransformValuesPreview(data, actionType)),
-          endpoint: url
+          endpoint: apiCall
         }
       };
       const realResult = Actions.loadTransformValuesPreview(data, transform, dataset, actionType)(

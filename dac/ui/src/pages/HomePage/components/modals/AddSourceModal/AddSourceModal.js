@@ -74,22 +74,18 @@ export class AddSourceModal extends Component {
   }
 
   setStateWithSourceTypeListFromServer() {
-    ApiUtils.fetch('source/type').then(response => {
-      response.json().then((result) => {
-        const combinedListConfig = SourceFormJsonPolicy.combineDefaultAndLoadedList(result.data, DEFAULT_VLHF_LIST);
-        this.setState({sourceTypes: combinedListConfig});
-      });
+    ApiUtils.fetchJson('source/type', (result) => {
+      const combinedListConfig = SourceFormJsonPolicy.combineDefaultAndLoadedList(result.data, DEFAULT_VLHF_LIST);
+      this.setState({sourceTypes: combinedListConfig});
     }, () => {
       this.setState({didSourceTypeLoadFail: true});
     });
   }
 
   setStateWithSourceTypeConfigFromServer(typeCode) {
-    ApiUtils.fetch(`source/type/${typeCode}`).then(response => {
-      response.json().then((result) => {
-        const combinedConfig = SourceFormJsonPolicy.getCombinedConfig(typeCode, processUiConfig(result));
-        this.setState({isTypeSelected: true, selectedFormType: combinedConfig});
-      });
+    ApiUtils.fetchJson(`source/type/${typeCode}`, json => {
+      const combinedConfig = SourceFormJsonPolicy.getCombinedConfig(typeCode, processUiConfig(json));
+      this.setState({isTypeSelected: true, selectedFormType: combinedConfig});
     }, () => {
       this.setState({didSourceTypeLoadFail: true});
     });

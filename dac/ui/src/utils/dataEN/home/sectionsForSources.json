@@ -132,7 +132,7 @@
         "id": "config",
         "fields": [
           {
-            "name": "Cluster",
+            "name": "Engine",
             "id": "clusterName",
             "type": "string"
           },

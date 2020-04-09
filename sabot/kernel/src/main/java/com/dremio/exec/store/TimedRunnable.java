@@ -143,7 +143,7 @@ public abstract class TimedRunnable<V> implements Runnable {
           final String errMsg = String.format("Waited for %dms, but tasks for '%s' are not complete. " +
               "Total runnable size %d, parallelism %d.", timeout, activity, runnables.size(), parallelism);
           logger.error(errMsg);
-          throw UserException.resourceError()
+          throw UserException.resourceTimeoutError()
               .message(errMsg)
               .build(logger);
         }

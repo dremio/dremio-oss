@@ -227,7 +227,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
           footer,
           currentIndex,
           attributes.getPath().toString(),
-          GroupScan.ALL_COLUMNS,
+          ParquetScanProjectedColumns.fromSchemaPaths(GroupScan.ALL_COLUMNS),
           fs,
           schemaHelper,
           streamProvider,

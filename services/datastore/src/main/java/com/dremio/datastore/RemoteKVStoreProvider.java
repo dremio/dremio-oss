@@ -24,6 +24,14 @@ import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.datastore.api.AbstractStoreBuilder;
+import com.dremio.datastore.api.DocumentConverter;
+import com.dremio.datastore.api.IndexedStore;
+import com.dremio.datastore.api.KVStore;
+import com.dremio.datastore.api.KVStoreProvider;
+import com.dremio.datastore.api.StoreBuildingFactory;
+import com.dremio.datastore.api.StoreCreationFunction;
+import com.dremio.datastore.utility.StoreLoader;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.service.DirectProvider;
@@ -33,7 +41,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 /**
- * Remote kvstore provider.
+ * Remote KVStore Provider.
  */
 @KVStoreProviderType(type="RemoteDB")
 public class RemoteKVStoreProvider implements KVStoreProvider {
@@ -84,7 +92,7 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
   }
 
   @VisibleForTesting
-  <K, V> StoreBuilder<K, V> newStore(){
+  public <K, V> StoreBuilder<K, V> newStore(){
     return new RemoteStoreBuilder<>();
   }
 
@@ -130,42 +138,17 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
    * @param <K>
    * @param <V>
    */
-  public class RemoteStoreBuilder<K, V> implements StoreBuilder<K, V> {
-    private final StoreBuilderConfig config = new StoreBuilderConfig();
-
-    @Override
-    public StoreBuilder<K, V> name(String name) {
-      config.setName(name);
-      return this;
-    }
-
-    @Override
-    public StoreBuilder<K, V> keySerializer(Class<? extends Serializer<K>> keySerializerClass) {
-      config.setKeySerializerClassName(keySerializerClass.getName());
-      return this;
-    }
-
-    @Override
-    public StoreBuilder<K, V> valueSerializer(Class<? extends Serializer<V>> valueSerializerClass) {
-      config.setValueSerializerClassName(valueSerializerClass.getName());
-      return this;
-    }
-
-    @Override
-    public StoreBuilder<K, V> versionExtractor(Class<? extends VersionExtractor<V>> versionExtractorClass) {
-      config.setVersionExtractorClassName(versionExtractorClass.getName());
-      return this;
-    }
+  public class RemoteStoreBuilder<K, V> extends AbstractStoreBuilder<K, V> {
 
     @Override
     public KVStore<K, V> build() {
-      return new RemoteKVStore<>(rpcClient, rpcClient.buildStore(config), config);
+      return new RemoteKVStore<>(rpcClient, rpcClient.getStoreId(getStoreBuilderHelper().getName()), getStoreBuilderHelper());
     }
 
     @Override
     public IndexedStore<K, V> buildIndexed(Class<? extends DocumentConverter<K, V>> documentConverterClass) {
-      config.setDocumentConverterClassName(documentConverterClass.getName());
-      return new RemoteIndexedStore<>(rpcClient, rpcClient.buildStore(config), config);
+      getStoreBuilderHelper().documentConverter(documentConverterClass);
+      return new RemoteIndexedStore<>(rpcClient, rpcClient.getStoreId(getStoreBuilderHelper().getName()), getStoreBuilderHelper());
     }
   }
 

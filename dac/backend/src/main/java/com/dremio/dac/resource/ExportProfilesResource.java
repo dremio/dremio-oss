@@ -28,7 +28,7 @@ import javax.ws.rs.Produces;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.server.admin.profile.ProfilesExporter;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 
 /**
  * Export profiles resource
@@ -41,17 +41,17 @@ import com.dremio.datastore.KVStoreProvider;
 @Produces(APPLICATION_JSON)
 public class ExportProfilesResource {
 
-  private final Provider<KVStoreProvider> kvStoreProviderProvider;
+  private final Provider<LegacyKVStoreProvider> kvStoreProviderProvider;
 
   @Inject
-  public ExportProfilesResource(Provider<KVStoreProvider> kvStoreProviderProvider) {
+  public ExportProfilesResource(Provider<LegacyKVStoreProvider> kvStoreProviderProvider) {
     this.kvStoreProviderProvider = kvStoreProviderProvider;
   }
 
   @POST
   public ExportProfilesStats exportProfiles(ExportProfilesParams exportParams)
     throws Exception {
-    final KVStoreProvider kvStoreProvider = kvStoreProviderProvider.get();
+    final LegacyKVStoreProvider kvStoreProvider = kvStoreProviderProvider.get();
     ProfilesExporter exporter = getExporter(exportParams);
 
     return exporter.export(kvStoreProvider);

@@ -24,6 +24,7 @@ import org.apache.parquet.io.api.RecordMaterializer;
 import org.apache.parquet.schema.MessageType;
 
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.store.parquet.ParquetColumnResolver;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.scan.OutputMutator;
@@ -33,11 +34,13 @@ public class ParquetRecordMaterializer extends RecordMaterializer<Void> {
   public StructGroupConverter root;
   private ComplexWriter complexWriter;
 
-  public ParquetRecordMaterializer(OutputMutator mutator, ComplexWriter complexWriter, MessageType schema,
-                                        Collection<SchemaPath> columns, OptionManager options, Schema arrowSchema,
-                                        SchemaDerivationHelper schemaHelper) {
+  public ParquetRecordMaterializer(ParquetColumnResolver columnResolver, OutputMutator mutator, ComplexWriter complexWriter, MessageType schema,
+                                   Collection<SchemaPath> columns, OptionManager options, Schema arrowSchema,
+                                   SchemaDerivationHelper schemaHelper) {
     this.complexWriter = complexWriter;
     root = new StructGroupConverter(
+        columnResolver,
+        "",
         mutator,
         complexWriter.rootAsStruct(),
         schema,

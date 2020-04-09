@@ -64,7 +64,7 @@ public class ElasticIntermediateScanPrel extends ScanPrelBase implements Elastic
       int splitCount,
       RelTraitSet traitSet) {
     PlannerSettings settings = PrelUtil.getPlannerSettings(cluster.getPlanner());
-    boolean smallInput = rowCount < (double)settings.getSliceTarget();
+    boolean smallInput = rowCount < settings.getSliceTarget();
 
     DistributionTrait distribution;
     if(settings.isMultiPhaseAggEnabled() && !settings.isSingleMode() && !smallInput && splitCount > 1) {
@@ -76,6 +76,7 @@ public class ElasticIntermediateScanPrel extends ScanPrelBase implements Elastic
     return traitSet.plus(distribution);
   }
 
+  @Override
   public StoragePluginId getPluginId(){
     return pluginId;
   }
@@ -91,7 +92,7 @@ public class ElasticIntermediateScanPrel extends ScanPrelBase implements Elastic
   public ElasticTableXattr getExtendedAttributes(){
     if(extendedAttributes == null){
       try {
-        extendedAttributes = ElasticTableXattr.parseFrom(tableMetadata.getReadDefinition().getExtendedProperty().toByteArray());
+        extendedAttributes = ElasticTableXattr.parseFrom(tableMetadata.getReadDefinition().getExtendedProperty().asReadOnlyByteBuffer());
       } catch (InvalidProtocolBufferException e) {
         throw Throwables.propagate(e);
       }
@@ -102,7 +103,7 @@ public class ElasticIntermediateScanPrel extends ScanPrelBase implements Elastic
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ElasticIntermediateScanPrel(getCluster(), traitSet, getTable(), tableMetadata, projectedColumns, observedRowcountAdjustment);
+    return new ElasticIntermediateScanPrel(getCluster(), traitSet, getTable(), tableMetadata, getProjectedColumns(), observedRowcountAdjustment);
   }
 
   @Override

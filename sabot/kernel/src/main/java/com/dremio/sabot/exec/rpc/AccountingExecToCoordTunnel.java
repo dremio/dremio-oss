@@ -16,7 +16,6 @@
 package com.dremio.sabot.exec.rpc;
 
 import com.dremio.common.utils.protos.QueryWritableBatch;
-import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.sabot.threads.SendingMonitor;
@@ -40,10 +39,4 @@ public class AccountingExecToCoordTunnel {
     sendMonitor.increment();
     tunnel.sendData(statusHandler, data);
   }
-
-  public void sendFragmentStatus(FragmentStatus status){
-    sendMonitor.increment();
-    tunnel.sendFragmentStatus(statusHandler, status);
-  }
-
 }

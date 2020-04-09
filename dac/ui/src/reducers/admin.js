@@ -47,7 +47,6 @@ export default function admins(state = initialState, action) {
   case ActionTypes.LOAD_FILTERED_USER_SUCCESS:
     return state.set('users', action.payload.getIn(['result', 'users']));
 
-
   case ActionTypes.LOAD_FILTERED_GROUP_SUCCESS:
     return state.set('groups', action.payload.getIn(['result', 'groups']));
 

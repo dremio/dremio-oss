@@ -33,11 +33,11 @@ import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.expr.fn.interpreter.InterpreterEvaluator;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.Project;
+import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.Fixtures.Table;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.op.project.ProjectOperator;
-import com.dremio.sabot.op.sort.external.RecordBatchData;
 import com.google.common.base.Preconditions;
 
 public class BaseTestFunction extends BaseTestOperator {

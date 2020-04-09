@@ -76,7 +76,12 @@ public class VectorContainerMutator implements OutputMutator {
   }
 
   @Override
-  public boolean isSchemaChanged() {
+  public boolean getAndResetSchemaChanged() {
+    return false;
+  }
+
+  @Override
+  public boolean getSchemaChanged() {
     return false;
   }
 }

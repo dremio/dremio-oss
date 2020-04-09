@@ -51,7 +51,7 @@ public final class ProxyServerFactory {
     Server proxy = new Server();
     logger.info("Setting up HTTPS connector for web server");
 
-    final SslContextFactory sslContextFactory = new SslContextFactory();
+    final SslContextFactory sslContextFactory = new SslContextFactory.Client();
 
     sslContextFactory.setKeyStorePath(keystoreFile.getAbsolutePath());
     sslContextFactory.setKeyStorePassword(keystorePassword);

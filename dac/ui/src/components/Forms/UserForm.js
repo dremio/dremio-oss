@@ -21,9 +21,12 @@ import PropTypes from 'prop-types';
 import { FieldWithError, TextField, PasswordField } from 'components/Fields';
 import { applyValidators, isRequired, confirmPassword, isEmail } from 'utils/validation';
 import { formRow } from 'uiTheme/radium/forms';
+import {EDITION} from '@inject/constants/serverStatus';
+import localStorageUtils from 'utils/storageUtils/localStorageUtils';
+import * as VersionUtils from '@app/utils/versionUtils';
 
 //export for testing only
-export const FIELDS = ['firstName', 'lastName', 'userName', 'email', 'password', 'passwordVerify', 'tag'];
+export const FIELDS = ['firstName', 'lastName', 'userName', 'email', 'password', 'passwordVerify', 'tag', 'extra'];
 
 @Radium
 export default class UserForm extends Component { // todo: rename, make proper "Section", since this is not a full "Form"
@@ -32,14 +35,15 @@ export default class UserForm extends Component { // todo: rename, make proper "
     className: PropTypes.string,
     style: PropTypes.object,
     passwordHolderStyles: PropTypes.object,
-    isReadMode: PropTypes.bool
+    isReadMode: PropTypes.bool,
+    noExtras: PropTypes.bool
   };
 
   static defaultProps = {
     style: {},
     passwordHolderStyles: {},
     isReadMode: false
-  }
+  };
 
   //#region connectComplexForm.Sections region
 
@@ -66,7 +70,10 @@ export default class UserForm extends Component { // todo: rename, make proper "
   }
 
   render() {
-    const { fields, style, passwordHolderStyles, isReadMode, className } = this.props;
+    const { fields, style, passwordHolderStyles, isReadMode, className, noExtras } = this.props;
+    const edition = VersionUtils.getEditionFromConfig();
+    const isME = edition === EDITION.ME;
+    const isAuthed = localStorageUtils.getInstanceId();
 
     return (
       <div style={style} className={className}>
@@ -111,6 +118,14 @@ export default class UserForm extends Component { // todo: rename, make proper "
                 </FieldWithError>
               </div>
             </div>
+          </div>
+        }
+        {!noExtras && !isAuthed && isME &&
+          <div style={styles.formRow}>
+            <FieldWithError label={la('Instance-id for Authentication')} errorPlacement='top' labelStyle={styles.label} {...fields.extra}
+              style={styles.inlineBlock}>
+              <TextField {...fields.extra} disabled={isReadMode}/>
+            </FieldWithError>
           </div>
         }
       </div>

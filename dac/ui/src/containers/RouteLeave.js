@@ -133,14 +133,14 @@ export class HookProviderView extends Component {
   checkChanges = (nextLocation) => {
     let hasChanges = false;
 
-    this.hasChangeCallbacks.forEach((hasChangesCallback, key) => {
+    this.hasChangeCallbacks.forEach((hasChangesCallback) => {
       if (hasChangesCallback(nextLocation)) {
         hasChanges = true;
       }
     });
 
     return hasChanges;
-  }
+  };
 
   render() {
     return <Provider value={{
@@ -161,7 +161,7 @@ export const withHookProvider = ComponentToWrap => {
     static propTypes = {
       route: PropTypes.object.isRequired,
       router: PropTypes.object.isRequired
-    }
+    };
     render() {
       return (<HookProvider route={this.props.route} router={this.props.router}>
         <ComponentToWrap {...this.props} />
@@ -193,7 +193,7 @@ export class HookConsumer extends Component {
     // ({ addCallback, doChangesCheck }) => {}. addCallback is a function that receives a SINGLE argument.
     // This argument is hasChangesCallback
     children: PropTypes.func
-  }
+  };
 
   // should be a new selector for each HookConsumer instance
   singleArgFnGetter = singleArgFnGenerator(uuid.v4(), // generate a unique id for each consumer.
@@ -216,7 +216,7 @@ export class HookConsumer extends Component {
       }),
       doChangesCheck
     });
-  }
+  };
 
   componentWillUnmount() {
     // we must clear callback for current component, if any exists
@@ -247,7 +247,7 @@ export class RouteLeaveEventView extends Component {
   onRouteChange = () => {
     const { router, route } = this.props;
     router.setRouteLeaveHook(route, this.routeWillLeave);
-  }
+  };
 
   routeWillLeave = (nextLocation) => {
     if (this.ignoreUnsavedChanges || isUnauthorisedReason(nextLocation)) {
@@ -266,7 +266,7 @@ export class RouteLeaveEventView extends Component {
       }
     });
     return false;
-  }
+  };
 
   render() {
     const { route, children } = this.props;
@@ -296,7 +296,7 @@ export const withRouteLeaveEvent = (ComponentToWrap) => {
     onRouteChange = () => {
       const { router, route } = this.props;
       router.setRouteLeaveHook(route, this.routeWillLeave);
-    }
+    };
 
     routeWillLeave = (nextLocation) => {
       if (!this.ignoreUnsavedChanges && !isUnauthorisedReason(nextLocation)) {
@@ -310,7 +310,7 @@ export const withRouteLeaveEvent = (ComponentToWrap) => {
       }
       this.ignoreUnsavedChanges = false; // reset a flag for a next try
       return true;
-    }
+    };
 
     render() {
       return <performChangesCheckForLocationContext.Consumer>
@@ -346,7 +346,7 @@ export const withRouteLeaveSubscription = (ComponentToWrap, /* optional */ field
         doChangesCheck
       };
       return <ComponentToWrap {...newProps} />;
-    }
+    };
 
     render() {
       return <HookConsumer>{this.renderFn}</HookConsumer>;

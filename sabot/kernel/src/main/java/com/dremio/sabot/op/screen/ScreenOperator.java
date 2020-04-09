@@ -40,6 +40,7 @@ public class ScreenOperator implements TerminalOperator {
   private final OperatorContext context;
   private final OperatorStats stats;
   private final AccountingExecToCoordTunnel execToCoord;
+  private final Screen config;
 
   private State state = State.NEEDS_SETUP;
   private VectorAccessible incoming;
@@ -59,6 +60,7 @@ public class ScreenOperator implements TerminalOperator {
     this.execToCoord = tunnelProvider.getCoordTunnel();
     this.context = context;
     this.stats = context.getStats();
+    this.config = operator;
   }
 
   @Override

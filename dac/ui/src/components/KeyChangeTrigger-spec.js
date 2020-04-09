@@ -26,7 +26,7 @@ describe('KeyChangeTrigger', () => {
       wrapper = shallow(<KeyChangeTrigger keyValue={oldValue} onChange={stub} />, {
         disableLifecycleMethods: false
       });
-      stub.reset();
+      stub.resetHistory();
       wrapper.setProps({
         keyValue: newValue
       });

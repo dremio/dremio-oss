@@ -28,6 +28,7 @@ import org.mockito.Mockito;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.physical.base.AbstractSingle;
 import com.dremio.exec.physical.base.OpProps;
@@ -42,10 +43,9 @@ import com.dremio.exec.planner.fragment.Wrapper;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.SystemOptionManager;
-import com.dremio.exec.store.sys.store.provider.KVPersistentStoreProvider;
 import com.dremio.options.TypeValidators;
-import com.dremio.service.DirectProvider;
 import com.google.common.collect.ImmutableMap;
 
 public class TestMemoryAllocationUtilities extends ExecTest {
@@ -61,17 +61,19 @@ public class TestMemoryAllocationUtilities extends ExecTest {
   private static final NodeEndpoint N2 = NodeEndpoint.newBuilder().setAddress("n2").build();
 
   private SystemOptionManager options;
-  private LocalKVStoreProvider kvstoreprovider;
+  private LegacyKVStoreProvider kvstoreprovider;
 
    @Before
    public void setup() throws Exception {
-     kvstoreprovider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, true);
+     kvstoreprovider =
+       new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, true).asLegacy();
      kvstoreprovider.start();
+     final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(CLASSPATH_SCAN_RESULT);
      options = new SystemOptionManager(
-         CLASSPATH_SCAN_RESULT,
+         defaultOptionManager,
          new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT),
-         new KVPersistentStoreProvider(DirectProvider.wrap(kvstoreprovider)));
-     options.init();
+       () -> kvstoreprovider, false);
+     options.start();
   }
 
    @After

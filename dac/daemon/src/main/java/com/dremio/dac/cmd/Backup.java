@@ -40,7 +40,7 @@ public class Backup {
    * Command line options for backup
    */
   @Parameters(separators = "=")
-  private static final class BackupManagerOptions {
+  static final class BackupManagerOptions {
     @Parameter(names={"-h", "--help"}, description="show usage", help=true)
     private boolean help = false;
 

@@ -16,6 +16,7 @@
 package com.dremio.dac.server;
 
 import static com.dremio.dac.server.FamilyExpectation.CLIENT_ERROR;
+import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
@@ -38,9 +39,11 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
 
+import org.apache.arrow.memory.BufferAllocator;
 import org.apache.hadoop.conf.Configuration;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -58,7 +61,6 @@ import com.dremio.dac.homefiles.HomeFileTool;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.folder.FolderPath;
 import com.dremio.dac.model.job.JobDataFragment;
-import com.dremio.dac.model.job.JobUI;
 import com.dremio.dac.model.spaces.Home;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.server.test.SampleDataPopulator;
@@ -79,7 +81,6 @@ import com.dremio.options.OptionValue;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -106,6 +107,7 @@ import io.protostuff.ByteString;
 public class TestHomeFiles extends BaseTestServer {
   private static final String HOME_NAME =
       HomeName.getUserHomePath(SampleDataPopulator.DEFAULT_USER_NAME).getName();
+  private BufferAllocator allocator;
 
   @Rule
   public final TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -116,6 +118,12 @@ public class TestHomeFiles extends BaseTestServer {
     clearAllDataExceptUser();
     getPopulator().populateTestUsers();
     this.fs = l(HomeFileTool.class).getConf().getFilesystemAndCreatePaths(getCurrentDremioDaemon().getDACConfig().thisNode);
+    allocator = getSabotContext().getAllocator().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+  }
+
+  @After
+  public void cleanUp() {
+    allocator.close();
   }
 
   private void checkFileData(String location) throws Exception {
@@ -143,8 +151,6 @@ public class TestHomeFiles extends BaseTestServer {
 
   @Test
   public void testHome() throws Exception {
-    final JobsService jobsService = l(JobsService.class);
-
     Home home = expectSuccess(getBuilder(getAPIv2().path("home/" + HOME_NAME)).buildGet(), Home.class);
     assertNotNull(home.getId());
 
@@ -176,16 +182,14 @@ public class TestHomeFiles extends BaseTestServer {
       SqlUtils.quoteIdentifier(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME), fileLocation, file1StagedFormat.toTableOptions()), SampleDataPopulator.DEFAULT_USER_NAME);
 
     doc("querying file");
-    JobDataFragment truncData = JobUI.getJobData(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(query)
-          .setQueryType(QueryType.UI_PREVIEW)
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
-    assertEquals(1, truncData.getReturnedRowCount());
-    assertEquals(2, truncData.getColumns().size());
+    try (final JobDataFragment truncData = submitJobAndGetData(l(JobsService.class),
+      JobRequest.newBuilder()
+        .setSqlQuery(query)
+        .setQueryType(QueryType.UI_PREVIEW)
+        .build(), 0, 500, allocator)) {
+      assertEquals(1, truncData.getReturnedRowCount());
+      assertEquals(2, truncData.getColumns().size());
+    }
 
     doc("previewing staged file");
     JobDataFragment data = expectSuccess(getBuilder(getAPIv2().path("/home/" + HOME_NAME + "/file_preview_unsaved/file1")).buildPost(Entity.json(file1StagedFormat)), JobDataFragment.class);
@@ -235,15 +239,13 @@ public class TestHomeFiles extends BaseTestServer {
     assertEquals(FileType.JSON, file2Format.getFileType());
 
     doc("querying file");
-    truncData = JobUI.getJobData(
-      jobsService.submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery("select * from \"" + HOME_NAME + "\".file1", SampleDataPopulator.DEFAULT_USER_NAME))
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
-    assertEquals(1, truncData.getReturnedRowCount());
-    assertEquals(2, truncData.getColumns().size());
+    try (final JobDataFragment truncData = submitJobAndGetData(l(JobsService.class),
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery("select * from \"" + HOME_NAME + "\".file1", SampleDataPopulator.DEFAULT_USER_NAME))
+        .build(), 0, 500, allocator)) {
+      assertEquals(1, truncData.getReturnedRowCount());
+      assertEquals(2, truncData.getColumns().size());
+    }
 
     doc("creating dataset from home file");
     InitialPreviewResponse response = expectSuccess(getBuilder(getAPIv2().path(
@@ -364,15 +366,11 @@ public class TestHomeFiles extends BaseTestServer {
     assertEquals(fileType, file2Format.getFileType());
 
     doc("querying excel file");
-    final JobDataFragment truncData = JobUI.getJobData(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery("select * from \"" + HOME_NAME + "\".\"excel\"", SampleDataPopulator.DEFAULT_USER_NAME))
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    ).truncate(500);
-    assertEquals(6, truncData.getReturnedRowCount());
-    assertEquals(5, truncData.getColumns().size());
+    try (final JobDataFragment truncData = submitJobAndGetData(l(JobsService.class), JobRequest.newBuilder().setSqlQuery(new SqlQuery("select * from \"" + HOME_NAME + "\".\"excel\"", SampleDataPopulator.DEFAULT_USER_NAME)).build(),
+      0, 500, allocator)) {
+      assertEquals(6, truncData.getReturnedRowCount());
+      assertEquals(5, truncData.getColumns().size());
+    }
 
     doc("previewing excel file");
     if (file2Format instanceof ExcelFileConfig) {
@@ -426,27 +424,7 @@ public class TestHomeFiles extends BaseTestServer {
             filePath.toNamespaceKey(), datasetConfig);
   }
 
-  public static void runQuery(String name, int rows, int columns, FolderPath parent) {
-    FilePath filePath;
-    if (parent == null) {
-      filePath = new FilePath(ImmutableList.of(HomeName.getUserHomePath(DEFAULT_USER_NAME).getName(), name));
-    } else {
-      List<String> path = Lists.newArrayList(parent.toPathList());
-      path.add(name);
-      filePath = new FilePath(path);
-    }
-    final JobDataFragment truncData = JobUI.getJobData(
-      l(JobsService.class).submitJob(
-        JobRequest.newBuilder()
-          .setSqlQuery(new SqlQuery(format("select * from %s", filePath.toPathString()), DEFAULT_USER_NAME))
-          .build(),
-        NoOpJobStatusListener.INSTANCE)
-    ).truncate(rows + 1);
-    assertEquals(rows, truncData.getReturnedRowCount());
-    assertEquals(columns, truncData.getColumns().size());
-  }
-
-  private static void runTests(HomeFileConf homeFileStore) throws Exception {
+  private void runTests(HomeFileConf homeFileStore) throws Exception {
     // text file
     Path textFile = Path.of(FileUtils.getResourceAsFile("/datasets/text/comma.txt").getAbsolutePath());
     uploadFile(homeFileStore, textFile, "comma", "txt", new TextFileConfig().setFieldDelimiter(","), null);
@@ -461,10 +439,10 @@ public class TestHomeFiles extends BaseTestServer {
     uploadFile(homeFileStore, excelFile, "excel", "xlsx", new ExcelFileConfig(), null);
 
     // query files
-    runQuery("comma", 4, 3, null);
-    runQuery("comma1", 4, 3, null);
-    runQuery("users", 3, 2, null);
-    runQuery("excel", 6, 5, null);
+    runQuery(l(JobsService.class), "comma", 4, 3, null, allocator);
+    runQuery(l(JobsService.class), "comma1", 4, 3, null, allocator);
+    runQuery(l(JobsService.class), "users", 3, 2, null, allocator);
+    runQuery(l(JobsService.class), "excel", 6, 5, null, allocator);
 
     // add file to folder
     FolderPath folderPath = new FolderPath(ImmutableList.of(HomeName.getUserHomePath(DEFAULT_USER_NAME).getName(), "testupload"));
@@ -473,7 +451,7 @@ public class TestHomeFiles extends BaseTestServer {
       .setFullPathList(folderPath.toPathList()));
 
     uploadFile(homeFileStore, textFile, "comma", "txt", new TextFileConfig().setFieldDelimiter(","), folderPath);
-    runQuery("comma", 4, 3, folderPath);
+    runQuery(l(JobsService.class), "comma", 4, 3, folderPath, allocator);
 
   }
 
@@ -502,7 +480,7 @@ public class TestHomeFiles extends BaseTestServer {
 
   @Test
   public void testPDFSFileStore() throws Exception {
-    FileSystemPlugin fsp = (FileSystemPlugin) l(CatalogService.class).getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
+    FileSystemPlugin fsp = l(CatalogService.class).getSource(HomeFileSystemStoragePlugin.HOME_PLUGIN_NAME);
     HomeFileConf conf = (HomeFileConf) fsp.getConfig();
     HomeFileTool tool = l(HomeFileTool.class);
     try {

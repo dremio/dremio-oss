@@ -15,10 +15,10 @@
  */
 import { RSAA } from 'redux-api-middleware';
 
-import { API_URL_V2 } from '@app/constants/Api';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
 import exploreUtils from 'utils/explore/exploreUtils';
 import { datasetWithoutData } from 'schemas/v2/fullDataset';
+import { APIV2Call } from '@app/core/APICall';
 
 export const NEW_UNTITLED_START   = 'NEW_UNTITLED_START';
 export const NEW_UNTITLED_SUCCESS = 'NEW_UNTITLED_SUCCESS';
@@ -31,7 +31,8 @@ function newUntitledFetch(dataset, parentFullPath, viewId) {
   // (only one seems to be sent though)
   const meta = { viewId, entity: dataset };
   const newVersion = exploreUtils.getNewDatasetVersion();
-  const href = exploreUtils.getHrefForUntitledDatasetConfig(parentFullPath, newVersion, true);
+  const apiCall = exploreUtils.getAPICallForUntitledDatasetConfig(parentFullPath, newVersion, true);
+
   return {
     [RSAA]: {
       types: [
@@ -41,7 +42,7 @@ function newUntitledFetch(dataset, parentFullPath, viewId) {
       ],
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      endpoint: `${API_URL_V2}${href}`
+      endpoint: apiCall
     }
   };
 }
@@ -75,6 +76,9 @@ export function postNewUntitledSql(href, sql, queryContext, viewId) {
     context: queryContext,
     sql
   };
+
+  const apiCall = new APIV2Call().fullpath(href);
+
   return {
     [RSAA]: {
       types: [
@@ -85,7 +89,7 @@ export function postNewUntitledSql(href, sql, queryContext, viewId) {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(body),
-      endpoint: `${API_URL_V2}${href}`
+      endpoint: apiCall
     }
   };
 }

@@ -18,9 +18,9 @@ package com.dremio.dac.model.job;
 import java.util.List;
 
 import com.dremio.proto.model.attempts.RequestType;
+import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ParentDatasetInfo;
-import com.dremio.service.jobs.Job;
 import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -57,10 +57,10 @@ public class JobListItem extends PartialJobListItem {
     this.datasetType = datasetType;
   }
 
-  public JobListItem(Job input, ParentDatasetInfo displayInfo) {
+  public JobListItem(JobSummary input, ParentDatasetInfo displayInfo) {
     super(input);
     this.datasetPathList = displayInfo.getDatasetPathList();
-    this.datasetType =  displayInfo.getType();
+    this.datasetType = displayInfo.getType();
   }
 
   public List<String> getDatasetPathList() {

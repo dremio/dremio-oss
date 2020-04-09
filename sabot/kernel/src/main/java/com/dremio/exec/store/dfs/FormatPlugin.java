@@ -41,6 +41,11 @@ public interface FormatPlugin {
 
   public boolean supportsWrite();
 
+  // Is a layer on top of other single/multiple file formats.
+  default boolean isLayered() {
+    return false;
+  }
+
   public SabotContext getContext();
 
   /**

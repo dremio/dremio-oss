@@ -70,7 +70,7 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new FilesystemScanDrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, projectedColumns, filter, observedRowcountAdjustment);
+    return new FilesystemScanDrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(), filter, observedRowcountAdjustment);
   }
 
   @Override

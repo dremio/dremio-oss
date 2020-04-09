@@ -117,7 +117,7 @@ public class HiveUtilities {
    * @throws Exception
    */
   public static final Class<? extends InputFormat<?, ?>> getInputFormatClass(final JobConf jobConf, Optional<String> inputFormat,
-                                                                             Optional<String> storageHandlerName) throws Exception {
+    Optional<String> storageHandlerName) throws Exception {
     if (inputFormat.isPresent()) {
       return (Class<? extends InputFormat<?, ?>>) Class.forName(inputFormat.get());
     }

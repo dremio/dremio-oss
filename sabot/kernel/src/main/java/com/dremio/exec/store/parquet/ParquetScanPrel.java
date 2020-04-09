@@ -32,6 +32,7 @@ import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.PrelUtil;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.PruneableScan;
@@ -110,7 +111,7 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
 
   @Override
   public PhysicalOperator getPhysicalOperator(PhysicalPlanCreator creator) throws IOException {
-    final BatchSchema schema = cachedRelDataType == null ? getTableMetadata().getSchema().maskAndReorder(getProjectedColumns()):  BatchSchema.fromCalciteRowType(cachedRelDataType);
+    final BatchSchema schema = cachedRelDataType == null ? getTableMetadata().getSchema().maskAndReorder(getProjectedColumns()):  CalciteArrowHelper.fromCalciteRowType(cachedRelDataType);
     return new ParquetGroupScan(
         creator.props(this, getTableMetadata().getUser(), schema, RESERVE, LIMIT),
         getTableMetadata(),
@@ -127,7 +128,7 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
 
   @Override
   public ParquetScanPrel applyDatasetPointer(TableMetadata newDatasetPointer) {
-    return new ParquetScanPrel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer, projectedColumns,
+    return new ParquetScanPrel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer, getProjectedColumns(),
         observedRowcountAdjustment, filter, globalDictionaryEncodedColumns, cachedRelDataType);
   }
 
@@ -168,7 +169,7 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new ParquetScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, projectedColumns,
+    return new ParquetScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
         observedRowcountAdjustment, filter, globalDictionaryEncodedColumns, cachedRelDataType);
   }
 

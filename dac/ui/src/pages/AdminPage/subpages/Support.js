@@ -33,7 +33,7 @@ import ViewStateWrapper from 'components/ViewStateWrapper';
 import SimpleButton from 'components/Buttons/SimpleButton';
 import TextField from 'components/Fields/TextField';
 import ApiUtils from '@app/utils/apiUtils/apiUtils';
-import SupportAccess, { RESERVED as SUPPORT_ACCESS_RESERVED } from 'dyn-load/pages/AdminPage/subpages/SupportAccess';
+import SupportAccess, {RESERVED as SUPPORT_ACCESS_RESERVED} from '@inject/pages/AdminPage/subpages/SupportAccess';
 import FormUnsavedRouteLeave from 'components/Forms/FormUnsavedRouteLeave';
 
 import Header from '../components/Header';
@@ -43,7 +43,7 @@ import InternalSupportEmail, { RESERVED as INTERNAL_SUPPORT_RESERVED } from './I
 
 export const VIEW_ID = 'SUPPORT_SETTINGS_VIEW_ID';
 
-export const RESERVED = new Set([...SUPPORT_ACCESS_RESERVED, ...INTERNAL_SUPPORT_RESERVED]);
+export const RESERVED = new Set([...(SUPPORT_ACCESS_RESERVED || []), ...INTERNAL_SUPPORT_RESERVED]);
 
 export class Support extends PureComponent {
   static propTypes = {
@@ -54,16 +54,16 @@ export class Support extends PureComponent {
     settings: PropTypes.instanceOf(Immutable.Map).isRequired,
     setChildDirtyState: PropTypes.func,
     getSetting: PropTypes.func
-  }
+  };
 
   componentWillMount() {
-    this.props.getDefinedSettings([...RESERVED, ...LABELS_IN_SECTIONS], true, VIEW_ID);
+    this.props.getDefinedSettings([...RESERVED, ...Object.keys(LABELS_IN_SECTIONS)], true, VIEW_ID);
   }
 
   state = {
     getSettingInProgress: false,
     tempShown: new Immutable.OrderedSet()
-  }
+  };
 
   renderSettingsMicroForm = (settingId, props) => {
     const formKey = 'settings-' + settingId;
@@ -75,7 +75,7 @@ export class Support extends PureComponent {
       viewId={VIEW_ID}
       style={{margin: '5px 0'}}
       {...props} />;
-  }
+  };
 
 
   settingExists(id) {
@@ -135,7 +135,7 @@ export class Support extends PureComponent {
     this.setState({
       getSettingInProgress: false
     });
-  }
+  };
 
   resetSetting(settingId) {
     return this.props.resetSetting(settingId).then(() => {

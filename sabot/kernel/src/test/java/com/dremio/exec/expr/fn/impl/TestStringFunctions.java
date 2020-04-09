@@ -87,13 +87,19 @@ public class TestStringFunctions extends BaseTestQuery {
         .baselineColumns("l1", "l2")
         .baselineValues(0, 0)
         .go();
+
+    testBuilder()
+        .sqlQuery("SELECT LOCATE('bar', a, 4) l1 FROM (VALUES('ççbarbar')) tbl(a)")
+        .ordered()
+        .baselineColumns("l1")
+        .baselineValues(6)
+        .go();
   }
 
   @Test
   public void invalidLocate() throws Exception {
     thrownException.expect(UserException.class);
     thrownException.expectMessage("must be greater than 0");
-
     test("SELECT LOCATE('nope', a, 0) FROM (VALUES('foobar')) tbl(a)");
   }
 

@@ -49,7 +49,7 @@ describe('TransformForm', () => {
   });
 
   it('should render with minimal props without exploding', () => {
-    wrapper.setProps(...minimalProps);
+    wrapper.setProps(minimalProps);
     expect(wrapper).to.have.length(1);
   });
 

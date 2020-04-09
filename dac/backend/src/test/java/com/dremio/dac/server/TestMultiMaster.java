@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
+import javax.inject.Provider;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.Entity;
@@ -69,7 +70,7 @@ import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.search.SearchService;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.JSONUtil;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
@@ -80,6 +81,8 @@ import com.dremio.service.SingletonRegistry;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.zk.KillZkSession;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
+import com.dremio.service.jobs.HybridJobsService;
+import com.dremio.service.jobs.JobsServer;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.users.SystemUser;
@@ -122,6 +125,9 @@ public class TestMultiMaster extends BaseClientUtils {
   private DACDaemon masterDremioDaemon1;
   private DACDaemon masterDremioDaemon2;
 
+  private Provider<Integer> jobsPortProvider = () -> currentDremioDaemon.getBindingProvider().lookup(JobsServer.class).getPort();
+
+
   @Rule
   public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -140,6 +146,7 @@ public class TestMultiMaster extends BaseClientUtils {
             .addDefaultUser(true)
             .allowTestApis(true)
             .serveUI(false)
+            .jobServerEnabled(false)
             .inMemoryStorage(false)
             .writePath(masterPath.getAbsolutePath())
             .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
@@ -171,6 +178,7 @@ public class TestMultiMaster extends BaseClientUtils {
             .autoPort(false)
             .allowTestApis(true)
             .serveUI(false)
+            .jobServerEnabled(false)
             .inMemoryStorage(false)
             .writePath(masterPath.getAbsolutePath())
             .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
@@ -325,7 +333,7 @@ public class TestMultiMaster extends BaseClientUtils {
         public void onFailure(Throwable t) {
           promise.setException(t);
         }
-      });
+      }, MoreExecutors.directExecutor());
     }
     return promise;
   }
@@ -341,6 +349,7 @@ public class TestMultiMaster extends BaseClientUtils {
       public void run() {
         try {
           currentDremioDaemon.startServices(); // waiting
+          currentDremioDaemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
         } catch (Exception e) {
           throw Throwables.propagate(e);
         }
@@ -359,6 +368,7 @@ public class TestMultiMaster extends BaseClientUtils {
           try {
             daemon.startPreServices();
             daemon.startServices();
+            daemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
             return daemon;
           } catch(Exception e) {
             throw Throwables.propagate(e);
@@ -401,7 +411,7 @@ public class TestMultiMaster extends BaseClientUtils {
 
     final DatasetVersionMutator datasetVersionMutator = new DatasetVersionMutator(
         mp.lookup(InitializerRegistry.class),
-        mp.lookup(KVStoreProvider.class),
+        mp.lookup(LegacyKVStoreProvider.class),
         ns,
         mp.lookup(JobsService.class),
         mp.lookup(CatalogService.class),
@@ -418,7 +428,7 @@ public class TestMultiMaster extends BaseClientUtils {
         datasetVersionMutator,
         sabotContext.getCatalogService(),
         mp.lookup(ReflectionServiceHelper.class),
-        new CollaborationHelper(mp.lookup(KVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
+        new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
         ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG),
         dacSecurityContext
       ),
@@ -456,6 +466,7 @@ public class TestMultiMaster extends BaseClientUtils {
       public void run() {
         try {
           currentDremioDaemon.startServices(); // waiting
+          currentDremioDaemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
         } catch (Exception e) {
           throw Throwables.propagate(e);
         }
@@ -474,6 +485,7 @@ public class TestMultiMaster extends BaseClientUtils {
           try {
             daemon.startPreServices();
             daemon.startServices();
+            daemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
             return daemon;
           } catch(Exception e) {
             throw Throwables.propagate(e);
@@ -516,7 +528,7 @@ public class TestMultiMaster extends BaseClientUtils {
 
     final DatasetVersionMutator datasetVersionMutator = new DatasetVersionMutator(
         mp.lookup(InitializerRegistry.class),
-        mp.lookup(KVStoreProvider.class),
+        mp.lookup(LegacyKVStoreProvider.class),
         ns,
         mp.lookup(JobsService.class),
         mp.lookup(CatalogService.class),
@@ -532,7 +544,7 @@ public class TestMultiMaster extends BaseClientUtils {
           datasetVersionMutator,
           sabotContext.getCatalogService(),
           mp.lookup(ReflectionServiceHelper.class),
-          new CollaborationHelper(mp.lookup(KVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
+          new CollaborationHelper(mp.lookup(LegacyKVStoreProvider.class), sabotContext, mp.lookup(NamespaceService.class), dacSecurityContext, mp.lookup(SearchService.class)),
           ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG),
           dacSecurityContext
       ),

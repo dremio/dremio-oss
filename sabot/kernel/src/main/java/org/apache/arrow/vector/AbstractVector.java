@@ -101,9 +101,9 @@ public abstract class AbstractVector implements AutoCloseable {
 
   public void reAlloc() {
     long baseSize = (long)allocationSizeInBytes;
-    int currentBufferCapacity = dataBuffer.capacity();
-    if(baseSize < (long)currentBufferCapacity) {
-      baseSize = (long)currentBufferCapacity;
+    long currentBufferCapacity = dataBuffer.capacity();
+    if(baseSize < currentBufferCapacity) {
+      baseSize = currentBufferCapacity;
     }
 
     long newAllocationSize = baseSize * 2L;

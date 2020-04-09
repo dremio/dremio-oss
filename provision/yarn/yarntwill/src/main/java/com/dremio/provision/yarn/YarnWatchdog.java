@@ -30,6 +30,8 @@ import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
+import com.google.common.annotations.VisibleForTesting;
+
 /**
  * Watches another process (PID passed in as an argument), and if this process stops responding to
  * requests from this process, kills it.
@@ -155,7 +157,7 @@ public class YarnWatchdog {
                  slow down for the whole system is unhealthy. We should kill watched process, otherwise watchdog might not
                  be able to get a chance to do next poll if the system become totally unhealthy.
                */
-              logger.log(Level.SEVERE, "Watchdog is unhealthy, elapsedTime is %dms, numFailedPolls is {0}, pollIntervalMs is {1}, pollTimeoutMs is {2}, missedPollsBeforeKill is {3}. Issuing process kill",
+              logger.log(Level.SEVERE, "Watchdog is unhealthy, elapsedTime is {0}ms, numFailedPolls is {1}, pollIntervalMs is {2}, pollTimeoutMs is {3}, missedPollsBeforeKill is {4}. Issuing process kill",
                 new Object[] {elapsedTime, numFailedPolls, pollIntervalMs, pollTimeoutMs, missedPollsBeforeKill});
               watchdogAction.doKill();
               running = false;
@@ -239,11 +241,11 @@ public class YarnWatchdog {
         int val;
         while ((val = inputStream.read()) != -1) {
           // NB: no-op, but checkstyle requires at least one statement. Hence, debug message
-          logger.log(Level.FINE,"Received %d at input", val);
+          logger.log(Level.FINE,"Received {0} at input", val);
         }
         logger.log(Level.INFO,"EOF on watchdog input. Quitting");
       } catch (IOException e) {
-        logger.log(Level.INFO,"I/O exception on watchdog input. Quitting %s", exceptionStacktraceToString(e));
+        logger.log(Level.INFO,"I/O exception on watchdog input. Quitting {0}", exceptionStacktraceToString(e));
       } finally {
         running = false;
       }
@@ -309,7 +311,7 @@ public class YarnWatchdog {
             return;
           }
         } catch (IOException e) {
-          logger.log(Level.WARNING, "Failed to kill parent process (pid: %d) for attempt %d.", new Object[]{watchedPid, retryCount});
+          logger.log(Level.WARNING, "Failed to kill parent process (pid: {0}) for attempt {1}.", new Object[]{watchedPid, retryCount});
         }
         try {
           Thread.sleep(killReattemptIntervalMs);
@@ -322,7 +324,7 @@ public class YarnWatchdog {
 
     private boolean isProcessRunning(final long pid) {
       final String command = "ps -p " + pid;
-      logger.log(Level.FINE,"Check process command [%s]", command);
+      logger.log(Level.FINE,"Check process command [{0}]", command);
       try {
         final Process process = Runtime.getRuntime().exec(command);
         final InputStreamReader inputStreamReader = new InputStreamReader(process.getInputStream());
@@ -330,14 +332,14 @@ public class YarnWatchdog {
         String strLine;
         while ((strLine = bufferedReader.readLine()) != null) {
           if (strLine.contains(" " + pid + " ") || strLine.startsWith(pid + " ")) {
-            logger.log(Level.FINE,"Process %d is still running.", pid);
+            logger.log(Level.FINE,"Process {0} is still running.", pid);
             return true;
           }
         }
-        logger.log(Level.FINE,"Process %d is not running.", pid);
+        logger.log(Level.FINE,"Process {0} is not running.", pid);
         return false;
       } catch (Exception e) {
-        logger.log(Level.WARNING, "Got exception using system command [%s]. %s", new Object[]{command, exceptionStacktraceToString(e)});
+        logger.log(Level.WARNING, "Got exception using system command [{0}]. {1}", new Object[]{command, exceptionStacktraceToString(e)});
         return true;
       }
     }
@@ -369,7 +371,7 @@ public class YarnWatchdog {
    */
   public static void main(final String[] args) throws Exception {
     setLogLevel();
-    logger.log(Level.INFO, "YarnWatchdog invoked: %s", String.join(", ", args));
+    logger.log(Level.INFO, "YarnWatchdog invoked: {0}", String.join(", ", args));
     if (args.length != 7) {
       dumpUsage("Incorrect number of arguments");
       System.exit(1);
@@ -395,7 +397,7 @@ public class YarnWatchdog {
       System.exit(3);
     }
 
-    logger.log(Level.INFO, "YarnWatchdog, watchedPID=%d, livenessPort=%d, pollTimeoutMs=%d, pollIntervalMs=%d, missedPollsBeforeKill=%d, maxKillAttempts=%d, killReattemptIntervalMs=%d",
+    logger.log(Level.INFO, "YarnWatchdog, watchedPID={0}, livenessPort={1}, pollTimeoutMs={2}, pollIntervalMs={3}, missedPollsBeforeKill={4}, maxKillAttempts={5}, killReattemptIntervalMs={6}",
       new Object[]{watchedPID, livenessPort, pollTimeoutMs, pollIntervalMs, missedPollsBeforeKill, maxKillAttempts, killReattemptIntervalMs});
 
     YarnWatchdog yarnWatchdog = new YarnWatchdog(watchedPID, System.in, livenessPort, pollTimeoutMs, pollIntervalMs, missedPollsBeforeKill, maxKillAttempts, killReattemptIntervalMs);
@@ -418,8 +420,7 @@ public class YarnWatchdog {
     System.exit(0);
   }
 
-  public static String exceptionStacktraceToString(Exception e)
-  {
+  public static String exceptionStacktraceToString(Exception e) {
     ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
     PrintStream printStream = new PrintStream(byteArrayOutputStream);
     e.printStackTrace(printStream);
@@ -427,13 +428,14 @@ public class YarnWatchdog {
     return byteArrayOutputStream.toString();
   }
 
-  private static class YarnWatchdogFormatter extends Formatter {
+  @VisibleForTesting
+  static class YarnWatchdogFormatter extends Formatter {
 
     @Override
     public String format(LogRecord record) {
       return String.format("%1$tF %1$tT,%1$tL [%2$s] %3$-7s %4$s - %5$s %n", new Object[]{new Date(record.getMillis()),
         Thread.currentThread().getName(), record.getLevel(), record.getSourceClassName(),
-        String.format(record.getMessage(), record.getParameters())});
+        formatMessage(record)});
     }
   }
 

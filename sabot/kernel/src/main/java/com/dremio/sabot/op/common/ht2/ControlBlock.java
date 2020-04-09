@@ -44,7 +44,7 @@ public class ControlBlock implements AutoCloseable {
         c += 8;
       }
 
-      int remain = buf.capacity() % 8;
+      int remain = (int) buf.capacity() % 8;
       if(remain != 0){
         for(int i = 0; i < remain ; i++) {
           PlatformDependent.putByte(endAddr - i, (byte)0);

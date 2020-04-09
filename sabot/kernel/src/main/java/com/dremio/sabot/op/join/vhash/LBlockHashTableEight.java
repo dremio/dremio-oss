@@ -29,7 +29,7 @@ import com.dremio.sabot.op.common.ht2.HashComputation;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
-import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.koloboke.collect.hash.HashConfig;
 import com.koloboke.collect.impl.hash.HashConfigWrapper;
 import com.koloboke.collect.impl.hash.LHash.SeparateKVLongKeyMixing;
@@ -365,7 +365,7 @@ public final class LBlockHashTableEight implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(FluentIterable.of((AutoCloseable[]) fixedBlocks).toList());
+    AutoCloseables.close(ImmutableList.copyOf(fixedBlocks));
   }
 
   private boolean tryRehashForExpansion() {

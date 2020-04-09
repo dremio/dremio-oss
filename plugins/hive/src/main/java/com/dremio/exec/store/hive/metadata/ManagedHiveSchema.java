@@ -29,6 +29,7 @@ import org.apache.hadoop.mapred.JobConf;
 
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.exec.store.hive.HiveUtilities;
+import com.dremio.exec.store.hive.exec.HiveDatasetOptions;
 import com.dremio.exec.store.hive.exec.HiveReaderProtoUtil;
 import com.dremio.exec.store.parquet.ManagedSchema;
 import com.dremio.exec.store.parquet.ManagedSchemaField;
@@ -47,7 +48,8 @@ public class ManagedHiveSchema implements ManagedSchema {
     HiveUtilities.addProperties(jobConf, tableProperties, HiveReaderProtoUtil.getTableProperties(tableXattr));
     final String fieldNameProp = Optional.ofNullable(tableProperties.getProperty("columns")).orElse("");
     final String fieldTypeProp = Optional.ofNullable(tableProperties.getProperty("columns.types")).orElse("");
-    final boolean enforceVarcharWidth = tableXattr.getEnforceVarcharWidth();
+    final boolean enforceVarcharWidth = HiveDatasetOptions
+        .enforceVarcharWidth(HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(tableXattr.getDatasetOptionMap()));
 
     final Iterator<String> fieldNames = Splitter.on(",").trimResults().split(fieldNameProp).iterator();
     final Iterator<TypeInfo> fieldTypes = TypeInfoUtils.getTypeInfosFromTypeString(fieldTypeProp).iterator();

@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.nodes.NodeProvider;
 import com.dremio.config.DremioConfig;
+import com.dremio.edition.EditionProvider;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.options.OptionManager;
 import com.dremio.provision.Cluster;
@@ -91,7 +92,8 @@ public class YarnService implements ProvisioningServiceDelegate {
     ProvisioningService.YARN_HEAP_SIZE_MB_PROPERTY
     );
 
-  public YarnService(DremioConfig config, ProvisioningStateListener stateListener, NodeProvider executionNodeProvider, OptionManager options) {
+  public YarnService(DremioConfig config, ProvisioningStateListener stateListener, NodeProvider executionNodeProvider,
+                     OptionManager options, EditionProvider editionProvider) {
     this(stateListener, new YarnController(config), executionNodeProvider);
   }
 

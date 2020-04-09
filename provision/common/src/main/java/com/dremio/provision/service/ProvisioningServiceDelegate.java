@@ -16,6 +16,7 @@
 package com.dremio.provision.service;
 
 import com.dremio.provision.Cluster;
+import com.dremio.provision.ClusterConfig;
 import com.dremio.provision.ClusterEnriched;
 import com.dremio.provision.ClusterType;
 import com.dremio.service.Service;
@@ -71,5 +72,10 @@ public interface ProvisioningServiceDelegate extends Service {
   default void start() throws Exception {
   }
 
+  default void syncCluster(Cluster cluster) {
+  }
 
+  default ClusterConfig defaultCluster() {
+    return null;
+  }
 }

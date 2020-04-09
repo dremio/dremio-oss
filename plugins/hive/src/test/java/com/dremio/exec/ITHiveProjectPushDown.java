@@ -28,7 +28,6 @@ import org.junit.rules.TestRule;
 import com.dremio.common.util.TestTools;
 import com.dremio.exec.hive.HiveTestBase;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.exec.store.hive.HivePluginOptions;
 
 public class ITHiveProjectPushDown extends HiveTestBase {
 
@@ -93,12 +92,7 @@ public class ITHiveProjectPushDown extends HiveTestBase {
 
   @Test
   public void projectPushDownOnHiveParquetTable() throws Exception {
-    try {
-      test(String.format("alter session set \"%s\" = true", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-      String query = "SELECT boolean_field, boolean_part, int_field, int_part FROM hive.readtest_parquet";
-      testHelper(query, 2, expectedColumnsString("boolean_field", "boolean_part", "int_field", "int_part"), "NATIVE_PARQUET");
-    } finally {
-      test(String.format("alter session set \"%s\" = false", HivePluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
-    }
+    String query = "SELECT boolean_field, boolean_part, int_field, int_part FROM hive.readtest_parquet";
+    testHelper(query, 2, expectedColumnsString("boolean_field", "boolean_part", "int_field", "int_part"), "NATIVE_PARQUET");
   }
 }

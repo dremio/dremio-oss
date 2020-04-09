@@ -20,7 +20,7 @@ import java.util.Map.Entry;
 
 import javax.inject.Provider;
 
-import com.dremio.datastore.IndexedStore.FindByCondition;
+import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -49,7 +49,7 @@ public class DatasetListingServiceImpl implements DatasetListingService {
   }
 
   @Override
-  public Iterable<Entry<NamespaceKey, NameSpaceContainer>> find(String username, FindByCondition condition) {
+  public Iterable<Entry<NamespaceKey, NameSpaceContainer>> find(String username, LegacyFindByCondition condition) {
     return factoryProvider.get()
         .get(username)
         .find(condition);

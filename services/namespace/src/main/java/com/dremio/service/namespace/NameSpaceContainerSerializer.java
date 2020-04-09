@@ -26,8 +26,8 @@ import com.dremio.service.namespace.source.proto.UpdateMode;
 /**
  * Serializer for namespace container.
  */
-final class NameSpaceContainerSerializer extends Serializer<NameSpaceContainer> {
-  private final Serializer<com.dremio.service.namespace.protostuff.NameSpaceContainer> serializer =
+final class NameSpaceContainerSerializer extends Serializer<NameSpaceContainer, byte[]> {
+  private final Serializer<com.dremio.service.namespace.protostuff.NameSpaceContainer, byte[]> serializer =
     ProtostuffSerializer.of(com.dremio.service.namespace.protostuff.NameSpaceContainer.getSchema());
 
   public NameSpaceContainerSerializer() {

@@ -28,6 +28,7 @@ import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.exec.store.easy.json.reader.BaseJsonProcessor;
 import com.dremio.exec.vector.complex.fn.VectorOutput.ListVectorOutput;
@@ -53,6 +54,8 @@ public class JsonReader extends BaseJsonProcessor {
   private final boolean extended = true;
   private final boolean readNumbersAsDouble;
   private final int maxFieldSize;
+  private final int maxLeafLimit;
+  private int currentLeafCount;
 
   private long dataSizeReadSoFar;
 
@@ -72,11 +75,12 @@ public class JsonReader extends BaseJsonProcessor {
 
   private FieldSelection selection;
 
-  public JsonReader(ArrowBuf managedBuf, int maxFieldSize, boolean allTextMode, boolean skipOuterList, boolean readNumbersAsDouble) {
-    this(managedBuf, GroupScan.ALL_COLUMNS, maxFieldSize, allTextMode, skipOuterList, readNumbersAsDouble);
+  public JsonReader(ArrowBuf managedBuf, int maxFieldSize, int maxLeafLimit, boolean allTextMode, boolean skipOuterList, boolean readNumbersAsDouble) {
+    this(managedBuf, GroupScan.ALL_COLUMNS, maxFieldSize, maxLeafLimit, allTextMode, skipOuterList, readNumbersAsDouble);
   }
 
-  public JsonReader(ArrowBuf managedBuf, List<SchemaPath> columns, int maxFieldSize, boolean allTextMode, boolean skipOuterList, boolean readNumbersAsDouble) {
+  public JsonReader(ArrowBuf managedBuf, List<SchemaPath> columns, int maxFieldSize, int maxLeafLimit, boolean allTextMode,
+                    boolean skipOuterList, boolean readNumbersAsDouble) {
     assert Preconditions.checkNotNull(columns).size() > 0 : "JSON record reader requires at least one column";
     this.selection = FieldSelection.getFieldSelection(columns);
     this.workingBuffer = new WorkingBuffer(managedBuf);
@@ -88,7 +92,9 @@ public class JsonReader extends BaseJsonProcessor {
     this.currentFieldName="<none>";
     this.readNumbersAsDouble = readNumbersAsDouble;
     this.maxFieldSize = maxFieldSize;
+    this.maxLeafLimit = maxLeafLimit;
     this.dataSizeReadSoFar = 0;
+    this.currentLeafCount = 0;
   }
 
   @Override
@@ -194,6 +200,7 @@ public class JsonReader extends BaseJsonProcessor {
       return ReadState.END_OF_STREAM;
     }
 
+    this.currentLeafCount = 0;
     ReadState readState = writeToVector(writer, t);
 
     switch (readState) {
@@ -288,17 +295,17 @@ public class JsonReader extends BaseJsonProcessor {
 
   private void writeDataSwitch(BaseWriter.StructWriter w) throws IOException {
     if (this.allTextMode) {
-      writeDataAllText(w, this.selection, true);
+      writeStructDataAllText(w, this.selection, true);
     } else {
-      writeData(w, this.selection, true);
+      writeStructData(w, this.selection, true);
     }
   }
 
   private void writeDataSwitch(ListWriter w) throws IOException {
     if (this.allTextMode) {
-      writeDataAllText(w, this.selection);
+      writeListDataAllText(w, this.selection);
     } else {
-      writeData(w, this.selection);
+      writeListData(w, this.selection);
     }
   }
 
@@ -324,7 +331,7 @@ public class JsonReader extends BaseJsonProcessor {
    *          should start with the next token and ignore the current one.
    * @throws IOException
    */
-  private void writeData(BaseWriter.StructWriter map, FieldSelection selection, boolean moveForward) throws IOException {
+  private void writeStructData(BaseWriter.StructWriter map, FieldSelection selection, boolean moveForward) throws IOException {
     //
     map.start();
     try {
@@ -355,40 +362,47 @@ public class JsonReader extends BaseJsonProcessor {
 
         switch (parser.nextToken()) {
         case START_ARRAY:
-          writeData(map.list(fieldName), childSelection);
+          writeListData(map.list(fieldName), childSelection);
           break;
         case START_OBJECT:
           if (!writeMapDataIfTyped(map, fieldName)) {
-            writeData(map.struct(fieldName), childSelection, false);
+            writeStructData(map.struct(fieldName), childSelection, false);
           }
           break;
         case END_OBJECT:
           break outside;
 
         case VALUE_FALSE: {
+          incrementLeafCount();
           map.bit(fieldName).writeBit(0);
           break;
         }
         case VALUE_TRUE: {
+          incrementLeafCount();
           map.bit(fieldName).writeBit(1);
           break;
         }
         case VALUE_NULL:
           // do nothing as we don't have a type.
           break;
-        case VALUE_NUMBER_FLOAT:
+        case VALUE_NUMBER_FLOAT: {
+          incrementLeafCount();
           map.float8(fieldName).writeFloat8(parser.getDoubleValue());
           break;
-        case VALUE_NUMBER_INT:
+        }
+        case VALUE_NUMBER_INT: {
+          incrementLeafCount();
           if (this.readNumbersAsDouble) {
             map.float8(fieldName).writeFloat8(parser.getDoubleValue());
           } else {
             map.bigInt(fieldName).writeBigInt(parser.getLongValue());
           }
           break;
-        case VALUE_STRING:
+        }
+        case VALUE_STRING: {
           handleString(parser, map, fieldName);
           break;
+        }
 
         default:
           throw
@@ -397,22 +411,18 @@ public class JsonReader extends BaseJsonProcessor {
                           .message("Unexpected token %s", parser.getCurrentToken())
                           .build(logger);
         }
-
       }
     } finally {
       map.end();
     }
-
   }
 
-  private void writeDataAllText(BaseWriter.StructWriter map, FieldSelection selection, boolean moveForward) throws IOException {
+  private void writeStructDataAllText(BaseWriter.StructWriter map, FieldSelection selection, boolean moveForward) throws IOException {
     //
     map.start();
     try {
       outside:
       while (true) {
-
-
         JsonToken t;
 
         if (moveForward) {
@@ -438,11 +448,11 @@ public class JsonReader extends BaseJsonProcessor {
 
         switch (parser.nextToken()) {
         case START_ARRAY:
-          writeDataAllText(map.list(fieldName), childSelection);
+          writeListDataAllText(map.list(fieldName), childSelection);
           break;
         case START_OBJECT:
           if (!writeMapDataIfTyped(map, fieldName)) {
-            writeDataAllText(map.struct(fieldName), childSelection, false);
+            writeStructDataAllText(map.struct(fieldName), childSelection, false);
           }
           break;
         case END_OBJECT:
@@ -505,6 +515,7 @@ public class JsonReader extends BaseJsonProcessor {
   }
 
   private void handleString(JsonParser parser, BaseWriter.StructWriter writer, String fieldName) throws IOException {
+    incrementLeafCount();
     final int size = workingBuffer.prepareVarCharHolder(parser.getText());
     FieldSizeLimitExceptionHelper.checkReadSizeLimit(size, maxFieldSize, currentFieldName, logger);
     writer.varChar(fieldName).writeVarChar(0, size, workingBuffer.getBuf());
@@ -512,85 +523,103 @@ public class JsonReader extends BaseJsonProcessor {
   }
 
   private void handleString(JsonParser parser, ListWriter writer) throws IOException {
+    incrementLeafCount();
     final int size = workingBuffer.prepareVarCharHolder(parser.getText());
     FieldSizeLimitExceptionHelper.checkReadSizeLimit(size, maxFieldSize, currentFieldName, logger);
     writer.varChar().writeVarChar(0, size, workingBuffer.getBuf());
     dataSizeReadSoFar += size;
   }
 
-  private void writeData(ListWriter list, FieldSelection selection) throws IOException {
+  private void writeListData(ListWriter list, FieldSelection selection) throws IOException {
     list.startList();
+    final int originalLeafCount = currentLeafCount;
+    int maxArrayLeafCount = 0;
     outside: while (true) {
+      currentLeafCount = originalLeafCount;
       try {
-      switch (parser.nextToken()) {
-      case START_ARRAY:
-        writeData(list.list(), selection);
-        break;
-      case START_OBJECT:
-        if (!writeListDataIfTyped(list)) {
-          writeData(list.struct(), selection, false);
-        }
-        break;
-      case END_ARRAY:
-      case END_OBJECT:
-        break outside;
+        switch (parser.nextToken()) {
+        case START_ARRAY:
+          writeListData(list.list(), selection);
+          break;
+        case START_OBJECT:
+          if (!writeListDataIfTyped(list)) {
+            writeStructData(list.struct(), selection, false);
+          }
+          break;
+        case END_ARRAY:
+        case END_OBJECT:
+          break outside;
 
-      case VALUE_EMBEDDED_OBJECT:
-      case VALUE_FALSE: {
-        list.bit().writeBit(0);
-        // dataSizeReadSoFar += 1; - not counting as it takes 1-bit per value
-        break;
-      }
-      case VALUE_TRUE: {
-        list.bit().writeBit(1);
-        // dataSizeReadSoFar += 1; - not counting as it takes 1-bit per value
-        break;
-      }
-      case VALUE_NULL:
-        throw UserException.unsupportedError()
-          .message("Null values are not supported in lists by default. " +
-            "Please set `store.json.all_text_mode` to true to read lists containing nulls. " +
-            "Be advised that this will treat JSON null values as a string containing the word 'null'.")
-          .build(logger);
-      case VALUE_NUMBER_FLOAT:
-        list.float8().writeFloat8(parser.getDoubleValue());
-        dataSizeReadSoFar += 8;
-        break;
-      case VALUE_NUMBER_INT:
-        dataSizeReadSoFar += 8;
-        if (this.readNumbersAsDouble) {
+        case VALUE_EMBEDDED_OBJECT:
+        case VALUE_FALSE: {
+          incrementLeafCount();
+          list.bit().writeBit(0);
+          // dataSizeReadSoFar += 1; - not counting as it takes 1-bit per value
+          break;
+        }
+        case VALUE_TRUE: {
+          incrementLeafCount();
+          list.bit().writeBit(1);
+          // dataSizeReadSoFar += 1; - not counting as it takes 1-bit per value
+          break;
+        }
+        case VALUE_NULL:
+          throw UserException.unsupportedError()
+            .message("Null values are not supported in lists by default. " +
+              "Please set `store.json.all_text_mode` to true to read lists containing nulls. " +
+              "Be advised that this will treat JSON null values as a string containing the word 'null'.")
+            .build(logger);
+        case VALUE_NUMBER_FLOAT: {
+          incrementLeafCount();
           list.float8().writeFloat8(parser.getDoubleValue());
-        } else {
-          list.bigInt().writeBigInt(parser.getLongValue());
+          dataSizeReadSoFar += 8;
+          break;
         }
-        break;
-      case VALUE_STRING:
-        handleString(parser, list);
-        break;
-      default:
-        throw UserException.dataReadError()
-          .message("Unexpected token %s", parser.getCurrentToken())
-          .build(logger);
-    }
-    } catch (Exception e) {
-      throw getExceptionWithContext(e, this.currentFieldName, null).build(logger);
-    }
-    }
-    list.endList();
+        case VALUE_NUMBER_INT: {
+          incrementLeafCount();
+          dataSizeReadSoFar += 8;
+          if (this.readNumbersAsDouble) {
+            list.float8().writeFloat8(parser.getDoubleValue());
+          } else {
+            list.bigInt().writeBigInt(parser.getLongValue());
+          }
+          break;
+        }
+        case VALUE_STRING:
+          handleString(parser, list);
+          break;
+        default:
+          throw UserException.dataReadError()
+            .message("Unexpected token %s", parser.getCurrentToken())
+            .build(logger);
+        }
 
+        // Take the maximum number of leaves from the current and the calculated for this array entry.
+        maxArrayLeafCount = Math.max(maxArrayLeafCount, currentLeafCount);
+      } catch (Exception e) {
+        throw getExceptionWithContext(e, this.currentFieldName, null).build(logger);
+      }
+    }
+
+    // Take the maximum calculated leaf count from the array.
+    currentLeafCount = maxArrayLeafCount;
+    list.endList();
   }
 
-  private void writeDataAllText(ListWriter list, FieldSelection selection) throws IOException {
+  private void writeListDataAllText(ListWriter list, FieldSelection selection) throws IOException {
     list.startList();
+    final int originalLeafCount = currentLeafCount;
+    int maxArrayLeafCount = 0;
     outside: while (true) {
+      currentLeafCount = originalLeafCount;
 
       switch (parser.nextToken()) {
       case START_ARRAY:
-        writeDataAllText(list.list(), selection);
+        writeListDataAllText(list.list(), selection);
         break;
       case START_OBJECT:
         if (!writeListDataIfTyped(list)) {
-          writeDataAllText(list.struct(), selection, false);
+          writeStructDataAllText(list.struct(), selection, false);
         }
         break;
       case END_ARRAY:
@@ -613,8 +642,22 @@ public class JsonReader extends BaseJsonProcessor {
           .message("Unexpected token %s", parser.getCurrentToken())
           .build(logger);
       }
-    }
-    list.endList();
 
+      // Take the maximum number of leaves from the current and the calculated for this array entry.
+      maxArrayLeafCount = Math.max(maxArrayLeafCount, currentLeafCount);
+    }
+
+    // Take the maximum calculated leaf count from the array.
+    currentLeafCount = maxArrayLeafCount;
+    list.endList();
+  }
+
+  /**
+   * Increment the current leaf count and throw ColumnCountTooLargeException if the max limit is exceeded.
+   */
+  private void incrementLeafCount() {
+    if (++currentLeafCount > maxLeafLimit) {
+      throw new ColumnCountTooLargeException(maxLeafLimit);
+    }
   }
 }

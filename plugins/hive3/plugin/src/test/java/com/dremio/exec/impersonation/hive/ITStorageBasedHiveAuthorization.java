@@ -46,8 +46,9 @@ import org.junit.Test;
 import org.junit.rules.TestRule;
 
 import com.dremio.common.util.TestTools;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.store.dfs.WorkspaceConfig;
-import com.dremio.exec.store.hive.Hive3PluginOptions;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 
@@ -111,8 +112,12 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
       "SELECT rownum FROM %s.%s ORDER BY rownum LIMIT 1", MINIDFS_STORAGE_PLUGIN_NAME,
       v_partitioned_student_u1g1_750);
 
+  @ClassRule
+  public static TemporarySystemProperties properties = new TemporarySystemProperties();
+
   @BeforeClass
   public static void setup() throws Exception {
+    properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
     assumeNonMaprProfile();
     startMiniDfsCluster(ITStorageBasedHiveAuthorization.class.getName());
     prepHiveConfAndData();
@@ -122,7 +127,6 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
     addHiveStoragePlugin(getHivePluginConfig());
     addMiniDfsBasedStorage(Maps.<String, WorkspaceConfig>newHashMap(), /*impersonationEnabled=*/true);
     generateTestData();
-    test(String.format("alter session set \"%s\" = false", Hive3PluginOptions.HIVE_OPTIMIZE_SCAN_WITH_NATIVE_READERS));
   }
 
   private static void setStorabaseBasedAuthorizationInHiveConf() {

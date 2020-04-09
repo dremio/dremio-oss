@@ -101,7 +101,7 @@
         {
           "type": "boolean",
           "propertyName": "useWhitelist",
-          "label": "Elasticsearch-as-a-service cluster"
+          "label": "Elasticsearch-as-a-service engine"
         },
         {
           "type": "credentials",

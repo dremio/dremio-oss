@@ -23,8 +23,9 @@ import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
+import com.dremio.exec.proto.UserBitShared.OperatorProfile;
+import com.dremio.sabot.exec.MaestroProxy;
 import com.dremio.sabot.exec.context.FragmentStats;
-import com.dremio.sabot.exec.rpc.ExecToCoordTunnel;
 
 /**
  * The status reporter is responsible for receiving changes in fragment state and propagating the status back to the
@@ -35,17 +36,18 @@ class FragmentStatusReporter {
 
   private final FragmentHandle handle;
   private final FragmentStats stats;
-  private final ExecToCoordTunnel tunnel;
+  private final MaestroProxy maestroProxy;
   private final BufferAllocator fragmentAllocator;
+  private MinorFragmentProfile prevMinorFragmentProfile;
 
   public FragmentStatusReporter(
       final FragmentHandle handle,
       final FragmentStats stats,
-      final ExecToCoordTunnel tunnel,
+      final MaestroProxy maestroProxy,
       final BufferAllocator fragmentAllocator) {
     this.handle = handle;
-    this.tunnel = tunnel;
     this.stats = stats;
+    this.maestroProxy = maestroProxy;
     this.fragmentAllocator = fragmentAllocator;
   }
 
@@ -71,7 +73,17 @@ class FragmentStatusReporter {
     status.setHandle(handle);
     b.setMemoryUsed(fragmentAllocator.getAllocatedMemory());
     b.setMinorFragmentId(handle.getMinorFragmentId());
+
+    final long time = System.currentTimeMillis();
+    b.setLastUpdate(time);
+    if (prevMinorFragmentProfile == null || madeProgress(prevMinorFragmentProfile, b.build())) {
+      b.setLastProgress(time);
+    } else {
+      b.setLastProgress(prevMinorFragmentProfile.getLastProgress());
+    }
+
     status.setProfile(b);
+    prevMinorFragmentProfile = status.getProfile();
     return status.build();
   }
 
@@ -91,7 +103,7 @@ class FragmentStatusReporter {
     case CANCELLED:
     case FINISHED:
     case RUNNING:
-      sendStatus(status);
+      notifyStatusChanged(status);
       break;
     case SENDING:
       // no op.
@@ -103,10 +115,6 @@ class FragmentStatusReporter {
     }
   }
 
-  private void sendStatus(final FragmentStatus status) {
-    tunnel.sendFragmentStatus(status);
-  }
-
   /**
    * {@link FragmentStatus} with the {@link FragmentState#FAILED} state is reported to the AttemptManager. The
    * {@link FragmentStatus} has additional information like metrics, etc. that is gathered from the
@@ -116,7 +124,35 @@ class FragmentStatusReporter {
    */
   public void fail(final UserException ex) {
     final FragmentStatus status = getStatus(FragmentState.FAILED, ex);
-    sendStatus(status);
+    notifyStatusChanged(status);
   }
 
+  private void notifyStatusChanged(final FragmentStatus status) {
+    maestroProxy.fragmentStatusChanged(status);
+  }
+
+  private boolean madeProgress(final MinorFragmentProfile prev, final MinorFragmentProfile cur) {
+    if (prev.getState() != cur.getState()) {
+      return true;
+    }
+
+    if (prev.getOperatorProfileCount() != cur.getOperatorProfileCount()) {
+      return true;
+    }
+
+    for (int i = 0; i < cur.getOperatorProfileCount(); i++) {
+      if (madeProgress(prev.getOperatorProfile(i), cur.getOperatorProfile(i))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private boolean madeProgress(final OperatorProfile prev, final OperatorProfile cur) {
+    return prev.getInputProfileCount() != cur.getInputProfileCount()
+      || !prev.getInputProfileList().equals(cur.getInputProfileList())
+      || prev.getMetricCount() != cur.getMetricCount()
+      || !prev.getMetricList().equals(cur.getMetricList());
+  }
 }

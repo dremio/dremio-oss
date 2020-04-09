@@ -27,6 +27,7 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.DirectExpression;
 import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.expr.CodeModelArrowHelper;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector.PrimitiveCategory;
@@ -91,7 +92,7 @@ public class ObjectInspectorHelper {
         switch(poi.getPrimitiveCategory()) {
 <#list typesOI.map as entry>
           case ${entry.hiveType}:{
-            JType holderClass = TypeHelper.getHolderType(m, returnType, DataMode.OPTIONAL);
+            JType holderClass = CodeModelArrowHelper.getHolderType(m, returnType, DataMode.OPTIONAL);
             block.assign(returnValueHolder, JExpr._new(holderClass));
 
           <#if entry.hiveType == "VARCHAR" || entry.hiveType == "STRING" || entry.hiveType == "BINARY" || entry.hiveType == "CHAR">

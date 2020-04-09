@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -361,7 +362,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
         batch.getHeader().writeDelimitedTo(stream);
         buf = batch.getBody();
         if (buf != null) {
-          bodyLength = buf.capacity();
+          bodyLength = LargeMemoryUtil.checkedCastToInt(buf.capacity());
         } else {
           bodyLength = 0;
         }

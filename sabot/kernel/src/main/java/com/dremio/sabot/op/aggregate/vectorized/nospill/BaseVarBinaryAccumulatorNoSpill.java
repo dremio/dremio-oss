@@ -23,7 +23,7 @@ import org.apache.arrow.vector.VariableWidthVector;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
-import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 
 
 /**
@@ -96,7 +96,7 @@ abstract class BaseVarBinaryAccumulatorNoSpill implements AccumulatorNoSpill {
        */
       accumulatorsToClose[i] = accumulators[i];
     }
-    AutoCloseables.close((Iterable<AutoCloseable>) (Object) FluentIterable.of(accumulatorsToClose).toList());
+    AutoCloseables.close(ImmutableList.copyOf(accumulatorsToClose));
   }
 
 }

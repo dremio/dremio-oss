@@ -105,7 +105,7 @@ public class DistributionLoader
 
     private static boolean isEnd(String name, String line)
     {
-        List<String> parts = ImmutableList.copyOf(Splitter.on(CharMatcher.WHITESPACE).omitEmptyStrings().split(line));
+        List<String> parts = ImmutableList.copyOf(Splitter.on(CharMatcher.whitespace()).omitEmptyStrings().split(line));
         if (parts.get(0).equalsIgnoreCase("END")) {
             checkState(parts.size() == 2 && parts.get(1).equalsIgnoreCase(name),
                     "Expected end statement be 'END %s', but was '%s'", name, line);
@@ -120,7 +120,7 @@ public class DistributionLoader
         while (lines.hasNext()) {
             // advance to "begin"
             String line = lines.next();
-            List<String> parts = ImmutableList.copyOf(Splitter.on(CharMatcher.WHITESPACE).omitEmptyStrings().split(line));
+            List<String> parts = ImmutableList.copyOf(Splitter.on(CharMatcher.whitespace()).omitEmptyStrings().split(line));
             if (parts.size() != 2) {
                 continue;
             }

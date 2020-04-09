@@ -36,7 +36,6 @@ import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
-import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.spill.SpillService;
 
 import io.netty.buffer.ArrowBuf;
@@ -97,8 +96,6 @@ public abstract class OperatorContext {
   public abstract FragmentHandle getFragmentHandle();
 
   public abstract ExecutorService getExecutor();
-
-  public abstract NamespaceService getNamespaceService();
 
   public abstract NodeDebugContextProvider getNodeDebugContextProvider();
 

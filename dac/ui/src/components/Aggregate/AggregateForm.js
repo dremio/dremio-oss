@@ -110,26 +110,21 @@ class AggregateForm extends Component {
     }
   };
 
-  // TODO: ugly hack, we run into timing issues where columns are re-added as we are removing since its atomic removal
-  //  this hack is used instead of fields.forEach(() => fields.removeField());
+  // ugly hack, we run into timing issues where columns are re-added as we are removing since its atomic removal
+  // this hack is used instead of fields.forEach(() => fields.removeField());
   removeAllFields = (fields) => {
     const target = fields.length;
     let count = 0;
 
-    function redoit() {
-      count++;
-      if (count < target) {
-        doit();
-      }
-    }
     function doit() {
       const promise = fields.removeField();
       if (promise && promise.then) {
         promise.then(() => {
-          redoit();
+          count++;
+          if (count < target) {
+            doit();
+          }
         });
-      } else {
-        redoit();
       }
     }
     if (target) {

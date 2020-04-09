@@ -38,6 +38,9 @@ import com.dremio.exec.proto.UserBitShared.OperatorProfile;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.SabotNode;
+import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.service.executor.ExecutorServiceImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.work.SafeExit;
 import com.dremio.exec.work.WorkStats;
@@ -45,15 +48,13 @@ import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
 import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
-import com.dremio.sabot.exec.rpc.CoordToExecHandlerImpl;
 import com.dremio.sabot.exec.rpc.ExecProtocol;
 import com.dremio.sabot.exec.rpc.ExecTunnel;
-import com.dremio.sabot.rpc.CoordToExecHandler;
-import com.dremio.sabot.rpc.Protocols;
 import com.dremio.sabot.task.TaskPool;
-import com.dremio.service.BindingCreator;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClientFactory;
+import com.dremio.service.maestroservice.MaestroClientFactory;
 import com.dremio.service.users.SystemUser;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
@@ -72,11 +73,11 @@ public class FragmentWorkManager implements Service, SafeExit {
   private final BootStrapContext context;
   private final Provider<NodeEndpoint> identity;
   private final Provider<SabotContext> dbContext;
-  private final BindingCreator bindingCreator;
   private final Provider<FabricService> fabricServiceProvider;
   private final Provider<CatalogService> sources;
   private final Provider<ContextInformationFactory> contextInformationFactory;
   private final Provider<WorkloadTicketDepot> workloadTicketDepotProvider;
+  private final WorkStats workStats;
 
   private FragmentStatusThread statusThread;
   private ThreadsStatsCollector statsCollectorThread;
@@ -84,44 +85,54 @@ public class FragmentWorkManager implements Service, SafeExit {
 
   private final Provider<TaskPool> pool;
   private FragmentExecutors fragmentExecutors;
+  private MaestroProxy maestroProxy;
   private SabotContext bitContext;
   private BufferAllocator allocator;
   private WorkloadTicketDepot ticketDepot;
   private QueriesClerk clerk;
   private ExecutorService executor;
   private CloseableExecutorService closeableExecutor;
+  private final Provider<MaestroClientFactory> maestroServiceClientFactoryProvider;
+  private final Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider;
+  private final ExecToCoordTunnelCreator execToCoordTunnelCreator;
 
   private ExtendedLatch exitLatch = null; // This is used to wait to exit when things are still running
-
+  private DefaultOptionManager defaultOptionManager;
+  private com.dremio.exec.service.executor.ExecutorService executorService;
 
   public FragmentWorkManager(
-      final BootStrapContext context,
-      Provider<NodeEndpoint> identity,
-      final Provider<SabotContext> dbContext,
-      final Provider<FabricService> fabricServiceProvider,
-      final Provider<CatalogService> sources,
-      final Provider<ContextInformationFactory> contextInformationFactory,
-      final Provider<WorkloadTicketDepot> workloadTicketDepotProvider,
-      final BindingCreator bindingCreator,
-      final Provider<TaskPool> taskPool
-      ) {
+    final BootStrapContext context,
+    Provider<NodeEndpoint> identity,
+    final Provider<SabotContext> dbContext,
+    final Provider<FabricService> fabricServiceProvider,
+    final Provider<CatalogService> sources,
+    final Provider<ContextInformationFactory> contextInformationFactory,
+    final Provider<WorkloadTicketDepot> workloadTicketDepotProvider,
+    final Provider<TaskPool> taskPool,
+    final DefaultOptionManager defaultOptionManager,
+    final Provider<MaestroClientFactory> maestroServiceClientFactoryProvider,
+    final Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider,
+    final ExecToCoordTunnelCreator execToCoordTunnelCreator) {
     this.context = context;
     this.identity = identity;
     this.sources = sources;
     this.fabricServiceProvider = fabricServiceProvider;
     this.dbContext = dbContext;
-    this.bindingCreator = bindingCreator;
     this.contextInformationFactory = contextInformationFactory;
     this.workloadTicketDepotProvider = workloadTicketDepotProvider;
     this.pool = taskPool;
-
-    bindingCreator.bind(WorkStats.class, new WorkStatsImpl());
+    this.defaultOptionManager = defaultOptionManager;
+    this.execToCoordTunnelCreator = execToCoordTunnelCreator;
+    this.workStats = new WorkStatsImpl();
+    this.executorService = new ExecutorServiceImpl.NoExecutorService();
+    this.maestroServiceClientFactoryProvider = maestroServiceClientFactoryProvider;
+    this.jobTelemetryClientFactoryProvider = jobTelemetryClientFactoryProvider;
   }
 
   /**
    * Waits until it is safe to exit. Blocks until all currently running fragments have completed.
    *
-   * <p>This is intended to be used by {@link com.dremio.exec.server.SabotNode#close()}.</p>
+   * <p>This is intended to be used by {@link SabotNode#close()}.</p>
    */
   public void waitToExit() {
     synchronized(this) {
@@ -134,6 +145,15 @@ public class FragmentWorkManager implements Service, SafeExit {
 
     // Wait for at most 5 seconds or until the latch is released.
     exitLatch.awaitUninterruptibly(5000);
+  }
+
+  /**
+   * Returns the WorkStats instance to use.
+   *
+   * @return the WorkStats instance
+   */
+  public WorkStats getWorkStats() {
+    return workStats;
   }
 
   private class WorkStatsImpl implements WorkStats {
@@ -239,6 +259,10 @@ public class FragmentWorkManager implements Service, SafeExit {
     void indicateIfSafeToExit();
   }
 
+  public com.dremio.exec.service.executor.ExecutorService getExecutorService() {
+    return executorService;
+  }
+
   @Override
   public void start() {
 
@@ -254,10 +278,8 @@ public class FragmentWorkManager implements Service, SafeExit {
         context.getConfig().getLong("dremio.exec.rpc.bit.server.memory.data.reservation"),
         context.getConfig().getLong("dremio.exec.rpc.bit.server.memory.data.maximum"));
 
-    final ExecToCoordTunnelCreator creator = new ExecToCoordTunnelCreator(fabricServiceProvider.get().getProtocol(Protocols.COORD_TO_EXEC));
-
     this.ticketDepot = workloadTicketDepotProvider.get();
-    this.clerk = new QueriesClerk(ticketDepot, creator);
+    this.clerk = new QueriesClerk(ticketDepot);
 
     final ExitCallback callback = new ExitCallback() {
       @Override
@@ -266,17 +288,22 @@ public class FragmentWorkManager implements Service, SafeExit {
       }
     };
 
-    fragmentExecutors = new FragmentExecutors(creator, callback, pool.get(), bitContext.getOptionManager());
+    maestroProxy = new MaestroProxy(maestroServiceClientFactoryProvider,
+      jobTelemetryClientFactoryProvider,
+      bitContext.getClusterCoordinator(),
+      bitContext.getEndpoint(), bitContext.getOptionManager());
+    fragmentExecutors = new FragmentExecutors(maestroProxy, callback, pool.get(), bitContext.getOptionManager());
 
     final ExecConnectionCreator connectionCreator = new ExecConnectionCreator(fabricServiceProvider.get().registerProtocol(new ExecProtocol(bitContext.getConfig(), allocator, fragmentExecutors)));
 
     final FragmentExecutorBuilder builder = new FragmentExecutorBuilder(
         clerk,
+        maestroProxy,
         bitContext.getConfig(),
         bitContext.getClusterCoordinator(),
         executor,
         bitContext.getOptionManager(),
-        creator,
+        execToCoordTunnelCreator,
         connectionCreator,
         bitContext.getClasspathScan(),
         bitContext.getPlanReader(),
@@ -287,12 +314,13 @@ public class FragmentWorkManager implements Service, SafeExit {
         bitContext.getDecimalFunctionImplementationRegistry(),
         context.getNodeDebugContextProvider(),
         bitContext.getSpillService(),
-        ClusterCoordinator.Role.fromEndpointRoles(identity.get().getRoles()));
+        ClusterCoordinator.Role.fromEndpointRoles(identity.get().getRoles()),
+        defaultOptionManager);
 
-    // register coord/exec message handling.
-    bindingCreator.replace(CoordToExecHandler.class, new CoordToExecHandlerImpl(identity.get(), fragmentExecutors, builder));
+    executorService = new ExecutorServiceImpl(fragmentExecutors,
+            bitContext, builder);
 
-    statusThread = new FragmentStatusThread(fragmentExecutors, clerk, creator);
+    statusThread = new FragmentStatusThread(fragmentExecutors, clerk, maestroProxy);
     statusThread.start();
     Iterable<TaskPool.ThreadInfo> slicingThreads = pool.get().getSlicingThreads();
     Set<Long> slicingThreadIds = Sets.newHashSet();
@@ -334,7 +362,7 @@ public class FragmentWorkManager implements Service, SafeExit {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(statusThread, statsCollectorThread, heapMonitorThread,
-      closeableExecutor, fragmentExecutors, allocator);
+      closeableExecutor, fragmentExecutors, maestroProxy, allocator);
   }
 
 }

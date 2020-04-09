@@ -17,26 +17,28 @@ package com.dremio.datastore;
 
 import static java.lang.String.format;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.util.AbstractMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.ImmutableDocument;
+import com.dremio.datastore.api.KVStore;
+import com.dremio.datastore.api.options.VersionOption;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.dremio.telemetry.api.metrics.Metrics.ResetType;
 import com.dremio.telemetry.api.metrics.Timer;
 import com.dremio.telemetry.api.metrics.Timer.TimerContext;
-import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.protobuf.ByteString;
 
 /**
- * Remote KV Store. Caches store id received from master.
+ * Remote KVStore. Caches store id received from master.
  */
 public class RemoteKVStore <K, V> implements KVStore<K, V> {
 
@@ -56,48 +58,20 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
   }
 
   private final String storeId;
-  private StoreBuilderConfig config;
   private final DatastoreRpcClient client;
-  private final Serializer<K> keySerializer;
-  private final Serializer<V> valueSerializer;
-  private final VersionExtractor<V> versionExtractor;
+  private final Converter<K, byte[]> keyConverter;
+  private final Converter<V, byte[]> valueConverter;
+  private final StoreBuilderHelper<K, V> helper;
 
   private final Map<Stats, Timer> metrics;
 
   @SuppressWarnings("unchecked")
-  public RemoteKVStore(DatastoreRpcClient client, String storeId, StoreBuilderConfig config) {
+  public RemoteKVStore(DatastoreRpcClient client, String storeId, StoreBuilderHelper<K, V> helper) {
     this.client = client;
     this.storeId = storeId;
-    this.config = config;
-
-    try {
-      Constructor<?> constructor = Class.forName(config.getKeySerializerClassName()).getDeclaredConstructor();
-      constructor.setAccessible(true);
-      this.keySerializer = (Serializer<K>)constructor.newInstance();
-    } catch (ClassNotFoundException | NoSuchMethodException| InstantiationException | IllegalAccessException | InvocationTargetException e) {
-      throw new DatastoreFatalException("Failed to create key serializer for class " + config.getKeySerializerClassName(), e);
-    }
-
-    try {
-      Constructor<?> constructor = Class.forName(config.getValueSerializerClassName()).getDeclaredConstructor();
-      constructor.setAccessible(true);
-      this.valueSerializer = (Serializer<V>)constructor.newInstance();
-    } catch (ClassNotFoundException | NoSuchMethodException| InstantiationException | IllegalAccessException | InvocationTargetException e) {
-      throw new DatastoreFatalException("Failed to create value serializer for class " + config.getValueSerializerClassName(), e);
-    }
-
-    if (config.getVersionExtractorClassName() != null && !config.getVersionExtractorClassName().isEmpty()) {
-      try {
-        Constructor<?> constructor = Class.forName(config.getVersionExtractorClassName()).getDeclaredConstructor();
-        constructor.setAccessible(true);
-        this.versionExtractor = (VersionExtractor<V>) constructor.newInstance();
-      } catch (ClassNotFoundException | NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
-        throw new DatastoreFatalException("Failed to create version extractor for class " + config.getValueSerializerClassName(), e);
-      }
-    } else {
-      versionExtractor = null;
-    }
-
+    this.helper = helper;
+    this.keyConverter = (Converter<K, byte[]>) helper.getKeyFormat().apply(ByteSerializerFactory.INSTANCE);
+    this.valueConverter = (Converter<V, byte[]>) helper.getValueFormat().apply(ByteSerializerFactory.INSTANCE);
     metrics = registerMetrics();
   }
 
@@ -114,17 +88,29 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
     return metrics.get(stat).start();
   }
 
+  private K revertKey(ByteString key) {
+    return keyConverter.revert(key.toByteArray());
+  }
+
+  private V revertValue(ByteString value) {
+    return valueConverter.revert(value.toByteArray());
+  }
+
+  private ByteString convertKey(K key) {
+    return ByteString.copyFrom(keyConverter.convert(key));
+  }
+
+  private ByteString convertValue(V value) {
+    return ByteString.copyFrom(valueConverter.convert(value));
+  }
+
   @Override
-  public V get(K key) {
-    try (TimerContext t = time(Stats.GET)) {
-      ByteString value = client.get(storeId, ByteString.copyFrom(keySerializer.serialize(key)));
-      if (value != null && !value.isEmpty()) {
-        return valueSerializer.deserialize(value.toByteArray());
-      } else {
-        return null;
-      }
+  public Document<K, V> get(K key, GetOption ... options) {
+    try (TimerContext timer = time(Stats.GET)) {
+      final Document<ByteString, ByteString> document = client.get(storeId, convertKey(key));
+      return convertDocument(document);
     } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to get from store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
+      throw new DatastoreException(format("Failed to get from store id: %s", getStoreId()), e);
     }
   }
 
@@ -132,122 +118,124 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
     return storeId;
   }
 
-
   @Override
   public KVAdmin getAdmin() {
     throw new UnsupportedOperationException("KV administration can only be done on master node.");
-  }
-
-  public StoreBuilderConfig getConfig() {
-    return config;
   }
 
   public DatastoreRpcClient getClient() {
     return client;
   }
 
-  public Serializer<K> getKeySerializer() {
-    return keySerializer;
+  public Converter<K, byte[]> getKeyConverter() {
+    return keyConverter;
   }
 
-  public Serializer<V> getValueSerializer() {
-    return valueSerializer;
+  public Converter<V, byte[]> getValueConverter() {
+    return valueConverter;
   }
 
   @Override
-  public List<V> get(List<K> keys) {
+  public Iterable<Document<K, V>> get(List<K> keys, GetOption... options) {
     try (TimerContext timer = time(Stats.GET_LIST)) {
       List<ByteString> keyLists = Lists.newArrayList();
       for (K key : keys) {
-        keyLists.add(ByteString.copyFrom(keySerializer.serialize(key)));
+        keyLists.add(convertKey(key));
       }
-
-      return Lists.transform(client.get(storeId, keyLists), new Function<ByteString, V>() {
-        @Override
-        public V apply(ByteString input) {
-          if (input.isEmpty()) {
-            return null;
-          }
-          return valueSerializer.deserialize(input.toByteArray());
-        }
-      });
+      return Lists.transform(client.get(storeId, keyLists), this::convertDocument);
     } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to get mutiple values from store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
+      throw new DatastoreException(format("Failed to get multiple values from store id: %s", getStoreId()), e);
     }
   }
 
   @Override
-  public void put(K key, V value) {
+  public Document<K, V> put(K key, V value, PutOption... options) {
+    Preconditions.checkArgument(options.length <= 1);
+    final String tag;
     try (TimerContext timer = time(Stats.PUT)) {
-      String version = client.put(storeId, ByteString.copyFrom(keySerializer.serialize(key)), ByteString.copyFrom(valueSerializer.serialize(value)));
-      if (versionExtractor != null) {
-        // the local value has not been modified since this was a remote call, so we have to call preCommit
-        versionExtractor.preCommit(value);
-        versionExtractor.setTag(value, version);
+      if (options.length == 1) {
+        tag = client.put(storeId, convertKey(key), convertValue(value), options[0]);
+      } else {
+        tag = client.put(storeId, convertKey(key), convertValue(value));
       }
+
     } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to put in store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
+      throw new DatastoreException(format("Failed to put in store id: %s", getStoreId()), e);
     }
+    return createDocument(key, value, tag);
   }
 
   @Override
-  public boolean contains(K key) {
+  public boolean contains(K key, ContainsOption... options) {
     try (TimerContext timer = time(Stats.CONTAINS)) {
-      return client.contains(storeId, ByteString.copyFrom(keySerializer.serialize(key)));
+      return client.contains(storeId, convertKey(key));
     } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to check contains for store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
+      throw new DatastoreException(format("Failed to check contains for store id: %s", getStoreId()), e);
     }
   }
 
   @Override
-  public void delete(K key) {
+  public void delete(K key, DeleteOption... options) {
     try (TimerContext timer = time(Stats.DELETE)) {
-      client.delete(storeId, ByteString.copyFrom(keySerializer.serialize(key)));
+      final String deleteOptionTag = VersionOption.getTagInfo(options).getTag();
+      client.delete(storeId, convertKey(key), deleteOptionTag);
     } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to delete from store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
+      throw new DatastoreException(format("Failed to delete from store id: %s", getStoreId()), e);
     }
   }
 
   @Override
-  public Iterable<Entry<K, V>> find(FindByRange<K> find) {
-    FindByRange<ByteString> findByRange = new FindByRange<ByteString>()
-      .setStart(ByteString.copyFrom(keySerializer.serialize(find.getStart())), find.isStartInclusive())
-      .setEnd(ByteString.copyFrom(keySerializer.serialize(find.getEnd())), find.isEndInclusive());
+  public Iterable<Document<K, V>> find(FindByRange<K> find, FindOption... options) {
+    final RemoteDataStoreProtobuf.FindRequest.Builder request = RemoteDataStoreProtobuf.FindRequest.newBuilder()
+      .setStoreId(storeId);
+
+    if (find.getStart() != null) {
+      request.setStart(convertKey(find.getStart()))
+        .setIncludeStart(find.isStartInclusive());
+    }
+    if (find.getEnd() != null) {
+      request.setEnd(convertKey(find.getEnd()))
+        .setIncludeEnd(find.isEndInclusive());
+    }
+
     try (TimerContext timer = time(Stats.FIND_BY_RANGE)) {
-      return Iterables.transform(client.find(storeId, findByRange), new Function<Entry<ByteString, ByteString>, Entry<K, V>>() {
-        @Override
-        public Entry<K, V> apply(Entry<ByteString, ByteString> input) {
-          return new AbstractMap.SimpleEntry<>(keySerializer.deserialize(input.getKey().toByteArray()),
-            valueSerializer.deserialize(input.getValue().toByteArray()));
-        }
-      });
+      return Iterables.transform(client.find(request.build()), this::convertDocument);
     } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to find by range for store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
+      throw new DatastoreException(format("Failed to find by range for store id: %s", getStoreId()), e);
     }
   }
 
   @Override
-  public Iterable<Entry<K, V>> find() {
+  public Iterable<Document<K, V>> find(FindOption... options) {
     try (TimerContext timer = time(Stats.FIND_ALL)) {
-      return Iterables.transform(client.find(storeId), new Function<Entry<ByteString, ByteString>, Entry<K, V>>() {
-        @Override
-        public Entry<K, V> apply(Entry<ByteString, ByteString> input) {
-          return new AbstractMap.SimpleEntry<>(keySerializer.deserialize(input.getKey().toByteArray()),
-            valueSerializer.deserialize(input.getValue().toByteArray()));
-        }
-      });
+      return Iterables.transform(client.find(storeId), this::convertDocument);
     } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to find all for store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
+      throw new DatastoreException(format("Failed to find all for store id: %s", getStoreId()), e);
     }
   }
 
   @Override
-  public void delete(K key, String previousVersion) {
-    try (TimerContext timer = time(Stats.DELETE_VERSION)) {
-      client.delete(storeId, ByteString.copyFrom(keySerializer.serialize(key)), previousVersion);
-    } catch (RpcException e) {
-      throw new DatastoreException(format("Failed to delete previous version from store id: %s, config: %s", getStoreId(), getConfig().toString()), e);
+  public String getName() {
+    return helper.getName();
+  }
+
+  protected Document<K, V> createDocument(K key, V value, String tag) {
+    ImmutableDocument.Builder<K, V> builder = new ImmutableDocument.Builder();
+    builder.setKey(key);
+    builder.setValue(value);
+    if (!Strings.isNullOrEmpty(tag)) {
+      builder.setTag(tag);
     }
+    return builder.build();
+  }
+
+  protected Document<K, V> createDocumentFromBytes(ByteString key, ByteString value, String tag) {
+    return createDocument(revertKey(key), revertValue(value), tag);
+  }
+
+  protected Document<K, V> convertDocument(Document<ByteString, ByteString> document) {
+    return (document != null)? createDocumentFromBytes(document.getKey(),
+      document.getValue(), document.getTag()) : null;
   }
 
 }

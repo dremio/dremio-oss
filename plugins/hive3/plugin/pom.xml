@@ -22,41 +22,54 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive3-plugin-parent</artifactId>
-    <version>4.1.8-202003120636020140-9c2a6b13</version>
+    <version>4.2.0-202004091958060824-8f7e141d</version>
   </parent>
 
   <artifactId>dremio-hive3-plugin</artifactId>
   <name>Storage Plugins - Hive 3.x Plugin</name>
 
   <properties>
-
-    <dremio.plugins.path>pf4j-bundles</dremio.plugins.path>
-
+    <dremio.plugins.path>${project.build.directory}/pf4j-bundles</dremio.plugins.path>
     <test.source.dir>${project.build.directory}/generated-test-sources</test.source.dir>
 
-    <hadoop.version>3.2.0-dremio-201911062242240641-139525f</hadoop.version>
-    <azure-storage.version>8.3.0</azure-storage.version>
-    <azure-datalake.version>2.3.3-201901300025380807-2bdda72</azure-datalake.version>
-    <hadoop-azure.version>${hadoop.version}</hadoop-azure.version>
-    <hadoop-azure-datalake.version>${hadoop.version}</hadoop-azure-datalake.version>
-    <aws-sdk.version>1.11.375</aws-sdk.version>
-    <aws-hadoop.version>${hadoop.version}</aws-hadoop.version>
-
-    <!-- Currently Hive storage plugin only supports Apache Hive 1.2 or vendor
-      specific variants of the Apache Hive 1.2. If the version is changed, make
-      sure the jars and their dependencies are updated. -->
-    <hive.version>3.1.1-dremio-201909111144580113-04156e1</hive.version>
-    <hbase.version>2.2.0</hbase.version>
-    <orc.version>1.5.1-dremio-201909110637480131-cacdb01</orc.version>
-    <datanucleus-api-jdo.version>4.2.4</datanucleus-api-jdo.version>
-    <datanucleus-core.version>4.1.17</datanucleus-core.version>
-    <datanucleus-rdbms.version>4.1.19</datanucleus-rdbms.version>
-    <datanucleus-jdo.version>3.2.0-m3</datanucleus-jdo.version>
-    <jdo-api.version>3.0.1</jdo-api.version>
+    <azure-storage.version>${plugin.hive3.azure-storage.version}</azure-storage.version>
+    <azure-datalake.version>${plugin.hive3.azure-datalake.version}</azure-datalake.version>
+    <hadoop-azure.version>${plugin.hive3.hadoop-azure.version}</hadoop-azure.version>
+    <hadoop-azure-datalake.version>${plugin.hive3.hadoop-azure-datalake.version}</hadoop-azure-datalake.version>
+    <aws-sdk.version>${plugin.hive3.aws-sdk.version}</aws-sdk.version>
+    <hadoop.version>${plugin.hive3.hadoop.version}</hadoop.version>
+    <hive.version>${plugin.hive3.hive.version}</hive.version>
+    <hbase.version>${plugin.hive3.hbase.version}</hbase.version>
+    <orc.version>${plugin.hive3.orc.version}</orc.version>
+    <datanucleus-api-jdo.version>${plugin.hive3.datanucleus-api-jdo.version}</datanucleus-api-jdo.version>
+    <datanucleus-core.version>${plugin.hive3.datanucleus-core.version}</datanucleus-core.version>
+    <datanucleus-rdbms.version>${plugin.hive3.datanucleus-rdbms.version}</datanucleus-rdbms.version>
+    <datanucleus-jdo.version>${plugin.hive3.datanucleus-jdo.version}</datanucleus-jdo.version>
+    <jdo-api.version>${plugin.hive3.jdo-api.version}</jdo-api.version>
   </properties>
 
   <dependencies>
     <!-- Those dependencies will be part of the bundle -->
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.carrotsearch</groupId>
+      <artifactId>hppc</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.github.slugify</groupId>
+      <artifactId>slugify</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.codehaus.woodstox</groupId>
+      <artifactId>stax2-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.woodstox</groupId>
+      <artifactId>woodstox-core</artifactId>
+    </dependency>
     <dependency>
       <groupId>com.dremio.contrib</groupId>
       <artifactId>dremio-hive3-exec-shaded</artifactId>
@@ -247,28 +260,6 @@
         <exclusion>
           <groupId>org.codehaus.jackson</groupId>
           <artifactId>jackson-jaxrs</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-mapreduce-client-app</artifactId>
-      <version>${hadoop.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>*</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-yarn-server-common</artifactId>
-      <version>${hadoop.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>*</groupId>
-          <artifactId>*</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -582,16 +573,9 @@
       </exclusions>
     </dependency>
     <dependency>
-      <groupId>com.fasterxml.woodstox</groupId>
-      <artifactId>woodstox-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.github.slugify</groupId>
-      <artifactId>slugify</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.codehaus.woodstox</groupId>
-      <artifactId>stax2-api</artifactId>
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-client</artifactId>
+      <version>${hbase.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hive</groupId>
@@ -723,6 +707,10 @@
         <exclusion>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-mapreduce-client-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-distcp</artifactId>
         </exclusion>
         <exclusion>
           <groupId>commons-codec</groupId>
@@ -934,11 +922,6 @@
       </exclusions>
     </dependency>
     <!-- Most dependencies should only be provided or for tests-only -->
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-      <scope>provided</scope>
-    </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
@@ -1236,7 +1219,7 @@
     <dependency>
       <groupId>org.pf4j</groupId>
       <artifactId>pf4j</artifactId>
-      <version>3.0.1</version>
+      <version>${pf4j.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -1288,30 +1271,14 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
+        <configuration>
+          <encoding>UTF-8</encoding>
+          <useDefaultDelimiters>false</useDefaultDelimiters>
+          <delimiters>
+            <delimiter>@</delimiter>
+          </delimiters>
+        </configuration>
         <executions>
-          <execution>
-            <id>copy-resources</id>
-            <phase>generate-resources</phase>
-            <goals><goal>copy-resources</goal></goals>
-            <configuration>
-              <resources>
-                <resource>
-                  <directory>${project.basedir}/src/test/resources/</directory>
-                  <includes>
-                    <include>avro_test_schema.json</include>
-                    <include>avro_test_schema.json</include>
-                    <include>simple.json</include>
-                    <include>student.txt</include>
-                    <include>voter.txt</include>
-                    <include>multiple_rowgroups.parquet</include>
-                    <include>impala_alltypes.parquet</include>
-                  </includes>
-                  <filtering>false</filtering>
-                </resource>
-              </resources>
-              <outputDirectory>${project.build.directory}/src-resources</outputDirectory>
-            </configuration>
-          </execution>
           <execution>
             <id>copy-java-sources</id>
             <phase>process-sources</phase>
@@ -1322,7 +1289,18 @@
               <outputDirectory>${project.build.directory}/generated-sources/src/main</outputDirectory>
               <resources>
                 <resource>
-                  <directory>${project.basedir}/../../../common/src/main</directory>
+                    <directory>${project.basedir}/../../hive/src/main</directory>
+                  <includes>
+                    <include>**/*.*</include>
+                  </includes>
+                  <excludes>
+                    <exclude>**/main/assembly</exclude>
+                    <exclude>**/main/checkstyle</exclude>
+                    <exclude>**/hive2</exclude>
+                  </excludes>
+                </resource>
+                <resource>
+                  <directory>${project.basedir}/../../../sabot/kernel/src/main</directory>
                   <includes>
                     <include>**/ByteBufferUtil.java</include>
                   </includes>
@@ -1331,20 +1309,25 @@
             </configuration>
           </execution>
           <execution>
-            <id>copy-test-resources</id>
-            <phase>generate-resources</phase>
-            <goals><goal>copy-resources</goal></goals>
+            <id>copy-test-sources</id>
+            <phase>process-sources</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
             <configuration>
+              <outputDirectory>${test.source.dir}</outputDirectory>
               <resources>
                 <resource>
-                  <directory>${project.basedir}/../../../sample-data/</directory>
+                  <directory>${project.basedir}/../../hive/src/test</directory>
                   <includes>
-                    <include>region.parquet</include>
+                    <include>**/*.*</include>
                   </includes>
-                  <filtering>false</filtering>
+                  <excludes>
+                    <exclude>**/Hive2StoragePluginConfig.java</exclude>
+                    <exclude>**/hive2</exclude>
+                  </excludes>
                 </resource>
               </resources>
-              <outputDirectory>${project.build.directory}/test-classes/</outputDirectory>
             </configuration>
           </execution>
           <execution>
@@ -1363,6 +1346,45 @@
                   </includes>
                 </resource>
               </resources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-resources</id>
+            <phase>generate-resources</phase>
+            <goals><goal>copy-resources</goal></goals>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/src/test/resources/</directory>
+                  <includes>
+                    <include>avro_test_schema.json</include>
+                    <include>impala_alltypes.parquet</include>
+                    <include>multiple_rowgroups.parquet</include>
+                    <include>simple.json</include>
+                    <include>student.txt</include>
+                    <include>voter.txt</include>
+                  </includes>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+              <outputDirectory>${project.build.directory}/src-resources</outputDirectory>
+            </configuration>
+          </execution>
+          <execution>
+            <id>copy-test-resources</id>
+            <phase>generate-resources</phase>
+            <goals><goal>copy-resources</goal></goals>
+            <configuration>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/../../../sample-data/</directory>
+                  <includes>
+                    <include>region.parquet</include>
+                  </includes>
+                  <filtering>false</filtering>
+                </resource>
+              </resources>
+              <outputDirectory>${project.build.directory}/test-classes/</outputDirectory>
             </configuration>
           </execution>
         </executions>
@@ -1393,6 +1415,20 @@
               <includePluginDependencies>true</includePluginDependencies>
               <arguments>
                 <argument>${project.build.outputDirectory}</argument>
+              </arguments>
+            </configuration>
+          </execution>
+          <execution>
+            <id>link-pf4j-resources</id>
+            <phase>pre-integration-test</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>sh</executable>
+              <arguments>
+                <argument>-c</argument>
+                <argument>mkdir -p ${dremio.plugins.path}/connectors &amp;&amp; ln -sf ${project.build.directory}/${project.build.finalName}.jar ${dremio.plugins.path}/connectors</argument>
               </arguments>
             </configuration>
           </execution>
@@ -1428,7 +1464,7 @@
         <groupId>org.xolstice.maven.plugins</groupId>
         <artifactId>protobuf-maven-plugin</artifactId>
         <configuration>
-          <protoSourceRoot>${basedir}/src/main/proto</protoSourceRoot>
+          <protoSourceRoot>${project.build.directory}/generated-sources/src/main/proto</protoSourceRoot>
         </configuration>
         <executions>
           <execution>
@@ -1454,8 +1490,19 @@
             <configuration>
               <sources>
                 <source>${project.build.directory}/generated-sources/src/main/java</source>
-                <source>${project.build.directory}/generated-sources/fmpp</source>
                 <source>${project.build.directory}/generated-sources/protobuf</source>
+              </sources>
+            </configuration>
+          </execution>
+          <execution>
+            <id>add-generated-test-source</id>
+            <phase>generate-test-sources</phase>
+            <goals>
+              <goal>add-test-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>${test.source.dir}/java</source>
               </sources>
             </configuration>
           </execution>
@@ -1529,7 +1576,6 @@
         </configuration>
       </plugin>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-failsafe-plugin</artifactId>
         <executions>
           <execution>
@@ -1547,10 +1593,11 @@
           <argLine>
             -Xms512M
             -Xmx3G
+            -Xss2048k
             -XX:MaxDirectMemorySize=5120M
             -XX:+CMSClassUnloadingEnabled
-            -Ddremio.plugins.path=${project.build.directory}/${dremio.plugins.path}
-            ${surefire.extra.argLine}
+            -Ddremio.plugins.path=${dremio.plugins.path}
+            @{argLine}
           </argLine>
 
           <systemPropertyVariables>

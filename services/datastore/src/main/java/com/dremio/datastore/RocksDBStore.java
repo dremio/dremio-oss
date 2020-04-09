@@ -29,8 +29,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -40,7 +38,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.BiConsumer;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.rocksdb.ColumnFamilyDescriptor;
 import org.rocksdb.ColumnFamilyHandle;
@@ -54,13 +51,18 @@ import org.xerial.snappy.SnappyOutputStream;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.DeferredException;
 import com.dremio.common.concurrent.AutoCloseableLock;
-import com.dremio.datastore.rocks.Rocks.BlobPointer;
-import com.dremio.datastore.rocks.Rocks.BlobPointer.Codec;
+import com.dremio.datastore.api.Document;
+import com.dremio.datastore.api.FindByRange;
+import com.dremio.datastore.api.ImmutableDocument;
+import com.dremio.datastore.api.options.VersionOption;
+import com.dremio.datastore.rocks.Rocks;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
+import com.google.common.io.ByteStreams;
 import com.google.common.primitives.UnsignedBytes;
 
 /**
@@ -78,7 +80,7 @@ import com.google.common.primitives.UnsignedBytes;
  *
  * Since the RocksDB interface is native, we need to manage native memory
  * cautiously. To this end, we manage the range iterator through the use of a
- * ReferenceQueue and parallel Set. This allows us to automatically garbarge
+ * ReferenceQueue and parallel Set. This allows us to automatically garbage
  * collect no-longer used iterators. Additionally, the set allows us to cleanly
  * close out the RocksDB database through the close() method.
  */
@@ -92,7 +94,7 @@ class RocksDBStore implements ByteStore {
   private static final long BLOB_FILTER_MINIMUM = 1024;
   private static final String BLOB_MINIMUM_SYS_PROP = "dremio.rocksdb.minimum_blob_filter_bytes";
   //  0x06 and 0x07 are unused by proto so we use 0x07 to denote that the entry is a blob pointer
-  static final byte BLOB_VALUE_PREFIX = 7;
+  static final byte META_MARKER = 7;
   private static final String BLOB_PATH = "blob";
   static final long FILTER_SIZE_IN_BYTES;
 
@@ -168,7 +170,7 @@ class RocksDBStore implements ByteStore {
   private final RocksDB db;
   private final int parallel;
   private final String name;
-  private final BlobManager blobManager;
+  private final MetaManager metaManager;
 
   private final ReferenceQueue<FindByRangeIterator> iteratorQueue = new ReferenceQueue<>();
   private final Set<IteratorReference> iteratorSet = Sets.newConcurrentHashSet();
@@ -184,7 +186,7 @@ class RocksDBStore implements ByteStore {
   }
 
   public RocksDBStore(String name, ColumnFamilyDescriptor family, ColumnFamilyHandle handle, RocksDB db, int stripes,
-                      BlobManager blobManager) {
+                      MetaManager metaManager) {
     super();
     this.family = family;
     this.name = name;
@@ -193,7 +195,7 @@ class RocksDBStore implements ByteStore {
     this.handle = handle;
     this.sharedLocks = new AutoCloseableLock[stripes];
     this.exclusiveLocks = new AutoCloseableLock[stripes];
-    this.blobManager = blobManager;
+    this.metaManager = metaManager;
 
     for (int i = 0; i < stripes; i++) {
       ReadWriteLock core = new ReentrantReadWriteLock();
@@ -248,7 +250,7 @@ class RocksDBStore implements ByteStore {
       append(sb, "rocksdb.total-sst-files-size", "Total SST files size");
       append(sb, "rocksdb.estimate-pending-compaction-bytes", "Pending Compaction Bytes");
 
-      final BlobStats blobStats = blobManager.getStats();
+      final BlobStats blobStats = metaManager.getStats();
       if (blobStats != null) {
         blobStats.append(sb);
       }
@@ -269,6 +271,11 @@ class RocksDBStore implements ByteStore {
   @Override
   public KVAdmin getAdmin() {
     return new RocksKVAdmin();
+  }
+
+  @Override
+  public String getName() {
+    return name;
   }
 
   private class RocksKVAdmin extends KVAdmin {
@@ -340,10 +347,15 @@ class RocksDBStore implements ByteStore {
   }
 
   @Override
-  public byte[] get(byte[] key) {
+  public Document<byte[], byte[]> get(byte[] key, GetOption... options) {
     try (AutoCloseableLock ac = sharedLock(key)) {
       throwIfClosed();
-      return resolvePtrOrValue(db.get(handle, key));
+      final RocksEntry result = resolvePtrOrValue(db.get(handle, key));
+      if (result == null) {
+        return null;
+      }
+      final byte[] value = result.getData();
+      return toDocument(key, value, toTag(result.getMeta(), value));
     } catch (RocksDBException | BlobNotFoundException e) {
       throw new RuntimeException(e);
     }
@@ -441,20 +453,22 @@ class RocksDBStore implements ByteStore {
   }
 
   @Override
-  public void put(byte[] key, byte[] value) {
-    if (value == null) {
+  public Document<byte[], byte[]> put(byte[] key, byte[] newValue, PutOption... options) {
+    if (newValue == null) {
       throw new NullPointerException("null values are not allowed in kvstore");
     }
+
+    final String newTag = ByteStore.generateTagFromBytes(newValue);
 
     try (AutoCloseableLock ac = sharedLock(key)) {
       throwIfClosed();
 
       final byte[] oldValueOrPtr = db.get(handle, key);
 
-      try (BlobHolder blob = blobManager.filterPut(value)){
+      try (BlobHolder blob = metaManager.filterPut(newValue, newTag)){
         final byte[] blobOrPtrVal = blob.ptrOrValue();
         db.put(handle, key, blobOrPtrVal);
-        blobManager.deleteTranslation(oldValueOrPtr);
+        metaManager.deleteTranslation(meta(oldValueOrPtr));
         blob.commit();
       } catch (IOException e) {
         throw new RuntimeException(e);
@@ -462,64 +476,84 @@ class RocksDBStore implements ByteStore {
     } catch (RocksDBException e) {
       throw new RuntimeException(e);
     }
+
+    return toDocument(key, newValue, newTag);
   }
 
   @Override
-  public List<byte[]> get(List<byte[]> keys) {
-    final List<byte[]> values = new ArrayList<>();
+  public Iterable<Document<byte[], byte[]>> get(List<byte[]> keys, GetOption... options) {
+    final List<Document<byte[], byte[]>> results = new ArrayList<>();
     for (byte[] key : keys) {
-      values.add(get(key));
+      results.add(get(key, options));
     }
-    return values;
+    return results;
   }
 
   @Override
-  public boolean validateAndPut(byte[] key, byte[] newValue, ByteValidator validator) {
-    if (newValue == null) {
-      throw new NullPointerException("null values are not allowed in kvstore");
-    }
+  public Document<byte[], byte[]> validateAndPut(byte[] key, byte[] newValue, VersionOption.TagInfo versionInfo, PutOption... options) {
+    Preconditions.checkNotNull(newValue);
+    Preconditions.checkNotNull(versionInfo);
+    Preconditions.checkArgument(versionInfo.hasCreateOption() || versionInfo.getTag() != null);
 
     try (AutoCloseableLock ac = exclusiveLock(key)) {
       throwIfClosed();
       final byte[] oldValueOrPtr = db.get(handle, key);
-      final byte[] oldValue = resolvePtrOrValue(oldValueOrPtr);
+      final Rocks.Meta oldMeta = meta(oldValueOrPtr);
+      final String oldTag = oldMeta != null ? oldMeta.getTag() : null;
 
-      if (!validator.validate(oldValue)) {
-        return false;
+      // Validity check fails if the CREATE option is used but there is an existing entry with a valid tag
+      // or there's an existing entry, it has a tag, and the tag doesn't match.
+      // Note: We permit using the create option when there's an existing entry without tag metadata,
+      // because during upgrade, existing tags are potentially embedded in the value and can't be read.
+      // This behavior allows reseting all existing tags during upgrade.
+      if ((versionInfo.hasCreateOption() && (oldValueOrPtr != null && oldMeta != null && oldMeta.hasTag()))
+        || (!versionInfo.hasCreateOption() && oldValueOrPtr == null)
+        || (versionInfo.getTag() != null && oldMeta != null  && oldMeta.hasTag() && !versionInfo.getTag().equals(oldTag))) {
+        return null;
       }
 
-      try (BlobHolder blob = blobManager.filterPut(newValue)) {
+      final String newTag = ByteStore.generateTagFromBytes(newValue);
+      try (BlobHolder blob = metaManager.filterPut(newValue, newTag)) {
         db.put(handle, key, blob.ptrOrValue());
-        blobManager.deleteTranslation(oldValueOrPtr);
+        metaManager.deleteTranslation(oldMeta);
         blob.commit();
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
-      return true;
-    } catch (RocksDBException | BlobNotFoundException e) {
+      return toDocument(key, newValue, newTag);
+    } catch (RocksDBException e) {
       throw new RuntimeException(e);
     }
   }
 
   @Override
-  public boolean validateAndDelete(byte[] key, ByteValidator validator) {
+  public boolean validateAndDelete(byte[] key, VersionOption.TagInfo versionInfo, DeleteOption... options) {
+    Preconditions.checkNotNull(versionInfo);
+    Preconditions.checkArgument(!versionInfo.hasCreateOption());
+    Preconditions.checkNotNull(versionInfo.getTag());
     try (AutoCloseableLock ac = exclusiveLock(key)) {
       throwIfClosed();
       final byte[] oldValueOrPtr = db.get(handle, key);
-      final byte[] oldValue = resolvePtrOrValue(oldValueOrPtr);
-      if (!validator.validate(oldValue)) {
+      final Rocks.Meta oldMeta = meta(oldValueOrPtr);
+      final String oldTag = oldMeta != null ? oldMeta.getTag() : null;
+
+      // An entry is expected and the tags must match.
+      // Note: We permit deletion when there's an existing entry without tag metadata because
+      // during upgrade, the tag information might be embedded in the value and non-retrievable.
+      if (oldValueOrPtr == null ||
+        oldMeta != null && oldMeta.hasTag() && !versionInfo.getTag().equals(oldTag)) {
         return false;
       }
       db.delete(handle, key);
-      blobManager.deleteTranslation(oldValueOrPtr);
+      metaManager.deleteTranslation(oldMeta);
       return true;
-    } catch (RocksDBException | BlobNotFoundException e) {
+    } catch (RocksDBException e) {
       throw new RuntimeException(e);
     }
   }
 
   @Override
-  public boolean contains(byte[] key) {
+  public boolean contains(byte[] key, ContainsOption... options) {
     try (AutoCloseableLock ac = sharedLock(key)) {
       throwIfClosed();
       return db.get(handle, key) != null;
@@ -529,7 +563,7 @@ class RocksDBStore implements ByteStore {
   }
 
   @Override
-  public void delete(byte[] key) {
+  public void delete(byte[] key, DeleteOption... options) {
     try (AutoCloseableLock ac = sharedLock(key)) {
       throwIfClosed();
       final byte[] oldValueOrPtr = db.get(handle, key);
@@ -537,27 +571,22 @@ class RocksDBStore implements ByteStore {
         return;
       }
       db.delete(handle, key);
-      blobManager.deleteTranslation(oldValueOrPtr);
+      metaManager.deleteTranslation(meta(oldValueOrPtr));
     } catch (RocksDBException e) {
       throw new RuntimeException(e);
     }
   }
 
   @Override
-  public Iterable<Entry<byte[], byte[]>> find(com.dremio.datastore.KVStore.FindByRange<byte[]> find) {
+  public Iterable<Document<byte[], byte[]>> find(FindByRange<byte[]> find, FindOption... options) {
     cleanReferences();
     return new RockIterable(find);
   }
 
   @Override
-  public Iterable<Entry<byte[], byte[]>> find() {
+  public Iterable<Document<byte[], byte[]>> find(FindOption... options) {
     cleanReferences();
     return new RockIterable(null);
-  }
-
-  @Override
-  public void delete(byte[] key, String previousVersion) {
-    throw new UnsupportedOperationException("You must use a versioned store to delete by version.");
   }
 
   /**
@@ -566,11 +595,69 @@ class RocksDBStore implements ByteStore {
    * @param value
    * @return the actual value
    */
-  byte[] resolvePtrOrValue(byte[] value) throws BlobNotFoundException {
-    return blobManager.filterGet(value);
+  RocksEntry resolvePtrOrValue(byte[] value) throws BlobNotFoundException {
+    return metaManager.filterGet(value);
   }
 
-  private class RockIterable implements Iterable<Map.Entry<byte[], byte[]>> {
+  /**
+   * Determine whether the provided bytes has the serialized value inline without any metadata.
+   * @param bytes The value to check
+   * @return true if the value is inline and does not contain blob or version metadata.
+   */
+  private static boolean isRawValue(byte[] bytes) {
+    if (bytes == null || bytes.length == 0) {
+      return true;
+    }
+
+    return !(bytes[0] == META_MARKER);
+  }
+
+  /**
+   * Given a value from RocksDB that is a ptr rather than a value, get the ptr.
+   * This method will increment the input stream.
+   *
+   * @param stream The data from Rocks as a byte stream after the prefix byte. The caller must
+   *               have already checked the prefix byte and verified this is not an inline value.
+   * @return The metadata about the version and content to read from the file if applicable.
+   */
+  private static Rocks.Meta parseMetaAfterPrefix(ByteArrayInputStream stream) {
+    try {
+      return Rocks.Meta.parseDelimitedFrom(stream);
+    } catch (IOException e) {
+      throw new RuntimeException("Failure parsing recorded translation.", e);
+    }
+  }
+
+  /**
+   * Given a value from RocksDB that is a ptr rather than a value, get the ptr.
+   * @param bytes Ptr bytes with prefix.
+   * @return The metadata about the version and content to read from the file if applicable.
+   */
+  private static Rocks.Meta meta(byte[] bytes) {
+    if (isRawValue(bytes)) {
+      return null;
+    }
+    final ByteArrayInputStream bais = new ByteArrayInputStream(bytes, 1, bytes.length);
+    return parseMetaAfterPrefix(bais);
+  }
+
+  private static Document<byte[], byte[]> toDocument(byte[] key, byte[] value, String tag) {
+    return new ImmutableDocument.Builder<byte[], byte[]>()
+      .setKey(key)
+      .setValue(value)
+      .setTag(tag)
+      .build();
+  }
+
+  //TODO: Perhaps there should be FindOption and GetOption to indicate a separate logic for handling the upgrade cases.
+  private static String toTag(Rocks.Meta meta, byte[] value) {
+    if (meta == null) {
+      return ByteStore.generateTagFromBytes(value);
+    }
+    return meta.getTag();
+  }
+
+  private class RockIterable implements Iterable<Document<byte[], byte[]>> {
     private final FindByRange<byte[]> range;
 
     public RockIterable(FindByRange<byte[]> range) {
@@ -578,9 +665,9 @@ class RocksDBStore implements ByteStore {
     }
 
     @Override
-    public Iterator<Entry<byte[], byte[]>> iterator() {
+    public Iterator<Document<byte[], byte[]>> iterator() {
       throwIfClosed(); // check not needed during iteration as the underlying iterator is closed when store is closed
-      FindByRangeIterator iterator = new FindByRangeIterator(db, handle, range, blobManager);
+      FindByRangeIterator iterator = new FindByRangeIterator(db, handle, range, metaManager);
 
       // Create a new reference which will self register
       @SuppressWarnings({ "unused", "resource" })
@@ -589,12 +676,12 @@ class RocksDBStore implements ByteStore {
     }
   }
 
-  private class FindByRangeIterator implements Iterator<Map.Entry<byte[], byte[]>> {
+  private class FindByRangeIterator implements Iterator<Document<byte[], byte[]>> {
 
     private final RocksIterator iter;
     private final byte[] end;
     private final boolean endInclusive;
-    private final BlobManager blob;
+    private final MetaManager blob;
 
     private final DescriptiveStatistics durations;
     private final DescriptiveStatistics valueSizes;
@@ -605,7 +692,7 @@ class RocksDBStore implements ByteStore {
     private byte[] nextKey;
     private byte[] nextValue;
 
-    public FindByRangeIterator(RocksDB db, ColumnFamilyHandle handle, FindByRange<byte[]> range, BlobManager blob) {
+    public FindByRangeIterator(RocksDB db, ColumnFamilyHandle handle, FindByRange<byte[]> range, MetaManager blob) {
       this.iter = db.newIterator(handle);
       this.end = range == null ? null : range.getEnd();
       this.endInclusive = range == null ? false : range.isEndInclusive();
@@ -699,23 +786,29 @@ class RocksDBStore implements ByteStore {
     }
 
     @Override
-    public Entry<byte[], byte[]> next() {
+    public Document<byte[], byte[]> next() {
       Preconditions.checkArgument(nextKey != null, "Called next() when hasNext() is false.");
       Preconditions.checkArgument(nextValue != null, "Called next() when hasNext() is false.");
 
-      RocksEntry entry = null;
+      final Document<byte[], byte[]> document;
       try {
-        entry = new RocksEntry(nextKey, blob.filterGet(nextValue));
+        final RocksEntry entry = blob.filterGet(nextValue);
+        if (entry == null) {
+          document = null;
+        } else {
+          final byte[] value = entry.getData();
+          document = toDocument(nextKey, value, toTag(entry.getMeta(), value));
+        }
       } catch (BlobNotFoundException e) {
         throw new RuntimeException(e);
       }
 
       if (ITERATOR_METRICS) {
-        valueSizes.addValue(entry.getValue().length);
+        valueSizes.addValue(document.getValue().length);
       }
       seekNext();
       populateNext();
-      return entry;
+      return document;
     }
 
     @Override
@@ -744,33 +837,6 @@ class RocksDBStore implements ByteStore {
     }
   }
 
-  private static class RocksEntry implements Map.Entry<byte[], byte[]> {
-    private final byte[] key;
-    private final byte[] value;
-
-    public RocksEntry(byte[] key, byte[] value) {
-      super();
-      this.key = key;
-      this.value = value;
-    }
-
-    @Override
-    public byte[] getKey() {
-      return key;
-    }
-
-    @Override
-    public byte[] getValue() {
-      return value;
-    }
-
-    @Override
-    public byte[] setValue(byte[] value) {
-      throw new UnsupportedOperationException();
-    }
-
-  }
-
   static {
     RocksDB.loadLibrary();
   }
@@ -778,7 +844,7 @@ class RocksDBStore implements ByteStore {
   /**
    * Interface that supports external blob storage for RocksDB.
    */
-  private interface BlobManager {
+  private interface MetaManager {
     /**
      * Calculates blob storage stats for the store.
      *
@@ -792,7 +858,7 @@ class RocksDBStore implements ByteStore {
      * @param valueFromRocks a value from RocksDB
      * @return
      */
-    byte[] filterGet(byte[] valueFromRocks) throws BlobNotFoundException;
+    RocksEntry filterGet(byte[] valueFromRocks) throws BlobNotFoundException;
 
     /**
      * Handles storing of the value into the blob storage if needed.
@@ -800,34 +866,56 @@ class RocksDBStore implements ByteStore {
      * @param valueToFilter a kvstore value
      * @return
      */
-    BlobHolder filterPut(byte[] valueToFilter);
+    BlobHolder filterPut(byte[] valueToFilter, String tag);
 
     /**
      * Handles deleting the value from the blob storage if needed.
      *
-     * @param valueToDelete
+     * @param valueInfo Metadata about the value to delete.
      */
-    void deleteTranslation(byte[] valueToDelete);
+    void deleteTranslation(Rocks.Meta valueInfo);
   }
 
-  private static final BlobManager INLINE_BLOB_MANAGER = new BlobManager() {
+  private static final MetaManager INLINE_BLOB_MANAGER = new MetaManager() {
     @Override
     public BlobStats getStats() {
       return null;
     }
 
     @Override
-    public byte[] filterGet(byte[] valueFromRocks) {
-      return valueFromRocks;
+    public RocksEntry filterGet(byte[] valueFromRocks) {
+      if (isRawValue(valueFromRocks)) {
+        if (valueFromRocks == null) {
+          return null;
+        }
+        return new RocksEntry(null, valueFromRocks);
+      }
+
+      try {
+        // Slice off the prefix byte and start parsing where the metadata block is.
+        final ByteArrayInputStream bais = new ByteArrayInputStream(valueFromRocks, 1, valueFromRocks.length);
+        final Rocks.Meta meta = parseMetaAfterPrefix(bais);
+        // We know this is not a blob because we are using the inline blob manager. Assume the value
+        // is the rest of the byte array.
+        final byte[] result = new byte[bais.available()];
+        bais.read(result);
+        return new RocksEntry(meta, result);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
 
     @Override
-    public BlobHolder filterPut(byte[] valueToFilter) {
-      return new Inline(valueToFilter);
+    public BlobHolder filterPut(byte[] valueToFilter, String tag) {
+      if (Strings.isNullOrEmpty(tag)) {
+        return new Inline(valueToFilter);
+      }
+
+      return new Tagged(valueToFilter, tag);
     }
 
     @Override
-    public void deleteTranslation(byte[] valueToDelete) {
+    public void deleteTranslation(Rocks.Meta valueInfo) {
     }
   };
 
@@ -835,12 +923,12 @@ class RocksDBStore implements ByteStore {
    * A filter on the underlying RocksDB that will automatically route files beyond a certain size to the local
    * filesystem instead of inside the rocks store.
    */
-  static class RocksBlobManager implements BlobManager {
+  static class RocksMetaManager implements MetaManager {
 
     private final Path base;
     private final long filterSize;
 
-    public RocksBlobManager(String basePath, String name, long filterSize) {
+    public RocksMetaManager(String basePath, String name, long filterSize) {
       this.base = Paths.get(basePath, BLOB_PATH, name);
       try {
         Files.createDirectories(base);
@@ -848,23 +936,6 @@ class RocksDBStore implements ByteStore {
         throw new RuntimeException(e);
       }
       this.filterSize = filterSize;
-    }
-
-    /**
-     * Determine whether the provided bytes are an inline value or an external blob value.
-     * @param bytes The value to check
-     * @return true if the value is inline (not a blob)
-     */
-    private static boolean isInline(byte[] bytes) {
-      if (bytes == null || bytes.length == 0) {
-        return true;
-      }
-
-      return !(bytes[0] == BLOB_VALUE_PREFIX);
-    }
-
-    private static Path path(Path base, byte[] bytes) {
-      return base.resolve(Paths.get(ptr(bytes).getPath()));
     }
 
     @Override
@@ -885,42 +956,40 @@ class RocksDBStore implements ByteStore {
       }
     }
 
-    /**
-     * Given a value from RocksDB that is a ptr rather than a value, get the ptr.
-     * @param bytes Ptr bytes with prefix.
-     * @return The value read from the file.
-     */
-    private static BlobPointer ptr(byte[] bytes) {
-      try {
-        // The offset accounts for BLOB_VALUE_PREFIX, which is one byte long
-        final ByteArrayInputStream baos = new ByteArrayInputStream(bytes, 1, bytes.length);
-        return BlobPointer.parseDelimitedFrom(baos);
-      } catch (IOException e) {
-        throw new RuntimeException("Failure parsing recorded translation.", e);
-      }
-    }
-
     @Override
-    public byte[] filterGet(byte[] valueFromRocks) throws BlobNotFoundException {
-      if (isInline(valueFromRocks)) {
-        return valueFromRocks;
+    public RocksEntry filterGet(byte[] valueFromRocks) throws BlobNotFoundException {
+      if (isRawValue(valueFromRocks)) {
+        if (valueFromRocks == null) {
+          return null;
+        }
+        return new RocksEntry(null, valueFromRocks);
       }
 
       try {
-        final BlobPointer ptr = ptr(valueFromRocks);
-        final Path path = base.resolve(Paths.get(ptr.getPath()));
-        switch (ptr.getCodec()) {
+        // Slice off the prefix byte and start parsing where the metadata block is.
+        final ByteArrayInputStream bais = new ByteArrayInputStream(valueFromRocks, 1, valueFromRocks.length);
+        final Rocks.Meta meta = parseMetaAfterPrefix(bais);
+        if (!meta.hasPath()) {
+          // Not a blob file since it has no path. Consume the rest of the stream as a byte array and return that
+          // as the value.
+          final byte[] result = new byte[bais.available()];
+          bais.read(result);
+          return new RocksEntry(meta,result);
+        }
+
+        final Path path = base.resolve(Paths.get(meta.getPath()));
+        switch (meta.getCodec()) {
         case SNAPPY: {
           try (final SnappyInputStream snappyInputStream =
                  new SnappyInputStream(Files.newInputStream(path))) {
-            return IOUtils.toByteArray(snappyInputStream);
+            return new RocksEntry(meta, ByteStreams.toByteArray(snappyInputStream));
           }
         }
         case UNCOMPRESSED:
-          return Files.readAllBytes(path);
+          return new RocksEntry(meta, Files.readAllBytes(path));
         case UNKNOWN:
         default:
-          throw new IllegalArgumentException("Unknown codec: " + ptr.getCodec());
+          throw new IllegalArgumentException("Unknown codec: " + meta.getCodec());
       }
       } catch (NoSuchFileException e) {
         throw new BlobNotFoundException(e);
@@ -930,9 +999,9 @@ class RocksDBStore implements ByteStore {
     }
 
     @Override
-    public BlobHolder filterPut(byte[] valueToFilter) {
+    public BlobHolder filterPut(byte[] valueToFilter, String tag) {
       if (valueToFilter.length < filterSize) {
-        return new Inline(valueToFilter);
+        return new Tagged(valueToFilter, tag);
       }
       final Path file = Paths.get(UUID.randomUUID().toString() + ".blob");
       final Path path = base.resolve(file);
@@ -942,19 +1011,19 @@ class RocksDBStore implements ByteStore {
 
       try (final SnappyOutputStream snappyOutputStream = new SnappyOutputStream(Files.newOutputStream(path))){
         snappyOutputStream.write(valueToFilter);
-        return new Blob(file);
+        return new Blob(file, tag);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
     }
 
     @Override
-    public void deleteTranslation(byte[] valueToDelete) {
-      if (isInline(valueToDelete)) {
+    public void deleteTranslation(Rocks.Meta valueInfo) {
+      if (valueInfo == null || !valueInfo.hasPath()) {
         return;
       }
 
-      final Path path = path(base, valueToDelete);
+      final Path path = base.resolve(Paths.get(valueInfo.getPath()));
       try {
         Files.delete(path);
       } catch (IOException ex) {
@@ -988,7 +1057,13 @@ class RocksDBStore implements ByteStore {
 
     default void commit() {}
 
+    /**
+     * Returns a raw byte array of data that's written to RocksDB including any metadata about
+     * the value that is stored.
+     */
     byte[] ptrOrValue() throws IOException;
+
+    String getTag();
 
     @Override
     default void close() {}
@@ -997,9 +1072,11 @@ class RocksDBStore implements ByteStore {
   private static class Blob implements BlobHolder {
     private final Path path;
     private boolean committed = false;
+    private final String tag;
 
-    public Blob(Path path) {
+    public Blob(Path path, String tag) {
       this.path = Preconditions.checkNotNull(path);
+      this.tag = tag;
     }
 
     @Override
@@ -1010,11 +1087,15 @@ class RocksDBStore implements ByteStore {
     @Override
     public byte[] ptrOrValue() throws IOException {
       final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      baos.write(BLOB_VALUE_PREFIX);
-      BlobPointer.newBuilder()
+      baos.write(META_MARKER);
+      final Rocks.Meta.Builder builder = Rocks.Meta.newBuilder()
         .setPath(path.toString())
-        .setCodec(Codec.SNAPPY)
-        .build().writeDelimitedTo(baos);
+        .setCodec(Rocks.Meta.Codec.SNAPPY);
+
+      if (!Strings.isNullOrEmpty(tag)) {
+        builder.setTag(tag);
+      }
+      builder.build().writeDelimitedTo(baos);
 
       return baos.toByteArray();
     }
@@ -1029,6 +1110,42 @@ class RocksDBStore implements ByteStore {
         }
       }
     }
+
+    @Override
+    public String getTag() {
+      return tag;
+    }
+  }
+
+  private static class Tagged implements BlobHolder {
+    private final byte[] value;
+    private final String tag;
+
+    public Tagged(byte[] value, String tag) {
+      this.value = value;
+      this.tag = tag;
+    }
+
+    @Override
+    public byte[] ptrOrValue() throws IOException {
+      if (Strings.isNullOrEmpty(tag)) {
+        return value;
+      }
+
+      final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      baos.write(META_MARKER);
+      Rocks.Meta.newBuilder()
+        .setTag(tag)
+        .build().writeDelimitedTo(baos);
+
+      baos.write(value);
+      return baos.toByteArray();
+    }
+
+    @Override
+    public String getTag() {
+      return tag;
+    }
   }
 
   private static class Inline implements BlobHolder {
@@ -1041,6 +1158,34 @@ class RocksDBStore implements ByteStore {
 
     @Override
     public byte[] ptrOrValue() {
+      return value;
+    }
+
+    @Override
+    public String getTag() {
+      return null;
+    }
+  }
+
+  /**
+   * A structured view of the result of a get() call to Rocks.
+   */
+  static class RocksEntry {
+    private final Rocks.Meta meta;
+    private final byte[] value;
+    RocksEntry(Rocks.Meta meta, byte[] value) {
+      this.meta = meta;
+      this.value = value;
+    }
+
+    Rocks.Meta getMeta() {
+      return meta;
+    }
+
+    /**
+     * Get the value serialized as a byte array.
+     */
+    byte[] getData() {
       return value;
     }
   }

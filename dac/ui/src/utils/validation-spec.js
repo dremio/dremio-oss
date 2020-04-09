@@ -17,7 +17,8 @@ import {
   applyValidators,
   isRequired, isNumber, isInteger, isWholeNumber,
   isRegularExpression, isEmail, confirmPassword,
-  makeLabelFromKey, isIntegerWithLimits, noDoubleQuotes
+  makeLabelFromKey, isIntegerWithLimits, noDoubleQuotes,
+  noSpaces
 } from './validation';
 
 describe('validation', () => {
@@ -103,6 +104,18 @@ describe('validation', () => {
     });
     it('should allow name w/o double quotes', () => {
       expect(noDoubleQuotes('name')({name: 'ab'})).to.be.undefined;
+    });
+  });
+
+  describe('noSpaces', () => {
+    it('should prevent spaces', () => {
+      expect(noSpaces('name')({name: 'a b'})).to.eql({name: 'Spaces are not allowed.'});
+      expect(noSpaces('name')({name: 'a b   c'})).to.eql({name: 'Spaces are not allowed.'});
+      expect(noSpaces('name')({name: ' ab'})).to.eql({name: 'Spaces are not allowed.'});
+      expect(noSpaces('name')({name: 'ab '})).to.eql({name: 'Spaces are not allowed.'});
+    });
+    it('should allow name w/o spaces', () => {
+      expect(noSpaces('name')({name: 'ab'})).to.be.undefined;
     });
   });
 

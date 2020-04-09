@@ -48,6 +48,8 @@ public class HiveDatasetHandleListing implements DatasetHandleListing {
     this.ignoreAuthzErrors = ignoreAuthzErrors;
     this.pluginName = pluginName;
 
+    tableNamesInCurrentDb = Collections.emptyIterator();
+
     dbNames = getDatabaseNames();
     advanceToNonEmptyDatabase();
   }
@@ -92,9 +94,9 @@ public class HiveDatasetHandleListing implements DatasetHandleListing {
     do {
       if (dbNames.hasNext()) {
         currentDbName = dbNames.next();
-        tableNamesInCurrentDb = getTableNames(currentDbName);
-
         logger.debug("Plugin '{}', database '{}', Database found.", pluginName, currentDbName);
+
+        tableNamesInCurrentDb = getTableNames(currentDbName);
       }
     } while (!tableNamesInCurrentDb.hasNext() && dbNames.hasNext());
   }

@@ -17,7 +17,6 @@ package com.dremio.sabot.rpc.user;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.calcite.avatica.util.Quoting;
 
@@ -128,8 +127,14 @@ public class UserSession {
       public void setValue(UserSession session, String value) {
         session.routingQueue = value;
       }
-    };
+    },
 
+    TRACING_ENABLED {
+      @Override
+      public void setValue(UserSession session, String value) {
+        session.tracingEnabled = "true".equalsIgnoreCase(value);
+      }
+    };
 
     /**
      * Set the corresponding
@@ -145,12 +150,12 @@ public class UserSession {
     }
   }
 
-  private final AtomicInteger queryCount = new AtomicInteger(0);
   private volatile QueryId lastQueryId = null;
   private boolean supportComplexTypes = false;
   private UserCredentials credentials;
   private NamespaceKey defaultSchemaPath;
-  private OptionManager sessionOptions;
+  private SessionOptionManager sessionOptionManager;
+
   private RpcEndpointInfos clientInfos;
   private boolean useLegacyCatalogName = false;
   private String impersonationTarget = null;
@@ -160,6 +165,7 @@ public class UserSession {
   private String routingQueue;
   private RecordBatchFormat recordBatchFormat = RecordBatchFormat.DREMIO_1_4;
   private boolean exposeInternalSources = false;
+  private boolean tracingEnabled = false;
   private SubstitutionSettings substitutionSettings = SubstitutionSettings.of();
   private int maxMetadataCount = 0;
 
@@ -170,14 +176,14 @@ public class UserSession {
       return new Builder();
     }
 
-    public Builder withCredentials(UserCredentials credentials) {
-      userSession.credentials = credentials;
+    public Builder withSessionOptionManager(SessionOptionManager sessionOptionManager) {
+      userSession.sessionOptionManager = sessionOptionManager;
+      userSession.maxMetadataCount = (int) sessionOptionManager.getOption(MAX_METADATA_COUNT);
       return this;
     }
 
-    public Builder withOptionManager(OptionManager systemOptions) {
-      userSession.sessionOptions = new SessionOptionManager(systemOptions, userSession);
-      userSession.maxMetadataCount = (int) systemOptions.getOption(MAX_METADATA_COUNT);
+    public Builder withCredentials(UserCredentials credentials) {
+      userSession.credentials = credentials;
       return this;
     }
 
@@ -270,7 +276,7 @@ public class UserSession {
   }
 
   public OptionManager getOptions() {
-    return sessionOptions;
+    return sessionOptionManager;
   }
 
   public String getRoutingTag() {
@@ -295,6 +301,10 @@ public class UserSession {
 
   public boolean exposeInternalSources() {
     return exposeInternalSources;
+  }
+
+  public boolean isTracingEnabled() {
+    return tracingEnabled;
   }
 
   public SubstitutionSettings getSubstitutionSettings() {
@@ -331,7 +341,7 @@ public class UserSession {
     return supportFullyQualifiedProjections;
   }
 
-  public static String getCatalogName(OptionManager options){
+  public static String getCatalogName(OptionManager options) {
     return options.getOption(ExecConstants.USE_LEGACY_CATALOG_NAME) ? InfoSchemaConstants.IS_LEGACY_CATALOG_NAME : InfoSchemaConstants.IS_CATALOG_NAME;
   }
 
@@ -358,11 +368,7 @@ public class UserSession {
   }
 
   public void incrementQueryCount() {
-    queryCount.incrementAndGet();
-  }
-
-  public int getQueryCount() {
-    return queryCount.get();
+    sessionOptionManager.incrementQueryCount();
   }
 
   public Quoting getInitialQuoting() {

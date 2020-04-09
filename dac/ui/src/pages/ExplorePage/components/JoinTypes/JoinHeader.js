@@ -172,7 +172,7 @@ const styles = {
   }
 };
 
-function mapStateToProps(state, ownProps) {
+function mapStateToProps(state) {
   return {
     joinTab: getExploreState(state).join.get('joinTab')
   };

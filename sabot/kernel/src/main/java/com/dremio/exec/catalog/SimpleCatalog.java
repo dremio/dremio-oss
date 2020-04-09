@@ -19,38 +19,12 @@ import java.util.Collection;
 
 import org.apache.calcite.schema.Function;
 
-import com.dremio.exec.store.ischema.tables.TablesTable;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
  * Simplified catalog object needed for use with DremioCatalogReader. A simplified version of Catalog.
  */
-public interface SimpleCatalog<T extends SimpleCatalog<T>> {
-
-  /**
-   * Retrieve a table, first checking the default schema.
-   *
-   * @param key
-   * @return
-   */
-  DremioTable getTable(NamespaceKey key);
-
-  /**
-   * Get a list of all schemas.
-   *
-   * @param path
-   *          The path to contextualize to. If the path has no fields, get all schemas. Note
-   *          that this does include nested schemas.
-   * @return Iterable list of strings of each schema.
-   */
-  Iterable<String> listSchemas(NamespaceKey path);
-
-  /**
-   * Get a list of all tables available in this catalog within the provided path.
-   * @param path The path to constraint the listing to.
-   * @return The set of tables within the provided path.
-   */
-  Iterable<TablesTable.Table> listDatasets(NamespaceKey path);
+public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplorer {
 
   /**
    * Get a list of functions. Provided specifically for DremioCatalogReader.

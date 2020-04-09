@@ -43,7 +43,7 @@ import org.junit.Test;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.server.test.SampleDataPopulator;
-import com.dremio.datastore.KVStoreProvider;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.DremioTable;
 import com.dremio.exec.catalog.MetadataRequestOptions;
 import com.dremio.exec.server.ContextService;
@@ -108,7 +108,7 @@ public class TestReflectionResource extends AccelerationTestUtil {
       l(ReflectionStatusService.class),
       l(MaterializationDescriptorProvider.class),
       l(JobsService.class),
-      new MaterializationStore(p(KVStoreProvider.class)),
+      new MaterializationStore(p(LegacyKVStoreProvider.class)),
       SECONDS.toMillis(1),
       SECONDS.toMillis(10)
     );

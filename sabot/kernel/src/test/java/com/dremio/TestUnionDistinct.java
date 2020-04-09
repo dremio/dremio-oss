@@ -19,6 +19,7 @@ import java.util.List;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
@@ -27,8 +28,10 @@ import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.util.FileUtils;
+import com.dremio.config.DremioConfig;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
+import com.dremio.test.TemporarySystemProperties;
 import com.google.common.collect.Lists;
 
 public class TestUnionDistinct extends BaseTestQuery {
@@ -36,6 +39,9 @@ public class TestUnionDistinct extends BaseTestQuery {
 
   private static final String sliceTargetSmall = "alter session set \"planner.slice_target\" = 1";
   private static final String sliceTargetDefault = "alter session reset \"planner.slice_target\"";
+
+  @Rule
+  public TemporarySystemProperties properties = new TemporarySystemProperties();
 
   @Test  // Simple Union over two scans
   public void testUnionDistinct1() throws Exception {
@@ -215,20 +221,22 @@ public class TestUnionDistinct extends BaseTestQuery {
 
   @Test
   public void testUnionDistinctViewExpandableStar() throws Exception {
-    test("use dfs_test");
-    test("create view nation_view_testunion as select n_name, n_nationkey from cp.\"tpch/nation.parquet\";");
-    test("create view region_view_testunion as select r_name, r_regionkey from cp.\"tpch/region.parquet\";");
+    try {
+      properties.set(DremioConfig.LEGACY_STORE_VIEWS_ENABLED, "true");
+      test("use dfs_test");
+      test("create view nation_view_testunion as select n_name, n_nationkey from cp.\"tpch/nation.parquet\";");
+      test("create view region_view_testunion as select r_name, r_regionkey from cp.\"tpch/region.parquet\";");
 
-    String query1 = "(select * from dfs_test.\"nation_view_testunion\") \n" +
+      String query1 = "(select * from dfs_test.\"nation_view_testunion\") \n" +
         "union \n" +
         "(select * from dfs_test.\"region_view_testunion\")";
 
-    String query2 =  "(select r_name, r_regionkey from cp.\"tpch/region.parquet\")  \n" +
+      String query2 = "(select r_name, r_regionkey from cp.\"tpch/region.parquet\")  \n" +
         "union \n" +
         "(select * from dfs_test.\"nation_view_testunion\")";
 
-    try {
-      testBuilder()
+      try {
+        testBuilder()
           .sqlQuery(query1)
           .unOrdered()
           .csvBaselineFile("testframework/unionDistinct/q11.tsv")
@@ -237,7 +245,7 @@ public class TestUnionDistinct extends BaseTestQuery {
           .build()
           .run();
 
-      testBuilder()
+        testBuilder()
           .sqlQuery(query2)
           .unOrdered()
           .csvBaselineFile("testframework/unionDistinct/q12.tsv")
@@ -245,9 +253,12 @@ public class TestUnionDistinct extends BaseTestQuery {
           .baselineColumns("r_name", "r_regionkey")
           .build()
           .run();
+      } finally {
+        test("drop view nation_view_testunion");
+        test("drop view region_view_testunion");
+      }
     } finally {
-      test("drop view nation_view_testunion");
-      test("drop view region_view_testunion");
+      properties.clear(DremioConfig.LEGACY_STORE_VIEWS_ENABLED);
     }
   }
 

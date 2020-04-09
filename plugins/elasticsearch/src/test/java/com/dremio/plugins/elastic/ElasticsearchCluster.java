@@ -113,7 +113,7 @@ public class ElasticsearchCluster implements Closeable {
   private static final String BULK_INDEX_TEXT = "{ \"index\" : { \"_index\" : \"%s\", \"_type\" : \"%s\" } }";
 
   private static final JsonParser PARSER = new JsonParser();
-  public static final int ELASTICSEARCH_PORT = 9200;
+  public static final int ELASTICSEARCH_PORT = Integer.valueOf(System.getProperty("dremio.test.elasticsearch.port", "9200"));
 
   private static final Logger logger = LoggerFactory.getLogger(ElasticsearchCluster.class);
 

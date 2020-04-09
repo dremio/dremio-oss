@@ -16,16 +16,17 @@
 import { RSAA } from 'redux-api-middleware';
 import { push } from 'react-router-redux';
 
-import {API_URL_V2} from '@app/constants/Api';
 import provisionSchema from 'schemas/provision';
 import schemaUtils from 'utils/apiUtils/schemaUtils';
-
+import { APIV2Call } from '@app/core/APICall';
 
 export const LOAD_AWS_DEFAULTS_START = 'LOAD_AWS_DEFAULTS_START';
 export const LOAD_AWS_DEFAULTS_SUCCESS = 'LOAD_AWS_DEFAULTS_SUCCESS';
 export const LOAD_AWS_DEFAULTS_FAILURE = 'LOAD_AWS_DEFAULTS_FAILURE';
 
 export const loadAwsDefaults = () => {
+  const apiCall = new APIV2Call().paths('provision/aws/defaults');
+
   return {
     [RSAA]: {
       types: [
@@ -34,7 +35,7 @@ export const loadAwsDefaults = () => {
         LOAD_AWS_DEFAULTS_FAILURE
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}/provision/aws/defaults`
+      endpoint: apiCall
     }
   };
 };
@@ -46,6 +47,9 @@ export const LOAD_PROVISIONING_FAILURE = 'LOAD_PROVISIONING_FAILURE';
 function fetchLoadProvisioning(provisionType, viewId) {
   const meta = {provisionType, viewId};
   const typeQuery = provisionType ? `?type=${provisionType}` : '';
+
+  const apiCall = new APIV2Call().paths(`provision/clusters${typeQuery}`);
+
   return {
     [RSAA]: {
       types: [
@@ -54,7 +58,7 @@ function fetchLoadProvisioning(provisionType, viewId) {
         {type: LOAD_PROVISIONING_FAILURE, meta}
       ],
       method: 'GET',
-      endpoint: `${API_URL_V2}/provision/clusters${typeQuery}`
+      endpoint: apiCall
     }
   };
 }
@@ -71,6 +75,9 @@ export const UPDATE_WORKERS_SIZE_FAILURE = 'UPDATE_WORKERS_SIZE_FAILURE';
 
 function fetchUpdateWorkersSize(form, provisionId, viewId) {
   const meta = {viewId};
+
+  const apiCall = new APIV2Call().paths(`provision/cluster/${provisionId}/dynamicConfig`);
+
   return {
     [RSAA]: {
       types: [
@@ -81,7 +88,7 @@ function fetchUpdateWorkersSize(form, provisionId, viewId) {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
-      endpoint: `${API_URL_V2}/provision/cluster/${provisionId}/dynamicConfig`
+      endpoint: apiCall
     }
   };
 }
@@ -98,6 +105,9 @@ export const REMOVE_PROVISION_FAILURE = 'REMOVE_PROVISION_FAILURE';
 
 function fetchRemoveProvision(provisionId, viewId) {
   const meta = {provisionId, viewId};
+
+  const apiCall = new APIV2Call().paths(`provision/cluster/${provisionId}`);
+
   return {
     [RSAA]: {
       types: [
@@ -106,7 +116,7 @@ function fetchRemoveProvision(provisionId, viewId) {
         {type: REMOVE_PROVISION_FAILURE, meta}
       ],
       method: 'DELETE',
-      endpoint: `${API_URL_V2}/provision/cluster/${provisionId}`
+      endpoint: apiCall
     }
   };
 }
@@ -124,6 +134,9 @@ export const CREATE_PROVISION_FAILURE = 'CREATE_PROVISION_FAILURE';
 
 function fetchCreateProvision(form, viewId) {
   const meta = {viewId};
+
+  const apiCall = new APIV2Call().paths('provision/cluster');
+
   return {
     [RSAA]: {
       types: [
@@ -134,7 +147,7 @@ function fetchCreateProvision(form, viewId) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(form),
-      endpoint: `${API_URL_V2}/provision/cluster`
+      endpoint: apiCall
     }
   };
 }
@@ -151,6 +164,11 @@ export const EDIT_PROVISION_FAILURE = 'EDIT_PROVISION_FAILURE';
 
 function fetchEditProvision(data, viewId) {
   const meta = {viewId};
+
+  const apiCall = new APIV2Call()
+    .paths('provision/cluster')
+    .path(data.id);
+
   return {
     [RSAA]: {
       types: [
@@ -161,7 +179,7 @@ function fetchEditProvision(data, viewId) {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-      endpoint: `${API_URL_V2}/provision/cluster/${data.id}`
+      endpoint: apiCall
     }
   };
 }

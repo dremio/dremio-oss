@@ -73,7 +73,6 @@ describe('ReplaceExactForm', () => {
     beforeEach(() => {
       wrapper = shallow(<ReplaceExactForm {...commonProps}/>, {context});
       instance = wrapper.instance();
-      sinon.stub(instance, 'loadTransformValuesPreview');
     });
     it('should update if replaceValues changed', () => {
       const nextProps = {

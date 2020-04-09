@@ -14,3 +14,8 @@
  * limitations under the License.
  */
 export const SERVER_STATUS_OK = 'OK';
+
+export const EDITION = {
+  ME: 'ME',
+  OSS: 'OSS'
+};

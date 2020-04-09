@@ -47,7 +47,7 @@ export default class CheckEnabledContainerConfig extends FormElementConfig {
     return [this.getPropName()].concat(super.getConfig().container.getFields());
   }
 
-  addInitValues(initValues, state) {
+  addInitValues(initValues) {
     const elementConfig = super.getConfig();
     initValues = FormUtils.addInitValue(initValues, elementConfig.propName, elementConfig.checkValue);
     return elementConfig.container.addInitValues(initValues);

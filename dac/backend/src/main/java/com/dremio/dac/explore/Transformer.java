@@ -22,6 +22,8 @@ import java.util.List;
 
 import javax.ws.rs.core.SecurityContext;
 
+import org.apache.arrow.memory.BufferAllocator;
+
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.InitialPendingTransformResponse;
@@ -40,16 +42,29 @@ import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.service.job.JobDetails;
+import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobInfo;
+import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.QueryType;
+import com.dremio.service.jobs.JobDataClientUtils;
+import com.dremio.service.jobs.JobNotFoundException;
+import com.dremio.service.jobs.JobStatusListener;
+import com.dremio.service.jobs.JobsProtoUtil;
+import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.FieldOrigin;
+import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -62,15 +77,18 @@ public class Transformer {
   public static final String VALUE_PLACEHOLDER = "value";
 
   private final QueryExecutor executor;
+  private final JobsService jobsService;
   private final NamespaceService namespaceService;
   private final DatasetVersionMutator datasetService;
   private final SecurityContext securityContext;
   private final SabotContext context;
 
-  public Transformer(SabotContext context, NamespaceService namespace, DatasetVersionMutator datasetService, QueryExecutor executor, SecurityContext securityContext) {
+  public Transformer(SabotContext context, JobsService jobsService, NamespaceService namespace, DatasetVersionMutator datasetService,
+                     QueryExecutor executor, SecurityContext securityContext) {
     this.securityContext = securityContext;
     this.executor = executor;
     this.datasetService = datasetService;
+    this.jobsService = jobsService;
     this.namespaceService = namespace;
     this.context = context;
   }
@@ -117,7 +135,9 @@ public class Transformer {
    * @throws DatasetNotFoundException
    * @throws DatasetVersionNotFoundException
    */
-  public DatasetAndData editOriginalSql(DatasetVersion newVersion, List<Transform> operations, QueryType queryType) throws NamespaceException, DatasetNotFoundException, DatasetVersionNotFoundException {
+  //TODO (DX-18918: Transformer.editOriginalSql() shouldn't require a JobStatusListener)
+  public DatasetAndData editOriginalSql(DatasetVersion newVersion, List<Transform> operations, QueryType queryType,
+    JobStatusListener listener) throws NamespaceException, DatasetNotFoundException, DatasetVersionNotFoundException {
 
     // apply transformations bottom up.
     Collections.reverse(operations);
@@ -148,8 +168,8 @@ public class Transformer {
     //TODO: This should verify the save version matches
     VirtualDatasetUI headVersion = datasetService.getVersion(headPath, headConfig.getVirtualDataset().getVersion());
 
-
-    JobData jobData = executor.runQuery(new SqlQuery(headVersion.getSql(), headVersion.getState().getContextList(), username()), queryType, headPath, headVersion.getVersion());
+    JobData jobData = executor.runQueryWithListener(new SqlQuery(headVersion.getSql(),
+        headVersion.getState().getContextList(), username()), queryType, headPath, headVersion.getVersion(), listener);
     return new DatasetAndData(jobData, headVersion);
   }
 
@@ -170,7 +190,7 @@ public class Transformer {
       VirtualDatasetState vss = protectAgainstNull(result, transform);
       actor.getMetadata(new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext));
     }
-    VirtualDatasetUI dataset = asDataset(newVersion, path, baseDataset, transform, result, actor.getMetadata());
+    VirtualDatasetUI dataset = asDataset(newVersion, path, baseDataset, transform, result, actor);
 
     // save the dataset version.
     datasetService.putVersion(dataset);
@@ -187,10 +207,17 @@ public class Transformer {
    *                   in other path. Alter a query and preview.
    * @param transform The transformation that was applied
    * @param result The result of the transformation.
+   * @param batchSchema batch schema associated with the transformation
    * @param metadata The query metadata associated with the transformation.
    * @return The new VirtualDatasetUI object.
    */
-  private VirtualDatasetUI asDataset(DatasetVersion newVersion, DatasetPath path, VirtualDatasetUI baseDataset, TransformBase transform, TransformResult result, QueryMetadata metadata) {
+  private VirtualDatasetUI asDataset(
+      DatasetVersion newVersion,
+      DatasetPath path,
+      VirtualDatasetUI baseDataset,
+      TransformBase transform,
+      TransformResult result,
+      TransformActor actor) {
     // here we should take a path from baseDataset, as path could be different
     baseDataset.setPreviousVersion(new NameDatasetRef(DatasetPath.defaultImpl(baseDataset.getFullPathList()).toString())
       .setDatasetVersion(baseDataset.getVersion().toString()));
@@ -207,7 +234,8 @@ public class Transformer {
         SQLGenerator.generateSQL(protectAgainstNull(result, transform));
     baseDataset.setSql(sql);
     baseDataset.setLastTransform(transform.wrap());
-    DatasetTool.applyQueryMetadata(baseDataset, metadata);
+    DatasetTool.applyQueryMetadata(baseDataset, actor.getParents(), actor.getBatchSchema(), actor.getFieldOrigins(),
+      actor.getGrandParents(), actor.getMetadata());
     return baseDataset;
   }
 
@@ -252,6 +280,7 @@ public class Transformer {
       DatasetPath path,
       VirtualDatasetUI original,
       TransformBase transform,
+      BufferAllocator allocator,
       int limit)
       throws DatasetNotFoundException, NamespaceException {
     final TransformResultDatsetAndData result = this.transformWithExecute(newVersion, path, original, transform, QueryType.UI_PREVIEW, true);
@@ -259,9 +288,10 @@ public class Transformer {
     final List<String> highlightedColumnNames = Lists.newArrayList(transformResult.getModifiedColumns());
     highlightedColumnNames.addAll(transformResult.getAddedColumns());
 
+    JobDataClientUtils.waitForFinalState(jobsService, result.getJobId());
     return InitialPendingTransformResponse.of(
         result.getDataset().getSql(),
-        result.getJobData().truncate(limit),
+        result.getJobData().truncate(allocator, limit),
         highlightedColumnNames,
         Lists.newArrayList(transformResult.getRemovedColumns()),
         transformResult.getRowDeletionMarkerColumns()
@@ -311,8 +341,8 @@ public class Transformer {
       final SqlQuery query = new SqlQuery(SQLGenerator.generateSQL(vss), vss.getContextList(), securityContext);
       actor.getMetadata(query);
     }
-    final TransformResultDatsetAndData resultToReturn = new TransformResultDatsetAndData(actor.getJobData(), asDataset(newVersion, path, original,
-      transform, transformResult, actor.getMetadata()), transformResult);
+    final TransformResultDatsetAndData resultToReturn = new TransformResultDatsetAndData(actor.getJobData(),
+      asDataset(newVersion, path, original, transform, transformResult, actor), transformResult);
     // save this dataset version.
     datasetService.putVersion(resultToReturn.getDataset());
 
@@ -345,9 +375,9 @@ public class Transformer {
     }
 
     @Override
-    protected QueryMetadata getMetadata(SqlQuery query) {
+    protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata(SqlQuery query) {
       this.metadata = QueryParser.extract(query, context);
-      return metadata;
+      return JobsProtoUtil.toBuf(metadata);
     }
 
     @Override
@@ -355,18 +385,42 @@ public class Transformer {
       return (metadata != null);
     }
 
-    public QueryMetadata getMetadata() {
+    @Override
+    public com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata() {
       Preconditions.checkNotNull(metadata);
-      return metadata;
+      return JobsProtoUtil.toBuf(metadata);
     }
 
+    @Override
+    protected Optional<BatchSchema> getBatchSchema() {
+      return metadata.getBatchSchema();
+    }
+
+    @Override
+    protected Optional<List<ParentDatasetInfo>> getParents() {
+      return metadata.getParents();
+    }
+
+    @Override
+    protected Optional<List<FieldOrigin>> getFieldOrigins() {
+      return metadata.getFieldOrigins();
+    }
+
+    @Override
+    protected Optional<List<ParentDataset>> getGrandParents() {
+      return metadata.getGrandParents();
+    }
   }
 
   @VisibleForTesting
   class ExecuteTransformActor extends TransformActor {
 
     private final MetadataCollectingJobStatusListener collector = new MetadataCollectingJobStatusListener();
-    private volatile QueryMetadata metadata;
+    private volatile com.dremio.service.jobs.metadata.proto.QueryMetadata metadata;
+    private volatile Optional<BatchSchema> batchSchema;
+    private volatile Optional<List<ParentDatasetInfo>> parents;
+    private volatile Optional<List<FieldOrigin>> fieldOrigins;
+    private volatile Optional<List<ParentDataset>> grandParents;
     private volatile JobData jobData;
     private final DatasetPath path;
     private final DatasetVersion newVersion;
@@ -387,19 +441,36 @@ public class Transformer {
     }
 
     @Override
-    protected QueryMetadata getMetadata(SqlQuery query) {
+    protected com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata(SqlQuery query) {
       this.jobData = executor.runQueryWithListener(query, queryType, path, newVersion, collector);
       try {
         this.metadata = collector.getMetadata();
+        final JobId jobId = jobData.getJobId();
+        final JobDetails jobDetails = jobsService.getJobDetails(
+          JobDetailsRequest.newBuilder()
+            .setJobId(JobsProtoUtil.toBuf(jobId))
+            .setUserName(query.getUsername())
+            .build());
+        final JobInfo jobInfo = JobsProtoUtil.getLastAttempt(jobDetails).getInfo();
+        this.batchSchema = Optional.fromNullable(jobInfo.getBatchSchema()).transform((b) -> BatchSchema.deserialize(b));
+        this.parents = Optional.fromNullable(jobInfo.getParentsList());
+        this.fieldOrigins = Optional.fromNullable(jobInfo.getFieldOriginsList());
+        this.grandParents = Optional.fromNullable(jobInfo.getGrandParentsList());
       } catch (UserException e) {
         // If the original query fails, let the user knows about
         throw DatasetTool.toInvalidQueryException(e, query.getSql(), query.getContext(), null);
+      } catch (JobNotFoundException e) {
+        UserException uex = UserException.schemaChangeError(e).buildSilently();
+        throw DatasetTool.toInvalidQueryException(uex, query.getSql(), query.getContext(), null);
       }
 
       // If above QueryExecutor finds the query in the job store, QueryMetadata will never be set.
       // In this case, regenerate QueryMetadata below.
       if (this.metadata == null) {
-        this.metadata = QueryParser.extract(query, context);
+        final QueryMetadata queryMetadata = QueryParser.extract(query, context);
+        this.metadata = JobsProtoUtil.toBuf(queryMetadata);
+        this.batchSchema = queryMetadata.getBatchSchema();
+        this.parents = queryMetadata.getParents();
       }
 
       return metadata;
@@ -410,9 +481,30 @@ public class Transformer {
       return (metadata != null);
     }
 
-    public QueryMetadata getMetadata() {
+    @Override
+    public com.dremio.service.jobs.metadata.proto.QueryMetadata getMetadata() {
       Preconditions.checkNotNull(metadata);
       return metadata;
+    }
+
+    @Override
+    protected Optional<BatchSchema> getBatchSchema() {
+      return batchSchema;
+    }
+
+    @Override
+    protected Optional<List<ParentDatasetInfo>> getParents() {
+      return parents;
+    }
+
+    @Override
+    protected Optional<List<FieldOrigin>> getFieldOrigins() {
+      return fieldOrigins;
+    }
+
+    @Override
+    protected Optional<List<ParentDataset>> getGrandParents() {
+      return grandParents;
     }
 
     public JobData getJobData() {

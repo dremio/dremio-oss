@@ -24,6 +24,7 @@ import org.junit.Test;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.store.dfs.WorkspaceConfig;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.namespace.NamespaceNotFoundException;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.dremio.service.users.SystemUser;
 import com.google.common.collect.Maps;
@@ -110,8 +111,12 @@ public class TestImpersonationDisabledWithMiniDFS extends BaseTestImpersonation 
 
   @AfterClass
   public static void removeMiniDfsBasedStorage() throws Exception {
-    SourceConfig config = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
-    ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().deleteSource(config);
+    try {
+      SourceConfig config = getSabotContext().getNamespaceService(SystemUser.SYSTEM_USERNAME).getSource(new NamespaceKey(MINIDFS_STORAGE_PLUGIN_NAME));
+      ((CatalogServiceImpl) getSabotContext().getCatalogService()).getSystemUserCatalog().deleteSource(config);
+    } catch (NamespaceNotFoundException e) {
+      // ignore if source is not found
+    }
     stopMiniDfsCluster();
   }
 }

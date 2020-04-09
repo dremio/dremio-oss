@@ -16,28 +16,24 @@
 package com.dremio.exec.work.foreman;
 
 import java.time.Duration;
-import java.util.Set;
+import java.util.Optional;
 
 import com.dremio.common.EventProcessor;
 import com.dremio.common.ProcessExit;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.maestro.MaestroService;
 import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.planner.observer.AbstractAttemptObserver;
 import com.dremio.exec.planner.observer.AttemptObserver;
-import com.dremio.exec.planner.observer.AttemptObservers;
-import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.sql.handlers.commands.AsyncCommand;
 import com.dremio.exec.planner.sql.handlers.commands.CommandCreator;
 import com.dremio.exec.planner.sql.handlers.commands.CommandRunner;
 import com.dremio.exec.planner.sql.handlers.commands.CommandRunner.CommandType;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
-import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
-import com.dremio.exec.proto.CoordExecRPC.NodeQueryStatus;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
-import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -51,24 +47,23 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
-import com.dremio.exec.work.AttemptId;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
-import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.exec.work.user.OptionProvider;
 import com.dremio.options.OptionManager;
-import com.dremio.resource.ResourceAllocator;
 import com.dremio.resource.exception.ResourceUnavailableException;
 import com.dremio.service.Pointer;
 import com.dremio.service.commandpool.CommandPool;
-import com.dremio.service.coordinator.ClusterCoordinator;
-import com.dremio.service.execselector.ExecutorSelectionService;
+import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.telemetry.api.metrics.Counter;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.dremio.telemetry.api.metrics.Metrics.ResetType;
 import com.dremio.telemetry.api.metrics.TopMonitor;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.protobuf.Empty;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.internal.OutOfDirectMemoryError;
@@ -99,28 +94,38 @@ public class AttemptManager implements Runnable {
   private static final Counter FAILED_15M = Metrics.newCounter(Metrics.join("jobs", "failed_15m"), ResetType.PERIODIC_15M);
   private static final Counter FAILED_1D = Metrics.newCounter(Metrics.join("jobs", "failed_1d"), ResetType.PERIODIC_1D);
 
+  @VisibleForTesting
+  public static final String INJECTOR_TRY_BEGINNING_ERROR = "run-try-beginning";
+
+  @VisibleForTesting
+  public static final String INJECTOR_TRY_END_ERROR = "run-try-end";
+
+  @VisibleForTesting
+  public static final String INJECTOR_PLAN_ERROR = "plan-error";
+
+  @VisibleForTesting
+  public static final String INJECTOR_PLAN_PAUSE = "plan-pause";
+
   private final AttemptId attemptId;
   private final QueryId queryId;
   private final String queryIdString;
   private final UserRequest queryRequest;
   private final QueryContext queryContext;
-  private final QueryManager queryManager; // handles lower-level details of query execution
   private final SabotContext sabotContext;
+  private final MaestroService maestroService;
   private final Cache<Long, PreparedPlan> plans;
   private volatile QueryState state;
-  private volatile String cancelReason;
   private volatile boolean clientCancelled;
 
   private final StateSwitch stateSwitch = new StateSwitch();
   private final AttemptResult foremanResult = new AttemptResult();
   private Object extraResultData;
-  private final CoordToExecTunnelCreator tunnelCreator;
-  private final AttemptObservers observers;
+  private final AttemptProfileTracker profileTracker;
+  private final AttemptObserver observer;
   private final Pointer<QueryId> prepareId;
-  private final ResourceAllocator queryResourceManager;
   private final CommandPool commandPool;
-  private final ExecutorSelectionService executorSelectionService;
   private CommandRunner<?> command;
+  private Optional<Runnable> committer = Optional.empty();
 
   /**
    * if set to true, query is not going to be scheduled on a separate thread
@@ -134,57 +139,44 @@ public class AttemptManager implements Runnable {
    * @param queryRequest the query to execute
    */
   public AttemptManager(
-      final SabotContext context,
+      final SabotContext sabotContext,
       final AttemptId attemptId,
       final UserRequest queryRequest,
       final AttemptObserver observer,
       final OptionProvider options,
-      final CoordToExecTunnelCreator tunnelCreator,
       final Cache<Long, PreparedPlan> plans,
       final QueryContext queryContext,
-      final ResourceAllocator queryResourceManager,
       final CommandPool commandPool,
-      final ExecutorSelectionService executorSelectionService,
+      final MaestroService maestroService,
+      final JobTelemetryClient jobTelemetryClient,
       final boolean runInSameThread
       ) {
+    this.sabotContext = sabotContext;
     this.attemptId = attemptId;
     this.queryId = attemptId.toQueryId();
     this.queryIdString = QueryIdHelper.getQueryId(queryId);
     this.queryRequest = queryRequest;
-    this.sabotContext = context;
-    this.tunnelCreator = tunnelCreator;
-    this.queryResourceManager = queryResourceManager;
-    this.commandPool = commandPool;
-    this.executorSelectionService = executorSelectionService;
     this.plans = plans;
-    this.prepareId = new Pointer<>();
-
     this.queryContext = queryContext;
-    this.observers = AttemptObservers.of(observer);
-    this.observers.add(new FragmentActivateObserver());
+    this.commandPool = commandPool;
+    this.maestroService = maestroService;
     this.runInSameThread = runInSameThread;
 
+    prepareId = new Pointer<>();
     final OptionManager optionManager = this.queryContext.getOptions();
-    if(options != null){
+    if (options != null){
       options.applyOptions(optionManager);
     }
 
+    profileTracker = new AttemptProfileTracker(queryId, queryContext,
+      queryRequest.getDescription(),
+      () -> state,
+      observer, jobTelemetryClient);
+    this.observer = profileTracker.getObserver();
+
     RUN_15M.increment();
     RUN_1D.increment();
-
-    this.queryManager = new QueryManager(queryId, this.queryContext, this.tunnelCreator, new CompletionListenerImpl(), prepareId,
-      observers, optionManager.getOption(PlannerSettings.VERBOSE_PROFILE),
-      optionManager.getOption(PlannerSettings.INCLUDE_DATASET_PROFILE), this.queryContext.getCatalog());
-
     recordNewState(QueryState.ENQUEUED);
-  }
-
-  private class FragmentActivateObserver extends AbstractAttemptObserver {
-
-    @Override
-    public void activateFragmentFailed(Exception ex) {
-      addToEventQueue(QueryState.FAILED, ex);
-    }
   }
 
   private class CompletionListenerImpl implements CompletionListener {
@@ -208,23 +200,14 @@ public class AttemptManager implements Runnable {
     return state;
   }
 
-  public void nodesUnregistered(Set<NodeEndpoint> unregisteredNodes){
-    queryManager.getNodeStatusListener().nodesUnregistered(unregisteredNodes);
-  }
-
-  public void nodesRegistered(Set<NodeEndpoint> registeredNodes){
-    queryManager.getNodeStatusListener().nodesRegistered(registeredNodes);
-  }
-
   public void dataFromScreenArrived(QueryData header, ByteBuf data, ResponseSender sender) {
     if(data != null){
       // we're going to send this some place, we need increment to ensure this is around long enough to send.
       data.retain();
-      observers.execDataArrived(new ScreenShuttle(sender), new QueryWritableBatch(header, data));
+      observer.execDataArrived(new ScreenShuttle(sender), new QueryWritableBatch(header, data));
     } else {
-      observers.execDataArrived(new ScreenShuttle(sender), new QueryWritableBatch(header));
+      observer.execDataArrived(new ScreenShuttle(sender), new QueryWritableBatch(header));
     }
-
   }
 
   /**
@@ -265,22 +248,19 @@ public class AttemptManager implements Runnable {
   }
 
   /**
-   * Publish query progress.
+   * Get the latest full profile for the query.
+   * @return profile
    */
-  public void publishProgress() {
-    queryManager.publishProgress();
-  }
-
-  public void updateStatus(FragmentStatus status) {
-    queryManager.getFragmentStatusListener().statusUpdate(status);
-  }
-
-  public void updateNodeQueryStatus(NodeQueryStatus status) {
-    queryManager.updateNodeQueryStatus(status);
-  }
-
   public QueryProfile getQueryProfile() {
-    return queryManager.getQueryProfile(queryRequest.getDescription(), state, null, cancelReason);
+    return profileTracker.getFullProfile();
+  }
+
+  /**
+   * Send the planning profile for the query to JobTelemetryService.
+   * @return future
+   */
+  public ListenableFuture<Empty> sendPlanningProfile() {
+    return profileTracker.sendPlanningProfile();
   }
 
   /**
@@ -293,8 +273,8 @@ public class AttemptManager implements Runnable {
    */
   public void cancel(String reason, boolean clientCancelled) {
     // Note this can be called from outside of run() on another thread, or after run() completes
-    this.cancelReason = reason;
     this.clientCancelled = clientCancelled;
+    profileTracker.setCancelReason(reason);
     addToEventQueue(QueryState.CANCELED, null);
   }
 
@@ -314,44 +294,41 @@ public class AttemptManager implements Runnable {
 
 
     try {
-      injector.injectChecked(queryContext.getExecutionControls(), "run-try-beginning", ForemanException.class);
+      injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_TRY_BEGINNING_ERROR,
+        ForemanException.class);
 
       // planning is done in the command pool
       commandPool.submit(CommandPool.Priority.LOW, attemptId.toString() + ":foreman-planning",
         (waitInMillis) -> {
-          observers.commandPoolWait(waitInMillis);
-          observers.queryStarted(queryRequest, queryContext.getSession().getCredentials().getUserName());
+          observer.commandPoolWait(waitInMillis);
+          observer.queryStarted(queryRequest, queryContext.getSession().getCredentials().getUserName());
+
+          injector.injectPause(queryContext.getExecutionControls(), INJECTOR_PLAN_PAUSE, logger);
+          injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_PLAN_ERROR,
+            ForemanException.class);
+
           plan();
           return null;
         }, runInSameThread).get();
 
-      if (command.getCommandType() == CommandType.ASYNC_QUERY) {
 
+      if (command.getCommandType() == CommandType.ASYNC_QUERY) {
         AsyncCommand asyncCommand = (AsyncCommand) command;
+        committer = asyncCommand.getPhysicalPlan().getCommitter();
 
         moveToState(QueryState.STARTING, null);
-
-        // allocate execution resources on the calling thread, as this will most likely block
-        asyncCommand.allocateResources();
-
-        // do execution planning in the bound pool
-        commandPool.submit(CommandPool.Priority.MEDIUM,
-          attemptId.toString() + ":execution-planning",
-          (waitInMillis) -> {
-            observers.commandPoolWait(waitInMillis);
-            asyncCommand.planExecution();
-            return null;
-          }, runInSameThread).get();
-
-        asyncCommand.startFragments();
+        maestroService.executeQuery(queryId, queryContext, asyncCommand.getPhysicalPlan(), runInSameThread,
+          new MaestroObserverWrapper(observer), new CompletionListenerImpl());
+        asyncCommand.executionStarted();
       }
 
       moveToState(QueryState.RUNNING, null);
 
-      injector.injectChecked(queryContext.getExecutionControls(), "run-try-end", ForemanException.class);
+      injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_TRY_END_ERROR,
+        ForemanException.class);
     } catch (ResourceUnavailableException e) {
       // resource allocation failure is treated as a cancellation and not a failure
-      cancelReason = e.getMessage();
+      profileTracker.setCancelReason(e.getMessage());
       moveToState(QueryState.CANCELED, null); // ENQUEUED/STARTING -> CANCELED transition
     } catch (final UserException | ForemanException e) {
       moveToState(QueryState.FAILED, e);
@@ -405,7 +382,7 @@ public class AttemptManager implements Runnable {
   }
 
   private void plan() throws Exception {
-    CommandCreator creator = newCommandCreator(queryContext, observers, prepareId);
+    CommandCreator creator = newCommandCreator(queryContext, observer, prepareId);
     command = creator.toCommand();
     logger.debug("Using command: {}.", command);
 
@@ -427,11 +404,12 @@ public class AttemptManager implements Runnable {
         throw new IllegalStateException(
           String.format("command type %s not supported in plan()", command.getCommandType()));
     }
+    profileTracker.setPrepareId(prepareId.value);
   }
 
   protected CommandCreator newCommandCreator(QueryContext queryContext, AttemptObserver observer, Pointer<QueryId> prepareId) {
-    return new CommandCreator(this.sabotContext, queryContext, tunnelCreator, queryRequest,
-      observer, plans, prepareId, attemptId.getAttemptNum(), queryResourceManager, executorSelectionService);
+    return new CommandCreator(this.sabotContext, queryContext, queryRequest,
+      observer, plans, prepareId, attemptId.getAttemptNum());
   }
 
   /**
@@ -489,7 +467,6 @@ public class AttemptManager implements Runnable {
 
     /**
      * Ignore the current status and force the given failure as current status.
-     * NOTE: Used only for testing purposes. Shouldn't be used in production.
      */
     public void setForceFailure(final Exception exception) {
       Preconditions.checkArgument(exception != null);
@@ -547,21 +524,28 @@ public class AttemptManager implements Runnable {
       Preconditions.checkState(!isClosed);
       Preconditions.checkState(resultState != null);
 
-      // publish progress for this attempt
-      queryManager.publishProgress();
+      try {
+        injector.injectChecked(queryContext.getExecutionControls(), "commit-failure", UnsupportedOperationException.class);
+
+        if (resultState == QueryState.COMPLETED) {
+          committer.ifPresent(x -> x.run());
+        }
+      } catch (Exception e) {
+        addException(e);
+        logger.warn("Exception during commit after attempt completion", resultException);
+        recordNewState(QueryState.FAILED);
+        foremanResult.setForceFailure(e);
+      }
 
       // to track how long the query takes
-      queryManager.markEndTime();
+      profileTracker.markEndTime();
 
       if(queryRequest.getDescription() != null) {
-        LONG_QUERIES.update(queryManager.getTime(), () -> queryRequest.getDescription());
+        LONG_QUERIES.update(profileTracker.getTime(),
+          () -> queryRequest.getDescription());
       }
       logger.debug(queryIdString + ": cleaning up.");
       injector.injectPause(queryContext.getExecutionControls(), "foreman-cleanup", logger);
-
-      sabotContext.getClusterCoordinator()
-          .getServiceSet(ClusterCoordinator.Role.EXECUTOR)
-          .removeNodeStatusListener(queryManager.getNodeStatusListener());
 
       suppressingClose(queryContext);
 
@@ -590,10 +574,11 @@ public class AttemptManager implements Runnable {
        */
       try {
         // send whatever result we ended up with
+        profileTracker.sendTailProfile(uex);
+
         final UserResult result = new UserResult(extraResultData, queryId, resultState,
-          queryManager.getQueryProfile(queryRequest.getDescription(), state, uex, cancelReason), uex, cancelReason,
-            clientCancelled);
-        observers.attemptCompletion(result);
+          profileTracker.getFullProfile(), uex, profileTracker.getCancelReason(), clientCancelled);
+        observer.attemptCompletion(result);
       } catch(final Exception e) {
         addException(e);
         logger.warn("Exception sending result to client", resultException);
@@ -660,7 +645,7 @@ public class AttemptManager implements Runnable {
 
         case RUNNING: {
           recordNewState(QueryState.RUNNING);
-          observers.execStarted(queryManager.getQueryProfile(queryRequest.getDescription(), newState, null, cancelReason));
+          observer.execStarted(profileTracker.getPlanningProfile());
           return;
         }
 
@@ -685,7 +670,7 @@ public class AttemptManager implements Runnable {
           case CANCELED: {
             assert exception == null;
             recordNewState(QueryState.CANCELED);
-            queryManager.cancelExecutingFragments();
+            maestroService.cancelQuery(queryId);
             foremanResult.setCompleted(QueryState.CANCELED);
           /*
            * We don't close the foremanResult until we've gotten
@@ -706,7 +691,7 @@ public class AttemptManager implements Runnable {
           case FAILED: {
             assert exception != null;
             recordNewState(QueryState.FAILED);
-            queryManager.cancelExecutingFragments();
+            maestroService.cancelQuery(queryId);
             foremanResult.setFailed(exception);
             foremanResult.close();
             return;
@@ -769,4 +754,6 @@ public class AttemptManager implements Runnable {
   private void recordNewState(final QueryState newState) {
     state = newState;
   }
- }
+}
+
+

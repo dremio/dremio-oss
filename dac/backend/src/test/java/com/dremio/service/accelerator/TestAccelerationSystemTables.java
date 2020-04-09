@@ -20,10 +20,6 @@ import org.junit.Test;
 
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.service.jobs.JobRequest;
-import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.JobsServiceUtil;
-import com.dremio.service.jobs.LocalJobsService;
-import com.dremio.service.jobs.NoOpJobStatusListener;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 
@@ -33,43 +29,46 @@ import com.google.common.collect.ImmutableList;
 public class TestAccelerationSystemTables extends BaseTestServer {
   private static final NamespaceKey NONE_PATH = new NamespaceKey(ImmutableList.of("__none"));
 
-  private LocalJobsService jobsService;
-
   @Before
   public void setup() throws Exception {
     clearAllDataExceptUser();
-    jobsService = (LocalJobsService) l(JobsService.class);
   }
 
   @Test
   public void testReflectionsTable() {
-    JobsServiceUtil.waitForJobCompletion(jobsService.submitJob(JobRequest.newBuilder()
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
         .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.reflections"))
         .setDatasetPath(NONE_PATH)
-        .build(), NoOpJobStatusListener.INSTANCE));
+        .build()
+    );
   }
 
   @Test
   public void testMaterializationsTable() {
-    JobsServiceUtil.waitForJobCompletion(jobsService.submitJob(JobRequest.newBuilder()
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
         .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.materializations"))
         .setDatasetPath(NONE_PATH)
-        .build(), NoOpJobStatusListener.INSTANCE));
+        .build()
+    );
   }
 
   @Test
   public void testDependenciesTable() {
-    JobsServiceUtil.waitForJobCompletion(jobsService.submitJob(JobRequest.newBuilder()
+    submitJobAndWaitUntilCompletion(JobRequest.newBuilder()
         .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.dependencies"))
         .setDatasetPath(NONE_PATH)
-        .build(), NoOpJobStatusListener.INSTANCE));
+        .build()
+    );
   }
 
   @Test
   public void testRefreshesTable() {
-    JobsServiceUtil.waitForJobCompletion(jobsService.submitJob(JobRequest.newBuilder()
+    submitJobAndWaitUntilCompletion(JobRequest.newBuilder()
         .setSqlQuery(getQueryFromSQL("SELECT * FROM sys.refreshes"))
         .setDatasetPath(NONE_PATH)
-        .build(), NoOpJobStatusListener.INSTANCE));
+        .build()
+    );
   }
 }

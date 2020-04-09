@@ -137,8 +137,11 @@ public class TestOutputMutator implements OutputMutator, Iterable<VectorWrapper<
     return container;
   }
 
-  @Override
-  public boolean isSchemaChanged() {
+  public boolean getAndResetSchemaChanged() {
+    return false;
+  }
+
+  public boolean getSchemaChanged() {
     return false;
   }
 

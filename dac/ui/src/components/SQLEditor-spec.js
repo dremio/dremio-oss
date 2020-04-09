@@ -71,7 +71,7 @@ describe('SQLEditor', () => {
       sinon.stub(instance, 'resetValue');
       instance.componentDidMount();
       expect(instance.resetValue).to.be.called;
-      instance.resetValue.reset();
+      instance.resetValue.resetHistory();
 
       wrapper = shallow(<SQLEditor {...commonProps} defaultValue={undefined}/>);
       instance = wrapper.instance();
@@ -91,7 +91,7 @@ describe('SQLEditor', () => {
     it('should resetValue only if defaultValue has changed', () => {
       sinon.stub(instance, 'resetValue');
       instance.componentDidMount();
-      instance.resetValue.reset();
+      instance.resetValue.resetHistory();
 
       instance.componentDidUpdate(commonProps);
       expect(instance.resetValue).to.not.be.called;

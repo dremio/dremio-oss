@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.OutOfMemoryException;
-import org.apache.arrow.vector.SchemaChangeCallBack;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.util.CallBack;
@@ -31,8 +30,8 @@ import org.apache.arrow.vector.util.TransferPair;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.BasePath;
 import com.dremio.common.expression.LogicalExpression;
-import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.expr.ClassGenerator;
 import com.dremio.exec.expr.ReturnValueExpression;
 import com.dremio.exec.expr.TypeHelper;
@@ -49,6 +48,7 @@ import com.dremio.sabot.op.copier.Copier;
 import com.dremio.sabot.op.copier.CopierOperator;
 import com.dremio.sabot.op.filter.Filterer;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
+import com.dremio.sabot.op.scan.MutatorSchemaChangeCallBack;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.scan.ScanOperator.ScanMutator;
@@ -77,7 +77,7 @@ public class CopyingFilteringReader implements RecordReader {
    * We still need to keep a reference to the external callback so it can be notified whenever the schema changes on
    * the internal one.
    */
-  private final SchemaChangeCallBack innerCallback = new SchemaChangeCallBack();
+  private final MutatorSchemaChangeCallBack innerCallback = new MutatorSchemaChangeCallBack();
   private CallBack externalCallback;
 
   private VectorContainer readerOutput = new VectorContainer();
@@ -154,7 +154,7 @@ public class CopyingFilteringReader implements RecordReader {
 
     // keep reading until the delegate reader is done or the filter doesn't filter everything
     while ((recordCount = delegate.next()) > 0) {
-      if (mutator.isSchemaChanged()) {
+      if (mutator.getAndResetSchemaChanged()) {
         // report the schema change to the caller but keep reading from the reader
         // This is similar to the behavior of ScanOperator.outputData()
         externalCallback.doWork();
@@ -211,7 +211,7 @@ public class CopyingFilteringReader implements RecordReader {
     }
 
     @Override
-    public TypedFieldId getValueVectorId(SchemaPath path) {
+    public TypedFieldId getValueVectorId(BasePath path) {
       return inner.getValueVectorId(path);
     }
 
@@ -260,7 +260,7 @@ public class CopyingFilteringReader implements RecordReader {
     }
 
     @Override
-    public TypedFieldId getValueVectorId(SchemaPath path) {
+    public TypedFieldId getValueVectorId(BasePath path) {
       throw new UnsupportedOperationException();
     }
 

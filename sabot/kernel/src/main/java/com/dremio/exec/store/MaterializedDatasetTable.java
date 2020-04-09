@@ -33,7 +33,7 @@ import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.catalog.MaterializedSplitsPointer;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.TableMetadataImpl;
-import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.store.NamespaceTable.StatisticImpl;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -78,7 +78,7 @@ public class MaterializedDatasetTable implements TranslatableTable {
 
   @Override
   public RelDataType getRowType(RelDataTypeFactory typeFactory) {
-    return BatchSchema.fromDataset(datasetConfig.get())
+    return CalciteArrowHelper.wrap(CalciteArrowHelper.fromDataset(datasetConfig.get()))
         .toCalciteRecordType(typeFactory, NamespaceTable.SYSTEM_COLUMNS);
   }
 

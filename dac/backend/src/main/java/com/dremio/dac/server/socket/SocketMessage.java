@@ -16,8 +16,9 @@
 package com.dremio.dac.server.socket;
 
 import com.dremio.dac.model.job.PartialJobListItem;
+import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.proto.JobId;
-import com.dremio.service.jobs.Job;
+import com.dremio.service.jobs.JobsProtoUtil;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -171,9 +172,9 @@ public class SocketMessage {
       this.update = update;
     }
 
-    public JobProgressUpdate(Job job) {
-      this.id = job.getJobId();
-      this.update = new PartialJobListItem(job);
+    public JobProgressUpdate(JobSummary jobSummary) {
+      this.id = JobsProtoUtil.toStuff(jobSummary.getJobId());
+      this.update = new PartialJobListItem(jobSummary);
     }
 
     public JobId getId() {

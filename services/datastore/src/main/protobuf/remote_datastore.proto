@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+syntax = "proto2";
 package com.dremio.datastore;
 
 option java_package = "com.dremio.datastore";
@@ -22,6 +23,12 @@ option java_outer_classname = "RemoteDataStoreProtobuf";
 
 import "search_types.proto";
 
+message DocumentResponse {
+  optional bytes key = 1;
+  optional bytes value = 2;
+  optional string tag = 3;
+}
+
 // KVStore requests
 message GetRequest { // KVStore.get(K key) and KVStore.get(List<K> keys)
   required string storeId = 1;
@@ -29,7 +36,7 @@ message GetRequest { // KVStore.get(K key) and KVStore.get(List<K> keys)
 }
 
 message GetResponse {
-  repeated bytes values = 1;
+  repeated DocumentResponse documents = 1;
 }
 
 message ContainsRequest {
@@ -50,29 +57,40 @@ message FindRequest { // KVStore.find(FindByRange<K> find) and KVStore.find()
 }
 
 message FindResponse {
-  repeated bytes keys = 1;
-  repeated bytes values = 2;
+  repeated DocumentResponse documents = 1;
+}
+
+enum PutOptionType {
+  VERSION = 1;
+  CREATE = 2;
+}
+
+message PutOptionInfo {
+  optional PutOptionType type = 1;
+  optional string parameter = 2;
 }
 
 message PutRequest {
   required string storeId = 1;
   required bytes key = 2;
   required bytes value = 3; // value can not be null
+  optional PutOptionInfo optionInfo = 4;
 }
 
 message PutResponse {
-  optional string version = 1; // for occ store
-  optional string concurrentModificationError = 2; //occ update operation
+  optional string tag = 1; // for occ store
+  optional bool concurrentModificationError = 2; // occ update operation
+  optional string errorMessage = 3;
 }
 
 message DeleteRequest {
   required string storeId = 1;
   required bytes key = 2;
-  optional string previousVersion = 3;
+  optional string tag = 3;
 }
 
 message DeleteResponse {
-  optional string concurrentModificationError = 1; //occ update operation
+  optional string concurrentModificationError = 1; // occ update operation
 }
 
 // IndexedStore requests
@@ -86,8 +104,7 @@ message SearchRequest { // IndexedStore.find(FindByCondition find);
 }
 
 message SearchResponse {
-  repeated bytes key = 1;
-  repeated bytes value = 2;
+  repeated DocumentResponse documents = 1;
 }
 
 message GetCountsRequest { // IndexedStore.getCounts(Query... conditions);
@@ -102,10 +119,6 @@ message GetCountsResponse {
 // KVStoreProvider request
 message GetStoreRequest {
   required string name = 1;
-  required string keySerializerClass = 2;
-  required string valueSerializerClass = 3;
-  optional string documentConverterClass = 4;
-  optional string versionExtractorClass = 5;
 }
 
 message GetStoreResponse {
