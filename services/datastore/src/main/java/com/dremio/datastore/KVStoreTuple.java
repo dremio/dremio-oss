@@ -16,6 +16,7 @@
 package com.dremio.datastore;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -107,13 +108,13 @@ public class KVStoreTuple<T> {
     KVStoreTuple<?> other = (KVStoreTuple<?>) o;
 
     return Objects.equals(tag, other.tag) &&
-      Objects.equals(serializedBytes, other.serializedBytes) &&
-      Objects.equals(object, other.object);
+      Arrays.equals(serializedBytes, other.serializedBytes) &&
+      Objects.deepEquals(object, other.object);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(object, serializedBytes, tag);
+    return Arrays.deepHashCode(new Object[] {object, serializedBytes, tag});
   }
 
   public String toJson() throws IOException {

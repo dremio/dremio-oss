@@ -76,6 +76,7 @@ public class CoreSearchIterable<K, V> implements Iterable<Document<KVStoreTuple<
   private class SearchIterator implements Iterator<Document<KVStoreTuple<K>, KVStoreTuple<V>>> {
 
     private int returned;
+    private LuceneSearchIndex.SearchHandle searchHandle;
     private Iterator<Document<KVStoreTuple<K>, KVStoreTuple<V>>> docs;
     private Document<KVStoreTuple<K>, KVStoreTuple<V>> pendingDoc;
     private Doc endLastIterator;
@@ -96,17 +97,15 @@ public class CoreSearchIterable<K, V> implements Iterable<Document<KVStoreTuple<
       final Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> values = store.get(keys);
 
       List<Document<KVStoreTuple<K>, KVStoreTuple<V>>> entries = new ArrayList<>(documents.size());
-      int documentIndex = 0;
       for (final Document<KVStoreTuple<K>, KVStoreTuple<V>> doc : values) {
-        if (doc.getValue().getObject() != null) {
+        if (doc != null && doc.getValue() != null && doc.getValue().getObject() != null) {
           // since the search index can be slightly behind the actual data, make sure to only include non-null tuples.
           entries.add(new ImmutableDocument.Builder<KVStoreTuple<K>, KVStoreTuple<V>>()
-            .setKey(keys.get(documentIndex))
+            .setKey(doc.getKey())
             .setValue(doc.getValue())
             .setTag(doc.getTag())
             .build());
         }
-        ++documentIndex;
       }
 
       return entries.iterator();
@@ -128,9 +127,13 @@ public class CoreSearchIterable<K, V> implements Iterable<Document<KVStoreTuple<
         }
 
         if(state == State.INIT) {
-          List<Doc> documents = index.search(searchQuery, Math.min(pageSize, limit), limit, sort, offset);
-          if(documents.isEmpty()){
-            state = State.DONE;
+          Preconditions.checkState(searchHandle == null);
+          searchHandle = index.createSearchHandle();
+
+          List<Doc> documents = index.search(searchHandle, searchQuery,
+            Math.min(pageSize, limit), sort, offset);
+          if (documents.isEmpty()) {
+            changeStateToDone();
             return false;
           }
           docs = updateIterator(documents);
@@ -147,9 +150,10 @@ public class CoreSearchIterable<K, V> implements Iterable<Document<KVStoreTuple<
         while (!docs.hasNext()) {
           assert endLastIterator != null;
           int searchPageSize = Math.min(pageSize, limit - returned);
-          List<Doc> documents = index.searchAfter(searchQuery, searchPageSize, limit - returned, sort, endLastIterator);
-          if(documents.isEmpty()){
-            state = State.DONE;
+          List<Doc> documents = index.searchAfter(searchHandle, searchQuery,
+            searchPageSize, sort, endLastIterator);
+          if (documents.isEmpty()) {
+            changeStateToDone();
             return false;
           }
           docs = updateIterator(documents);
@@ -173,7 +177,7 @@ public class CoreSearchIterable<K, V> implements Iterable<Document<KVStoreTuple<
 
       returned++;
       if(returned >= limit){
-        state = State.DONE;
+        changeStateToDone();
       }
       Document<KVStoreTuple<K>, KVStoreTuple<V>> entry = pendingDoc;
       pendingDoc = null;
@@ -185,5 +189,12 @@ public class CoreSearchIterable<K, V> implements Iterable<Document<KVStoreTuple<
       throw new UnsupportedOperationException();
     }
 
+    private void changeStateToDone() {
+      if (searchHandle != null) {
+        searchHandle.close();
+        searchHandle = null;
+      }
+      state = State.DONE;
+    }
   }
 }

@@ -359,7 +359,7 @@ public class LuceneSearchIndex implements AutoCloseable {
     }
   }
 
-  private List<Doc> toDocs(ScoreDoc[] hits, Searcher searcher, long version) throws IOException{
+  private List<Doc> toDocs(ScoreDoc[] hits, Searcher searcher) throws IOException{
     List<Doc> documentList = new ArrayList<>();
     for (int i = 0; i < hits.length; ++i) {
       ScoreDoc scoreDoc = hits[i];
@@ -372,37 +372,10 @@ public class LuceneSearchIndex implements AutoCloseable {
       final BytesRef ref = idField.binaryValue();
       final byte[] bytes = new byte[ref.length];
       System.arraycopy(ref.bytes, ref.offset, bytes, 0, ref.length);
-      Doc outputDoc = new Doc(scoreDoc, bytes, version);
+      Doc outputDoc = new Doc(scoreDoc, bytes, 0 /*version*/);
       documentList.add(outputDoc);
     }
     return documentList;
-  }
-
-  public List<Doc> searchAfter(final Query query, int pageSize, int limit, Sort sort, Doc doc) throws IOException {
-    Preconditions.checkArgument(pageSize <= limit, "pageSize must be <= limit. pageSize was %d, limit was %d",
-      pageSize, limit);
-    committerThread.throwExceptionIfAny();
-
-    // Paginated search depends on the cursor (ScoreDoc). However, the cursors are not valid if the
-    // IndexSearcher changes (this can happen if there are a lot of updates to the index). Holding
-    // on to the searcher in the iterator wrapper is not feasible with the remote indexed store
-    // implementation (i.e search over rpc). So, we instead put the searcher in a cache and set a
-    // ttl (SEARCH_CACHE_TTL) on it. The ttl is extended on every access to the searcher.
-    Searcher searcher = searcherCache.getIfPresent(doc.version);
-    if (searcher == null) {
-      // searcher not found in cache.
-      throw new StaleSearcherException("stale searcher");
-    }
-
-    TopDocs fieldDocs = searcher.searchAfter(doc.doc, query, pageSize, sort);
-    boolean searcherDone = fieldDocs == null || fieldDocs.scoreDocs.length == 0 ||
-      fieldDocs.scoreDocs.length == limit;
-    if  (searcherDone) {
-      // The iterator is done, release the searcher in the cache.
-      searcherCache.invalidate(doc.version);
-      return ImmutableList.of();
-    }
-    return toDocs(fieldDocs.scoreDocs, searcher, doc.version);
   }
 
   @Deprecated
@@ -420,42 +393,65 @@ public class LuceneSearchIndex implements AutoCloseable {
 
   }
 
-  // a new version is generated at the beginning of each search.
-  private long nextSearchVersion() {
-    return (((long)searchVersionBase) << 32) + searchVersionCounter.incrementAndGet();
+  class SearchHandle implements AutoCloseable {
+    private long version;
+
+    SearchHandle() {
+      // a new version is generated at the beginning of each search.
+      version =
+        (((long)searchVersionBase) << 32) + searchVersionCounter.incrementAndGet();
+      searcherCache.put(version, acquireSearcher());
+    }
+
+    Searcher getCachedSearcher() {
+      Preconditions.checkState(version != 0);
+
+      // Paginated search depends on the cursor (ScoreDoc). However, the cursors are not valid if the
+      // IndexSearcher changes (this can happen if there are a lot of updates to the index). Holding
+      // on to the searcher in the iterator wrapper is not feasible with the remote indexed store
+      // implementation (i.e search over rpc). So, we instead put the searcher in a cache and set a
+      // ttl (SEARCH_CACHE_TTL) on it. The ttl is extended on every access to the searcher.
+      Searcher searcher = searcherCache.getIfPresent(version);
+      if (searcher == null) {
+        // searcher not found in cache.
+        throw new StaleSearcherException("stale searcher");
+      }
+      return searcher;
+    }
+
+    @Override
+    public void close() {
+      if (version != 0) {
+        searcherCache.invalidate(version);
+        version = 0;
+      }
+    }
+  };
+
+  /**
+   * Create a handle that can be used for subsequent search/searchAfter calls. The caller
+   * is expected to close the handle when the search is done.
+   *
+   * @return search handle.
+   */
+  public SearchHandle createSearchHandle() {
+    committerThread.throwExceptionIfAny();
+    checkIfChanged();
+
+    return new SearchHandle();
   }
 
-  public List<Doc> search(final Query query, int pageSize, int limit, Sort sort, int skip) throws IOException {
+  public List<Doc> search(final SearchHandle searchHandle, final Query query,
+                          int pageSize, Sort sort, int skip) throws IOException {
     committerThread.throwExceptionIfAny();
     checkIfChanged();
     Preconditions.checkArgument(skip > -1, "Skip must be zero or greater. Was %d.", skip);
-    Preconditions.checkArgument(pageSize <= limit, "pageSize must be <= limit. pageSize was %d, limit was %d",
-      pageSize, limit);
 
-    Searcher searcher = acquireSearcher();
-    try {
-      final long version = nextSearchVersion();
-      final List<Doc> retList = search(searcher, query, pageSize, sort, skip, version);
-      boolean searcherDone = retList == null || retList.isEmpty() || retList.size() == limit;
-      if (!searcherDone) {
-        // add the searcher to the cache. The entry is removed from the cache when the iterator
-        // completes (or) the cache ttl elapses.
-        searcherCache.put(version, searcher);
-        searcher = null;
-      }
-      return retList;
-    } finally {
-      if (searcher != null) {
-        searcher.close();
-      }
-    }
-  }
-
-  private List<Doc> search(final Searcher searcher, final Query query, int pageSize, Sort sort, int skip, long version) throws IOException {
+    Searcher searcher = searchHandle.getCachedSearcher();
     if (skip == 0) {
       // don't skip anything.
       final TopDocs fieldDocs = searcher.search(query, pageSize, sort);
-      return toDocs(fieldDocs.scoreDocs, searcher, version);
+      return toDocs(fieldDocs.scoreDocs, searcher);
     }
 
     // we'll skip docs without resolving external ids.
@@ -466,11 +462,28 @@ public class LuceneSearchIndex implements AutoCloseable {
       if (fieldDocs == null) {
         return ImmutableList.of();
       }
-      return toDocs(fieldDocs.scoreDocs, searcher, version);
+      return toDocs(fieldDocs.scoreDocs, searcher);
     } else {
       // there are no more results once we did the skip.
       return Collections.emptyList();
     }
+  }
+
+  public List<Doc> searchAfter(final SearchHandle searchHandle, final Query query,
+                               int pageSize, Sort sort, Doc doc) throws IOException {
+    committerThread.throwExceptionIfAny();
+
+    Searcher searcher = searchHandle.getCachedSearcher();
+    TopDocs fieldDocs = searcher.searchAfter(doc.doc, query, pageSize, sort);
+    if  (fieldDocs == null) {
+      return ImmutableList.of();
+    }
+    return toDocs(fieldDocs.scoreDocs, searcher);
+  }
+
+  @VisibleForTesting
+  long getNumCachedSearchers() {
+    return searcherCache.size();
   }
 
   @Override

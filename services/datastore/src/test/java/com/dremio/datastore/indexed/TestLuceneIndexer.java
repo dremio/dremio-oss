@@ -325,37 +325,17 @@ public class TestLuceneIndexer {
       }
 
       Query query = new TermQuery(new Term("user", "u1"));
-      List<Doc> docs = index.search(query, 4, 10, new Sort(), 0);
+      LuceneSearchIndex.SearchHandle searchHandle = index.createSearchHandle();
+      List<Doc> docs = index.search(searchHandle, query, 4, new Sort(), 0);
       assertEquals(4, docs.size());
 
       // sleep to force cache expiry.
       Thread.sleep(1000);
 
-      docs = index.searchAfter(query, 6, 6, new Sort(), docs.get(3));
+      docs = index.searchAfter(searchHandle, query, 6, new Sort(), docs.get(3));
       assertEquals(6, docs.size());
-    }
-  }
 
-  // tests that after reaching the limit, the searcher isn't present in the cache.
-  @Test(expected = StaleSearcherException.class)
-  public void testSearcherCacheAfterLimitHit() throws Exception {
-    try (LuceneSearchIndex index = new LuceneSearchIndex(null, "searcher-cache-after-limit", true, CommitWrapper.NO_OP)) {
-      for (int i = 0; i < 10; ++i) {
-        final Document doc = new Document();
-        doc.add(
-          new StringField(CoreIndexedStore.ID_FIELD_NAME, new BytesRef(Integer.toString(i).getBytes()), Store.YES));
-        doc.add(new StringField("user", "u1", Field.Store.YES));
-        index.add(doc);
-      }
-
-      // search with limit=4
-      Query query = new TermQuery(new Term("user", "u1"));
-      List<Doc> docs = index.search(query, 4, 4, new Sort(), 0);
-      assertEquals(4, docs.size());
-
-      // iterate after hitting limit, should fail (not in cache any more).
-      docs = index.searchAfter(query, 6, 6, new Sort(), docs.get(3));
-      assertEquals(6, docs.size());
+      searchHandle.close();
     }
   }
 
@@ -370,14 +350,18 @@ public class TestLuceneIndexer {
         index.add(doc);
       }
 
+      LuceneSearchIndex.SearchHandle searchHandle = index.createSearchHandle();
+
       // search without limit, returns 10 docs.
       Query query = new TermQuery(new Term("user", "u1"));
-      List<Doc> docs = index.search(query, 1000, Integer.MAX_VALUE, new Sort(), 0);
+      List<Doc> docs = index.search(searchHandle, query, 1000, new Sort(), 0);
       assertEquals(10, docs.size());
 
       // no more docs, search should return empty.
-      docs = index.searchAfter(query, 1000, Integer.MAX_VALUE, new Sort(), docs.get(9));
+      docs = index.searchAfter(searchHandle, query, 1000, new Sort(), docs.get(9));
       assertEquals(0, docs.size());
+
+      searchHandle.close();
     }
   }
 
