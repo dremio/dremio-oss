@@ -85,7 +85,7 @@ public abstract class FlattenRelBase extends SingleRel {
 
     // cost is proportional to the number of rows and number of columns being projected
     double rowCount = this.estimateRowCount(mq);
-    double cpuCost = DremioCost.PROJECT_CPU_COST * rowCount;
+    double cpuCost = DremioCost.PROJECT_CPU_COST * rowCount * getRowType().getFieldCount();
 
     Factory costFactory = (Factory)planner.getCostFactory();
 

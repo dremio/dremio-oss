@@ -17,6 +17,7 @@
 package com.dremio.plugins.azure;
 
 import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
+import static com.dremio.plugins.azure.utils.AzureAsyncHttpClientUtils.Endpoint.BLOB;
 
 import java.io.FileNotFoundException;
 import java.util.concurrent.CompletableFuture;
@@ -62,7 +63,7 @@ public class AzureAsyncReader extends ExponentialBackoff implements AutoCloseabl
     this.path = path;
     this.version = AzureAsyncHttpClientUtils.toHttpDateFormat(Long.parseLong(version));
     this.asyncHttpClient = asyncHttpClient;
-    final String baseURL = AzureAsyncHttpClientUtils.getBaseEndpointURL(accountName, isSecure);
+    final String baseURL = AzureAsyncHttpClientUtils.getBaseEndpointURL(accountName, BLOB, isSecure);
     final String container = ContainerFileSystem.getContainerName(path);
     final String subPath = removeLeadingSlash(ContainerFileSystem.pathWithoutContainer(path).toString());
     this.url = String.format("%s/%s/%s", baseURL, container, AzureAsyncHttpClientUtils.encodeUrl(subPath));

@@ -111,7 +111,7 @@ public class DremioDaemon {
   public static void main(String[] args) throws Exception {
     final DACDaemonOptions options = new DACDaemonOptions();
     JCommander jc = JCommander.newBuilder().addObject(options).build();
-    jc.setProgramName("dremio-admin export-profiles");
+    jc.setProgramName("Dremio");
     try {
       jc.parse(args);
     } catch (ParameterException p) {

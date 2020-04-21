@@ -23,7 +23,7 @@
     <parent>
         <groupId>com.dremio.services</groupId>
         <artifactId>dremio-services-parent</artifactId>
-        <version>4.2.1-202004111451200819-0c3ecaea</version>
+        <version>4.2.2-202004211133290458-b550b6fa</version>
     </parent>
     <artifactId>dremio-services-executorservice</artifactId>
     <name>Services - Executor Service</name>

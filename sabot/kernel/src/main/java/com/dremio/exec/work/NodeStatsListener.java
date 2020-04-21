@@ -32,7 +32,6 @@ public class NodeStatsListener implements StreamObserver<NodeStatResp> {
 
   private final DeferredException ex;
   private final ConcurrentHashMap<String, NodeInstance> stats;
-  private NodeStatResp value;
 
   public NodeStatsListener(int numEndPoints) {
     this.latch = new CountDownLatch(numEndPoints);
@@ -51,20 +50,18 @@ public class NodeStatsListener implements StreamObserver<NodeStatResp> {
 
   @Override
   public void onNext(NodeStatResp nodeStatResp) {
-    value = nodeStatResp;
+    stats.put(nodeStatResp.getNodeStats().getName() + ":" + nodeStatResp.getNodeStats().getPort(),
+      NodeInstance.fromStats(nodeStatResp.getNodeStats(), nodeStatResp.getEndpoint()));
   }
 
   @Override
   public void onError(Throwable throwable) {
-    latch.countDown();
     ex.addException((Exception) throwable);
+    latch.countDown();
   }
 
   @Override
   public void onCompleted() {
-    stats.put(value.getNodeStats().getName() + ":" + value.getNodeStats().getPort(),
-            NodeInstance.fromStats(value.getNodeStats(), value.getEndpoint()));
     latch.countDown();
-
   }
 }

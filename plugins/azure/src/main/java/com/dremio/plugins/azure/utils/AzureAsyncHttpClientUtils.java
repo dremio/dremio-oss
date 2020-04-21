@@ -46,13 +46,23 @@ import io.netty.util.HashedWheelTimer;
  * Prepares new instances of AsyncHttpClient
  */
 public final class AzureAsyncHttpClientUtils {
+  /**
+   * Endpoint, that points to the Azure server API.
+   */
+  public enum Endpoint {
+    DFS, BLOB;
+
+    public String toString() {
+      return name().toLowerCase();
+    }
+  }
 
   private static final Logger logger = LoggerFactory.getLogger(AzureAsyncHttpClientUtils.class);
   private static final int DEFAULT_IDLE_TIME = 60_000;
   private static final int DEFAULT_REQUEST_TIMEOUT = 10_000;
   private static final int DEFAULT_CLEANER_PERIOD = 1_000;
   private static final int MAX_RETRIES = 4;
-  private static final String AZURE_ENDPOINT = "blob.core.windows.net";
+  private static final String AZURE_ENDPOINT = "core.windows.net";
   private static final String XMS_VERSION = "2019-02-02"; // represents version compatibility of the client.
   private static final String USER_AGENT_VAL = String.format("azsdk-java-azure-storage-blob/12.1.0 (%s; %s %s)",
     System.getProperty("java.version"),
@@ -86,9 +96,9 @@ public final class AzureAsyncHttpClientUtils {
     return asyncHttpClient(configBuilder.build());
   }
 
-  public static String getBaseEndpointURL(final String accountName, final boolean isSecure) {
+  public static String getBaseEndpointURL(final String accountName, final Endpoint endpoint, final boolean isSecure) {
     final String protocol = isSecure ? "https" : "http";
-    return String.format("%s://%s.%s", protocol, accountName, AZURE_ENDPOINT);
+    return String.format("%s://%s.%s.%s", protocol, accountName, endpoint, AZURE_ENDPOINT);
   }
 
   public static RequestBuilder newDefaultRequestBuilder() {

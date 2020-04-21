@@ -174,6 +174,10 @@
     </if>
   </logger>
 
+  <logger name="org.apache.hadoop.hdfs.DFSClient">
+    <level value="warn"/>
+  </logger>
+
   <root>
     <level value="${dremio.log.root.level:-error}"/>
     <if condition='isDefined("dremio.log.path")'>

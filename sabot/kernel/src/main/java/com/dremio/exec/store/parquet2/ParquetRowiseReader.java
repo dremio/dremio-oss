@@ -466,8 +466,10 @@ public class ParquetRowiseReader extends AbstractParquetReader {
 
     public void reset() {
       index = 0;
-      runningDelta = deltas.get(0);
       maxIndex = deltas.getValueCount();
+      if (maxIndex > 0) {
+        runningDelta = deltas.get(0);
+      }
     }
 
     @Override

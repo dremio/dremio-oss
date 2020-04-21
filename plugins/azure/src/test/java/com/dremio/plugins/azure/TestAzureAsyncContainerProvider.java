@@ -25,15 +25,19 @@ import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
 import org.asynchttpclient.AsyncCompletionHandler;
 import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.HttpResponseStatus;
 import org.asynchttpclient.ListenableFuture;
 import org.asynchttpclient.Request;
@@ -48,44 +52,56 @@ import com.google.common.io.ByteStreams;
 public class TestAzureAsyncContainerProvider {
 
   @Test
-  public void testListContainersChunkedBytesMultiPagedResult() throws IOException {
+  public void testListContainers() throws IOException, ExecutionException, InterruptedException {
     AsyncHttpClient client = mock(AsyncHttpClient.class);
     Response response = mock(Response.class);
+    when(response.getHeader(any(String.class))).thenReturn("");
     HttpResponseStatus status = mock(HttpResponseStatus.class);
     when(status.getStatusCode()).thenReturn(206);
 
-    byte[] page1ResponseBodyBytes = readStaticResponse("container-response-page1.xml");
-    RandomBytesResponseDispatcher page1ResponseDispatcher = new RandomBytesResponseDispatcher(page1ResponseBodyBytes);
+    byte[] dfsCoreResponseBodyBytesPage1 = readStaticResponse("dfs-core-container-response-page1.json");
+    RandomBytesResponseDispatcher dfsCoreResponseDispatcherPage1 = new RandomBytesResponseDispatcher(dfsCoreResponseBodyBytesPage1);
 
-    byte[] page2ResponseBodyBytes = readStaticResponse("container-response-page2.xml");
-    RandomBytesResponseDispatcher page2ResponseDispatcher = new RandomBytesResponseDispatcher(page2ResponseBodyBytes);
+    byte[] dfsCoreResponseBodyBytesPage2 = readStaticResponse("dfs-core-container-response-page2.json");
+    RandomBytesResponseDispatcher dfsCoreResponseDispatcherPage2 = new RandomBytesResponseDispatcher(dfsCoreResponseBodyBytesPage2);
+
+    byte[] dfsCoreEmptyResponseBytes = readStaticResponse("dfs-core-container-empty.json");
+    RandomBytesResponseDispatcher dfsCoreEmptyResponseDispatcher = new RandomBytesResponseDispatcher(dfsCoreEmptyResponseBytes);
 
     CompletableFuture<Response> future = CompletableFuture.completedFuture(response);
     ListenableFuture<Response> resFuture = mock(ListenableFuture.class);
     when(resFuture.toCompletableFuture()).thenReturn(future);
+    when(resFuture.get()).thenReturn(response);
 
     when(client.executeRequest(any(Request.class), any(AsyncCompletionHandler.class))).then(invocationOnMock -> {
       Request req = invocationOnMock.getArgument(0, Request.class);
-      assertTrue(req.getUrl().startsWith("https://azurestoragev2hier.blob.core.windows.net?comp=list&maxresults=100"));
+      AsyncCompletionHandler handler = invocationOnMock.getArgument(1, AsyncCompletionHandler.class);
+
+      assertTrue(req.getUrl().startsWith("https://azurestoragev2hier.dfs.core.windows.net"));
       assertNotNull(req.getHeaders().get("Date"));
       assertNotNull(req.getHeaders().get("x-ms-client-request-id"));
       assertEquals("2019-02-02", req.getHeaders().get("x-ms-version")); // edit only if you're upgrading client
       assertEquals("Bearer testtoken", req.getHeaders().get("Authorization"));
+      List<NameValuePair> queryParams = URLEncodedUtils.parse(new URI(req.getUrl()), StandardCharsets.UTF_8);
+      String continuationKey = queryParams.stream()
+        .filter(param -> param.getName().equalsIgnoreCase("continuation")).findAny()
+        .map(NameValuePair::getValue).orElse("");
 
-      AsyncCompletionHandler handler = invocationOnMock.getArgument(1, AsyncCompletionHandler.class);
-      // First page result has following as NextMarker. Next request is made with same criteria.
-      //HttpResponseBodyPart responsePart = req.getUrl().endsWith("marker=%2Fazurestoragev2hier%2Ftestfs2") ? page2ResponsePart : page1ResponsePart;
-
-      boolean isLastPage = req.getUrl().endsWith("marker=%2Fazurestoragev2hier%2Ftestfs2");
-
-      // Dispatch responses in chunks
-      if (isLastPage) {
-        while (page2ResponseDispatcher.isNotFinished()) {
-          handler.onBodyPartReceived(page2ResponseDispatcher.getNextBodyPart());
+      // Return empty response if continuation key is not present. Return data in continuation call.
+      // This is to ensure that the plugin makes another call when there's no data but continuation key present.
+      if ("testcontinuation".equalsIgnoreCase(continuationKey)) {
+        when(response.getHeader("x-ms-continuation")).thenReturn("page2container1");
+        while (dfsCoreResponseDispatcherPage1.isNotFinished()) {
+          handler.onBodyPartReceived(dfsCoreResponseDispatcherPage1.getNextBodyPart());
+        }
+      } else if ("page2container1".equalsIgnoreCase(continuationKey)) {
+        while (dfsCoreResponseDispatcherPage2.isNotFinished()) {
+          handler.onBodyPartReceived(dfsCoreResponseDispatcherPage2.getNextBodyPart());
         }
       } else {
-        while(page1ResponseDispatcher.isNotFinished()) {
-          handler.onBodyPartReceived(page1ResponseDispatcher.getNextBodyPart());
+        when(response.getHeader("x-ms-continuation")).thenReturn("testcontinuation");
+        while (dfsCoreEmptyResponseDispatcher.isNotFinished()) {
+          handler.onBodyPartReceived(dfsCoreEmptyResponseDispatcher.getNextBodyPart());
         }
       }
 
@@ -104,41 +120,38 @@ public class TestAzureAsyncContainerProvider {
       .map(AzureStorageFileSystem.ContainerCreatorImpl::getName)
       .collect(Collectors.toList());
 
-    List<String> expectedContainers = Arrays.asList("bar", "foo", "helm-test-dist-ryan", "mraodist", "testdata", "testfs", "testfs2");
+    List<String> expectedContainers = Arrays.asList("page1container1", "page1container2", "page1container3", "page2container1", "page2container2", "page2container3");
     assertEquals(expectedContainers, receivedContainers);
   }
 
-
   @Test
-  public void testListContainersWithRetry() throws IOException {
-    // Fail in first n-1 permitted attempts and succeed only in the final one.
-
+  public void testListContainersWithRetry() throws IOException, ExecutionException, InterruptedException {
     AsyncHttpClient client = mock(AsyncHttpClient.class);
     Response response = mock(Response.class);
-
+    when(response.getHeader(any(String.class))).thenReturn("");
+    HttpResponseStatus status = mock(HttpResponseStatus.class);
+    when(status.getStatusCode()).thenReturn(206);
     HttpResponseStatus failedStatus = mock(HttpResponseStatus.class);
     when(failedStatus.getStatusCode()).thenReturn(500);
 
-    HttpResponseStatus successStatus = mock(HttpResponseStatus.class);
-    when(successStatus.getStatusCode()).thenReturn(200);
-
-    HttpResponseBodyPart page2ResponsePart = mock(HttpResponseBodyPart.class);
-    byte[] page2ResponseBodyBytes = readStaticResponse("container-response-page2.xml");
-    when(page2ResponsePart.getBodyPartBytes()).thenReturn(page2ResponseBodyBytes);
+    byte[] dfsCoreResponseBodyBytes = readStaticResponse("dfs-core-container-response-page1.json");
+    RandomBytesResponseDispatcher dfsCoreResponseDispatcher = new RandomBytesResponseDispatcher(dfsCoreResponseBodyBytes);
 
     CompletableFuture<Response> future = CompletableFuture.completedFuture(response);
     ListenableFuture<Response> resFuture = mock(ListenableFuture.class);
     when(resFuture.toCompletableFuture()).thenReturn(future);
+    when(resFuture.get()).thenReturn(response);
 
     AtomicInteger retryAttemptNo = new AtomicInteger(0);
     when(client.executeRequest(any(Request.class), any(AsyncCompletionHandler.class))).then(invocationOnMock -> {
       AsyncCompletionHandler handler = invocationOnMock.getArgument(1, AsyncCompletionHandler.class);
-      // First page result has following as NextMarker. Next request is made with same criteria.
-      if (retryAttemptNo.incrementAndGet() < 4) {
+      if (retryAttemptNo.incrementAndGet() < 10) {
         handler.onStatusReceived(failedStatus);
       } else {
-        handler.onStatusReceived(successStatus);
-        handler.onBodyPartReceived(page2ResponsePart);
+        while (dfsCoreResponseDispatcher.isNotFinished()) {
+          handler.onBodyPartReceived(dfsCoreResponseDispatcher.getNextBodyPart());
+        }
+        handler.onStatusReceived(status);
       }
       handler.onCompleted(response);
       return resFuture;
@@ -154,10 +167,9 @@ public class TestAzureAsyncContainerProvider {
       .map(AzureStorageFileSystem.ContainerCreatorImpl::getName)
       .collect(Collectors.toList());
 
-    List<String> expectedContainers = Arrays.asList("testfs2");
+    List<String> expectedContainers = Arrays.asList("page1container1", "page1container2", "page1container3");
     assertEquals(expectedContainers, receivedContainers);
   }
-
 
   private byte[] readStaticResponse(String fileName) throws IOException {
     // response is big, hence kept in a separate file within test/resources folder
