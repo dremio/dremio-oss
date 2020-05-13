@@ -27,6 +27,9 @@ import com.dremio.provision.resource.ProvisioningResource;
 import com.fasterxml.jackson.annotation.JsonFilter;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.regions.internal.util.EC2MetadataUtils;
+
 /**
  * AWS Props
  */
@@ -71,7 +74,7 @@ public interface AwsPropsApi {
     String getAccessKey();
 
     @Redacted @SentinelSecure(ProvisioningResource.USE_EXISTING_SECRET_VALUE) String getSecretKey();
-    String getRegion();
+    @Default default String getRegion() { return hasEc2Metadata() ? EC2MetadataUtils.getEC2InstanceRegion() : Region.US_EAST_1.id(); };
 
     @URL
     String getEndpoint();
@@ -81,6 +84,15 @@ public interface AwsPropsApi {
 
     public static ImmutableAwsConnectionPropsApi.Builder builder() {
       return new ImmutableAwsConnectionPropsApi.Builder();
+    }
+
+    static boolean hasEc2Metadata() {
+      try {
+        EC2MetadataUtils.getData("/latest/meta-data/instance-type", 1);
+        return true;
+      } catch (Exception ex) {
+        return false;
+      }
     }
   }
 

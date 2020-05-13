@@ -41,6 +41,8 @@ import org.apache.arrow.vector.types.pojo.ArrowType.Timestamp;
 import org.apache.arrow.vector.types.pojo.ArrowType.Utf8;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.hadoop.hive.metastore.api.FieldSchema;
+import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.io.orc.OrcInputFormat;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.typeinfo.DecimalTypeInfo;
@@ -48,9 +50,12 @@ import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.UnionTypeInfo;
 import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.mapred.InputFormat;
+
+import com.dremio.exec.catalog.ColumnNestedTooDeepException;
 import com.google.common.collect.Sets;
 
 public class HiveSchemaConverter {
@@ -197,5 +202,71 @@ public class HiveSchemaConverter {
     }
 
     return null;
+  }
+
+  /**
+   * For primitive field depth is zero.
+   * List adds one level to its child
+   * Struct adds one level to its deepest child
+   * Map is ignored
+   * Union adds one level to its deepest chlld
+   * @param typeInfo
+   * @return
+   */
+  private static int findFieldDepth(final TypeInfo typeInfo) {
+    if (typeInfo == null) {
+      return 0;
+    }
+
+    switch (typeInfo.getCategory()) {
+      case LIST: {
+        ListTypeInfo lti = (ListTypeInfo) typeInfo;
+        TypeInfo elementTypeInfo = lti.getListElementTypeInfo();
+        return 1 + findFieldDepth(elementTypeInfo);
+      }
+
+      case STRUCT: {
+        StructTypeInfo sti = (StructTypeInfo) typeInfo;
+        ArrayList<String> fieldNames = sti.getAllStructFieldNames();
+        ArrayList<Field> structFields = new ArrayList<Field>();
+        int childDepth = 0;
+        for (String fieldName : fieldNames) {
+          TypeInfo fieldTypeInfo = sti.getStructFieldTypeInfo(fieldName);
+          childDepth = Integer.max(childDepth, findFieldDepth(fieldTypeInfo));
+        }
+        return 1 + childDepth;
+      }
+
+      case UNION: {
+        UnionTypeInfo uti = (UnionTypeInfo) typeInfo;
+        final List<TypeInfo> objectTypeInfos = uti.getAllUnionObjectTypeInfos();
+        int childDepth = 0;
+        for (TypeInfo fieldTypeInfo : objectTypeInfos) {
+          childDepth = Integer.max(childDepth, findFieldDepth(fieldTypeInfo));
+        }
+        return 1 + childDepth;
+      }
+
+      case PRIMITIVE:
+      case MAP:
+      default:
+        return 0;
+    }
+  }
+
+  /**
+   * iterates over all fields of a table and checks if any field exceeds
+   * maximum allowed nested level
+   * @param table
+   * @param maxNestedLevels
+   */
+  public static void checkFieldNestedLevels(final Table table, int maxNestedLevels) {
+    for (FieldSchema hiveField : table.getSd().getCols()) {
+      final TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(hiveField.getType());
+      int depth = findFieldDepth(typeInfo);
+      if (depth > maxNestedLevels) {
+        throw new ColumnNestedTooDeepException(hiveField.getName(), maxNestedLevels);
+      }
+    }
   }
 }

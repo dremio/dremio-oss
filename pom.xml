@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>4.2.2-202004211133290458-b550b6fa</version>
+  <version>4.3.0-202005130311450502-323f05d9</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,9 +38,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>1.0.0-20200327115344-e8784bde9c-dremio</arrow.version>
+    <arrow.version>0.18.0-20200505155812-4c5cbe98c7-dremio</arrow.version>
     <avatica.version>1.12.0</avatica.version>
-    <calcite.version>1.16.0-202003291928280542-f6429cd</calcite.version>
+    <calcite.version>1.16.0-202004300519170468-0362519</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
@@ -51,7 +51,7 @@
 
     <hibernate-validator.version>6.1.2.Final</hibernate-validator.version>
 
-    <hadoop.version>3.2.1-dremio-202003182227490172-f8b0e18</hadoop.version>
+    <hadoop.version>3.2.1-dremio-202004022157140768-f49a3df</hadoop.version>
     <avro.version>1.9.2</avro.version>
     <iceberg.version>0.7.0-incubating</iceberg.version>
 
@@ -59,16 +59,16 @@
     <plugin.hive2.azure-datalake.version>2.3.3-201901300025380807-2bdda72</plugin.hive2.azure-datalake.version>
     <plugin.hive2.hadoop-azure.version>2.8.5-dremio-r2-d1532684d9fd0f51b3451fda22d5f0be503a167c</plugin.hive2.hadoop-azure.version>
     <plugin.hive2.hadoop-azure-datalake.version>2.8.5</plugin.hive2.hadoop-azure-datalake.version>
-    <plugin.hive2.aws-sdk.version>1.11.156</plugin.hive2.aws-sdk.version>
+    <plugin.hive2.aws-sdk.version>1.11.761</plugin.hive2.aws-sdk.version>
     <plugin.hive2.hadoop.version>2.8.5</plugin.hive2.hadoop.version>
-    <plugin.hive2.hive.version>2.1.1-dremio-201909161537170757-9d964f7</plugin.hive2.hive.version>
+    <plugin.hive2.hive.version>2.1.1-dremio-202004220420450487-2c6606c</plugin.hive2.hive.version>
     <plugin.hive2.datanucleus-api-jdo.version>4.2.1</plugin.hive2.datanucleus-api-jdo.version>
     <plugin.hive2.datanucleus-core.version>4.1.6</plugin.hive2.datanucleus-core.version>
     <plugin.hive2.datanucleus-rdbms.version>4.1.7</plugin.hive2.datanucleus-rdbms.version>
     <plugin.hive2.datanucleus-jdo.version>3.2.0-m3</plugin.hive2.datanucleus-jdo.version>
     <plugin.hive2.jdo-api.version>3.0.1</plugin.hive2.jdo-api.version>
     <plugin.hive2.mapr.hadoop.version>2.7.0-mapr-1803</plugin.hive2.mapr.hadoop.version>
-    <plugin.hive2.mapr.hive.version>2.1.1-mapr-1803-201908200826380359-c333a66</plugin.hive2.mapr.hive.version>
+    <plugin.hive2.mapr.hive.version>2.1.1-mapr-1803-202004220542160537-7eb4f70</plugin.hive2.mapr.hive.version>
     <plugin.hive2.mapr.maprfs.version>6.0.1-mapr-client-dremio-20190717</plugin.hive2.mapr.maprfs.version>
 
     <!-- [DX-18063] HBase versions older than 1.1.7 get version info using package-info.class
@@ -83,7 +83,7 @@
     <plugin.hive3.hadoop-azure.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure.version>
     <plugin.hive3.hadoop-azure-datalake.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure-datalake.version>
     <plugin.hive3.aws-hadoop.version>${plugin.hive3.hadoop.version}</plugin.hive3.aws-hadoop.version>
-    <plugin.hive3.aws-sdk.version>1.11.375</plugin.hive3.aws-sdk.version>
+    <plugin.hive3.aws-sdk.version>1.11.761</plugin.hive3.aws-sdk.version>
     <plugin.hive3.hive.version>3.1.1-dremio-201909111144580113-04156e1</plugin.hive3.hive.version>
     <plugin.hive3.hbase.version>2.2.0</plugin.hive3.hbase.version>
     <plugin.hive3.orc.version>1.5.1-dremio-201909110637480131-cacdb01</plugin.hive3.orc.version>
@@ -106,7 +106,7 @@
     <logback.version>1.2.3</logback.version>
     <metrics.version>4.1.0</metrics.version>
     <mariadb.connector.version>2.3.0</mariadb.connector.version>
-    <netty.version>4.1.45.Final</netty.version>
+    <netty.version>4.1.48.Final</netty.version>
     <netty.boringssl.version>2.0.28.Final</netty.boringssl.version>
     <parquet.version>1.12.0-201905082117230809-0fe4d5d</parquet.version>
     <pf4j.version>3.0.1</pf4j.version>
@@ -119,8 +119,8 @@
     <zkclient.version>0.10</zkclient.version>
     <zookeeper.version>3.4.14</zookeeper.version>
     <curator.version>2.12.0</curator.version>
-    <aws-sdk.version>1.11.375</aws-sdk.version>
-    <aws-sdk-2.version>2.10.56</aws-sdk-2.version>
+    <aws-sdk.version>1.11.761</aws-sdk.version>
+    <aws-sdk-2.version>2.11.11</aws-sdk-2.version>
     <openhft-affinity.version>3.1.7</openhft-affinity.version>
     <fbs.version>1.9.0</fbs.version>
     <rocksdb.version>5.14.2</rocksdb.version>
@@ -160,6 +160,50 @@
 
   <profiles>
     <profile>
+      <id>errorprone-unless-ide</id>
+      <!-- Run Error Prone (see https://errorprone.info)
+           UNLESS we're running Maven inside the Eclipse IDE under M2E (i.e. only on the "mvn" CLI)
+           because in M2E it causes havoc for the m2e-apt extension (which configures Annotations Processors,
+           such as e.g. http://Immutables.org, for the Eclipse JDT APT support); see full details in
+           https://github.com/jbosstools/m2e-apt/issues/62.  Not running errorprone within the Eclipse
+           IDE is not a problem, because that's not yet supported, anyway;
+           see https://errorprone.info/docs/installation#Eclipse. -->
+      <activation>
+        <property>
+          <name>!m2e.version</name>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <compilerId>javac-with-errorprone</compilerId>
+              <compilerArgs>
+                <arg>-J-Xss2048m</arg>
+                <arg>-XDcompilePolicy=simple</arg>
+                <!-- Add some extra checkers -->
+                <arg>-Xep:PreconditionsCheckNotNullRepeated:ERROR</arg>
+                <arg>-Xep:PreconditionsInvalidPlaceholder:ERROR</arg>
+              </compilerArgs>
+            </configuration>
+            <dependencies>
+              <dependency>
+                <groupId>org.codehaus.plexus</groupId>
+                <artifactId>plexus-compiler-javac-errorprone</artifactId>
+                <version>2.8.4</version>
+              </dependency>
+              <dependency>
+                <groupId>com.google.errorprone</groupId>
+                <artifactId>error_prone_core</artifactId>
+                <version>2.3.4</version>
+              </dependency>
+            </dependencies>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+    <profile>
       <id>with-extras-module</id>
       <activation>
         <file>
@@ -182,7 +226,7 @@
         </property>
       </activation>
       <properties>
-        <plugin.hive2.hive.version>2.1.1-mapr-1803-201908200826380359-c333a66</plugin.hive2.hive.version>
+        <plugin.hive2.hive.version>2.1.1-mapr-1803-202004220542160537-7eb4f70</plugin.hive2.hive.version>
         <hadoop.version>2.7.0-mapr-1803</hadoop.version>
         <!-- hadoop-yarn-common jar is updated in MapR patch 6.0.1 repository, it is updated to be
         compatible with maprfs jar from the same patch. This jar is taken from client package folder
@@ -408,6 +452,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
+          <forceJavacCompilerUse>true</forceJavacCompilerUse>
           <source>1.8</source>
           <target>1.8</target>
           <!-- See MCOMPILER-209 for why it is set to false! -->
@@ -452,6 +497,9 @@
                     <exclude>org.apache.logging.log4j:log4j-slf4j-impl</exclude>
                     <exclude>log4j:*</exclude>
                     <exclude>io.netty:*:4.0</exclude> <!-- exclude netty versions 4.0 and above. some of our dependencies (e.g. ES) still depend on netty 3.x which is fine as versions < 4.0 have a completely different package names -->
+                    <!-- For the sake of space do not include all AWS dependencies but rely on BOM and include individual ones when needed -->
+                    <exclude>com.amazonaws:aws-java-sdk</exclude>
+                    <exclude>software.amazon.awssdk:aws-sdk-java</exclude>
                   </excludes>
                   <includes>
                     <include>io.netty:*:${netty.version}</include>
@@ -818,12 +866,12 @@ limitations under the License.
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.2</version>
+          <version>3.8.1</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-enforcer-plugin</artifactId>
-          <version>1.3.1</version>
+          <version>3.0.0-M3</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -932,6 +980,7 @@ limitations under the License.
             <skipSystemScope>true</skipSystemScope>
             <suppressionFiles>
               <suppressionFile>dremio-owasp/suppressions.xml</suppressionFile>
+              <suppressionFile>dremio-owasp/suppressions-npm.xml</suppressionFile>
             </suppressionFiles>
             <assemblyAnalyzerEnabled>false</assemblyAnalyzerEnabled>
           </configuration>
@@ -1901,13 +1950,10 @@ limitations under the License.
       </dependency>
       <dependency>
         <groupId>com.amazonaws</groupId>
-        <artifactId>aws-java-sdk-s3</artifactId>
+        <artifactId>aws-java-sdk-bom</artifactId>
         <version>${aws-sdk.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.amazonaws</groupId>
-        <artifactId>aws-java-sdk-sts</artifactId>
-        <version>${aws-sdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
       <dependency>
         <groupId>com.amazonaws</groupId>
@@ -1919,11 +1965,6 @@ limitations under the License.
             <groupId>commons-logging</groupId>
           </exclusion>
         </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>com.amazonaws</groupId>
-        <artifactId>aws-java-sdk-kms</artifactId>
-        <version>${aws-sdk.version}</version>
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
@@ -1961,17 +2002,6 @@ limitations under the License.
           <exclusion>
             <groupId>org.freemarker</groupId>
             <artifactId>freemarker</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-      <dependency>
-        <groupId>software.amazon.awssdk</groupId>
-        <artifactId>secretsmanager</artifactId>
-        <version>${aws-sdk-2.version}</version>
-        <exclusions>
-          <exclusion>
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -2963,6 +2993,12 @@ limitations under the License.
         <version>${aws-sdk-2.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+      <!-- Exclude commons-logging from Apache HTTP client used by AWS -->
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>apache-client</artifactId>
+        <version>${aws-sdk-2.version}</version>
         <exclusions>
           <exclusion>
             <groupId>commons-logging</groupId>

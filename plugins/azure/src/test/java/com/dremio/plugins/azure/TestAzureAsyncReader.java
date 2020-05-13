@@ -65,16 +65,8 @@ public class TestAzureAsyncReader {
 
   @Test
   public void testFileVersionChanged() {
-    final String responseBody =
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
-        "<Error>" +
-        "   <Code>ConditionNotMet</Code>" +
-        "   <Message>" +
-        "       The condition specified using HTTP conditional header(s) is not met. " +
-        "       RequestId:60e08b37-801e-0084-046d-f3b2cc000000 " +
-        "       Time:2019-04-15T09:26:02.3121974Z" +
-        "   </Message>" +
-        "</Error>";
+    final String responseBody = "{\"error\":{\"code\":\"ConditionNotMet\",\"message\":\"The condition specified using HTTP " +
+      "conditional header(s) is not met.\\nRequestId:89fa17ae-501f-0002-4bf0-168aaa000000\\nTime:2020-04-20T08:49:44.4893649Z\"}}";
     final int responseCode = 412;
     AzureAsyncReader azureAsyncReader = prepareAsyncReader(responseBody, responseCode);
     ByteBuf buf = Unpooled.buffer(20);
@@ -91,17 +83,9 @@ public class TestAzureAsyncReader {
   }
 
   @Test
-  public void testBlobNotFound() {
-    final String responseBody =
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
-        "<Error>" +
-        "   <Code>BlobNotFound</Code>" +
-        "   <Message>" +
-        "      The specified blob does not exist." +
-        "      RequestId:44ac97c2-601e-00e4-60a6-bf9b5a000000" +
-        "      Time:2019-12-31T06:49:04.7710349Z" +
-        "   </Message>" +
-        "</Error>";
+  public void testPathNotFound() {
+    final String responseBody = "{\"error\":{\"code\":\"PathNotFound\",\"message\":\"The specified path does not exist." +
+      "\\nRequestId:5b544bd0-c01f-0048-03f0-16bacd000000\\nTime:2020-04-20T08:51:53.7856703Z\"}}";
     final int responseCode = 404;
     AzureAsyncReader azureAsyncReader = prepareAsyncReader(responseBody, responseCode);
     ByteBuf buf = Unpooled.buffer(20);
@@ -111,7 +95,7 @@ public class TestAzureAsyncReader {
       fail("Should fail because of failing condition match");
     } catch (Exception e) {
       assertEquals(FileNotFoundException.class, e.getCause().getClass());
-      assertTrue(e.getMessage().contains("BlobNotFound"));
+      assertTrue(e.getMessage().contains("PathNotFound"));
     } finally {
       verify(azureAsyncReader, times(1)).read(0, buf, 0, 20, 0);
     }
@@ -119,16 +103,8 @@ public class TestAzureAsyncReader {
 
   @Test
   public void testServerErrorsAndRetries() {
-    final String responseBody =
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
-        "<Error>" +
-        "   <Code>InternalServerError</Code>" +
-        "   <Message>" +
-        "      Something wrong happened at the server." +
-        "      RequestId:44ac97c2-601e-00e4-60a6-bf9b5a000000" +
-        "      Time:2019-12-31T06:49:04.7710349Z" +
-        "   </Message>" +
-        "</Error>";
+    final String responseBody = "{\"error\":{\"code\":\"InternalServerError\",\"message\":\"Something wrong happened at the server." +
+      "\\nRequestId:5b544bd0-c01f-0048-03f0-16bacd000000\\nTime:2020-04-20T08:51:53.7856703Z\"}}";
     final int responseCode = 500;
     AzureAsyncReader azureAsyncReader = prepareAsyncReader(responseBody, responseCode);
     ByteBuf buf = Unpooled.buffer(20);
@@ -179,10 +155,10 @@ public class TestAzureAsyncReader {
       Request req = invocationOnMock.getArgument(0, Request.class);
       String expectedPrefix = isSecure ? "https" : "http";
       assertEquals("Invalid request url",
-        expectedPrefix + "://account.blob.core.windows.net/container/directory%2Ffile_00.parquet", req.getUrl());
+        expectedPrefix + "://account.dfs.core.windows.net/container/directory%2Ffile_00.parquet", req.getUrl());
 
       // Validate Headers
-      assertEquals("Invaid blob range header", "bytes=0-19", req.getHeaders().get("x-ms-range"));
+      assertEquals("Invalid blob range header", "bytes=0-19", req.getHeaders().get("Range"));
       LocalDateTime dateHeaderVal = LocalDateTime.parse(req.getHeaders().get("Date"), DATE_RFC1123_FORMATTER);
       long dateHeaderDiffInSecs = Math.abs(dateHeaderVal.until(LocalDateTime.now(ZoneId.of("GMT")), ChronoUnit.SECONDS));
       assertTrue("Date header not set correctly", dateHeaderDiffInSecs < 2);

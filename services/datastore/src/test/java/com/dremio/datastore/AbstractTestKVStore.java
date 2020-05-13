@@ -21,15 +21,16 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.StreamSupport;
 
 import org.junit.After;
@@ -45,9 +46,9 @@ import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableFindByRange;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
-import com.dremio.datastore.api.StoreCreationFunction;
+import com.dremio.datastore.format.visitor.SupportFindFormatVisitor;
+import com.dremio.datastore.format.visitor.SupportNullFieldsFormatVisitor;
 import com.dremio.datastore.generator.ByteContainerStoreGenerator;
-import com.dremio.datastore.generator.ByteContainerStoreGenerator.ByteContainer;
 import com.dremio.datastore.generator.DataGenerator;
 import com.dremio.datastore.generator.Dataset;
 import com.dremio.datastore.generator.DocumentDataset;
@@ -57,8 +58,6 @@ import com.dremio.datastore.generator.RawByteStoreGenerator;
 import com.dremio.datastore.generator.StringStoreGenerator;
 import com.dremio.datastore.generator.UUIDStoreGenerator;
 import com.dremio.datastore.generator.supplier.UniqueSupplierOptions;
-import com.dremio.datastore.proto.Dummy;
-import com.dremio.datastore.proto.DummyId;
 import com.dremio.datastore.stores.ByteContainerStore;
 import com.dremio.datastore.stores.ProtobufStore;
 import com.dremio.datastore.stores.ProtostuffStore;
@@ -67,7 +66,6 @@ import com.dremio.datastore.stores.StringStore;
 import com.dremio.datastore.stores.UUIDStore;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 
 /**
@@ -78,10 +76,6 @@ public abstract class AbstractTestKVStore<K, V> {
   private static final String TAG_ASSERT_FAILURE_MSG = "All documents should have a non-null, non-empty tag";
   private KVStore<K, V> kvStore;
   private static final int SAMPLING_SIZE = 30;
-  private static final ImmutableSet<Class<?>> KEY_DOES_NOT_SUPPORT_FIND =
-    ImmutableSet.of(UUID.class, Dummy.DummyId.class, DummyId.class);
-  private static final ImmutableSet<Class<?>> STORE_DOES_NOT_SUPPORT_NULL_FIELDS =
-    ImmutableSet.of(UUID.class, String.class, ByteContainer.class, Dummy.DummyId.class);
 
   /**
    * Exempt the parameters from the visibility modifier check.
@@ -93,41 +87,40 @@ public abstract class AbstractTestKVStore<K, V> {
    */
   // CHECKSTYLE:OFF VisibilityModifier
   @Parameterized.Parameter
-  public Class<StoreCreationFunction<KVStore<K, V>>> storeCreationFunction;
+  public Class<TestStoreCreationFunction<K, V>> storeCreationFunction;
 
   @Parameterized.Parameter(1)
   public DataGenerator<K, V> gen;
 
-  // Used to determine if find is supported.
-  @Parameterized.Parameter(2)
-  public Class<K> keyClass;
   // CHECKSTYLE:ON VisibilityModifier
 
   @Parameterized.Parameters(name = "Table: {0}")
   public static Collection<Object[]> parameters() {
     return Arrays.asList(new Object[][]{
-      {UUIDStore.class, new UUIDStoreGenerator(), UUID.class},
-      {ProtobufStore.class, new ProtobufStoreGenerator(), Dummy.DummyId.class},
-      {ProtostuffStore.class, new ProtostuffStoreGenerator(), DummyId.class},
+      {UUIDStore.class, new UUIDStoreGenerator()},
+      {ProtobufStore.class, new ProtobufStoreGenerator()},
+      {ProtostuffStore.class, new ProtostuffStoreGenerator()},
       //Variable-length
-      {StringStore.class, new StringStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH), String.class},
-      {RawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH), String.class},
-      {ByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH),
-        ByteContainerStoreGenerator.ByteContainer.class},
+      {StringStore.class, new StringStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
+      {RawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
+      {ByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
       //Fixed-length
-      {StringStore.class, new StringStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH), String.class},
-      {RawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH), String.class},
-      {ByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH),
-        ByteContainerStoreGenerator.ByteContainer.class}
+      {StringStore.class, new StringStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
+      {RawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
+      {ByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)}
     });
   }
 
-  protected abstract KVStoreProvider initProvider() throws Exception;
+  protected boolean kvStoreProviderSupportsNullOperators() {
+    return true;
+  }
+
+  protected abstract KVStoreProvider createKVStoreProvider() throws Exception;
   protected abstract void closeProvider() throws Exception;
 
   @Before
   public void init() throws Exception {
-    final KVStoreProvider provider = initProvider();
+    final KVStoreProvider provider = createKVStoreProvider();
     kvStore = provider.getStore(storeCreationFunction);
     gen.reset();
   }
@@ -426,6 +419,7 @@ public abstract class AbstractTestKVStore<K, V> {
 
   @Test
   public void testExclusiveStartEndNullRange() {
+    ignoreIfKVStoreProviderNullOperatorsNotSupported();
     ignoreIfFindNotSupported();
     final DocumentDataset<K, V> data = generateDataAndPopulateKVStore(6);
 
@@ -437,6 +431,7 @@ public abstract class AbstractTestKVStore<K, V> {
 
   @Test
   public void testExclusiveStartInclusiveEndNullRange() {
+    ignoreIfKVStoreProviderNullOperatorsNotSupported();
     ignoreIfFindNotSupported();
     final DocumentDataset<K, V> data = gen.sortDocumentDataset(generateDataAndPopulateKVStore(6));
 
@@ -448,6 +443,7 @@ public abstract class AbstractTestKVStore<K, V> {
 
   @Test
   public void testInclusiveStartExclusiveEndNullRange() {
+    ignoreIfKVStoreProviderNullOperatorsNotSupported();
     ignoreIfFindNotSupported();
     final DocumentDataset<K, V> data = gen.sortDocumentDataset(generateDataAndPopulateKVStore(6));
 
@@ -459,6 +455,7 @@ public abstract class AbstractTestKVStore<K, V> {
 
   @Test
   public void testInclusiveStartEndNullRange() {
+    ignoreIfKVStoreProviderNullOperatorsNotSupported();
     ignoreIfFindNotSupported();
     final DocumentDataset<K, V> data = gen.sortDocumentDataset(generateDataAndPopulateKVStore(6));
 
@@ -491,21 +488,41 @@ public abstract class AbstractTestKVStore<K, V> {
    * @param classes key classes in which test should be ignored.
    */
   protected void temporarilyDisableTest(String ticket, String message, Set<Class<?>> classes){
-    Assume.assumeFalse("[TEST DISABLED]" + ticket + " - " + message, classes.contains(keyClass));
+    try {
+      Assume.assumeFalse("[TEST DISABLED]" + ticket + " - " + message, !Collections.disjoint(classes, storeCreationFunction.newInstance().getKeyClasses()));
+    } catch (InstantiationException | IllegalAccessException e) {
+      fail("TestStoreCreationFunction instantiation problem: " + e.getMessage());
+    }
   }
 
   /**
    * Method to ignore tests for data formats that do not support{@code null} fields, namely protobuf, UUID, String and bytes.
    */
   private void ignoreIfNullFieldsNotSupported() {
-    Assume.assumeFalse("This store value format does not support null fields", STORE_DOES_NOT_SUPPORT_NULL_FIELDS.contains(keyClass));
+    try {
+      Assume.assumeTrue("This store value format does not support null fields", storeCreationFunction.newInstance().getKeyFormat().apply(new SupportNullFieldsFormatVisitor()));
+    } catch (InstantiationException | IllegalAccessException e) {
+      fail("TestStoreCreationFunction instantiation problem: " + e.getMessage());
+    }
   }
 
   /**
    * Method to ignore tests for data formats that do not support range queries, namely protobuf, protostuff and UUID.
    */
   private void ignoreIfFindNotSupported() {
-    Assume.assumeFalse("This format does not support range queries", KEY_DOES_NOT_SUPPORT_FIND.contains(keyClass));
+    try {
+      Assume.assumeTrue("This format does not support range queries", storeCreationFunction.newInstance().getKeyFormat().apply(new SupportFindFormatVisitor()));
+    } catch (InstantiationException | IllegalAccessException e) {
+      fail("TestStoreCreationFunction instantiation problem: " + e.getMessage());
+    }
+  }
+
+  /**
+   * Method to ignore tests for operations involving null fields, such as start or end of finds when
+   * the datastore does not support the operation.
+   */
+  private void ignoreIfKVStoreProviderNullOperatorsNotSupported() {
+    Assume.assumeTrue("This kvstore does not support null operators", kvStoreProviderSupportsNullOperators());
   }
 
   /**

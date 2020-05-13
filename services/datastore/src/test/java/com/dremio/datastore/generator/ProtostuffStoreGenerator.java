@@ -23,7 +23,7 @@ import com.dremio.datastore.proto.enumType;
 import com.google.common.collect.ImmutableList;
 
 /**
- * Used to test protostuf kv store format.
+ * Used to test protostuff kv store format.
  */
 public class ProtostuffStoreGenerator extends ProtoGeneratorMixin implements DataGenerator<DummyId, DummyObj> {
 
@@ -45,6 +45,8 @@ public class ProtostuffStoreGenerator extends ProtoGeneratorMixin implements Dat
       .setInt64SeqList(getInt64List())
       .setUint32SeqList(getInt32List())
       .setUint64SeqList(getInt64List())
+      .setFloatSeqList(getFloatList())
+      .setDoubleSeqList(getDoubleList())
       .setType(getBool() ? enumType.ZERO : enumType.ONE);
   }
 

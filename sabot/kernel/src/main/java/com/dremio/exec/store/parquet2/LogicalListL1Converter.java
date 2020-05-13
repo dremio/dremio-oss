@@ -40,11 +40,12 @@ import com.dremio.sabot.op.scan.OutputMutator;
 /**
  * First level of LOGICAL LIST conversion. Handles 'list'
  */
-public class LogicalListL1Converter extends GroupConverter {
+public class LogicalListL1Converter extends GroupConverter implements ParquetListElementConverter {
   private static final Logger logger = LoggerFactory.getLogger(LogicalListL1Converter.class);
 
   private final ListWriter listWriter;
-  private final Converter converter;
+  private final LogicalListL2Converter converter;
+  private boolean written = false;
 
   // This function assumes that the fields in the schema parameter are in the same order as the fields in the columns parameter. The
   // columns parameter may have fields that are not present in the schema, though.
@@ -115,10 +116,31 @@ public class LogicalListL1Converter extends GroupConverter {
   @Override
   public void start() {
     listWriter.startList();
+    written = true;
+    converter.startList();
   }
 
   @Override
   public void end() {
+    listWriter.endList();
+  }
+
+  public boolean hasWritten() {
+    return written;
+  }
+
+  @Override
+  public void startElement() {
+    written = false;
+  }
+
+  @Override
+  public void endElement() {
+    written = false;
+  }
+
+  @Override
+  public void writeNullListElement() {
     listWriter.endList();
   }
 }

@@ -20,10 +20,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.gandiva.evaluator.ExpressionRegistry;
 import org.apache.arrow.gandiva.evaluator.FunctionSignature;
 import org.apache.arrow.gandiva.exceptions.GandivaException;
+import org.apache.arrow.vector.types.DateUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 
 import com.google.common.collect.Sets;
@@ -40,12 +42,21 @@ public class GandivaRegistryWrapper {
 
   private GandivaRegistryWrapper() throws GandivaException {
     this.supportedTypes = ExpressionRegistry.getInstance().getSupportedTypes();
+    ArrowType.Date dateDay = new ArrowType.Date(DateUnit.DAY);
 
     Set<FunctionSignature> signatures = ExpressionRegistry.getInstance().getSupportedFunctions();
     Set<FunctionSignature> updatedSignatures = new HashSet<>();
     for (FunctionSignature signature : signatures) {
       FunctionSignature updated = signature;
+      List<ArrowType> dateDayArgs =
+        signature.getParamTypes().stream().filter(type-> {
+          return type.equals(dateDay);
+        }).collect(Collectors.toList());
 
+      // suppress all date32 functions. date32 is not a supported dremio type;
+      if (!dateDayArgs.isEmpty() || signature.getReturnType().equals(dateDay)) {
+        continue;
+      }
       // To make this fit in dremio model of type inference, add dummy args for precision and
       // scale.
       if (signature.getName().equals("castDECIMAL") || signature.getName().equals("castDECIMALNullOnOverflow")) {

@@ -43,6 +43,7 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
 
   protected abstract void verifySingleIndexValue(D writer, IndexKey index, Object expectedValue);
   protected abstract void verifyMultiIndexValue(D writer, IndexKey index, Object... expectedValues);
+  protected abstract void verifyNoValues(D writer, IndexKey index);
 
   @Test
   public void testString() {
@@ -189,6 +190,39 @@ public abstract class AbstractTestDocumentWriter<D extends DocumentWriter> {
     // multiple values).
     thrown.expect(IllegalStateException.class);
     writer.write(testKey, new byte[] {0x01});
+  }
+
+  @Test
+  public void testWritingNullNumeric() {
+    final IndexKey indexKey = newIndexKey(Long.class, true);
+    writer.write(indexKey, (Long) null);
+    verifyNoValues(writer, indexKey);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testWritingNullStringArray() {
+    final IndexKey indexKey = newIndexKey(String.class, true);
+    writer.write(indexKey, (String[]) null);
+  }
+
+  @Test
+  public void testWritingNullString() {
+    final IndexKey indexKey = newIndexKey(String.class, true);
+    writer.write(indexKey, (String) null);
+    verifyNoValues(writer, indexKey);
+  }
+
+  @Test(expected = NullPointerException.class)
+  public void testWritingNullByteArrayArray() {
+    final IndexKey indexKey = newIndexKey(String.class, true);
+    writer.write(indexKey, (byte[][]) null);
+  }
+
+  @Test
+  public void testWritingNullByteArray() {
+    final IndexKey indexKey = newIndexKey(String.class, true);
+    writer.write(indexKey, (byte[]) null);
+    verifyNoValues(writer, indexKey);
   }
 
   protected static void verifyHelper(Object expected, Object actual) {

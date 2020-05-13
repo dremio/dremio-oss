@@ -131,7 +131,7 @@ public final class ProfilesExporter {
         case OVERWRITE:
           return false;
         default:
-          throw new NotSupportedException(String.format("Not supported write mode: %d", writeMode));
+          throw new NotSupportedException(String.format("Not supported write mode: %s", writeMode));
       }
     }
 

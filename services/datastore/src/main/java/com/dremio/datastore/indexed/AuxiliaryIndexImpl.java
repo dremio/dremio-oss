@@ -46,7 +46,7 @@ public class AuxiliaryIndexImpl<K, V, T> implements AuxiliaryIndex<K, V, T>{
     this.converter = converter.newInstance();
 
     // we don't need to pass in a DocumentConverter as we handle our own indexing
-    this.coreIndexedStore = new CoreIndexedStoreImpl<>(name, store, index, null);
+    this.coreIndexedStore = new CoreIndexedStoreImpl<>(name, store, index, null, false);
   }
 
   @Override

@@ -15,19 +15,13 @@
  */
 package com.dremio.common.exceptions;
 
-import java.io.IOException;
 import java.util.regex.Pattern;
 
-import com.dremio.common.serde.ProtobufByteStringSerDe;
 import com.dremio.exec.proto.UserBitShared.ExceptionWrapper;
 import com.dremio.exec.proto.UserBitShared.StackTraceElementWrapper;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.protobuf.ByteString;
 
 /**
- * Utility class that handles error message generation from protobuf error objects.
+ * Utility class that handles error message generation.
  */
 public class ErrorHelper {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ErrorHelper.class);

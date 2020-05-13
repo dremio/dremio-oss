@@ -24,6 +24,7 @@ import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
@@ -511,7 +512,7 @@ public class TestConvertFunctions extends BaseTestQuery {
       assertArrayEquals(message, (double[]) expected, (double[]) actual, DELTA);
     } else {
       fail(String.format("%s: Error comparing arrays of type '%s' and '%s'",
-          expected.getClass().getName(), (actual == null ? "null" : actual.getClass().getName())));
+          message, expected.getClass().getName(), Optional.ofNullable(actual).map(o -> o.getClass().getName()).orElse("null")));
     }
   }
 

@@ -75,8 +75,8 @@ public class SourceResource {
     public SourceDeprecated() {
     }
 
-    public SourceDeprecated(SourceConfig sourceConfig, AccelerationSettings settings, ConnectionReader reader) {
-      super(sourceConfig, settings, reader);
+    public SourceDeprecated(SourceConfig sourceConfig, AccelerationSettings settings, ConnectionReader reader, List<CatalogItem> children) {
+      super(sourceConfig, settings, reader, children);
     }
 
     public SourceDeprecated(Source source) {

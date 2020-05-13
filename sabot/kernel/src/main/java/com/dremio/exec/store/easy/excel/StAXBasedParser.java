@@ -472,7 +472,7 @@ public class StAXBasedParser implements ExcelParser {
         case VARCHAR:
           indexToLastTypeCache.put(currentColumnIndex, valueTypeFromAttribute);
           final byte[] b = value.getBytes(Charsets.UTF_8);
-          FieldSizeLimitExceptionHelper.checkReadSizeLimit(b.length, maxCellSize, currentColumnIndex, logger);
+          FieldSizeLimitExceptionHelper.checkSizeLimit(b.length, maxCellSize, currentColumnIndex, logger);
 
           managedBuf = managedBuf.reallocIfNeeded(b.length);
           managedBuf.setBytes(0, b);

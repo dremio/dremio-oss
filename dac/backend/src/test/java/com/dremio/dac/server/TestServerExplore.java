@@ -1957,9 +1957,17 @@ public class TestServerExplore extends BaseTestServer {
             .buildGet(), Nodes.class);
     if(isMultinode()){
       assertEquals(3, nodes.size());
+      final Nodes.NodeInfo master = nodes.get(0);
+      assertTrue(master.getIsMaster() && master.getIsCoordinator() && !master.getIsExecutor());
+      final Nodes.NodeInfo coord = nodes.get(1);
+      assertTrue(!coord.getIsMaster() && coord.getIsCoordinator() && !coord.getIsExecutor());
+      final Nodes.NodeInfo exec = nodes.get(2);
+      assertTrue(!exec.getIsMaster() && !exec.getIsCoordinator() && exec.getIsExecutor());
     }else {
       assertEquals("green", nodes.get(0).getStatus());
       assertEquals(1, nodes.size());
+      final Nodes.NodeInfo masterExec = nodes.get(0);
+      assertTrue(masterExec.getIsMaster() && masterExec.getIsCoordinator() && masterExec.getIsExecutor());
     }
     assertTrue(nodes.stream().allMatch(node -> node.getVersion().equals(DremioVersionInfo.getVersion())));
   }

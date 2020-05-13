@@ -78,31 +78,33 @@ message DummyObjProtobufV3 {
   repeated int64  int64_seq = 9;
   repeated uint32 uint32_seq = 10;
   repeated uint64 uint64_seq = 11;
+  repeated float float_seq = 12;
+  repeated double double_seq = 13;
 
-  repeated DummyMapFieldEntryProtobufV3 backward_compatible_map_field = 13;
-  repeated DummyNonStandardMapFieldEntryProtobufV3 non_standard_map_field = 14;
+  repeated DummyMapFieldEntryProtobufV3 backward_compatible_map_field = 14;
+  repeated DummyNonStandardMapFieldEntryProtobufV3 non_standard_map_field = 15;
 
   oneof oneof_field {
-    string oneof_string = 15;
-    int32 oneof_int32 = 16;
+    string oneof_string = 16;
+    int32 oneof_int32 = 17;
   }
 
   oneof oneof_complex_field {
-    int64 oneof_int64 = 17;
-    DummyIdProtobufV3 oneof_id = 18;
+    int64 oneof_int64 = 18;
+    DummyIdProtobufV3 oneof_id = 19;
   }
 
-  map<string, DummyIdProtobufV3> proto_map_field = 12;
+  map<string, DummyIdProtobufV3> proto_map_field = 20;
 
-  com.dremio.datastore.DummyObj importedV2Dummy = 19;
-  repeated google.protobuf.Any any_test = 20;
-  repeated google.protobuf.Timestamp timestamp = 21;
-  repeated google.protobuf.Duration duration = 22;
+  com.dremio.datastore.DummyObj importedV2Dummy = 21;
+  repeated google.protobuf.Any any_test = 22;
+  repeated google.protobuf.Timestamp timestamp = 23;
+  repeated google.protobuf.Duration duration = 24;
 
   message NestedDummyObj {
     DummyIdProtobufV3 id = 1;
     string tag = 2;
   }
 
-  NestedDummyObj nested = 23;
+  NestedDummyObj nested = 25;
 }

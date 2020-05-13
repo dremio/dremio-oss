@@ -15,9 +15,12 @@
  */
 package com.dremio.datastore.adapter.stores;
 
+import java.util.Arrays;
+import java.util.List;
+
+import com.dremio.datastore.adapter.TestLegacyStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.proto.Dummy.DummyId;
 import com.dremio.datastore.proto.Dummy.DummyObj;
@@ -25,13 +28,23 @@ import com.dremio.datastore.proto.Dummy.DummyObj;
 /**
  * Tests using protobuf keys and values.
  */
-public class LegacyProtobufStore implements LegacyStoreCreationFunction<LegacyKVStore<DummyId, DummyObj>> {
+public class LegacyProtobufStore implements TestLegacyStoreCreationFunction<DummyId, DummyObj> {
   @Override
   public LegacyKVStore<DummyId, DummyObj> build(LegacyStoreBuildingFactory factory) {
     return factory.<DummyId, DummyObj>newStore()
       .name("legacy-protobuf-store")
-      .keyFormat(Format.ofProtobuf(DummyId.class))
+      .keyFormat(getKeyFormat())
       .valueFormat(Format.ofProtobuf(DummyObj.class))
       .build();
+  }
+
+  @Override
+  public Format<DummyId> getKeyFormat() {
+    return Format.ofProtobuf(DummyId.class);
+  }
+
+  @Override
+  public List<Class<?>> getKeyClasses() {
+    return Arrays.asList(DummyId.class);
   }
 }

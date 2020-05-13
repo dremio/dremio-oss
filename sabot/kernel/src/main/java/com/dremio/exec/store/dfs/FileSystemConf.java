@@ -20,9 +20,8 @@ import java.util.List;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.io.file.Path;
-import com.dremio.options.OptionManager;
 
-public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends FileSystemPlugin<C>> extends ConnectionConf<C, P>{
+public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends FileSystemPlugin<C>> extends ConnectionConf<C, P> implements AsyncStreamConf {
   public abstract Path getPath();
 
   public abstract boolean isImpersonationEnabled();
@@ -39,43 +38,6 @@ public abstract class FileSystemConf<C extends FileSystemConf<C, P>, P extends F
    */
   public boolean createIfMissing() {
     return false;
-  }
-
-  /**
-   * Indicates that the plugin should use asynchronous reads when possible.
-   * (This means the user has enabled async for the source and the underlying FileSystem supports
-   * asynchronous reads).
-   */
-  public boolean isAsyncEnabled() {
-    return false;
-  }
-
-  /**
-   * Interface for plugin implementations to communicate cache properties to underlying system.
-   */
-  public interface CacheProperties {
-    /**
-     * Indicates that the plugin requests caching whenever possible.
-     * (Note that even if plugin requests caching, underlying Dremio system must support caching and the source
-     * must have async reads enabled.)
-     * @return {@code true} if caching is requested.
-     */
-    default boolean isCachingEnabled(final OptionManager optionManager) {
-      return false;
-    }
-
-    /**
-     * If caching is enabled and this feature is supported by underlying Dremio system, this controls the max amount
-     * of disk space that can be used to cache data for this source.
-     * @return {@code percentage} of max disk space to be used for this source, default is 100%.
-     */
-    default int cacheMaxSpaceLimitPct() {
-      return 100;
-    }
-  }
-
-  public CacheProperties getCacheProperties() {
-    return new CacheProperties() {};
   }
 
   /**

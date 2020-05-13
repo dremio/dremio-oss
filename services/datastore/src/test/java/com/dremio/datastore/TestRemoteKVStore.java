@@ -57,7 +57,7 @@ public class TestRemoteKVStore<K, V> extends AbstractTestKVStore<K, V> {
   public final AllocatorRule allocatorRule = AllocatorRule.defaultAllocator();
 
   @Override
-  public KVStoreProvider initProvider() throws Exception {
+  public KVStoreProvider createKVStoreProvider() throws Exception {
 
     allocator = allocatorRule.newAllocator("test-remote-kvstore", 0, 20 * 1024 * 1024);
     pool = new CloseableThreadPool("test-remoteocckvstore");

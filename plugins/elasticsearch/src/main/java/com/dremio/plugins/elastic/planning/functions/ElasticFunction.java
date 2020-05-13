@@ -39,7 +39,7 @@ public abstract class ElasticFunction {
 
   protected void checkArity(RexCall call, int num) {
     Preconditions.checkArgument(call.getOperands().size() == num,
-      "Function operation %s expected %d arguments but received %d.", dremioName, num, call.getOperands().size());
+      "Function operation %s expected %s arguments but received %s.", dremioName, num, call.getOperands().size());
   }
 
   protected static Iterable<NullReference> nulls(FunctionRender... renders){

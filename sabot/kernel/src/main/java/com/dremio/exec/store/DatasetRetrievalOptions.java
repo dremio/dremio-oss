@@ -27,6 +27,7 @@ import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.MetadataOption;
 import com.dremio.connector.metadata.options.IgnoreAuthzErrors;
 import com.dremio.connector.metadata.options.MaxLeafFieldCount;
+import com.dremio.connector.metadata.options.MaxNestedFieldLevels;
 import com.dremio.exec.catalog.AllowAutoPromote;
 import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.FileConfigOption;
@@ -53,6 +54,7 @@ public class DatasetRetrievalOptions {
   public static final DatasetRetrievalOptions DEFAULT;
   public static final DatasetRetrievalOptions IGNORE_AUTHZ_ERRORS;
   public static final int DEFAULT_MAX_METADATA_LEAF_COLUMNS = 800;
+  public static final int DEFAULT_MAX_NESTED_LEVEL = 16;
 
   static {
     DEFAULT_AUTO_PROMOTE = DEFAULT_AUTO_PROMOTE_OPTIONAL.orElse(false);
@@ -63,6 +65,7 @@ public class DatasetRetrievalOptions {
         .setAutoPromote(DEFAULT_AUTO_PROMOTE)
         .setForceUpdate(false)
         .setMaxMetadataLeafColumns(DEFAULT_MAX_METADATA_LEAF_COLUMNS)
+        .setMaxNestedLevel(DEFAULT_MAX_NESTED_LEVEL)
         .build();
 
     IGNORE_AUTHZ_ERRORS =
@@ -76,6 +79,7 @@ public class DatasetRetrievalOptions {
   private final Optional<Boolean> autoPromote;
   private final Optional<Boolean> forceUpdate;
   private final Optional<Integer> maxMetadataLeafColumns;
+  private final Optional<Integer> maxNestedLevel;
 
   private DatasetRetrievalOptions fallback;
 
@@ -87,13 +91,15 @@ public class DatasetRetrievalOptions {
       Boolean deleteUnavailableDatasets,
       Boolean autoPromote,
       Boolean forceUpdate,
-      Integer maxMetadataLeafColumns
+      Integer maxMetadataLeafColumns,
+      Integer maxNestedLevel
   ) {
     this.ignoreAuthzErrors = Optional.ofNullable(ignoreAuthzErrors);
     this.deleteUnavailableDatasets = Optional.ofNullable(deleteUnavailableDatasets);
     this.autoPromote = Optional.ofNullable(autoPromote);
     this.forceUpdate = Optional.ofNullable(forceUpdate);
     this.maxMetadataLeafColumns = Optional.ofNullable(maxMetadataLeafColumns);
+    this.maxNestedLevel = Optional.ofNullable(maxNestedLevel);
   }
 
 
@@ -117,6 +123,10 @@ public class DatasetRetrievalOptions {
     return maxMetadataLeafColumns.orElseGet(() -> fallback.maxMetadataLeafColumns());
   }
 
+  public int maxNestedLevel() {
+    return maxNestedLevel.orElseGet(() -> fallback.maxNestedLevel());
+  }
+
   public DatasetRetrievalOptions withFallback(DatasetRetrievalOptions fallback) {
     this.fallback = fallback;
     return this;
@@ -128,7 +138,8 @@ public class DatasetRetrievalOptions {
         .setDeleteUnavailableDatasets(deleteUnavailableDatasets.orElse(null))
         .setAutoPromote(autoPromote.orElse(null))
         .setForceUpdate(forceUpdate.orElse(null))
-        .setMaxMetadataLeafColumns(maxMetadataLeafColumns.orElse(DEFAULT_MAX_METADATA_LEAF_COLUMNS));
+        .setMaxMetadataLeafColumns(maxMetadataLeafColumns.orElse(DEFAULT_MAX_METADATA_LEAF_COLUMNS))
+        .setMaxNestedLevel(maxNestedLevel.orElse(DEFAULT_MAX_NESTED_LEVEL));
   }
 
   public static class Builder {
@@ -138,6 +149,7 @@ public class DatasetRetrievalOptions {
     private Boolean autoPromote;
     private Boolean forceUpdate;
     private Integer maxMetadataLeafColumns;
+    private Integer maxNestedLevel;
 
     private Builder() {
     }
@@ -167,8 +179,14 @@ public class DatasetRetrievalOptions {
       return this;
     }
 
+    public Builder setMaxNestedLevel(Integer maxNestedLevel) {
+      this.maxNestedLevel = maxNestedLevel;
+      return this;
+    }
+
     public DatasetRetrievalOptions build() {
-      return new DatasetRetrievalOptions(ignoreAuthzErrors, deleteUnavailableDatasets, autoPromote, forceUpdate, maxMetadataLeafColumns);
+      return new DatasetRetrievalOptions(ignoreAuthzErrors, deleteUnavailableDatasets,
+        autoPromote, forceUpdate, maxMetadataLeafColumns, maxNestedLevel);
     }
   }
 
@@ -192,6 +210,8 @@ public class DatasetRetrievalOptions {
         b.setAutoPromote(true);
       } else if(o instanceof MaxLeafFieldCount) {
         b.setMaxMetadataLeafColumns(((MaxLeafFieldCount) o).getValue());
+      } else if(o instanceof MaxNestedFieldLevels) {
+        b.setMaxNestedLevel(((MaxNestedFieldLevels) o).getValue());
       }
     }
 
@@ -217,6 +237,7 @@ public class DatasetRetrievalOptions {
         // not an option in policy (or UI)
         .setIgnoreAuthzErrors(false)
         .setMaxMetadataLeafColumns(DEFAULT_MAX_METADATA_LEAF_COLUMNS)
+        .setMaxNestedLevel(DEFAULT_MAX_NESTED_LEVEL)
         .build();
   }
 
@@ -231,6 +252,7 @@ public class DatasetRetrievalOptions {
     }
 
     options.add(new MaxLeafFieldCount(maxMetadataLeafColumns()));
+    options.add(new MaxNestedFieldLevels(maxNestedLevel()));
 
     addDatasetOptions(GetDatasetOption.class, datasetConfig, options);
 
@@ -240,6 +262,7 @@ public class DatasetRetrievalOptions {
   public GetMetadataOption[] asGetMetadataOptions(DatasetConfig datasetConfig) {
     List<GetMetadataOption> options = new ArrayList<>();
     options.add(new MaxLeafFieldCount(maxMetadataLeafColumns()));
+    options.add(new MaxNestedFieldLevels(maxNestedLevel()));
 
     addDatasetOptions(GetMetadataOption.class, datasetConfig, options);
     return options.toArray(new GetMetadataOption[options.size()]);
@@ -248,6 +271,7 @@ public class DatasetRetrievalOptions {
   public ListPartitionChunkOption[] asListPartitionChunkOptions(DatasetConfig datasetConfig) {
     List<ListPartitionChunkOption> options = new ArrayList<>();
     options.add(new MaxLeafFieldCount(maxMetadataLeafColumns()));
+    options.add(new MaxNestedFieldLevels(maxNestedLevel()));
 
     addDatasetOptions(ListPartitionChunkOption.class, datasetConfig, options);
     return options.toArray(new ListPartitionChunkOption[options.size()]);

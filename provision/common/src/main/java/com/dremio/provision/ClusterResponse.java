@@ -59,7 +59,7 @@ public interface ClusterResponse {
 
   boolean isAllowAutoStart();
   boolean isAllowAutoStop();
-  @Default default long getShutdownInterval() { return 300_000; }
+  @Default default long getShutdownInterval() { return 900_000; }
 
   public static ImmutableClusterResponse.Builder builder() {
     return new ImmutableClusterResponse.Builder();

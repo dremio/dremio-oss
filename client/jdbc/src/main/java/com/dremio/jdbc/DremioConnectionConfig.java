@@ -16,10 +16,8 @@
 package com.dremio.jdbc;
 
 import java.util.Properties;
-import java.util.TimeZone;
 
 import org.apache.calcite.avatica.ConnectionConfigImpl;
-
 
 // TODO(DRILL-3730):  Change public DremioConnectionConfig from class to
 // interface.  Move implementation (including inheritance from
@@ -58,10 +56,6 @@ public class DremioConnectionConfig extends ConnectionConfigImpl {
   // TODO: Check: Shouldn't something validate that URL has "zk" parameter?
   public String getZookeeperConnectionString(){
     return props.getProperty("zk");
-  }
-
-  public TimeZone getTimeZone(){
-    return TimeZone.getDefault();
   }
 
   public boolean isServerPreparedStatementDisabled() {

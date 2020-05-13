@@ -279,15 +279,24 @@ public final class DACDaemon implements AutoCloseable {
     closed.await();
   }
 
+  /**
+   * Notify that daemon is being shut down.
+   * Code waiting on awaitClose() will be released
+   */
+  public void shutdown() {
+    closed.countDown();
+  }
+
   @Override
   public void close() throws Exception {
     try (TimedBlock b = Timer.time("close")) {
       // closes all registered services in reverse order
+      // (assumed safe to call close on registry and bootstrapRegistry several times)
       AutoCloseables.close(registry, bootstrapRegistry);
+    } finally {
+      // Notify that daemon has been closed
+      closed.countDown();
     }
-
-    // Notify that daemon has been closed
-    closed.countDown();
   }
 
   public static DACDaemon newDremioDaemon(DACConfig dacConfig, ScanResult scanResult) throws IOException {

@@ -36,6 +36,10 @@ public class TestClean extends BaseTestServer {
                                                                   // kvstore for tests.
       .clusterMode(DACDaemon.ClusterMode.LOCAL);
 
+  protected static DACConfig getDACConfig() {
+    return dacConfig;
+  }
+
   @BeforeClass
   public static void init() throws Exception {
     enableDefaultUser(false);

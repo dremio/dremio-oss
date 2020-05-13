@@ -360,7 +360,7 @@ public class ITStorageBasedHiveAuthorization extends BaseTestHiveImpersonation {
 
     errorMsgTestHelper(
         String.format("SELECT * FROM hive.%s.%s ORDER BY gpa DESC LIMIT 2", db_u1g1_only, u1g1_student_all_755),
-        String.format("Permission denied: user=user0_1", db_u1g1_only, u1g1_student_all_755));
+        String.format("Permission denied: user=user0_1"));
   }
 
   // Try to read the tables "user1" has access to read in db_general.

@@ -517,7 +517,7 @@ public class JsonReader extends BaseJsonProcessor {
   private void handleString(JsonParser parser, BaseWriter.StructWriter writer, String fieldName) throws IOException {
     incrementLeafCount();
     final int size = workingBuffer.prepareVarCharHolder(parser.getText());
-    FieldSizeLimitExceptionHelper.checkReadSizeLimit(size, maxFieldSize, currentFieldName, logger);
+    FieldSizeLimitExceptionHelper.checkSizeLimit(size, maxFieldSize, currentFieldName, logger);
     writer.varChar(fieldName).writeVarChar(0, size, workingBuffer.getBuf());
     dataSizeReadSoFar += size;
   }
@@ -525,7 +525,7 @@ public class JsonReader extends BaseJsonProcessor {
   private void handleString(JsonParser parser, ListWriter writer) throws IOException {
     incrementLeafCount();
     final int size = workingBuffer.prepareVarCharHolder(parser.getText());
-    FieldSizeLimitExceptionHelper.checkReadSizeLimit(size, maxFieldSize, currentFieldName, logger);
+    FieldSizeLimitExceptionHelper.checkSizeLimit(size, maxFieldSize, currentFieldName, logger);
     writer.varChar().writeVarChar(0, size, workingBuffer.getBuf());
     dataSizeReadSoFar += size;
   }

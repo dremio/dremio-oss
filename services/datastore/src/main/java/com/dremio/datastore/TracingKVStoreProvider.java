@@ -22,7 +22,6 @@ import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.StoreCreationFunction;
 import com.dremio.datastore.format.Format;
-import com.dremio.datastore.format.visitor.BinaryFormatVisitor;
 
 import io.opentracing.Tracer;
 
@@ -74,9 +73,6 @@ public class TracingKVStoreProvider implements KVStoreProvider {
 
     @Override
     public StoreBuilder<K, V> keyFormat(Format<K> format) {
-      if (format.apply(new BinaryFormatVisitor())) {
-        throw new DatastoreException("Binary is not a supported key format.");
-      }
       delegate.keyFormat(format);
       return this;
     }
@@ -88,14 +84,20 @@ public class TracingKVStoreProvider implements KVStoreProvider {
     }
 
     @Override
+    public StoreBuilder<K, V> permitCompoundKeys(boolean permitCompoundKeys) {
+      delegate.permitCompoundKeys(permitCompoundKeys);
+      return this;
+    }
+
+    @Override
     public KVStore<K, V> build() {
       return TracingKVStore.of(name, tracer, delegate.build());
     }
 
 
     @Override
-    public IndexedStore<K, V> buildIndexed(Class<? extends DocumentConverter<K, V>> documentConverterClass) {
-      return TracingIndexedStore.of(name, tracer, delegate.buildIndexed(documentConverterClass));
+    public IndexedStore<K, V> buildIndexed(DocumentConverter<K, V> documentConverter) {
+      return TracingIndexedStore.of(name, tracer, delegate.buildIndexed(documentConverter));
     }
   }
 

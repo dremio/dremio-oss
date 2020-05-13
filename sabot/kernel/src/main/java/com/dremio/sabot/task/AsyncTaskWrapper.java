@@ -78,15 +78,19 @@ public class AsyncTaskWrapper implements Task {
   private final AsyncTask asyncTask;
   private final AutoCloseable cleaner;
   private SharedResourceType blockedOnResource;
+  private int lastThread;
+  private long lastSleepDuration;
+  private long warnMaxTime;
 
   private final TaskDescriptorImpl taskDescriptor = new TaskDescriptorImpl();
 
-  public AsyncTaskWrapper(SchedulingGroup<AsyncTaskWrapper> schedulingGroup, AsyncTask asyncTask, AutoCloseable cleaner) {
+  public AsyncTaskWrapper(SchedulingGroup<AsyncTaskWrapper> schedulingGroup, AsyncTask asyncTask, AutoCloseable cleaner, int warnMaxTime) {
     super();
     this.schedulingGroup = Preconditions.checkNotNull(schedulingGroup, "Scheduling group required");
     this.asyncTask = Preconditions.checkNotNull(asyncTask);
     asyncTask.setTaskDescriptor(taskDescriptor);
     this.cleaner = Preconditions.checkNotNull(cleaner);
+    this.warnMaxTime = warnMaxTime;
 
     for (int i = 0; i < WatchType.Size; i++) {
       watches[i] = Stopwatch.createUnstarted();
@@ -101,7 +105,13 @@ public class AsyncTaskWrapper implements Task {
   public void run() {
     stateEnded();
     try {
+      if (getDuration(WatchType.SLEEP) - lastSleepDuration > warnMaxTime) {
+        logger.warn("DHL: The task {} has been in sleep for {}ms. The task last ran on thread e{}",
+          this, getDuration(WatchType.SLEEP) - lastSleepDuration, lastThread);
+      }
       asyncTask.run();
+      lastThread = taskDescriptor.getThread();
+      lastSleepDuration = getDuration(WatchType.SLEEP);
     } finally {
       stateStarted();
     }

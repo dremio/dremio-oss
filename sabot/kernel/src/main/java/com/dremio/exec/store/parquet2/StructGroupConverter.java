@@ -18,6 +18,7 @@ package com.dremio.exec.store.parquet2;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.parquet.schema.GroupType;
@@ -75,6 +76,7 @@ public class StructGroupConverter extends ParquetGroupConverter {
   public void start() {
     structWriter.start();
     super.startListWriters();
+    written = true;
   }
 
   @Override
@@ -83,4 +85,8 @@ public class StructGroupConverter extends ParquetGroupConverter {
     structWriter.end();
   }
 
+  @Override
+  public void writeNullListElement() {
+    ((UnionListWriter)structWriter).writeNull();
+  }
 }

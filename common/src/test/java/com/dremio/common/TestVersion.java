@@ -89,6 +89,7 @@ public class TestVersion {
     assertNotEquals(v1.hashCode(), v5.hashCode());
   }
 
+  @SuppressWarnings("SelfComparison")
   @Test
   public void testCompareTo() {
     assertTrue(v1.compareTo(v1) == 0);

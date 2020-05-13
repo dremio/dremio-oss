@@ -47,6 +47,7 @@ import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.service.executor.ExecutorServiceProductClientFactory;
+import com.dremio.exec.service.jobresults.JobResultsSoftwareClientFactory;
 import com.dremio.exec.service.jobtelemetry.JobTelemetrySoftwareClientFactory;
 import com.dremio.exec.service.maestro.MaestroGrpcServerFacade;
 import com.dremio.exec.service.maestro.MaestroSoftwareClientFactory;
@@ -95,6 +96,7 @@ import com.dremio.service.execselector.ExecutorSelectorProvider;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.service.grpc.GrpcServerBuilderFactory;
+import com.dremio.service.jobresults.client.JobResultsClientFactory;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClientFactory;
 import com.dremio.service.jobtelemetry.server.LocalJobTelemetryServer;
@@ -532,7 +534,7 @@ public class SabotNode implements AutoCloseable {
             Provider<TaskPool> taskPool,
             Provider<MaestroClientFactory> maestroServiceClientFactoryProvider,
             Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider,
-            ExecToCoordTunnelCreator creator
+            Provider<JobResultsClientFactory> jobResultsSoftwareClientFactoryProvider
     ) {
       return new FragmentWorkManager(
         bootstrap,
@@ -546,7 +548,7 @@ public class SabotNode implements AutoCloseable {
         defaultOptionManager,
         maestroServiceClientFactoryProvider,
         jobTelemetryClientFactoryProvider,
-        creator
+        jobResultsSoftwareClientFactoryProvider
       );
     }
 
@@ -731,6 +733,11 @@ public class SabotNode implements AutoCloseable {
     @Provides
     JobTelemetryExecutorClientFactory getJobTelemetryExecutionClientFactory(ExecToCoordTunnelCreator tunnelCreator) {
       return new JobTelemetrySoftwareClientFactory(tunnelCreator);
+    }
+
+    @Provides
+    JobResultsClientFactory getJobResultsSoftwareClientFactory(ExecToCoordTunnelCreator tunnelCreator) {
+      return new JobResultsSoftwareClientFactory(tunnelCreator);
     }
 
     @Provides

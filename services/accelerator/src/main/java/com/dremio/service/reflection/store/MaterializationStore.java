@@ -509,7 +509,7 @@ public class MaterializationStore {
         .keyFormat(Format.ofProtostuff(MaterializationId.class))
         .valueFormat(Format.ofProtostuff(Materialization.class))
         .versionExtractor(MaterializationVersionExtractor.class)
-        .buildIndexed(MaterializationConverter.class);
+        .buildIndexed(new MaterializationConverter());
     }
   }
 
@@ -523,7 +523,7 @@ public class MaterializationStore {
         .name(REFRESH_TABLE_NAME)
         .keyFormat(Format.ofProtostuff(RefreshId.class))
         .valueFormat(Format.ofProtostuff(Refresh.class))
-        .buildIndexed(RefreshConverter.class);
+        .buildIndexed(new RefreshConverter());
     }
   }
 

@@ -32,7 +32,7 @@ public class TestLocalKVStore<K, V> extends AbstractTestKVStore<K, V> {
   private KVStoreProvider localKVStoreProvider;
 
   @Override
-  public KVStoreProvider initProvider() throws Exception {
+  public KVStoreProvider createKVStoreProvider() throws Exception {
     localKVStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT,
       tmpFolder.getRoot().toString(), true, true);
     localKVStoreProvider.start();

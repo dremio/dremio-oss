@@ -71,7 +71,7 @@ public class DremioBinder extends AbstractBinder {
       switch(b.getType()){
       case INSTANCE:
         InstanceBinding ib = (InstanceBinding) b;
-        if(ib.getInstance().getClass().getAnnotation(RequestScoped.class) != null){
+        if(ib.getInstance().getAnnotation(RequestScoped.class) != null){
           bind(ib.getInstance()).in(RequestScoped.class).to(b.getIface());
         }else{
           bind(ib.getInstance()).to(b.getIface());

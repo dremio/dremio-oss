@@ -102,40 +102,52 @@ public class LegacyKVStoreProviderAdapter implements LegacyKVStoreProvider {
    */
   public static class LegacyStoreBuilderAdapter<K, V> extends LegacyAbstractStoreBuilder<K, V> {
     private final Supplier<KVStoreProvider.StoreBuilder<K,V>> underlyingStoreBuilderFactory;
+    private boolean permitCompoundKeys = false;
 
     public LegacyStoreBuilderAdapter(Supplier<KVStoreProvider.StoreBuilder<K,V>> underlyingStoreBuilderFactory) {
       this.underlyingStoreBuilderFactory = underlyingStoreBuilderFactory;
     }
 
     @Override
+    public LegacyStoreBuilder<K, V> permitCompoundKeys(boolean permitCompoundKeys) {
+      this.permitCompoundKeys = permitCompoundKeys;
+      return this;
+    }
+
+    @Override
     public LegacyKVStore<K, V> build() {
       LegacyStoreBuilderHelper<K,V> legacyHelper = getStoreBuilderHelper();
       final KVStoreProvider.StoreBuilder<K,V> builder = underlyingStoreBuilderFactory.get();
-      setBuilderWithLegacyHelper(builder, legacyHelper);
+      populateBuilder(builder, legacyHelper, permitCompoundKeys);
 
       return new LegacyKVStoreAdapter<>(builder.build(), legacyHelper.tryGetVersionExtractor());
     }
 
     @Override
-    public LegacyIndexedStore<K, V> buildIndexed(Class<? extends DocumentConverter<K, V>> documentConverterClass) {
+    public LegacyIndexedStore<K, V> buildIndexed(DocumentConverter<K, V> documentConverter) {
       LegacyStoreBuilderHelper<K,V> legacyHelper = getStoreBuilderHelper();
       final KVStoreProvider.StoreBuilder<K,V> builder = underlyingStoreBuilderFactory.get();
-      setBuilderWithLegacyHelper(builder, legacyHelper);
+      populateBuilder(builder, legacyHelper, permitCompoundKeys);
 
-      return new LegacyIndexedStoreAdapter<>(builder.buildIndexed(documentConverterClass), legacyHelper.tryGetVersionExtractor());
+      return new LegacyIndexedStoreAdapter<>(builder.buildIndexed(documentConverter), legacyHelper.tryGetVersionExtractor());
     }
 
     /**
-     * Helper method to set configurations in StoreBuilder with settings provided by the LegacyStoreBuilderHelper.
+     * Helper method to set configurations in StoreBuilder with settings provided by the
+     * this LegacyStoreBuilder.
      *
      * @param builder the KVStoreProvider.StoreBuilder with configurations to be set.
-     * @param legacyStoreBuilderHelper legacy helper to provide settigns for builder.
+     * @param legacyStoreBuilderHelper legacy helper to provide settings for builder.
+     * @param permitCompoundKeys Indicates if CompoundKeys should be allowed.
      */
-    private void setBuilderWithLegacyHelper(KVStoreProvider.StoreBuilder<K, V> builder,
-                                      LegacyStoreBuilderHelper<K,V> legacyStoreBuilderHelper) {
-      builder.name(legacyStoreBuilderHelper.getName());
-      builder.keyFormat(legacyStoreBuilderHelper.getKeyFormat());
-      builder.valueFormat(legacyStoreBuilderHelper.getValueFormat());
+    private void populateBuilder(KVStoreProvider.StoreBuilder<K, V> builder,
+                                 LegacyStoreBuilderHelper<K,V> legacyStoreBuilderHelper,
+                                 boolean permitCompoundKeys) {
+      builder
+        .name(legacyStoreBuilderHelper.getName())
+        .keyFormat(legacyStoreBuilderHelper.getKeyFormat())
+        .valueFormat(legacyStoreBuilderHelper.getValueFormat())
+        .permitCompoundKeys(permitCompoundKeys);
     }
   }
 }

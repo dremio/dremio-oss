@@ -29,7 +29,8 @@ export default class StatefulTableViewer extends Component {
     virtualized: PropTypes.bool,
     viewState: PropTypes.instanceOf(Immutable.Map),
     tableData: PropTypes.instanceOf(Immutable.List),
-    noDataText: PropTypes.string
+    noDataText: PropTypes.string,
+    rowHeight: PropTypes.number
     // extra props passed along to underlying Table impl
     // columns: PropTypes.array.isRequired,
     // className: PropTypes.string,

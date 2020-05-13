@@ -19,17 +19,18 @@ import com.dremio.common.utils.protos.QueryWritableBatch;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.sabot.threads.SendingMonitor;
+import com.dremio.services.jobresults.common.JobResultsTunnel;
 
 /**
  * Wrapper around a {@link com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnection} that tracks the status of batches
  * sent to User.
  */
 public class AccountingExecToCoordTunnel {
-  private final ExecToCoordTunnel tunnel;
+  private final JobResultsTunnel tunnel;
   private final SendingMonitor sendMonitor;
   private final RpcOutcomeListener<Ack> statusHandler;
 
-  public AccountingExecToCoordTunnel(ExecToCoordTunnel tunnel, SendingMonitor sendMonitor, RpcOutcomeListener<Ack> statusHandler) {
+  public AccountingExecToCoordTunnel(JobResultsTunnel tunnel, SendingMonitor sendMonitor, RpcOutcomeListener<Ack> statusHandler) {
     this.tunnel = tunnel;
     this.sendMonitor = sendMonitor;
     this.statusHandler = statusHandler;
@@ -38,5 +39,9 @@ public class AccountingExecToCoordTunnel {
   public void sendData(QueryWritableBatch data) {
     sendMonitor.increment();
     tunnel.sendData(statusHandler, data);
+  }
+
+  public JobResultsTunnel getTunnel() {
+    return tunnel;
   }
 }

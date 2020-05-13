@@ -96,6 +96,7 @@ import com.dremio.exec.planner.acceleration.IncrementalUpdateUtils;
 import com.dremio.exec.planner.acceleration.UpdateIdWrapper;
 import com.dremio.exec.planner.physical.WriterPrel;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.EventBasedRecordWriter;
 import com.dremio.exec.store.EventBasedRecordWriter.FieldConverter;
@@ -131,6 +132,10 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     AVG_FILE_SIZE, // Average size of files written
     MIN_RECORD_COUNT_IN_FILE, // Minimum number of records written in a file
     MAX_RECORD_COUNT_IN_FILE, // Maximum number of records written in a file
+    MIN_IO_WRITE_TIME, // Minimum IO write time
+    MAX_IO_WRITE_TIME, // Maximum IO write time
+    AVG_IO_WRITE_TIME, // Avg IO write time
+    NUM_IO_WRITE,      // Total Number of IO writes
     ;
 
     @Override
@@ -189,6 +194,9 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   private CaseInsensitiveImmutableBiMap<Integer> icebergColumnIDMap;
 
   private final String queryUser;
+
+  private final int parquetFileWriteTimeThresholdMilliSecs;
+  private final double parquetFileWriteIoRateThresholdMbps;
 
   // metrics workspace variables
   int numFilesWritten = 0;
@@ -254,6 +262,8 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     enableDictionaryForBinary = context.getOptions().getOption(ExecConstants.PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_BINARY_TYPE_VALIDATOR);
     maxPartitions = context.getOptions().getOption(ExecConstants.PARQUET_MAXIMUM_PARTITIONS_VALIDATOR);
     minRecordsForFlush = context.getOptions().getOption(ExecConstants.PARQUET_MIN_RECORDS_FOR_FLUSH_VALIDATOR);
+    parquetFileWriteTimeThresholdMilliSecs = (int)context.getOptions().getOption(ExecConstants.PARQUET_WRITE_TIME_THRESHOLD_MILLI_SECS_VALIDATOR);
+    parquetFileWriteIoRateThresholdMbps = context.getOptions().getOption(ExecConstants.PARQUET_WRITE_IO_RATE_THRESHOLD_MBPS_VALIDATOR);
   }
 
   @Override
@@ -570,6 +580,7 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     }
 
     if (recordCount > 0) {
+      long writeFileStartTimeMillis = System.currentTimeMillis();
       long memSize = store.getBufferedSize();
       parquetFileWriter.startBlock(recordCount);
       consumer.flush();
@@ -578,8 +589,15 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
       parquetFileWriter.endBlock();
       long recordsWritten = recordCount;
 
+      long footerWriteAndFlushStartTimeMillis = System.currentTimeMillis();
       // we are writing one single block per file
       parquetFileWriter.end(extraMetaData);
+
+      long writeFileEndTimeMillis = System.currentTimeMillis();
+
+      logSlowIoWrite(writeFileStartTimeMillis, footerWriteAndFlushStartTimeMillis,  writeFileEndTimeMillis,
+        parquetFileWriter.getPos(), recordsWritten, path);
+
       byte[] metadata = this.trackingConverter == null ? null : trackingConverter.getMetadata();
       final long fileSize = parquetFileWriter.getPos();
       listener.recordsWritten(recordsWritten, fileSize, path.toString(), metadata /** TODO: add parquet footer **/,
@@ -598,6 +616,24 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
     store = null;
     pageStore = null;
     index++;
+  }
+
+  private void logSlowIoWrite(long writeFileStartTimeMillis, long footerWriteAndFlushStartTimeMillis,
+                             long writeFileEndTimeMillis, long size, long recordsWritten, Path path) {
+
+    long writeBlockDeltaTime = footerWriteAndFlushStartTimeMillis - writeFileStartTimeMillis;
+    long footerWriteAndFlushDeltaTime = writeFileEndTimeMillis - footerWriteAndFlushStartTimeMillis;
+    long totalTime = writeBlockDeltaTime + footerWriteAndFlushDeltaTime;
+    double writeIoRateMbps= Double.MAX_VALUE;
+    if (totalTime > 0) {
+      writeIoRateMbps = ((double)size / (1024 * 1024)) / ((double)totalTime / 1000);
+    }
+
+    if ((totalTime) > parquetFileWriteTimeThresholdMilliSecs && writeIoRateMbps < parquetFileWriteIoRateThresholdMbps) {
+      logger.warn("DHL: ParquetFileWriter took too long (writeBlockDeltaTime {} and footerWriteAndFlushDeltaTime {} milli secs) " +
+          "for writing {} records ({} bytes) to file {} at {} Mbps",
+        writeBlockDeltaTime,footerWriteAndFlushDeltaTime, recordsWritten, size, path, String.format("%.3f",writeIoRateMbps));
+    }
   }
 
   private byte[] getIcebergMetaData() throws IOException {
@@ -1043,6 +1079,21 @@ public class ParquetRecordWriter extends ParquetOutputRecordWriter {
   public void close() throws Exception {
     try {
       flushAndClose();
+      OperatorStats operatorStats = context.getStats();
+      OperatorStats.IOStats ioStats = operatorStats.getWriteIOStats();
+
+      if (ioStats != null) {
+        long minIOWriteTime = ioStats.minIOTime.longValue() <= ioStats.maxIOTime.longValue() ? ioStats.minIOTime.longValue() : 0;
+        operatorStats.setLongStat(Metric.MIN_IO_WRITE_TIME, minIOWriteTime);
+        operatorStats.setLongStat(Metric.MAX_IO_WRITE_TIME, ioStats.maxIOTime.longValue());
+        operatorStats.setLongStat(Metric.AVG_IO_WRITE_TIME, ioStats.numIO.get() == 0 ? 0 : ioStats.totalIOTime.longValue() / ioStats.numIO.get());
+        operatorStats.addLongStat(Metric.NUM_IO_WRITE, ioStats.numIO.longValue());
+
+        operatorStats.setProfileDetails(UserBitShared.OperatorProfileDetails
+          .newBuilder()
+          .addAllSlowIoInfos(ioStats.slowIOInfoList)
+          .build());
+      }
     } finally {
       try {
         NoExceptionAutoCloseables.close(store, pageStore, parquetFileWriter);

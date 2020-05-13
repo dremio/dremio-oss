@@ -15,23 +15,35 @@
  */
 package com.dremio.datastore.adapter.stores;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
+import com.dremio.datastore.adapter.TestLegacyStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 
 /**
  * Tests using uuids as keys.
  */
-public class LegacyUUIDStore implements LegacyStoreCreationFunction<LegacyKVStore<UUID, String>> {
+public class LegacyUUIDStore implements TestLegacyStoreCreationFunction<UUID, String> {
   @Override
   public LegacyKVStore<UUID, String> build(LegacyStoreBuildingFactory factory) {
     return factory.<UUID, String>newStore()
       .name("legacy-uuid-store")
-      .keyFormat(Format.ofUUID())
+      .keyFormat(getKeyFormat())
       .valueFormat(Format.ofString())
       .build();
+  }
+
+  @Override
+  public Format<UUID> getKeyFormat() {
+    return Format.ofUUID();
+  }
+
+  @Override
+  public List<Class<?>> getKeyClasses() {
+    return Arrays.asList(UUID.class);
   }
 }

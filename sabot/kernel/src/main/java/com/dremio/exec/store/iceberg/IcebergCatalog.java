@@ -23,6 +23,7 @@ import java.util.Optional;
 
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.AppendFiles;
@@ -35,10 +36,12 @@ import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.Transaction;
 import org.apache.iceberg.UpdateSchema;
 import org.apache.iceberg.expressions.Expressions;
+import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.google.common.base.Preconditions;
@@ -198,15 +201,20 @@ public class IcebergCatalog {
           columnToChangeInIceberg.name()).buildSilently();
     }
 
-    if (!TypeUtil.isPromotionAllowed(columnToChangeInIceberg.type(), newDef.type().asPrimitiveType())) {
-      throw UserException.validationError().message("Cannot change type of column [%s] from [%s] to [%s]",
-          columnToChangeInIceberg.name(),
-          CalciteArrowHelper.getCalciteTypeFromMinorType(SchemaConverter.fromIcebergType(columnToChangeInIceberg.type()).toMinorType()),
-          CalciteArrowHelper.getCalciteTypeFromMinorType(SchemaConverter.fromIcebergType(newDef.type()).toMinorType())).buildSilently();
+    if (!TypeUtil.isPromotionAllowed(columnToChangeInIceberg.type(), newDef.type()
+        .asPrimitiveType())) {
+      throw UserException.validationError()
+          .message("Cannot change data type of column [%s] from %s to %s",
+              columnToChangeInIceberg.name(),
+              sqlTypeNameWithPrecisionAndScale(columnToChangeInIceberg.type()),
+              sqlTypeNameWithPrecisionAndScale(newDef.type()))
+          .buildSilently();
     }
 
-    table.updateSchema().renameColumn(columnToChangeInIceberg.name(), newDef.name())
-        .updateColumn(columnToChangeInIceberg.name(), newDef.type().asPrimitiveType()).commit();
+    table.updateSchema()
+        .renameColumn(columnToChangeInIceberg.name(), newDef.name())
+        .updateColumn(columnToChangeInIceberg.name(), newDef.type().asPrimitiveType())
+        .commit();
   }
 
   /**
@@ -220,4 +228,14 @@ public class IcebergCatalog {
     table = new BaseTable(tableOperations, fsPath.getName());
     table.updateSchema().renameColumn(name, newName).commit();
   }
+
+  private String sqlTypeNameWithPrecisionAndScale(Type type) {
+    CompleteType completeType = SchemaConverter.fromIcebergType(type);
+    SqlTypeName calciteTypeFromMinorType = CalciteArrowHelper.getCalciteTypeFromMinorType(completeType.toMinorType());
+    if (calciteTypeFromMinorType == SqlTypeName.DECIMAL) {
+      return calciteTypeFromMinorType + "(" + completeType.getPrecision() + ", " + completeType.getScale() + ")";
+    }
+    return calciteTypeFromMinorType.toString();
+  }
+
 }

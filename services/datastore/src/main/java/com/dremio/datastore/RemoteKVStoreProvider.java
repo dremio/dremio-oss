@@ -139,15 +139,14 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
    * @param <V>
    */
   public class RemoteStoreBuilder<K, V> extends AbstractStoreBuilder<K, V> {
-
     @Override
-    public KVStore<K, V> build() {
+    public KVStore<K, V> doBuild() {
       return new RemoteKVStore<>(rpcClient, rpcClient.getStoreId(getStoreBuilderHelper().getName()), getStoreBuilderHelper());
     }
 
     @Override
-    public IndexedStore<K, V> buildIndexed(Class<? extends DocumentConverter<K, V>> documentConverterClass) {
-      getStoreBuilderHelper().documentConverter(documentConverterClass);
+    public IndexedStore<K, V> doBuildIndexed(DocumentConverter<K, V> documentConverter) {
+      getStoreBuilderHelper().documentConverter(documentConverter);
       return new RemoteIndexedStore<>(rpcClient, rpcClient.getStoreId(getStoreBuilderHelper().getName()), getStoreBuilderHelper());
     }
   }

@@ -812,4 +812,24 @@ public class TestNativeFunctions extends BaseTestFunction {
       throw re;
     }
   }
+
+  @Test
+  public void testRegistryIsCaseInsensitive() throws Exception {
+    testFunctions(new Object[][]{
+      {"extractday(c0)", ts("1970-01-02T10:20:33"), 2l},
+      {"extractmonth(c0)", ts("1970-01-02T10:20:33"), 1l},
+      {"extractday(c0)", date("1970-01-02"), 2l},
+      {"extractmonth(c0)", date("1970-01-02"), 1l}
+    });
+  }
+
+  @Test
+  public void testDateDiffFunctions() throws Exception {
+    testFunctionsCompiledOnly(new Object[][]{
+      {"extractday(date_sub(c0, 10))", date("1970-01-12"), 2l},
+      {"extractday(date_diff(c0, 10))", ts("1970-01-12T10:20:33"), 2l},
+      {"extractday(subtract(c0, 10))", ts("1970-01-12T10:20:33"), 2l},
+    });
+  }
+
 }

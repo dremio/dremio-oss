@@ -295,7 +295,12 @@ public class TestMaestroResiliency extends BaseTestQuery {
     client.resumeQuery(queryId);
 
     listener.await();
-    assertEquals(UserBitShared.QueryResult.QueryState.CANCELED, capturingListener.getQueryState());
+
+    UserBitShared.QueryResult.QueryState queryState = null;
+    while ((queryState = capturingListener.getQueryState()) == null) {
+      Thread.sleep(10);
+    }
+    assertEquals(UserBitShared.QueryResult.QueryState.CANCELED, queryState);
 
     waitTillQueryCleanup();
   }

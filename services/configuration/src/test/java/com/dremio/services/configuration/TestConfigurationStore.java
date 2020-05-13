@@ -44,6 +44,10 @@ public class TestConfigurationStore {
       ConfigurationEntry retrieved = store.get("key");
       Assert.assertEquals(retrieved.getType(), supportEntry.getType());
       Assert.assertEquals(retrieved.getValue(), supportEntry.getValue());
+
+      store.delete("key");
+      retrieved = store.get("key");
+      Assert.assertEquals(retrieved, null);
     }
   }
 }

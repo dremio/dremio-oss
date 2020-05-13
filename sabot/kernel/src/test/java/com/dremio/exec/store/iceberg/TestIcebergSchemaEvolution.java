@@ -15,8 +15,6 @@
  */
 package com.dremio.exec.store.iceberg;
 
-import static org.joda.time.DateTimeZone.UTC;
-
 import java.io.File;
 import java.math.BigDecimal;
 import java.sql.Date;
@@ -92,15 +90,15 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineColumns("col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col9", "col10")
         .baselineValues(true, new Integer(1), new Long(1),
           new Float("1.0"), new Double("1.0"), new BigDecimal("1.000"),
-          new LocalDateTime(Date.valueOf("2019-12-25").getTime(), UTC),
-          new LocalDateTime(Time.valueOf("12:00:00").getTime(), UTC),
-          new LocalDateTime(Timestamp.valueOf("2019-12-25 12:00:00").getTime(), UTC),
+          new LocalDateTime(Date.valueOf("2019-12-25").getTime()),
+          new LocalDateTime(Time.valueOf("12:00:00").getTime()),
+          new LocalDateTime(Timestamp.valueOf("2019-12-25 12:00:00").getTime()),
           "abc")
         .baselineValues(false, new Integer(2), new Long(2),
           new Float("2.0"), new Double("2.0"), new BigDecimal("2.000"),
-          new LocalDateTime(Date.valueOf("2019-12-26").getTime(), UTC),
-          new LocalDateTime(Time.valueOf("13:00:00").getTime(), UTC),
-          new LocalDateTime(Timestamp.valueOf("2019-12-26 13:00:00").getTime(), UTC),
+          new LocalDateTime(Date.valueOf("2019-12-26").getTime()),
+          new LocalDateTime(Time.valueOf("13:00:00").getTime()),
+          new LocalDateTime(Timestamp.valueOf("2019-12-26 13:00:00").getTime()),
           "def")
         .build()
         .run();
@@ -134,27 +132,27 @@ public class TestIcebergSchemaEvolution extends BaseTestQuery {
         .baselineColumns("col10", "col1", "col2", "col3", "col4", "col5", "col6", "col7", "col8", "col11")
         .baselineValues(true, new Integer(1), new Long(1),
           new Float("1.0"), new Double("1.0"), new BigDecimal("1.000"),
-          new LocalDateTime(Date.valueOf("2019-12-25").getTime(), UTC),
-          new LocalDateTime(Time.valueOf("12:00:00").getTime(), UTC),
-          new LocalDateTime(Timestamp.valueOf("2019-12-25 12:00:00").getTime(), UTC),
+          new LocalDateTime(Date.valueOf("2019-12-25").getTime()),
+          new LocalDateTime(Time.valueOf("12:00:00").getTime()),
+          new LocalDateTime(Timestamp.valueOf("2019-12-25 12:00:00").getTime()),
           "abc")
         .baselineValues(false, new Integer(2), new Long(2),
           new Float("2.0"), new Double("2.0"), new BigDecimal("2.000"),
-          new LocalDateTime(Date.valueOf("2019-12-26").getTime(), UTC),
-          new LocalDateTime(Time.valueOf("13:00:00").getTime(), UTC),
-          new LocalDateTime(Timestamp.valueOf("2019-12-26 13:00:00").getTime(), UTC),
+          new LocalDateTime(Date.valueOf("2019-12-26").getTime()),
+          new LocalDateTime(Time.valueOf("13:00:00").getTime()),
+          new LocalDateTime(Timestamp.valueOf("2019-12-26 13:00:00").getTime()),
           "def")
         .baselineValues(false, new Integer(2), new Long(2),
           new Float("2.0"), new Double("2.0"), new BigDecimal("2.000"),
-          new LocalDateTime(Date.valueOf("2019-12-26").getTime(), UTC),
-          new LocalDateTime(Time.valueOf("13:00:00").getTime(), UTC),
-          new LocalDateTime(Timestamp.valueOf("2019-12-26 13:00:00").getTime(), UTC),
+          new LocalDateTime(Date.valueOf("2019-12-26").getTime()),
+          new LocalDateTime(Time.valueOf("13:00:00").getTime()),
+          new LocalDateTime(Timestamp.valueOf("2019-12-26 13:00:00").getTime()),
           "def")
         .baselineValues(false, new Integer(3), new Long(3),
           new Float("3.0"), new Double("3.0"), new BigDecimal("3.000"),
-          new LocalDateTime(Date.valueOf("2019-12-27").getTime(), UTC),
-          new LocalDateTime(Time.valueOf("14:00:00").getTime(), UTC),
-          new LocalDateTime(Timestamp.valueOf("2019-12-27 14:00:00").getTime(), UTC),
+          new LocalDateTime(Date.valueOf("2019-12-27").getTime()),
+          new LocalDateTime(Time.valueOf("14:00:00").getTime()),
+          new LocalDateTime(Timestamp.valueOf("2019-12-27 14:00:00").getTime()),
           "ghi")
         .build()
         .run();

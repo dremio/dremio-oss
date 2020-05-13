@@ -2000,7 +2000,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
         .name(JOBS_NAME)
         .keyFormat(Format.wrapped(JobId.class, JobId::getId, JobId::new, Format.ofString()))
         .valueFormat(Format.ofProtostuff(JobResult.class))
-        .buildIndexed(JobConverter.class);
+        .buildIndexed(new JobConverter());
     }
   }
 

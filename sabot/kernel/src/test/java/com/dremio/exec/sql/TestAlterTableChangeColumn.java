@@ -86,7 +86,7 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
 
       String query = String.format("ALTER TABLE %s.%s CHANGE version commit_message2 int", TEMP_SCHEMA,
           tableName);
-      errorMsgTestHelper(query, "Cannot change type of column [version] from [VARCHAR] to [INTEGER]");
+      errorMsgTestHelper(query, "Cannot change data type of column [version] from VARCHAR to INTEGER");
 
     } finally {
       FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), tableName));
@@ -327,6 +327,19 @@ public class TestAlterTableChangeColumn extends BaseTestQuery {
       Thread.sleep(1001);
       String changeColQuery = String.format("ALTER TABLE %s CHANGE n_RegiOnkey regionkey int", tableName);
       errorMsgTestHelper(changeColQuery, "Table [changecol9] not found");
+    }
+  }
+
+  @Test
+  public void messageHasPrecAndScale() throws Exception {
+    String tableName = "changecol10";
+    try (AutoCloseable c = enableIcebergTables()) {
+
+      final String createTableQuery = String.format("CREATE TABLE %s.%s (dec1 DECIMAL(10,2))",
+          TEMP_SCHEMA, tableName);
+      test(createTableQuery);
+      String changeColQuery = String.format("ALTER TABLE %s.%s CHANGE dec1 dec1 decimal(11, 3)", TEMP_SCHEMA, tableName);
+      errorMsgTestHelper(changeColQuery, "Cannot change data type of column [dec1] from DECIMAL(10, 2) to DECIMAL(11, 3)");
     }
   }
 

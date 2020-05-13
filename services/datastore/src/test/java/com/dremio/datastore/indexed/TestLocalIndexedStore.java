@@ -38,7 +38,7 @@ public class TestLocalIndexedStore extends AbstractTestIndexedStore {
   }
 
   @Override
-  protected IndexedStore<String, Doughnut> supplyStore() {
+  protected IndexedStore<String, Doughnut> createKVStore() {
     return getProvider().getStore(DoughnutIndexedStore.class);
   }
 

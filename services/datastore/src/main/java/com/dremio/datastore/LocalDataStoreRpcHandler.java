@@ -148,7 +148,7 @@ public class LocalDataStoreRpcHandler extends DefaultDataStoreRpcHandler {
 
   @Override
   public PutResponse put(PutRequest request) {
-    return putHandler.apply(request);
+    return putHandler.apply(request, false);
   }
 
   @Override

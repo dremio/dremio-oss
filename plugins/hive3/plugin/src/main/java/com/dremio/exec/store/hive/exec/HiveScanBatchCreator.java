@@ -18,6 +18,7 @@ package com.dremio.exec.store.hive.exec;
 import static com.dremio.hive.proto.HiveReaderProto.ReaderType.NATIVE_PARQUET;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
@@ -26,8 +27,6 @@ import org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.pf4j.Extension;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.store.RecordReader;
@@ -36,6 +35,7 @@ import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.hive.HiveImpersonationUtil;
 import com.dremio.exec.store.hive.Hive3StoragePlugin;
 import com.dremio.exec.store.hive.proxy.HiveProxiedScanBatchCreator;
+import com.dremio.exec.util.ConcatenatedCloseableIterator;
 import com.dremio.hive.proto.HiveReaderProto;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -44,7 +44,6 @@ import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
-import com.google.common.collect.FluentIterable;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 @SuppressWarnings("unused")
@@ -119,13 +118,13 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
     List<SplitAndPartitionInfo> nonParquetSplits = new ArrayList<>();
     classifySplitsAsParquetAndNonParquet(config.getSplits(), tableXattr, isPartitioned, parquetSplits, nonParquetSplits);
 
-    Iterable<RecordReader> recordReaders = FluentIterable.concat(
-      Objects.requireNonNull(ScanWithDremioReader.createReaders(conf, fragmentExecContext, context,
-        config, tableXattr, compositeConfig, proxyUgi, parquetSplits)),
-      Objects.requireNonNull(ScanWithHiveReader.createReaders(conf, fragmentExecContext, context,
-        config, tableXattr, compositeConfig, proxyUgi, nonParquetSplits)));
+    Iterator<RecordReader> recordReaders = ConcatenatedCloseableIterator.of(
+        Objects.requireNonNull(ScanWithDremioReader.createReaders(conf, storagePlugin, fragmentExecContext, context,
+            config, tableXattr, compositeConfig, proxyUgi, parquetSplits)),
+        Objects.requireNonNull(ScanWithHiveReader.createReaders(conf, fragmentExecContext, context,
+            config, tableXattr, compositeConfig, proxyUgi, nonParquetSplits)));
 
-    return new ScanOperator(config, context, recordReaders.iterator());
+    return new ScanOperator(config, context, recordReaders);
   }
 
   @VisibleForTesting

@@ -13,11 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.exec.util;
+package com.dremio.exec.store.dfs;
 
-public final class DebugCheck {
+/**
+ * Interface to get async and cache config
+ */
+public interface AsyncStreamConf {
+  /**
+   * Indicates that the plugin should use asynchronous reads when possible.
+   * (This means the user has enabled async for the source and the underlying FileSystem supports
+   * asynchronous reads).
+   */
+  default boolean isAsyncEnabled() {
+    return false;
+  }
 
-  public static final boolean IS_DEBUG = java.lang.management.ManagementFactory.getRuntimeMXBean().getInputArguments().toString().indexOf("-agentlib:jdwp") > 0;
-
-  private DebugCheck() {}
+  default CacheProperties getCacheProperties() {
+    return new CacheProperties() {};
+  }
 }

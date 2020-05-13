@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
+import javax.inject.Provider;
+
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 
@@ -32,6 +34,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.compile.CodeCompiler;
 import com.dremio.exec.expr.fn.DecimalFunctionImplementationRegistry;
 import com.dremio.exec.expr.fn.FunctionImplementationRegistry;
@@ -52,7 +55,6 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.exec.EventProvider;
-import com.dremio.sabot.exec.ExecToCoordTunnelCreator;
 import com.dremio.sabot.exec.FragmentTicket;
 import com.dremio.sabot.exec.FragmentWorkManager.ExecConnectionCreator;
 import com.dremio.sabot.exec.MaestroProxy;
@@ -63,12 +65,13 @@ import com.dremio.sabot.exec.context.ContextInformation;
 import com.dremio.sabot.exec.context.ContextInformationFactory;
 import com.dremio.sabot.exec.context.FragmentStats;
 import com.dremio.sabot.exec.context.StatusHandler;
-import com.dremio.sabot.exec.rpc.ExecToCoordTunnel;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.threads.sharedres.SharedResourceManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.jobresults.client.JobResultsClientFactory;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.spill.SpillService;
+import com.dremio.services.jobresults.common.JobResultsTunnel;
 import com.google.common.base.Preconditions;
 
 /**
@@ -88,7 +91,6 @@ public class FragmentExecutorBuilder {
   private final ClusterCoordinator coord;
   private final ExecutorService executorService;
   private final SystemOptionManager optionManager;
-  private final ExecToCoordTunnelCreator execToCoord;
   private final ExecConnectionCreator dataCreator;
   private final NamespaceService namespace;
 
@@ -103,34 +105,34 @@ public class FragmentExecutorBuilder {
   private final NodeDebugContextProvider nodeDebugContextProvider;
   private final SpillService spillService;
   private final DefaultOptionManager defaultOptionManager;
+  private final Provider<JobResultsClientFactory> jobResultsClientFactoryProvider;
 
   public FragmentExecutorBuilder(
-      QueriesClerk clerk,
-      MaestroProxy maestroProxy,
-      SabotConfig config,
-      ClusterCoordinator coord,
-      ExecutorService executorService,
-      SystemOptionManager optionManager,
-      ExecToCoordTunnelCreator execToCoord,
-      ExecConnectionCreator dataCreator,
-      ScanResult scanResult,
-      PhysicalPlanReader planReader,
-      NamespaceService namespace,
-      CatalogService sources,
-      ContextInformationFactory contextInformationFactory,
-      FunctionImplementationRegistry functions,
-      DecimalFunctionImplementationRegistry decimalFunctions,
-      NodeDebugContextProvider nodeDebugContextProvider,
-      SpillService spillService,
-      Set<ClusterCoordinator.Role> roles,
-      DefaultOptionManager defaultOptionManager) {
+    QueriesClerk clerk,
+    MaestroProxy maestroProxy,
+    SabotConfig config,
+    ClusterCoordinator coord,
+    ExecutorService executorService,
+    SystemOptionManager optionManager,
+    ExecConnectionCreator dataCreator,
+    ScanResult scanResult,
+    PhysicalPlanReader planReader,
+    NamespaceService namespace,
+    CatalogService sources,
+    ContextInformationFactory contextInformationFactory,
+    FunctionImplementationRegistry functions,
+    DecimalFunctionImplementationRegistry decimalFunctions,
+    NodeDebugContextProvider nodeDebugContextProvider,
+    SpillService spillService,
+    Set<ClusterCoordinator.Role> roles,
+    DefaultOptionManager defaultOptionManager,
+    Provider<JobResultsClientFactory> jobResultsClientFactoryProvider) {
     this.clerk = clerk;
     this.maestroProxy = maestroProxy;
     this.config = config;
     this.coord = coord;
     this.executorService = executorService;
     this.optionManager = optionManager;
-    this.execToCoord = execToCoord;
     this.dataCreator = dataCreator;
     this.namespace = namespace;
     this.planReader = planReader;
@@ -144,6 +146,7 @@ public class FragmentExecutorBuilder {
     this.nodeDebugContextProvider = nodeDebugContextProvider;
     this.spillService = spillService;
     this.defaultOptionManager = defaultOptionManager;
+    this.jobResultsClientFactoryProvider = jobResultsClientFactoryProvider;
   }
 
   public PhysicalPlanReader getPlanReader() {
@@ -193,7 +196,7 @@ public class FragmentExecutorBuilder {
         throw new ExecutionSetupException("Failure while getting memory allocator for fragment.", e);
       }
 
-      final FragmentStats stats = new FragmentStats(allocator, handle, fragment.getAssignment());
+      final FragmentStats stats = new FragmentStats(allocator, handle, fragment.getAssignment(), optionManager.getOption(ExecConstants.STORE_IO_TIME_WARN_THRESH_MILLIS));
       final SharedResourceManager sharedResources = SharedResourceManager.newBuilder()
         .addGroup(PIPELINE_RES_GRP)
         .addGroup(WORK_QUEUE_RES_GRP)
@@ -215,10 +218,11 @@ public class FragmentExecutorBuilder {
           contextInformationFactory.newContextFactory(major.getCredentials(), major.getContext());
 
       // create rpc connections
-      final ExecToCoordTunnel coordTunnel = execToCoord.getTunnel(major.getForeman());
+      final JobResultsTunnel jobResultsTunnel = jobResultsClientFactoryProvider.get()
+        .getJobResultsClient(major.getForeman(), allocator, QueryIdHelper.getFragmentId(fragment.getHandle())).getTunnel();
       final DeferredException exception = new DeferredException();
       final StatusHandler handler = new StatusHandler(exception);
-      final TunnelProvider tunnelProvider = new TunnelProviderImpl(flushable.getAccountor(), coordTunnel, dataCreator, handler, sharedResources.getGroup(PIPELINE_RES_GRP));
+      final TunnelProvider tunnelProvider = new TunnelProviderImpl(flushable.getAccountor(), jobResultsTunnel, dataCreator, handler, sharedResources.getGroup(PIPELINE_RES_GRP));
 
       final OperatorContextCreator creator = new OperatorContextCreator(
           stats,

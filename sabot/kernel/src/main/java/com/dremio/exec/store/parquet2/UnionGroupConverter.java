@@ -79,5 +79,4 @@ public class UnionGroupConverter extends ParquetGroupConverter {
   public void start() {
     super.endListWriters();
   }
-
 }

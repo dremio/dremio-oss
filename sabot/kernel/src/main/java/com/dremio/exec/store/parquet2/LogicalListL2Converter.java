@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.store.parquet2;
 
+import static com.dremio.common.exceptions.FieldSizeLimitExceptionHelper.createListChildrenLimitException;
+
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -29,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.parquet.ParquetColumnResolver;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
 import com.dremio.options.OptionManager;
@@ -43,6 +46,9 @@ class LogicalListL2Converter extends ParquetGroupConverter {
   private static final Logger logger = LoggerFactory.getLogger(LogicalListL2Converter.class);
 
   private final WriterProvider writerProvider;
+  private int childCount;
+  private final long maxChildrenAllowed;
+  private final String fieldName;
 
   LogicalListL2Converter(
       ParquetColumnResolver columnResolver,
@@ -68,6 +74,10 @@ class LogicalListL2Converter extends ParquetGroupConverter {
         },
         schemaHelper);
 
+    this.fieldName = fieldName.split("\\.")[0];
+    maxChildrenAllowed = schemaHelper.isLimitListItems() ?
+     options.getOption(ExecConstants.PARQUET_LIST_ITEMS_THRESHOLD) : Integer.MAX_VALUE;
+    childCount = 0;
     this.writerProvider = writerProvider;
 
     if (!isSupportedSchema(schema)) {
@@ -109,8 +119,30 @@ class LogicalListL2Converter extends ParquetGroupConverter {
   }
 
   @Override
-  public void start() {}
+  public void start() {
+    // list will have only one child.
+    ParquetListElementConverter childConverter = (ParquetListElementConverter)converters.get(0);
+    // signal start of writing an element
+    childConverter.startElement();
+    childCount++;
+    if (childCount > maxChildrenAllowed) {
+      throw createListChildrenLimitException(fieldName, maxChildrenAllowed);
+    }
+  }
 
   @Override
-  public void end() {}
+  public void end() {
+    // list will have only one child. signal end of writing an element
+    ParquetListElementConverter childConverter = (ParquetListElementConverter)converters.get(0);
+    if(!childConverter.hasWritten()) {
+      // if no element was written, then write null element
+      childConverter.writeNullListElement();
+    }
+    // signal end of writing an element
+    childConverter.endElement();
+  }
+
+  public void startList() {
+    childCount = 0;
+  }
 }

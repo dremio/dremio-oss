@@ -17,10 +17,8 @@ package com.dremio.exec.store.parquet;
 
 import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.ACCELERATOR_STORAGEPLUGIN_NAME;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +43,8 @@ import com.dremio.exec.store.FilteringCoercionReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
+import com.dremio.exec.store.dfs.PrefetchingIterator;
+import com.dremio.exec.store.dfs.SplitReaderCreator;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
 import com.dremio.exec.store.dfs.implicit.ImplicitFilesystemColumnFinder;
 import com.dremio.exec.util.ColumnUtils;
@@ -183,17 +183,17 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     }
 
     public ScanOperator createScan() throws Exception {
-      List<SplitReaderCreator> splits = config.getSplits().stream().map(SplitReaderCreator::new).sorted().collect(Collectors.toList());
-      SplitReaderCreator next = null;
+      List<ParquetSplitReaderCreator> splits = config.getSplits().stream().map(ParquetSplitReaderCreator::new).sorted().collect(Collectors.toList());
+      ParquetSplitReaderCreator next = null;
 
       // set forward links
       for(int i = splits.size() - 1; i > -1; i--) {
-        SplitReaderCreator cur = splits.get(i);
+        ParquetSplitReaderCreator cur = splits.get(i);
         cur.setNext(next);
         next = cur;
       }
 
-      PrefetchingIterator iterator = new PrefetchingIterator(splits);
+      PrefetchingIterator<ParquetSplitReaderCreator> iterator = new PrefetchingIterator<>(splits);
       try {
         return new ScanOperator(config, context, iterator, globalDictionaries);
       } catch (Exception ex) {
@@ -203,63 +203,13 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     }
 
     /**
-     * Interface to allow a runnable that throws IOException.
-     */
-    private interface RunnableIO<T> {
-      T run() throws IOException;
-    }
-
-    /**
-     * A split, separates initialization of the input reader from actually constructing the reader to allow prefetching.
-     */
-    private class PrefetchingIterator implements Iterator<RecordReader>, AutoCloseable {
-
-      private int location = -1;
-      private final List<SplitReaderCreator> creators;
-      private Path path;
-      private ParquetMetadata footer;
-
-      public PrefetchingIterator(List<SplitReaderCreator> creators) {
-        super();
-        this.creators = creators;
-      }
-
-      @Override
-      public boolean hasNext() {
-        return location < creators.size() - 1;
-      }
-
-      @Override
-      public RecordReader next() {
-        Preconditions.checkArgument(hasNext());
-        location++;
-        final SplitReaderCreator current = creators.get(location);
-        current.createInputStreamProvider(path, footer);
-        this.path = current.getPath();
-        this.footer = current.getFooter();
-        return current.createRecordReader();
-      }
-
-      @Override
-      public void close() throws Exception {
-        // this is for cleanup if we prematurely exit.
-        AutoCloseables.close(creators);
-      }
-
-    }
-
-    /**
      * A lightweight object used to manage the creation of a reader. Allows pre-initialization of data before reader
      * construction.
      */
-    private class SplitReaderCreator implements Comparable<SplitReaderCreator>, AutoCloseable {
+    private class ParquetSplitReaderCreator extends SplitReaderCreator implements Comparable<ParquetSplitReaderCreator>, AutoCloseable {
       private SplitAndPartitionInfo datasetSplit;
-      private ParquetDatasetSplitScanXAttr splitXAttr;
-      private InputStreamProvider inputStreamProvider;
-      private Path path;
-      private SplitReaderCreator next;
 
-      public SplitReaderCreator(SplitAndPartitionInfo splitInfo) {
+      public ParquetSplitReaderCreator(SplitAndPartitionInfo splitInfo) {
         this.datasetSplit = splitInfo;
         try {
           this.splitXAttr = LegacyProtobufSerializer.parseFrom(ParquetDatasetSplitScanXAttr.PARSER, datasetSplit.getDatasetSplitInfo().getExtendedProperty());
@@ -267,7 +217,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
           throw new RuntimeException("Could not deserialize parquet dataset split scan attributes", e);
         }
         this.path = Path.of(splitXAttr.getPath());
-
+        this.tablePath = config.getTablePath();
         if (!fs.supportsPath(path)) {
           throw UserException.invalidMetadataError()
             .addContext(String.format("%s: Invalid FS for file '%s'", fs.getScheme(), path))
@@ -286,37 +236,8 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
         inputStreamProvider = null;
       }
 
-      public void setNext(SplitReaderCreator next) {
-        this.next = next;
-      }
-
-      public Path getPath() {
-        return path;
-      }
-
-      public ParquetMetadata getFooter() {
-        return handleEx(() -> inputStreamProvider.getFooter());
-      }
-
-      private <T> T handleEx(RunnableIO<T> r) {
-        try {
-          return r.run();
-        } catch (FileNotFoundException e) {
-          throw UserException.invalidMetadataError(e)
-            .addContext("Parquet file not found")
-            .addContext("File", splitXAttr.getPath())
-            .setAdditionalExceptionContext(new InvalidMetadataErrorContext(
-              config.getTablePath()))
-            .build(logger);
-        } catch (IOException e) {
-          throw UserException.dataReadError(e)
-            .addContext("Failure opening parquet file")
-            .addContext("File", splitXAttr.getPath())
-            .build(logger);
-        }
-      }
-
-      private void createInputStreamProvider(Path lastPath, ParquetMetadata lastFooter) {
+      @Override
+      public void createInputStreamProvider(Path lastPath, ParquetMetadata lastFooter) {
         if(inputStreamProvider != null) {
           return;
         }
@@ -351,7 +272,6 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
           ParquetScanProjectedColumns projectedColumns = ParquetScanProjectedColumns.fromSchemaPathAndIcebergSchema(realFields, getIcebergColumnIDList());
 
           inputStreamProvider = factory.create(
-              plugin,
               fs,
               context,
               path,
@@ -359,7 +279,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
               datasetSplit.getPartitionInfo().getSize(),
               projectedColumns,
               validLastFooter,
-              splitXAttr.getRowGroupIndex(),
+              (footer) -> splitXAttr.getRowGroupIndex(),
               depletionListener,
               readFullFile,
               dataset,
@@ -368,6 +288,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
         });
       }
 
+      @Override
       public RecordReader createRecordReader() {
         Preconditions.checkNotNull(inputStreamProvider);
         return handleEx(() -> {
@@ -440,7 +361,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       }
 
       @Override
-      public int compareTo(SplitReaderCreator other) {
+      public int compareTo(ParquetSplitReaderCreator other) {
         int retVal = path.compareTo(other.path);
         if (retVal != 0) {
           return retVal;
@@ -457,7 +378,6 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       public void close() throws Exception {
         AutoCloseables.close(inputStreamProvider);
       }
-
 
     }
 

@@ -45,16 +45,16 @@ public final class FSDataInputStreamWithStatsWrapper extends FSInputStreamWithSt
   private final FSDataInputStream is;
   private final OperatorStats operatorStats;
 
-  private FSDataInputStreamWithStatsWrapper(FSDataInputStream is, OperatorStats operatorStats)
+  private FSDataInputStreamWithStatsWrapper(FSDataInputStream is, OperatorStats operatorStats, boolean recordWaitTimes, String filePath)
       throws IOException {
-    super(FSDataInputStreamWrapper.of(is), operatorStats);
+    super(FSDataInputStreamWrapper.of(is), operatorStats, recordWaitTimes, filePath);
     this.is = Objects.requireNonNull(is);
     this.operatorStats = Objects.requireNonNull(operatorStats);
 
   }
 
-  public static FSDataInputStreamWithStatsWrapper of(FSDataInputStream is, OperatorStats operatorStats) throws IOException {
-    return new FSDataInputStreamWithStatsWrapper(is, operatorStats);
+  public static FSDataInputStreamWithStatsWrapper of(FSDataInputStream is, OperatorStats operatorStats, boolean recordWaitTimes, String filePath) throws IOException {
+    return new FSDataInputStreamWithStatsWrapper(is, operatorStats, recordWaitTimes, filePath);
   }
 
   @Override

@@ -16,11 +16,11 @@
 import { Component } from 'react';
 import Radium from 'radium';
 import PropTypes from 'prop-types';
-import { AutoSizer, Table, Column } from 'react-virtualized';
+import { AutoSizer, Column, Table } from 'react-virtualized';
 import classNames from 'classnames';
 import Immutable from 'immutable';
 
-import {humanSorter} from 'utils/sort';
+import { humanSorter } from 'utils/sort';
 
 const ROW_HEIGHT = 30;
 const HEADER_HEIGHT = 39;
@@ -158,7 +158,7 @@ export default class VirtualizedTableViewer extends Component {
                   <Column
                     key={item.key}
                     dataKey={item.key}
-                    className={item.className}
+                    className={item.className || 'column-' + item.key}
                     headerClassName={item.headerClassName}
                     label={item.label}
                     style={item.style}

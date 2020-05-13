@@ -489,9 +489,17 @@ message ExpressionSplitInfo {
   repeated string depends_on = 4;
 }
 
+message SlowIOInfo {
+  optional string file_path = 1;
+  optional int64 io_time = 2;
+  optional int64 io_size = 3;
+  optional int64 io_offset = 4;
+}
+
 // Non-metric Operator level details that show up in the profile
 message OperatorProfileDetails {
   repeated ExpressionSplitInfo split_infos = 1;
+  repeated SlowIOInfo slow_io_infos = 2;
 }
 
 message OperatorProfile {

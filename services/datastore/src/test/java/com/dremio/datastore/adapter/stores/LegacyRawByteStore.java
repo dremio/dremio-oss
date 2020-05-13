@@ -15,22 +15,35 @@
  */
 package com.dremio.datastore.adapter.stores;
 
+import java.util.Arrays;
+import java.util.List;
+
+import com.dremio.datastore.adapter.TestLegacyStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 
 /**
  * Used to test that bytes[] as values with Strings as keys.
  */
-public class LegacyRawByteStore implements LegacyStoreCreationFunction<LegacyKVStore<String, byte[]>> {
+public class LegacyRawByteStore implements TestLegacyStoreCreationFunction<String, byte[]> {
   @Override
   public LegacyKVStore<String, byte[]> build(LegacyStoreBuildingFactory factory) {
     return factory.<String, byte[]>newStore()
       .name("legacy-raw-byte-store")
-      .keyFormat(Format.ofString())
+      .keyFormat(getKeyFormat())
       .valueFormat(Format.ofBytes())
       .build();
+  }
+
+  @Override
+  public Format<String> getKeyFormat() {
+    return Format.ofString();
+  }
+
+  @Override
+  public List<Class<?>> getKeyClasses() {
+    return Arrays.asList(String.class);
   }
 }
 

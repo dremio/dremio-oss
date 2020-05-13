@@ -41,7 +41,8 @@ public class TestModelMappings extends DremioTest {
     mapper.validate();
 
     AwsPropsApi api = AwsPropsApi.builder().build();
-    mapper.map(mapper.map(api, AwsProps.class), ImmutableAwsPropsApi.Builder.class).build();
+    @SuppressWarnings("unused")
+    ImmutableAwsPropsApi ignored = mapper.map(mapper.map(api, AwsProps.class), ImmutableAwsPropsApi.Builder.class).build();
 
   }
 }

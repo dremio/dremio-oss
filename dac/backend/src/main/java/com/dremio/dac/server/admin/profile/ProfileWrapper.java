@@ -306,7 +306,7 @@ public class ProfileWrapper {
     final StringBuilder sb = new StringBuilder("{");
     String sep = "";
     for (final CoreOperatorType op : CoreOperatorType.values()) {
-      sb.append(String.format("%s\"%d\" : \"%s\"", sep, op.ordinal(), op));
+      sb.append(String.format("%s\"%d\" : \"%s\"", sep, op.getNumber(), op));
       sep = ", ";
     }
     return sb.append("}").toString();

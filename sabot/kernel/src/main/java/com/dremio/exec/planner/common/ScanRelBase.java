@@ -264,7 +264,7 @@ public abstract class ScanRelBase extends TableScan {
         }
       }
 
-      Preconditions.checkArgument(firstLevelPaths.size() == fields.size(), "Projected column base size %d is not equal to outcome rowtype %d.", firstLevelPaths.size(), fields.size());
+      Preconditions.checkArgument(firstLevelPaths.size() == fields.size(), "Projected column base size %s is not equal to outcome rowtype %s.", firstLevelPaths.size(), fields.size());
 
       for(String path : firstLevelPaths){
         builder.add(path, fields.get(path));

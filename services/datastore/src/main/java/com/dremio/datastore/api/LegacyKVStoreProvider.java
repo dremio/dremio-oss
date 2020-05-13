@@ -46,8 +46,9 @@ public interface LegacyKVStoreProvider extends Service {
     LegacyStoreBuilder<K, V> keyFormat(Format<K> format);
     LegacyStoreBuilder<K, V> valueFormat(Format<V> format);
     LegacyStoreBuilder<K, V> versionExtractor(Class<? extends VersionExtractor<V>> versionExtractorClass);
+    LegacyStoreBuilder<K, V> permitCompoundKeys(boolean permitCompoundKeys);
     LegacyKVStore<K, V> build();
-    LegacyIndexedStore<K, V> buildIndexed(Class<? extends DocumentConverter<K, V>> documentConverterClass);
+    LegacyIndexedStore<K, V> buildIndexed(DocumentConverter<K, V> documentConverter);
   }
 
   /**
@@ -66,7 +67,7 @@ public interface LegacyKVStoreProvider extends Service {
 
     @Override
     public LegacyStoreBuilder<K, V> keyFormat(Format<K> format) {
-      if (format.apply(new BinaryFormatVisitor())) {
+      if (format.apply(BinaryFormatVisitor.INSTANCE)) {
         throw new DatastoreException("Binary is not a supported key format.");
       }
       helper.keyFormat(format);

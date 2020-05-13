@@ -148,6 +148,8 @@ class ApiUtils {
 
   // error response may contain moreInfo or errorMessage field, that should be used for error message
   async getErrorMessage(prefix, response) {
+    if (!response || !response.json) return prefix;
+
     const err = await response.json();
     const errText = err && (err.moreInfo || err.errorMessage) || '';
     return errText.length ? `${prefix}: ${errText}` : `${prefix}.`;

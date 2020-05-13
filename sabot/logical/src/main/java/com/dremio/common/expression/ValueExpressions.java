@@ -334,6 +334,11 @@ public class ValueExpressions {
         "invalid precision " + precision + ", must be >= scale " + scale);
 
       this.decimal = input.setScale(scale, BigDecimal.ROUND_HALF_UP);
+      // Decimal value will be 0 if there is precision overflow.
+      // This is similar to DecimalFunctions:CastDecimalDecimal
+      if(this.decimal.precision() > precision) {
+        this.decimal = new BigDecimal("0.0");
+      }
       this.precision = precision;
     }
 

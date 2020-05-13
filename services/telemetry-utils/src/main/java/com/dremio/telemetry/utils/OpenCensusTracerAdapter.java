@@ -23,6 +23,8 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
+import com.google.errorprone.annotations.MustBeClosed;
+
 import io.opencensus.trace.AttributeValue;
 import io.opencensus.trace.BlankSpan;
 import io.opencensus.trace.Tracer;
@@ -79,17 +81,24 @@ public class OpenCensusTracerAdapter implements io.opentracing.Tracer {
     return shouldNotSample ? NoopSpan.INSTANCE : new OpenCensusSpanAdapter(inner);
   }
 
+
+  @SuppressWarnings("MustBeClosedChecker")
+  @MustBeClosed
   @Override
   public Scope activateSpan(Span span) {
-    if (!(span instanceof OpenCensusSpanAdapter)) {
+    final io.opencensus.trace.Span newSpan;
+
+    if (span instanceof OpenCensusSpanAdapter) {
+      final OpenCensusSpanAdapter realSpan = (OpenCensusSpanAdapter) span;
+      newSpan = realSpan.getOCSpan();
+    } else {
       // Cannot activate non open census spans.
       // Also, noop spans should be remembered internally as blank spans.
-      return new OpenCensusScopeAdapter(ocTracer.withSpan(BlankSpan.INSTANCE));
+      newSpan = BlankSpan.INSTANCE;
     }
 
     // This can only be called with an adapted span.
-    OpenCensusSpanAdapter realSpan = (OpenCensusSpanAdapter) span;
-    return new OpenCensusScopeAdapter(ocTracer.withSpan(realSpan.getOCSpan()));
+    return new OpenCensusScopeAdapter(ocTracer.withSpan(newSpan));
   }
 
   @Override

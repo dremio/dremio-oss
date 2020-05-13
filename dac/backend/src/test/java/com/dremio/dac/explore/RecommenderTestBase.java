@@ -113,9 +113,9 @@ public class RecommenderTestBase extends BaseTestServer {
           if (highlights.get(i) == null) {
             assertNull(ex);
           } else {
-            List<Map<Integer, Integer>> poss = (List<Map<Integer, Integer>>) ex;
+            List<Map<String, Integer>> poss = (List<Map<String, Integer>>) ex;
             List<CardExamplePosition> positions = Lists.newArrayList();
-            for(Map<Integer, Integer> pos : poss) {
+            for(Map<String, Integer> pos : poss) {
               positions.add(new CardExamplePosition(pos.get("offset"), pos.get("length")));
             }
 

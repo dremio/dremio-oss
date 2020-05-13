@@ -62,7 +62,7 @@ public interface ExecConstants {
   /** Spill disk space configurations */
   BooleanValidator SPILL_ENABLE_HEALTH_CHECK = new BooleanValidator("dremio.exec.spill.healthcheck.enable", DefaultSpillServiceOptions.ENABLE_HEALTH_CHECK);
   PositiveLongValidator SPILL_DISK_SPACE_CHECK_INTERVAL = new PositiveLongValidator("dremio.exec.spill.check.interval", Integer.MAX_VALUE, DefaultSpillServiceOptions.HEALTH_CHECK_INTERVAL);
-  PositiveLongValidator SPILL_DISK_SPACE_LIMIT_BYTES = new PositiveLongValidator("dremio.exec.spill.limit.bytes", Integer.MAX_VALUE, DefaultSpillServiceOptions.MIN_DISK_SPACE_BYTES);
+  PositiveLongValidator SPILL_DISK_SPACE_LIMIT_BYTES = new PositiveLongValidator("dremio.exec.spill.limit.bytes", Long.MAX_VALUE, DefaultSpillServiceOptions.MIN_DISK_SPACE_BYTES);
   DoubleValidator SPILL_DISK_SPACE_LIMIT_PERCENTAGE = new RangeDoubleValidator("dremio.exec.spill.limit.percentage", 0.0, 100.0, DefaultSpillServiceOptions.MIN_DISK_SPACE_PCT);
   PositiveLongValidator SPILL_SWEEP_INTERVAL = new PositiveLongValidator("dremio.exec.spill.sweep.interval", Long.MAX_VALUE, DefaultSpillServiceOptions.SPILL_SWEEP_INTERVAL);
   PositiveLongValidator SPILL_SWEEP_THRESHOLD = new PositiveLongValidator("dremio.exec.spill.sweep.threshold", Long.MAX_VALUE, DefaultSpillServiceOptions.SPILL_SWEEP_THRESHOLD);
@@ -141,6 +141,12 @@ public interface ExecConstants {
   String OUTPUT_FORMAT_OPTION = "store.format";
   StringValidator OUTPUT_FORMAT_VALIDATOR = new StringValidator(OUTPUT_FORMAT_OPTION, "parquet");
 
+  String PARQUET_WRITE_TIME_THRESHOLD_MILLI_SECS = "store.parquet.write-time-threshold-milli-secs";
+  PositiveLongValidator PARQUET_WRITE_TIME_THRESHOLD_MILLI_SECS_VALIDATOR = new PositiveLongValidator(PARQUET_WRITE_TIME_THRESHOLD_MILLI_SECS, Integer.MAX_VALUE, 120000);
+
+  String PARQUET_WRITE_IO_RATE_THRESHOLD_MBPS = "store.parquet.write-io-rate-mbps";
+  DoubleValidator PARQUET_WRITE_IO_RATE_THRESHOLD_MBPS_VALIDATOR = new DoubleValidator(PARQUET_WRITE_IO_RATE_THRESHOLD_MBPS, 5.0);
+
   String PARQUET_BLOCK_SIZE = "store.parquet.block-size";
   LongValidator PARQUET_BLOCK_SIZE_VALIDATOR = new LongValidator(PARQUET_BLOCK_SIZE, 256*1024*1024);
   String PARQUET_PAGE_SIZE = "store.parquet.page-size";
@@ -165,6 +171,9 @@ public interface ExecConstants {
   String PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING = "store.parquet.enable_dictionary_encoding";
   BooleanValidator PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_VALIDATOR = new BooleanValidator(
       PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING, false);
+
+  String EXCEL_MAX_FILE_SIZE = "store.excel.max_file_size";
+  LongValidator EXCEL_MAX_FILE_SIZE_VALIDATOR = new LongValidator(EXCEL_MAX_FILE_SIZE, 10*1024*1024);
 
   String PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_BINARY_TYPE = "store.parquet.enable_dictionary_encoding_binary_type";
   BooleanValidator PARQUET_WRITER_ENABLE_DICTIONARY_ENCODING_BINARY_TYPE_VALIDATOR = new BooleanValidator(
@@ -373,7 +382,8 @@ public interface ExecConstants {
   BooleanValidator PARQUET_CACHED_ENTITY_SET_FILE_SIZE = new BooleanValidator("store.parquet.set_file_length",true);
   BooleanValidator PARQUET_COLUMN_ORDERING = new BooleanValidator("store.parquet.column_ordering", false);
 
-  BooleanValidator HIVE_COMPLEXTYPES_ENABLED = new BooleanValidator("store.hive.parquet.support_complex_types", false);
+  BooleanValidator HIVE_COMPLEXTYPES_ENABLED = new BooleanValidator("store.hive.parquet.support_complex_types", true);
+  LongValidator PARQUET_LIST_ITEMS_THRESHOLD = new LongValidator("store.parquet.list_items.threshold", 128);
 
   LongValidator RESULTS_MAX_AGE_IN_DAYS = new LongValidator("results.max.age_in_days", 1);
   // At what hour of the day to do job results cleanup - 0-23
@@ -396,6 +406,8 @@ public interface ExecConstants {
   BooleanValidator EXTERNAL_SORT_COMPRESS_SPILL_FILES = new BooleanValidator("exec.operator.sort.external.compress_spill_files", true);
 
   BooleanValidator EXTERNAL_SORT_ENABLE_SPLAY_SORT = new BooleanValidator("exec.operator.sort.external.enable_splay_sort", false);
+
+  BooleanValidator EXTERNAL_SORT_ENABLE_MICRO_SPILL = new BooleanValidator("exec.operator.sort.external.enable_micro_spill", true);
 
   PositiveLongValidator EXTERNAL_SORT_BATCHSIZE_MULTIPLIER = new PositiveLongValidator("exec.operator.sort.external.batchsize_multiplier", Character.MAX_VALUE, 2);
 
@@ -427,4 +439,16 @@ public interface ExecConstants {
   RangeLongValidator HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE = new RangeLongValidator("exec.heap.monitoring.thresh.percentage", 50, 100, 85);
 
   BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", false);
+
+  // warning threshold for running time of a task
+  PositiveLongValidator SLICING_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.sliced.warn_max_runtime", Long.MAX_VALUE, 120000);
+
+  // warning threshold for spilling
+  PositiveLongValidator SPILL_IO_WARN_MAX_RUNTIME_MS = new PositiveLongValidator("dremio.spill.warn_max_runtime", Long.MAX_VALUE, 3000);
+
+  // warning threshold for long IO time
+  LongValidator STORE_IO_TIME_WARN_THRESH_MILLIS = new LongValidator("store.io_time_warn_thresh_millis", 10000);
+
+  // global hive-async option
+  BooleanValidator ENABLE_HIVE_ASYNC = new TypeValidators.BooleanValidator("store.hive.async", true);
 }

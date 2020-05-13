@@ -92,6 +92,7 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
 
   private final boolean timed;
   private final boolean inMemory;
+  private final boolean indicesViaPutOption;
   private final IndexManager indexManager;
   private final ByteStoreManager byteManager;
   private final String baseDirectory;
@@ -120,10 +121,10 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
 
   @VisibleForTesting
   CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed) {
-    this(baseDirectory, inMemory, timed, false);
+    this(baseDirectory, inMemory, timed, false, false);
   }
 
-  public CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed, boolean noDBOpenRetry) {
+  public CoreStoreProviderImpl(String baseDirectory, boolean inMemory, boolean timed, boolean noDBOpenRetry, boolean indicesViaPutOption) {
     super();
     switch(MODE){
     case DISK:
@@ -137,6 +138,7 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
 
     this.timed = timed;
     this.inMemory = inMemory;
+    this.indicesViaPutOption = indicesViaPutOption;
 
     this.byteManager = new ByteStoreManager(baseDirectory, inMemory, noDBOpenRetry);
     this.indexManager = new IndexManager(
@@ -325,7 +327,7 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
     private CoreIndexedStore<K, V> indexedAssembler(CoreKVStore<K, V> coreKVStore) throws Exception {
       final DocumentConverter<K, V> documentConverter = helper.getDocumentConverter();
       final String name = helper.getName();
-      CoreIndexedStore<K, V> store = new CoreIndexedStoreImpl<>(name, coreKVStore, indexManager.getIndex(name), documentConverter);
+      CoreIndexedStore<K, V> store = new CoreIndexedStoreImpl<>(name, coreKVStore, indexManager.getIndex(name), documentConverter, indicesViaPutOption);
       if (timed) {
         store = new CoreBaseTimedStore.TimedIndexedStoreImplCore<>(name, store);
       }

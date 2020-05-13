@@ -46,10 +46,10 @@ import org.hamcrest.Matcher;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.planner.physical.PlannerSettings;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
 import com.dremio.exec.testing.Controls;
 import com.dremio.exec.work.foreman.AttemptManager;
@@ -303,6 +303,7 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
   }
 
 
+  @Test
   public void testSetQueryTimeoutRejectsBadTimeoutValue() throws SQLException {
     try(PreparedStatement statement = getConnection().prepareStatement(SYS_VERSION_SQL)) {
       statement.setQueryTimeout( -2 );
@@ -312,7 +313,6 @@ public class PreparedStatementTest extends JdbcWithServerTestBase {
       assertThat( e.getMessage(), anyOf( containsString( "seconds" ),
                                          containsString( "timeout" ),
                                          containsString( "Timeout" ) ) );
-      throw e;
     }
   }
 

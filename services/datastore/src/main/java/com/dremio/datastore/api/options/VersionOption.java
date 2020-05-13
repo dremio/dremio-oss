@@ -86,20 +86,22 @@ public interface VersionOption extends KVStore.PutOption, KVStore.DeleteOption {
    * Retrieve the version option.
    */
   static TagInfo getTagInfo(KVStore.KVStoreOption... options) {
-    Preconditions.checkArgument(options.length <= 1);
-    if (options.length == 0) {
+    KVStoreOptionUtility.validateOptions(options);
+
+    if (null == options || options.length == 0) {
       return new TagInfo(false, false, null);
     }
-    final KVStore.KVStoreOption option = options[0];
-    if (option instanceof VersionOption) {
-      return new TagInfo(true, false, ((VersionOption) option).getTag());
-    } else if (option == CREATE) {
-      // XXX: This is kinda gross. Create is not a version option, yet we collapse it down to this piece of information.
-      // We should work to deprecate/eliminate this class, or at the very least stop making it represent a Create.
-      return new TagInfo(true, true, null);
-    } else {
-      throw new RuntimeException("Unexpected option " + option.toString());
+
+    for (KVStore.KVStoreOption option: options) {
+      if (option instanceof VersionOption) {
+        return new TagInfo(true, false, ((VersionOption) option).getTag());
+      } else if (option == CREATE) {
+        // XXX: This is kinda gross. Create is not a version option, yet we collapse it down to this piece of information.
+        // We should work to deprecate/eliminate this class, or at the very least stop making it represent a Create.
+        return new TagInfo(true, true, null);
+      }
     }
 
+    return new TagInfo(false, false, null);
   }
 }

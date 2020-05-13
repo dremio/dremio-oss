@@ -22,6 +22,10 @@ import com.dremio.datastore.format.compound.KeyTriple;
 /**
  * Format representing a collection of other formats.
  *
+ * The order the keys appear in the type arguments and the constructor will match the
+ * order they appear when serialized. The types and order of the keys may not be
+ * altered after being deployed.
+ *
  * @param <K1> - The type of the first key.
  * @param <K2> - The type of the second key.
  * @param <K3> - The type of the third key.

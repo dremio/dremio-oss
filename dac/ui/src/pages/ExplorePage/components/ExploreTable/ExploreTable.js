@@ -98,7 +98,7 @@ export class ExploreTableView extends PureComponent {
   static defaultProps = {
     columns: new Immutable.List(),
     rows: new Immutable.List()
-  }
+  };
 
   static getCellStyle(column) {
     return {width: '100%', display: 'inline-block', backgroundColor: column.color};
@@ -198,7 +198,9 @@ export class ExploreTableView extends PureComponent {
 
   getScrollToColumn() {
     const columns = this.state.columns;
-    const index = columns.findIndex(val => val.get('status') === 'HIGHLIGHTED');
+    const index = columns.findIndex(val => {
+      return (val && val.get) ? val.get('status') === 'HIGHLIGHTED' : false;
+    });
 
     if (index === -1) {
       return null;
@@ -263,7 +265,7 @@ export class ExploreTableView extends PureComponent {
         return {size};
       }
     });
-  }
+  };
 
   handleColumnResizeEnd(width, index) {
     const { columns } = this.state;
@@ -280,7 +282,7 @@ export class ExploreTableView extends PureComponent {
 
   removeResizerHiddenElem = () => {
     $('.fixedDataTableColumnResizerLineLayout_main').removeClass('fixedDataTableColumnResizerLineLayout_hiddenElem');
-  }
+  };
 
   renderColumnHeader(column, width) {
     return (

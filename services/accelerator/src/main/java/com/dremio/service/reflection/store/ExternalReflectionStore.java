@@ -117,7 +117,7 @@ public class ExternalReflectionStore {
         .keyFormat(Format.ofProtostuff(ReflectionId.class))
         .valueFormat(Format.ofProtostuff(ExternalReflection.class))
         .versionExtractor(ExternalReflectionVersionExtractor.class)
-        .buildIndexed(Converter.class);
+        .buildIndexed(new Converter());
     }
   }
 

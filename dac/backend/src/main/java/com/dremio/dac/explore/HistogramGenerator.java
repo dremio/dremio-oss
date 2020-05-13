@@ -676,17 +676,17 @@ class HistogramGenerator {
 
   @VisibleForTesting
   protected enum TruncEvalEnum {
-    SECOND("SECOND",1),
-    MINUTE("MINUTE", 60),
-    HOUR("HOUR", 3600),
-    DAY("DAY", 24*3600),
-    WEEK("WEEK", 24*3600*7),
-    MONTH("MONTH", 24*3600*30),
-    QUARTER("QUARTER", 24*3600*30*4),
-    YEAR("YEAR", 24*3600*365),
-    DECADE("DECADE", 24*3600*365*10),
-    CENTURY("CENTURY", 24*3600*365*10*10),
-    MILLENNIUM("MILLENNIUM", 24*3600*365*10*10*10);
+    SECOND("SECOND",1L),
+    MINUTE("MINUTE", 60L),
+    HOUR("HOUR", 3600L),
+    DAY("DAY", 24L*3600),
+    WEEK("WEEK", 24L*3600*7),
+    MONTH("MONTH", 24L*3600*30),
+    QUARTER("QUARTER", 24L*3600*30*4),
+    YEAR("YEAR", 24L*3600*365),
+    DECADE("DECADE", 24L*3600*365*10),
+    CENTURY("CENTURY", 24L*3600*365*10*10),
+    MILLENNIUM("MILLENNIUM", 24L*3600*365*10*10*10);
 
     private String name;
     private long divisor;
@@ -721,7 +721,7 @@ class HistogramGenerator {
   public long getSelectionCount(final DatasetPath datasetPath, final DatasetVersion version,
       final SqlQuery datasetQuery, final DataType dataType, final String colName, Set<String> selectedValues, BufferAllocator allocator) {
 
-    List<String> filteredSelValue = new ArrayList<String>();
+    List<String> filteredSelValue = new ArrayList<>();
     for(String selectedValue : selectedValues) {
       if (selectedValue != null && selectedValue.isEmpty()) {
         if (dataType == TEXT) {

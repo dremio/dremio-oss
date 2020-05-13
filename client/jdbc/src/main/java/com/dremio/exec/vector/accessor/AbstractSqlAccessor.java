@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Calendar;
 
 public abstract class AbstractSqlAccessor implements SqlAccessor {
 
@@ -48,7 +49,7 @@ public abstract class AbstractSqlAccessor implements SqlAccessor {
   }
 
   @Override
-  public Date getDate(int rowOffset) throws InvalidAccessException{
+  public Date getDate(int rowOffset, Calendar calendar) throws InvalidAccessException{
     throw newInvalidAccessException("Date");
   }
 
@@ -99,12 +100,12 @@ public abstract class AbstractSqlAccessor implements SqlAccessor {
   }
 
   @Override
-  public Time getTime(int rowOffset) throws InvalidAccessException{
+  public Time getTime(int rowOffset, Calendar calendar) throws InvalidAccessException{
     throw newInvalidAccessException("Time");
   }
 
   @Override
-  public Timestamp getTimestamp(int rowOffset) throws InvalidAccessException{
+  public Timestamp getTimestamp(int rowOffset, Calendar calendar) throws InvalidAccessException{
     throw newInvalidAccessException("Timestamp");
   }
 

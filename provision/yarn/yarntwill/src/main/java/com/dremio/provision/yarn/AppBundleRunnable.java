@@ -80,12 +80,12 @@ public class AppBundleRunnable implements TwillRunnable {
       Arguments arguments = (Arguments) o;
       return Objects.equals(jarFileName, arguments.jarFileName)
           && Objects.equals(mainClassName, arguments.mainClassName)
-          && Arrays.deepEquals(mainArgs, arguments.mainArgs);
+          && Arrays.equals(mainArgs, arguments.mainArgs);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(jarFileName, mainClassName, mainArgs);
+      return Objects.hash(jarFileName, mainClassName, Arrays.hashCode(mainArgs));
     }
 
     public String[] toArray() {

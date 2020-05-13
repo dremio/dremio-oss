@@ -462,6 +462,9 @@ public class FragmentExecutor {
     deferredException.suppressingClose(outputAllocator);
     deferredException.suppressingClose(allocator);
     deferredException.suppressingClose(ticket);
+    if (tunnelProvider != null && tunnelProvider.getCoordTunnel() != null) {
+      deferredException.suppressingClose(tunnelProvider.getCoordTunnel().getTunnel());
+    }
 
     // if defferedexception is set, update state to failed.
     if(deferredException.hasException()){

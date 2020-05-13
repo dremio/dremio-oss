@@ -4274,6 +4274,7 @@
   ip: "abc",
   isCoordinator: true | false,
   isExecutor: true | false,
+  isMaster: true | false,
   memory: 1.0,
   name: "abc",
   nodeTag: "abc",
@@ -4290,6 +4291,7 @@
 {
   createdAt: 1,
   email: "abc",
+  extra: "abc",
   firstName: "abc",
   lastName: "abc",
   modifiedAt: 1,
@@ -4324,6 +4326,7 @@
   userConfig: {
     createdAt: 1,
     email: "abc",
+    extra: "abc",
     firstName: "abc",
     lastName: "abc",
     modifiedAt: 1,
@@ -4352,6 +4355,7 @@
       userConfig: {
         createdAt: 1,
         email: "abc",
+        extra: "abc",
         firstName: "abc",
         lastName: "abc",
         modifiedAt: 1,

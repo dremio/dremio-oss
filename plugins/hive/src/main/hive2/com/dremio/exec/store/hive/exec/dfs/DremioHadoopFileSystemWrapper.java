@@ -48,20 +48,26 @@ import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.AccessControlException;
 
+import com.dremio.exec.hadoop.HadoopAsyncByteReader;
+import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.LocalSyncableFileSystem;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
 import com.dremio.exec.store.dfs.OpenFileTracker;
 import com.dremio.exec.store.dfs.SimpleFileBlockLocation;
+import com.dremio.exec.store.hive.exec.DremioFileSystem;
+import com.dremio.exec.store.hive.HiveConfFactory;
 import com.dremio.exec.util.AssertionUtil;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.FSOutputStream;
+import com.dremio.io.FilterFSInputStream;
 import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileBlockLocation;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.exec.context.OperatorStats.WaitRecorder;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -98,30 +104,20 @@ public class DremioHadoopFileSystemWrapper
   private final boolean isMapRfs;
   private final boolean isNAS;
   private final boolean isHDFS;
+  private final boolean enableAsync;
 
 
-  public DremioHadoopFileSystemWrapper(org.apache.hadoop.fs.Path path, Configuration fsConf, OperatorStats operatorStats) throws IOException {
-    this(fsConf, path.getFileSystem(fsConf), operatorStats);
-  }
-  public DremioHadoopFileSystemWrapper(Configuration fsConf) throws IOException {
-    this(fsConf, (OperatorStats) null, null);
+  public DremioHadoopFileSystemWrapper(org.apache.hadoop.fs.Path path, Configuration fsConf, OperatorStats operatorStats, boolean enableAsync) throws IOException {
+    this(fsConf, path.getFileSystem(fsConf), operatorStats, enableAsync);
   }
 
-  public DremioHadoopFileSystemWrapper(Configuration fsConf, OperatorStats operatorStats, List<String> connectionUniqueProps) throws IOException {
-    this(fsConf, DREMIO_FS_CACHE.get(FileSystem.getDefaultUri(fsConf),
-      fsConf, connectionUniqueProps), operatorStats);
-  }
-
-  public DremioHadoopFileSystemWrapper(Configuration fsConf, FileSystem fs)  {
-    this(fsConf, fs, null);
-  }
-
-  public DremioHadoopFileSystemWrapper(Configuration fsConf, FileSystem fs, OperatorStats operatorStats) {
+  public DremioHadoopFileSystemWrapper(Configuration fsConf, FileSystem fs, OperatorStats operatorStats, boolean enableAsync) {
     this.underlyingFs = fs;
     this.operatorStats = operatorStats;
     this.isMapRfs = isMapRfs(underlyingFs);
     this.isNAS = isNAS(underlyingFs);
     this.isHDFS = isHDFS(underlyingFs);
+    this.enableAsync = enableAsync;
   }
 
   private static boolean isMapRfs(FileSystem fs) {
@@ -200,7 +196,7 @@ public class DremioHadoopFileSystemWrapper
   @Override
   public FSInputStream open(Path f) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return newFSDataInputStreamWrapper(openFile(f));
+      return newFSDataInputStreamWrapper(f, openFile(f));
     } catch(FSError e) {
       throw propagateFSError(e);
     }
@@ -214,7 +210,7 @@ public class DremioHadoopFileSystemWrapper
   @Override
   public FSOutputStream create(Path f) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return newFSDataOutputStreamWrapper(underlyingFs.create(toHadoopPath(f)));
+      return newFSDataOutputStreamWrapper(underlyingFs.create(toHadoopPath(f)), f.toString());
     } catch(FSError e) {
       throw propagateFSError(e);
     }
@@ -223,7 +219,7 @@ public class DremioHadoopFileSystemWrapper
   @Override
   public FSOutputStream create(Path f, boolean overwrite) throws IOException {
     try (WaitRecorder recorder = OperatorStats.getWaitRecorder(operatorStats)) {
-      return newFSDataOutputStreamWrapper(underlyingFs.create(toHadoopPath(f), overwrite));
+      return newFSDataOutputStreamWrapper(underlyingFs.create(toHadoopPath(f), overwrite), f.toString());
     } catch(FSError e) {
       throw propagateFSError(e);
     } catch(FileAlreadyExistsException e) {
@@ -523,12 +519,31 @@ public class DremioHadoopFileSystemWrapper
 
   @Override
   public boolean supportsAsync() {
-    return false;
+    if (!enableAsync) {
+      return false;
+    }
+
+    if (underlyingFs instanceof MayProvideAsyncStream) {
+      return ((MayProvideAsyncStream) underlyingFs).supportsAsync();
+    } else if (underlyingFs instanceof DremioFileSystem) {
+      // have to look for specific dremio file system for hive
+      // mayprovideasync breaks interface compatibility for path
+      return ((DremioFileSystem) underlyingFs).supportsAsync();
+    } else {
+      return false;
+    }
   }
 
   @Override
   public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey) throws IOException {
-    throw new UnsupportedOperationException();
+    final org.apache.hadoop.fs.Path path = toHadoopPath(fileKey.getPath());
+    if (underlyingFs instanceof MayProvideAsyncStream) {
+      return ((MayProvideAsyncStream) underlyingFs).getAsyncByteReader(path, fileKey.getVersion());
+    } else if (underlyingFs instanceof DremioFileSystem) {
+      return ((DremioFileSystem) underlyingFs).getAsyncByteReader(fileKey, operatorStats);
+    } else {
+      throw new UnsupportedOperationException("Unsupported path in Hive Parquet readers");
+    }
   }
 
   private static final class ArrayDirectoryStream implements DirectoryStream<FileAttributes> {
@@ -574,24 +589,45 @@ public class DremioHadoopFileSystemWrapper
     }
   }
 
-  com.dremio.io.FSInputStream newFSDataInputStreamWrapper(final FSDataInputStream is) throws IOException {
+  com.dremio.io.FSInputStream newFSDataInputStreamWrapper(Path f, final FSDataInputStream is) throws IOException {
     try {
       return (operatorStats != null) ?
-        com.dremio.exec.store.hive.exec.dfs.FSDataInputStreamWithStatsWrapper.of(is, operatorStats) :
+        com.dremio.exec.store.hive.exec.dfs.FSDataInputStreamWithStatsWrapper.of(is, operatorStats, true, f.toString()) :
         com.dremio.exec.store.hive.exec.dfs.FSDataInputStreamWrapper.of(is);
     } catch(FSError e) {
       throw propagateFSError(e);
     }
   }
 
-  com.dremio.io.FSOutputStream newFSDataOutputStreamWrapper(final FSDataOutputStream os) throws IOException {
+  com.dremio.io.FSOutputStream newFSDataOutputStreamWrapper(final FSDataOutputStream os, String filePath) throws IOException {
     try {
       return (operatorStats != null) ?
-        new com.dremio.exec.store.hive.exec.dfs.FSDataOutputStreamWithStatsWrapper(os, operatorStats) :
+        new com.dremio.exec.store.hive.exec.dfs.FSDataOutputStreamWithStatsWrapper(os, operatorStats, filePath) :
         new com.dremio.exec.store.hive.exec.dfs.FSDataOutputStreamWrapper(os);
     } catch(FSError e) {
       throw propagateFSError(e);
     }
+  }
+
+
+  FSInputStream newFSDataInputStreamWrapper(Path f, final FSDataInputStream is, boolean recordWaitTime) throws IOException {
+    FSInputStream result;
+    if (operatorStats != null) {
+      result = com.dremio.exec.store.hive.exec.dfs.FSDataInputStreamWithStatsWrapper.of(is, operatorStats, recordWaitTime, f.toString());
+    } else {
+      result = com.dremio.exec.store.hive.exec.dfs.FSDataInputStreamWrapper.of(is);
+    }
+    if (TRACKING_ENABLED) {
+      result = new FilterFSInputStream(result) {
+        @Override
+        public void close() throws IOException {
+          fileClosed(this);
+          super.close();
+        }
+      };
+      fileOpened(f, result);
+    }
+    return result;
   }
 
   @VisibleForTesting

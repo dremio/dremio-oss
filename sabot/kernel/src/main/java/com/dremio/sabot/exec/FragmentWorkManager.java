@@ -53,6 +53,7 @@ import com.dremio.sabot.exec.rpc.ExecTunnel;
 import com.dremio.sabot.task.TaskPool;
 import com.dremio.service.Service;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.jobresults.client.JobResultsClientFactory;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClientFactory;
 import com.dremio.service.maestroservice.MaestroClientFactory;
 import com.dremio.service.users.SystemUser;
@@ -94,7 +95,7 @@ public class FragmentWorkManager implements Service, SafeExit {
   private CloseableExecutorService closeableExecutor;
   private final Provider<MaestroClientFactory> maestroServiceClientFactoryProvider;
   private final Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider;
-  private final ExecToCoordTunnelCreator execToCoordTunnelCreator;
+  private final Provider<JobResultsClientFactory> jobResultsClientFactoryProvider;
 
   private ExtendedLatch exitLatch = null; // This is used to wait to exit when things are still running
   private DefaultOptionManager defaultOptionManager;
@@ -112,7 +113,7 @@ public class FragmentWorkManager implements Service, SafeExit {
     final DefaultOptionManager defaultOptionManager,
     final Provider<MaestroClientFactory> maestroServiceClientFactoryProvider,
     final Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider,
-    final ExecToCoordTunnelCreator execToCoordTunnelCreator) {
+    final Provider<JobResultsClientFactory> jobResultsClientFactoryProvider) {
     this.context = context;
     this.identity = identity;
     this.sources = sources;
@@ -122,11 +123,11 @@ public class FragmentWorkManager implements Service, SafeExit {
     this.workloadTicketDepotProvider = workloadTicketDepotProvider;
     this.pool = taskPool;
     this.defaultOptionManager = defaultOptionManager;
-    this.execToCoordTunnelCreator = execToCoordTunnelCreator;
     this.workStats = new WorkStatsImpl();
     this.executorService = new ExecutorServiceImpl.NoExecutorService();
     this.maestroServiceClientFactoryProvider = maestroServiceClientFactoryProvider;
     this.jobTelemetryClientFactoryProvider = jobTelemetryClientFactoryProvider;
+    this.jobResultsClientFactoryProvider = jobResultsClientFactoryProvider;
   }
 
   /**
@@ -303,7 +304,6 @@ public class FragmentWorkManager implements Service, SafeExit {
         bitContext.getClusterCoordinator(),
         executor,
         bitContext.getOptionManager(),
-        execToCoordTunnelCreator,
         connectionCreator,
         bitContext.getClasspathScan(),
         bitContext.getPlanReader(),
@@ -315,7 +315,8 @@ public class FragmentWorkManager implements Service, SafeExit {
         context.getNodeDebugContextProvider(),
         bitContext.getSpillService(),
         ClusterCoordinator.Role.fromEndpointRoles(identity.get().getRoles()),
-        defaultOptionManager);
+        defaultOptionManager,
+        jobResultsClientFactoryProvider);
 
     executorService = new ExecutorServiceImpl(fragmentExecutors,
             bitContext, builder);

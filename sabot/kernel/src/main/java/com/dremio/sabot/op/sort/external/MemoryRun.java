@@ -34,8 +34,12 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.selection.SelectionVector4;
+import com.dremio.exec.testing.ControlsInjector;
+import com.dremio.exec.testing.ControlsInjectorFactory;
+import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.sabot.op.copier.Copier;
 import com.dremio.sabot.op.copier.CopierOperator;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -54,6 +58,10 @@ import com.google.common.collect.Lists;
 class MemoryRun implements AutoCloseable {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MemoryRun.class);
+  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(MemoryRun.class);
+
+  @VisibleForTesting
+  public static final String INJECTOR_OOM_ON_SORT = "injectOOMSort";
 
   private final ExternalSort sortConfig;
   private final ClassProducer classProducer;
@@ -73,6 +81,11 @@ class MemoryRun implements AutoCloseable {
   private long copyTargetSize;
   private final ExternalSortTracer tracer;
   private final int batchsizeMultiplier;
+  private final int targetBatchSize;
+  private final ExecutionControls executionControls;
+
+  //holds the sorted records in memory just before spilling
+  //private Sv4HyperContainer sv4HyperContainer = null;
 
   public MemoryRun(
       ExternalSort sortConfig,
@@ -81,7 +94,9 @@ class MemoryRun implements AutoCloseable {
       Schema schema,
       ExternalSortTracer tracer,
       int batchsizeMultiplier,
-      boolean useSplaySort
+      boolean useSplaySort,
+      int targetBatchSize,
+      ExecutionControls executionControls
       ) {
     this.schema = schema;
     this.sortConfig = sortConfig;
@@ -89,6 +104,8 @@ class MemoryRun implements AutoCloseable {
     this.classProducer = classProducer;
     this.tracer = tracer;
     this.batchsizeMultiplier = batchsizeMultiplier;
+    this.targetBatchSize = targetBatchSize;
+    this.executionControls = executionControls;
     try {
       if (useSplaySort) {
         this.sorter = new SplaySorter(sortConfig, classProducer, schema, allocator);
@@ -153,7 +170,7 @@ class MemoryRun implements AutoCloseable {
 
     // Make sure we are not already over max batches we are allowed to hold in memory.
     if (sorter.getHyperBatchSize() >= ExternalSortOperator.MAX_BATCHES_PER_HYPERBATCH ||
-        size >= ExternalSortOperator.MAX_BATCHES_PER_MEMORY_RUN) {
+      size >= ExternalSortOperator.MAX_BATCHES_PER_MEMORY_RUN) {
       logger.debug("Memory Run: no room for storing new batch, current size = {}, failed to add batch", size);
       return false;
     }
@@ -265,6 +282,8 @@ class MemoryRun implements AutoCloseable {
   }
 
   private SelectionVector4 closeToContainer(VectorContainer container, int targetBatchSize) {
+    injector.injectChecked(executionControls, INJECTOR_OOM_ON_SORT, OutOfMemoryException.class);
+
     SelectionVector4 sv4 = sorter.getFinalSort(copyTargetAllocator, targetBatchSize);
     for (VectorWrapper<?> w : sorter.getHyperBatch()) {
       container.add(w.getValueVectors());
@@ -298,6 +317,23 @@ class MemoryRun implements AutoCloseable {
     manager.spill(container, copyTargetAllocator);
 
     close();
+  }
+
+  public void startMicroSpilling(DiskRunManager diskRunManager) throws Exception {
+    final Sv4HyperContainer sv4HyperContainer  = new Sv4HyperContainer(allocator, schema);
+    sv4HyperContainer.clear();
+    final SelectionVector4 sv4 = closeToContainer(sv4HyperContainer, minRecordCount);
+    sv4HyperContainer.setSelectionVector4(sv4);
+    sv4HyperContainer.setRecordCount(sv4HyperContainer.getSelectionVector4().getTotalCount());
+    diskRunManager.startMicroSpilling(sv4HyperContainer);
+  }
+
+  public boolean spillNextBatch(final DiskRunManager diskRunManager) throws Exception{
+    final boolean done = diskRunManager.spillNextBatch(copyTargetAllocator);
+    if (done) {
+      close();
+    }
+    return done;
   }
 
   enum CopierState {INIT, ZERO, REMAINDER, DONE}

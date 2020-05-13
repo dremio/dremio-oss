@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Calendar;
 
 import com.dremio.common.types.TypeProtos.MajorType;
 
@@ -87,7 +88,7 @@ public interface SqlAccessor {
   byte[] getBytes(int rowOffset) throws InvalidAccessException;
 
   /** (See {@link SqlAccessor class description}.) */
-  Date getDate(int rowOffset) throws InvalidAccessException;
+  Date getDate(int rowOffset, Calendar calendar) throws InvalidAccessException;
 
   /** (See {@link SqlAccessor class description}.) */
   double getDouble(int rowOffset) throws InvalidAccessException;
@@ -120,10 +121,10 @@ public interface SqlAccessor {
   String getString(int rowOffset) throws InvalidAccessException;
 
   /** (See {@link SqlAccessor class description}.) */
-  Time getTime(int rowOffset) throws InvalidAccessException;
+  Time getTime(int rowOffset, Calendar calendar) throws InvalidAccessException;
 
   /** (See {@link SqlAccessor class description}.) */
-  Timestamp getTimestamp(int rowOffset) throws InvalidAccessException;
+  Timestamp getTimestamp(int rowOffset, Calendar calendar) throws InvalidAccessException;
 
   /** (See {@link SqlAccessor class description}.) */
   Object getObject(int rowOffset) throws InvalidAccessException;

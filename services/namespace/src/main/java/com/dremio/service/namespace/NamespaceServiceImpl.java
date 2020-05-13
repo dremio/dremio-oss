@@ -159,7 +159,7 @@ public class NamespaceServiceImpl implements NamespaceService {
           NameSpaceContainer::new,
           Format.ofProtostuff(com.dremio.service.namespace.protostuff.NameSpaceContainer.class)))
         .versionExtractor(NameSpaceContainerVersionExtractor.class)
-        .buildIndexed(NamespaceConverter.class);
+        .buildIndexed(new NamespaceConverter());
     }
 
   }
@@ -180,7 +180,7 @@ public class NamespaceServiceImpl implements NamespaceService {
         .name(PARTITION_CHUNKS)
         .keyFormat(PARTITION_CHUNK_ID_FORMAT)
         .valueFormat(Format.ofProtobuf(PartitionChunk.class))
-        .buildIndexed(PartitionChunkConverter.class);
+        .buildIndexed(new PartitionChunkConverter());
     }
   }
 

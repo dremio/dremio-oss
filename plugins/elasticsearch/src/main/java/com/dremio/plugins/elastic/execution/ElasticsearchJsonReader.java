@@ -199,9 +199,9 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
         break;
       default:
         throw getExceptionWithContext(
-                        UserException.dataReadError(), currentFieldName, null)
-                        .message("Failure while reading JSON. (Got an invalid read state %s )", readState.toString())
-                        .build(logger);
+          UserException.dataReadError(), currentFieldName, null)
+          .message("Failure while reading JSON. (Got an invalid read state %s )", readState.toString())
+          .build(logger);
     }
 
     return readState;
@@ -217,12 +217,11 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
       case NOT_AVAILABLE:
         return ReadState.END_OF_STREAM;
       default:
-        throw
-                getExceptionWithContext(
-                        UserException.dataReadError(), currentFieldName, null)
-                        .message("Failure while parsing JSON.  Found token of [%s].  Dremio currently only supports parsing "
-                                + "json strings that contain either lists or maps.  The root object cannot be a scalar.", t)
-                        .build(logger);
+        throw getExceptionWithContext(
+          UserException.dataReadError(), currentFieldName, null)
+          .message("Failure while parsing JSON.  Found token of %s.  Dremio currently only supports parsing "
+                  + "json strings that contain either lists or maps.  The root object cannot be a scalar.", t)
+          .build(logger);
     }
 
     return ReadState.WRITE_SUCCEED;
@@ -467,7 +466,7 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
 
         default:
           throw getExceptionWithContext(UserException.dataReadError(), currentFieldName, null)
-              .message("Unexpected token %s", parser.getCurrentToken()).build(logger);
+            .message("Unexpected token %s", parser.getCurrentToken()).build(logger);
         }
 
         if(breakAfterSingle){
@@ -523,10 +522,9 @@ public class ElasticsearchJsonReader extends BaseJsonProcessor {
         }
         case VALUE_NULL:
           throw UserException.unsupportedError()
-              .message("Null values are not supported in lists by default. "
-                  + "Please set `store.json.all_text_mode` to true to read lists containing nulls. "
-                  + "Be advised that this will treat JSON null values as a string containing the word 'null'.")
-              .build(logger);
+            .message("Null values are not supported in lists read from Elasticsearch. " +
+              "Please alter the query to filter out null values or remove the null values from Elasticsearch.")
+            .build(logger);
         case VALUE_NUMBER_FLOAT:
           list.float8().writeFloat8(parser.getDoubleValue());
           break;

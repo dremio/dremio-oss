@@ -17,7 +17,9 @@ package com.dremio.dac.model.system;
 
 import java.util.ArrayList;
 
+import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.dac.api.JsonISODateTime;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.store.sys.NodeInstance;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -38,6 +40,7 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
     private final Double cpu;
     private final Double memory;
     private final String status;
+    private final Boolean isMaster;
     private final Boolean isCoordinator;
     private final Boolean isExecutor;
     private final String nodeTag;
@@ -53,6 +56,7 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
       @JsonProperty("cpu") Double cpu,
       @JsonProperty("memory") Double memory,
       @JsonProperty("status") String status,
+      @JsonProperty("isMaster") Boolean isMaster,
       @JsonProperty("isCoordinator") Boolean isCoordinator,
       @JsonProperty("isExecutor") Boolean isExecutor,
       @JsonProperty("nodeTag") String nodeTag,
@@ -67,6 +71,7 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
       this.cpu = cpu;
       this.memory = memory;
       this.status = status;
+      this.isMaster = isMaster;
       this.isCoordinator = isCoordinator;
       this.isExecutor = isExecutor;
       this.nodeTag = nodeTag;
@@ -83,11 +88,33 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
         nodeInstance.cpu,
         nodeInstance.memory,
         nodeInstance.status,
+        nodeInstance.is_master,
         nodeInstance.is_coordinator,
         nodeInstance.is_executor,
         nodeInstance.node_tag,
         nodeInstance.version,
         nodeInstance.start.getMillis());
+    }
+
+    public static NodeInfo fromEndpoint(CoordinationProtos.NodeEndpoint endpoint) {
+      final boolean master = endpoint.getRoles().getMaster();
+      final boolean coord = endpoint.getRoles().getSqlQuery();
+      final boolean exec = endpoint.getRoles().getJavaExecutor();
+      return new NodeInfo(
+        endpoint.getAddress(),
+        endpoint.getAddress(),
+        endpoint.getAddress(),
+        endpoint.getUserPort(),
+        0d,
+        0d,
+        "green",
+        master,
+        coord,
+        exec,
+        endpoint.getNodeTag(),
+        DremioVersionInfo.getVersion(),
+        endpoint.getStartTime()
+      );
     }
 
     public String getName() {
@@ -117,6 +144,8 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
     public String getStatus() {
       return status;
     }
+
+    public Boolean getIsMaster() { return isMaster; }
 
     public Boolean getIsCoordinator() {
       return isCoordinator;

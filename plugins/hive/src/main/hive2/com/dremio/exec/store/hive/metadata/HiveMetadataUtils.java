@@ -81,6 +81,7 @@ import com.dremio.connector.metadata.MetadataOption;
 import com.dremio.connector.metadata.PartitionValue;
 import com.dremio.connector.metadata.options.IgnoreAuthzErrors;
 import com.dremio.connector.metadata.options.MaxLeafFieldCount;
+import com.dremio.connector.metadata.options.MaxNestedFieldLevels;
 import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TimedRunnable;
@@ -385,6 +386,7 @@ public class HiveMetadataUtils {
                                                final EntityPath datasetPath,
                                                final boolean ignoreAuthzErrors,
                                                final int maxMetadataLeafColumns,
+                                               final int maxNestedLevels,
                                                final boolean includeComplexParquetColumns,
                                                final HiveConf hiveConf) throws ConnectorException {
 
@@ -407,6 +409,7 @@ public class HiveMetadataUtils {
 
       HiveMetadataUtils.populateFieldsAndPartitionColumns(table, fields, partitionColumns, format, includeComplexParquetColumns);
       HiveMetadataUtils.checkLeafFieldCounter(fields.size(), maxMetadataLeafColumns, schemaComponents.getTableName());
+      HiveSchemaConverter.checkFieldNestedLevels(table, maxNestedLevels);
       final BatchSchema batchSchema = BatchSchema.newBuilder().addFields(fields).build();
 
       final List<ColumnInfo> columnInfos = buildColumnInfo(table, format, includeComplexParquetColumns);
@@ -1198,7 +1201,7 @@ public class HiveMetadataUtils {
     // Include Table properties in final list in order to not to break SerDes that depend on
     // Table properties. For example AvroSerDe gets the schema from properties (passed as second argument)
     for (Map.Entry<String, String> entry : table.getParameters().entrySet()) {
-      if (entry.getKey() != null && entry.getKey() != null) {
+      if (entry.getKey() != null && entry.getValue() != null) {
         properties.put(entry.getKey(), entry.getValue());
       }
     }
@@ -1278,6 +1281,17 @@ public class HiveMetadataUtils {
       for (MetadataOption option : options) {
         if (option instanceof MaxLeafFieldCount) {
           return ((MaxLeafFieldCount) option).getValue();
+        }
+      }
+    }
+    return 0;
+  }
+
+  public static int getMaxNestedFieldLevels(MetadataOption... options) {
+    if (null != options) {
+      for (MetadataOption option : options) {
+        if (option instanceof MaxNestedFieldLevels) {
+          return ((MaxNestedFieldLevels) option).getValue();
         }
       }
     }

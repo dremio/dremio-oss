@@ -16,21 +16,30 @@
 package com.dremio.exec.vector.accessor;
 
 import java.sql.Date;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.Calendar;
+import java.util.TimeZone;
 
 import org.apache.arrow.vector.DateMilliVector;
 
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
+import com.google.common.base.Preconditions;
 
 public class DateMilliAccessor extends AbstractSqlAccessor {
 
   private static final MajorType TYPE = Types.optional(MinorType.DATE);
 
+  private final TimeZone defaultTimeZone;
   private final DateMilliVector ac;
 
-  public DateMilliAccessor(DateMilliVector vector) {
+  public DateMilliAccessor(DateMilliVector vector, TimeZone defaultTZ) {
     this.ac = vector;
+    this.defaultTimeZone = Preconditions.checkNotNull(defaultTZ, "Null TimeZone supplied.");
   }
 
   @Override
@@ -50,19 +59,23 @@ public class DateMilliAccessor extends AbstractSqlAccessor {
 
   @Override
   public Object getObject(int index) {
-    if (ac.isNull(index)) {
-      return null;
-    }
-    return getDate(index);
+    return getDate(index, defaultTimeZone);
   }
 
   @Override
-  public Date getDate(int index) {
+  public Date getDate(int index, Calendar calendar) {
+    Preconditions.checkNotNull(calendar, "Invalid calendar used when attempting to retrieve date.");
+    return getDate(index, calendar.getTimeZone());
+  }
+
+  private Date getDate(int index, TimeZone tz) {
     if (ac.isNull(index)) {
       return null;
     }
-    org.joda.time.LocalDateTime date = new org.joda.time.LocalDateTime(ac.get(index), org.joda.time.DateTimeZone.UTC);
-    return new Date(date.getYear() - 1900, date.getMonthOfYear() - 1, date.getDayOfMonth());
-  }
 
+    // The Arrow datetime values are already in UTC, so adjust to the timezone of the calendar passed in to
+    // ensure the reported value is correct according to the JDBC spec.
+    final LocalDateTime date = LocalDateTime.ofInstant(Instant.ofEpochMilli(ac.get(index)), tz.toZoneId());
+    return new Date(date.getYear() - 1900, date.getMonthValue() - 1, date.getDayOfMonth());
+  }
 }

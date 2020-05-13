@@ -24,7 +24,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import com.dremio.datastore.FormatVisitor;
 import com.dremio.datastore.format.visitor.BinaryFormatVisitor;
 import com.dremio.datastore.generator.ByteContainerStoreGenerator;
 import com.dremio.datastore.proto.Dummy;
@@ -66,13 +65,32 @@ public class TestBinaryFormatVisitor<T> {
         "key2", Format.ofCompoundFormat("key1", Format.ofString(), "key2", Format.ofString()),
         "key3", Format.ofUUID()),
         false},
-      {Format.wrapped(ByteContainerStoreGenerator.ByteContainer.class, ByteContainerStoreGenerator.ByteContainer::getBytes, ByteContainerStoreGenerator.ByteContainer::new, Format.ofBytes()), true}
+      {Format.wrapped(ByteContainerStoreGenerator.ByteContainer.class, ByteContainerStoreGenerator.ByteContainer::getBytes, ByteContainerStoreGenerator.ByteContainer::new, Format.ofBytes()), true},
+      {Format.wrapped(
+        WrappedCompoundFormats.KeyPairBytesContainer.class,
+        WrappedCompoundFormats.KeyPairBytesContainer::getContainedObject,
+        WrappedCompoundFormats.KeyPairBytesContainer::new,
+        Format.ofCompoundFormat("k1", Format.ofBytes(), "k2", Format.ofBytes())), true},
+      {Format.wrapped(
+        WrappedCompoundFormats.KeyTripleBytesContainer.class,
+        WrappedCompoundFormats.KeyTripleBytesContainer::getContainedObject,
+        WrappedCompoundFormats.KeyTripleBytesContainer::new,
+        Format.ofCompoundFormat("k1", Format.ofBytes(), "k2", Format.ofBytes(), "k3", Format.ofBytes())), true},
+      {Format.wrapped(
+        WrappedCompoundFormats.KeyPairStringContainer.class,
+        WrappedCompoundFormats.KeyPairStringContainer::getContainedObject,
+        WrappedCompoundFormats.KeyPairStringContainer::new,
+        Format.ofCompoundFormat("k1", Format.ofString(), "k2", Format.ofString())), false},
+      {Format.wrapped(
+        WrappedCompoundFormats.KeyTripleStringContainer.class,
+        WrappedCompoundFormats.KeyTripleStringContainer::getContainedObject,
+        WrappedCompoundFormats.KeyTripleStringContainer::new,
+        Format.ofCompoundFormat("k1", Format.ofString(), "k2", Format.ofString(), "k3", Format.ofString())), false},
     });
   }
 
   private final Format<T> format;
   private final boolean expected;
-  private final FormatVisitor<Boolean> visitor = new BinaryFormatVisitor();
 
   public TestBinaryFormatVisitor(Format<T> format, boolean expected) {
     this.format = format;
@@ -81,6 +99,6 @@ public class TestBinaryFormatVisitor<T> {
 
   @Test
   public void testBinaryVisitorWithFormat() {
-    assertEquals(expected, format.apply(visitor));
+    assertEquals(expected, format.apply(BinaryFormatVisitor.INSTANCE));
   }
 }

@@ -49,6 +49,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
 import com.dremio.sabot.op.aggregate.vectorized.CountColumnAccumulator;
 import com.dremio.sabot.op.aggregate.vectorized.CountOneAccumulator;
@@ -460,7 +461,8 @@ public class TestVectorizedHashAggPartitionSerializable extends DremioTest {
         LBlockHashTable sourceHashTable = new LBlockHashTable(HashConfig.getDefault(), pivot, allocator, 16000, 10, true, accumulator, MAX_VALUES_PER_BATCH);
         VectorizedHashAggPartition hashAggPartition =  new VectorizedHashAggPartition
           (accumulator, sourceHashTable, pivot.getBlockWidth(), "P0", offsets, false);
-        final VectorizedHashAggPartitionSpillHandler partitionSpillHandler = new VectorizedHashAggPartitionSpillHandler(hashAggPartitions, fragmentHandle, null, sabotConfig, 1, partitionToLoadSpilledData, spillService, true, null);
+        OptionManager optionManager = mock(OptionManager.class);
+        final VectorizedHashAggPartitionSpillHandler partitionSpillHandler = new VectorizedHashAggPartitionSpillHandler(hashAggPartitions, fragmentHandle, optionManager, sabotConfig, 1, partitionToLoadSpilledData, spillService, true, null);
         hashAggPartitions[0] = hashAggPartition;
 
         final long keyFixedVectorAddr = fbv.getMemoryAddress();

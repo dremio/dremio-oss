@@ -22,103 +22,64 @@ package com.dremio.common.exceptions;
 public final class FieldSizeLimitExceptionHelper {
   private FieldSizeLimitExceptionHelper() {}
 
-  public static void checkReadSizeLimit(int size, int maxSize, org.slf4j.Logger logger) {
+  public static void checkSizeLimit(int size, int maxSize, org.slf4j.Logger logger) {
     if (size > maxSize) {
-      throw createReadFieldSizeLimitException(size, maxSize, logger);
+      throw createFieldSizeLimitException(size, maxSize, logger);
     }
   }
 
-  public static void checkReadSizeLimit(int size, int maxSize, int fieldIndex, org.slf4j.Logger logger) {
+  public static void checkSizeLimit(int size, int maxSize, int fieldIndex, org.slf4j.Logger logger) {
     if (size > maxSize) {
-      throw createReadFieldSizeLimitException(size, maxSize, fieldIndex, logger);
+      throw createFieldSizeLimitException(size, maxSize, fieldIndex, logger);
     }
   }
 
-  public static void checkReadSizeLimit(int size, int maxSize, String fieldName, org.slf4j.Logger logger) {
+  public static void checkSizeLimit(int size, int maxSize, String fieldName, org.slf4j.Logger logger) {
     if (size > maxSize) {
-      throw createReadFieldSizeLimitException(size, maxSize, fieldName, logger);
+      throw createFieldSizeLimitException(size, maxSize, fieldName, logger);
     }
   }
 
-  public static void checkWriteSizeLimit(int size, int maxSize, org.slf4j.Logger logger) {
-    if (size > maxSize) {
-      throw createWriteFieldSizeLimitException(size, maxSize, logger);
-    }
-  }
-
-  public static void checkWriteSizeLimit(int size, int maxSize, int fieldIndex, org.slf4j.Logger logger) {
-    if (size > maxSize) {
-      throw createWriteFieldSizeLimitException(size, maxSize, fieldIndex, logger);
-    }
-  }
-
-  public static void checkWriteSizeLimit(int size, int maxSize, String fieldName, org.slf4j.Logger logger) {
-    if (size > maxSize) {
-      throw createWriteFieldSizeLimitException(size, maxSize, fieldName, logger);
-    }
-  }
-
-  public static UserException createReadFieldSizeLimitException(int size, int maxSize, org.slf4j.Logger logger) {
+  public static UserException createListChildrenLimitException(String fieldName, long maxSize) {
     return UserException
       .unsupportedError()
-      .message("Attempting to read a too large value for a field. Size was %d but limit was %d.", size, maxSize)
+      .message("List field '%s' exceeded the maximum number of elements %d", fieldName, maxSize)
+      .addContext("limit", maxSize)
+      .build();
+  }
+
+  public static UserException createFieldSizeLimitException(int size, int maxSize, org.slf4j.Logger logger) {
+    return UserException
+      .unsupportedError()
+      .message("Field exceeds the size limit of %d bytes.", maxSize)
       .addContext("size", size)
       .addContext("limit", maxSize)
       .build(logger);
   }
 
-  public static UserException createReadFieldSizeLimitException(int size, int maxSize) {
+  public static UserException createFieldSizeLimitException(int size, int maxSize) {
     return UserException
       .unsupportedError()
-      .message("Attempting to read a too large value for a field. Size was %d but limit was %d.", size, maxSize)
+      .message("Field exceeds the size limit of %d bytes.", maxSize)
       .addContext("size", size)
       .addContext("limit", maxSize)
       .build();
   }
 
-  public static UserException createReadFieldSizeLimitException(int size, int maxSize, int fieldIndex, org.slf4j.Logger logger) {
+  public static UserException createFieldSizeLimitException(int size, int maxSize, int fieldIndex, org.slf4j.Logger logger) {
     return UserException
       .unsupportedError()
-      .message("Attempting to read a too large value for field with index %d. Size was %d but limit was %d.", fieldIndex, size, maxSize)
+      .message("Field with index %d exceeds the size limit of %d bytes.", fieldIndex, maxSize)
       .addContext("fieldIndex", fieldIndex)
       .addContext("size", size)
       .addContext("limit", maxSize)
       .build(logger);
   }
 
-  public static UserException createReadFieldSizeLimitException(int size, int maxSize, String fieldName, org.slf4j.Logger logger) {
+  public static UserException createFieldSizeLimitException(int size, int maxSize, String fieldName, org.slf4j.Logger logger) {
     return UserException
       .unsupportedError()
-      .message("Attempting to read a too large value for field with name %s. Size was %d but limit was %d.", fieldName, size, maxSize)
-      .addContext("fieldName", fieldName)
-      .addContext("size", size)
-      .addContext("limit", maxSize)
-      .build(logger);
-  }
-
-  public static UserException createWriteFieldSizeLimitException(int size, int maxSize, org.slf4j.Logger logger) {
-    return UserException
-      .unsupportedError()
-      .message("Attempting to write a too large value for a field. Size was %d but limit was %d.", size, maxSize)
-      .addContext("size", size)
-      .addContext("limit", maxSize)
-      .build(logger);
-  }
-
-  public static UserException createWriteFieldSizeLimitException(int size, int maxSize, int fieldIndex, org.slf4j.Logger logger) {
-    return UserException
-      .unsupportedError()
-      .message("Attempting to write a too large value for field with index %d. Size was %d but limit was %d.", fieldIndex, size, maxSize)
-      .addContext("fieldIndex", fieldIndex)
-      .addContext("size", size)
-      .addContext("limit", maxSize)
-      .build(logger);
-  }
-
-  public static UserException createWriteFieldSizeLimitException(int size, int maxSize, String fieldName, org.slf4j.Logger logger) {
-    return UserException
-      .unsupportedError()
-      .message("Attempting to write a too large value for field with name %s. Size was %d but limit was %d.", fieldName, size, maxSize)
+      .message("Field '%s' exceeds the size limit of %d bytes.", fieldName, maxSize)
       .addContext("fieldName", fieldName)
       .addContext("size", size)
       .addContext("limit", maxSize)

@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.store.parquet2;
 
-import static com.dremio.common.exceptions.FieldSizeLimitExceptionHelper.createReadFieldSizeLimitException;
+import static com.dremio.common.exceptions.FieldSizeLimitExceptionHelper.createFieldSizeLimitException;
 import static com.dremio.exec.store.parquet.ParquetReaderUtility.NanoTimeUtils.getDateTimeValueFromBinary;
 import static org.apache.parquet.schema.Type.Repetition.REPEATED;
 
@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.BigIntWriter;
@@ -80,7 +81,7 @@ import com.google.common.collect.Lists;
 import io.netty.buffer.ArrowBuf;
 
 
-abstract class ParquetGroupConverter extends GroupConverter {
+abstract class ParquetGroupConverter extends GroupConverter implements ParquetListElementConverter {
 
   protected final List<Converter> converters;
   private final List<ListWriter> listWriters = Lists.newArrayList();
@@ -88,6 +89,7 @@ abstract class ParquetGroupConverter extends GroupConverter {
   protected final OptionManager options;
   //See DRILL-4203
   protected final SchemaDerivationHelper schemaHelper;
+  protected boolean written = false;
 
   private final GroupType schema;
   private final Collection<SchemaPath> columns;
@@ -435,7 +437,51 @@ abstract class ParquetGroupConverter extends GroupConverter {
     }
   }
 
-  private static class IntConverter extends PrimitiveConverter {
+  public boolean hasWritten() {
+    return written;
+  }
+
+  @Override
+  public void startElement() {
+    written = false;
+  }
+
+  @Override
+  public void endElement() {
+    written = false;
+  }
+
+  @Override
+  public void writeNullListElement() {
+
+  }
+
+
+  protected static abstract class ParquetPrimitiveConverter
+    extends PrimitiveConverter implements ParquetListElementConverter {
+    protected boolean written = false;
+    ParquetPrimitiveConverter() {
+    }
+
+    protected void setWritten() {
+      written = true;
+    }
+
+    public boolean hasWritten() {
+      return written;
+    }
+
+    @Override
+    public void startElement() {
+      written = false;
+    }
+
+    @Override
+    public void endElement() {
+      written = false;
+    }
+  }
+  protected static class IntConverter extends ParquetPrimitiveConverter {
     private IntWriter writer;
     private IntHolder holder = new IntHolder();
 
@@ -448,10 +494,16 @@ abstract class ParquetGroupConverter extends GroupConverter {
     public void addInt(int value) {
       holder.value = value;
       writer.write(holder);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
-  private static class Decimal9Converter extends PrimitiveConverter {
+  private static class Decimal9Converter extends ParquetPrimitiveConverter {
     private DecimalWriter writer;
     private DecimalHolder holder = new DecimalHolder();
     private ArrowBuf buffer;
@@ -477,10 +529,16 @@ abstract class ParquetGroupConverter extends GroupConverter {
       }
       holder.buffer = buffer;
       writer.write(holder);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
-  private static class CorruptionDetectingDateConverter extends PrimitiveConverter {
+  private static class CorruptionDetectingDateConverter extends ParquetPrimitiveConverter {
     private DateMilliWriter writer;
     private DateMilliHolder holder = new DateMilliHolder();
 
@@ -496,10 +554,16 @@ abstract class ParquetGroupConverter extends GroupConverter {
         holder.value = value * (long) DateTimeConstants.MILLIS_PER_DAY;
       }
       writer.write(holder);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
-  private static class CorruptedDateConverter extends PrimitiveConverter {
+  private static class CorruptedDateConverter extends ParquetPrimitiveConverter {
     private DateMilliWriter writer;
     private DateMilliHolder holder = new DateMilliHolder();
 
@@ -511,10 +575,16 @@ abstract class ParquetGroupConverter extends GroupConverter {
     public void addInt(int value) {
       holder.value = (value - ParquetReaderUtility.CORRECT_CORRUPT_DATE_SHIFT) * DateTimeConstants.MILLIS_PER_DAY;
       writer.write(holder);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
-  private static class DateConverter extends PrimitiveConverter {
+  private static class DateConverter extends ParquetPrimitiveConverter {
     private DateMilliWriter writer;
     private DateMilliHolder holder = new DateMilliHolder();
 
@@ -526,10 +596,16 @@ abstract class ParquetGroupConverter extends GroupConverter {
     public void addInt(int value) {
       holder.value = value * (long) DateTimeConstants.MILLIS_PER_DAY;
       writer.writeDateMilli(holder.value);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
-  private static class TimeConverter extends PrimitiveConverter {
+  private static class TimeConverter extends ParquetPrimitiveConverter {
     private TimeMilliWriter writer;
     private TimeMilliHolder holder = new TimeMilliHolder();
 
@@ -541,10 +617,16 @@ abstract class ParquetGroupConverter extends GroupConverter {
     public void addInt(int value) {
       holder.value = value;
       writer.writeTimeMilli(holder.value);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
-  private static class BigIntConverter extends PrimitiveConverter {
+  private static class BigIntConverter extends ParquetPrimitiveConverter {
     private BigIntWriter writer;
     private BigIntHolder holder = new BigIntHolder();
 
@@ -556,10 +638,16 @@ abstract class ParquetGroupConverter extends GroupConverter {
     public void addLong(long value) {
       holder.value = value;
       writer.writeBigInt(holder.value);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
-  private static class TimeStampConverter extends PrimitiveConverter {
+  private static class TimeStampConverter extends ParquetPrimitiveConverter {
     private TimeStampMilliWriter writer;
 
     private TimeStampConverter(TimeStampMilliWriter writer) {
@@ -569,10 +657,16 @@ abstract class ParquetGroupConverter extends GroupConverter {
     @Override
     public void addLong(long value) {
       writer.writeTimeStampMilli(value);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
-  private static class Decimal18Converter extends PrimitiveConverter {
+  private static class Decimal18Converter extends ParquetPrimitiveConverter {
     private DecimalWriter writer;
     private DecimalHolder holder = new DecimalHolder();
     private ArrowBuf buffer;
@@ -598,10 +692,16 @@ abstract class ParquetGroupConverter extends GroupConverter {
       }
       holder.buffer = buffer;
       writer.write(holder);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
-  private static class Float4Converter extends PrimitiveConverter {
+  private static class Float4Converter extends ParquetPrimitiveConverter {
     private Float4Writer writer;
     private Float4Holder holder = new Float4Holder();
 
@@ -613,10 +713,16 @@ abstract class ParquetGroupConverter extends GroupConverter {
     public void addFloat(float value) {
       holder.value = value;
       writer.writeFloat4(holder.value);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
-  private static class Float8Converter extends PrimitiveConverter {
+  private static class Float8Converter extends ParquetPrimitiveConverter {
     private Float8Writer writer;
     private Float8Holder holder = new Float8Holder();
 
@@ -628,10 +734,16 @@ abstract class ParquetGroupConverter extends GroupConverter {
     public void addDouble(double value) {
       holder.value = value;
       writer.writeFloat8(holder.value);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
-  private static class BoolConverter extends PrimitiveConverter {
+  private static class BoolConverter extends ParquetPrimitiveConverter {
     private BitWriter writer;
 
     private BoolConverter(BitWriter writer) {
@@ -641,10 +753,16 @@ abstract class ParquetGroupConverter extends GroupConverter {
     @Override
     public void addBoolean(boolean value) {
       writer.writeBit(value ? 1 : 0);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
-  private static class VarBinaryConverter extends PrimitiveConverter {
+  private static class VarBinaryConverter extends ParquetPrimitiveConverter {
     private VarBinaryWriter writer;
     private ArrowBuf buf;
     private VarBinaryHolder holder = new VarBinaryHolder();
@@ -659,19 +777,24 @@ abstract class ParquetGroupConverter extends GroupConverter {
 
     @Override
     public void addBinary(Binary value) {
-      if(value.length() > this.varValueSizeLimit)
-      {
-        throw createReadFieldSizeLimitException(value.length(), this.varValueSizeLimit);
+      if (value.length() > this.varValueSizeLimit) {
+        throw createFieldSizeLimitException(value.length(), this.varValueSizeLimit);
       }
       holder.buffer = buf = buf.reallocIfNeeded(value.length());
       buf.setBytes(0, value.toByteBuffer());
       holder.start = 0;
       holder.end = value.length();
       writer.writeVarBinary(holder.start, holder.end, holder.buffer);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
-  private static class VarCharConverter extends PrimitiveConverter {
+  private static class VarCharConverter extends ParquetPrimitiveConverter {
     private VarCharWriter writer;
     private VarCharHolder holder = new VarCharHolder();
     private ArrowBuf buf;
@@ -685,19 +808,24 @@ abstract class ParquetGroupConverter extends GroupConverter {
 
     @Override
     public void addBinary(Binary value) {
-      if(value.length() > this.varValueSizeLimit)
-      {
-        throw createReadFieldSizeLimitException(value.length(), this.varValueSizeLimit);
+      if (value.length() > this.varValueSizeLimit) {
+        throw createFieldSizeLimitException(value.length(), this.varValueSizeLimit);
       }
       holder.buffer = buf = buf.reallocIfNeeded(value.length());
       buf.setBytes(0, value.toByteBuffer());
       holder.start = 0;
       holder.end = value.length();
       writer.writeVarChar(holder.start, holder.end, holder.buffer);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
-  private static class BinaryToDecimal28Converter extends PrimitiveConverter {
+  private static class BinaryToDecimal28Converter extends ParquetPrimitiveConverter {
     private DecimalWriter writer;
     private DecimalHolder holder = new DecimalHolder();
     private ArrowBuf buffer;
@@ -717,6 +845,12 @@ abstract class ParquetGroupConverter extends GroupConverter {
        * the bytes while writing into the vector.
        */
       writer.writeBigEndianBytesToDecimal(bytes, new ArrowType.Decimal(holder.precision, holder.scale));
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
@@ -724,7 +858,7 @@ abstract class ParquetGroupConverter extends GroupConverter {
    * Parquet currently supports a fixed binary type, which is not implemented in Dremio. For now this
    * data will be read in a s varbinary and the same length will be recorded for each value.
    */
-  private static class FixedBinaryToVarbinaryConverter extends PrimitiveConverter {
+  private static class FixedBinaryToVarbinaryConverter extends ParquetPrimitiveConverter {
     private VarBinaryWriter writer;
     private VarBinaryHolder holder = new VarBinaryHolder();
 
@@ -739,6 +873,12 @@ abstract class ParquetGroupConverter extends GroupConverter {
     public void addBinary(Binary value) {
       holder.buffer.setBytes(0, value.toByteBuffer());
       writer.writeVarBinary(holder.start, holder.end, holder.buffer);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 
@@ -746,7 +886,7 @@ abstract class ParquetGroupConverter extends GroupConverter {
    * Parquet currently supports a fixed binary type INT96 for storing hive, impala timestamp
    * with nanoseconds precision.
    */
-  public static class FixedBinaryToTimeStampConverter extends PrimitiveConverter {
+  public static class FixedBinaryToTimeStampConverter extends ParquetPrimitiveConverter {
     private TimeStampMilliWriter writer;
     private TimeStampMilliHolder holder = new TimeStampMilliHolder();
 
@@ -758,6 +898,12 @@ abstract class ParquetGroupConverter extends GroupConverter {
     public void addBinary(Binary value) {
       holder.value = getDateTimeValueFromBinary(value);
       writer.write(holder);
+      setWritten();
+    }
+
+    @Override
+    public void writeNullListElement() {
+      ((UnionListWriter)writer).writeNull();
     }
   }
 }

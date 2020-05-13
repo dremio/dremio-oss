@@ -445,7 +445,7 @@ public class LuceneSearchIndex implements AutoCloseable {
                           int pageSize, Sort sort, int skip) throws IOException {
     committerThread.throwExceptionIfAny();
     checkIfChanged();
-    Preconditions.checkArgument(skip > -1, "Skip must be zero or greater. Was %d.", skip);
+    Preconditions.checkArgument(skip > -1, "Skip must be zero or greater. Was %s.", skip);
 
     Searcher searcher = searchHandle.getCachedSearcher();
     if (skip == 0) {

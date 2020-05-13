@@ -15,6 +15,8 @@
  */
 package com.dremio.plugins.s3.store;
 
+import static com.amazonaws.services.s3.internal.Constants.REQUESTER_PAYS;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.time.Instant;
@@ -27,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import com.amazonaws.SdkBaseException;
 import com.amazonaws.services.s3.internal.Constants;
 import com.dremio.common.concurrent.NamedThreadFactory;
+import com.dremio.common.exceptions.UserException;
 import com.dremio.io.AsyncByteReader;
 import com.google.common.base.Stopwatch;
 
@@ -53,13 +56,15 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
   private final String path;
   private final Instant instant;
   private final String threadName;
+  private final boolean requesterPays;
 
-  S3AsyncByteReaderUsingSyncClient(S3Client s3, String bucket, String path, String version) {
+  S3AsyncByteReaderUsingSyncClient(S3Client s3, String bucket, String path, String version, boolean requesterPays) {
     this.s3 = s3;
     this.bucket = bucket;
     this.path = path;
     this.instant = Instant.ofEpochMilli(Long.parseLong(version));
     this.threadName = Thread.currentThread().getName();
+    this.requesterPays = requesterPays;
   }
 
   @Override
@@ -127,6 +132,9 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
         .key(path)
         .range(S3AsyncByteReader.range(offset, len))
         .ifUnmodifiedSince(instant);
+      if (requesterPays) {
+        requestBuilder.requestPayer(REQUESTER_PAYS);
+      }
       final GetObjectRequest request = requestBuilder.build();
       final Stopwatch watch = Stopwatch.createStarted();
 
@@ -142,6 +150,12 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
           logger.info("[{}] Request for bucket {}, path {} failed as requested version of file not present, took {} ms", threadName,
             bucket, path, watch.elapsed(TimeUnit.MILLISECONDS));
           exception = new FileNotFoundException("Version of file changed " + path);
+        } else if (s3e.statusCode() == Constants.BUCKET_ACCESS_FORBIDDEN_STATUS_CODE) {
+          logger.info("[{}] Request for bucket {}, path {} failed as access was denied, took {} ms", threadName,
+            bucket, path, watch.elapsed(TimeUnit.MILLISECONDS));
+          exception = UserException.permissionError(s3e)
+            .message(S3FileSystem.S3_PERMISSION_ERROR_MSG)
+            .build(logger);
         } else {
           logger.error("[{}] Request for bucket {}, path {} failed with code {}. Failing read, took {} ms", threadName, bucket, path,
             s3e.statusCode(), watch.elapsed(TimeUnit.MILLISECONDS));

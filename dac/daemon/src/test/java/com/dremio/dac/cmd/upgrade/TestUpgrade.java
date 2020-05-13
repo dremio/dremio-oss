@@ -46,14 +46,19 @@ import com.dremio.common.Version;
 import com.dremio.dac.proto.model.source.UpgradeStatus;
 import com.dremio.dac.proto.model.source.UpgradeTaskStore;
 import com.dremio.dac.server.DACConfig;
+import com.dremio.dac.support.SupportService;
 import com.dremio.dac.support.UpgradeStore;
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.services.configuration.ConfigurationStore;
+import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+
+import io.protostuff.ByteString;
 
 /**
  * Test for {@code Upgrade}
@@ -525,5 +530,43 @@ public class TestUpgrade extends DremioTest {
       // Final test task
       instanceOf(LowPriorityTask.class)
       ));
+  }
+
+  /**
+   * Tests illegal upgrade from OSS to EE
+   */
+  @Test
+  public void testIllegalUpgrade() throws Exception {
+    thrown.expect(Exception.class);
+    thrown.expectMessage("Illegal upgrade from OSS to EE");
+
+    final ByteString prevEdition = ByteString.copyFrom("OSS".getBytes());
+    final ConfigurationEntry configurationEntry = new ConfigurationEntry();
+    configurationEntry.setValue(prevEdition);
+    final LegacyKVStoreProvider kvStoreProvider = new LegacyKVStoreProviderAdapter(
+      new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false),
+      CLASSPATH_SCAN_RESULT);
+    kvStoreProvider.start();
+    final ConfigurationStore configurationStore = new ConfigurationStore(kvStoreProvider);
+    configurationStore.put(SupportService.DREMIO_EDITION, configurationEntry);
+    new Upgrade(DACConfig.newConfig(), CLASSPATH_SCAN_RESULT, false).validateUpgrade(kvStoreProvider, "EE");
+  }
+
+  /**
+   * Test legal upgrade if prior dremio edition is not specified or editions match
+   */
+  @Test
+  public void testLegalUpgrade() throws Exception {
+    final ByteString prevEdition = ByteString.copyFrom("OSS".getBytes());
+    final ConfigurationEntry configurationEntry = new ConfigurationEntry();
+    configurationEntry.setValue(prevEdition);
+    final LegacyKVStoreProvider kvStoreProvider = new LegacyKVStoreProviderAdapter(
+      new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false),
+      CLASSPATH_SCAN_RESULT);
+    kvStoreProvider.start();
+    final ConfigurationStore configurationStore = new ConfigurationStore(kvStoreProvider);
+    new Upgrade(DACConfig.newConfig(), CLASSPATH_SCAN_RESULT, false).validateUpgrade(kvStoreProvider, "OSS");
+    configurationStore.put(SupportService.DREMIO_EDITION, configurationEntry);
+    new Upgrade(DACConfig.newConfig(), CLASSPATH_SCAN_RESULT, false).validateUpgrade(kvStoreProvider, "OSS");
   }
 }

@@ -223,10 +223,6 @@ class FragmentTracker implements AutoCloseable {
       .build();
 
     for (NodeEndpoint endpoint : pendingNodes) {
-      if (lostNodes.contains(endpoint)) {
-        // skip node if it's already marked dead.
-        continue;
-      }
       executorServiceClientFactory.getClientForEndpoint(endpoint).cancelFragments(fragments, new SignalListener(endpoint, fragments,
         SignalListener.Signal.CANCEL));
     }

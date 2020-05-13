@@ -15,6 +15,10 @@
  */
 package com.dremio.dac.cmd;
 
+import static com.dremio.dac.service.search.SearchIndexManager.CONFIG_KEY;
+
+import java.util.Optional;
+
 import org.apache.hadoop.conf.Configuration;
 
 import com.beust.jcommander.JCommander;
@@ -24,9 +28,11 @@ import com.beust.jcommander.Parameters;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.util.BackupRestoreUtil;
 import com.dremio.dac.util.BackupRestoreUtil.BackupStats;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.hadoop.HadoopFileSystem;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
+import com.dremio.services.configuration.ConfigurationStore;
 
 /**
  * Restore command.
@@ -82,6 +88,15 @@ public class Restore {
       Path backupDir = Path.of(options.backupDir);
       FileSystem fs = HadoopFileSystem.get(backupDir, new Configuration());
       BackupStats backupStats =  BackupRestoreUtil.restore(fs, backupDir, dacConfig);
+      final Optional<LegacyKVStoreProvider> providerOptional = CmdUtils.getLegacyKVStoreProvider(dacConfig.getConfig());
+      // clear searchLastRefresh so that search index can be rebuilt after restore
+      try (LegacyKVStoreProvider provider = providerOptional.get()) {
+        provider.start();
+        final ConfigurationStore configStore = new ConfigurationStore(provider);
+        configStore.delete(CONFIG_KEY);
+      } catch (Exception e) {
+        AdminLogger.log("Failed to clear catalog search index.", e);
+      }
       AdminLogger.log("Restored from backup at {}, dremio tables {}, uploaded files {}", backupStats.getBackupPath(), backupStats.getTables(), backupStats.getFiles());
     } catch (Exception e) {
       AdminLogger.log("Restore failed", e);

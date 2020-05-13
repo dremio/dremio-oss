@@ -21,7 +21,7 @@ import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VariableWidthVector;
 import org.apache.parquet.column.ColumnDescriptor;
-import org.apache.parquet.format.Encoding;
+import org.apache.parquet.column.Encoding;
 import org.apache.parquet.format.SchemaElement;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.io.api.Binary;
@@ -55,7 +55,7 @@ public abstract class VarLengthValuesColumn<V extends ValueVector> extends VarLe
   protected void readField(long recordToRead) {
     dataTypeLengthInBits = ((BaseVariableWidthVector)variableWidthVector).getValueLength(valuesReadInCurrentPass);
     // again, I am re-purposing the unused field here, it is a length n BYTES, not nodes
-    boolean success = setSafe((int) valuesReadInCurrentPass, pageReader.pageData,
+    boolean success = setSafe(valuesReadInCurrentPass, pageReader.pageData,
         (int) pageReader.readPosInBytes + 4, dataTypeLengthInBits);
     assert success : String.format("setSafe() failed\n" +
         "  valuesReadInCurrentPass: %d\n" +
@@ -100,7 +100,7 @@ public abstract class VarLengthValuesColumn<V extends ValueVector> extends VarLe
     }
 
     // this should not fail
-    ((BaseVariableWidthVector)variableWidthVector).setValueLengthSafe((int) valuesReadInCurrentPass + pageReader.valuesReadyToRead,
+    ((BaseVariableWidthVector)variableWidthVector).setValueLengthSafe(valuesReadInCurrentPass + pageReader.valuesReadyToRead,
         dataTypeLengthInBits);
     return false;
   }

@@ -15,8 +15,18 @@
  */
 package com.dremio.datastore.format.compound;
 
+import java.util.List;
+
 /**
  * Marker interface for compound keys used.
+ * <p>
+ * A compound key is key composed of a list of named fields, each field having its own format.
+ * <p>
+ * Field name and order is significant: adding/removing a field, renaming a field, or reordering
+ * fields is an incompatible change which might make it impossible to read older versions of stores
+ * using the key.
+ * <p>
+ * Compound key instances can be represented as an immutable list of objects.
  */
-public interface CompoundKey{
+public interface CompoundKey extends List<Object> {
 }

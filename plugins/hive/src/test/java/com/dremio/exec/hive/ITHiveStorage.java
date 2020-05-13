@@ -65,11 +65,11 @@ import com.dremio.exec.catalog.DatasetMetadataAdapter;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.ImpersonationUtil;
+import com.dremio.exec.store.hive.exec.HiveDatasetOptions;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemCachedEntity;
 import com.dremio.hive.proto.HiveReaderProto.FileSystemPartitionUpdateKey;
 import com.dremio.hive.proto.HiveReaderProto.HiveReadSignature;
 import com.dremio.hive.proto.HiveReaderProto.HiveReadSignatureType;
-import com.dremio.exec.store.hive.exec.HiveDatasetOptions;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -597,74 +597,43 @@ public class ITHiveStorage extends HiveTestBase {
   public ExpectedException exception = ExpectedException.none();
 
   @Test
-  public void readStringFieldSizeLimitText()  throws Exception {
-    String exceptionMessage = "Attempting to read a too large value";
-    exception.expect(java.lang.Exception.class);
-    exception.expectMessage(exceptionMessage);
-    String query = "SELECT col1 FROM hive.field_size_limit_test";
-    testBuilder().sqlQuery(query)
-      .ordered()
-      .baselineColumns("col1")
-      .baselineValues("")
-      .go();
+  public void readStringFieldSizeLimitText() throws Exception {
+    readFieldSizeLimit("hive.field_size_limit_test", "col1");
   }
+
   @Test
   public void readStringFieldSizeLimitORC()  throws Exception {
-    String exceptionMessage = "Attempting to read a too large value";
-    exception.expect(java.lang.Exception.class);
-    exception.expectMessage(exceptionMessage);
-    String query = "SELECT col1 FROM hive.field_size_limit_test_orc";
-    testBuilder().sqlQuery(query)
-      .ordered()
-      .baselineColumns("col1")
-      .baselineValues("")
-      .go();
+    readFieldSizeLimit("hive.field_size_limit_test_orc", "col1");
   }
+
   @Test
   public void readVarcharFieldSizeLimitText()  throws Exception {
-    String exceptionMessage = "Attempting to read a too large value";
-    exception.expect(java.lang.Exception.class);
-    exception.expectMessage(exceptionMessage);
-    String query = "SELECT col2 FROM hive.field_size_limit_test";
-    testBuilder().sqlQuery(query)
-      .ordered()
-      .baselineColumns("col2")
-      .baselineValues("")
-      .go();
+    readFieldSizeLimit("hive.field_size_limit_test", "col2");
   }
+
   @Test
   public void readVarcharFieldSizeLimitORC()  throws Exception {
-    String exceptionMessage = "Attempting to read a too large value";
-    exception.expect(java.lang.Exception.class);
-    exception.expectMessage(exceptionMessage);
-    String query = "SELECT col2 FROM hive.field_size_limit_test_orc";
-    testBuilder().sqlQuery(query)
-      .ordered()
-      .baselineColumns("col2")
-      .baselineValues("")
-      .go();
+    readFieldSizeLimit("hive.field_size_limit_test_orc", "col2");
   }
+
   @Test
   public void readBinaryFieldSizeLimitText()  throws Exception {
-    String exceptionMessage = "Attempting to read a too large value";
-    exception.expect(java.lang.Exception.class);
-    exception.expectMessage(exceptionMessage);
-    String query = "SELECT col3 FROM hive.field_size_limit_test";
-    testBuilder().sqlQuery(query)
-      .ordered()
-      .baselineColumns("col3")
-      .baselineValues("")
-      .go();
+    readFieldSizeLimit("hive.field_size_limit_test", "col3");
   }
+
   @Test
   public void readBinaryFieldSizeLimitORC()  throws Exception {
-    String exceptionMessage = "Attempting to read a too large value";
+    readFieldSizeLimit("hive.field_size_limit_test_orc", "col3");
+  }
+
+  private void readFieldSizeLimit(String table, String column) throws Exception {
+    String exceptionMessage = "UNSUPPORTED_OPERATION ERROR: Field exceeds the size limit of 32000 bytes.";
     exception.expect(java.lang.Exception.class);
     exception.expectMessage(exceptionMessage);
-    String query = "SELECT col3 FROM hive.field_size_limit_test_orc";
+    String query = "SELECT " + column + " FROM " + table;
     testBuilder().sqlQuery(query)
       .ordered()
-      .baselineColumns("col3")
+      .baselineColumns(column)
       .baselineValues("")
       .go();
   }

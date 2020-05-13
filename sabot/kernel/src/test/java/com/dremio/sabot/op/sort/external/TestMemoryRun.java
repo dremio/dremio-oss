@@ -20,6 +20,7 @@ import static java.util.Collections.singletonList;
 import static org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING;
 import static org.apache.calcite.rel.RelFieldCollation.NullDirection.FIRST;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
@@ -36,6 +37,7 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.config.ExternalSort;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.selection.SelectionVector4;
+import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.CustomGenerator;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
@@ -69,7 +71,7 @@ public class TestMemoryRun extends BaseTestOperator {
   public void testQuickSorterCloseToCopier() throws Exception {
     final ExternalSortTracer tracer = new ExternalSortTracer();
     try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer,
-      2, false)) {
+      2, false, 8192, mock(ExecutionControls.class))) {
       int totalAdded = addBatches(memoryRun);
       validateCloseToCopier(memoryRun, 100, totalAdded);
     }
@@ -79,7 +81,7 @@ public class TestMemoryRun extends BaseTestOperator {
   public void testQuickSorterCloseToDisk() throws Exception {
     final ExternalSortTracer tracer = new ExternalSortTracer();
     try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer,
-      2, false)) {
+      2, false, 8192, mock(ExecutionControls.class))) {
       int totalAdded = addBatches(memoryRun);
       validateCloseToDisk(memoryRun, totalAdded);
     }
@@ -89,7 +91,7 @@ public class TestMemoryRun extends BaseTestOperator {
   public void testSplayTreeCloseToCopier() throws Exception {
     final ExternalSortTracer tracer = new ExternalSortTracer();
     try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer,
-      2, true)) {
+      2, true, 8192, mock(ExecutionControls.class))) {
       int totalAdded = addBatches(memoryRun);
       validateCloseToCopier(memoryRun, 100, totalAdded);
     }
@@ -99,9 +101,42 @@ public class TestMemoryRun extends BaseTestOperator {
   public void testSplayTreeCloseToDisk() throws Exception {
     final ExternalSortTracer tracer = new ExternalSortTracer();
     try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer,
-      2, true)) {
+      2, true, 8192, mock(ExecutionControls.class))) {
       int totalAdded = addBatches(memoryRun);
       validateCloseToDisk(memoryRun, totalAdded);
+    }
+  }
+
+  @Test
+  public void testQuickSortStartMicroSpilling() throws Exception {
+    testStartMicroSpilling(false);
+  }
+
+  @Test
+  public void testSplaySortStartMicroSpilling() throws Exception {
+    testStartMicroSpilling(true);
+  }
+
+  private void testStartMicroSpilling(boolean useSplaySort) throws Exception{
+    final ExternalSortTracer tracer = new ExternalSortTracer();
+    try (MemoryRun memoryRun = new MemoryRun(externalSort, producer, allocator, generator.getSchema(), tracer,
+      2, useSplaySort, 8192, mock(ExecutionControls.class))) {
+      final int totalAdded = addBatches(memoryRun);
+      final DiskRunManager diskRunManager = mock(DiskRunManager.class);
+
+      //the hypercontainer should be sorted before micro-spilling starts
+      Answer<Void> spillAnswer = new Answer<Void>() {
+        @Override
+        public Void answer(InvocationOnMock invocation) throws Throwable {
+          VectorContainer hyperBatch = invocation.getArgumentAt(0, VectorContainer.class);
+          validateHyperBatch(hyperBatch, totalAdded);
+          return null;
+        }
+      };
+
+      Mockito.doAnswer(spillAnswer).when(diskRunManager).startMicroSpilling(Mockito.any(VectorContainer.class));
+
+      memoryRun.startMicroSpilling(diskRunManager);
     }
   }
 
@@ -155,7 +190,7 @@ public class TestMemoryRun extends BaseTestOperator {
 
   private void validateCloseToDisk(MemoryRun memoryRun, final int expectedRecordCount) throws Exception {
     // create a mock DiskRunManager and capture the spilled hyper batch
-    DiskRunManager manager = Mockito.mock(DiskRunManager.class);
+    DiskRunManager manager = mock(DiskRunManager.class);
     Answer<Void> spillAnswer = new Answer<Void>() {
       @Override
       public Void answer(InvocationOnMock invocation) throws Throwable {

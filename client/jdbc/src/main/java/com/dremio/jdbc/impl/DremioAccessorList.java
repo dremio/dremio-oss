@@ -16,6 +16,7 @@
 package com.dremio.jdbc.impl;
 
 import java.sql.SQLException;
+import java.util.TimeZone;
 
 import org.apache.arrow.vector.ValueVector;
 import org.apache.calcite.avatica.util.Cursor.Accessor;
@@ -53,14 +54,14 @@ class DremioAccessorList extends BasicList<Accessor> {
     rowLastColumnOffset = NULL_LAST_COLUMN_INDEX;
   }
 
-  void generateAccessors(DremioCursor cursor, RecordBatchLoader currentBatch) {
+  void generateAccessors(DremioCursor cursor, RecordBatchLoader currentBatch, TimeZone defaultTz) {
     int cnt = currentBatch.getSchema().getFieldCount();
     accessors = new SqlAccessorWrapper[cnt];
     for(int i =0; i < cnt; i++){
       final ValueVector vector = currentBatch.getValueAccessorById(null, i).getValueVector();
       final SqlAccessor acc =
           new TypeConvertingSqlAccessor(
-              new BoundCheckingAccessor(vector, SqlAccessorBuilder.getSqlAccessor(vector))
+              new BoundCheckingAccessor(vector, SqlAccessorBuilder.getSqlAccessor(vector, defaultTz))
               );
       accessors[i] = new SqlAccessorWrapper(acc, cursor);
     }

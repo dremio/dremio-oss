@@ -376,7 +376,7 @@ public interface Schedule extends Iterable<Instant> {
      * @return interval
      */
     private static int checkInterval(int interval) {
-      Preconditions.checkArgument(interval > 0, "interval should be greater than 0, was %d", interval);
+      Preconditions.checkArgument(interval > 0, "interval should be greater than 0, was %s", interval);
       return interval;
     }
   }

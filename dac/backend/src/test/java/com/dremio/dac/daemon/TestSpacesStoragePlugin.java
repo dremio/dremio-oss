@@ -18,7 +18,7 @@ package com.dremio.dac.daemon;
 import static com.dremio.dac.server.JobsServiceTestUtils.submitJobAndGetData;
 import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
 import static com.dremio.dac.server.test.SampleDataPopulator.getFileContentsFromClassPath;
-import static com.dremio.service.namespace.TestNamespaceService.addFolder;
+import static com.dremio.service.namespace.NamespaceTestUtils.addFolder;
 import static org.junit.Assert.assertEquals;
 
 import java.io.BufferedWriter;

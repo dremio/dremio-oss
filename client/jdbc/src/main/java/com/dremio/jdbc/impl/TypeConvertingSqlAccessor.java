@@ -22,6 +22,7 @@ import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Calendar;
 
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.exec.vector.accessor.InvalidAccessException;
@@ -698,8 +699,8 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - DATE, TIMESTAMP;
 
   @Override
-  public Date getDate( int rowOffset ) throws InvalidAccessException {
-    return innerAccessor.getDate( rowOffset );
+  public Date getDate( int rowOffset, Calendar calendar ) throws InvalidAccessException {
+    return innerAccessor.getDate( rowOffset, calendar );
   }
 
   ////////////////////////////////////////
@@ -708,8 +709,8 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - TIME, TIMESTAMP;
 
   @Override
-  public Time getTime( int rowOffset ) throws InvalidAccessException {
-    return innerAccessor.getTime( rowOffset );
+  public Time getTime( int rowOffset, Calendar calendar ) throws InvalidAccessException {
+    return innerAccessor.getTime( rowOffset, calendar );
   }
 
   ////////////////////////////////////////
@@ -718,8 +719,8 @@ class TypeConvertingSqlAccessor implements SqlAccessor {
   //   - DATE, TIME, TIMESTAMP;
 
   @Override
-  public Timestamp getTimestamp( int rowOffset ) throws InvalidAccessException {
-    return innerAccessor.getTimestamp( rowOffset );
+  public Timestamp getTimestamp( int rowOffset, Calendar calendar ) throws InvalidAccessException {
+    return innerAccessor.getTimestamp( rowOffset, calendar );
   }
 
   ////////////////////////////////////////

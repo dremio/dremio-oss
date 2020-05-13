@@ -15,22 +15,35 @@
  */
 package com.dremio.datastore.stores;
 
+import java.util.Arrays;
+import java.util.List;
+
+import com.dremio.datastore.TestStoreCreationFunction;
 import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.StoreBuildingFactory;
-import com.dremio.datastore.api.StoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.generator.ByteContainerStoreGenerator.ByteContainer;
 
 /**
  * Test byte store that creates a ByteContainer key and value KVStore.
  */
-public class ByteContainerStore implements StoreCreationFunction<KVStore<String, ByteContainer>> {
+public class ByteContainerStore implements TestStoreCreationFunction<String, ByteContainer> {
   @Override
   public KVStore<String, ByteContainer> build(StoreBuildingFactory factory) {
     return factory.<String, ByteContainer>newStore()
       .name("byte-container-store")
-      .keyFormat(Format.ofString())
+      .keyFormat(getKeyFormat())
       .valueFormat(Format.wrapped(ByteContainer.class, ByteContainer::getBytes, ByteContainer::new, Format.ofBytes()))
       .build();
+  }
+
+  @Override
+  public Format<String> getKeyFormat() {
+    return Format.ofString();
+  }
+
+  @Override
+  public List<Class<?>> getKeyClasses() {
+    return Arrays.asList(String.class);
   }
 }

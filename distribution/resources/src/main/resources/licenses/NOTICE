@@ -521,8 +521,6 @@ Elasticsearch Copyright 2009-2017 Elasticsearch
 
 FreeMarker is Free software, licensed under the Apache License, Version 2.0.
 
-HdrHistogram was originally authored by Gil Tene (@giltene) (Java) and placed in the public domain, as explained at http://creativecommons.org/publicdomain/zero/1.0/, with ports by Mike Barker (@mikeb01) (C), Matt Warren (@mattwarren) (C#), Darach Ennis (@darach) (Erlang), Alec Hothan (@ahothan) (Python), Coda Hale (@codahale) (Go), Jon Gjengset (@jonhoo) (Rust), and Alexandre Victoor (@alexvictoor) (JavaScript)
-
 Jetty Web Container  Copyright 1995-2017 Mort Bay Consulting Pty Ltd.
 
 Jetty Web Container Copyright 1995-2017 Mort Bay Consulting Pty Ltd.

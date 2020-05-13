@@ -37,7 +37,7 @@ message KVStoreInfo {
   required string tablename = 1;
   required KVFormatInfo keyFormat = 2;
   required KVFormatInfo valueFormat = 3;
-  optional string documentConverterClassName = 4;
+  optional string documentConverterClassName = 4 [deprecated=true];
   optional string versionExtractorClassName = 5;
 }
 

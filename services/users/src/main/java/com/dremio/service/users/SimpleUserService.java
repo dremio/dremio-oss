@@ -461,7 +461,7 @@ public class SimpleUserService implements UserService {
         .keyFormat(Format.wrapped(UID.class, UID::getId, UID::new, Format.ofString()))
         .valueFormat(Format.ofProtostuff(UserInfo.class))
         .versionExtractor(UserVersionExtractor.class)
-        .buildIndexed(UserConverter.class);
+        .buildIndexed(new UserConverter());
     }
 
   }

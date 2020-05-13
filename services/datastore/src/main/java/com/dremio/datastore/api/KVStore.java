@@ -56,6 +56,8 @@ public interface KVStore<K, V> {
       }
     };
 
+    // TODO (DX-22212): The KVStore API should not depend on classes from the remote datastore
+    // RPC definition.
     PutOptionInfo getPutOptionInfo();
 
   }

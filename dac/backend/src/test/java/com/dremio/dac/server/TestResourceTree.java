@@ -35,7 +35,7 @@ import com.dremio.dac.model.resourcetree.ResourceTreeEntity.ResourceType;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.TestNamespaceService;
+import com.dremio.service.namespace.NamespaceTestUtils;
 import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,29 +61,29 @@ public class TestResourceTree extends BaseTestServer {
     addSource(ns, "src3");
     addSource(ns, "src4");
 
-    TestNamespaceService.addFolder(ns, "src1.folder1");
-    TestNamespaceService.addDS(ns, "src1.folder1.ds1");
-    TestNamespaceService.addFolder(ns, "src1.folder2");
-    TestNamespaceService.addDS(ns, "src1.folder2.ds1");
+    NamespaceTestUtils.addFolder(ns, "src1.folder1");
+    NamespaceTestUtils.addDS(ns, "src1.folder1.ds1");
+    NamespaceTestUtils.addFolder(ns, "src1.folder2");
+    NamespaceTestUtils.addDS(ns, "src1.folder2.ds1");
 
-    TestNamespaceService.addSpace(ns, "space1");
-    TestNamespaceService.addSpace(ns, "space2");
-    TestNamespaceService.addSpace(ns, "space3");
+    NamespaceTestUtils.addSpace(ns, "space1");
+    NamespaceTestUtils.addSpace(ns, "space2");
+    NamespaceTestUtils.addSpace(ns, "space3");
 
-    TestNamespaceService.addFolder(ns, "space1.foo1");
-    TestNamespaceService.addFolder(ns, "space1.foo1.bar1");
-    TestNamespaceService.addFolder(ns, "space1.bar1");
-    TestNamespaceService.addDS(ns, "space1.ds1");
-    TestNamespaceService.addDS(ns, "space1.foo1.ds2");
-    TestNamespaceService.addDS(ns, "space1.foo1.bar1.ds3");
+    NamespaceTestUtils.addFolder(ns, "space1.foo1");
+    NamespaceTestUtils.addFolder(ns, "space1.foo1.bar1");
+    NamespaceTestUtils.addFolder(ns, "space1.bar1");
+    NamespaceTestUtils.addDS(ns, "space1.ds1");
+    NamespaceTestUtils.addDS(ns, "space1.foo1.ds2");
+    NamespaceTestUtils.addDS(ns, "space1.foo1.bar1.ds3");
 
-    TestNamespaceService.addFolder(ns, "space2.foo2");
-    TestNamespaceService.addFolder(ns, "space2.foo2.bar2");
-    TestNamespaceService.addDS(ns, "space2.ds1");
-    TestNamespaceService.addDS(ns, "space2.ds2");
-    TestNamespaceService.addDS(ns, "space2.ds3");
-    TestNamespaceService.addDS(ns, "space2.foo2.ds4");
-    TestNamespaceService.addDS(ns, "space2.foo2.bar2.ds5");
+    NamespaceTestUtils.addFolder(ns, "space2.foo2");
+    NamespaceTestUtils.addFolder(ns, "space2.foo2.bar2");
+    NamespaceTestUtils.addDS(ns, "space2.ds1");
+    NamespaceTestUtils.addDS(ns, "space2.ds2");
+    NamespaceTestUtils.addDS(ns, "space2.ds3");
+    NamespaceTestUtils.addDS(ns, "space2.foo2.ds4");
+    NamespaceTestUtils.addDS(ns, "space2.foo2.bar2.ds5");
   }
 
   public static SourceConfig addSource(NamespaceService ns, String name) throws Exception {

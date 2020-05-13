@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.service.maestro.MaestroGrpcServerFacade;
+import com.dremio.sabot.rpc.ExecToCoordResultsHandler;
 import com.dremio.sabot.rpc.ExecToCoordStatusHandler;
 import com.dremio.service.Service;
 import com.dremio.service.grpc.GrpcServerBuilderFactory;
@@ -50,6 +51,7 @@ import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.StoreJobResultRequest;
 import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.proto.JobProtobuf.JobId;
+import com.dremio.service.jobresults.server.JobResultsGrpcServerFacade;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Empty;
@@ -68,7 +70,9 @@ public class JobsServer implements Service {
   private final Provider<LocalJobsService> jobsService;
   private final GrpcServerBuilderFactory grpcFactory;
   private final BufferAllocator allocator;
+  private final BufferAllocator jobResultsAllocator;
   private final Provider<ExecToCoordStatusHandler> execToCoordStatusHandlerProvider;
+  private final Provider<ExecToCoordResultsHandler> execToCoordResultsHandlerProvider;
 
   private Server server = null;
   private JobsFlightProducer producer = null;
@@ -77,12 +81,15 @@ public class JobsServer implements Service {
       Provider<LocalJobsService> jobsService,
       GrpcServerBuilderFactory grpcFactory,
       Provider<ExecToCoordStatusHandler> execToCoordStatusHandlerProvider,
+      Provider<ExecToCoordResultsHandler> execToCoordResultsHandlerProvider,
       BufferAllocator allocator
   ) {
     this.jobsService = jobsService;
     this.grpcFactory = grpcFactory;
     this.allocator = allocator.newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
+    this.jobResultsAllocator = allocator.newChildAllocator("JobResultsGrpcServer", 0, Long.MAX_VALUE);
     this.execToCoordStatusHandlerProvider = execToCoordStatusHandlerProvider;
+    this.execToCoordResultsHandlerProvider = execToCoordResultsHandlerProvider;
   }
 
   @Override
@@ -96,6 +103,7 @@ public class JobsServer implements Service {
         .addService(new Chronicle())
         .addService(FlightGrpcUtils.createFlightService(allocator, producer, null, null))
         .addService(new MaestroGrpcServerFacade(execToCoordStatusHandlerProvider))
+        .addService(new JobResultsGrpcServerFacade(execToCoordResultsHandlerProvider, jobResultsAllocator))
         .build();
 
     server.start();
@@ -105,7 +113,7 @@ public class JobsServer implements Service {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(producer, allocator);
+    AutoCloseables.close(producer, allocator, jobResultsAllocator);
     if (server != null) {
       server.shutdown();
     }

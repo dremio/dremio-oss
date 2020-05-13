@@ -25,7 +25,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.security.PrivilegedAction;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -159,7 +161,7 @@ class ScanWithHiveReader {
                                 ScanFilter.class, Collection.class, UserGroupInformation.class);
   }
 
-  static Iterable<RecordReader> createReaders(
+  static Iterator<RecordReader> createReaders(
       final HiveConf hiveConf,
       final FragmentExecutionContext fragmentExecContext,
       final OperatorContext context,
@@ -170,7 +172,7 @@ class ScanWithHiveReader {
       List<SplitAndPartitionInfo> splits){
 
     if(splits.isEmpty()) {
-      return FluentIterable.of();
+      return Collections.emptyIterator();
     }
 
     Iterable<RecordReader> readers = null;
@@ -194,7 +196,7 @@ class ScanWithHiveReader {
             }
           });
         }});
-      return readers;
+      return readers.iterator();
     } catch (Exception e) {
       AutoCloseables.close(e, readers);
       throw Throwables.propagate(e);

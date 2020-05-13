@@ -32,7 +32,7 @@ public class ElasticFunctionUnaryPostfix extends ElasticFunction {
   @Override
   public FunctionRender render(FunctionRenderer renderer, RexCall call) {
     Preconditions.checkArgument(call.getOperands().size() == 1,
-        "Unary operation %s should only have one argument, but got %d.", dremioName, call.getOperands().size());
+        "Unary operation %s should only have one argument, but got %s.", dremioName, call.getOperands().size());
 
     FunctionRender operand = call.getOperands().get(0).accept(renderer.getVisitor());
     return new FunctionRender(String.format("%s(%s)", operand.getScript(), elasticName), operand.getNulls());

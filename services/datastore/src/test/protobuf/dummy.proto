@@ -62,14 +62,16 @@ message DummyObj {
   repeated int64  int64_seq = 8;
   repeated uint32 uint32_seq = 9;
   repeated uint64 uint64_seq = 10;
+  repeated float float_seq = 11;
+  repeated double double_seq = 12;
 
-  repeated DummyMapFieldEntry backward_compatible_map_field = 12;
-  repeated DummyNonStandardMapFieldEntry non_standard_map_field = 13;
+  repeated DummyMapFieldEntry backward_compatible_map_field = 13;
+  repeated DummyNonStandardMapFieldEntry non_standard_map_field = 14;
 
   message NestedDummyObj {
     optional DummyId id = 1;
     optional string tag = 2;
   }
 
-  optional NestedDummyObj nested = 18;
+  optional NestedDummyObj nested = 15;
 }

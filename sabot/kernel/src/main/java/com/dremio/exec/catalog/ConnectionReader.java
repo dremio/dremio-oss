@@ -59,7 +59,7 @@ public interface ConnectionReader extends AbstractConnectionReader {
       return config.getLegacySourceTypeEnum().name();
     }
 
-    throw new IllegalStateException(String.format("Unable to manage source of type: named: [%s], legacy enum: [%d].", config.getType(), config.getLegacySourceTypeEnum()));
+    throw new IllegalStateException(String.format("Unable to manage source of type: named: [%s], legacy enum: [%d].", config.getType(), config.getLegacySourceTypeEnum().getNumber()));
   }
 
   static ConnectionReader of(final ScanResult scanResult, final SabotConfig sabotConfig) {

@@ -303,6 +303,7 @@ class DatasetManager {
         .setMaxMetadataLeafColumns(
           (ignoreColumnCount) ? Integer.MAX_VALUE : plugin.getDefaultRetrievalOptions().maxMetadataLeafColumns()
         )
+        .setMaxNestedLevel(plugin.getDefaultRetrievalOptions().maxNestedLevel())
         .build();
 
     final Optional<DatasetHandle> handle;

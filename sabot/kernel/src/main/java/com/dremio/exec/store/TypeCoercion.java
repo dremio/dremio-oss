@@ -18,6 +18,7 @@ package com.dremio.exec.store;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.types.TypeProtos.MajorType;
+import com.dremio.exec.record.BatchSchema;
 
 /**
  * Type Coercion interface to get the target type for a particular field
@@ -30,4 +31,12 @@ public interface TypeCoercion {
    * @return
    */
   MajorType getType(Field field);
+
+  /**
+   * Get the child TypeCoercion for the childSchema of a given field
+   * @param fieldName
+   * @param childSchema
+   * @return
+   */
+  TypeCoercion getChildTypeCoercion(String fieldName, BatchSchema childSchema);
 }

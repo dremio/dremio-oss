@@ -1416,8 +1416,8 @@ public class HiveORCCopiers {
     private BaseVariableWidthVector outputVector;
     private HiveOperatorContextOptions operatorContextOptions;
 
-    private void checkReadSizeLimit(int size) {
-      FieldSizeLimitExceptionHelper.checkReadSizeLimit(size, this.operatorContextOptions.getMaxCellSize(), "", logger);
+    private void checkSizeLimit(int size) {
+      FieldSizeLimitExceptionHelper.checkSizeLimit(size, this.operatorContextOptions.getMaxCellSize(), logger);
     }
 
     BytesToVarWidthCopier(BytesColumnVector inputVector, BaseVariableWidthVector outputVector, HiveOperatorContextOptions operatorContextOptions) {
@@ -1442,7 +1442,7 @@ public class HiveORCCopiers {
         if (inputVector.isNull[0]) {
           return; // If all repeating values are null, then there is no need to write anything to vector
         }
-        checkReadSizeLimit(length[0]);
+        checkSizeLimit(length[0]);
         final byte[] value = new byte[length[0]];
         System.arraycopy(vector[0], start[0], value, 0, length[0]);
         for (int i = 0; i < count; i++, outputIdx++) {
@@ -1450,14 +1450,14 @@ public class HiveORCCopiers {
         }
       } else if (inputVector.noNulls) {
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
-          checkReadSizeLimit(length[inputIdx]);
+          checkSizeLimit(length[inputIdx]);
           outputVector.setSafe(outputIdx, vector[inputIdx], start[inputIdx], length[inputIdx]);
         }
       } else {
         final boolean[] isNull = inputVector.isNull;
         for (int i = 0; i < count; i++, inputIdx++, outputIdx++) {
           if (!isNull[inputIdx]) {
-            checkReadSizeLimit(length[inputIdx]);
+            checkSizeLimit(length[inputIdx]);
             outputVector.setSafe(outputIdx, vector[inputIdx], start[inputIdx], length[inputIdx]);
           }
         }

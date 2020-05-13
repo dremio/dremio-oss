@@ -72,7 +72,7 @@ public class DistributionLoader
             if (isEnd(name, line)) {
                 Map<String, Integer> weights = members.build();
                 checkState(count == weights.size(),
-                        "Expected %d entries in distribution %s, but only %d entries were found",
+                        "Expected %d entries in distribution %s, but only %s entries were found",
                         count,
                         weights.size());
                 return new Distribution(name, weights);
@@ -80,7 +80,7 @@ public class DistributionLoader
 
             List<String> parts = ImmutableList.copyOf(Splitter.on('|').trimResults().omitEmptyStrings().split(line));
             checkState(parts.size() == 2,
-                    "Expected line to contain two parts, but it contains %d parts: %s",
+                    "Expected line to contain two parts, but it contains %s parts: %s",
                     parts.size(),
                     line);
 

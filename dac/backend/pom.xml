@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>4.2.2-202004211133290458-b550b6fa</version>
+    <version>4.3.0-202005130311450502-323f05d9</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -202,102 +202,6 @@
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-aws</artifactId>
-      <version>2.7.1</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-databind</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.fasterxml.jackson.core</groupId>
-          <artifactId>jackson-annotations</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.mortbay.jetty</groupId>
-          <artifactId>servlet-api</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.mortbay.jetty</groupId>
-          <artifactId>servlet-api-2.5</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>javax.servlet</groupId>
-          <artifactId>servlet-api</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.mortbay.jetty</groupId>
-          <artifactId>jetty-util</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-yarn-api</artifactId>
-        </exclusion>
-        <exclusion>
-          <artifactId>jets3t</artifactId>
-          <groupId>net.java.dev.jets3t</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>log4j</artifactId>
-          <groupId>log4j</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>slf4j-log4j12</artifactId>
-          <groupId>org.slf4j</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>mockito-all</artifactId>
-          <groupId>org.mockito</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>commons-logging-api</artifactId>
-          <groupId>commons-logging</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>commons-logging</artifactId>
-          <groupId>commons-logging</groupId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.sun.jersey</groupId>
-          <artifactId>jersey-core</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.sun.jersey</groupId>
-          <artifactId>jersey-server</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.sun.jersey</groupId>
-          <artifactId>jersey-json</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>com.sun.jersey</groupId>
-          <artifactId>jersey-client</artifactId>
-        </exclusion>
-        <exclusion>
-          <artifactId>core</artifactId>
-          <groupId>org.eclipse.jdt</groupId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.codehaus.jackson</groupId>
-          <artifactId>jackson-core-asl</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.codehaus.jackson</groupId>
-          <artifactId>jackson-mapper-asl</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.codehaus.jackson</groupId>
-          <artifactId>jackson-xc</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>org.codehaus.jackson</groupId>
-          <artifactId>jackson-jaxrs</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>io.opentracing</groupId>
@@ -656,6 +560,17 @@
               <systemPropertyVariables>
                 <dremio_multinode>true</dremio_multinode>
                 <dremio.service.jobs.over_socket>true</dremio.service.jobs.over_socket>
+
+                <test.master-active.localPort>${test.master-active.localPort}</test.master-active.localPort>
+                <test.master-active.httpPort>${test.master-active.httpPort}</test.master-active.httpPort>
+                <test.master-active.clientPort>${test.master-active.clientPort}</test.master-active.clientPort>
+                <test.master-backup.localPort>${test.master-backup.localPort}</test.master-backup.localPort>
+                <test.master-backup.httpPort>${test.master-backup.httpPort}</test.master-backup.httpPort>
+                <test.master-backup.clientPort>${test.master-backup.clientPort}</test.master-backup.clientPort>
+                <test.non-master.localPort>${test.non-master.localPort}</test.non-master.localPort>
+                <test.non-master.httpPort>${test.non-master.httpPort}</test.non-master.httpPort>
+                <test.non-master.clientPort>${test.non-master.clientPort}</test.non-master.clientPort>
+                <test.zk.enabled.port>${test.zk.enabled.port}</test.zk.enabled.port>
               </systemPropertyVariables>
               <excludes>
                 <exclude>com.dremio.dac.server.TestBackupManager</exclude>
@@ -678,6 +593,36 @@
                 <include>**/Test*Job*.java</include>
                 <include>**/*Job*Test.java</include>
               </includes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>reserve-network-port</id>
+            <goals>
+              <goal>reserve-network-port</goal>
+            </goals>
+            <phase>process-resources</phase>
+            <configuration>
+              <!-- Conservative range of ports to avoid ephemeral port ranges -->
+              <minPortNumber>1024</minPortNumber>
+              <maxPortNumber>9999</maxPortNumber>
+              <portNames>
+                <portName>test.master-active.localPort</portName>
+                <portName>test.master-active.httpPort</portName>
+                <portName>test.master-active.clientPort</portName>
+                <portName>test.master-backup.localPort</portName>
+                <portName>test.master-backup.httpPort</portName>
+                <portName>test.master-backup.clientPort</portName>
+                <portName>test.non-master.localPort</portName>
+                <portName>test.non-master.httpPort</portName>
+                <portName>test.non-master.clientPort</portName>
+                <portName>test.zk.enabled.port</portName>
+              </portNames>
             </configuration>
           </execution>
         </executions>

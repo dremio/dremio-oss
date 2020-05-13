@@ -29,6 +29,7 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.catalog.conf.Secret;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.store.dfs.CacheProperties;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.exec.store.dfs.SchemaMutability;
 import com.dremio.io.file.Path;
@@ -108,6 +109,10 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   @DisplayMetadata(label = "Server side encryption key ARN")
   @NotMetadataImpacting
   public String kmsKeyARN;
+
+  @Tag(17)
+  @DisplayMetadata(label = "Apply requester-pays to S3 requests")
+  public boolean requesterPays = false;
 
   @Override
   public S3StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {

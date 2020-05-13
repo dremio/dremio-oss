@@ -258,12 +258,12 @@ public abstract class NestedConfig implements Config {
 
   @Override
   public Config resolveWith(Config arg0, ConfigResolveOptions arg1) {
-    return resolveWith(arg0, arg1);
+    return config.resolveWith(arg0, arg1);
   }
 
   @Override
   public Config resolveWith(Config arg0) {
-    return resolveWith(arg0);
+    return config.resolveWith(arg0);
   }
 
 

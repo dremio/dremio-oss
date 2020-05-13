@@ -15,7 +15,6 @@
  */
 package com.dremio.plugins.elastic.planning.rels;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -152,7 +151,7 @@ public class ScanBuilder {
     return ImmutableMap.copyOf(map);
   }
 
-  protected void applyFilter(SearchRequestBuilder searchRequest, ElasticIntermediateScanPrel scan, ElasticsearchFilter filter, ElasticTableXattr tableAttributes) throws ExpressionNotAnalyzableException, IOException {
+  protected void applyFilter(SearchRequestBuilder searchRequest, ElasticIntermediateScanPrel scan, ElasticsearchFilter filter, ElasticTableXattr tableAttributes) throws ExpressionNotAnalyzableException {
 
     QueryBuilder b = null;
     if (tableAttributes.hasAliasFilter()) {
@@ -245,9 +244,7 @@ public class ScanBuilder {
       this.spec = scanSpec;
       this.scan = scan;
     } catch (ExpressionNotAnalyzableException e) {
-      throw UserException.dataReadError(e).message("Elastic pushdown failed to late to recover query.").build(logger);
-    } catch (IOException e) {
-      throw UserException.dataReadError(e).message("Failure while attempting to create Elastic query.").build(logger);
+      throw UserException.dataReadError(e).message("Elastic pushdown failed. Too late to recover query.").build(logger);
     }
   }
 

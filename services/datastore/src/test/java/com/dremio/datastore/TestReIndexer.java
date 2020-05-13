@@ -66,7 +66,7 @@ public class TestReIndexer {
 
     final StoreBuilderHelper<String, String> helper = new StoreBuilderHelper<String, String>()
       .name(storeName)
-      .documentConverter(TestConverter.class)
+      .documentConverter(new TestConverter())
       .keyFormat(Format.ofString())
       .valueFormat(Format.ofString());
 

@@ -29,6 +29,7 @@ class AdminMapper {
         status: node.status,
         isCoordinator: node.isCoordinator,
         isExecutor: node.isExecutor,
+        isMaster: node.isMaster,
         isBlacklisted: node.isBlacklisted,
         nodeTag: node.nodeTag
       };

@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.vector.accessor;
 
+import java.util.TimeZone;
+
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DateMilliVector;
@@ -43,7 +45,7 @@ public class SqlAccessorBuilder {
 
   private SqlAccessorBuilder() {}
 
-  public static SqlAccessor getSqlAccessor(ValueVector vector){
+  public static SqlAccessor getSqlAccessor(ValueVector vector, TimeZone defaultTz) {
     final MinorType type = org.apache.arrow.vector.types.Types.getMinorTypeForArrowType(vector.getField().getType());
     switch(type){
     case UNION:
@@ -65,7 +67,7 @@ public class SqlAccessorBuilder {
     case INTERVALYEAR:
       return new IntervalYearAccessor((IntervalYearVector) vector);
     case TIMEMILLI:
-      return new TimeMilliAccessor((TimeMilliVector) vector);
+      return new TimeMilliAccessor((TimeMilliVector) vector, defaultTz);
     case BIGINT:
       return new BigIntAccessor((BigIntVector) vector);
     case UINT8:
@@ -73,9 +75,9 @@ public class SqlAccessorBuilder {
     case FLOAT8:
       return new Float8Accessor((Float8Vector) vector);
     case DATEMILLI:
-      return new DateMilliAccessor((DateMilliVector) vector);
+      return new DateMilliAccessor((DateMilliVector) vector, defaultTz);
     case TIMESTAMPMILLI:
-      return new TimeStampMilliAccessor((TimeStampMilliVector) vector);
+      return new TimeStampMilliAccessor((TimeStampMilliVector) vector, defaultTz);
     case INTERVALDAY:
       return new IntervalDayAccessor((IntervalDayVector) vector);
     case DECIMAL:

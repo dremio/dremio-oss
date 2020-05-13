@@ -33,12 +33,10 @@ public final class StoreBuilderHelper<K, V> {
   private final KVStoreInfo info = new KVStoreInfo();
   private Format<K> keyFormat;
   private Format<V> valueFormat;
-  private Class<? extends DocumentConverter<K, V>> documentConverterClass;
+  private DocumentConverter<K, V> documentConverter;
 
   public StoreBuilderHelper() {
-    info
-      .setDocumentConverterClassName("")
-      .setVersionExtractorClassName("");
+    info.setVersionExtractorClassName("");
   }
 
   public StoreBuilderHelper<K, V> name(String name) {
@@ -60,15 +58,14 @@ public final class StoreBuilderHelper<K, V> {
     return this;
   }
 
-  public StoreBuilderHelper<K, V> documentConverter(Class<? extends DocumentConverter<K, V>> documentConverterClass) {
-    Preconditions.checkNotNull(documentConverterClass);
-    this.documentConverterClass = documentConverterClass;
-    info.setDocumentConverterClassName(documentConverterClass.getName());
+  public StoreBuilderHelper<K, V> documentConverter(DocumentConverter<K, V> documentConverter) {
+    Preconditions.checkNotNull(documentConverter);
+    this.documentConverter = documentConverter;
     return this;
   }
 
   public boolean hasDocumentConverter() {
-    return this.documentConverterClass != null;
+    return this.documentConverter != null;
   }
 
   public String getName() {
@@ -84,7 +81,7 @@ public final class StoreBuilderHelper<K, V> {
   }
 
   public DocumentConverter<K, V> getDocumentConverter() {
-    return DataStoreUtils.getInstance(documentConverterClass);
+    return documentConverter;
   }
 
   public KVStoreInfo getKVStoreInfo() {

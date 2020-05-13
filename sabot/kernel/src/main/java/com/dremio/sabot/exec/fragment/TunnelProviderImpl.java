@@ -23,13 +23,13 @@ import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.sabot.exec.FragmentWorkManager.ExecConnectionCreator;
 import com.dremio.sabot.exec.rpc.AccountingExecToCoordTunnel;
 import com.dremio.sabot.exec.rpc.AccountingExecTunnel;
-import com.dremio.sabot.exec.rpc.ExecToCoordTunnel;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.threads.SendingAccountor;
 import com.dremio.sabot.threads.SendingMonitor;
 import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.dremio.sabot.threads.sharedres.SharedResourceGroup;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
+import com.dremio.services.jobresults.common.JobResultsTunnel;
 import com.google.common.collect.Maps;
 
 /**
@@ -47,7 +47,7 @@ class TunnelProviderImpl implements TunnelProvider {
 
   public TunnelProviderImpl(
       SendingAccountor accountor,
-      ExecToCoordTunnel tunnel,
+      JobResultsTunnel tunnel,
       ExecConnectionCreator connectionCreator,
       RpcOutcomeListener<Ack> statusHandler,
       SharedResourceGroup resourceGroup) {

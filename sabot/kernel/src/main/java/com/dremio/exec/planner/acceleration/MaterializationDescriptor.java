@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.planner.acceleration;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -139,7 +140,7 @@ public class MaterializationDescriptor {
 
   @Override
   public int hashCode() {
-    return Objects.hash(reflection, planBytes, path, originalCost);
+    return Objects.hash(reflection, Arrays.hashCode(planBytes), path, originalCost);
   }
 
   public DremioMaterialization getMaterializationFor(SqlConverter converter) {

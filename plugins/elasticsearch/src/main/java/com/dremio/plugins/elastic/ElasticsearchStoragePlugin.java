@@ -48,6 +48,7 @@ import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.MetadataObjectsUtils;
 import com.dremio.exec.catalog.conf.EncryptionValidationMode;
+import com.dremio.exec.catalog.conf.Host;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.record.BatchSchema;
@@ -143,7 +144,8 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
       }
     }
 
-    this.connectionPool = new ElasticConnectionPool(
+    try {
+      this.connectionPool = new ElasticConnectionPool(
         config.getHostList(),
         tlsMode,
         new ElasticsearchAuthentication(config.getHostList(),
@@ -155,6 +157,12 @@ public class ElasticsearchStoragePlugin implements StoragePlugin, SupportsListin
           config.getRegionName()),
         config.getReadTimeoutMillis(),
         config.isUseWhitelist());
+    } catch (IllegalArgumentException e) {
+      throw UserException.connectionError(e)
+        .message("Failed to authenticate with Elasticsearch cluster %s", config.getHostList().stream()
+          .map(Host::toCompound).collect(Collectors.joining(",")))
+        .build();
+    }
   }
 
   public SabotContext getContext() {

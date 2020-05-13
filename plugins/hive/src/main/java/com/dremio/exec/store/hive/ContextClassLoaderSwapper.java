@@ -24,8 +24,17 @@ public class ContextClassLoaderSwapper implements AutoCloseable {
     Thread.currentThread().setContextClassLoader(getClass().getClassLoader());
   }
 
+  private ContextClassLoaderSwapper(ClassLoader classLoader) {
+    this.originalClassLoader = Thread.currentThread().getContextClassLoader();
+    Thread.currentThread().setContextClassLoader(classLoader);
+  }
+
   public static ContextClassLoaderSwapper newInstance() {
     return new ContextClassLoaderSwapper();
+  }
+
+  public static ContextClassLoaderSwapper newInstance(ClassLoader classLoader) {
+    return new ContextClassLoaderSwapper(classLoader);
   }
 
   @Override

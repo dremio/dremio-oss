@@ -16,25 +16,22 @@
 
 package com.dremio.plugins.azure;
 
-import static com.dremio.plugins.azure.utils.AzureAsyncHttpClientUtils.Endpoint.DFS;
 import static com.dremio.plugins.azure.utils.AzureAsyncHttpClientUtils.toHttpDateFormat;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+
+import javax.annotation.concurrent.NotThreadSafe;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.utils.URIBuilder;
@@ -53,12 +50,17 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.google.common.collect.AbstractIterator;
-import com.google.gson.Gson;
+
 
 /**
- * Container provider based on AsyncHttpClient
+ * Container provider based on AsyncHttpClient.
+ * Consumers of the ContainerCreator stream at {@link #getContainerCreators()} should ensure that this stream isn't
+ * shared across threads and the operation is called in a thread safe manner.
  */
+@NotThreadSafe
 public class AzureAsyncContainerProvider implements ContainerProvider {
   private static final Logger logger = LoggerFactory.getLogger(AzureAsyncContainerProvider.class);
 
@@ -90,8 +92,9 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
   static class DFSContainerIterator extends AbstractIterator<String> {
     private static final int BASE_MILLIS_TO_WAIT = 250; // set to the average latency of an async read
     private static final int MAX_MILLIS_TO_WAIT = 10 * BASE_MILLIS_TO_WAIT;
-    private static final int EMPTY_CONTINUATION_RETRIES = 10;  // Approx no of rows shown on dremio console
-    private static final int PAGE_SIZE = 100;
+    private static final int EMPTY_CONTINUATION_RETRIES = 10;
+    private static final int PAGE_SIZE = 100;  // Approx no of rows shown on dremio console
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final String uri;
     private final AsyncHttpClient asyncHttpClient;
@@ -108,7 +111,7 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
                          final boolean isSecure) {
       this.authProvider = authProvider;
       this.asyncHttpClient = asyncHttpClient;
-      this.uri = AzureAsyncHttpClientUtils.getBaseEndpointURL(account, DFS, isSecure);
+      this.uri = AzureAsyncHttpClientUtils.getBaseEndpointURL(account, isSecure);
       retryer = new Retryer.Builder()
         .retryIfExceptionOfType(RuntimeException.class)
         .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, BASE_MILLIS_TO_WAIT, MAX_MILLIS_TO_WAIT)
@@ -134,14 +137,16 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
           final Request request = buildRequest();
           request.getHeaders().add("Authorization", authProvider.getAuthzHeaderValue(request));
           final Response response = asyncHttpClient.executeRequest(request, new BAOSBasedCompletionHandler(baos)).get();
-          Gson gson = new Gson();
-          Reader responseReader = new InputStreamReader(new ByteArrayInputStream(baos.toByteArray()));
-          FileSystemListStub responseStubs = Optional.ofNullable(gson.fromJson(responseReader, FileSystemListStub.class)).orElse(new FileSystemListStub());
-          iterator = responseStubs.filesystems.stream().map(FileSystemStub::getName).collect(Collectors.toList()).iterator();
           continuation = response.getHeader("x-ms-continuation");
           if (StringUtils.isEmpty(continuation)) {
             hasMorePages = false;
           }
+          FileSystemListStub responseStubs = OBJECT_MAPPER.readValue(baos.toByteArray(), FileSystemListStub.class);
+          iterator = responseStubs.filesystems.stream().map(FileSystemStub::getName).collect(Collectors.toList()).iterator();
+          return true;
+        } catch (MismatchedInputException e) {
+          logger.warn("Empty response while reading azure containers " + e.getMessage());
+          iterator = Collections.emptyIterator();
           return true;
         } catch (Exception e) {
           // Throw ExecutionException for non-retryable cases.

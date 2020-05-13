@@ -25,6 +25,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import org.apache.calcite.sql.type.SqlTypeUtil;
 
 import com.dremio.common.expression.CompleteType;
+import com.dremio.exec.expr.fn.OutputDerivation;
 
 public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTypeSystemImpl {
 
@@ -142,6 +143,34 @@ public class RelDataTypeSystemImpl extends org.apache.calcite.rel.type.RelDataTy
                                           RelDataType type2) {
     return getDecimalReturnType(typeFactory, type1, type2, DecimalTypeUtil
       .OperationType.MOD);
+  }
+
+  @Override
+  public RelDataType deriveDecimalTruncateType(RelDataTypeFactory typeFactory, RelDataType type1,
+    Integer scale2) {
+    if (!SqlTypeUtil.isExactNumeric(type1) || !SqlTypeUtil.isDecimal(type1)) {
+      return null;
+    }
+
+    ArrowType.Decimal finalPrecisionScale = OutputDerivation.getDecimalOutputTypeForTruncate(type1.getPrecision(),
+      type1.getScale(), scale2);
+
+    return typeFactory.createSqlType(SqlTypeName.DECIMAL, finalPrecisionScale.getPrecision(),
+      finalPrecisionScale.getScale());
+  }
+
+  @Override
+  public RelDataType deriveDecimalRoundType(RelDataTypeFactory typeFactory, RelDataType type1,
+    Integer scale2) {
+    if (!SqlTypeUtil.isExactNumeric(type1) || !SqlTypeUtil.isDecimal(type1)) {
+      return null;
+    }
+
+    ArrowType.Decimal finalPrecisionScale = OutputDerivation.getDecimalOutputTypeForRound(type1.getPrecision(),
+      type1.getScale(), scale2);
+
+    return typeFactory.createSqlType(SqlTypeName.DECIMAL, finalPrecisionScale.getPrecision(),
+      finalPrecisionScale.getScale());
   }
 
   private RelDataType getDecimalReturnType(RelDataTypeFactory typeFactory, RelDataType type1, RelDataType type2, DecimalTypeUtil

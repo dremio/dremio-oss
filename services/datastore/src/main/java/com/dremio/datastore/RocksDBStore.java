@@ -54,6 +54,7 @@ import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableDocument;
+import com.dremio.datastore.api.options.KVStoreOptionUtility;
 import com.dremio.datastore.api.options.VersionOption;
 import com.dremio.datastore.rocks.Rocks;
 import com.dremio.telemetry.api.metrics.Metrics;
@@ -494,6 +495,7 @@ class RocksDBStore implements ByteStore {
     Preconditions.checkNotNull(newValue);
     Preconditions.checkNotNull(versionInfo);
     Preconditions.checkArgument(versionInfo.hasCreateOption() || versionInfo.getTag() != null);
+    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(options);
 
     try (AutoCloseableLock ac = exclusiveLock(key)) {
       throwIfClosed();

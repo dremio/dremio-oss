@@ -15,6 +15,8 @@
  */
 package com.dremio.datastore.indexed;
 
+import static org.junit.Assert.assertTrue;
+
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.IndexableField;
 
@@ -43,6 +45,11 @@ public class TestSimpleDocumentWriter extends AbstractTestDocumentWriter<SimpleD
       final Object value = getValueFromField(expectedValues[i], field);
       verifyHelper(expectedValues[i], value);
     }
+  }
+
+  @Override
+  protected void verifyNoValues(SimpleDocumentWriter writer, IndexKey index) {
+    assertTrue(writer.getDoc().getFields(index.getIndexFieldName()).length == 0);
   }
 
   private static Object getValueFromField(Object expectedValue, IndexableField field) {

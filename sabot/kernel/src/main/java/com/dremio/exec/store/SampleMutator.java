@@ -32,6 +32,7 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.op.scan.MutatorSchemaChangeCallBack;
 import com.dremio.sabot.op.scan.OutputMutator;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 
 import io.netty.buffer.ArrowBuf;
@@ -68,16 +69,27 @@ public class SampleMutator implements OutputMutator, AutoCloseable {
                         clazz.getSimpleName(), v.getClass().getSimpleName()));
       }
 
-      final ValueVector old = fieldVectorMap.put(field.getName().toLowerCase(), v);
-      if (old != null) {
-        container.replace(old, v);
-      } else {
-        container.add(v);
-      }
+      String fieldName = field.getName();
+      addVectorForFieldName(v, fieldName);
       // Added new vectors to the container--mark that the schema has changed.
     }
 
     return clazz.cast(v);
+  }
+
+  private void addVectorForFieldName(ValueVector v, String fieldName) {
+    final ValueVector old = fieldVectorMap.put(fieldName.toLowerCase(), v);
+    if (old != null) {
+      container.replace(old, v);
+    } else {
+      container.add(v);
+    }
+  }
+
+  public void addVector(ValueVector vector) {
+    Preconditions.checkArgument(vector != null, "Invalid vector");
+    Preconditions.checkArgument(vector.getField() != null, "Invalid field");
+    addVectorForFieldName(vector, vector.getField().getName());
   }
 
   @Override

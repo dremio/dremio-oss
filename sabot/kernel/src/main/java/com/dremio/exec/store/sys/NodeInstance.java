@@ -34,6 +34,7 @@ public class NodeInstance {
   public final Double cpu;
   public final Double memory;
   public final String status;
+  public final Boolean is_master;
   public final Boolean is_coordinator;
   public final Boolean is_executor;
   public final String node_tag;
@@ -54,6 +55,7 @@ public class NodeInstance {
     Double cpu,
     Double memory,
     String status,
+    Boolean is_master,
     Boolean is_coordinator,
     Boolean is_executor,
     String node_tag,
@@ -72,6 +74,7 @@ public class NodeInstance {
     this.cpu = cpu;
     this.memory = memory;
     this.status = status;
+    this.is_master = is_master;
     this.is_coordinator = is_coordinator;
     this.is_executor = is_executor;
     this.node_tag = node_tag;
@@ -84,18 +87,12 @@ public class NodeInstance {
   }
 
   public static NodeInstance fromStats(CoordExecRPC.NodeStats nodeStats, CoordinationProtos.NodeEndpoint ep) {
-    boolean exec = ep.getRoles().getJavaExecutor();
-    boolean coord = ep.getRoles().getSqlQuery();
-    String name = nodeStats.getName();
-    if (exec && coord) {
-      name += " (c + e)";
-    } else if (exec) {
-      name += " (e)";
-    } else {
-      name += " (c)";
-    }
+    final boolean master = ep.getRoles().getMaster();
+    final boolean coord = ep.getRoles().getSqlQuery();
+    final boolean exec = ep.getRoles().getJavaExecutor();
+
     return new NodeInstance(
-      name,
+      nodeStats.getName(),
       nodeStats.getName(),
       nodeStats.getIp(),
       ep.getUserPort(),
@@ -103,6 +100,7 @@ public class NodeInstance {
       nodeStats.getCpu(),
       nodeStats.getMemory(),
       nodeStats.getStatus(),
+      master,
       coord,
       exec,
       ep.getNodeTag(),

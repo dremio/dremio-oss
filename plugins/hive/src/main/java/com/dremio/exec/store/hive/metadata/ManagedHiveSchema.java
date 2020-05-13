@@ -42,31 +42,35 @@ import com.google.common.base.Splitter;
 public class ManagedHiveSchema implements ManagedSchema {
 
   private final Map<String, ManagedSchemaField> fieldInfo;
+  private final Map<String, TypeInfo> typeInfo;
+  private final boolean varcharTruncationEnabled;
 
   public ManagedHiveSchema(final JobConf jobConf, final HiveReaderProto.HiveTableXattr tableXattr) {
     final java.util.Properties tableProperties = new java.util.Properties();
     HiveUtilities.addProperties(jobConf, tableProperties, HiveReaderProtoUtil.getTableProperties(tableXattr));
     final String fieldNameProp = Optional.ofNullable(tableProperties.getProperty("columns")).orElse("");
     final String fieldTypeProp = Optional.ofNullable(tableProperties.getProperty("columns.types")).orElse("");
-    final boolean enforceVarcharWidth = HiveDatasetOptions
+    varcharTruncationEnabled = HiveDatasetOptions
         .enforceVarcharWidth(HiveReaderProtoUtil.convertValuesToNonProtoAttributeValues(tableXattr.getDatasetOptionMap()));
 
     final Iterator<String> fieldNames = Splitter.on(",").trimResults().split(fieldNameProp).iterator();
     final Iterator<TypeInfo> fieldTypes = TypeInfoUtils.getTypeInfosFromTypeString(fieldTypeProp).iterator();
 
     final Map<String, ManagedSchemaField> schemaFieldMap = new HashMap<>();
+    final Map<String, TypeInfo> typeInfoMap = new HashMap<>();
     while (fieldNames.hasNext() && fieldTypes.hasNext()) {
       final String fieldName = fieldNames.next();
       final TypeInfo fieldType = fieldTypes.next();
-
       ManagedSchemaField field;
       if (fieldType instanceof DecimalTypeInfo) {
         field = ManagedSchemaField.newFixedLenField(fieldName, fieldType.getTypeName(),
           ((DecimalTypeInfo) fieldType).getPrecision(), ((DecimalTypeInfo) fieldType).getScale());
+        typeInfoMap.put(fieldName, fieldType);
       } else if (fieldType instanceof BaseCharTypeInfo) {
-        if (enforceVarcharWidth) {
+        if (varcharTruncationEnabled) {
           field = ManagedSchemaField.newFixedLenField(fieldName, fieldType.getTypeName(),
               ((BaseCharTypeInfo) fieldType).getLength(), 0);
+          typeInfoMap.put(fieldName, fieldType);
         } else {
           field = ManagedSchemaField.newUnboundedLenField(fieldName, fieldType.getTypeName());
         }
@@ -74,10 +78,12 @@ public class ManagedHiveSchema implements ManagedSchema {
         // Extend ManagedSchemaField.java in case granular information has to be stored.
         // No mention of len and scale means it is unbounded. So, we store max values.
         field = ManagedSchemaField.newUnboundedLenField(fieldName, fieldType.getTypeName());
+        typeInfoMap.put(fieldName, fieldType);
       }
       schemaFieldMap.put(fieldName, field);
     }
     fieldInfo = CaseInsensitiveMap.newImmutableMap(schemaFieldMap);
+    typeInfo = CaseInsensitiveMap.newImmutableMap(typeInfoMap);
   }
 
 
@@ -88,6 +94,15 @@ public class ManagedHiveSchema implements ManagedSchema {
 
   public Map<String, ManagedSchemaField> getAllFields() {
     return this.fieldInfo;
+  }
+
+  @Override
+  public boolean isVarcharTruncationEnabled() {
+    return varcharTruncationEnabled;
+  }
+
+  public Map<String, TypeInfo> getTypeInfos() {
+    return this.typeInfo;
   }
 
   @Override

@@ -87,6 +87,7 @@ import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.service.executor.ExecutorService;
 import com.dremio.exec.service.executor.ExecutorServiceProductClientFactory;
+import com.dremio.exec.service.jobresults.JobResultsSoftwareClientFactory;
 import com.dremio.exec.service.jobtelemetry.JobTelemetrySoftwareClientFactory;
 import com.dremio.exec.service.maestro.MaestroSoftwareClientFactory;
 import com.dremio.exec.store.CatalogService;
@@ -141,6 +142,7 @@ import com.dremio.service.execselector.ExecutorSelectorProvider;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.service.grpc.GrpcServerBuilderFactory;
+import com.dremio.service.jobresults.client.JobResultsClientFactory;
 import com.dremio.service.jobs.HybridJobsService;
 import com.dremio.service.jobs.JobResultToLogEntryConverter;
 import com.dremio.service.jobs.JobResultsStoreConfig;
@@ -453,7 +455,8 @@ public class DACDaemonModule implements DACModule {
     if (isCoordinator && config.getBoolean(DremioConfig.JOBS_ENABLED_BOOL)) {
       registry.bindSelf(new JobsServer(registry.provider(
         LocalJobsService.class), registry.lookup(GrpcServerBuilderFactory.class),
-        registry.provider(ExecToCoordStatusHandler.class), bootstrap.getAllocator()));
+        registry.provider(ExecToCoordStatusHandler.class), registry.provider(ExecToCoordResultsHandler.class),
+        bootstrap.getAllocator()));
 
       registry.bindSelf(new LocalJobTelemetryServer(
           registry.lookup(GrpcServerBuilderFactory.class),
@@ -682,6 +685,8 @@ public class DACDaemonModule implements DACModule {
         new MaestroSoftwareClientFactory(execToCoordTunnelCreator));
       registry.bind(JobTelemetryExecutorClientFactory.class,
         new JobTelemetrySoftwareClientFactory(execToCoordTunnelCreator));
+      registry.bind(JobResultsClientFactory.class,
+        new JobResultsSoftwareClientFactory(execToCoordTunnelCreator));
 
       final FragmentWorkManager fragmentWorkManager = new FragmentWorkManager(bootstrap,
         registry.provider(NodeEndpoint.class),
@@ -694,7 +699,7 @@ public class DACDaemonModule implements DACModule {
         defaultOptionManager,
         registry.provider(MaestroClientFactory.class),
         registry.provider(JobTelemetryExecutorClientFactory.class),
-        execToCoordTunnelCreator);
+        registry.provider(JobResultsClientFactory.class));
 
       registry.bindSelf(fragmentWorkManager);
 
@@ -862,6 +867,8 @@ public class DACDaemonModule implements DACModule {
     registry.bindSelf(CatalogServiceHelper.class);
     registry.bindSelf(CollaborationHelper.class);
     registry.bindSelf(UserServiceHelper.class);
+
+    registry.bind(FirstLoginSetupService.class, OSSFirstLoginSetupService.NOOP_INSTANCE);
   }
 
   /**

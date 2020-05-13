@@ -43,11 +43,11 @@ public final class RecordBatchHolder implements AutoCloseable {
    */
   public static RecordBatchHolder newRecordBatchHolder(final RecordBatchData data, final int start, final int end) {
     checkArgument(start >= 0,
-        "Invalid start index (%d) in RecordBatchData (of size (%d))", start, data.getRecordCount());
+        "Invalid start index (%s) in RecordBatchData (of size (%s))", start, data.getRecordCount());
     checkArgument(end <= data.getRecordCount(),
-        "Invalid end index (%d) in RecordBatchData (of size (%d))", data.getRecordCount());
+        "Invalid end index (%s) in RecordBatchData (of size (%s))", data.getRecordCount());
     checkArgument(start <= end,
-        "Invalid range indices. Start (%d), End (%d), Batch size (%d)", start, end, data.getRecordCount());
+        "Invalid range indices. Start (%s), End (%s), Batch size (%s)", start, end, data.getRecordCount());
 
     return new RecordBatchHolder(data, start, end);
   }

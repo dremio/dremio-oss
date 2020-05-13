@@ -35,6 +35,7 @@ import java.nio.file.attribute.UserPrincipal;
 import java.security.AccessControlException;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -335,16 +336,22 @@ public class TestRecursiveDirectoryStream extends DremioTest {
       final Iterator<FileAttributes> iteratorWrapper = directoryStream.iterator();
       final Iterable<FileAttributes> iterable = () -> iteratorWrapper;
 
-      StreamSupport.stream(iterable.spliterator(), false)
-        .limit(3)
-        .collect(Collectors.toList());
+      {
+        @SuppressWarnings("unused")
+        List<FileAttributes> ignored = StreamSupport.stream(iterable.spliterator(), false)
+            .limit(3)
+            .collect(Collectors.toList());
+      }
 
       // stack should be the root, root/A, root/A/1
       assertEquals(3, directoryStream.getStackSize());
 
-      StreamSupport.stream(iterable.spliterator(), false)
-        .limit(24)
-        .collect(Collectors.toList());
+      {
+        @SuppressWarnings("unused")
+        List<FileAttributes> ignored = StreamSupport.stream(iterable.spliterator(), false)
+          .limit(24)
+          .collect(Collectors.toList());
+      }
 
       // stack should be the root, root/1996, root/1994/Q3
       assertEquals(3, directoryStream.getStackSize());

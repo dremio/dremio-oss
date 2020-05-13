@@ -41,6 +41,7 @@ import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.CustomGenerator;
 import com.dremio.sabot.Fixtures;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
+import com.dremio.sabot.exec.context.OperatorStats;
 
 public class TestSortOp extends BaseTestOperator {
 
@@ -57,7 +58,7 @@ public class TestSortOp extends BaseTestOperator {
     allocator = getTestAllocator().newChildAllocator("test-memory-run", 0, 1_000_000);
     bufferManager = new BufferManagerImpl(allocator);
     producer = testContext.newClassProducer(bufferManager);
-    generator = new CustomGenerator(2_000_000, getTestAllocator());
+    generator = new CustomGenerator(20000, getTestAllocator());
   }
 
   @After
@@ -106,10 +107,50 @@ public class TestSortOp extends BaseTestOperator {
   }
 
   @Test
+  public void testMicroSpillBatches() throws Exception {
+    try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, true)) {
+      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+      sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
+
+      final int numRows = 20_000;
+      final int targetBatchSize = 1000;
+      final CustomGenerator localGen = new CustomGenerator(numRows, getTestAllocator());
+      Fixtures.Table table = localGen.getExpectedSortedTable();
+      OperatorStats stats =  validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
+
+      final long batchesSpilled = stats.getLongStat(ExternalSortOperator.Metric.BATCHES_SPILLED);
+      final long spillFiles = stats.getLongStat(ExternalSortOperator.Metric.SPILL_COUNT);
+
+      assertEquals(batchesSpilled, 20 /*numRows/targetBatchSize*/);
+      assertEquals(spillFiles, 2);
+    }
+  }
+
+  @Test
+  public void testMicroSpillDisabled() throws Exception {
+    try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_MICRO_SPILL, false)) {
+      ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
+      sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
+
+      final int numRows = 20_000;
+      final int targetBatchSize = 1000;
+      final CustomGenerator localGen = new CustomGenerator(numRows, getTestAllocator());
+      Fixtures.Table table = localGen.getExpectedSortedTable();
+      OperatorStats stats =  validateSingle(sort, ExternalSortOperator.class, localGen, table, targetBatchSize);
+
+      final long batchesSpilled = stats.getLongStat(ExternalSortOperator.Metric.BATCHES_SPILLED);
+      final long spillFiles = stats.getLongStat(ExternalSortOperator.Metric.SPILL_COUNT);
+
+      assertEquals(batchesSpilled, 0);
+      assertEquals(spillFiles, 2);
+    }
+  }
+
+  @Test
   public void testSplayTreeSpillSortWithUserException1() throws Exception {
     try (AutoCloseable option = with(ExecConstants.EXTERNAL_SORT_ENABLE_SPLAY_SORT, true)) {
       ExternalSort sort = new ExternalSort(PROPS.cloneWithNewReserve(1_000_000), null, singletonList(ordering(ID.getName(), ASCENDING, FIRST)), false);
-      sort.getProps().setMemLimit(2_000_000); // this can't go below sort's initialAllocation (20K)
+      sort.getProps().setMemLimit(1_500_000); // this can't go below sort's initialAllocation (20K)
       Fixtures.Table table = generator.getExpectedSortedTable();
       validateSingle(sort, ExternalSortOperator.class, generator, table, 4000);
     } catch (UserException uex) {

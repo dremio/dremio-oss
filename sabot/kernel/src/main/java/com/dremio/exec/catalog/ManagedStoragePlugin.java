@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.VM;
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
@@ -59,7 +60,6 @@ import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.MissingPluginConf;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
-import com.dremio.exec.util.DebugCheck;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.NamespaceAttribute;
@@ -181,7 +181,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
   }
 
   private long createWaitMillis() {
-    if(DebugCheck.IS_DEBUG) {
+    if (VM.isDebugEnabled()) {
       return TimeUnit.DAYS.toMillis(365);
     }
     return context.getOptionManager().getOption(CatalogOptions.STORAGE_PLUGIN_CREATE_MAX);
@@ -431,6 +431,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
     return Ints.saturatedCast(options.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
   }
 
+  int getMaxNestedLevel() {
+    return Ints.saturatedCast(options.getOption(CatalogOptions.MAX_NESTED_LEVELS));
+  }
+
   public ConnectionConf<?, ?> getConnectionConf() {
     // not read under a read lock since it is updated via volatile. Allows us to avoid locking in read paths.
     return conf;
@@ -446,6 +450,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     return DatasetRetrievalOptions.fromMetadataPolicy(metadataPolicy)
         .toBuilder()
         .setMaxMetadataLeafColumns(getMaxMetadataColumns())
+        .setMaxNestedLevel(getMaxNestedLevel())
         .build()
         .withFallback(DatasetRetrievalOptions.DEFAULT);
   }
@@ -1110,6 +1115,12 @@ public class ManagedStoragePlugin implements AutoCloseable {
     int getMaxMetadataColumns() {
       try(AutoCloseableLock read = tryReadLock()) {
         return Ints.saturatedCast(options.getOption(CatalogOptions.METADATA_LEAF_COLUMN_MAX));
+      }
+    }
+
+    int getMaxNestedLevels() {
+      try(AutoCloseableLock read = tryReadLock()) {
+        return Ints.saturatedCast(options.getOption(CatalogOptions.MAX_NESTED_LEVELS));
       }
     }
 

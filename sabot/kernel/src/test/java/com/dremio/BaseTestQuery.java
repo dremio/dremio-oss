@@ -654,6 +654,13 @@ public class BaseTestQuery extends ExecTest {
     }
   }
 
+  protected static AutoCloseable enableHiveAsync() {
+    setSystemOption(ExecConstants.ENABLE_HIVE_ASYNC, "true");
+    return () ->
+            setSystemOption(ExecConstants.ENABLE_HIVE_ASYNC,
+                    ExecConstants.ENABLE_HIVE_ASYNC.getDefault().getBoolVal().toString());
+  }
+
   protected static AutoCloseable enableIcebergTables() {
     setSystemOption(ExecConstants.ENABLE_ICEBERG, "true");
     return () ->
@@ -661,11 +668,28 @@ public class BaseTestQuery extends ExecTest {
         ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
   }
 
-  protected static AutoCloseable enableHiveParquetComplexTypes() {
-    setSystemOption(ExecConstants.HIVE_COMPLEXTYPES_ENABLED, "true");
+  private static AutoCloseable setHiveParquetComplexTypes(String value) {
+    setSystemOption(ExecConstants.HIVE_COMPLEXTYPES_ENABLED, value);
     return () ->
       setSystemOption(ExecConstants.HIVE_COMPLEXTYPES_ENABLED,
         ExecConstants.HIVE_COMPLEXTYPES_ENABLED.getDefault().getBoolVal().toString());
+  }
+
+  protected static AutoCloseable enableHiveParquetComplexTypes() {
+    return setHiveParquetComplexTypes("true");
+  }
+
+  protected static AutoCloseable disableHiveParquetComplexTypes() {
+    return setHiveParquetComplexTypes("false");
+  }
+
+  protected static AutoCloseable enableTableOption(String table, String optionName) throws Exception {
+    String setOptionQuery = setTableOptionQuery(table, optionName, "true");
+    String unSetOptionQuery = setTableOptionQuery(table, optionName, "false");
+
+    runSQL(setOptionQuery);
+    return () ->
+      runSQL(unSetOptionQuery);
   }
 
   protected static AutoCloseable disableParquetVectorization() {

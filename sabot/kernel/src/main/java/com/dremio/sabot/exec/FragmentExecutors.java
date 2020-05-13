@@ -81,6 +81,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
   private final ExitCallback callback;
   private final long evictionDelayMillis;
   private final MaestroProxy maestroProxy;
+  private final int warnMaxTime;
 
   public FragmentExecutors(
     final MaestroProxy maestroProxy,
@@ -101,6 +102,8 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
         }
       },
       null, evictionDelayMillis);
+
+    this.warnMaxTime = (int) options.getOption(ExecConstants.SLICING_WARN_MAX_RUNTIME_MS);
   }
 
   @VisibleForTesting
@@ -390,7 +393,8 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
               callback.indicateIfSafeToExit();
             }
           }
-        });
+        },
+        warnMaxTime);
 
       handler.setExecutor(executor);
       pool.execute(task);

@@ -29,13 +29,14 @@ import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.services.fabric.ProxyConnection;
 import com.dremio.services.fabric.api.FabricCommandRunner;
+import com.dremio.services.jobresults.common.JobResultsTunnel;
 
 import io.netty.buffer.ByteBuf;
 
 /**
  * Handler for messages going from coordinator to executor.
  */
-public class ExecToCoordTunnel {
+public class ExecToCoordTunnel extends JobResultsTunnel {
 
   private final FabricCommandRunner manager;
   private final NodeEndpoint endpoint;

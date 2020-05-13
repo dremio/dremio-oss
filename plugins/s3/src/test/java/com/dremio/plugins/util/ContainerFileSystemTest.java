@@ -27,13 +27,13 @@ public class ContainerFileSystemTest {
   @Test
   public void transformContainerPathWithColon() {
     // given
-    final Path path = new Path("s3a://support.dremio.com/test:breaks");
-    final String containerName = "support.dremio.com";
+    final Path path = new Path("s3a://qa1.dremio.com/test:breaks");
+    final String containerName = "qa1.dremio.com";
 
     // when
     final Path transformed = ContainerFileSystem.transform(path, containerName);
 
     // then
-    Assert.assertEquals(new Path("/support.dremio.com/test:breaks"), transformed);
+    Assert.assertEquals(new Path("/qa1.dremio.com/test:breaks"), transformed);
   }
 }

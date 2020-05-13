@@ -36,13 +36,13 @@ import org.apache.calcite.avatica.util.Cursor;
 import org.slf4j.Logger;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.client.DremioClient;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.proto.UserProtos.PreparedStatement;
-import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.rpc.ConnectionThrottle;
@@ -400,7 +400,7 @@ class DremioCursor implements Cursor {
    */
   private void updateColumns() {
     // First update accessors and schema from batch:
-    accessors.generateAccessors(this, currentBatchHolder);
+    accessors.generateAccessors(this, currentBatchHolder, this.connection.getTimeZone());
 
     // Extract Java types from accessors for metadata's getColumnClassName:
     final List<Class<?>> getObjectClasses = new ArrayList<>();

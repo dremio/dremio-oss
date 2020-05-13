@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>4.2.2-202004211133290458-b550b6fa</version>
+    <version>4.3.0-202005130311450502-323f05d9</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -280,6 +280,37 @@
           </dependency>
         </dependencies>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>enforce-tarball-size</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <rules>
+                <requireFilesSize>
+                  <message>
+                    The file ${dremio.distribution.name}-${project.version}.tar.gz is outside the expected size range. 
+
+                    Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
+
+                  </message>
+                  <maxsize>600000000</maxsize>
+                  <minsize>500000000</minsize>
+                  <files>
+                    <file>${project.build.directory}/${dremio.distribution.name}-${project.version}.tar.gz</file>
+                  </files>
+                </requireFilesSize>
+              </rules>
+              <fail>true</fail>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
     </plugins>
   </build>
 
@@ -300,6 +331,7 @@
                 </goals>
                 <configuration>
                   <versionProperty>dremio.rpm.version</versionProperty>
+                  <releaseProperty>dremio.rpm.release</releaseProperty>
                 </configuration>
               </execution>
               <execution>
@@ -487,6 +519,37 @@ exit 0
                   <scriptFile>${dremio.distribution.resources.directory}/rpm/scripts/postinstall</scriptFile>
                   <fileEncoding>utf-8</fileEncoding>
                  </postinstallScriptlet>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <executions>
+              <execution>
+                <id>enforce-rpm-size</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <phase>verify</phase>
+                <configuration>
+                  <rules>
+                    <requireFilesSize>
+                      <message>
+                        The file ${dremio.distribution.name}-${dremio.rpm.version}-${dremio.rpm.release}.noarch.rpm is outside the expected size range. 
+
+                        Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
+
+                      </message>
+                      <maxsize>600000000</maxsize>
+                      <minsize>500000000</minsize>
+                      <files>
+                        <file>${project.build.directory}/rpm/${dremio.distribution.name}/RPMS/noarch/${dremio.distribution.name}-${dremio.rpm.version}-${dremio.rpm.release}.noarch.rpm</file>
+                      </files>
+                    </requireFilesSize>
+                  </rules>
+                  <fail>true</fail>
                 </configuration>
               </execution>
             </executions>

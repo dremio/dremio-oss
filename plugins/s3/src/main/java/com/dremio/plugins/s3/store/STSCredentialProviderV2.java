@@ -155,7 +155,7 @@ public class STSCredentialProviderV2 implements AwsCredentialsProvider, SdkAutoC
 
   static int intOption(Configuration conf, String key, int defVal, int min) {
     final int v = conf.getInt(key, defVal);
-    Preconditions.checkArgument(v >= min, "Value of %s: %d is below the minimum value %d", key, v, min);
+    Preconditions.checkArgument(v >= min, "Value of %s: %s is below the minimum value %s", key, v, min);
     return v;
   }
 

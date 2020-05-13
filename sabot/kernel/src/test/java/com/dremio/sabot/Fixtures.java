@@ -566,7 +566,7 @@ public final class Fixtures {
       return new ListCell((List<Integer>)obj);
     }else if(obj instanceof BigDecimal) {
       return new Decimal((BigDecimal) obj);
-    }else if(obj instanceof Period) {
+    } else if(obj instanceof Period) {
       Period p = (Period) obj;
 
       if (p.getYears() == 0 && p.getMonths() == 0) {
@@ -1014,7 +1014,7 @@ public final class Fixtures {
     return new Decimal(d, precision, scale);
   }
 
-  private static class Decimal extends ValueCell<BigDecimal> {
+  public static class Decimal extends ValueCell<BigDecimal> {
     int precision;
     int scale;
 

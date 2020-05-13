@@ -222,9 +222,13 @@ public class SpillServiceImpl implements SpillService {
 
   private boolean isHealthy(Path spillDirPath) {
     if (healthCheckEnabled) {
-      File disk = new File(Path.getPathWithoutSchemeAndAuthority(spillDirPath).toString());
+      final File disk = new File(Path.getPathWithoutSchemeAndAuthority(spillDirPath).toString());
       final double totalSpace = (double) disk.getTotalSpace();
-      long threshold = Math.max((long) ((totalSpace / 100.0) * minDiskSpacePercentage), minDiskSpace);
+      minDiskSpace = options.minDiskSpace();
+      minDiskSpacePercentage = options.minDiskSpacePercentage();
+      logger.debug("Check isHealthy for {} minDiskSpace: {} minDiskSpacePercentage: {}",
+        spillDirPath.getName(), minDiskSpace, minDiskSpacePercentage);
+      final long threshold = Math.max((long) ((totalSpace / 100.0) * minDiskSpacePercentage), minDiskSpace);
       final long available = disk.getFreeSpace();
       if (available < threshold) {
         return false;

@@ -297,6 +297,13 @@ describe('ExploreTable', () => {
     });
   });
 
+  describe('getScrollToColumn', () => {
+    it('should return null if column is invalid', () => {
+      instance.setState({columns: Immutable.List([{status: 'foo'}, null])});
+      expect(instance.getScrollToColumn()).to.be.null;
+    });
+  });
+
   describe('handleColumnResizeEnd', () => {
     beforeEach(() => {
       sinon.stub(instance, 'renderColumns');

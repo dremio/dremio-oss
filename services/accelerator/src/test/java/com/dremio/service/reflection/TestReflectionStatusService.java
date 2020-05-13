@@ -235,7 +235,7 @@ public class TestReflectionStatusService {
       newTestCase("cannot accelerate, not cached", COMBINED_STATUS.CANNOT_ACCELERATE_SCHEDULED, true, false, false, ReflectionState.ACTIVE, 0, MATERIALIZATION_STATE.VALID, false),
       newTestCase("cannot accelerate", COMBINED_STATUS.CANNOT_ACCELERATE_SCHEDULED, true, false, false, ReflectionState.ACTIVE, 0, MATERIALIZATION_STATE.NOT_FOUND, false),
       newTestCase("cannot accelerate manual", COMBINED_STATUS.CANNOT_ACCELERATE_MANUAL, true, true, false, ReflectionState.ACTIVE, 0, MATERIALIZATION_STATE.NOT_FOUND, false),
-      newTestCase("null materialization expiration", COMBINED_STATUS.EXPIRED, true, false, false, ReflectionState.ACTIVE, 0, MATERIALIZATION_STATE.EXPIRED, false, null)
+      newTestCase("null materialization expiration", COMBINED_STATUS.EXPIRED, true, false, false, ReflectionState.ACTIVE, 0, MATERIALIZATION_STATE.VALID, false, null)
     );
   }
 

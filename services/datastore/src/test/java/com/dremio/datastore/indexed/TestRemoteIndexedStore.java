@@ -18,7 +18,6 @@ package com.dremio.datastore.indexed;
 import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
-import org.junit.After;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -89,13 +88,12 @@ public class TestRemoteIndexedStore extends AbstractTestIndexedStore {
   }
 
   @Override
-  protected IndexedStore<String, Doughnut> supplyStore() {
+  protected IndexedStore<String, Doughnut> createKVStore() {
     return getProvider().getStore(DoughnutIndexedStore.class);
   }
 
-  @After
   @Override
-  public void after() throws Exception {
+  public void closeResources() throws Exception {
     AutoCloseables.close(remoteKVStoreProvider, localKVStoreProvider, remoteFabricService, localFabricService, pool,
         allocator);
   }

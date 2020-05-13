@@ -15,25 +15,38 @@
  */
 package com.dremio.datastore.adapter.stores;
 
+import java.util.Arrays;
+import java.util.List;
+
+import com.dremio.datastore.adapter.TestLegacyStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.generator.ByteContainerStoreGenerator.ByteContainer;
 
 /**
  * Used to test that bytes and wrapped values are stored/retrieved properly.
- *
+ * <p>
  * We use a byte container instead of raw byte[] so we may implement a custom
  * equals method. Normal array comparison is address-wise, not element-wise.
  */
-public class LegacyByteContainerStore implements LegacyStoreCreationFunction<LegacyKVStore<String, ByteContainer>> {
+public class LegacyByteContainerStore implements TestLegacyStoreCreationFunction<String, ByteContainer> {
   @Override
   public LegacyKVStore<String, ByteContainer> build(LegacyStoreBuildingFactory factory) {
     return factory.<String, ByteContainer>newStore()
       .name("legacy-byte-container-store")
-      .keyFormat(Format.ofString())
+      .keyFormat(getKeyFormat())
       .valueFormat(Format.wrapped(ByteContainer.class, ByteContainer::getBytes, ByteContainer::new, Format.ofBytes()))
       .build();
+  }
+
+  @Override
+  public Format<String> getKeyFormat() {
+    return Format.ofString();
+  }
+
+  @Override
+  public List<Class<?>> getKeyClasses() {
+    return Arrays.asList(String.class);
   }
 }

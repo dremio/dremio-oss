@@ -327,7 +327,7 @@ public class TestYarnController {
     final LogThrowable logThrowableChild2 = new LogThrowable() {
       @Override
       public String getClassName() {
-        return this.getClassName();
+        return throwable.getClass().getName();
       }
 
       @Override

@@ -61,11 +61,11 @@ public class Source implements CatalogEntity {
   public Source() {
   }
 
-  public Source(SourceConfig config, AccelerationSettings settings, ConnectionReader reader) {
+  public Source(SourceConfig config, AccelerationSettings settings, ConnectionReader reader, List<CatalogItem> children) {
     this.sourceConfig = config;
     this.settings = settings;
     this.reader = reader;
-
+    this.children = children;
     this.id = config.getId().getId();
     this.tag = config.getTag();
     this.type = config.getType() == null ? config.getLegacySourceTypeEnum().name() : config.getType();

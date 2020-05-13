@@ -30,6 +30,6 @@ public class DoughnutIndexedStore implements StoreCreationFunction<IndexedStore<
       .name("test-doughnut-indexed-store")
       .keyFormat(Format.ofString())
       .valueFormat(Format.wrapped(Doughnut.class, new DoughnutConverter(), Format.ofBytes()))
-      .buildIndexed(DoughnutDocumentConverter.class);
+      .buildIndexed(new DoughnutDocumentConverter());
   }
 }

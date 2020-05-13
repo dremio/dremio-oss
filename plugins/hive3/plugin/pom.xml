@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive3-plugin-parent</artifactId>
-    <version>4.2.2-202004211133290458-b550b6fa</version>
+    <version>4.3.0-202005130311450502-323f05d9</version>
   </parent>
 
   <artifactId>dremio-hive3-plugin</artifactId>
@@ -164,17 +164,14 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-kms</artifactId>
-      <version>${aws-sdk.version}</version>
     </dependency>
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-s3</artifactId>
-      <version>${aws-sdk.version}</version>
     </dependency>
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>aws-java-sdk-dynamodb</artifactId>
-      <version>${aws-sdk.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>

@@ -33,6 +33,7 @@ import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.common.util.DremioEdition;
 import com.dremio.dac.cmd.AdminCommand;
 import com.dremio.dac.cmd.AdminLogger;
 import com.dremio.dac.cmd.CmdUtils;
@@ -45,8 +46,11 @@ import com.dremio.dac.support.SupportService;
 import com.dremio.dac.support.UpgradeStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.services.configuration.ConfigurationStore;
+import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 /**
  * Upgrade command.
@@ -181,6 +185,25 @@ public class Upgrade {
 
   }
 
+  /**
+   * If previous edition is available checks if dremio edition we are upgrading to is the same.
+   * @param storeProvider
+   * @param curEdition
+   * @throws Exception
+   */
+  @VisibleForTesting
+  public void validateUpgrade(final LegacyKVStoreProvider storeProvider, final String curEdition) throws Exception {
+    final ConfigurationStore configurationStore = new ConfigurationStore(storeProvider);
+    final ConfigurationEntry entry = configurationStore.get(SupportService.DREMIO_EDITION);
+    if (entry != null && entry.getValue() != null) {
+      final String prevEdition = new String(entry.getValue().toByteArray());
+      if(!Strings.isNullOrEmpty(prevEdition) && !prevEdition.equals(curEdition)) {
+        throw new Exception(String.format("Illegal upgrade from %s to %s", prevEdition, curEdition));
+      }
+    }
+
+  }
+
   public void run(final LegacyKVStoreProvider storeProvider) throws Exception {
     final Optional<ClusterIdentity> identity = SupportService.getClusterIdentity(storeProvider);
     final UpgradeStore upgradeStore = new UpgradeStore(storeProvider);
@@ -191,6 +214,7 @@ public class Upgrade {
     }
 
     ClusterIdentity clusterIdentity = identity.get();
+    validateUpgrade(storeProvider, DremioEdition.getAsString());
 
     final Version kvStoreVersion = retrieveStoreVersion(clusterIdentity);
 

@@ -123,10 +123,10 @@ public class TestMasterDown extends BaseClientUtils {
           .inMemoryStorage(true)
           .writePath(folder1.getRoot().getAbsolutePath())
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-          .localPort(21515)
-          .httpPort(21516)
-          .with(DremioConfig.CLIENT_PORT_INT, 21517)
-          .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT, 21518),
+          .localPort(getPort("test.master-active.localPort"))
+          .httpPort(getPort("test.master-active.httpPort"))
+          .with(DremioConfig.CLIENT_PORT_INT, getPort("test.master-active.clientPort"))
+          .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT, getPort("test.zk.enabled.port")),
         DremioTest.CLASSPATH_SCAN_RESULT);
 
       // remote node
@@ -140,10 +140,10 @@ public class TestMasterDown extends BaseClientUtils {
           .inMemoryStorage(true)
           .writePath(folder2.getRoot().getAbsolutePath())
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-          .localPort(21530)
-          .httpPort(21531)
-          .with(DremioConfig.CLIENT_PORT_INT, 21532)
-          .zk("localhost:21518")
+          .localPort(getPort("test.non-master.localPort"))
+          .httpPort(getPort("test.non-master.httpPort"))
+          .with(DremioConfig.CLIENT_PORT_INT, getPort("test.non-master.clientPort"))
+          .zk(String.format("localhost:%d", getPort("test.zk.enabled.port")))
           .isRemote(true),
         DremioTest.CLASSPATH_SCAN_RESULT);
     }
@@ -169,6 +169,14 @@ public class TestMasterDown extends BaseClientUtils {
         }
       },
       currentDremioDaemon, masterDremioDaemon);
+  }
+
+  private static int getPort(String portName) {
+    String port = System.getProperty(portName);
+    if (port == null || port.isEmpty()) {
+      throw new RuntimeException(String.format("Can't start test since %s is not available.", portName));
+    }
+    return Integer.parseInt(port);
   }
 
   private static void initClient() {
@@ -284,12 +292,12 @@ public class TestMasterDown extends BaseClientUtils {
       public void run() {
         try {
           currentDremioDaemon.startServices(); // waiting
+          currentDremioDaemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
         } catch (Exception e) {
           throw new RuntimeException(e);
         }
       }
     });
-    currentDremioDaemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
     t1.start();
 
     BindingProvider mp = currentDremioDaemon.getBindingProvider();

@@ -316,18 +316,38 @@ public abstract class BaseDecimalFunctionTests extends BaseTestFunction {
   public void testRound() throws Exception {
     testFunctions(
       new Object[][] {
-        {"round(c0)", BigDecimal.valueOf(1.23), BigDecimal.valueOf(1)},
-        {"round(c0)", BigDecimal.valueOf(1.58), BigDecimal.valueOf(2)},
-        {"round(c0)", BigDecimal.valueOf(-1.23), BigDecimal.valueOf(-1)},
-        {"round(c0)", BigDecimal.valueOf(-1.58), BigDecimal.valueOf(-2)},
+       {"round(c0)", new Fixtures.Decimal(BigDecimal.valueOf(1.23), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(1), 2, 0)},
+        {"round(c0)", new Fixtures.Decimal(BigDecimal.valueOf(1.58), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(2), 2, 0)},
+        {"round(c0)", new Fixtures.Decimal(BigDecimal.valueOf(-1.23), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(-1), 2, 0)},
+        {"round(c0)", new Fixtures.Decimal(BigDecimal.valueOf(-1.58), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(-2), 2, 0)},
+        {"round(c0)", new Fixtures.Decimal(BigDecimal.valueOf(9.99), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(10), 2, 0)},
 
-        {"round(c0, 1)", BigDecimal.valueOf(1.23), BigDecimal.valueOf(1.2)},
-        {"round(c0, 1)", BigDecimal.valueOf(1.58), BigDecimal.valueOf(1.6)},
-        {"round(c0, 1)", BigDecimal.valueOf(-1.23), BigDecimal.valueOf(-1.2)},
-        {"round(c0, 1)", BigDecimal.valueOf(-1.58), BigDecimal.valueOf(-1.6)},
+        {"round(c0, 1)", new Fixtures.Decimal(BigDecimal.valueOf(1.23), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(1.2), 3, 1)},
+        {"round(c0, 1)", new Fixtures.Decimal(BigDecimal.valueOf(1.58), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(1.6), 3, 1)},
+        {"round(c0, 1)", new Fixtures.Decimal(BigDecimal.valueOf(-1.23), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(-1.2), 3, 1)},
+        {"round(c0, 1)", new Fixtures.Decimal(BigDecimal.valueOf(-1.58), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(-1.6), 3, 1)},
+        {"round(c0, 1)", new Fixtures.Decimal(BigDecimal.valueOf(9.99), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(10.0), 3, 1)},
+        {"round(c0, 4)", new Fixtures.Decimal(BigDecimal.valueOf(9.99), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(9.99), 3, 2)},
 
-        {"round(c0, -1)", BigDecimal.valueOf(112.3), BigDecimal.valueOf(110)},
-        {"round(c0, -1)", BigDecimal.valueOf(-112.3), BigDecimal.valueOf(-110)},
+        {"round(c0, -1)", new Fixtures.Decimal(BigDecimal.valueOf(112.3), 4 ,1),
+          new Fixtures.Decimal(BigDecimal.valueOf(110), 4, 0)},
+        {"round(c0, -1)", new Fixtures.Decimal(BigDecimal.valueOf(-112.3), 4 ,1),
+          new Fixtures.Decimal(BigDecimal.valueOf(-110), 4, 0)},
+        /* DX-21982
+        {"round(c0, -1)", new Fixtures.Decimal(BigDecimal.valueOf(999.9), 4 ,1),
+          xnew Fixtures.Decimal(BigDecimal.valueOf(1000), 4, 0)},*/
+
       });
   }
 
@@ -335,18 +355,33 @@ public abstract class BaseDecimalFunctionTests extends BaseTestFunction {
   public void testTruncate() throws Exception {
     testFunctions(
       new Object[][] {
-        {"truncate(c0)", BigDecimal.valueOf(1.23), BigDecimal.valueOf(1)},
-        {"truncate(c0)", BigDecimal.valueOf(1.58), BigDecimal.valueOf(1)},
-        {"truncate(c0)", BigDecimal.valueOf(-1.23), BigDecimal.valueOf(-1)},
-        {"truncate(c0)", BigDecimal.valueOf(-1.58), BigDecimal.valueOf(-1)},
+        {"truncate(c0)", new Fixtures.Decimal(BigDecimal.valueOf(1.23), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(1), 1, 0)},
+        {"truncate(c0)", new Fixtures.Decimal(BigDecimal.valueOf(1.58), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(1), 1, 0)},
+        {"truncate(c0)", new Fixtures.Decimal(BigDecimal.valueOf(-1.23), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(-1), 1, 0)},
+        {"truncate(c0)", new Fixtures.Decimal(BigDecimal.valueOf(-1.58), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(-1), 1, 0)},
 
-        {"truncate(c0, 1)", BigDecimal.valueOf(1.23), BigDecimal.valueOf(1.2)},
-        {"truncate(c0, 1)", BigDecimal.valueOf(1.58), BigDecimal.valueOf(1.5)},
-        {"truncate(c0, 1)", BigDecimal.valueOf(-1.23), BigDecimal.valueOf(-1.2)},
-        {"truncate(c0, 1)", BigDecimal.valueOf(-1.58), BigDecimal.valueOf(-1.5)},
+        {"truncate(c0, 1)", new Fixtures.Decimal(BigDecimal.valueOf(1.23), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(1.2), 2, 1)},
+        {"truncate(c0, 1)", new Fixtures.Decimal(BigDecimal.valueOf(1.58), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(1.5), 2, 1)},
+        {"truncate(c0, 1)", new Fixtures.Decimal(BigDecimal.valueOf(-1.23), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(-1.2), 2, 1)},
+        {"truncate(c0, 1)", new Fixtures.Decimal(BigDecimal.valueOf(-1.58), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(-1.5), 2, 1)},
+        {"truncate(c0, 4)", new Fixtures.Decimal(BigDecimal.valueOf(9.99), 3 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(9.99), 3, 2)},
 
-        {"truncate(c0, -1)", BigDecimal.valueOf(112.3), BigDecimal.valueOf(110)},
-        {"truncate(c0, -1)", BigDecimal.valueOf(-112.3), BigDecimal.valueOf(-110)},
+        {"truncate(c0, -1)", new Fixtures.Decimal(BigDecimal.valueOf(112.3), 4 ,1),
+          new Fixtures.Decimal(BigDecimal.valueOf(110), 3, 0)},
+        {"truncate(c0, -1)", new Fixtures.Decimal(BigDecimal.valueOf(-112.3), 4 ,1),
+          new Fixtures.Decimal(BigDecimal.valueOf(-110), 3, 0)},
+
+        {"truncate(c0, 0)", new Fixtures.Decimal(BigDecimal.valueOf(99.99), 4 ,2),
+          new Fixtures.Decimal(BigDecimal.valueOf(99), 2, 0)},
       });
   }
 
@@ -732,4 +767,21 @@ public abstract class BaseDecimalFunctionTests extends BaseTestFunction {
             .createDecimal(new BigDecimal("0.00"), 2, 2)}
     });
   }
+
+  @Test
+  public void testCastVarCharDecimal11() { // suffix 11 denotes precision=1 and scale=1
+    testFunctions(new Object[][]{
+      {"castDECIMAL(c0, 1l, 1l)", "123456.799", Fixtures
+        .createDecimal(new BigDecimal("0.0"), 1, 1)}
+    });
+  }
+
+  @Test
+  public void testCastDecimalDecimal11() { // suffix 11 denotes precision=1 and scale=1
+    testFunctions(new Object[][]{
+      {"castDECIMAL(c0, 1l, 1l)", new BigDecimal("123456.799"), Fixtures
+        .createDecimal(new BigDecimal("0.0"), 1, 1)}
+    });
+  }
+
 }

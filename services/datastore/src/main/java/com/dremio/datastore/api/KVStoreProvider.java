@@ -70,6 +70,15 @@ public interface KVStoreProvider extends Service {
     StoreBuilder<K, V> valueFormat(Format<V> format);
 
     /**
+     * Indicates that this StoreBuilder permits CompoundKeys. By default CompoundKeys are not
+     * permitted. This gets evaluated at build time.
+     *
+     * @param allowCompund  Set to true to allow CompoundKeys to be used as keys.
+     * @return a StoreBuilder implementation with the CompoundKey permission configured.
+     */
+    StoreBuilder<K, V> permitCompoundKeys(boolean permitCompoundKeys);
+
+    /**
      * Builds a KVStore implementation.
      *
      * @return a KVStore implementation.
@@ -79,10 +88,10 @@ public interface KVStoreProvider extends Service {
     /**
      * Builds an IndexedStore implementation.
      *
-     * @param documentConverterClass the DocumentConverter class.
+     * @param documentConverter the DocumentConverter.
      * @return an IndexedStore implementation.
      */
-    IndexedStore<K, V> buildIndexed(Class<? extends DocumentConverter<K, V>> documentConverterClass);
+    IndexedStore<K, V> buildIndexed(DocumentConverter<K, V> documentConverter);
   }
 
   /**

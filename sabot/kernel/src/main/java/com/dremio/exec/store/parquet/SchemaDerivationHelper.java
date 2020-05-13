@@ -39,15 +39,17 @@ public class SchemaDerivationHelper {
   private final boolean noSchemaLearning;
   private final BatchSchema schemaFromTableMetadata;
   private final boolean allowMixedDecimals;
+  private final boolean limitListItems;
 
   private SchemaDerivationHelper(final boolean readInt96AsTimeStamp, final DateCorruptionStatus dateCorruptionStatus,
       final boolean noSchemaLearning, final boolean allowMixedDecimals,
-      final BatchSchema schemaFromTableMetadata) {
+      final BatchSchema schemaFromTableMetadata, final boolean limitListItems) {
     this.readInt96AsTimeStamp = readInt96AsTimeStamp;
     this.dateCorruptionStatus = dateCorruptionStatus;
     this.noSchemaLearning = noSchemaLearning;
     this.schemaFromTableMetadata = schemaFromTableMetadata;
     this.allowMixedDecimals = allowMixedDecimals;
+    this.limitListItems = limitListItems;
   }
 
   /**
@@ -92,6 +94,13 @@ public class SchemaDerivationHelper {
   }
 
   /**
+   *
+   * @return true if number of list items should be limited
+   */
+  public boolean isLimitListItems() {
+    return limitListItems;
+  }
+  /**
    * Get builder class
    * @return
    */
@@ -114,6 +123,7 @@ public class SchemaDerivationHelper {
     private boolean noSchemaLearning;
     private BatchSchema schemaFromTableMetadata;
     private boolean allowMixedDecimals = false;
+    private boolean limitListItems = false;
 
     private Builder() { }
 
@@ -139,9 +149,14 @@ public class SchemaDerivationHelper {
       return this;
     }
 
+    public Builder limitListItems(boolean limitListItems) {
+      this.limitListItems = limitListItems;
+      return this;
+    }
+
     public SchemaDerivationHelper build() {
       return new SchemaDerivationHelper(readInt96AsTimeStamp, dateCorruptionStatus, noSchemaLearning,
-          allowMixedDecimals, schemaFromTableMetadata);
+          allowMixedDecimals, schemaFromTableMetadata, limitListItems);
     }
   }
 }

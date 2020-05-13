@@ -272,7 +272,7 @@ public class ElasticConnectionPool implements AutoCloseable {
         }
         return;
       }catch (Exception e){
-        ex.addException(new RuntimeException(String.format("Failure getting server list from seed host ", host1.toCompound()), e));
+        ex.addException(new RuntimeException(String.format("Failure getting server list from seed host %s", host1.toCompound()), e));
       }
     }
 
@@ -623,7 +623,7 @@ public class ElasticConnectionPool implements AutoCloseable {
       final JerseyInvocation invocation = (JerseyInvocation) action.buildRequest(target, listener);
       final SettableFuture<T> future = SettableFuture.create();
       invocation.submit(new GenericType<>(action.getResponseClass()),
-        new CheckedAsyncCallback<T>(future,  e -> {
+        new CheckedAsyncCallback<>(future,  e -> {
         if (e instanceof ExecutionException) {
           e = e.getCause();
         }

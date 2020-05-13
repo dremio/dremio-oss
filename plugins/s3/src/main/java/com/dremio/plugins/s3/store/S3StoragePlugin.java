@@ -17,6 +17,7 @@ package com.dremio.plugins.s3.store;
 
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.apache.hadoop.fs.s3a.Constants.ACCESS_KEY;
+import static org.apache.hadoop.fs.s3a.Constants.ALLOW_REQUESTER_PAYS;
 import static org.apache.hadoop.fs.s3a.Constants.FAST_UPLOAD;
 import static org.apache.hadoop.fs.s3a.Constants.MAXIMUM_CONNECTIONS;
 import static org.apache.hadoop.fs.s3a.Constants.MAX_THREADS;
@@ -161,6 +162,8 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
       finalProperties.add(new Property(SERVER_SIDE_ENCRYPTION_ALGORITHM, S3AEncryptionMethods.SSE_KMS.getMethod()));
       finalProperties.add(new Property(SECURE_CONNECTIONS, Boolean.TRUE.toString()));
     }
+
+    finalProperties.add(new Property(ALLOW_REQUESTER_PAYS, Boolean.toString(config.requesterPays)));
 
     return finalProperties;
   }

@@ -21,7 +21,7 @@ import java.util.Objects;
 /**
  * Utilities for working with values in CompoundKey classes.
  */
-final class KeyUtils {
+public final class KeyUtils {
 
   private KeyUtils() {
   }

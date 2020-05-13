@@ -173,7 +173,7 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
       }
     }
 
-    Preconditions.checkArgument(updatedFieldList.size() == newFields.size(), "Expected reordered field list to use all %d fields, only used %d.", newFields.size(), updatedFieldList.size());
+    Preconditions.checkArgument(updatedFieldList.size() == newFields.size(), "Expected reordered field list to use all %s fields, only used %s.", newFields.size(), updatedFieldList.size());
 
     return new BatchSchema(selectionVectorMode, updatedFieldList);
   }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { Component } from 'react';
-import { connect }   from 'react-redux';
+import { connect } from 'react-redux';
 import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import { loadNodeCredentials } from 'actions/admin';

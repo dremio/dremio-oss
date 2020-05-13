@@ -34,7 +34,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.system.Nodes.NodeInfo;
@@ -185,26 +184,18 @@ public class SystemResource extends BaseResourceWithAllocator {
     }
 
     final List<NodeInfo> finalList = new ArrayList<>();
-
+    final List<NodeInfo> coord = new ArrayList<>();
     for (NodeEndpoint ep : map.values()){
-      NodeInfo nodeInfo = new NodeInfo(
-        ep.getAddress() + " (c)",
-        ep.getAddress(),
-        ep.getAddress(),
-        ep.getUserPort(),
-        0d,
-        0d,
-        "green",
-        true,
-        false,
-        ep.getNodeTag(),
-        DremioVersionInfo.getVersion(),
-        ep.getStartTime()
-      );
-      finalList.add(nodeInfo);
+      final NodeInfo nodeInfo = NodeInfo.fromEndpoint(ep);
+      if (nodeInfo.getIsMaster()) {
+        finalList.add(nodeInfo);
+      } else {
+        coord.add(nodeInfo);
+      }
     }
 
     // put coordinators first.
+    finalList.addAll(coord);
     finalList.addAll(result);
 
     return finalList;

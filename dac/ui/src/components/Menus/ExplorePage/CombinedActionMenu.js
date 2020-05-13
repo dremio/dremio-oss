@@ -64,7 +64,8 @@ export class CombinedActionMenu extends PureComponent {
   };
 
   renderDownloadSectionHeader = () => {
-    const {intl, jobProgress: {isRun}} = this.props;
+    const {intl, jobProgress} = this.props;
+    const isRun = jobProgress && jobProgress.isRun;
     const headerText = isRun ? la('Download (limited)') : la('Download (sample)');
     const helpContent = isRun ?
       intl.formatMessage({ id: 'Explore.run.warning' }) :

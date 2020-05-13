@@ -48,7 +48,8 @@ import com.dremio.datastore.adapter.stores.LegacyUUIDStore;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
+import com.dremio.datastore.format.visitor.SupportFindFormatVisitor;
+import com.dremio.datastore.format.visitor.SupportNullFieldsFormatVisitor;
 import com.dremio.datastore.generator.ByteContainerStoreGenerator;
 import com.dremio.datastore.generator.ByteContainerStoreGenerator.ByteContainer;
 import com.dremio.datastore.generator.DataGenerator;
@@ -93,30 +94,27 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
    */
   // CHECKSTYLE:OFF VisibilityModifier
   @Parameterized.Parameter
-  public Class<LegacyStoreCreationFunction<LegacyKVStore<K, V>>> storeCreationFunction;
+  public Class<TestLegacyStoreCreationFunction<K, V>> storeCreationFunction;
 
   @Parameterized.Parameter(1)
   public DataGenerator<K, V> gen;
 
-  // Used to determine if find is supported.
-  @Parameterized.Parameter(2)
-  public Class<K> keyClass;
   // CHECKSTYLE:ON VisibilityModifier
 
   @Parameterized.Parameters(name = "Table: {0}")
   public static Collection<Object[]> parameters() {
     return Arrays.asList(new Object[][] {
-      {LegacyUUIDStore.class, new UUIDStoreGenerator(), UUID.class},
-      {LegacyProtobufStore.class, new ProtobufStoreGenerator(), Dummy.DummyId.class},
-      {LegacyProtostuffStore.class, new ProtostuffStoreGenerator(), DummyId.class},
+      {LegacyUUIDStore.class, new UUIDStoreGenerator()},
+      {LegacyProtobufStore.class, new ProtobufStoreGenerator()},
+      {LegacyProtostuffStore.class, new ProtostuffStoreGenerator()},
       //Variable-length
-      {LegacyStringStore.class, new StringStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH), String.class},
-      {LegacyRawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH), String.class},
-      {LegacyByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH), ByteContainer.class},
+      {LegacyStringStore.class, new StringStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
+      {LegacyRawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
+      {LegacyByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.VARIABLE_LENGTH)},
       //Fixed-length
-      {LegacyStringStore.class, new StringStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH), String.class},
-      {LegacyRawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH), String.class},
-      {LegacyByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH), ByteContainer.class}
+      {LegacyStringStore.class, new StringStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
+      {LegacyRawByteStore.class, new RawByteStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)},
+      {LegacyByteContainerStore.class, new ByteContainerStoreGenerator(UniqueSupplierOptions.FIXED_LENGTH)}
     });
   }
 
@@ -454,21 +452,33 @@ public abstract class AbstractLegacyTestKVStore<K, V> {
    * @param classes key classes in which test should be ignored.
    */
   protected void temporarilyDisableTest(String ticket, String message, Set<Class<?>> classes){
-    Assume.assumeFalse("[TEST DISABLED]" + ticket + " - " + message, classes.contains(keyClass));
+    try {
+      Assume.assumeFalse("[TEST DISABLED]" + ticket + " - " + message, !Collections.disjoint(classes, storeCreationFunction.newInstance().getKeyClasses()));
+    } catch (InstantiationException | IllegalAccessException e) {
+      fail("TestStoreCreationFunction instantiation problem: " + e.getMessage());
+    }
   }
 
   /**
    * Method to ignore tests for data formats that do not support{@code null} fields, namely protobuf, UUID, String and bytes.
    */
   private void ignoreIfNullFieldsNotSupported() {
-    Assume.assumeFalse("This store value format does not support null fields", STORE_DOES_NOT_SUPPORT_NULL_FIELDS.contains(keyClass));
+    try {
+      Assume.assumeTrue("This store value format does not support null fields", storeCreationFunction.newInstance().getKeyFormat().apply(new SupportNullFieldsFormatVisitor()));
+    } catch (InstantiationException | IllegalAccessException e) {
+      fail("TestStoreCreationFunction instantiation problem: " + e.getMessage());
+    }
   }
 
   /**
    * Method to ignore tests for data formats that do not support range queries, namely protobuf, protostuff and UUID.
    */
   private void ignoreIfFindNotSupported() {
-    Assume.assumeFalse("This format does not support range queries", KEY_DOES_NOT_SUPPORT_FIND.contains(keyClass));
+    try {
+      Assume.assumeTrue("This format does not support range queries", storeCreationFunction.newInstance().getKeyFormat().apply(new SupportFindFormatVisitor()));
+    } catch (InstantiationException | IllegalAccessException e) {
+      fail("TestStoreCreationFunction instantiation problem: " + e.getMessage());
+    }
   }
 
   /**

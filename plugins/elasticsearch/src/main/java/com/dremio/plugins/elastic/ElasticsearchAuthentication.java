@@ -90,20 +90,12 @@ public class ElasticsearchAuthentication {
       String[] splits = endpoint.split("\\.");
       int count = splits.length;
       if ((count < 5) || (!"com".equals(splits[count - 1])) || (!"amazonaws".equals(splits[count - 2])) || (!"es".equals(splits[count - 3]))) {
-        throw UserException.validationError()
-          .message("Failure creating Amazon Elasticsearch Service connection. You must provide hostname like *.[region name].es.amazonaws.com")
-          .build(logger);
+        throw new IllegalArgumentException("Failure creating Amazon Elasticsearch Service connection. " +
+          "You must provide hostname like *.[region name].es.amazonaws.com");
       }
       regionName = splits[count - 4];
     }
-    try {
-      Regions region = Regions.fromName(regionName);
-    }
-    catch (IllegalArgumentException iae) {
-      throw UserException.validationError()
-        .message("Failure creating Amazon Elasticsearch Service connection. The region is incorrect. You can change region in Advanced Options")
-        .build(logger);
-    }
+    final Regions region = Regions.fromName(regionName);
     return regionName;
   }
 

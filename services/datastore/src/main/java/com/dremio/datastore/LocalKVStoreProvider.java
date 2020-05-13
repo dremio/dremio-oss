@@ -103,7 +103,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
       boolean noDBOpenRetry
   ) {
 
-    coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, noDBOpenRetry);
+    coreStoreProvider = new CoreStoreProviderImpl(baseDirectory, inMemory, timed, noDBOpenRetry, false);
     this.fabricService = fabricService;
     this.allocator = allocator;
     this.hostName = hostName;
@@ -237,13 +237,13 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     }
 
     @Override
-    public KVStore<K, V> build() {
+    public KVStore<K, V> doBuild() {
       return new LocalKVStore<>(coreStoreBuilder.build(getStoreBuilderHelper()));
     }
 
     @Override
-    public IndexedStore<K, V> buildIndexed(Class<? extends DocumentConverter<K, V>> documentConverterClass) {
-      getStoreBuilderHelper().documentConverter(documentConverterClass);
+    public IndexedStore<K, V> doBuildIndexed(DocumentConverter<K, V> documentConverter) {
+      getStoreBuilderHelper().documentConverter(documentConverter);
       return new LocalIndexedStore<>(coreStoreBuilder.buildIndexed(getStoreBuilderHelper()));
     }
   }

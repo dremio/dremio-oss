@@ -114,6 +114,11 @@
                 "propName": "config.compatibilityMode"
               },
               {
+
+                "propName": "config.requesterPays"
+
+              },
+              {
                 "propName": "config.rootPath"
               },
               {

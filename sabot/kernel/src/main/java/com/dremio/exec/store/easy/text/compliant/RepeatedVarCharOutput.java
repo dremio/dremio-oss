@@ -151,7 +151,7 @@ class RepeatedVarCharOutput extends TextOutput {
       return;
     }
 
-    FieldSizeLimitExceptionHelper.checkWriteSizeLimit(charLengthOffset, maxCellLimit, fieldIndex, logger);
+    FieldSizeLimitExceptionHelper.checkSizeLimit(charLengthOffset, maxCellLimit, fieldIndex, logger);
 
     byte[] tmp = new byte[LargeMemoryUtil.checkedCastToInt(tmpBuf.capacity())];
     tmpBuf.getBytes(0, tmp);

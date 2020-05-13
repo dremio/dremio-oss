@@ -31,6 +31,7 @@ import com.dremio.exec.proto.UserBitShared.ExpressionSplitInfo;
 import com.dremio.exec.proto.UserBitShared.MetricDef;
 import com.dremio.exec.proto.UserBitShared.MetricValue;
 import com.dremio.exec.proto.UserBitShared.OperatorProfile;
+import com.dremio.exec.proto.UserBitShared.SlowIOInfo;
 import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
 import com.fasterxml.jackson.core.JsonGenerator;
@@ -77,8 +78,10 @@ public class OperatorWrapper {
     "Max Setup Time", "Min Process Time", "Avg Process Time", "Max Process Time", "Min Wait Time", "Avg Wait Time",
     "Max Wait Time", "Avg Peak Memory", "Max Peak Memory"};
 
-  public static final String[] OPERATOR_DETAIL_COLUMNS = { "Split Output Name", "Split Evaluated in Gandiva",
+  public static final String[] SPLIT_INFO_COLUMNS = { "Split Output Name", "Split Evaluated in Gandiva",
     "Split Depends On", "Split Expression" };
+
+  public static final String[] SLOW_IO_INFO_COLUMNS = { "FilePath" , "IO Time (ns)", "IO Size", "Offset"};
 
   public void addSummary(TableBuilder tb) {
     try {
@@ -293,19 +296,32 @@ public class OperatorWrapper {
     }
 
     generator.writeFieldName("details");
-    JsonBuilder builder = new JsonBuilder(generator, OPERATOR_DETAIL_COLUMNS);
-    for (ExpressionSplitInfo splitInfo : foundOp.getDetails().getSplitInfosList()) {
-      builder.startEntry();
-      builder.appendString(splitInfo.getOutputName());
-      builder.appendString(splitInfo.getInGandiva() ? "true" : "false");
-      if (splitInfo.getDependsOnList().size() == 0) {
-        builder.appendString("-");
-      } else {
-        builder.appendString(String.join(",", splitInfo.getDependsOnList()));
+    if (foundOp.getDetails().getSplitInfosList() != null && !foundOp.getDetails().getSplitInfosList().isEmpty()) {
+      JsonBuilder builder = new JsonBuilder(generator, SPLIT_INFO_COLUMNS);
+      for (ExpressionSplitInfo splitInfo : foundOp.getDetails().getSplitInfosList()) {
+        builder.startEntry();
+        builder.appendString(splitInfo.getOutputName());
+        builder.appendString(splitInfo.getInGandiva() ? "true" : "false");
+        if (splitInfo.getDependsOnList().size() == 0) {
+          builder.appendString("-");
+        } else {
+          builder.appendString(String.join(",", splitInfo.getDependsOnList()));
+        }
+        builder.appendString(splitInfo.getNamedExpression().toString());
+        builder.endEntry();
       }
-      builder.appendString(splitInfo.getNamedExpression().toString());
-      builder.endEntry();
+      builder.end();
+    } else {
+      JsonBuilder builder = new JsonBuilder(generator, SLOW_IO_INFO_COLUMNS);
+      for (SlowIOInfo splitInfo : foundOp.getDetails().getSlowIoInfosList()) {
+        builder.startEntry();
+        builder.appendString(splitInfo.getFilePath());
+        builder.appendString(Long.toString(splitInfo.getIoTime()));
+        builder.appendString(Long.toString(splitInfo.getIoSize()));
+        builder.appendString(Long.toString(splitInfo.getIoOffset()));
+        builder.endEntry();
+      }
+      builder.end();
     }
-    builder.end();
   }
 }

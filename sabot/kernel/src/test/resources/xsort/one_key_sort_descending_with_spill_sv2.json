@@ -1,0 +1,60 @@
+{
+    head:{
+        type:"PHYSICAL",
+        version:"1",
+        generator:{
+            type:"manual"
+        }
+    },
+    graph:[
+        {
+            id:1,
+            pop:"mock-scan",
+            url: "http://apache.org",
+            entries:[
+                {records: 2000000, types: [
+                  {name: "blue", type: "INT", mode: "REQUIRED"},
+                  {name: "green", type: "INT", mode: "REQUIRED"}
+                ]}
+            ],
+            props: {"operatorId": 1}
+        },
+        {
+            id: 2,
+            pop: "project",
+            child: 1,
+            exprs: [
+              { ref: "blue", expr: "randomBigInt(100000)" }
+            ],
+            props: {"operatorId": 2, "memLimit": 1073741824, "schemaHashCode": 777729905}
+        },
+        {
+            id: 3,
+            pop: "filter",
+            expr: "alternate()",
+            child: 2,
+            props: {"operatorId": 3, "memLimit": 1073741824, "schemaHashCode": 777729905}
+        },
+        {
+            id:4,
+            child: 3,
+            pop:"external-sort",
+            orderings: [
+              {expr: "blue", order : "DESC"}
+            ],
+            props: {"operatorId": 4, "memLimit": 10485760, "memoryExpensive": true, "targetBatchSize": 1024, "schemaHashCode": 777729905}
+        },
+        {
+            id:5,
+            child: 4,
+            pop:"selection-vector-remover",
+            props: {"operatorId": 5, "memLimit": 1073741824, "schemaHashCode": 777729905}
+        },
+        {
+            id: 6,
+            child: 5,
+            pop: "screen",
+            props: {"operatorId": 6, "memLimit": 1073741824, "schemaHashCode": 777729905}
+        }
+    ]
+}

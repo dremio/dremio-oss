@@ -37,10 +37,8 @@ import com.dremio.datastore.adapter.extractors.ProtostuffDummyObjVersionExtracto
 import com.dremio.datastore.adapter.stores.LegacyProtostuffOCCStore;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.generator.DataGenerator;
 import com.dremio.datastore.generator.ProtostuffStoreGenerator;
-import com.dremio.datastore.proto.DummyId;
 import com.google.common.base.Strings;
 
 
@@ -56,22 +54,19 @@ public abstract class AbstractLegacyTestOCCKVStore<K, V> {
 
   // CHECKSTYLE:OFF VisibilityModifier
   @Parameterized.Parameter
-  public Class<LegacyStoreCreationFunction<LegacyKVStore<K ,V>>> storeCreationFunction;
+  public Class<TestLegacyStoreCreationFunction<K ,V>> storeCreationFunction;
 
   @Parameterized.Parameter(1)
   public DataGenerator<K, V> gen;
 
   @Parameterized.Parameter(2)
-  public Class<K> keyClass;
-
-  @Parameterized.Parameter(3)
   public VersionExtractor<V> versionExtractor;
 
   // CHECKSTYLE:ON VisibilityModifier
   @Parameterized.Parameters(name = "Table: {0}")
   public static Collection<Object[]> parameters() {
     return Arrays.asList(new Object[][] {
-      {LegacyProtostuffOCCStore.class, new ProtostuffStoreGenerator(), DummyId.class, new ProtostuffDummyObjVersionExtractor()}
+      {LegacyProtostuffOCCStore.class, new ProtostuffStoreGenerator(), new ProtostuffDummyObjVersionExtractor()}
     });
   }
 

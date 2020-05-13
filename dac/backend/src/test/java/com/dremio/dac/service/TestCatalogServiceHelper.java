@@ -694,7 +694,7 @@ public class TestCatalogServiceHelper {
     settings.setGracePeriod(1L);
     settings.setRefreshPeriod(1L);
 
-    Source source = new Source(sourceConfig, settings, mock(ConnectionReader.class));
+    Source source = new Source(sourceConfig, settings, mock(ConnectionReader.class), null);
 
     NameSpaceContainer namespaceContainer = new NameSpaceContainer();
     namespaceContainer.setType(NameSpaceContainer.Type.SOURCE);

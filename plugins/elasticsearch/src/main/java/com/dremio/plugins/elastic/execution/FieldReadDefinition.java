@@ -70,14 +70,14 @@ public class FieldReadDefinition {
     @Override
     public void writeList(ListWriter writer, JsonToken token, JsonParser parser) throws IOException {
       final int stringLength = parser.getValueAsString().length();
-      FieldSizeLimitExceptionHelper.checkReadSizeLimit(stringLength, maxCellSize, name, logger);
+      FieldSizeLimitExceptionHelper.checkSizeLimit(stringLength, maxCellSize, name, logger);
       holder.writeList(writer, token, parser);
     }
 
     @Override
     public void writeMap(StructWriter writer, JsonToken token, JsonParser parser) throws IOException {
       final int stringLength = parser.getValueAsString().length();
-      FieldSizeLimitExceptionHelper.checkReadSizeLimit(stringLength, maxCellSize, name, logger);
+      FieldSizeLimitExceptionHelper.checkSizeLimit(stringLength, maxCellSize, name, logger);
       holder.writeMap(writer, token, parser);
     }
   }

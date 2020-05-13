@@ -114,7 +114,7 @@ public class CollaborationWikiStore {
         .name(WIKI_STORE)
         .keyFormat(Format.ofString())
         .valueFormat(Format.ofProtostuff(CollaborationWiki.class))
-        .buildIndexed(CollaborationWikiStore.CollaborationWikiConverter.class);
+        .buildIndexed(new CollaborationWikiStore.CollaborationWikiConverter());
     }
   }
 

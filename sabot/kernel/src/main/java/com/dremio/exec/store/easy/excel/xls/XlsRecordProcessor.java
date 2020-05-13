@@ -546,7 +546,7 @@ public class XlsRecordProcessor implements ExcelParser {
 
   private void writeVarChar(final String columnName, final String value) {
     final byte[] b = value.getBytes(Charsets.UTF_8);
-    FieldSizeLimitExceptionHelper.checkReadSizeLimit(b.length, maxCellSize, columnName, logger);
+    FieldSizeLimitExceptionHelper.checkSizeLimit(b.length, maxCellSize, columnName, logger);
 
     managedBuf = managedBuf.reallocIfNeeded(b.length);
     managedBuf.setBytes(0, b);

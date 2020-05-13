@@ -251,4 +251,129 @@ public class TestDecimalQueries extends DecimalCompleteTest {
     test(query3);
     test(query4);
   }
+
+  @Test
+  public void testTruncateOnLiteral() throws Exception {
+    final String query = "select TRUNCATE( Cast(123.456 AS DECIMAL(18, 10)), 2)";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("123.45"))
+      .go();
+  }
+
+  @Test
+  public void testTruncateOnLiteral2() throws Exception {
+    final String query = "select TRUNCATE( Cast(123.456 AS DECIMAL(18, 10)))";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("123"))
+      .go();
+  }
+
+  @Test
+  public void testTruncateOnLiteral3() throws Exception {
+    final String query = "select TRUNCATE( Cast(123.456 AS DECIMAL(18, 10)), -2)";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("100"))
+      .go();
+  }
+
+  @Test
+  public void testRoundOnLiteral() throws Exception {
+    final String query = "select ROUND( Cast(123.556 AS DECIMAL(18, 10)))";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("124"))
+      .go();
+  }
+
+  @Test
+  public void testRoundOnLiteral2() throws Exception {
+    final String query = "select ROUND( Cast(123.556 AS DECIMAL(18, 10)), 2)";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("123.56"))
+      .go();
+  }
+
+  @Test
+  public void testRoundOnLiteral3() throws Exception {
+    final String query = "select ROUND( Cast(123.556 AS DECIMAL(18, 10)), -2)";
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("100"))
+      .go();
+  }
+
+  @Test
+  public void testRound() throws Exception {
+    final String query = "select truncate(cast(val as decimal(10,7)), 2) from cp" +
+      ".\"parquet/decimals/simple-decimals-with-nulls.parquet\" limit 1";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("123.12"))
+      .go();
+  }
+
+  @Test
+  public void testRound2() throws Exception {
+    final String query = "select truncate(cast(val as decimal(10,7)), -2) from cp" +
+      ".\"parquet/decimals/simple-decimals-with-nulls.parquet\" limit 1";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("100"))
+      .go();
+  }
+
+
+  @Test
+
+  public void testTruncLiteralZeroPrecison() throws Exception {
+    final String query = "select trunc(cast(-0.9 as decimal(1,1 )))";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("0"))
+      .go();
+  }
+
+
+  @Test
+
+  public void testRoundLiteralZeroPrecison() throws Exception {
+    final String query = "select round(cast(-0.9 as decimal(1,1)))";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("-1"))
+      .go();
+  }
+
+
+  @Test
+
+  public void testRoundLiteralMinus30() throws Exception {
+    final String query = "select trunc(k, -30) from cp" +
+      ".\"parquet/decimals/decimal38p1s.parquet\" limit 2";
+
+    testBuilder().sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(new BigDecimal("4596749000000000000000000000000000000"))
+      .baselineValues(new BigDecimal("6033004000000000000000000000000000000"))
+      .go();
+  }
 }

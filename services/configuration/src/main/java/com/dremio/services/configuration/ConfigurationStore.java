@@ -44,6 +44,10 @@ public class ConfigurationStore {
     return store.get(key);
   }
 
+  public void delete(String key) {
+    store.delete(key);
+  }
+
   /**
    * Support storage creator.
    */

@@ -13,28 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio;
+package com.dremio.service.namespace;
 
-import org.junit.ClassRule;
-import org.junit.rules.TemporaryFolder;
-
-import com.dremio.datastore.AbstractTestInvalidStoreFormat;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.datastore.api.KVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.test.DremioTest;
 
 /**
- * Test stores with invalid formats with LocalKVStoreProvider.
- * @param <K> key type K.
- * @param <V> value type V.
+ * Test driver for spaces service.
  */
-public class TestLocalKVStoreInvalidStoreFormat<K,V> extends AbstractTestInvalidStoreFormat<K, V> {
-  @ClassRule
-  public static final TemporaryFolder tmpFolder = new TemporaryFolder();
+public class TestLocalKVStoreAdapterNamespaceService extends AbstractTestNamespaceService {
+  @Override
+  protected LegacyKVStoreProvider createKVStoreProvider() {
+    return new LegacyKVStoreProviderAdapter(
+      new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false),
+      DremioTest.CLASSPATH_SCAN_RESULT);
+  }
 
   @Override
-  protected KVStoreProvider createProvider() {
-    return new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT,
-      tmpFolder.getRoot().toString(), true, true);
+  protected void closeResources() {
   }
 }

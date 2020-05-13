@@ -120,7 +120,6 @@ public class PartitionMetadata {
     }
 
     public PartitionMetadata build() {
-      Objects.requireNonNull(partitionId, "partition id is required");
       Objects.requireNonNull(inputSplitBatchIterator, "input split batch iterator is required");
       Objects.requireNonNull(partitionValues, "partition values is required");
 

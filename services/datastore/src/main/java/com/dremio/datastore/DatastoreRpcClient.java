@@ -43,6 +43,7 @@ import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.ImmutableDocument;
 import com.dremio.datastore.api.KVStore;
+import com.dremio.datastore.indexed.PutRequestDocumentWriter;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.services.fabric.simple.ReceivedResponseMessage;
 import com.google.common.base.Strings;
@@ -188,8 +189,11 @@ public class DatastoreRpcClient {
    * @throws RpcException when RPC related errors are encountered.
    * @throws ConcurrentModificationException when PutResponse received has ConcurrentModificationError.
    */
-  public String put(String storeId, ByteString key, ByteString value) throws RpcException {
-    return put(PutRequest.newBuilder()
+  public String put(String storeId, ByteString key, ByteString value, PutRequestDocumentWriter indexMap) throws RpcException {
+    final PutRequest.Builder builder = PutRequest.newBuilder();
+    indexMap.toPutRequest(builder);
+
+    return put(builder
       .setStoreId(storeId)
       .setKey(key)
       .setValue(value)
@@ -206,11 +210,14 @@ public class DatastoreRpcClient {
    * @return the new tag of the key-value store entry.
    * @throws RpcException
    */
-  public String put(String storeId, ByteString key, ByteString value, KVStore.PutOption option) throws RpcException {
+  public String put(String storeId, ByteString key, ByteString value, PutRequestDocumentWriter indexMap, KVStore.PutOption option) throws RpcException {
 
     final RemoteDataStoreProtobuf.PutOptionInfo optionInfo = option.getPutOptionInfo();
 
-    return put(PutRequest.newBuilder()
+    final PutRequest.Builder builder = PutRequest.newBuilder();
+    indexMap.toPutRequest(builder);
+
+    return put(builder
       .setStoreId(storeId)
       .setKey(key)
       .setValue(value)

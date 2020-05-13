@@ -114,7 +114,7 @@ public class CollaborationTagStore {
         .keyFormat(Format.ofString())
         .valueFormat(Format.ofProtostuff(CollaborationTag.class))
         .versionExtractor(CollaborationTagVersionExtractor.class)
-        .buildIndexed(CollaborationTagConverter.class);
+        .buildIndexed(new CollaborationTagConverter());
     }
   }
 

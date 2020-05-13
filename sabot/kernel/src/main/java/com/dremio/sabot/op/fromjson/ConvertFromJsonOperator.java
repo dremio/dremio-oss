@@ -172,7 +172,7 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
         return null;
       }
       final byte[] data = vector.get(inputIndex);
-      FieldSizeLimitExceptionHelper.checkReadSizeLimit(data.length, sizeLimit, inputIndex, logger);
+      FieldSizeLimitExceptionHelper.checkSizeLimit(data.length, sizeLimit, inputIndex, logger);
       return data;
     }
   }
@@ -190,7 +190,7 @@ public class ConvertFromJsonOperator implements SingleInputOperator {
       }
 
       final byte[] data = vector.get(inputIndex);
-      FieldSizeLimitExceptionHelper.checkReadSizeLimit(data.length, sizeLimit, inputIndex, logger);
+      FieldSizeLimitExceptionHelper.checkSizeLimit(data.length, sizeLimit, inputIndex, logger);
       return data;
     }
   }

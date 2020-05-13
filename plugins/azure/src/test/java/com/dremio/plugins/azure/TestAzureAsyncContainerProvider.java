@@ -80,7 +80,7 @@ public class TestAzureAsyncContainerProvider {
       assertTrue(req.getUrl().startsWith("https://azurestoragev2hier.dfs.core.windows.net"));
       assertNotNull(req.getHeaders().get("Date"));
       assertNotNull(req.getHeaders().get("x-ms-client-request-id"));
-      assertEquals("2019-02-02", req.getHeaders().get("x-ms-version")); // edit only if you're upgrading client
+      assertEquals("2019-07-07", req.getHeaders().get("x-ms-version")); // edit only if you're upgrading client
       assertEquals("Bearer testtoken", req.getHeaders().get("Authorization"));
       List<NameValuePair> queryParams = URLEncodedUtils.parse(new URI(req.getUrl()), StandardCharsets.UTF_8);
       String continuationKey = queryParams.stream()
@@ -89,17 +89,18 @@ public class TestAzureAsyncContainerProvider {
 
       // Return empty response if continuation key is not present. Return data in continuation call.
       // This is to ensure that the plugin makes another call when there's no data but continuation key present.
-      if ("testcontinuation".equalsIgnoreCase(continuationKey)) {
+      if ("page1container1".equals(continuationKey)) {
         when(response.getHeader("x-ms-continuation")).thenReturn("page2container1");
         while (dfsCoreResponseDispatcherPage1.isNotFinished()) {
           handler.onBodyPartReceived(dfsCoreResponseDispatcherPage1.getNextBodyPart());
         }
-      } else if ("page2container1".equalsIgnoreCase(continuationKey)) {
+      } else if ("page2container1".equals(continuationKey)) {
+        when(response.getHeader("x-ms-continuation")).thenReturn("");
         while (dfsCoreResponseDispatcherPage2.isNotFinished()) {
           handler.onBodyPartReceived(dfsCoreResponseDispatcherPage2.getNextBodyPart());
         }
       } else {
-        when(response.getHeader("x-ms-continuation")).thenReturn("testcontinuation");
+        when(response.getHeader("x-ms-continuation")).thenReturn("page1container1");
         while (dfsCoreEmptyResponseDispatcher.isNotFinished()) {
           handler.onBodyPartReceived(dfsCoreEmptyResponseDispatcher.getNextBodyPart());
         }

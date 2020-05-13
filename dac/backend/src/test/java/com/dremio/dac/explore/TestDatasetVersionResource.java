@@ -15,12 +15,15 @@
  */
 package com.dremio.dac.explore;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.Arrays;
 import java.util.List;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.Response;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -31,7 +34,9 @@ import com.dremio.dac.explore.model.DatasetUIWithHistory;
 import com.dremio.dac.explore.model.HistoryItem;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
+import com.dremio.dac.server.ApiErrorModel;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.service.errors.InvalidQueryException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
@@ -130,6 +135,57 @@ public class TestDatasetVersionResource extends BaseTestServer {
       .queryParam("tipVersion", dswh2.getDataset().getDatasetVersion());
 
     expectSuccess(getBuilder(target).buildGet(), new GenericType<InitialPreviewResponse>() {});
+  }
+
+  @Test
+  public void testBrokenVDSEditOriginalSQL() throws Exception {
+    Dataset parentVDS = createVDS(Arrays.asList("dsvTest", "badVDSParent"),"select version, commit_id from sys.version");
+    parentVDS = expectSuccess(getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(parentVDS)), new GenericType<Dataset>() {});
+
+    Dataset newVDS = createVDS(Arrays.asList("dsvTest", "badVDS"),"select version from dsvTest.badVDSParent");
+    newVDS = expectSuccess(getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(newVDS)), new GenericType<Dataset>() {});
+
+    // update the parent to no longer include the version field
+    Dataset updatedParentVDS = new Dataset(
+      parentVDS.getId(),
+      Dataset.DatasetType.VIRTUAL_DATASET,
+      parentVDS.getPath(),
+      null,
+      null,
+      parentVDS.getTag(),
+      parentVDS.getAccelerationRefreshPolicy(),
+      "select commit_id from sys.version",
+      parentVDS.getSqlContext(),
+      parentVDS.getFormat(),
+      null
+    );
+    expectSuccess(getBuilder(getPublicAPI(3).path("catalog").path(updatedParentVDS.getId())).buildPut(Entity.json(updatedParentVDS)), new GenericType<Dataset>() {});
+
+    // create a derivation of the VDS (this will fail since the sql is no longer valid)
+    String dsPath = String.join(".", newVDS.getPath());
+    DatasetVersion datasetVersion = DatasetVersion.newVersion();
+    WebTarget target = getAPIv2()
+      .path("datasets")
+      .path("new_untitled")
+      .queryParam("parentDataset", dsPath)
+      .queryParam("newVersion", datasetVersion)
+      .queryParam("limit", 120);
+    ApiErrorModel apiErrorModel = expectStatus(Response.Status.BAD_REQUEST, getBuilder(target).buildPost(Entity.json(null)), new GenericType<ApiErrorModel<InvalidQueryException.Details>>() {});
+
+    InvalidQueryException.Details details = (InvalidQueryException.Details) apiErrorModel.getDetails();
+
+    // edit original sql is a preview call with a limit of 0
+    target = getAPIv2()
+      .path("dataset")
+      .path(dsPath)
+      .path("version")
+      .path(details.getDatasetSummary().getDatasetVersion().getVersion())
+      .path("preview")
+      .queryParam("view", "explore")
+      .queryParam("limit", "0");
+
+    InitialPreviewResponse initialPreviewResponse = expectSuccess(getBuilder(target).buildGet(), new GenericType<InitialPreviewResponse>() {});
+    assertEquals(newVDS.getSql(), initialPreviewResponse.getDataset().getSql());
   }
 
   private Dataset createVDS(List<String> path, String sql) {

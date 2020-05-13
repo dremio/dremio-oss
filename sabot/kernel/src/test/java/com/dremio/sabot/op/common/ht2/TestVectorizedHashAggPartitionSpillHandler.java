@@ -51,6 +51,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.record.VectorContainer;
+import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.aggregate.vectorized.AccumulatorSet;
 import com.dremio.sabot.op.aggregate.vectorized.CountColumnAccumulator;
 import com.dremio.sabot.op.aggregate.vectorized.CountOneAccumulator;
@@ -339,8 +340,9 @@ public class TestVectorizedHashAggPartitionSpillHandler extends DremioTest {
           }
         }).when(spillService).getSpillSubdir(any(String.class));
 
+        OptionManager optionManager = mock(OptionManager.class);
         partitionSpillHandler = new VectorizedHashAggPartitionSpillHandler(partitions,
-          fragmentHandle, null, sabotConfig, 1, partitionToLoadSpilledData, spillService, true, null);
+          fragmentHandle, optionManager, sabotConfig, 1, partitionToLoadSpilledData, spillService, true, null);
 
         /* insert incoming into partitions */
         insertAndAccumulateForAllPartitions(allocator, records, pivot, partitions, expectedOrdinals);

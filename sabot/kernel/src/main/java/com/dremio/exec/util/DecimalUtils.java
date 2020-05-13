@@ -45,6 +45,9 @@ public final class DecimalUtils {
 
   public static final int LENGTH_OF_LONG = 8;
 
+  public static final String ROUND = "ROUND";
+  public static final String TRUNCATE = "TRUNCATE";
+
   private DecimalUtils() {}
 
   /**

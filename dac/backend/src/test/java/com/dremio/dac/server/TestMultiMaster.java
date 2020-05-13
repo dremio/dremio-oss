@@ -127,7 +127,6 @@ public class TestMultiMaster extends BaseClientUtils {
 
   private Provider<Integer> jobsPortProvider = () -> currentDremioDaemon.getBindingProvider().lookup(JobsServer.class).getPort();
 
-
   @Rule
   public final TemporaryFolder temporaryFolder = new TemporaryFolder();
 
@@ -135,7 +134,7 @@ public class TestMultiMaster extends BaseClientUtils {
   public void init() throws Exception {
     Assume.assumeTrue(BaseTestServer.isMultinode());
     try (Timer.TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
-      zkServer = new ZkServer(temporaryFolder.newFolder("zk").getAbsolutePath(), 21518, true);
+      zkServer = new ZkServer(temporaryFolder.newFolder("zk").getAbsolutePath(), getPort("test.zk.enabled.port"), true);
       zkServer.start();
 
       final File masterPath = temporaryFolder.newFolder("master");
@@ -150,10 +149,10 @@ public class TestMultiMaster extends BaseClientUtils {
             .inMemoryStorage(false)
             .writePath(masterPath.getAbsolutePath())
             .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-            .localPort(21515)
-            .httpPort(21516)
+            .localPort(getPort("test.master-active.localPort"))
+            .httpPort(getPort("test.master-active.httpPort"))
             .zk("localhost:" + zkServer.getPort())
-            .with(DremioConfig.CLIENT_PORT_INT, 21517)
+            .with(DremioConfig.CLIENT_PORT_INT, getPort("test.master-active.clientPort"))
             .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL, false)
             .with(DremioConfig.DEBUG_DISABLE_MASTER_ELECTION_SERVICE_BOOL, false),
           DremioTest.CLASSPATH_SCAN_RESULT,
@@ -182,10 +181,10 @@ public class TestMultiMaster extends BaseClientUtils {
             .inMemoryStorage(false)
             .writePath(masterPath.getAbsolutePath())
             .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-            .localPort(21525)
-            .httpPort(21526)
+            .localPort(getPort("test.master-backup.localPort"))
+            .httpPort(getPort("test.master-backup.httpPort"))
             .zk("localhost:" + zkServer.getPort())
-            .with(DremioConfig.CLIENT_PORT_INT, 21527)
+            .with(DremioConfig.CLIENT_PORT_INT, getPort("test.master-backup.clientPort"))
             .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL, false)
             .with(DremioConfig.DEBUG_DISABLE_MASTER_ELECTION_SERVICE_BOOL, false),
           DremioTest.CLASSPATH_SCAN_RESULT,
@@ -215,9 +214,9 @@ public class TestMultiMaster extends BaseClientUtils {
           .inMemoryStorage(true)
           .writePath(temporaryFolder.newFolder("remote").getAbsolutePath())
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-          .localPort(21530)
-          .httpPort(21531)
-          .with(DremioConfig.CLIENT_PORT_INT, 21532)
+          .localPort(getPort("test.non-master.localPort"))
+          .httpPort(getPort("test.non-master.httpPort"))
+          .with(DremioConfig.CLIENT_PORT_INT, getPort("test.non-master.clientPort"))
           .zk("localhost:" + zkServer.getPort()),
         DremioTest.CLASSPATH_SCAN_RESULT);
 
@@ -240,6 +239,14 @@ public class TestMultiMaster extends BaseClientUtils {
     AutoCloseables.close(
       toAutoCloseable(client), toAutoCloseable(hotMasterClient), toAutoCloseable(coldMasterClient),
       currentDremioDaemon, masterDremioDaemon1, masterDremioDaemon2, zkServer);
+  }
+
+  private static int getPort(String portName) {
+    String port = System.getProperty(portName);
+    if (port == null || port.isEmpty()) {
+      throw new RuntimeException(String.format("Can't start test since %s is not available.", portName));
+    }
+    return Integer.parseInt(port);
   }
 
   private static Client newClient() {

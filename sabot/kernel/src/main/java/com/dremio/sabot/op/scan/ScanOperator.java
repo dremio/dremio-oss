@@ -42,6 +42,7 @@ import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.exception.SchemaChangeExceptionContext;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.physical.base.SubScan;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.VectorAccessible;
@@ -109,7 +110,15 @@ public class ScanOperator implements ProducerOperator {
     NUM_HIVE_PARQUET_TRUNCATE_VARCHAR, // Number of fixed-len varchar fields in hive_parquet
     TOTAL_HIVE_PARQUET_TRUNCATE_VARCHAR, // Total number of fixed-len varchar truncation in haveParquetCoercion
     TOTAL_HIVE_PARQUET_TRANSFER_VARCHAR, //  Total number of fixed-len varchar transfers in haveParquetCoercion
-    HIVE_PARQUET_CHECK_VARCHAR_CAST_TIME // Time spent checking if truncation is required for a varchar field
+    HIVE_PARQUET_CHECK_VARCHAR_CAST_TIME, // Time spent checking if truncation is required for a varchar field
+    NUM_ROW_GROUPS_PRUNED, // number of rowGroups pruned in ParquetVectorizedReader
+    MAX_ROW_GROUPS_IN_HIVE_FILE_SPLITS, // max number of row groups across hive file splits
+    NUM_HIVE_FILE_SPLITS_WITH_NO_ROWGROUPS, // Number of hive file splits with no rowgroups
+    MIN_IO_READ_TIME,   // Minimum IO read time
+    MAX_IO_READ_TIME,   // Maximum IO read time
+    AVG_IO_READ_TIME,   // Average IO read time
+    NUM_IO_READ,        // Total Number of IO reads
+    NUM_HIVE_PARQUET_DECIMAL_COERCIONS, // Number of decimal coercions in hive parquet
     ;
 
     @Override
@@ -393,6 +402,21 @@ public class ScanOperator implements ProducerOperator {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(outgoing, currentReader, globalDictionaries, readers instanceof AutoCloseable ? (AutoCloseable) readers : null);
+    OperatorStats operatorStats = context.getStats();
+    OperatorStats.IOStats ioStats = operatorStats.getReadIOStats();
+
+    if (ioStats != null) {
+      long minIOReadTime = ioStats.minIOTime.longValue() <= ioStats.maxIOTime.longValue() ? ioStats.minIOTime.longValue() : 0;
+      operatorStats.setLongStat(Metric.MIN_IO_READ_TIME, minIOReadTime);
+      operatorStats.setLongStat(Metric.MAX_IO_READ_TIME, ioStats.maxIOTime.longValue());
+      operatorStats.setLongStat(Metric.AVG_IO_READ_TIME, ioStats.numIO.get() == 0 ? 0 : ioStats.totalIOTime.longValue() / ioStats.numIO.get());
+      operatorStats.addLongStat(Metric.NUM_IO_READ, ioStats.numIO.longValue());
+
+      operatorStats.setProfileDetails(UserBitShared.OperatorProfileDetails
+        .newBuilder()
+        .addAllSlowIoInfos(ioStats.slowIOInfoList)
+        .build());
+    }
   }
 
 }

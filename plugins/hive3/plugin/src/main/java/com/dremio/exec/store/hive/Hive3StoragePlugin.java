@@ -125,14 +125,13 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import io.protostuff.ByteString;
 
-public class Hive3StoragePlugin implements StoragePluginCreator.PF4JStoragePlugin, SupportsReadSignature,
+public class Hive3StoragePlugin extends BaseHiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin, SupportsReadSignature,
     SupportsListingDatasets, SupportsAlteringDatasetMetadata {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Hive3StoragePlugin.class);
 
   private LoadingCache<String, HiveClient> clientsByUser;
   private final PluginManager pf4jManager;
   private final HiveConf hiveConf;
-  private final String name;
   private final SabotConfig sabotConfig;
   private final DremioConfig dremioConfig;
 
@@ -151,10 +150,10 @@ public class Hive3StoragePlugin implements StoragePluginCreator.PF4JStoragePlugi
   }
 
   public Hive3StoragePlugin(HiveConf hiveConf, PluginManager pf4jManager, SabotContext context, String name) {
+    super(context, name);
     this.isCoordinator = context.isCoordinator();
     this.hiveConf = hiveConf;
     this.pf4jManager = pf4jManager;
-    this.name = name;
     this.sabotConfig = context.getConfig();
     this.hiveSettings = new HiveSettings(context.getOptionManager());
     this.optionManager = context.getOptionManager();
@@ -237,7 +236,7 @@ public class Hive3StoragePlugin implements StoragePluginCreator.PF4JStoragePlugi
       if (cause instanceof AuthorizerServiceException || cause instanceof RuntimeException) {
         throw e;
       }
-      logger.error("User: {} is trying to access Hive dataset with path: {}.", name, key, e);
+      logger.error("User: {} is trying to access Hive dataset with path: {}.", this.getName(), key, e);
     }
 
     return false;
@@ -541,13 +540,13 @@ public class Hive3StoragePlugin implements StoragePluginCreator.PF4JStoragePlugi
       tableExists = client.tableExists(schemaComponents.getDbName(), schemaComponents.getTableName());
     } catch (TException e) {
       String message = MessageFormatter.arrayFormat("Plugin '{}', database '{}', table '{}', problem checking if table exists.",
-        new String[]{name, schemaComponents.getDbName(), schemaComponents.getTableName()}).getMessage();
+        new String[]{this.getName(), schemaComponents.getDbName(), schemaComponents.getTableName()}).getMessage();
       logger.error(message, e);
       throw new ConnectorException(message, e);
     }
 
     if (tableExists) {
-      logger.debug("Plugin '{}', database '{}', table '{}', DatasetHandle returned.", name,
+      logger.debug("Plugin '{}', database '{}', table '{}', DatasetHandle returned.", this.getName(),
         schemaComponents.getDbName(), schemaComponents.getTableName());
       return Optional.of(
         HiveDatasetHandle
@@ -556,7 +555,7 @@ public class Hive3StoragePlugin implements StoragePluginCreator.PF4JStoragePlugi
             ImmutableList.of(datasetPath.getComponents().get(0), schemaComponents.getDbName(), schemaComponents.getTableName())))
           .build());
     } else {
-      logger.warn("Plugin '{}', database '{}', table '{}', DatasetHandle empty, table not found.", name,
+      logger.warn("Plugin '{}', database '{}', table '{}', DatasetHandle empty, table not found.", this.getName(),
         schemaComponents.getDbName(), schemaComponents.getTableName());
       return Optional.empty();
     }
@@ -584,7 +583,7 @@ public class Hive3StoragePlugin implements StoragePluginCreator.PF4JStoragePlugi
   public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) throws ConnectorException {
     final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
 
-    return new HiveDatasetHandleListing(client, name, HiveMetadataUtils.isIgnoreAuthzErrors(options));
+    return new HiveDatasetHandleListing(client, this.getName(), HiveMetadataUtils.isIgnoreAuthzErrors(options));
   }
 
   @Override
@@ -618,6 +617,7 @@ public class Hive3StoragePlugin implements StoragePluginCreator.PF4JStoragePlugi
         datasetHandle.getDatasetPath(),
         HiveMetadataUtils.isIgnoreAuthzErrors(options),
         HiveMetadataUtils.getMaxLeafFieldCount(options),
+        HiveMetadataUtils.getMaxNestedFieldLevels(options),
         includeComplexTypes,
         hiveConf);
 
@@ -742,17 +742,17 @@ public class Hive3StoragePlugin implements StoragePluginCreator.PF4JStoragePlugi
     }
 
     if (!isOpen.get()) {
-      logger.debug("Tried to get the state of a Hive plugin that is either not started or already closed: {}.", name);
+      logger.debug("Tried to get the state of a Hive plugin that is either not started or already closed: {}.", this.getName());
       return new SourceState(SourceStatus.bad,
         ImmutableList.of(new SourceState.Message(MessageLevel.ERROR,
-          String.format("Hive Metastore client on source %s was not started or already closed.", name))));
+          String.format("Hive Metastore client on source %s was not started or already closed.", this.getName()))));
     }
 
     try {
       processUserMetastoreClient.getDatabases(false);
       return SourceState.GOOD;
     } catch (Exception ex) {
-      logger.debug("Caught exception while trying to get status of HIVE source {}, error: ", name, ex);
+      logger.debug("Caught exception while trying to get status of HIVE source {}, error: ", this.getName(), ex);
       return new SourceState(SourceStatus.bad,
         Collections.singletonList(new SourceState.Message(MessageLevel.ERROR,
           "Failure connecting to source: " + ex.getMessage())));
@@ -952,8 +952,8 @@ public class Hive3StoragePlugin implements StoragePluginCreator.PF4JStoragePlugi
 
   private UserException buildAlreadyClosedException() {
     return UserException.sourceInBadState()
-      .message("The Hive source %s is either not started or already closed", name)
-      .addContext("name", name)
+      .message("The Hive source %s is either not started or already closed", this.getName())
+      .addContext("name", this.getName())
       .buildSilently();
   }
 }

@@ -34,6 +34,11 @@ public class HiveConfFactory {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HiveConfFactory.class);
   private static final String DREMIO_SOURCE_CONFIGURATION_SOURCE = "Dremio source configuration";
 
+  public static final String HIVE_ENABLE_ASYNC = "hive.async.enabled";
+  public static final String HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE = "hive.cache.enabledForS3AndADLSG2";
+  public static final String HIVE_ENABLE_CACHE_FOR_HDFS = "hive.cache.enabledForHDFS";
+  public static final String HIVE_MAX_HIVE_CACHE_SPACE = "hive.cache.maxspace";
+
   // Hadoop properties reference: hadoop/hadoop-common-project/hadoop-common/src/main/resources/core-default.xml
 
   // S3 Hadoop file system implementation
@@ -105,6 +110,11 @@ public class HiveConfFactory {
         setConf(hiveConf, HiveConf.ConfVars.METASTORE_KERBEROS_PRINCIPAL, config.kerberosPrincipal);
       }
     }
+
+    setConf(hiveConf, HIVE_ENABLE_ASYNC, config.enableAsync);
+    setConf(hiveConf, HIVE_ENABLE_CACHE_FOR_S3_AND_AZURE_STORAGE, config.isCachingEnabledForS3AndAzureStorage);
+    setConf(hiveConf, HIVE_ENABLE_CACHE_FOR_HDFS, config.isCachingEnabledForHDFS);
+    setConf(hiveConf, HIVE_MAX_HIVE_CACHE_SPACE, config.maxCacheSpacePct);
 
     addUserProperties(hiveConf, config);
     return hiveConf;
@@ -184,5 +194,13 @@ public class HiveConfFactory {
 
   protected static void setConf(HiveConf configuration, HiveConf.ConfVars var, boolean value) {
     setConf(configuration, var.varname, Boolean.toString(value));
+  }
+
+  private void setConf(HiveConf hiveConf, String intProperty, int intValue) {
+    hiveConf.setInt(intProperty, intValue);
+  }
+
+  private void setConf(HiveConf hiveConf, String propertyName, boolean booleanValue) {
+    hiveConf.setBoolean(propertyName, booleanValue);
   }
 }

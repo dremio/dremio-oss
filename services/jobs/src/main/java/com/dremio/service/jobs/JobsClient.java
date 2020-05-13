@@ -48,13 +48,13 @@ public class JobsClient implements Service {
 
   private final GrpcChannelBuilderFactory grpcFactory;
   private final BufferAllocator allocator;
+  private final Provider<Integer> portProvider;
 
   private ManagedChannel channel;
   private JobsServiceBlockingStub blockingStub;
   private JobsServiceStub asyncStub;
   private ChronicleBlockingStub chronicleBlockingStub;
   private FlightClient flightClient;
-  private Provider<Integer> portProvider;
 
   JobsClient(GrpcChannelBuilderFactory grpcFactory, Provider<BufferAllocator> allocator, Provider<Integer> portProvider) {
     this.grpcFactory = grpcFactory;

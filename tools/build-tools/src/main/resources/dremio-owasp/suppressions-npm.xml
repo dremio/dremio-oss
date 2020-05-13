@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+  <!-- 3rd party dev dependencies from npm packages -->
+
+  <!-- kind-of -->
+  <suppress>
+    <notes><![CDATA[
+   file name: kind-of:3.2.2
+   Validation Bypass vulnerability.
+   Since the objects used by kind-of come only from webpack, webpack-cli,
+   and http-proxy-middleware during internal build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/kind\-of@.*$</packageUrl>
+    <vulnerabilityName>1490</vulnerabilityName>
+  </suppress>
+
+  <!-- minimist -->
+  <suppress>
+    <notes><![CDATA[
+   file name: minimist:1.2.5
+   Prototype pollution vulnerability.
+   Since the arguments of minimist are set by our build and do not accept any user input,
+   an attacker can not exploit this vulnerability.
+   ]]></notes>
+    <packageUrl regex="true">^pkg:npm/minimist@.*$</packageUrl>
+    <vulnerabilityName>1179</vulnerabilityName>
+  </suppress>
+
+</suppressions>

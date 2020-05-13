@@ -24,7 +24,12 @@ import com.google.protobuf.Message;
 /**
  * A visitor that visits Formats and indicates whether this Format is Binary.
  */
-public class BinaryFormatVisitor implements FormatVisitor<Boolean> {
+public final class BinaryFormatVisitor implements FormatVisitor<Boolean> {
+  public static final BinaryFormatVisitor INSTANCE = new BinaryFormatVisitor();
+
+  private BinaryFormatVisitor() {
+  }
+
   @Override
   public Boolean visitStringFormat() throws DatastoreFatalException {
     return false;

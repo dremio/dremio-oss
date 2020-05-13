@@ -229,4 +229,49 @@ public class TestSimpleExternalSort extends BaseTestQuery {
     }
   }
 
+  /**
+   * Runs with just 10MB of memory for multiple rounds of spills.
+   * Input is in sv2 format.
+   * @throws Exception
+   */
+  @Test
+  public void testExternalSortSpillingWithSv2() throws Exception {
+    List<QueryDataBatch> results = testPhysicalFromFileWithResults("xsort/one_key_sort_descending_with_spill_sv2.json");
+    int count = 0;
+    for(QueryDataBatch b : results) {
+      if (b.getHeader().getRowCount() != 0) {
+        count += b.getHeader().getRowCount();
+      }
+    }
+    assertEquals(1000000, count);
+
+    long previousBigInt = Long.MAX_VALUE;
+
+    int recordCount = 0;
+    int batchCount = 0;
+
+    for (QueryDataBatch b : results) {
+      if (b.getHeader().getRowCount() == 0) {
+        break;
+      }
+      batchCount++;
+      RecordBatchLoader loader = new RecordBatchLoader(allocator);
+      loader.load(b.getHeader().getDef(),b.getData());
+      BigIntVector c1 = loader.getValueAccessorById(BigIntVector.class,
+        loader.getValueVectorId(new SchemaPath("blue")).getFieldIds()).getValueVector();
+
+
+      for (int i =0; i < c1.getValueCount(); i++) {
+        recordCount++;
+        assertTrue(String.format("%d > %d", previousBigInt, c1.get(i)), previousBigInt >= c1.get(i));
+        previousBigInt = c1.get(i);
+      }
+      loader.clear();
+      b.release();
+    }
+
+    assertEquals(1000000, recordCount);
+    logger.info("Sorted {} records in {} batches.", recordCount, batchCount);
+  }
+
 }

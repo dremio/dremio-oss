@@ -15,31 +15,39 @@
  */
 package com.dremio.exec.store.hive.exec;
 
+import com.dremio.exec.record.BatchSchema;
 import java.util.Collections;
 import java.util.Map;
 
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.hadoop.hive.serde2.typeinfo.BaseCharTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.store.TypeCoercion;
-import com.dremio.exec.store.parquet.ManagedSchema;
-import com.dremio.exec.store.parquet.ManagedSchemaField;
 
 /**
  * Implements the TypeCoercion interface for Hive Parquet reader
  */
 public class HiveTypeCoercion implements TypeCoercion {
+  private final Map<String, TypeInfo> typeInfoMap;
   private Map<String, Integer> varcharWidthMap = CaseInsensitiveMap.newHashMap();
+  private final boolean varcharTruncationEnabled;
 
-  HiveTypeCoercion(final ManagedSchema schema) {
-    schema.getAllFields().entrySet().stream()
-      .map(Map.Entry::getValue)
-      .filter(ManagedSchemaField::isTextField)
-      .forEach(e -> varcharWidthMap.put(e.getName(), e.getLength()));
-    varcharWidthMap = Collections.unmodifiableMap(varcharWidthMap);
+  HiveTypeCoercion(Map<String, TypeInfo> typeInfoMap, boolean varcharTruncationEnabled) {
+    this.varcharTruncationEnabled = varcharTruncationEnabled;
+    this.typeInfoMap = CaseInsensitiveMap.newImmutableMap(typeInfoMap);
+    if (varcharTruncationEnabled) {
+      typeInfoMap.entrySet().stream()
+        .filter(e -> e.getValue() instanceof BaseCharTypeInfo)
+        .forEach(e -> varcharWidthMap.put(e.getKey(), ((BaseCharTypeInfo) e.getValue()).getLength()));
+      varcharWidthMap = Collections.unmodifiableMap(varcharWidthMap);
+    }
   }
 
   @Override
@@ -51,5 +59,20 @@ public class HiveTypeCoercion implements TypeCoercion {
       majorType = majorType.toBuilder().setWidth(width).build();
     }
     return majorType;
+  }
+
+  @Override
+  public TypeCoercion getChildTypeCoercion(String fieldName, BatchSchema childSchema) {
+    Map<String, TypeInfo> childrenTypeInfoMap = CaseInsensitiveMap.newHashMap();
+
+    TypeInfo typeInfo = typeInfoMap.get(fieldName);
+    if (typeInfo instanceof StructTypeInfo) {
+      for (Field field: childSchema.getFields()) {
+        childrenTypeInfoMap.put(field.getName(), ((StructTypeInfo) typeInfo).getStructFieldTypeInfo(field.getName()));
+      }
+    } else if (typeInfo instanceof ListTypeInfo) {
+      childrenTypeInfoMap.put(childSchema.getFields().get(0).getName(), ((ListTypeInfo) typeInfo).getListElementTypeInfo());
+    }
+    return new HiveTypeCoercion(childrenTypeInfoMap, varcharTruncationEnabled);
   }
 }

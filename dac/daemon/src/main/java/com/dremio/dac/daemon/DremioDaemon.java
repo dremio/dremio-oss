@@ -142,9 +142,11 @@ public class DremioDaemon {
         }
 
         final DACModule module = sabotConfig.getInstance(DAEMON_MODULE_CLASS, DACModule.class, DACDaemonModule.class);
-        final DACDaemon daemon = DACDaemon.newDremioDaemon(config, classPathScan, module);
-        daemon.init();
-        daemon.closeOnJVMShutDown();
+        try (final DACDaemon daemon = DACDaemon.newDremioDaemon(config, classPathScan, module)) {
+          daemon.init();
+          daemon.closeOnJVMShutDown();
+          daemon.awaitClose();
+        }
       } catch (final Throwable ex) {
         ProcessExit.exit(ex, "Failure while starting services.", 4);
       }

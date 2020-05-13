@@ -257,11 +257,6 @@ public class DremioMaterialization {
     return schema;
   }
 
-  @Override
-  public boolean equals(Object other) {
-    return this == other;
-  }
-
   /**
    * The original materialization before any transformations were done.
    * @return The original materialization (possibly the same as this object).

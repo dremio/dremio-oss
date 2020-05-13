@@ -35,12 +35,10 @@ public final class LegacyStoreBuilderHelper<K, V> {
   private Format<K> keyFormat;
   private Format<V> valueFormat;
   private Class<? extends VersionExtractor<V>> versionExtractorClass;
-  private Class<? extends DocumentConverter<K, V>> documentConverterClass;
+  private DocumentConverter<K, V> documentConverter;
 
   public LegacyStoreBuilderHelper() {
-    info
-      .setDocumentConverterClassName("")
-      .setVersionExtractorClassName("");
+    info.setVersionExtractorClassName("");
   }
 
   public LegacyStoreBuilderHelper<K, V> name(String name) {
@@ -69,15 +67,14 @@ public final class LegacyStoreBuilderHelper<K, V> {
     return this;
   }
 
-  public LegacyStoreBuilderHelper<K, V> documentConverter(Class<? extends DocumentConverter<K, V>> documentConverterClass) {
-    Preconditions.checkNotNull(documentConverterClass);
-    this.documentConverterClass = documentConverterClass;
-    info.setDocumentConverterClassName(documentConverterClass.getName());
+  public LegacyStoreBuilderHelper<K, V> documentConverter(DocumentConverter<K, V> documentConverter) {
+    Preconditions.checkNotNull(documentConverter);
+    this.documentConverter = documentConverter;
     return this;
   }
 
   public boolean hasDocumentConverter() {
-    return this.documentConverterClass != null;
+    return this.documentConverter != null;
   }
 
   public String getName() {
@@ -103,7 +100,7 @@ public final class LegacyStoreBuilderHelper<K, V> {
   }
 
   public DocumentConverter<K, V> getDocumentConverter() {
-    return DataStoreUtils.getInstance(documentConverterClass);
+    return documentConverter;
   }
 
   public VersionExtractor<V> tryGetVersionExtractor() {

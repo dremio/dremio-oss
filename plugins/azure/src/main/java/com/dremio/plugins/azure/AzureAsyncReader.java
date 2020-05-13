@@ -17,7 +17,6 @@
 package com.dremio.plugins.azure;
 
 import static com.dremio.common.utils.PathUtils.removeLeadingSlash;
-import static com.dremio.plugins.azure.utils.AzureAsyncHttpClientUtils.Endpoint.BLOB;
 
 import java.io.FileNotFoundException;
 import java.util.concurrent.CompletableFuture;
@@ -47,7 +46,7 @@ public class AzureAsyncReader extends ExponentialBackoff implements AutoCloseabl
 
   private static final Logger logger = LoggerFactory.getLogger(AzureAsyncReader.class);
   private final AsyncHttpClient asyncHttpClient;
-  private AzureAuthTokenProvider tokenGenerator;
+  private AzureAuthTokenProvider authProvider;
   private final Path path;
   private final String version;
   private final String url;
@@ -55,15 +54,15 @@ public class AzureAsyncReader extends ExponentialBackoff implements AutoCloseabl
 
   public AzureAsyncReader(final String accountName,
                           final Path path,
-                          final AzureAuthTokenProvider tokenGenerator,
+                          final AzureAuthTokenProvider authProvider,
                           final String version,
                           final boolean isSecure,
                           final AsyncHttpClient asyncHttpClient) {
-    this.tokenGenerator = tokenGenerator;
+    this.authProvider = authProvider;
     this.path = path;
     this.version = AzureAsyncHttpClientUtils.toHttpDateFormat(Long.parseLong(version));
     this.asyncHttpClient = asyncHttpClient;
-    final String baseURL = AzureAsyncHttpClientUtils.getBaseEndpointURL(accountName, BLOB, isSecure);
+    final String baseURL = AzureAsyncHttpClientUtils.getBaseEndpointURL(accountName, isSecure);
     final String container = ContainerFileSystem.getContainerName(path);
     final String subPath = removeLeadingSlash(ContainerFileSystem.pathWithoutContainer(path).toString());
     this.url = String.format("%s/%s/%s", baseURL, container, AzureAsyncHttpClientUtils.encodeUrl(subPath));
@@ -84,23 +83,24 @@ public class AzureAsyncReader extends ExponentialBackoff implements AutoCloseabl
     }
 
     metrics.startTimer("update-token");
-    if (tokenGenerator.checkAndUpdateToken()) {
+    if (authProvider.checkAndUpdateToken()) {
       metrics.incrementCounter("new-client");
     }
 
     metrics.endTimer("update-token");
     long rangeEnd = offset + len - 1L;
     Request req = AzureAsyncHttpClientUtils.newDefaultRequestBuilder()
-      .addHeader("x-ms-range", String.format("bytes=%d-%d", offset, rangeEnd))
+      .addHeader("Range", String.format("bytes=%d-%d", offset, rangeEnd))
       .addHeader("If-Unmodified-Since", version)
       .setUrl(url)
       .build();
-    req.getHeaders().add("Authorization", tokenGenerator.getAuthzHeaderValue(req));
+    req.getHeaders().add("Authorization", authProvider.getAuthzHeaderValue(req));
 
     logger.debug("[{}] Req: URL {} {} {}", threadName, req.getUri(), req.getHeaders().get("x-ms-client-request-id"),
-      req.getHeaders().get("x-ms-range"));
+      req.getHeaders().get("Range"));
 
     metrics.startTimer("request");
+    dst.writerIndex(dstOffset);
     return asyncHttpClient.executeRequest(req, new BufferBasedCompletionHandler(dst))
       .toCompletableFuture()
       .whenComplete((response, throwable) -> {
@@ -122,7 +122,7 @@ public class AzureAsyncReader extends ExponentialBackoff implements AutoCloseabl
         if (throwable.getMessage().contains("ConditionNotMet")) {
           errorFuture.completeExceptionally(new FileNotFoundException("Version of file has changed " + path));
           return errorFuture;
-        } else if (throwable.getMessage().contains("BlobNotFound")) {
+        } else if (throwable.getMessage().contains("PathNotFound")) {
           errorFuture.completeExceptionally(new FileNotFoundException("File " + path
             + " not found: " + throwable.getMessage()));
           return errorFuture;
@@ -133,7 +133,6 @@ public class AzureAsyncReader extends ExponentialBackoff implements AutoCloseabl
           return errorFuture;
         }
         metrics.startTimer("backoffwait-" + retryAttemptNum);
-        dst.writerIndex(dstOffset);
         backoffWait(retryAttemptNum);
         metrics.endTimer("backoffwait-" + retryAttemptNum);
 

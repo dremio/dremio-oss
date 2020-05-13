@@ -56,15 +56,17 @@ public class FragmentStats {
   private final Stopwatch setupWatch = Stopwatch.createUnstarted();
   private final Stopwatch finishWatch = Stopwatch.createUnstarted();
   private Map<SharedResourceType, Long> perResourceBlockedDurations;
+  private final long warnIOTimeThreshold;
 
   private boolean notStartedYet = true;
 
-  public FragmentStats(BufferAllocator allocator, FragmentHandle handle, NodeEndpoint endpoint) {
+  public FragmentStats(BufferAllocator allocator, FragmentHandle handle, NodeEndpoint endpoint, long warnIOTimeThreshold) {
     this.startTime = System.currentTimeMillis();
     this.handle = handle;
     this.endpoint = endpoint;
     this.allocator = allocator;
     this.perResourceBlockedDurations = Collections.synchronizedMap(new EnumMap<SharedResourceType, Long>(SharedResourceType.class));
+    this.warnIOTimeThreshold = warnIOTimeThreshold;
   }
 
   public void addMetricsToStatus(MinorFragmentProfile.Builder prfB) {
@@ -113,7 +115,7 @@ public class FragmentStats {
    * @return a new operator statistics holder
    */
   public OperatorStats newOperatorStats(final OpProfileDef profileDef, final BufferAllocator allocator) {
-    final OperatorStats stats = new OperatorStats(profileDef, allocator);
+    final OperatorStats stats = new OperatorStats(profileDef, allocator, warnIOTimeThreshold);
     if(profileDef.operatorType != -1) {
       operators.add(stats);
     }

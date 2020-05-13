@@ -19,6 +19,7 @@ import static com.dremio.plugins.s3.store.S3StoragePlugin.ACCESS_KEY_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.ASSUME_ROLE_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.EC2_METADATA_PROVIDER;
 import static com.dremio.plugins.s3.store.S3StoragePlugin.NONE_PROVIDER;
+import static org.apache.hadoop.fs.s3a.Constants.ALLOW_REQUESTER_PAYS;
 import static org.apache.hadoop.fs.s3a.Constants.ENDPOINT;
 import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
 
@@ -52,6 +53,7 @@ import org.slf4j.LoggerFactory;
 
 import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.Region;
 import com.dremio.common.exceptions.UserException;
@@ -89,7 +91,7 @@ import software.amazon.awssdk.services.sts.model.StsException;
  * FileSystem implementation that treats multiple s3 buckets as a unified namespace
  */
 public class S3FileSystem extends ContainerFileSystem implements MayProvideAsyncStream {
-
+  public static final String S3_PERMISSION_ERROR_MSG = "Access was denied by S3";
   static final String COMPATIBILITY_MODE = "dremio.s3.compat";
   static final String REGION_OVERRIDE = "dremio.s3.region";
 
@@ -312,7 +314,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     // The AWS HTTP client re-encodes a leading slash resulting in invalid keys, so strip them.
     pathStr = (pathStr.startsWith("/")) ? pathStr.substring(1) : pathStr;
     //return new S3AsyncByteReader(getAsyncClient(bucket), bucket, pathStr);
-    return new S3AsyncByteReaderUsingSyncClient(getSyncClient(bucket), bucket, pathStr, version);
+    return new S3AsyncByteReaderUsingSyncClient(getSyncClient(bucket), bucket, pathStr, version, isRequesterPays());
   }
 
   private S3Client getSyncClient(String bucket) throws IOException {
@@ -397,29 +399,39 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
             // if this is compatibility mode and we have an endpoint, just use that.
             targetEndpoint = endpoint.get();
           } else {
-            final String bucketRegion = s3.getBucketLocation(bucketName);
-            final String fallbackEndpoint = endpoint.orElseGet(() -> String.format("%ss3.%s.amazonaws.com", getHttpScheme(getConf()), bucketRegion));
-
-            String regionEndpoint = fallbackEndpoint;
             try {
-              Region region = Region.fromValue(bucketRegion);
-              com.amazonaws.regions.Region awsRegion = region.toAWSRegion();
-              if (awsRegion != null) {
-                regionEndpoint = awsRegion.getServiceEndpoint("s3");
+              final String bucketRegion = s3.getBucketLocation(bucketName);
+              final String fallbackEndpoint = endpoint.orElseGet(() -> String.format("%ss3.%s.amazonaws.com", getHttpScheme(getConf()), bucketRegion));
+
+              String regionEndpoint = fallbackEndpoint;
+              try {
+                Region region = Region.fromValue(bucketRegion);
+                com.amazonaws.regions.Region awsRegion = region.toAWSRegion();
+                if (awsRegion != null) {
+                  regionEndpoint = awsRegion.getServiceEndpoint("s3");
+                }
+              } catch (IllegalArgumentException iae) {
+                // try heuristic mapping if not found
+                regionEndpoint = fallbackEndpoint;
+                logger.warn("Unknown or unmapped region {} for bucket {}. Will use following endpoint: {}",
+                  bucketRegion, bucketName, regionEndpoint);
               }
-            } catch (IllegalArgumentException iae) {
-              // try heuristic mapping if not found
-              regionEndpoint = fallbackEndpoint;
-              logger.warn("Unknown or unmapped region {} for bucket {}. Will use following endpoint: {}",
-                bucketRegion, bucketName, regionEndpoint);
+              // it could be null because no mapping from Region to aws region or there is no such region is the map of endpoints
+              // not sure if latter is possible
+              if (regionEndpoint == null) {
+                logger.error("Could not get AWSRegion for bucket {}. Will use following fs.s3a.endpoint: {} ",
+                  bucketName, fallbackEndpoint);
+              }
+              targetEndpoint = (regionEndpoint != null) ? regionEndpoint : fallbackEndpoint;
+
+            } catch (AmazonS3Exception aex) {
+              if (aex.getStatusCode() == 403) {
+                throw UserException.permissionError(aex)
+                  .message(S3_PERMISSION_ERROR_MSG)
+                  .build(logger);
+              }
+              throw aex;
             }
-            // it could be null because no mapping from Region to aws region or there is no such region is the map of endpoints
-            // not sure if latter is possible
-            if (regionEndpoint == null) {
-              logger.error("Could not get AWSRegion for bucket {}. Will use following fs.s3a.endpoint: {} ",
-                bucketName, fallbackEndpoint);
-            }
-            targetEndpoint = (regionEndpoint != null) ? regionEndpoint : fallbackEndpoint;
           }
 
           String location = S3_URI_SCHEMA + bucketName + "/";
@@ -464,7 +476,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         S3FileSystem.COMPATIBILITY_MODE,
         S3FileSystem.REGION_OVERRIDE,
         Constants.ASSUMED_ROLE_ARN,
-        Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER
+        Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER,
+        Constants.ALLOW_REQUESTER_PAYS
       );
 
 
@@ -577,5 +590,9 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
 
   private boolean isCompatMode() {
     return getConf().getBoolean(COMPATIBILITY_MODE, false);
+  }
+
+  private boolean isRequesterPays() {
+    return getConf().getBoolean(ALLOW_REQUESTER_PAYS, false);
   }
 }

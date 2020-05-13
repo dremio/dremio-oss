@@ -28,9 +28,6 @@ public class EndpointHelper {
     if (endpoint.hasAddress()) {
       builder.setAddress(endpoint.getAddress());
     }
-    if (endpoint.hasUserPort()) {
-      builder.setUserPort(endpoint.getUserPort());
-    }
     if (endpoint.hasFabricPort()) {
       builder.setFabricPort(endpoint.getFabricPort());
     }

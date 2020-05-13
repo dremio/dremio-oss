@@ -385,7 +385,7 @@ public final class BackupRestoreUtil {
     try {
       CompletableFuture.allOf(futures.toArray(new CompletableFuture[futures.size()])).get();
     } catch (InterruptedException e) {
-      new RuntimeException(e);
+      throw new RuntimeException(e);
     } catch (ExecutionException e) {
       Throwables.propagateIfPossible(e.getCause(), IOException.class, NamespaceException.class);
       throw new RuntimeException(e.getCause());

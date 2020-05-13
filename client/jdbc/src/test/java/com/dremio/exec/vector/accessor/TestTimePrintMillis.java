@@ -15,29 +15,50 @@
  */
 package com.dremio.exec.vector.accessor;
 
-import org.joda.time.LocalDateTime;
+import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
+
 import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.exec.vector.accessor.sql.TimePrintMillis;
 
+
 public class TestTimePrintMillis {
+  final int hour = 5;
+  final int minute = 6;
+  final int second = 7;
 
   @Test
-  public void testPrintingMillis() {
+  public void testPrintingMillisNoLeadingZeroes() {
     // testing the regular case where the precision of the millisecond is 3
-    org.joda.time.LocalDateTime dateTime = new LocalDateTime(2017, 11, 7, 5, 5, 5, 999);
+    LocalDateTime dateTime = LocalDateTime.of(2017, 11, 7, hour, minute, second, (int)TimeUnit.MILLISECONDS.toNanos(999));
     TimePrintMillis time = new TimePrintMillis(dateTime);
     Assert.assertTrue(time.toString().endsWith(".999"));
+    Assert.assertEquals(time.getHours(), hour);
+    Assert.assertEquals(time.getMinutes(), minute);
+    Assert.assertEquals(time.getSeconds(), second);
+  }
 
+  @Test
+  public void testPrintingMillisOneLeadingZeroes() {
     // test case where one leading zero needs to be added
-    dateTime = new LocalDateTime(2017, 11, 7, 5, 5, 5, 99);
-    time = new TimePrintMillis(dateTime);
+    LocalDateTime dateTime = LocalDateTime.of(2017, 11, 7, hour, minute, second, (int)TimeUnit.MILLISECONDS.toNanos(99));
+    TimePrintMillis time = new TimePrintMillis(dateTime);
     Assert.assertTrue(time.toString().endsWith(".099"));
+    Assert.assertEquals(time.getHours(), hour);
+    Assert.assertEquals(time.getMinutes(), minute);
+    Assert.assertEquals(time.getSeconds(), second);
+  }
 
+  @Test
+  public void testPrintingMillisTwoLeadingZeroes() {
     // test case where two leading zeroes needs to be added
-    dateTime = new LocalDateTime(2017, 11, 7, 5, 5, 5, 1);
-    time = new TimePrintMillis(dateTime);
+    LocalDateTime dateTime = LocalDateTime.of(2017, 11, 7, hour, minute, second, (int)TimeUnit.MILLISECONDS.toNanos(1));
+    TimePrintMillis time = new TimePrintMillis(dateTime);
     Assert.assertTrue(time.toString().endsWith(".001"));
+    Assert.assertEquals(time.getHours(), hour);
+    Assert.assertEquals(time.getMinutes(), minute);
+    Assert.assertEquals(time.getSeconds(), second);
   }
 }

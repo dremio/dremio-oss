@@ -27,13 +27,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.VM;
 import com.dremio.concurrent.Runnables;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.StoragePlugin;
-import com.dremio.exec.util.DebugCheck;
 import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.listing.DatasetListingService;
@@ -102,7 +102,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     this.systemNamespace = systemNamespace;
     this.scheduler = scheduler;
     this.datasetListing = datasetListingService;
-    this.startupWait = DebugCheck.IS_DEBUG ? TimeUnit.DAYS.toMillis(365) : optionManager.getOption(CatalogOptions.STARTUP_WAIT_MAX);
+    this.startupWait = VM.isDebugEnabled() ? TimeUnit.DAYS.toMillis(365) : optionManager.getOption(CatalogOptions.STARTUP_WAIT_MAX);
     this.monitor = monitor;
   }
 
@@ -366,7 +366,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
   }
 
   private long createWaitMillis() {
-    if(DebugCheck.IS_DEBUG) {
+    if (VM.isDebugEnabled()) {
       return TimeUnit.DAYS.toMillis(365);
     }
     return optionManager.getOption(CatalogOptions.STORAGE_PLUGIN_CREATE_MAX);

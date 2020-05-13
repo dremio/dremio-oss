@@ -39,7 +39,7 @@
 <suppress>
   <notes><![CDATA[
   file name: calcite-avatica-1.6.0.jar (shaded: com.fasterxml.jackson.core:jackson-databind:2.1.1)
-  jackson deserialization not used
+  The version of Jackson that is shaded for Avatica is not used in Dremio codepath
   ]]></notes>
   <sha1>e36aa7c18e6b83482086df24040fbfe2e5f0f753</sha1>
   <cve>CVE-2017-15095</cve>
@@ -80,11 +80,14 @@
   <cve>CVE-2020-10673</cve>
   <cve>CVE-2020-10968</cve>
   <cve>CVE-2020-10969</cve>
+  <cve>CVE-2020-11111</cve>
+  <cve>CVE-2020-11112</cve>
+  <cve>CVE-2020-11113</cve>
 </suppress>
 <suppress>
   <notes><![CDATA[
   file name: avatica-1.12.0.jar (shaded: com.fasterxml.jackson.core:jackson-databind:2.9.4)
-  jackson deserialization not used
+  The version of Jackson that is shaded for Avatica is not used in Dremio codepath
   ]]></notes>
   <sha1>805af52c13c9b96798b7fb11f594204f5a667b5e</sha1>
   <cve>CVE-2018-1000873</cve>
@@ -121,6 +124,9 @@
   <cve>CVE-2020-10673</cve>
   <cve>CVE-2020-10968</cve>
   <cve>CVE-2020-10969</cve>
+  <cve>CVE-2020-11111</cve>
+  <cve>CVE-2020-11112</cve>
+  <cve>CVE-2020-11113</cve>
 
 </suppress>
 
@@ -258,7 +264,7 @@
 </suppress>
 <suppress>
   <notes><![CDATA[
-  file name: hive-exec-2.1.1-dremio-201909161537170757-9d964f7.jar (shaded: com.google.guava:guava:14.0.1)
+  file name: hive-exec-2.1.1-dremio-202004220420450487-2c6606c.jar (shaded: com.google.guava:guava:14.0.1)
   used by hive but not applicable (no serialization)
   ]]></notes>
   <sha1>7b4c8f117c11a8f1fcaf4f1b0fd07cbe756a1430</sha1>
@@ -318,17 +324,18 @@
 <suppress>
   <notes><![CDATA[
   file name: hbase-shaded-netty-2.2.1.jar (shaded: io.netty:netty-all:4.1.34.Final)
-  http protocol not used
+  The version of Netty that is shaded for HBase is not used in Dremio codepath
   ]]></notes>
   <sha1>8f384d50552ae752e21f7f408076f66d5673c711</sha1>
   <cve>CVE-2019-16869</cve>
   <cve>CVE-2019-20444</cve>
   <cve>CVE-2019-20445</cve>
+  <cve>CVE-2020-11612</cve>
 </suppress>
 <suppress>
   <notes><![CDATA[
   file name: hbase-protocol-shaded-2.2.0.jar (shaded: com.fasterxml.jackson.core:jackson-databind:2.4.0)
-  rest api not used
+  The version of Jackson that is shaded for HBase is not used in Dremio codepath
   ]]></notes>
   <sha1>3c0d06b6c0a9f4135fcf5c5557c751c0cd066c0c</sha1>
   <cve>CVE-2017-15095</cve>
@@ -369,6 +376,9 @@
   <cve>CVE-2020-10673</cve>
   <cve>CVE-2020-10968</cve>
   <cve>CVE-2020-10969</cve>
+  <cve>CVE-2020-11111</cve>
+  <cve>CVE-2020-11112</cve>
+  <cve>CVE-2020-11113</cve>
   <vulnerabilityName>CWE-611: Improper Restriction of XML External Entity Reference ('XXE')</vulnerabilityName>
 </suppress>
 

@@ -62,8 +62,8 @@ public class HybridJobsService implements JobsService {
 
   private final GrpcChannelBuilderFactory grpcFactory;
   private final Provider<BufferAllocator> allocator;
-  private Provider<Integer> portProvider = null;
 
+  private volatile Provider<Integer> portProvider = null;
   private volatile JobsClient jobsClient = null;
 
   public HybridJobsService(

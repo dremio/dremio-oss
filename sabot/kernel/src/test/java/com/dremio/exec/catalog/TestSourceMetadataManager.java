@@ -64,6 +64,7 @@ import com.google.common.collect.Lists;
 
 public class TestSourceMetadataManager {
   private static final int MAX_COLUMNS = 800;
+  private static final int MAX_NESTED_LEVELS = 16;
   private OptionManager optionManager;
 
   @Rule
@@ -94,7 +95,7 @@ public class TestSourceMetadataManager {
     }).when(ns).deleteDataset(any(), anyString());
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
-    when(sp.getDatasetHandle(any(), any()))
+    when(sp.getDatasetHandle(any(), any(), any()))
         .thenReturn(Optional.empty());
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
@@ -104,6 +105,8 @@ public class TestSourceMetadataManager {
         .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
     when(msp.getMaxMetadataColumns())
       .thenReturn(MAX_COLUMNS);
+    when(msp.getMaxNestedLevels())
+      .thenReturn(MAX_NESTED_LEVELS);
     when(msp.getNamespaceService())
       .thenReturn(ns);
 
@@ -135,7 +138,7 @@ public class TestSourceMetadataManager {
         .deleteDataset(any(), anyString());
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
-    when(sp.getDatasetHandle(any(), any()))
+    when(sp.getDatasetHandle(any(), any(), any()))
         .thenReturn(Optional.empty());
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
@@ -145,6 +148,8 @@ public class TestSourceMetadataManager {
         .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
     when(msp.getMaxMetadataColumns())
       .thenReturn(MAX_COLUMNS);
+    when(msp.getMaxNestedLevels())
+      .thenReturn(MAX_NESTED_LEVELS);
     when(msp.getNamespaceService())
       .thenReturn(ns);
 
@@ -183,7 +188,7 @@ public class TestSourceMetadataManager {
     }).when(ns).deleteDataset(any(), anyString());
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
-    when(sp.getDatasetHandle(any(), any()))
+    when(sp.getDatasetHandle(any(), any(), any()))
         .thenReturn(Optional.empty());
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
@@ -193,6 +198,8 @@ public class TestSourceMetadataManager {
         .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
     when(msp.getMaxMetadataColumns())
       .thenReturn(MAX_COLUMNS);
+    when(msp.getMaxNestedLevels())
+      .thenReturn(MAX_NESTED_LEVELS);
     when(msp.getNamespaceService())
       .thenReturn(ns);
 
@@ -222,7 +229,7 @@ public class TestSourceMetadataManager {
         .deleteDataset(any(), anyString());
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
-    when(sp.getDatasetHandle(any(), any()))
+    when(sp.getDatasetHandle(any(), any(), any()))
         .thenReturn(Optional.empty());
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
@@ -232,6 +239,8 @@ public class TestSourceMetadataManager {
         .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
     when(msp.getMaxMetadataColumns())
         .thenReturn(MAX_COLUMNS);
+    when(msp.getMaxNestedLevels())
+      .thenReturn(MAX_NESTED_LEVELS);
     when(msp.getNamespaceService())
         .thenReturn(ns);
 
@@ -258,13 +267,13 @@ public class TestSourceMetadataManager {
     when(ns.getDataset(any())).thenReturn(null);
 
     DatasetMetadataSaver saver = mock(DatasetMetadataSaver.class);
-    doNothing().when(saver).saveDataset(any(), anyBoolean(), any());
+    doNothing().when(saver).saveDataset(any(), anyBoolean(), any(), any());
     when(ns.newDatasetMetadataSaver(any(), any(), any(), anyLong()))
         .thenReturn(saver);
 
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
     DatasetHandle handle = () -> new EntityPath(Lists.newArrayList("one"));
-    when(sp.getDatasetHandle(any(), any()))
+    when(sp.getDatasetHandle(any(), any(), any()))
         .thenReturn(Optional.of(handle));
     when(sp.provideSignature(any(), any()))
         .thenReturn(BytesOutput.NONE);
@@ -273,8 +282,8 @@ public class TestSourceMetadataManager {
     doAnswer(invocation -> {
       forced[0] = true;
       return DatasetMetadata.of(DatasetStats.of(0, 0), new Schema(new ArrayList<>()));
-    }).when(sp).getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class), any());
-    when(sp.listPartitionChunks(any(), any()))
+    }).when(sp).getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class), any(), any());
+    when(sp.listPartitionChunks(any(), any(), any()))
         .thenReturn(Collections::emptyIterator);
     when(sp.validateMetadata(any(), any(), any()))
         .thenReturn(SupportsReadSignature.MetadataValidity.VALID);
@@ -286,6 +295,8 @@ public class TestSourceMetadataManager {
         .thenReturn(new MetadataPolicy().setDeleteUnavailableDatasets(false));
     when(msp.getMaxMetadataColumns())
         .thenReturn(MAX_COLUMNS);
+    when(msp.getMaxNestedLevels())
+      .thenReturn(MAX_NESTED_LEVELS);
     when(msp.getNamespaceService()).thenReturn(ns);
 
     //noinspection unchecked
@@ -321,13 +332,13 @@ public class TestSourceMetadataManager {
     ExtendedStoragePlugin mockStoragePlugin = mock(ExtendedStoragePlugin.class);
       when(mockStoragePlugin.listDatasetHandles())
         .thenReturn(Collections::emptyIterator);
-      when(mockStoragePlugin.getDatasetHandle(eq(capitalPath), any()))
+      when(mockStoragePlugin.getDatasetHandle(eq(capitalPath), any(), any()))
         .thenReturn(Optional.empty());
-      when(mockStoragePlugin.getDatasetHandle(eq(originalPath), any()))
+      when(mockStoragePlugin.getDatasetHandle(eq(originalPath), any(), any()))
         .thenReturn(Optional.of(datasetHandle));
       when(mockStoragePlugin.getState())
         .thenReturn(SourceState.GOOD);
-      when(mockStoragePlugin.listPartitionChunks(any(), any()))
+      when(mockStoragePlugin.listPartitionChunks(any(), any(), any()))
         .thenReturn(Collections::emptyIterator);
       when(mockStoragePlugin.validateMetadata(any(), any(), any()))
         .thenReturn(SupportsReadSignature.MetadataValidity.VALID);
@@ -337,14 +348,14 @@ public class TestSourceMetadataManager {
       doAnswer(invocation -> {
         forced[0] = true;
         return DatasetMetadata.of(DatasetStats.of(0, 0), new Schema(new ArrayList<>()));
-      }).when(mockStoragePlugin).getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class), any());
+      }).when(mockStoragePlugin).getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class), any(), any());
 
     NamespaceService ns = mock(NamespaceService.class);
     when(ns.getDataset(any()))
       .thenReturn(MetadataObjectsUtils.newShallowConfig(datasetHandle));
 
     DatasetMetadataSaver saver = mock(DatasetMetadataSaver.class);
-    doNothing().when(saver).saveDataset(any(), anyBoolean(), any());
+    doNothing().when(saver).saveDataset(any(), anyBoolean(), any(), any());
     when(ns.newDatasetMetadataSaver(any(), any(), any(), anyLong()))
       .thenReturn(saver);
 
@@ -382,16 +393,16 @@ public class TestSourceMetadataManager {
     ExtendedStoragePlugin sp = mock(ExtendedStoragePlugin.class);
 
     DatasetHandle handle = () -> new EntityPath(Lists.newArrayList("one"));
-    when(sp.getDatasetHandle(any(), any()))
+    when(sp.getDatasetHandle(any(), any(), any()))
         .thenReturn(Optional.of(handle));
-    when(sp.listPartitionChunks(any(), any()))
+    when(sp.listPartitionChunks(any(), any(), any()))
         .thenReturn(Collections::emptyIterator);
 
     when(sp.validateMetadata(any(), eq(handle), any()))
         .thenReturn(SupportsReadSignature.MetadataValidity.INVALID);
     doThrow(new ColumnCountTooLargeException(1))
         .when(sp)
-        .getDatasetMetadata(eq(handle), any(PartitionChunkListing.class), any());
+        .getDatasetMetadata(eq(handle), any(PartitionChunkListing.class), any(), any());
 
     ManagedStoragePlugin.MetadataBridge msp = mock(ManagedStoragePlugin.MetadataBridge.class);
     when(msp.getMetadata())

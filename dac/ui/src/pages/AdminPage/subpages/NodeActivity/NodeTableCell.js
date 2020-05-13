@@ -16,6 +16,9 @@
 import { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 
+import EllipsedText from '@app/components/EllipsedText';
+import { circle, container, nameContainer, nodeName, typeContainer } from './NodeTableCell.less';
+
 export const NodeTableCellColors = {
   GREEN: 'green',
   GREY: 'grey'
@@ -26,7 +29,10 @@ export default class NodeTableCell extends PureComponent {
   static propTypes = {
     name: PropTypes.string,
     status: PropTypes.string,
-    tooltip: PropTypes.string
+    tooltip: PropTypes.string,
+    isMaster: PropTypes.bool,
+    isCoordinator: PropTypes.bool,
+    isExecutor: PropTypes.bool
   };
   // these colors are unique for this component (moved from old NodeActivityView)
   static colors = {
@@ -35,30 +41,33 @@ export default class NodeTableCell extends PureComponent {
   };
 
   render() {
-    const { name, status = NodeTableCellColors.GREEN, tooltip = la('Active') } = this.props;
+    const { name, status = NodeTableCellColors.GREEN, tooltip = la('Active'), isExecutor, isMaster, isCoordinator }
+      = this.props;
 
     const color = NodeTableCell.colors[status];
-    const style = {...styles.circle, background: color};
+
+    let type = '';
+    if (isCoordinator) {
+      type = isMaster ? 'master coordinator' : 'coordinator';
+    }
+
+    if (isExecutor) {
+      if (isCoordinator) {
+        type += ', ';
+      }
+      type += 'executor';
+    }
 
     return (
-      <span style={styles.node}>
-        <span style={style} title={tooltip}>{status}</span><span>{name}</span>
-      </span>
+      <div className={container}>
+        <div style={{width: 12}}>
+          <div className={circle} style={{background: color}} title={tooltip}></div>
+        </div>
+        <div className={nameContainer}>
+          <EllipsedText text={name} className={nodeName} />
+          <div className={typeContainer}>{type}</div>
+        </div>
+      </div>
     );
   }
-
 }
-
-const styles = {
-  node: {
-    display: 'flex',
-    alignItems: 'center'
-  },
-  circle: {
-    width: 12,
-    height: 12,
-    margin: '0 10px',
-    borderRadius: '50%',
-    textIndent: '-9999px'
-  }
-};

@@ -386,6 +386,27 @@ public class TestFunctionsQuery extends BaseTestQuery {
   }
 
   @Test
+  public void testLiteralCastToDecimal11() throws Exception { // suffix 11 denotes precision=1 and scale=1
+    testBuilder()
+      .sqlQuery( "SELECT CAST( 123456.799 AS DECIMAL(1,1 )) AS ShouldBeZERO ")
+      .unOrdered()
+      .baselineColumns("ShouldBeZERO")
+      .baselineValues(new BigDecimal("0.0"))
+      .go();
+  }
+
+  @Test
+  public void testCastToDecimal11() throws Exception { // suffix 11 denotes precision=1 and scale=1
+    testBuilder()
+      .sqlQuery( "SELECT cast(columns[0] as Decimal(1,1)) as ShouldBeZERO "
+                 + "FROM cp.\"decimal/cast_decimal_11.csv\"")
+      .unOrdered()
+      .baselineColumns("ShouldBeZERO")
+      .baselineValues(new BigDecimal("0.0"))
+      .go();
+  }
+
+  @Test
   public void testLiteralCastToDOUBLEYieldsDOUBLE() throws Exception {
     testBuilder()
     .sqlQuery( "SELECT CAST( 1.25 AS DOUBLE PRECISION ) AS ShouldBeDOUBLE "

@@ -29,6 +29,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.QueryIdHelper;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorStats;
@@ -111,6 +112,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
   private static final int THRESHOLD_BLOCKS = 2;
   private VectorizedHashAggPartitionSerializable inProgressSpill;
   private final OperatorStats operatorStats;
+  private final long warnMaxSpillTime;
 
   public VectorizedHashAggPartitionSpillHandler(
     final VectorizedHashAggPartition[] hashAggPartitions,
@@ -146,6 +148,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
     this.minimizeSpilledPartitions = minimizeSpilledPartitions;
     this.inProgressSpill = null;
     this.operatorStats = stats;
+    this.warnMaxSpillTime = optionManager.getOption(ExecConstants.SPILL_IO_WARN_MAX_RUNTIME_MS);
   }
 
   /**
@@ -411,7 +414,8 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
     final SpillFile partitionSpillFile = spillFileHandle.partitionSpillFile;
     final FSDataOutputStream partitionSpillFileStream = spillFileHandle.partitionSpillFileStream;
 
-    final VectorizedHashAggPartitionSerializable partitionSerializable = new VectorizedHashAggPartitionSerializable(victimPartition, this.operatorStats);
+    final VectorizedHashAggPartitionSerializable partitionSerializable = new VectorizedHashAggPartitionSerializable(victimPartition,
+      this.operatorStats, this.warnMaxSpillTime);
     /* spill the partition -- done in 1 or more batches/chunks */
     partitionSerializable.writeToStream(partitionSpillFileStream);
     /* track number of spills */
@@ -534,7 +538,8 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
     final FSDataOutputStream partitionSpillFileStream = spillFileHandle.partitionSpillFileStream;
 
     if (inProgressSpill == null) {
-      inProgressSpill = new VectorizedHashAggPartitionSerializable(victimPartition, this.operatorStats);
+      inProgressSpill = new VectorizedHashAggPartitionSerializable(victimPartition, this.operatorStats,
+        this.warnMaxSpillTime);
     }
 
     /* spill a single batch from victim partition */
@@ -806,7 +811,8 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
        */
       final VectorizedHashAggPartition inmemoryPartition = partitionToSpill.getInmemoryPartitionBackPointer();
       final SpillFile partitionSpillFile = partitionToSpill.getSpillFile();
-      final VectorizedHashAggPartitionSerializable partitionSerializable = new VectorizedHashAggPartitionSerializable(inmemoryPartition, this.operatorStats);
+      final VectorizedHashAggPartitionSerializable partitionSerializable = new VectorizedHashAggPartitionSerializable(inmemoryPartition,
+        this.operatorStats, this.warnMaxSpillTime);
       FSDataOutputStream outputStream = partitionToSpill.getSpillStream();
       /* write the partition to disk */
       partitionSerializable.writeToStream(outputStream);
@@ -870,7 +876,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
         return 0;
       }
       logger.debug("Reading spilled batch:{} for partitions:{}", currentBatchIndex, diskPartition.getIdentifier());
-      final VectorizedHashAggPartitionSerializable partitionSerializable = new VectorizedHashAggPartitionSerializable(loadingPartition, this.operatorStats);
+      final VectorizedHashAggPartitionSerializable partitionSerializable = new VectorizedHashAggPartitionSerializable(loadingPartition, this.operatorStats, warnMaxSpillTime);
       partitionSerializable.readFromStream(inputStream);
       currentBatchIndex++;
       return loadingPartition.getRecordsInBatch();

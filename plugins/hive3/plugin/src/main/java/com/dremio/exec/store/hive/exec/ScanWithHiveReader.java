@@ -25,7 +25,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.security.PrivilegedAction;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -52,7 +54,6 @@ import org.apache.orc.OrcConf;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
-import com.dremio.exec.store.EmptyRecordReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
@@ -67,13 +68,11 @@ import com.dremio.hive.proto.HiveReaderProto.Prop;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
-import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterators;
 
 /**
  * Helper class for {@link HiveScanBatchCreator} to create a {@link ProducerOperator} that uses readers provided by
@@ -160,7 +159,7 @@ class ScanWithHiveReader {
                                 ScanFilter.class, Collection.class, UserGroupInformation.class);
   }
 
-  static Iterable<RecordReader> createReaders(
+  static Iterator<RecordReader> createReaders(
       final HiveConf hiveConf,
       final FragmentExecutionContext fragmentExecContext,
       final OperatorContext context,
@@ -171,7 +170,7 @@ class ScanWithHiveReader {
       List<SplitAndPartitionInfo> splits){
 
     if(splits.isEmpty()) {
-      return FluentIterable.of();
+      return Collections.emptyIterator();
     }
 
     Iterable<RecordReader> readers = null;
@@ -195,7 +194,7 @@ class ScanWithHiveReader {
             }
           });
         }});
-      return readers;
+      return readers.iterator();
     } catch (Exception e) {
       AutoCloseables.close(e, readers);
       throw Throwables.propagate(e);

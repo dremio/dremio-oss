@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Calendar;
 
 import org.apache.arrow.vector.ValueVector;
 
@@ -74,8 +75,8 @@ public class BoundCheckingAccessor implements SqlAccessor {
   }
 
   @Override
-  public Date getDate(int rowOffset) throws InvalidAccessException {
-    return delegate.getDate(rowOffset);
+  public Date getDate(int rowOffset, Calendar calendar) throws InvalidAccessException {
+    return delegate.getDate(rowOffset, calendar);
   }
 
   @Override
@@ -124,13 +125,13 @@ public class BoundCheckingAccessor implements SqlAccessor {
   }
 
   @Override
-  public Time getTime(int rowOffset) throws InvalidAccessException {
-    return delegate.getTime(rowOffset);
+  public Time getTime(int rowOffset, Calendar calendar) throws InvalidAccessException {
+    return delegate.getTime(rowOffset, calendar);
   }
 
   @Override
-  public Timestamp getTimestamp(int rowOffset) throws InvalidAccessException {
-    return delegate.getTimestamp(rowOffset);
+  public Timestamp getTimestamp(int rowOffset, Calendar calendar) throws InvalidAccessException {
+    return delegate.getTimestamp(rowOffset, calendar);
   }
 
   /**

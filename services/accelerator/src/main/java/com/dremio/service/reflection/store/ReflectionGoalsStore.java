@@ -212,7 +212,7 @@ public class ReflectionGoalsStore {
         .keyFormat(Format.ofProtostuff(ReflectionId.class))
         .valueFormat(Format.ofProtostuff(ReflectionGoal.class))
         .versionExtractor(ReflectionGoalVersionExtractor.class)
-        .buildIndexed(StoreConverter.class);
+        .buildIndexed(new StoreConverter());
     }
   }
 

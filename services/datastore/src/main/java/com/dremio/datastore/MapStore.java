@@ -27,6 +27,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableDocument;
+import com.dremio.datastore.api.options.KVStoreOptionUtility;
 import com.dremio.datastore.api.options.VersionOption;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -195,6 +196,8 @@ class MapStore implements ByteStore {
     Preconditions.checkNotNull(newValue);
     Preconditions.checkNotNull(versionInfo);
     Preconditions.checkArgument(versionInfo.hasCreateOption() || versionInfo.getTag() != null);
+    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(options);
+
     final Document<byte[], byte[]> oldEntry = get(key);
 
     // Validity check fails if the CREATE option is used but there is an existing entry,

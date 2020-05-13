@@ -16,21 +16,44 @@
 package com.dremio.exec.vector.accessor.sql;
 
 import java.sql.Time;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoField;
+import java.util.List;
+import java.util.Objects;
 
-import org.joda.time.LocalDateTime;
+import com.google.common.collect.ImmutableList;
 
 public class TimePrintMillis extends Time {
-  private static final String[] leadingZeroes = {"", "0", "00"};
+  private static final List<String> LEADING_ZEROES = ImmutableList.of("", "0", "00");
 
   // Desired length of the milli second portion should be 3
   private static final int DESIRED_MILLIS_LENGTH = 3;
 
   // Millis of the date time object.
-  final private int millisOfSecond;
+  private final int millisOfSecond;
+
+  public TimePrintMillis(long time) {
+    this(LocalDateTime.ofInstant(Instant.ofEpochMilli(time), ZoneOffset.UTC));
+  }
 
   public TimePrintMillis(LocalDateTime time) {
-    super(time.getHourOfDay(), time.getMinuteOfHour(), time.getSecondOfMinute());
-    millisOfSecond = time.getMillisOfSecond();
+    super(time.getHour(), time.getMinute(), time.getSecond());
+    millisOfSecond = time.get(ChronoField.MILLI_OF_SECOND);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if ((obj instanceof TimePrintMillis) && super.equals(obj)) {
+      return this.millisOfSecond == ((TimePrintMillis)obj).millisOfSecond;
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), this.millisOfSecond);
   }
 
   @Override
@@ -46,7 +69,7 @@ public class TimePrintMillis extends Time {
       int millisLength = millisString.length();
       if (millisLength < DESIRED_MILLIS_LENGTH) {
         // add necessary leading zeroes
-        time.append(leadingZeroes[DESIRED_MILLIS_LENGTH - millisLength]);
+        time.append(LEADING_ZEROES.get(DESIRED_MILLIS_LENGTH - millisLength));
       }
       time.append(millisString);
     }

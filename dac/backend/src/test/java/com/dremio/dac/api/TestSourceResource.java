@@ -98,7 +98,7 @@ public class TestSourceResource extends BaseTestServer {
       .setMethod(RefreshMethod.FULL)
       .setRefreshPeriod(TimeUnit.HOURS.toMillis(2))
       .setGracePeriod(TimeUnit.HOURS.toMillis(6));
-    SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader);
+    SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader, null);
     updatedSource.setDescription("Desc");
 
     SourceResource.SourceDeprecated source = expectSuccess(getBuilder(getPublicAPI(3).path(SOURCES_PATH).path(createdSourceConfig.getId().getId())).buildPut(Entity.entity(updatedSource, JSON)), SourceResource.SourceDeprecated.class);
@@ -125,7 +125,7 @@ public class TestSourceResource extends BaseTestServer {
       .setMethod(RefreshMethod.FULL)
       .setRefreshPeriod(TimeUnit.HOURS.toMillis(2))
       .setGracePeriod(TimeUnit.HOURS.toMillis(6));
-    SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader);
+    SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader, null);
 
     // test updating non-existent source
     expectStatus(Response.Status.NOT_FOUND, getBuilder(getPublicAPI(3).path(SOURCES_PATH).path("badid")).buildPut(Entity.entity(updatedSource, JSON)));
@@ -162,7 +162,7 @@ public class TestSourceResource extends BaseTestServer {
       .setRefreshPeriod(TimeUnit.HOURS.toMillis(2))
       .setGracePeriod(TimeUnit.HOURS.toMillis(6));
 
-    SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader);
+    SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader, null);
     updatedSource.getMetadataPolicy().setDatasetRefreshAfterMs(MetadataPolicy.ONE_MINUTE_IN_MS);
     updatedSource.getMetadataPolicy().setAuthTTLMs(MetadataPolicy.ONE_MINUTE_IN_MS);
     updatedSource.getMetadataPolicy().setNamesRefreshMs(MetadataPolicy.ONE_MINUTE_IN_MS);
@@ -353,7 +353,7 @@ public class TestSourceResource extends BaseTestServer {
         .setRefreshPeriod(TimeUnit.HOURS.toMillis(2))
         .setGracePeriod(TimeUnit.HOURS.toMillis(6));
 
-      SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader);
+      SourceResource.SourceDeprecated updatedSource = new SourceResource.SourceDeprecated(createdSourceConfig, settings, reader, null);
 
       updatedSource.getMetadataPolicy().setDatasetRefreshAfterMs(policy.getDatasetRefreshAfterMs());
       updatedSource.getMetadataPolicy().setDatasetExpireAfterMs(policy.getDatasetExpireAfterMs());

@@ -28,11 +28,28 @@ public class TestBroadcast extends PlanTestBase {
       + "dfs.\"${WORKING_PATH}/src/test/resources/broadcast/customer\" c "
       + "ON s.id = c.id";
 
+  String broadcastQueryWithDistinct = "select * from "
+    + "dfs.\"${WORKING_PATH}/src/test/resources/broadcast/sales\" s "
+    + "INNER JOIN "
+    + "(select distinct id from dfs.\"${WORKING_PATH}/src/test/resources/broadcast/customer\") c "
+    + "ON s.id = c.id";
+
   @Test
   public void plansWithBroadcast() throws Exception {
-    //TODO: actually verify that this plan has a broadcast exchange in it once plan tools are enabled.
     setup();
-    test("explain plan for " + broadcastQuery);
+    testPlanMatchingPatterns(broadcastQuery, new String[] {
+        "BroadcastExchange"
+      },
+      null);
+  }
+
+  @Test
+  public void plansWithBroadcastFromHashDistribute() throws Exception {
+    setup();
+    testPlanMatchingPatterns(broadcastQueryWithDistinct, new String[] {
+        "BroadcastExchange"
+      },
+      null);
   }
 
   @Test

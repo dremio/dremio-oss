@@ -50,6 +50,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.util.DremioEdition;
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.common.util.JodaDateUtility;
 import com.dremio.common.utils.ProtobufUtils;
@@ -156,6 +157,7 @@ public class SupportService implements Service {
   public static final String LOCAL_STORAGE_PLUGIN = "__support";
   public static final String CLUSTER_ID = "clusterId";
   public static final String CLUSTER_IDENTITY = "clusterIdentity";
+  public static final String DREMIO_EDITION = "dremioEdition";
 
   private static final int PRE_TIME_BUFFER_MS = 5 * 1000;
   private static final int POST_TIME_BUFFER_MS = 10 * 1000;
@@ -225,11 +227,26 @@ public class SupportService implements Service {
   }
 
   /**
+   * Store DremioEdition in Configuration Store
+   */
+  private void storeEdition() {
+    try {
+      final ConfigurationEntry entry = new ConfigurationEntry();
+      entry.setValue(ByteString.copyFrom(DremioEdition.getAsString().getBytes()));
+      store.put(DREMIO_EDITION, entry);
+    } catch (ConcurrentModificationException ex) {
+      //nothing to do
+      logger.info("Edition has already been entered in KV store.");
+    }
+  }
+
+  /**
    * tries to store identity in the KVStore, in case another server already stored it, retrieves the stored identity
    * @param identity identity we want to store
    * @return identity stored in the KVStore
    */
   private ClusterIdentity storeIdentity(ClusterIdentity identity) {
+    storeEdition();
     try{
       ConfigurationEntry entry = new ConfigurationEntry();
       entry.setType(CLUSTER_IDENTITY);

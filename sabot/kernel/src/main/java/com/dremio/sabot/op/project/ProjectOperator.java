@@ -324,6 +324,9 @@ public class ProjectOperator implements SingleInputOperator {
 
     for (int i = 0; i < exprs.size(); i++) {
       final NamedExpression namedExpression = exprs.get(i);
+      if (namedExpression == null) {
+        continue;
+      }
       // it is possible that a filter removed all output or the shard has no data, so we don't have any incoming vectors
       // applies only for coercion readers
       if (targetSchema != null && incoming.getValueVectorId(SchemaPath.getSimplePath(targetSchema

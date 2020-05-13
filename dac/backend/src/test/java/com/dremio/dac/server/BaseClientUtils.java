@@ -33,6 +33,10 @@ public class BaseClientUtils {
     return expect(new StatusExpectation(status), i);
   }
 
+  protected <T> T expectStatus(Response.StatusType status, Invocation i, GenericType<T> c) {
+    return readEntity(expect(new StatusExpectation(status), i), c);
+  }
+
   protected <T> T expectStatus(Response.StatusType status, Invocation i, Class<T> c) {
     return readEntity(expect(new StatusExpectation(status), i), new GenericType<T>(c));
   }

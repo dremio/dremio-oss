@@ -40,32 +40,42 @@
 |Apache Drill                                                |                    |Apache 2.0          |
 |Apache Hadoop Amazon Web Services support                   |2.8.5               |Apache 2.0          |
 |Apache Hadoop Amazon Web Services support                   |3.2.1-dremio-202003182227490172-f8b0e18|Apache 2.0          |
+|Apache Hadoop Amazon Web Services support                   |3.2.1-dremio-202004022157140768-f49a3df|Apache 2.0          |
 |Apache Hadoop Annotations                                   |2.8.5               |Apache 2.0          |
-|Apache Hadoop Annotations                                   |3.2.1-dremio-202003182227490172-f8b0e18|Apache 2.0          |
+|Apache Hadoop Annotations                                   |3.2.1-dremio-202004022157140768-f49a3df|Apache 2.0          |
 |Apache Hadoop Auth                                          |2.8.5               |Apache 2.0          |
 |Apache Hadoop Auth                                          |3.2.1-dremio-202003182227490172-f8b0e18|Apache 2.0          |
+|Apache Hadoop Auth                                          |3.2.1-dremio-202004022157140768-f49a3df|Apache 2.0          |
 |Apache Hadoop Azure Data Lake support                       |2.8.5               |Apache 2.0          |
 |Apache Hadoop Azure Data Lake support                       |3.2.1-dremio-202003182227490172-f8b0e18|Apache 2.0          |
+|Apache Hadoop Azure Data Lake support                       |3.2.1-dremio-202004022157140768-f49a3df|Apache 2.0          |
 |Apache Hadoop Azure support                                 |2.8.5-dremio-r2-d1532684d9fd0f51b3451fda22d5f0be503a167c|Apache 2.0          |
 |Apache Hadoop Client                                        |2.8.5               |Apache 2.0          |
 |Apache Hadoop Client                                        |3.2.1-dremio-202003182227490172-f8b0e18|Apache 2.0          |
+|Apache Hadoop Client                                        |3.2.1-dremio-202004022157140768-f49a3df|Apache 2.0          |
 |Apache Hadoop Common                                        |2.8.5               |Apache 2.0          |
 |Apache Hadoop Common                                        |3.2.1-dremio-202003182227490172-f8b0e18|Apache 2.0          |
-|Apache Hadoop HDFS                                          |3.2.1-dremio-202003182227490172-f8b0e18|Apache 2.0          |
+|Apache Hadoop Common                                        |3.2.1-dremio-202004022157140768-f49a3df|Apache 2.0          |
+|Apache Hadoop HDFS                                          |3.2.1-dremio-202004022157140768-f49a3df|Apache 2.0          |
 |Apache Hadoop HDFS Client                                   |2.8.5               |Apache 2.0          |
 |Apache Hadoop HDFS Client                                   |3.2.1-dremio-202003182227490172-f8b0e18|Apache 2.0          |
+|Apache Hadoop HDFS Client                                   |3.2.1-dremio-202004022157140768-f49a3df|Apache 2.0          |
 |Apache Hadoop MapReduce App                                 |2.8.5               |Apache 2.0          |
 |Apache Hadoop MapReduce Common                              |2.8.5               |Apache 2.0          |
 |Apache Hadoop MapReduce Common                              |3.2.1-dremio-202003182227490172-f8b0e18|Apache 2.0          |
+|Apache Hadoop MapReduce Common                              |3.2.1-dremio-202004022157140768-f49a3df|Apache 2.0          |
 |Apache Hadoop MapReduce Core                                |2.8.5               |Apache 2.0          |
-|Apache Hadoop MapReduce Core                                |3.2.1-dremio-202003182227490172-f8b0e18|Apache 2.0          |
+|Apache Hadoop MapReduce Core                                |3.2.1-dremio-202004022157140768-f49a3df|Apache 2.0          |
 |Apache Hadoop MapReduce JobClient                           |2.8.5               |Apache 2.0          |
 |Apache Hadoop MapReduce JobClient                           |3.2.1-dremio-202003182227490172-f8b0e18|Apache 2.0          |
+|Apache Hadoop MapReduce JobClient                           |3.2.1-dremio-202004022157140768-f49a3df|Apache 2.0          |
 |Apache Hadoop MapReduce Shuffle                             |2.8.5               |Apache 2.0          |
 |Apache Hadoop YARN API                                      |2.8.5               |Apache 2.0          |
 |Apache Hadoop YARN API                                      |3.2.1-dremio-202003182227490172-f8b0e18|Apache 2.0          |
+|Apache Hadoop YARN API                                      |3.2.1-dremio-202004022157140768-f49a3df|Apache 2.0          |
 |Apache Hadoop YARN Common                                   |2.8.5               |Apache 2.0          |
 |Apache Hadoop YARN Common                                   |3.2.1-dremio-202003182227490172-f8b0e18|Apache 2.0          |
+|Apache Hadoop YARN Common                                   |3.2.1-dremio-202004022157140768-f49a3df|Apache 2.0          |
 |Apache Hadoop YARN Server Common                            |2.8.5               |Apache 2.0          |
 |Apache HttpCore                                             |4.4.9               |Apache 2.0          |
 |Apache Iceberg (incubating)                                 |0.7.0-incubating    |Apache 2.0          |
@@ -102,12 +112,12 @@
 |API Common                                                  |1.8.1               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |array.prototype.flat                                        |1.2.1               |MIT                 |
-|Arrow Flight Core                                           |1.0.0-20200327115344-e8784bde9c-dremio|Apache 2.0          |
-|Arrow Flight GRPC                                           |1.0.0-20200327115344-e8784bde9c-dremio|Apache 2.0          |
-|Arrow Format                                                |1.0.0-20200327115344-e8784bde9c-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |1.0.0-20200327115344-e8784bde9c-dremio|Apache 2.0          |
-|Arrow Memory                                                |1.0.0-20200327115344-e8784bde9c-dremio|Apache 2.0          |
-|Arrow Vectors                                               |1.0.0-20200327115344-e8784bde9c-dremio|Apache 2.0          |
+|Arrow Flight Core                                           |0.18.0-20200505155812-4c5cbe98c7-dremio|Apache 2.0          |
+|Arrow Flight GRPC                                           |0.18.0-20200505155812-4c5cbe98c7-dremio|Apache 2.0          |
+|Arrow Format                                                |0.18.0-20200505155812-4c5cbe98c7-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |0.18.0-20200505155812-4c5cbe98c7-dremio|Apache 2.0          |
+|Arrow Memory                                                |0.18.0-20200505155812-4c5cbe98c7-dremio|Apache 2.0          |
+|Arrow Vectors                                               |0.18.0-20200505155812-4c5cbe98c7-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -118,353 +128,29 @@
 |attr-accept                                                 |1.1.0               |MIT                 |
 |AutoValue Annotations                                       |1.6.5               |Apache 2.0          |
 |AWS Event Stream                                            |1.0.1               |Apache 2.0          |
-|AWS Java SDK :: Annotations                                 |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Arns                                        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Auth                                        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: AWS Core                                    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Core :: Protocols :: AWS Cbor Protocol      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Core :: Protocols :: AWS Json Protocol      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Core :: Protocols :: AWS Query Protocol     |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Core :: Protocols :: AWS Xml Protocol       |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Core :: Protocols :: Protocol Core          |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: HTTP Client Interface                       |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: HTTP Clients :: Apache                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: HTTP Clients :: Netty Non Blocking I/O      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Profiles                                    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Regions                                     |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: SDK Core                                    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: ACM PCA                         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Alexa For Business              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon API Gateway              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon AppStream                |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Athena                   |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon CloudDirectory           |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon CloudFront               |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon CloudSearch              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon CloudSearch Domain       |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon CloudWatch               |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon CloudWatch Events        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon CloudWatch Logs          |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Cognito Identity         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Cognito Identity Provider Service|2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Cognito Sync             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Comprehend               |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon DynamoDB                 |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon DynamoDB Accelerator (DAX)|2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon EC2                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon EC2 Container Registry   |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon EC2 Container Service    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Elastic File System      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Elastic Transcoder       |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon ElastiCache              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Elasticsearch Service    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon EMR                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Glacier                  |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon GuardDuty                |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Inspector Service        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Kinesis                  |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Kinesis Analytics        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Kinesis Firehose         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Kinesis Video Streams    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Lex Model Building       |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Lex Runtime              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Lightsail                |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Machine Learning         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Mechanical Turk Requester|2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Pinpoint                 |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Polly                    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon RDS                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Redshift                 |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Rekognition              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Route 53 Auto Naming     |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Route53                  |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Route53 Domains          |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon S3                       |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon S3 Control               |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon SageMaker                |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon SES                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Snowball                 |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon SNS                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon SQS                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon SWF                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon Translate                |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon WorkDocs                 |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon WorkMail                 |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon WorkSpaces               |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AmazonMQ                        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amplify                         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: ApiGatewayManagementApi         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: ApiGatewayV2                    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: App Mesh                        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Application Insights            |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Auto Scaling                    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Auto Scaling Plans              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Application Auto Scaling    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Application Discovery Service|2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS AppSync                     |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Batch                       |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Budgets                     |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Certificate Manager         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Cloud9                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS CloudFormation              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS CloudHSM                    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS CloudHSM V2                 |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS CloudTrail                  |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Code Build                  |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS CodeCommit                  |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS CodeDeploy                  |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS CodePipeline                |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS CodeStar                    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Config                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Cost and Usage Report       |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Cost Explorer               |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Data Pipeline               |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Database Migration Service  |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Device Farm                 |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Direct Connect              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Directory Service           |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Elastic Beanstalk           |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Elemental MediaConvert      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Elemental MediaLive         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Elemental MediaPackage      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Elemental MediaStore        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Elemental MediaStore Data   |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS GameLift                    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Glue                        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Greengrass                  |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Health APIs and Notifications|2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS IAM                         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS IoT                         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS IoT Data Plane              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS KMS                         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Lambda                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Marketplace Commerce Analytics|2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Marketplace Entitlement     |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Marketplace Metering Service|2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Migration Hub               |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Mobile                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS OpsWorks                    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS OpsWorks For Chef Automate  |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Organizations               |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Price List                  |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Resource Groups             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Resource Groups Tagging API |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Secrets Manager             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Server Migration            |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Service Catalog             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Shield                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Simple Systems Management (SSM)|2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Step Functions              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Storage Gateway             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS STS                         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Support                     |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Transcribe Streaming        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS WAF                         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS X Ray                       |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWSServerlessApplicationRepository|2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Backup                          |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Chime                           |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: ComprehendMedical               |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Connect                         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: DataSync                        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: DLM                             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: DocDB                           |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: EC2 Instance Connect            |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: EKS                             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Elastic Load Balancing          |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Elastic Load Balancing V2       |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: EventBridge                     |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: FMS                             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Forecast                        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Forecastquery                   |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: FSx                             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Global Accelerator              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: GroundStation                   |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: IoT 1Click Devices Service      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: IoT 1Click Projects             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: IoT Events                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: IoT Events Data                 |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: IoT Jobs Data Plane             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: IoTAnalytics                    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: IoTThingsGraph                  |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Kafka                           |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Kinesis Analytics V2            |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Kinesis Video Archived Media    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Kinesis Video Media             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: LakeFormation                   |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: License Manager                 |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Macie                           |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: ManagedBlockchain               |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: MediaConnect                    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: MediaPackage Vod                |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: MediaTailor                     |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Neptune                         |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Personalize                     |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Personalize Events              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Personalize Runtime             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: PI                              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Pinpoint Email                  |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Pinpoint SMS Voice              |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: QLDB                            |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: QLDB Session                    |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: QuickSight                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: RAM                             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: RDS Data                        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: RoboMaker                       |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Route53Resolver                 |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: SageMaker Runtime               |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: SecurityHub                     |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Service Quotas                  |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Signer                          |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Textract                        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Transcribe                      |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: Transfer                        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: WorkLink                        |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Services :: WorkMailMessageFlow             |2.10.56             |Apache 2.0          |
-|AWS Java SDK :: Utilities                                   |2.10.56             |Apache 2.0          |
-|AWS Java SDK For Alexa For Business                         |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon API Gateway                         |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon AppStream                           |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Athena                              |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon CloudDirectory                      |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon CloudFront                          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon CloudSearch                         |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon CloudWatch                          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon CloudWatch Events                   |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon CloudWatch Logs                     |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Cognito Identity                    |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Cognito Identity Provider Service   |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Cognito Sync                        |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Comprehend                          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Connect                             |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Data Lifecycle Manager              |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon DynamoDB                            |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon DynamoDB Accelerator (DAX)          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon EC2                                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Elastic Container Service For Kubernetes|1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Elastic File System                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Elastic Transcoder                  |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon ElastiCache                         |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Elasticsearch Service               |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon EMR                                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Glacier                             |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon GuardDuty                           |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Inspector Service                   |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Kinesis                             |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Kinesis Video Streams               |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Lex Model Building                  |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Lightsail                           |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Machine Learning                    |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Macie                               |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Mechanical Turk Requester           |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Neptune                             |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Pinpoint                            |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Polly                               |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon RDS                                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Redshift                            |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Rekognition                         |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Route 53 Auto Naming                |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Route53                             |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon SageMaker                           |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon SageMaker Runtime                   |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon SES                                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon SimpleDB                            |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Snowball                            |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon SNS                                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon SQS                                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon SWF                                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Transcribe                          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon Translate                           |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon WorkDocs                            |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon WorkMail                            |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Amazon WorkSpaces                          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AmazonMQ                                   |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Auto Scaling                               |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Application Auto Scaling               |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Application Discovery Service          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS AppSync                                |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Auto Scaling Plans                     |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Batch                                  |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Budgets                                |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Certificate Manager                    |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Certificate Manager Private Certificate Authority|1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Cloud9                                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS CloudFormation                         |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS CloudHSM V2                            |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS CloudTrail                             |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Code Build                             |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS CodeCommit                             |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS CodeDeploy                             |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS CodePipeline                           |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS CodeStar                               |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Config                                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Cost and Usage Report                  |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Cost Explorer                          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Data Pipeline                          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Database Migration Service             |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Device Farm                            |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Direct Connect                         |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Directory Service                      |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Elastic Beanstalk                      |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Elemental MediaConvert                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Elemental MediaLive                    |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Elemental MediaPackage                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Elemental MediaStore                   |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Elemental MediaStore Data Plane        |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS GameLift                               |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Glue                                   |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Greengrass                             |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Health APIs and Notifications          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS IAM                                    |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Import/Export                          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS IoT                                    |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS IoT 1 Click Devices                    |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS IoT 1 Click Projects                   |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS IoT Analytics                          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS IoT Jobs Data Plane                    |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Lambda                                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Lex                                    |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Marketplace Commerce Analytics         |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Marketplace Entitlement                |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Marketplace Metering Service           |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS MediaTailor                            |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Migration Hub                          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Mobile                                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS OpsWorks                               |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS OpsWorks For Chef Automate             |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Organizations                          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Performance Insights                   |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Pricing                                |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Resource Groups                        |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Resource Groups Tagging API            |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Secrets Manager                        |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Server Migration                       |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Service Catalog                        |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Shield                                 |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Step Functions                         |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Storage Gateway                        |1.11.375            |Apache 2.0          |
-|AWS Java SDK for AWS STS                                    |1.11.156            |Apache 2.0          |
-|AWS Java SDK for AWS STS                                    |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS Support                                |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS WAF                                    |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWS X Ray                                  |1.11.375            |Apache 2.0          |
-|AWS Java SDK For AWSServerlessApplicationRepository         |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Elastic Load Balancing                     |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Elastic Load Balancing V2                  |1.11.375            |Apache 2.0          |
-|AWS Java SDK For Firewall Management                        |1.11.375            |Apache 2.0          |
-|AWS Java SDK For The Amazon EC2 Container Registry          |1.11.375            |Apache 2.0          |
-|AWS Java SDK For The Amazon EC2 Container Service           |1.11.375            |Apache 2.0          |
-|AWS Java SDK For The AWS CloudHSM                           |1.11.375            |Apache 2.0          |
-|AWS Java SDK For The AWS Simple Systems Management (SSM) Service|1.11.375            |Apache 2.0          |
-|AWS SDK for AWS KMS                                         |1.11.156            |Apache 2.0          |
-|AWS SDK for AWS KMS                                         |1.11.375            |Apache 2.0          |
-|AWS SDK for AWS S3                                          |1.11.156            |Apache 2.0          |
-|AWS SDK for AWS S3                                          |1.11.375            |Apache 2.0          |
-|AWS SDK For Java                                            |1.11.375            |Apache 2.0          |
-|AWS SDK For Java                                            |2.9.24              |Apache 2.0          |
-|AWS SDK for Java - Core                                     |1.11.156            |Apache 2.0          |
-|AWS SDK for Java - Core                                     |1.11.375            |Apache 2.0          |
-|AWS SDK For Java Models                                     |1.11.375            |Apache 2.0          |
+|AWS Java SDK :: Annotations                                 |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: Arns                                        |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: Auth                                        |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: AWS Core                                    |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: Core :: Protocols :: AWS Json Protocol      |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: Core :: Protocols :: AWS Query Protocol     |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: Core :: Protocols :: AWS Xml Protocol       |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: Core :: Protocols :: Protocol Core          |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: HTTP Client Interface                       |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: HTTP Clients :: Apache                      |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: HTTP Clients :: Netty Non Blocking I/O      |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: Profiles                                    |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: Regions                                     |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: SDK Core                                    |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: Services :: Amazon S3                       |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: Services :: AWS Secrets Manager             |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: Services :: AWS STS                         |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: Utilities                                   |2.11.11             |Apache 2.0          |
+|AWS Java SDK For Amazon DynamoDB                            |1.11.761            |Apache 2.0          |
+|AWS Java SDK for AWS STS                                    |1.11.761            |Apache 2.0          |
+|AWS SDK for AWS KMS                                         |1.11.761            |Apache 2.0          |
+|AWS SDK for AWS S3                                          |1.11.761            |Apache 2.0          |
+|AWS SDK for Java - Core                                     |1.11.761            |Apache 2.0          |
 |Azure Data Lake Store - Java client SDK                     |2.3.3-201901300025380807-2bdda72|MIT License         |
 |babel-plugin-transform-runtime                              |6.23.0              |MIT                 |
 |babel-runtime                                               |6.25.0              |MIT                 |
@@ -477,15 +163,14 @@
 |brcast                                                      |3.0.1               |MIT                 |
 |c3                                                          |0.4.18              |MIT                 |
 |Caffeine cache                                              |2.7.0               |Apache 2.0          |
-|Calcite Core                                                |1.16.0-202003291928280542-f6429cd|Apache 2.0          |
-|Calcite Linq4j                                              |1.16.0-202003291928280542-f6429cd|Apache 2.0          |
+|Calcite Core                                                |1.16.0-202004300519170468-0362519|Apache 2.0          |
+|Calcite Linq4j                                              |1.16.0-202004300519170468-0362519|Apache 2.0          |
 |change-emitter                                              |0.1.6               |MIT                 |
 |Checker Qual                                                |2.8.1               |MIT                 |
 |cheerio                                                     |1.0.0-rc.2          |MIT                 |
 |ClassMate                                                   |1.3.4               |Apache 2.0          |
 |classnames                                                  |2.2.5               |MIT                 |
 |classnames                                                  |2.2.6               |MIT                 |
-|CloudWatch Metrics For AWS Java SDK                         |1.11.375            |Apache 2.0          |
 |codemirror                                                  |5.30.0              |MIT                 |
 |codemirror-spell-checker                                    |1.1.2               |MIT                 |
 |Codemodel Core                                              |2.6                 |GPL v2 w/ CPE       |
@@ -546,12 +231,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |4.2.0               |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |4.2.0               |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |4.2.0               |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |4.2.0               |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |4.2.0               |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |4.2.0               |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |4.3.0               |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |4.3.0               |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |4.3.0               |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |4.3.0               |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |4.3.0               |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |4.3.0               |Dremio Free Software License 1.0|
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
 |element-closest                                             |2.0.2               |CC0-1.0             |
@@ -621,6 +306,7 @@
 |Hadoop Winutils                                             |3.2.0               |Apache 2.0          |
 |Hadoop YARN Client                                          |2.8.5               |Apache 2.0          |
 |Hadoop YARN Client                                          |3.2.1-dremio-202003182227490172-f8b0e18|Apache 2.0          |
+|Hadoop YARN Client                                          |3.2.1-dremio-202004022157140768-f49a3df|Apache 2.0          |
 |has                                                         |1.0.1               |MIT                 |
 |has                                                         |1.0.3               |MIT                 |
 |has-symbols                                                 |1.0.0               |MIT                 |
@@ -702,7 +388,6 @@
 |Janino                                                      |2.7.6               |BSD 3-clause        |
 |Java Concurrency in Practice book annotations               |1.0-1               |CC 2.5              |
 |Java implementation of the SemVer Specification             |0.9.0               |MIT License         |
-|Java Libraries For Amazon Simple WorkFlow                   |1.11.22             |Apache 2.0          |
 |Java Native Access                                          |4.5.0               |Apache 2.0          |
 |Java Native Access                                          |4.5.0               |Apache 2.0          |
 |Java Servlet API                                            |3.1.0               |GPL v2 w/ CPE       |
@@ -765,8 +450,7 @@
 |Jetty SSLEngine                                             |6.1.26              |Apache 2.0          |
 |Jetty Utilities                                             |6.1.26              |Apache 2.0          |
 |JLine                                                       |0.9.94              |BSD 3-clause        |
-|JMES Path Query library                                     |1.11.156            |Apache 2.0          |
-|JMES Path Query library                                     |1.11.375            |Apache 2.0          |
+|JMES Path Query library                                     |1.11.761            |Apache 2.0          |
 |Joda-Time                                                   |2.9                 |Apache 2.0          |
 |JOpt Simple                                                 |5.0.2               |MIT                 |
 |jquery                                                      |3.4.1               |MIT                 |
@@ -876,21 +560,21 @@
 |Netty Reactive Streams HTTP Support                         |2.0.4               |Apache 2.0          |
 |Netty Reactive Streams Implementation                       |2.0.0               |Apache 2.0          |
 |Netty Reactive Streams Implementation                       |2.0.4               |Apache 2.0          |
-|Netty/Buffer                                                |4.1.45.Final        |Apache 2.0          |
-|Netty/Codec                                                 |4.1.45.Final        |Apache 2.0          |
-|Netty/Codec/DNS                                             |4.1.45.Final        |Apache 2.0          |
-|Netty/Codec/HTTP                                            |4.1.45.Final        |Apache 2.0          |
-|Netty/Codec/HTTP2                                           |4.1.45.Final        |Apache 2.0          |
-|Netty/Codec/Socks                                           |4.1.45.Final        |Apache 2.0          |
-|Netty/Common                                                |4.1.45.Final        |Apache 2.0          |
-|Netty/Handler                                               |4.1.45.Final        |Apache 2.0          |
-|Netty/Handler/Proxy                                         |4.1.45.Final        |Apache 2.0          |
-|Netty/Resolver                                              |4.1.45.Final        |Apache 2.0          |
-|Netty/Resolver/DNS                                          |4.1.45.Final        |Apache 2.0          |
+|Netty/Buffer                                                |4.1.48.Final        |Apache 2.0          |
+|Netty/Codec                                                 |4.1.48.Final        |Apache 2.0          |
+|Netty/Codec/DNS                                             |4.1.48.Final        |Apache 2.0          |
+|Netty/Codec/HTTP                                            |4.1.48.Final        |Apache 2.0          |
+|Netty/Codec/HTTP2                                           |4.1.48.Final        |Apache 2.0          |
+|Netty/Codec/Socks                                           |4.1.48.Final        |Apache 2.0          |
+|Netty/Common                                                |4.1.48.Final        |Apache 2.0          |
+|Netty/Handler                                               |4.1.48.Final        |Apache 2.0          |
+|Netty/Handler/Proxy                                         |4.1.48.Final        |Apache 2.0          |
+|Netty/Resolver                                              |4.1.48.Final        |Apache 2.0          |
+|Netty/Resolver/DNS                                          |4.1.48.Final        |Apache 2.0          |
 |Netty/TomcatNative [BoringSSL - Static]                     |2.0.28.Final        |Apache 2.0          |
-|Netty/Transport                                             |4.1.45.Final        |Apache 2.0          |
-|Netty/Transport/Native/Epoll                                |4.1.45.Final-linux-x86_64|Apache 2.0          |
-|Netty/Transport/Native/Unix/Common                          |4.1.45.Final        |Apache 2.0          |
+|Netty/Transport                                             |4.1.48.Final        |Apache 2.0          |
+|Netty/Transport/Native/Epoll                                |4.1.48.Final-linux-x86_64|Apache 2.0          |
+|Netty/Transport/Native/Unix/Common                          |4.1.48.Final        |Apache 2.0          |
 |Nimbus JOSE+JWT                                             |8.8                 |Apache 2.0          |
 |Nimbus LangTag                                              |1.4.4               |Apache 2.0          |
 |node-fetch                                                  |1.7.3               |MIT                 |

@@ -39,7 +39,7 @@ message ClusterConfig {
  optional AwsProps awsProps = 9;
  optional bool allowAutoStart = 10 [default = false];
  optional bool allowAutoStop = 11 [default = false];
- optional int64 shutdownInterval = 12 [default = 300000];
+ optional int64 shutdownInterval = 12 [default = 900000];
 }
 
 message ClusterSpec {

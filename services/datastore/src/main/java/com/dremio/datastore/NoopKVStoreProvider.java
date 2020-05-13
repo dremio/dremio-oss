@@ -106,12 +106,17 @@ public class NoopKVStoreProvider implements KVStoreProvider {
     }
 
     @Override
+    public StoreBuilder<K, V> permitCompoundKeys(boolean permitCompoundKeys) {
+      return this;
+    }
+
+    @Override
     public KVStore<K, V> build() {
       return new NoopKVStore<>();
     }
 
     @Override
-    public IndexedStore<K, V> buildIndexed(Class<? extends DocumentConverter<K, V>> documentConverterClass) {
+    public IndexedStore<K, V> buildIndexed(DocumentConverter<K, V> documentConverter) {
       return new NoopIndexedStore<>();
     }
   }

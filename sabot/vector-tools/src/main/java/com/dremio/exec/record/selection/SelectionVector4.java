@@ -31,7 +31,7 @@ public class SelectionVector4 implements AutoCloseable {
   public SelectionVector4(ArrowBuf vector, int recordCount, int batchRecordCount) {
     Preconditions.checkArgument(recordCount < Integer.MAX_VALUE / 4,
         "Currently, Dremio can only support allocations up to 2gb in size.  "
-        + "You requested an allocation of %d bytes.", recordCount * 4);
+        + "You requested an allocation of %s bytes.", recordCount * 4);
     this.recordCount = recordCount;
     this.start = 0;
     this.length = Math.min(batchRecordCount, recordCount);

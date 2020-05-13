@@ -57,4 +57,12 @@ public interface ManagedSchema {
 
     return false;
   }
+
+  /**
+   *
+   * @return true if varchar truncation is enabled
+   */
+  default boolean isVarcharTruncationEnabled() {
+    return false;
+  }
 }

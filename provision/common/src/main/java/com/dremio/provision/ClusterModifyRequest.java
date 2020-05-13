@@ -47,7 +47,7 @@ public interface ClusterModifyRequest extends ConsistentProps {
 
   boolean isAllowAutoStart();
   boolean isAllowAutoStop();
-  @Default default long getShutdownInterval() { return 300_000; }
+  @Default default long getShutdownInterval() { return 900_000; }
 
   public static ImmutableClusterModifyRequest.Builder builder() {
     return new ImmutableClusterModifyRequest.Builder();

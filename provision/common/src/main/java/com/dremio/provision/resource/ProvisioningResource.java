@@ -99,7 +99,7 @@ public class ProvisioningResource {
       protected AwsConnectionPropsApi convert(AwsConnectionProps source) {
         return MODEL_MAPPER.map(source, ImmutableAwsConnectionPropsApi.Builder.class).build();
       }});
-    MODEL_MAPPER.getConfiguration().setMatchingStrategy(MatchingStrategies.LOOSE);
+    MODEL_MAPPER.getConfiguration().setMatchingStrategy(MatchingStrategies.LOOSE).setSkipNullEnabled(true);
   }
 
   private final ProvisioningService service;
@@ -131,7 +131,7 @@ public class ProvisioningResource {
     ClusterConfig clusterConfig = getClusterConfig(clusterCreateRequest);
     ClusterEnriched cluster = service.createCluster(clusterConfig);
     return toClusterResponse(cluster);
-   }
+  }
 
   public ClusterConfig getClusterConfig(ClusterCreateRequest clusterCreateRequest) {
     ClusterConfig clusterConfig = new ClusterConfig();
@@ -145,9 +145,7 @@ public class ProvisioningResource {
     if(clusterCreateRequest.getClusterType() == ClusterType.YARN) {
       YarnPropsApi props = clusterCreateRequest.getYarnProps();
       Preconditions.checkNotNull(props);
-      Preconditions.checkNotNull(props.getMemoryMB());
       Preconditions.checkNotNull(props.getDistroType());
-      Preconditions.checkNotNull(props.isSecure());
 
       if(props.getMemoryMB() < MIN_MEMORY_REQUIRED_MB) {
         throw new IllegalArgumentException("Minimum memory required should be greater or equal than: " +

@@ -74,7 +74,7 @@ public class TestAPI extends DremioTest {
     new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy();
   private static SingletonRegistry registry = new SingletonRegistry();
   private static ProvisioningServiceImpl service;
-  private static final long defaultShutdownInterval = TimeUnit.MINUTES.toMillis(5);
+  private static final long defaultShutdownInterval = TimeUnit.MINUTES.toMillis(15);
 
   @BeforeClass
   public static void before() throws Exception {

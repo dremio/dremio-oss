@@ -19,12 +19,15 @@ import static java.lang.String.format;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.ImmutableDocument;
 import com.dremio.datastore.api.KVStore;
+import com.dremio.datastore.api.options.KVStoreOptionUtility;
 import com.dremio.datastore.api.options.VersionOption;
+import com.dremio.datastore.indexed.PutRequestDocumentWriter;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.dremio.telemetry.api.metrics.Metrics.ResetType;
@@ -97,10 +100,12 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
   }
 
   private ByteString convertKey(K key) {
+    Preconditions.checkNotNull(key);
     return ByteString.copyFrom(keyConverter.convert(key));
   }
 
   private ByteString convertValue(V value) {
+    Preconditions.checkNotNull(value);
     return ByteString.copyFrom(valueConverter.convert(value));
   }
 
@@ -150,15 +155,21 @@ public class RemoteKVStore <K, V> implements KVStore<K, V> {
 
   @Override
   public Document<K, V> put(K key, V value, PutOption... options) {
-    Preconditions.checkArgument(options.length <= 1);
-    final String tag;
-    try (TimerContext timer = time(Stats.PUT)) {
-      if (options.length == 1) {
-        tag = client.put(storeId, convertKey(key), convertValue(value), options[0]);
-      } else {
-        tag = client.put(storeId, convertKey(key), convertValue(value));
-      }
+    KVStoreOptionUtility.checkIndexPutOptionIsNotUsed(options);
 
+    final String tag;
+    final PutRequestDocumentWriter putRequestDocumentWriter = new PutRequestDocumentWriter();
+    if (helper.hasDocumentConverter()) {
+      helper.getDocumentConverter().convert(putRequestDocumentWriter, key, value);
+    }
+
+    try (TimerContext timer = time(Stats.PUT)) {
+      final Optional<PutOption> option = KVStoreOptionUtility.getCreateOrVersionOption(options);
+      if (option.isPresent()) {
+        tag = client.put(storeId, convertKey(key), convertValue(value), putRequestDocumentWriter, option.get());
+      } else {
+        tag = client.put(storeId, convertKey(key), convertValue(value), putRequestDocumentWriter);
+      }
     } catch (RpcException e) {
       throw new DatastoreException(format("Failed to put in store id: %s", getStoreId()), e);
     }

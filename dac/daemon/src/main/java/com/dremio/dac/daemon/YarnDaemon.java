@@ -65,7 +65,7 @@ public class YarnDaemon implements Runnable, AutoCloseable {
   }
 
 
-  private volatile AutoCloseable closeable;
+  private volatile DACDaemon dacDaemon;
 
   public YarnDaemon(String[] args) {}
 
@@ -81,13 +81,15 @@ public class YarnDaemon implements Runnable, AutoCloseable {
 
       final SabotConfig sabotConfig = config.getConfig().getSabotConfig();
       final DACModule module = sabotConfig.getInstance(DremioDaemon.DAEMON_MODULE_CLASS, DACModule.class, DACDaemonModule.class);
-      final DACDaemon daemon = DACDaemon.newDremioDaemon(config, ClassPathScanner.fromPrescan(sabotConfig), module);
-      closeable = daemon;
-      daemon.init();
-      // Start yarn watchdog
-      startYarnWatchdog(daemon);
-      daemon.closeOnJVMShutDown();
-      daemon.awaitClose();
+      try (final DACDaemon daemon = DACDaemon.newDremioDaemon(config, ClassPathScanner.fromPrescan(sabotConfig),
+          module)) {
+        dacDaemon = daemon;
+        daemon.init();
+        // Start yarn watchdog
+        startYarnWatchdog(daemon);
+        daemon.closeOnJVMShutDown();
+        daemon.awaitClose();
+      }
     } catch (Exception e) {
       throw Throwables.propagate(e);
     }
@@ -154,7 +156,7 @@ public class YarnDaemon implements Runnable, AutoCloseable {
     }
     if (yarnWatchdogProcess != null) {
       final Process finalYarnWatchdogProcess = yarnWatchdogProcess;
-      Thread yarnWatchdogMonitor = new Thread() {
+      Thread yarnWatchdogMonitor = new Thread("yarn-watchdog-monitor") {
 
         @Override
         public void run() {
@@ -182,10 +184,18 @@ public class YarnDaemon implements Runnable, AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    if (closeable != null) {
-      closeable.close();
+    // Because this is used by YARN, not closing daemon directly
+    // but instead notifying the service thread to stop waiting on close and
+    // and start cleaning up
+    if (dacDaemon != null) {
+      synchronized(this) {
+        // Make sure to only close once to prevent deadlock
+        if (dacDaemon != null) {
+          dacDaemon.shutdown();
+          dacDaemon = null;
+        }
+      }
     }
-
   }
 
 }

@@ -47,6 +47,8 @@ public class ProtobufStoreGenerator extends ProtoGeneratorMixin implements DataG
       .addAllInt64Seq(getInt64List())
       .addAllUint32Seq(getInt32List())
       .addAllUint64Seq(getInt64List())
+      .addAllFloatSeq(getFloatList())
+      .addAllDoubleSeq(getDoubleList())
       .setType(getBool() ? Dummy.enumType.ZERO : Dummy.enumType.ONE)
       .setFlag(getBool())
       .build();
