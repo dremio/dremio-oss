@@ -82,6 +82,7 @@ import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvide
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.model.GetCallerIdentityRequest;
@@ -122,7 +123,12 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     .build(new CacheLoader<String, S3Client>() {
       @Override
       public S3Client load(String bucket) {
-        final S3Client syncClient = configClientBuilder(S3Client.builder(), bucket).build();
+        final S3Client syncClient = configClientBuilder(S3Client.builder(), bucket)
+          .serviceConfiguration(
+            S3Configuration.builder()
+              .pathStyleAccessEnabled(Boolean.parseBoolean(getConf().get("fs.s3a.path.style.access")))
+              .build())
+          .build();
         registerReference(syncClient, client -> {
           try {
             syncClient.close();
