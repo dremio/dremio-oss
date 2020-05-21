@@ -68,6 +68,7 @@ public class FlattenOperator implements SingleInputOperator {
   private State state = State.NEEDS_SETUP;
   private VectorAccessible incoming;
   private int recordCount;
+  private int childCount;
   private Flattener flattener;
   private List<ComplexWriter> complexWriters;
   private boolean hasRemainder = false;
@@ -213,7 +214,12 @@ public class FlattenOperator implements SingleInputOperator {
 
   private int handleInitial(int incomingRecordCount) {
     doAlloc();
-    int childCount = incomingRecordCount == 0 ? 0 : ((BaseRepeatedValueVector)flattener.getFlattenField()).getInnerValueCount();
+
+    childCount = 0;
+    for (int i = 0; i < incomingRecordCount; ++i) {
+      childCount += ((BaseRepeatedValueVector) flattener.getFlattenField()).getInnerValueCountAt(i);
+    }
+
     int outputRecords = flattener.flattenRecords(incomingRecordCount, 0, monitor);
     // TODO - change this to be based on the repeated vector length
     if (outputRecords < childCount) {
@@ -231,9 +237,8 @@ public class FlattenOperator implements SingleInputOperator {
   }
 
   private int handleRemainder() {
-    final int remainingRecordCount = ((BaseRepeatedValueVector)flattener.getFlattenField()).getInnerValueCount() - remainderIndex;
     doAlloc();
-
+    final int remainingRecordCount = childCount - remainderIndex;
     int projRecords = flattener.flattenRecords(remainingRecordCount, 0, monitor);
     if (projRecords < remainingRecordCount) {
       remainderIndex += projRecords;

@@ -96,6 +96,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
   private final List<Field> arrowSchema;
   private final Function<String, String> childNameResolver;
   private final ParquetColumnResolver columnResolver;
+  private final int maxFieldSizeLimit;
 
   // This function assumes that the fields in the schema parameter are in the same order as the fields in the columns parameter. The
   // columns parameter may have fields that are not present in the schema, though.
@@ -116,6 +117,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     this.childNameResolver = childNameResolver;
     this.schemaHelper = schemaHelper;
     this.columnResolver = columnResolver;
+    this.maxFieldSizeLimit = Math.toIntExact(options.getOption(ExecConstants.LIMIT_FIELD_SIZE_BYTES));
   }
 
   abstract WriterProvider getWriterProvider();
@@ -282,7 +284,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
   protected PrimitiveConverter getConverterForType(String fieldName, PrimitiveType type) {
     final boolean isRepeated = type.isRepetition(REPEATED);
     String schemaFieldName = columnResolver.getBatchSchemaColumnName(fieldName);
-    final String name = getNameForChild(schemaFieldName);;
+    final String name = getNameForChild(schemaFieldName);
     switch(type.getPrimitiveTypeName()) {
       case INT32: {
         OriginalType originalType = type.getOriginalType();
@@ -372,7 +374,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
           switch (type.getOriginalType()) {
           case UTF8: {
             VarCharWriter writer = isRepeated ? list(name).varChar() : getWriterProvider().varChar(name);
-            return new VarCharConverter(writer, mutator.getManagedBuffer());
+            return new VarCharConverter(writer, mutator.getManagedBuffer(), maxFieldSizeLimit);
           }
           //TODO not sure if BINARY/DECIMAL is actually supported
           case DECIMAL: {
@@ -388,11 +390,11 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
 
         if (schemaHelper.isVarChar(SchemaPath.getSimplePath(name))) {
           VarCharWriter writer = isRepeated ? list(name).varChar() : getWriterProvider().varChar(name);
-          return new VarCharConverter(writer, mutator.getManagedBuffer());
+          return new VarCharConverter(writer, mutator.getManagedBuffer(), maxFieldSizeLimit);
         }
 
         VarBinaryWriter writer = isRepeated ? list(name).varBinary() : getWriterProvider().varBinary(name);
-        return new VarBinaryConverter(writer, mutator.getManagedBuffer());
+        return new VarBinaryConverter(writer, mutator.getManagedBuffer(), maxFieldSizeLimit);
       }
       case FIXED_LEN_BYTE_ARRAY:
         if (type.getOriginalType() == OriginalType.DECIMAL) {
@@ -403,7 +405,7 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
         }
         if (schemaHelper.isVarChar(SchemaPath.getSimplePath(name))) {
           VarCharWriter writer = isRepeated ? list(name).varChar() : getWriterProvider().varChar(name);
-          return new VarCharConverter(writer, mutator.getManagedBuffer());
+          return new VarCharConverter(writer, mutator.getManagedBuffer(), maxFieldSizeLimit);
         }
 
         VarBinaryWriter writer = isRepeated ? list(name).varBinary() : getWriterProvider().varBinary(name);
@@ -768,11 +770,10 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     private VarBinaryHolder holder = new VarBinaryHolder();
     private int varValueSizeLimit;
 
-    private VarBinaryConverter(VarBinaryWriter writer, ArrowBuf buf) {
+    private VarBinaryConverter(VarBinaryWriter writer, ArrowBuf buf, int varValueSizeLimit) {
       this.writer = writer;
       this.buf = buf;
-      this.varValueSizeLimit = Math.toIntExact(ExecConstants.LIMIT_FIELD_SIZE_BYTES.getDefault().getNumVal());
-
+      this.varValueSizeLimit = varValueSizeLimit;
     }
 
     @Override
@@ -800,10 +801,10 @@ abstract class ParquetGroupConverter extends GroupConverter implements ParquetLi
     private ArrowBuf buf;
     private int varValueSizeLimit;
 
-    private VarCharConverter(VarCharWriter writer,  ArrowBuf buf) {
+    private VarCharConverter(VarCharWriter writer,  ArrowBuf buf, int varValueSizeLimit) {
       this.writer = writer;
       this.buf = buf;
-      this.varValueSizeLimit = Math.toIntExact(ExecConstants.LIMIT_FIELD_SIZE_BYTES.getDefault().getNumVal());
+      this.varValueSizeLimit = varValueSizeLimit;
     }
 
     @Override

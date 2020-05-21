@@ -20,6 +20,9 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Callable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.dremio.io.ExponentialBackoff;
 
 /**
@@ -28,6 +31,8 @@ import com.dremio.io.ExponentialBackoff;
  * @param <T>
  */
 public final class Retryer<T> extends ExponentialBackoff {
+  private static Logger logger = LoggerFactory.getLogger(Retryer.class);
+
   public enum WaitStrategy {EXPONENTIAL, FLAT}  //Can be extended
 
   private Set<Class<? extends Exception>> retryableExceptionClasses = new HashSet<>();
@@ -48,7 +53,9 @@ public final class Retryer<T> extends ExponentialBackoff {
         if (!retryable || attemptNo == maxRetries) {
           throw new OperationFailedAfterRetriesException(e);
         }
-
+        final StackTraceElement caller = Thread.currentThread().getStackTrace()[2];
+        logger.warn("Retry attempt {} for the failure at {}:{}:{}, Error - {}",
+          attemptNo, caller.getClassName(), caller.getMethodName(), caller.getLineNumber(), e.getMessage());
         switch (waitStrategy) {
           case EXPONENTIAL:
             backoffWait(attemptNo);
