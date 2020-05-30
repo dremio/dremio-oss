@@ -245,7 +245,7 @@ public abstract class AbstractTestNamespaceService {
     NamespaceTestUtils.addDS(namespaceService, "b.ds3");
     NamespaceTestUtils.addFolder(namespaceService, "b.b1");
     NamespaceTestUtils.addFolder(namespaceService, "b.b2");
-    NamespaceTestUtils.addFolder(namespaceService, "b.b3");
+    NamespaceTestUtils.addFolder(namespaceService, "b.我b3");
     NamespaceTestUtils.addFolder(namespaceService, "b.b4");
     NamespaceTestUtils.addDS(namespaceService, "b.b4.ds1");
     NamespaceTestUtils.addSource(namespaceService, "c"); //src2
