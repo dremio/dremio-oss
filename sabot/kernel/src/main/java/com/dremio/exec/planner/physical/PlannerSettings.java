@@ -125,7 +125,7 @@ public class PlannerSettings implements Context{
 
   public static final BooleanValidator NLJ_PUSHDOWN = new BooleanValidator("planner.nlj.expression_pushdown", true);
 
-  public static final BooleanValidator REDUCE_ALGEBRAIC_EXPRESSIONS = new BooleanValidator("planner.reduce_algebraic_expressions", true);
+  public static final BooleanValidator REDUCE_ALGEBRAIC_EXPRESSIONS = new BooleanValidator("planner.reduce_algebraic_expressions", false);
 
   public static final BooleanValidator ENABlE_PROJCT_NLJ_MERGE = new BooleanValidator("planner.nlj.enable_project_merge", true);
 

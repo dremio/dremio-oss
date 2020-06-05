@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import org.apache.arrow.util.VisibleForTesting;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -57,6 +58,7 @@ import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.Region;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.Retryer;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
 import com.dremio.exec.store.dfs.FileSystemConf;
@@ -100,6 +102,11 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
   private static final URI S3_URI = URI.create("s3a://aws"); // authority doesn't matter here, it is just to avoid exceptions
   private static final String S3_ENDPOINT_END = ".amazonaws.com";
   private static final String S3_CN_ENDPOINT_END = S3_ENDPOINT_END + ".cn";
+
+  private final Retryer retryer = new Retryer.Builder()
+    .retryIfExceptionOfType(SdkClientException.class)
+    .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 250, 2500)
+    .setMaxRetries(10).build();
 
   // Used to close the S3 client objects
   // Lifecycle of an S3AsyncClient object:
@@ -242,17 +249,20 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
    * Checks if credentials are valid using GetCallerIdentity API call.
    */
   protected void verifyCredentials(Configuration conf) throws RuntimeException {
-    AwsCredentialsProvider awsCredentialsProvider = getAsync2Provider(conf);
-    final StsClientBuilder stsClientBuilder = StsClient.builder()
-      // Note that AWS SDKv2 client will close the credentials provider if needed when the client is closed
-      .credentialsProvider(awsCredentialsProvider)
-      .region(getAWSRegionFromConfigurationOrDefault(conf));
-    try (StsClient stsClient = stsClientBuilder.build()) {
-      GetCallerIdentityRequest request = GetCallerIdentityRequest.builder().build();
-      stsClient.getCallerIdentity(request);
-    } catch (StsException e) {
-      throw new RuntimeException(String.format("Credential Verification failed. Exception: %s ", e.getMessage()), e);
-    }
+      AwsCredentialsProvider awsCredentialsProvider = getAsync2Provider(conf);
+      final StsClientBuilder stsClientBuilder = StsClient.builder()
+        // Note that AWS SDKv2 client will close the credentials provider if needed when the client is closed
+        .credentialsProvider(awsCredentialsProvider)
+        .region(getAWSRegionFromConfigurationOrDefault(conf));
+      try (StsClient stsClient = stsClientBuilder.build()) {
+        retryer.call(() -> {
+          GetCallerIdentityRequest request = GetCallerIdentityRequest.builder().build();
+          stsClient.getCallerIdentity(request);
+          return true;
+        });
+      } catch (StsException | Retryer.OperationFailedAfterRetriesException e) {
+        throw new RuntimeException(String.format("Credential Verification failed. Exception: %s ", e.getMessage()), e);
+      }
   }
 
   @Override
@@ -355,7 +365,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
 
   // AwsCredentialsProvider might also implement SdkAutoCloseable
   // Make sure to close if using directly (or let client close it for you).
-  private AwsCredentialsProvider getAsync2Provider(Configuration config) {
+  @VisibleForTesting
+  protected AwsCredentialsProvider getAsync2Provider(Configuration config) {
     switch(config.get(Constants.AWS_CREDENTIALS_PROVIDER)) {
       case ACCESS_KEY_PROVIDER:
         return StaticCredentialsProvider.create(AwsBasicCredentials.create(

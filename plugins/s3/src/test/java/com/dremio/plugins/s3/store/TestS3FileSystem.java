@@ -17,12 +17,18 @@ package com.dremio.plugins.s3.store;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.sts.StsClient;
 
 /**
  * Test the S3FileSystem class.
  */
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(StsClient.class)
 public class TestS3FileSystem {
   @Test
   public void testValidRegionFromEndpoint() {

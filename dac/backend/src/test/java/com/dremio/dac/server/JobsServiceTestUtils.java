@@ -16,8 +16,11 @@
 package com.dremio.dac.server;
 
 
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
 
@@ -27,6 +30,7 @@ import com.dremio.dac.model.job.JobDataFragment;
 import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.server.test.SampleDataPopulator;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.service.job.CancelJobRequest;
 import com.dremio.service.job.DownloadSettings;
 import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.JobState;
@@ -93,6 +97,29 @@ public final class JobsServiceTestUtils {
       throw new RuntimeException("Job has been cancelled");
     }
     return jobId;
+  }
+
+  /**
+   * Submits query and waits specified milliseconds for completion
+   * returns true if query completes in time else cancels job and returns false
+   * @param jobsService
+   * @param request
+   * @param timeOut
+   * @throws Exception
+   */
+  public static boolean submitJobAndCancelOnTimeout(JobsService jobsService, JobRequest request, long timeOut) throws Exception {
+    final CompletionListener completionListener = new CompletionListener();
+    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), completionListener);
+    completionListener.await(timeOut, TimeUnit.MILLISECONDS);
+    if (!completionListener.isCompleted()) {
+      jobsService.cancel(CancelJobRequest.newBuilder()
+              .setUsername(SYSTEM_USERNAME)
+              .setJobId(JobsProtoUtil.toBuf(jobId))
+              .setReason("Query did not finish in " + timeOut + "ms")
+              .build());
+      return false;
+    }
+    return true;
   }
 
   /**

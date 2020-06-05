@@ -1028,6 +1028,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(l(JobsService.class), request, listener);
   }
 
+  protected boolean submitJobAndCancelOnTimeOut(JobRequest request, long timeOutInMillis) throws Exception {
+    return JobsServiceTestUtils.submitJobAndCancelOnTimeout(l(JobsService.class), request, timeOutInMillis);
+  }
+
   protected JobId submitJobAndWaitUntilCompletion(JobRequest request) {
     return JobsServiceTestUtils.submitJobAndWaitUntilCompletion(l(JobsService.class), request);
   }

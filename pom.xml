@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>4.3.0-202005130311450502-323f05d9</version>
+  <version>4.3.1-202005202256080999-5dcfb82a</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -40,7 +40,7 @@
     -->
     <arrow.version>0.18.0-20200505155812-4c5cbe98c7-dremio</arrow.version>
     <avatica.version>1.12.0</avatica.version>
-    <calcite.version>1.16.0-202004300519170468-0362519</calcite.version>
+    <calcite.version>1.16.0-202005121834460402-d60e02b</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
@@ -51,7 +51,7 @@
 
     <hibernate-validator.version>6.1.2.Final</hibernate-validator.version>
 
-    <hadoop.version>3.2.1-dremio-202004022157140768-f49a3df</hadoop.version>
+    <hadoop.version>3.2.1-dremio-202005181459080402-feba629</hadoop.version>
     <avro.version>1.9.2</avro.version>
     <iceberg.version>0.7.0-incubating</iceberg.version>
 
@@ -77,7 +77,7 @@
     -->
     <plugin.hive2.hbase.version>1.1.13</plugin.hive2.hbase.version>
 
-    <plugin.hive3.hadoop.version>3.2.1-dremio-202003182227490172-f8b0e18</plugin.hive3.hadoop.version>
+    <plugin.hive3.hadoop.version>3.2.1-dremio-202005181459080402-feba629</plugin.hive3.hadoop.version>
     <plugin.hive3.azure-storage.version>8.3.0</plugin.hive3.azure-storage.version>
     <plugin.hive3.azure-datalake.version>2.3.3-201901300025380807-2bdda72</plugin.hive3.azure-datalake.version>
     <plugin.hive3.hadoop-azure.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure.version>

@@ -99,8 +99,9 @@ public class ReduceTrigFunctionsRule extends RelOptRule {
           }
           op0 = (RexCall) reversed;
         }
-        if (op1 instanceof RexLiteral) {
-          SqlOperator comparison = isNegative(((RexLiteral) op1)) ? op(call.getKind().reverse()) : call.getOperator();
+        RexNode rightNode = op0.getOperands().get(0);
+        if (rightNode instanceof RexLiteral) {
+          SqlOperator comparison = isNegative(((RexLiteral) rightNode)) ? op(call.getKind().reverse()) : call.getOperator();
           return builder.makeCall(comparison, op0.getOperands().get(0), builder.makeCall(SqlStdOperatorTable.DIVIDE, op1, op0.getOperands().get(1)));
         }
         break;
