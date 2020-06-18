@@ -226,7 +226,7 @@ class ByteStoreManager implements AutoCloseable {
 
 
       registerMetrics(dboptions);
-      db = openDB(dboptions, path, Lists.transform(families, func), familyHandles);
+      db = openDB(dboptions, path, new ArrayList<>(Lists.transform(families, func)), familyHandles);
     }
     // create an output list to be populated when we open the db.
 

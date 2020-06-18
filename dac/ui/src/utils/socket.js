@@ -18,6 +18,7 @@ import { WEB_SOCKET_URL } from '@app/constants/Api';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 import { addNotification, removeNotification } from 'actions/notification';
 import Immutable from 'immutable';
+import uuid from 'uuid';
 
 const PING_INTERVAL = 15000;
 const CHECK_INTERVAL = 5000;
@@ -25,8 +26,10 @@ const CHECK_INTERVAL = 5000;
 const WS_MESSAGE_PING = 'ping';
 export const WS_MESSAGE_JOB_DETAILS = 'job-details';
 export const WS_MESSAGE_JOB_DETAILS_LISTEN = 'job-details-listen';
+export const WS_MESSAGE_REFLECTION_JOB_DETAILS_LISTEN = 'reflection-job-details-listen';
 export const WS_MESSAGE_JOB_PROGRESS = 'job-progress';
 export const WS_MESSAGE_JOB_PROGRESS_LISTEN = 'job-progress-listen';
+export const WS_MESSAGE_REFLECTION_JOB_PROGRESS_LISTEN = 'reflection-job-progress-listen';
 export const WS_MESSAGE_JOB_RECORDS = 'job-records';
 export const WS_MESSAGE_JOB_RECORDS_LISTEN = 'job-records-listen';
 
@@ -41,6 +44,7 @@ export class Socket {
   _pingId = 0;
   _checkId = 0;
   _failureCount = 0;
+  _listeners = {};
 
   get isOpen() {
     return !!this._socket && this._socket.readyState === WebSocket.OPEN;
@@ -119,6 +123,7 @@ export class Socket {
         console.info(data);
       }
       this.dispatch({type: data.type, payload: data.payload});
+      this._notifyListeners({type: data.type, payload: data.payload});
     } catch (error) {
       console.error('SOCKET CONNECTION MESSAGE HANDLING ERROR', error);
     }
@@ -176,6 +181,31 @@ export class Socket {
     this.stopListenMessage(message, forceSend);
   };
 
+
+  _startListenToReflectionJob = (jobId, reflectionId, type, forceSend) => {
+    invariant(jobId, `Must provide jobId to listen to. Received ${jobId}`);
+    const message = {
+      type,
+      payload: {
+        id: jobId,
+        reflectionId
+      }
+    };
+    this.sendListenMessage(message, forceSend);
+  };
+
+  _stopListenToReflectionJob = (jobId, reflectionId, type) => {
+    invariant(jobId, `Must provide jobId to listen to. Received ${jobId}`);
+    const message = {
+      type,
+      payload: {
+        id: jobId,
+        reflectionId
+      }
+    };
+    this.stopListenMessage(message);
+  };
+
   startListenToJobChange(jobId, forceSend) {
     this._startListenToJob(jobId, WS_MESSAGE_JOB_DETAILS_LISTEN, forceSend);
   }
@@ -184,12 +214,28 @@ export class Socket {
     this._stopListenToJob(jobId, WS_MESSAGE_JOB_DETAILS_LISTEN);
   }
 
+  startListenToReflectionJobChange(jobId, reflectionId, forceSend) {
+    this._startListenToReflectionJob(jobId, reflectionId, WS_MESSAGE_REFLECTION_JOB_DETAILS_LISTEN, forceSend);
+  }
+
+  stopListenToReflectionJobChange(jobId, reflectionId) {
+    this._stopListenToReflectionJob(jobId, reflectionId, WS_MESSAGE_REFLECTION_JOB_DETAILS_LISTEN);
+  }
+
   startListenToJobProgress(jobId, forceSend) {
     this._startListenToJob(jobId, WS_MESSAGE_JOB_PROGRESS_LISTEN, forceSend);
   }
 
   stopListenToJobProgress(jobId) {
     this._stopListenToJob(jobId, WS_MESSAGE_JOB_PROGRESS_LISTEN);
+  }
+
+  startListenToReflectionJobProgress(jobId, reflectionId, forceSend) {
+    this._startListenToReflectionJob(jobId, reflectionId, WS_MESSAGE_REFLECTION_JOB_PROGRESS_LISTEN, forceSend);
+  }
+
+  stopListenToReflectionJobProgress(jobId, reflectionId) {
+    this._stopListenToReflectionJob(jobId, reflectionId, WS_MESSAGE_REFLECTION_JOB_PROGRESS_LISTEN);
   }
 
   startListenToJobRecords(jobId) {
@@ -203,6 +249,22 @@ export class Socket {
   _sendMessage(message) {
     if (this.isOpen) {
       this._socket.send(JSON.stringify(message));
+    }
+  }
+
+  addListener(listener) {
+    const id = uuid.v4();
+    this._listeners[id] = listener;
+    return id;
+  }
+
+  removeListener(id) {
+    delete this._listeners[id];
+  }
+
+  _notifyListeners(msg) {
+    for (const id in this._listeners) {
+      this._listeners[id](msg);
     }
   }
 }

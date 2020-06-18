@@ -17,6 +17,7 @@ package com.dremio.sabot.op.scan;
 
 import java.util.Collection;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -25,8 +26,6 @@ import org.apache.arrow.vector.util.CallBack;
 import com.dremio.exec.exception.SchemaChangeException;
 import com.dremio.exec.record.VectorContainer;
 import com.google.common.base.Preconditions;
-
-import io.netty.buffer.ArrowBuf;
 
 public class VectorContainerMutator implements OutputMutator {
 

@@ -19,6 +19,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
+import javax.inject.Provider;
+
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -28,6 +31,7 @@ import com.dremio.exec.expr.ClassProducer;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.selection.SelectionVector2;
@@ -37,8 +41,6 @@ import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.dremio.service.spill.SpillService;
-
-import io.netty.buffer.ArrowBuf;
 
 public abstract class OperatorContext {
 
@@ -120,6 +122,8 @@ public abstract class OperatorContext {
     }
     return i;
   }
+
+  public abstract Provider<CoordinationProtos.NodeEndpoint> getNodeEndpointProvider();
 
   public interface Creator {
     public OperatorContext newOperatorContext(PhysicalOperator popConfig) throws Exception;

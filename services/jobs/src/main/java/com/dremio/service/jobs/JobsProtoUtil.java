@@ -15,12 +15,14 @@
  */
 package com.dremio.service.jobs;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import com.dremio.datastore.LegacyProtobufSerializer;
 import com.dremio.datastore.SearchTypes;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.beans.NodeEndpoint;
 import com.dremio.exec.store.Views;
 import com.dremio.proto.model.attempts.RequestType;
@@ -264,9 +266,179 @@ public final class JobsProtoUtil {
         return com.dremio.service.job.JobState.CANCELLATION_REQUESTED;
       case ENQUEUED:
         return com.dremio.service.job.JobState.ENQUEUED;
+      case PENDING:
+        return com.dremio.service.job.JobState.PENDING;
+      case METADATA_RETRIEVAL:
+        return com.dremio.service.job.JobState.METADATA_RETRIEVAL;
+      case QUEUED:
+        return com.dremio.service.job.JobState.QUEUED;
+      case ENGINE_START:
+        return com.dremio.service.job.JobState.ENGINE_START;
+      case EXECUTION_PLANNING:
+        return com.dremio.service.job.JobState.EXECUTION_PLANNING;
       default:
         return com.dremio.service.job.JobState.INVALID_JOB_STATE;
     }
+  }
+
+  public static com.dremio.service.job.AttemptEvent.State toBuf(com.dremio.exec.proto.beans.AttemptEvent.State attemptState) {
+
+    if (attemptState == null) {
+      return com.dremio.service.job.AttemptEvent.State.INVALID_STATE;
+    }
+    switch (attemptState) {
+      case METADATA_RETRIEVAL:
+        return com.dremio.service.job.AttemptEvent.State.METADATA_RETRIEVAL;
+      case STARTING:
+        return com.dremio.service.job.AttemptEvent.State.STARTING;
+      case PLANNING:
+        return com.dremio.service.job.AttemptEvent.State.PLANNING;
+      case RUNNING:
+        return com.dremio.service.job.AttemptEvent.State.RUNNING;
+      case COMPLETED:
+        return com.dremio.service.job.AttemptEvent.State.COMPLETED;
+      case CANCELED:
+        return com.dremio.service.job.AttemptEvent.State.CANCELED;
+      case FAILED:
+        return com.dremio.service.job.AttemptEvent.State.FAILED;
+      case QUEUED:
+        return com.dremio.service.job.AttemptEvent.State.QUEUED;
+      case PENDING:
+        return com.dremio.service.job.AttemptEvent.State.PENDING;
+      case ENGINE_START:
+        return com.dremio.service.job.AttemptEvent.State.ENGINE_START;
+      case EXECUTION_PLANNING:
+        return com.dremio.service.job.AttemptEvent.State.EXECUTION_PLANNING;
+      default:
+        return com.dremio.service.job.AttemptEvent.State.INVALID_STATE;
+    }
+  }
+
+  public static com.dremio.exec.proto.UserBitShared.AttemptEvent.State toBuf2(com.dremio.exec.proto.beans.AttemptEvent.State attemptState) {
+
+    if (attemptState == null) {
+      return com.dremio.exec.proto.UserBitShared.AttemptEvent.State.INVALID_STATE;
+    }
+    switch (attemptState) {
+      case METADATA_RETRIEVAL:
+        return com.dremio.exec.proto.UserBitShared.AttemptEvent.State.METADATA_RETRIEVAL;
+      case STARTING:
+        return com.dremio.exec.proto.UserBitShared.AttemptEvent.State.STARTING;
+      case PLANNING:
+        return com.dremio.exec.proto.UserBitShared.AttemptEvent.State.PLANNING;
+      case RUNNING:
+        return com.dremio.exec.proto.UserBitShared.AttemptEvent.State.RUNNING;
+      case COMPLETED:
+        return com.dremio.exec.proto.UserBitShared.AttemptEvent.State.COMPLETED;
+      case CANCELED:
+        return com.dremio.exec.proto.UserBitShared.AttemptEvent.State.CANCELED;
+      case FAILED:
+        return com.dremio.exec.proto.UserBitShared.AttemptEvent.State.FAILED;
+      case QUEUED:
+        return com.dremio.exec.proto.UserBitShared.AttemptEvent.State.QUEUED;
+      case PENDING:
+        return com.dremio.exec.proto.UserBitShared.AttemptEvent.State.PENDING;
+      case ENGINE_START:
+        return com.dremio.exec.proto.UserBitShared.AttemptEvent.State.ENGINE_START;
+      case EXECUTION_PLANNING:
+        return com.dremio.exec.proto.UserBitShared.AttemptEvent.State.EXECUTION_PLANNING;
+      default:
+        return com.dremio.exec.proto.UserBitShared.AttemptEvent.State.INVALID_STATE;
+    }
+  }
+
+  public static com.dremio.exec.proto.beans.AttemptEvent.State toBuf(com.dremio.service.job.AttemptEvent.State attemptState) {
+
+    if (attemptState == null) {
+      return com.dremio.exec.proto.beans.AttemptEvent.State.INVALID_STATE;
+    }
+    switch (attemptState) {
+      case METADATA_RETRIEVAL:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.METADATA_RETRIEVAL;
+      case STARTING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.STARTING;
+      case PLANNING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.PLANNING;
+      case RUNNING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.RUNNING;
+      case COMPLETED:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.COMPLETED;
+      case CANCELED:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.CANCELED;
+      case FAILED:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.FAILED;
+      case QUEUED:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.QUEUED;
+      case PENDING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.PENDING;
+      case ENGINE_START:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.ENGINE_START;
+      case EXECUTION_PLANNING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.EXECUTION_PLANNING;
+      default:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.INVALID_STATE;
+    }
+  }
+
+  public static com.dremio.exec.proto.beans.AttemptEvent.State toBuf(com.dremio.exec.proto.UserBitShared.AttemptEvent.State attemptState) {
+
+    if (attemptState == null) {
+      return com.dremio.exec.proto.beans.AttemptEvent.State.INVALID_STATE;
+    }
+    switch (attemptState) {
+      case METADATA_RETRIEVAL:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.METADATA_RETRIEVAL;
+      case STARTING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.STARTING;
+      case PLANNING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.PLANNING;
+      case RUNNING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.RUNNING;
+      case COMPLETED:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.COMPLETED;
+      case CANCELED:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.CANCELED;
+      case FAILED:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.FAILED;
+      case QUEUED:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.QUEUED;
+      case PENDING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.PENDING;
+      case ENGINE_START:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.ENGINE_START;
+      case EXECUTION_PLANNING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.EXECUTION_PLANNING;
+      default:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.INVALID_STATE;
+    }
+  }
+
+  public static List<AttemptEvent> toStuff2(List<com.dremio.exec.proto.beans.AttemptEvent> stateList) {
+    List<AttemptEvent> res = null;
+    if (stateList != null) {
+      res = new ArrayList<>();
+      List<AttemptEvent> finalRes = res;
+      stateList.forEach(m -> finalRes
+        .add(AttemptEvent.newBuilder()
+          .setState(toBuf2(m.getState()))
+          .setStartTime(m.getStartTime())
+          .build()));
+    }
+    return res;
+  }
+
+  static List<com.dremio.exec.proto.beans.AttemptEvent> toBuf2(List<com.dremio.exec.proto.UserBitShared.AttemptEvent> stateList) {
+    List<com.dremio.exec.proto.beans.AttemptEvent> res = null;
+    if (stateList != null) {
+      res = new ArrayList<>();
+      for (AttemptEvent mS : stateList) {
+        com.dremio.exec.proto.beans.AttemptEvent state = new com.dremio.exec.proto.beans.AttemptEvent();
+        state.setState(toBuf(mS.getState()));
+        state.setStartTime(mS.getStartTime());
+        res.add(state);
+      }
+    }
+    return res;
   }
 
   /**
@@ -293,6 +465,16 @@ public final class JobsProtoUtil {
         return JobState.CANCELLATION_REQUESTED;
       case ENQUEUED:
         return JobState.ENQUEUED;
+      case PENDING:
+        return JobState.PENDING;
+      case METADATA_RETRIEVAL:
+        return JobState.METADATA_RETRIEVAL;
+      case QUEUED:
+        return JobState.QUEUED;
+      case ENGINE_START:
+        return JobState.ENGINE_START;
+      case EXECUTION_PLANNING:
+        return JobState.EXECUTION_PLANNING;
       default:
         return null;
     }

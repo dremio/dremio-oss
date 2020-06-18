@@ -346,7 +346,7 @@ class OverviewContent extends PureComponent {
     const { jobDetails } = this.props;
     const attemptDetails = jobDetails.get('attemptDetails');
     const lastAttempt = attemptDetails.last();
-    const totalTimeMs = lastAttempt.get('enqueuedTime') + lastAttempt.get('executionTime') + lastAttempt.get('planningTime');
+    const totalTimeMs = lastAttempt.get('totalTime');
     return jobsUtils.formatJobDuration(totalTimeMs);
   }
 

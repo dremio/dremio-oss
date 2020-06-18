@@ -34,6 +34,7 @@ import com.dremio.exec.work.foreman.AttemptManager;
 import com.dremio.exec.work.foreman.ForemanException;
 import com.dremio.exec.work.protector.ForemenWorkManager;
 import com.dremio.resource.basic.BasicResourceConstants;
+import com.dremio.resource.exception.ResourceUnavailableException;
 import com.dremio.sabot.op.aggregate.vectorized.VectorizedHashAggOperator;
 import com.dremio.sabot.rpc.user.AwaitableUserResultsListener;
 
@@ -166,6 +167,17 @@ public class TestMaestroResiliency extends BaseTestQuery {
     runMultiple(controls, ResourceTracker.INJECTOR_RESOURCE_ALLOCATE_ERROR);
   }
 
+  // Same as testFailureInResourceAllocation, but different exception.
+  @Test
+  public void testUnavailableFailureInResourceAllocation() throws Exception {
+    final String controls = Controls.newBuilder()
+      .addException(ResourceTracker.class, ResourceTracker.INJECTOR_RESOURCE_ALLOCATE_UNAVAILABLE_ERROR,
+        ResourceUnavailableException.class)
+      .build();
+
+    runMultiple(controls, ResourceTracker.INJECTOR_RESOURCE_ALLOCATE_UNAVAILABLE_ERROR);
+  }
+
   @Test
   public void testFailureInExecutionPlanning() throws Exception {
     final String controls = Controls.newBuilder()
@@ -243,30 +255,6 @@ public class TestMaestroResiliency extends BaseTestQuery {
       runSQL(query);
     }
     waitTillQueryCleanup();
-  }
-
-  // captures queryId and state.
-  static class QueryIdCapturingListener extends SilentListener {
-    private UserBitShared.QueryId queryId;
-    private UserBitShared.QueryResult.QueryState queryState;
-
-    @Override
-    public void queryIdArrived(UserBitShared.QueryId queryId) {
-      this.queryId = queryId;
-    }
-
-    @Override
-    public void queryCompleted(UserBitShared.QueryResult.QueryState queryState) {
-      this.queryState = queryState;
-    }
-
-    UserBitShared.QueryId getQueryId() {
-      return queryId;
-    }
-
-    UserBitShared.QueryResult.QueryState getQueryState() {
-      return queryState;
-    }
   }
 
   // pause the test using execution controls, cancel and resume it.

@@ -20,6 +20,7 @@ import java.io.InputStream;
 import java.util.BitSet;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
@@ -39,8 +40,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Charsets;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-
-import io.netty.buffer.ArrowBuf;
 
 
 public class JsonReader extends BaseJsonProcessor {

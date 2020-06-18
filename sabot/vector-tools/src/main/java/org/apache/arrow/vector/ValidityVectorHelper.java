@@ -15,11 +15,11 @@
  */
 package org.apache.arrow.vector;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.google.common.base.Preconditions;
-
-import io.netty.buffer.ArrowBuf;
 
 /*
  * Arrow code has a BitVectorHelper class used extensively throughout the vector

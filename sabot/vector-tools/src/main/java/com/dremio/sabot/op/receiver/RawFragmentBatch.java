@@ -17,10 +17,10 @@ package com.dremio.sabot.op.receiver;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.dremio.exec.proto.ExecRPC.FragmentRecordBatch;
 import com.dremio.sabot.exec.rpc.AckSender;
-
-import io.netty.buffer.ArrowBuf;
 
 public class RawFragmentBatch implements AutoCloseable {
   //private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(RawFragmentBatch.class);

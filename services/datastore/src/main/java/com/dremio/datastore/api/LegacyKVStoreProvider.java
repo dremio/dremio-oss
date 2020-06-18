@@ -33,7 +33,8 @@ public interface LegacyKVStoreProvider extends Service {
    * @param creator The creator function.
    * @return The associated kvstore, previously initialized.
    */
-  <T extends LegacyKVStore<?, ?>> T getStore(Class<? extends LegacyStoreCreationFunction<T>> creator);
+  <K, V, T extends LegacyKVStore<K, V>, U extends KVStore<K, V>>
+  T getStore(Class<? extends LegacyStoreCreationFunction<K, V, T, U>> creator);
 
   /**
    * Interface to configure and construct different store types.
@@ -57,7 +58,7 @@ public interface LegacyKVStoreProvider extends Service {
    * @param <V>
    */
   abstract class LegacyAbstractStoreBuilder<K, V> implements LegacyStoreBuilder<K, V> {
-    private LegacyStoreBuilderHelper<K, V> helper = new LegacyStoreBuilderHelper<>();
+    private final LegacyStoreBuilderHelper<K, V> helper = new LegacyStoreBuilderHelper<>();
 
     @Override
     public LegacyStoreBuilder<K, V> name(String name) {

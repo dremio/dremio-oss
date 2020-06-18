@@ -45,7 +45,7 @@ import com.google.common.base.Optional;
  */
 @APIResource
 @Secured
-@RolesAllowed({"admin"})
+@RolesAllowed({"admin", "user"})
 @Path("/reflection")
 @Consumes(APPLICATION_JSON)
 @Produces(APPLICATION_JSON)

@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.server;
 
+import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -62,16 +63,18 @@ import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.JSONUtil;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.server.NodeRegistration;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.InitializerRegistry;
+import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.jobs.HybridJobsService;
-import com.dremio.service.jobs.JobsServer;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.reflection.ReflectionAdministrationService;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.UserService;
 import com.dremio.test.DremioTest;
@@ -81,6 +84,8 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
+
+import de.flapdoodle.embed.process.runtime.Network;
 
 /**
  * Test that when master goes down services on other nodes wait in loop for master to come back up.
@@ -112,6 +117,7 @@ public class TestMasterDown extends BaseClientUtils {
   public static void init() throws Exception {
     Assume.assumeTrue(BaseTestServer.isMultinode());
     try (Timer.TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
+      final int[] ports = Network.getFreeServerPorts(Network.getLocalHost(), 7);
       masterDremioDaemon = DACDaemon.newDremioDaemon(
         DACConfig
           .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
@@ -123,10 +129,10 @@ public class TestMasterDown extends BaseClientUtils {
           .inMemoryStorage(true)
           .writePath(folder1.getRoot().getAbsolutePath())
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-          .localPort(getPort("test.master-active.localPort"))
-          .httpPort(getPort("test.master-active.httpPort"))
-          .with(DremioConfig.CLIENT_PORT_INT, getPort("test.master-active.clientPort"))
-          .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT, getPort("test.zk.enabled.port")),
+          .localPort(ports[0])
+          .httpPort(ports[1])
+          .with(DremioConfig.CLIENT_PORT_INT, ports[2])
+          .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT, ports[6]),
         DremioTest.CLASSPATH_SCAN_RESULT);
 
       // remote node
@@ -140,10 +146,10 @@ public class TestMasterDown extends BaseClientUtils {
           .inMemoryStorage(true)
           .writePath(folder2.getRoot().getAbsolutePath())
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-          .localPort(getPort("test.non-master.localPort"))
-          .httpPort(getPort("test.non-master.httpPort"))
-          .with(DremioConfig.CLIENT_PORT_INT, getPort("test.non-master.clientPort"))
-          .zk(String.format("localhost:%d", getPort("test.zk.enabled.port")))
+          .localPort(ports[3])
+          .httpPort(ports[4])
+          .with(DremioConfig.CLIENT_PORT_INT, ports[5])
+          .zk(String.format("localhost:%d", ports[6]))
           .isRemote(true),
         DremioTest.CLASSPATH_SCAN_RESULT);
     }
@@ -169,14 +175,6 @@ public class TestMasterDown extends BaseClientUtils {
         }
       },
       currentDremioDaemon, masterDremioDaemon);
-  }
-
-  private static int getPort(String portName) {
-    String port = System.getProperty(portName);
-    if (port == null || port.isEmpty()) {
-      throw new RuntimeException(String.format("Can't start test since %s is not available.", portName));
-    }
-    return Integer.parseInt(port);
   }
 
   private static void initClient() {
@@ -280,7 +278,7 @@ public class TestMasterDown extends BaseClientUtils {
   @Test
   public void testMasterDown() throws Exception {
     final long timeoutMs = 5_000; // Timeout when checking if a node reached a given status
-    Provider<Integer> jobsPortProvider = () -> currentDremioDaemon.getBindingProvider().lookup(JobsServer.class).getPort();
+    Provider<Integer> jobsPortProvider = () -> currentDremioDaemon.getBindingProvider().lookup(ConduitServer.class).getPort();
 
     masterDremioDaemon.startPreServices();
 
@@ -323,6 +321,12 @@ public class TestMasterDown extends BaseClientUtils {
 
     TestUtilities.addClasspathSourceIf(sabotContext.getCatalogService());
     DACSecurityContext dacSecurityContext = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
+
+    currentDremioDaemon.getBindingCreator().bindProvider(ReflectionAdministrationService.class, () -> {
+      ReflectionAdministrationService.Factory factory = mp.lookup(ReflectionAdministrationService.Factory.class);
+      return factory.get(new ReflectionContext(DEFAULT_USER_NAME, true));
+    });
+
     SampleDataPopulator populator = new SampleDataPopulator(
       sabotContext,
       new SourceService(

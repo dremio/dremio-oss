@@ -75,6 +75,8 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.MissingPluginConf;
@@ -82,6 +84,8 @@ import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
@@ -202,12 +206,16 @@ public class TestCatalogServiceImpl {
     final LogicalPlanPersistence lpp = new LogicalPlanPersistence(sabotConfig, CLASSPATH_SCAN_RESULT);
     when(sabotContext.getLpPersistence())
         .thenReturn(lpp);
+    final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
+    final SystemOptionManager som = new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
+    OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
+      .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+      .withOptionManager(som)
+      .build();
 
-    final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(CLASSPATH_SCAN_RESULT);
-    final SystemOptionManager som = new SystemOptionManager(defaultOptionManager, lpp, () -> storeProvider, true);
     som.start();
     when(sabotContext.getOptionManager())
-        .thenReturn(som);
+        .thenReturn(optionManager);
 
     when(sabotContext.getKVStoreProvider())
         .thenReturn(storeProvider);
@@ -248,7 +256,7 @@ public class TestCatalogServiceImpl {
         () -> allocator,
         () -> storeProvider,
         () -> datasetListingService,
-        () -> som,
+        () -> optionManager,
         dremioConfig,
         EnumSet.allOf(ClusterCoordinator.Role.class)
     );

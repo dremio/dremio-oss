@@ -205,6 +205,31 @@ public class SocketMessage {
   }
 
   /**
+   * Message from client > server requesting events about reflection job progress.
+   */
+  @JsonTypeName("reflection-job-progress-listen")
+  public static class ListenReflectionJobProgress extends Payload {
+    private final JobId id;
+    private final String reflectionId;
+
+    @JsonCreator
+    public ListenReflectionJobProgress(@JsonProperty("id") JobId id,
+                          @JsonProperty("reflectionId") String reflectionId) {
+      super();
+      this.id = id;
+      this.reflectionId = reflectionId;
+    }
+
+    public JobId getId() {
+      return id;
+    }
+
+    public String getReflectionId() {
+      return reflectionId;
+    }
+  }
+
+  /**
    * Message from client > server requesting events about job details.
    */
   @JsonTypeName("job-details-listen")
@@ -221,6 +246,31 @@ public class SocketMessage {
       return id;
     }
 
+  }
+
+  /**
+   * Message from client > server requesting events about job details.
+   */
+  @JsonTypeName("reflection-job-details-listen")
+  public static class ListenReflectionJobDetails extends Payload {
+    private final JobId id;
+    private final String reflectionId;
+
+    @JsonCreator
+    public ListenReflectionJobDetails(@JsonProperty("id") JobId id,
+                         @JsonProperty("reflectionId") String reflectionId) {
+      super();
+      this.id = id;
+      this.reflectionId = reflectionId;
+    }
+
+    public JobId getId() {
+      return id;
+    }
+
+    public String getReflectionId() {
+      return reflectionId;
+    }
   }
 
   /**
@@ -260,6 +310,8 @@ public class SocketMessage {
         SocketMessage.ListenRecords.class,
         SocketMessage.ErrorPayload.class,
         SocketMessage.PingPayload.class,
+        SocketMessage.ListenReflectionJobProgress.class,
+        SocketMessage.ListenReflectionJobDetails.class,
         };
   }
 }

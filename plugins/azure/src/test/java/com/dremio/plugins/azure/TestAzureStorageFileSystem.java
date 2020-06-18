@@ -73,7 +73,6 @@ public class TestAzureStorageFileSystem {
     }
   }
 
-
   private Configuration getMockHadoopConf() {
     Configuration conf = mock(Configuration.class);
     when(conf.get(eq("dremio.azure.mode"))).thenReturn("STORAGE_V2");

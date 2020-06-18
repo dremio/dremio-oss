@@ -413,18 +413,38 @@
   <h3>Job Summary</h3>
   <dl class="dl-horizontal info-list">
     <dt>State:</dt>
-    <dd>${model.getProfile().getState().name()}</dd>
+    <dd>${model.getStateName()}</dd>
     <dt>Coordinator:</dt>
     <dd>${model.getProfile().getForeman().getAddress()}</dd>
     <dt>Threads:</dt>
     <dd>${model.getProfile().getTotalFragments()}</dd>
     <dt>Command Pool Wait:</dt>
     <dd>${model.getCommandPoolWaitMillis()}</dd>
-    <dt>Planning Time:</dt>
-    <dd>${model.getPlanningTime()}</dd>
-    <dt>Resource Scheduling Time:</dt>
-    <dd>${model.getQueueTime()}</dd>
+    <dt>Total Query Time:</dt>
+    <dd>${model.getTotalTime()}</dd>
   </dl>
+
+  <h3>State Durations</h3>
+    <dl class="dl-horizontal info-list">
+      <dt>Pending:</dt>
+      <dd>${model.getPendingTime()}</dd>
+      <dt>Metadata Retrieval:</dt>
+      <dd>${model.getMetadataRetrievalTime()}</dd>
+      <dt>Planning:</dt>
+      <dd>${model.getPlanningTime()}</dd>
+      <dt>Engine Start:</dt>
+      <dd>${model.getEngineStartTime()}</dd>
+      <dt>Queued:</dt>
+      <dd>${model.getQueuedTime()}</dd>
+      <dt>Execution Planning:</dt>
+      <dd>${model.getExecutionPlanningTime()}</dd>
+      <dt>Starting:</dt>
+      <dd>${model.getStartingTime()}</dd>
+      <dt>Running:</dt>
+      <dd>${model.getRunningTime()}</dd>
+    </dl>
+
+
   <h3>Threads</h3>
   <div class="panel-group" id="fragment-accordion">
     <div class="panel panel-default">

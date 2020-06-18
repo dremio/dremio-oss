@@ -46,6 +46,7 @@ import com.dremio.config.DremioConfig;
 import com.dremio.provision.ClusterId;
 import com.dremio.provision.Property;
 import com.dremio.provision.PropertyType;
+import com.dremio.provision.yarn.service.YarnDefaultsConfigurator.MapRYarnDefaults;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -194,6 +195,9 @@ public class YarnController {
     basicJVMOptions.put(DremioConfig.ENABLE_COORDINATOR_BOOL, "false");
     basicJVMOptions.put(DremioConfig.ENABLE_EXECUTOR_BOOL, "true");
     basicJVMOptions.put(DremioConfig.YARN_ENABLED_BOOL, "true");
+    basicJVMOptions.put(MapRYarnDefaults.MAPR_IMPALA_RA_THROTTLE_BOOL, "true");
+    basicJVMOptions.put(MapRYarnDefaults.MAPR_MAX_RA_STREAMS, yarnConfiguration
+      .get(MapRYarnDefaults.MAPR_MAX_RA_STREAMS, "400"));
     basicJVMOptions.put(VM.DREMIO_CPU_AVAILABLE_PROPERTY, yarnConfiguration.get(YARN_CPU));
 
     final String kerberosPrincipal = dremioConfig.getString(DremioConfig.KERBEROS_PRINCIPAL);

@@ -19,10 +19,10 @@ package com.dremio.parquet.reader;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.parquet.bytes.ByteBufferAllocator;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 
 /**

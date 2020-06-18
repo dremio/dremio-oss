@@ -70,7 +70,6 @@ public class TestBroadcast extends PlanTestBase {
             "BroadcastExchange.*left_col_a");
   }
 
-
   private void setup() throws Exception{
     testNoResult("alter session set \"planner.slice_target\" = 1");
     testNoResult("alter session set \"planner.enable_broadcast_join\" = true");

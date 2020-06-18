@@ -62,6 +62,7 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.DatasetMetadataAdapter;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.ImpersonationUtil;
@@ -275,7 +276,8 @@ public class ITHiveStorage extends HiveTestBase {
 
     // these are decimal to string coversions.
     query = "SELECT * FROM hive.decimal_conversion_test_parquet_ext";
-    errorMsgTestHelper(query, "Field [col2] has incompatible types in file and table.");
+    errorMsgWithTypeTestHelper(query, UserBitShared.DremioPBError.ErrorType.UNSUPPORTED_OPERATION,
+            "Field [col2] has incompatible types in file and table.");
 
     // these are decimal to decimal overflow for col1 and col2
     query = "SELECT * FROM hive.decimal_conversion_test_parquet_ext_2";

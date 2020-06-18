@@ -34,7 +34,13 @@ import org.apache.commons.io.IOUtils;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.cache.VectorAccessibleSerializable;
+import com.dremio.exec.enginemanagement.proto.EngineId;
+import com.dremio.exec.enginemanagement.proto.EngineManagementProtos;
+import com.dremio.exec.enginemanagement.proto.SubEngineId;
 import com.dremio.exec.expr.TypeHelper;
+import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.beans.NodeEndpoint;
+import com.dremio.exec.proto.beans.Roles;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchData;
 import com.dremio.exec.record.VectorContainer;
@@ -223,6 +229,47 @@ class ArrowFileReader implements AutoCloseable {
     return newRecordBatchHolder(new RecordBatchData(vectorContainer, allocator), 0, 0);
   }
 
+  private static Roles toBean(CoordinationProtos.Roles roles) {
+    Roles beanRoles = new Roles();
+    beanRoles.setDistributedCache(roles.getDistributedCache());
+    beanRoles.setJavaExecutor(roles.getJavaExecutor());
+    beanRoles.setLogicalPlan(roles.getLogicalPlan());
+    beanRoles.setMaster(roles.getMaster());
+    beanRoles.setSqlQuery(roles.getSqlQuery());
+    beanRoles.setPhysicalPlan(roles.getPhysicalPlan());
+    return beanRoles;
+  }
+
+  private static EngineId toBean(EngineManagementProtos.EngineId engineId) {
+    EngineId beanEngineId = new EngineId();
+    beanEngineId.setId(engineId.getId());
+    return beanEngineId;
+  }
+
+  private static SubEngineId toBean(EngineManagementProtos.SubEngineId subEngineId) {
+    SubEngineId beanSubEngineId = new SubEngineId();
+    beanSubEngineId.setId(subEngineId.getId());
+    return beanSubEngineId;
+  }
+
+  static NodeEndpoint toBean(CoordinationProtos.NodeEndpoint nodeEndpoint) {
+    NodeEndpoint beanNodeEndpoint = new NodeEndpoint();
+
+    beanNodeEndpoint.setAddress(nodeEndpoint.getAddress());
+    beanNodeEndpoint.setEngineId(toBean(nodeEndpoint.getEngineId()));
+    beanNodeEndpoint.setSubEngineId(toBean(nodeEndpoint.getSubEngineId()));
+    beanNodeEndpoint.setRoles(toBean(nodeEndpoint.getRoles()));
+    beanNodeEndpoint.setAvailableCores((nodeEndpoint.getAvailableCores()));
+    beanNodeEndpoint.setFabricPort(nodeEndpoint.getFabricPort());
+    beanNodeEndpoint.setMaxDirectMemory(nodeEndpoint.getMaxDirectMemory());
+    beanNodeEndpoint.setNodeTag(nodeEndpoint.getNodeTag());
+    beanNodeEndpoint.setProvisionId(nodeEndpoint.getProvisionId());
+    beanNodeEndpoint.setStartTime(nodeEndpoint.getStartTime());
+    beanNodeEndpoint.setUserPort(nodeEndpoint.getUserPort());
+
+    return beanNodeEndpoint;
+  }
+
   /**
    * Helper method to convert the protobuf message into a bean class. Currently it ignores converting the row type.
    * Add the support for row type conversion in future if needed.
@@ -237,6 +284,7 @@ class ArrowFileReader implements AutoCloseable {
 
     beanMetadata.setPath(metadata.getPath());
     beanMetadata.setRecordCount(metadata.getRecordCount());
+    beanMetadata.setScreenNodeEndpoint(toBean(metadata.getScreenNodeEndpoint()));
 
     ArrowFileFooter beanFooter = new ArrowFileFooter();
     beanFooter.setBatchList(new ArrayList<>());

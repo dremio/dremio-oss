@@ -76,6 +76,7 @@ public class TestProfiles {
   private ProfileStore profileStore;
   private JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub server;
   private JobTelemetryServiceGrpc.JobTelemetryServiceStub asyncServer;
+  private JobTelemetryServiceImpl profileService;
 
   @Before
   public void setUp() throws Exception {
@@ -88,7 +89,7 @@ public class TestProfiles {
     profileStore.start();
 
     final String serverName = InProcessServerBuilder.generateName();
-    final JobTelemetryServiceImpl profileService =
+    profileService =
       new JobTelemetryServiceImpl(metricsStore, profileStore, false, 100);
 
     grpcCleanupRule.register(InProcessServerBuilder
@@ -347,6 +348,9 @@ public class TestProfiles {
         .setQueryId(profileSet.queryId)
         .build()
     ).getProfile();
+    do {
+      Thread.sleep(5);
+    } while (profileService.getNumInprogressWrites() > 0);
 
     // delete the profile and fetch again.
     server.deleteProfile(DeleteProfileRequest.newBuilder()

@@ -30,9 +30,12 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.service.conduit.client.ConduitProvider;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.service.job.CancelJobRequest;
+import com.dremio.service.job.CancelReflectionJobRequest;
 import com.dremio.service.job.ChronicleGrpc.ChronicleBlockingStub;
 import com.dremio.service.job.JobCounts;
 import com.dremio.service.job.JobCountsRequest;
@@ -46,10 +49,16 @@ import com.dremio.service.job.JobsServiceGrpc.JobsServiceBlockingStub;
 import com.dremio.service.job.JobsServiceGrpc.JobsServiceStub;
 import com.dremio.service.job.JobsWithParentDatasetRequest;
 import com.dremio.service.job.QueryProfileRequest;
+import com.dremio.service.job.ReflectionJobDetailsRequest;
+import com.dremio.service.job.ReflectionJobEventsRequest;
+import com.dremio.service.job.ReflectionJobProfileRequest;
+import com.dremio.service.job.ReflectionJobSummaryRequest;
 import com.dremio.service.job.SearchJobsRequest;
+import com.dremio.service.job.SearchReflectionJobsRequest;
 import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.proto.JobId;
 
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 
 /**
@@ -66,12 +75,19 @@ public class HybridJobsService implements JobsService {
   private volatile Provider<Integer> portProvider = null;
   private volatile JobsClient jobsClient = null;
 
+  private final Provider<CoordinationProtos.NodeEndpoint> selfEndpoint;
+  private final ConduitProvider conduitProvider;
+
   public HybridJobsService(
     GrpcChannelBuilderFactory grpcFactory,
-    Provider<BufferAllocator> allocator
+    Provider<BufferAllocator> allocator,
+    Provider<CoordinationProtos.NodeEndpoint> selfEndpoint,
+    ConduitProvider conduitProvider
   ) {
     this.grpcFactory = grpcFactory;
     this.allocator = allocator;
+    this.selfEndpoint = selfEndpoint;
+    this.conduitProvider = conduitProvider;
   }
 
   @Override
@@ -91,7 +107,7 @@ public class HybridJobsService implements JobsService {
         if (jobsClient == null) {
           // we use a local variable to ensure all blocked threads on this block will only be able to
           // use jobsClient after start() is done
-          final JobsClient client = new JobsClient(grpcFactory, allocator, portProvider);
+          final JobsClient client = new JobsClient(grpcFactory, allocator, portProvider, selfEndpoint, conduitProvider);
           client.start();
           jobsClient = client;
         }
@@ -205,6 +221,78 @@ public class HybridJobsService implements JobsService {
     getAsyncStub().subscribeToJobEvents(JobsProtoUtil.toBuf(jobId), adapter);
   }
 
+  @Override
+  public JobSummary getReflectionJobSummary(ReflectionJobSummaryRequest request) throws JobNotFoundException, ReflectionJobValidationException {
+    try {
+      return getChronicleBlockingStub().getReflectionJobSummary(request);
+    } catch (StatusRuntimeException e) {
+      throwSuitableExceptionForReflectionJob(e, JobsProtoUtil.toStuff(request.getJobSummaryRequest().getJobId()),
+        request.getJobSummaryRequest().getUserName(), request.getReflectionId());
+      throw new AssertionError(e); // should be unreachable
+    }
+  }
+
+  @Override
+  public JobDetails getReflectionJobDetails(ReflectionJobDetailsRequest request) throws JobNotFoundException, ReflectionJobValidationException {
+    try {
+      return getChronicleBlockingStub().getReflectionJobDetails(request);
+    } catch (StatusRuntimeException e) {
+      throwSuitableExceptionForReflectionJob(e, JobsProtoUtil.toStuff(request.getJobDetailsRequest().getJobId()),
+        request.getJobDetailsRequest().getUserName(), request.getReflectionId());
+      throw new AssertionError(e); // should be unreachable
+    }
+  }
+
+  @Override
+  public void cancelReflectionJob(CancelReflectionJobRequest request) throws JobException {
+    try {
+      getBlockingStub().cancelReflectionJob(request);
+    } catch (StatusRuntimeException e) {
+      throwSuitableExceptionForReflectionJob(e, JobsProtoUtil.toStuff(request.getCancelJobRequest().getJobId()),
+        request.getCancelJobRequest().getUsername(), request.getReflectionId());
+      throw new AssertionError(e); // should be unreachable
+    }
+  }
+
+  @Override
+  public void registerReflectionJobListener(JobId jobId, String userName, String reflectionId, ExternalStatusListener listener) {
+    ExternalListenerAdapter adapter = new ExternalListenerAdapter(listener);
+    ReflectionJobEventsRequest.Builder builder = ReflectionJobEventsRequest.newBuilder()
+      .setJobId(JobsProtoUtil.toBuf(jobId))
+      .setUserName(userName)
+      .setReflectionId(reflectionId);
+
+    getAsyncStub().subscribeToReflectionJobEvents(builder.build(), adapter);
+  }
+
+  @Override
+  public Iterable<JobSummary> searchReflectionJobs(SearchReflectionJobsRequest request) {
+    final List<JobSummary> jobSummaries = new ArrayList<>();
+    try {
+      getChronicleBlockingStub().searchReflectionJobs(request).forEachRemaining(jobSummaries::add);
+    } catch (StatusRuntimeException e) {
+      if (e.getStatus().getCode().equals(Status.Code.PERMISSION_DENIED)) {
+        throw new AccessControlException(
+          String.format("User [%s] does not have permission to access reflection [%s]", request.getUserName(), request.getReflectionId()));
+      }
+      throw e;
+    }
+    return jobSummaries;
+  }
+
+  @Override
+  public QueryProfile getReflectionJobProfile(ReflectionJobProfileRequest request)
+    throws JobNotFoundException, ReflectionJobValidationException {
+    try {
+      return getChronicleBlockingStub().getReflectionJobProfile(request);
+    } catch (StatusRuntimeException e) {
+      throwSuitableExceptionForReflectionJob(e,
+        JobsProtoUtil.toStuff(request.getQueryProfileRequest().getJobId()),
+        request.getQueryProfileRequest().getUserName(), request.getReflectionId());
+      throw new AssertionError(e); // should be unreachable
+    }
+  }
+
   private static void throwSuitableException(StatusRuntimeException sre, JobId jobId, String username)
       throws JobNotFoundException {
     throwIfUserException(sre);
@@ -217,6 +305,23 @@ public class HybridJobsService implements JobsService {
           String.format("User [%s] does not have permission to access job [%s]", username, jobId));
     default:
       throw sre;
+    }
+  }
+
+  private static void throwSuitableExceptionForReflectionJob(StatusRuntimeException sre, JobId jobId, String username,
+                                                             String reflectionId) throws JobNotFoundException, ReflectionJobValidationException {
+    throwIfUserException(sre);
+
+    switch (sre.getStatus().getCode()) {
+      case INVALID_ARGUMENT:
+        throw new ReflectionJobValidationException(jobId, reflectionId);
+      case NOT_FOUND:
+        throw new JobNotFoundException(jobId, sre);
+      case PERMISSION_DENIED:
+        throw new AccessControlException(
+          String.format("User [%s] does not have permission to access reflection [%s]", username, reflectionId));
+      default:
+        throw sre;
     }
   }
 

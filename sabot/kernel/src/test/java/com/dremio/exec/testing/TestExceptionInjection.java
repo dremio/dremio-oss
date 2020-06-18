@@ -43,7 +43,9 @@ public class TestExceptionInjection extends BaseTestQuery {
   private static final String NO_THROW_FAIL = "Didn't throw expected exception";
 
   private static final UserSession session = UserSession.Builder.newBuilder()
-    .withSessionOptionManager(new SessionOptionManagerImpl(nodes[0].getContext().getOptionManager()))
+    .withSessionOptionManager(
+      new SessionOptionManagerImpl(nodes[0].getContext().getOptionValidatorListing()),
+      nodes[0].getContext().getOptionManager())
     .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
       .withUserProperties(UserProperties.getDefaultInstance())
       .build();
@@ -231,10 +233,12 @@ public class TestExceptionInjection extends BaseTestQuery {
       final SabotContext nodeContext2 = node2.getContext();
 
       final UserSession session = UserSession.Builder.newBuilder()
-          .withSessionOptionManager(new SessionOptionManagerImpl(nodeContext1.getOptionManager()))
-          .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
-          .withUserProperties(UserProperties.getDefaultInstance())
-          .build();
+        .withSessionOptionManager(
+          new SessionOptionManagerImpl(nodeContext1.getOptionValidatorListing()),
+          nodeContext1.getOptionManager())
+        .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
+        .withUserProperties(UserProperties.getDefaultInstance())
+        .build();
 
       final String passthroughDesc = "<<injected from descPassthrough>>";
       final int nSkip = 7;

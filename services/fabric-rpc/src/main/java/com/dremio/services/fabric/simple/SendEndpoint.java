@@ -15,10 +15,10 @@
  */
 package com.dremio.services.fabric.simple;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.dremio.exec.rpc.RpcException;
 import com.google.protobuf.MessageLite;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Interface that the ProtocolBuilder returns to allow someone to send message to a registered handler.

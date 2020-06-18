@@ -15,10 +15,9 @@
  */
 package com.dremio.common.memory;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Utility functions related to memory allocation.

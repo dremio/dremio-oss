@@ -17,6 +17,7 @@ package com.dremio.exec.expr.fn.impl.conv;
 
 import javax.inject.Inject;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 
@@ -27,8 +28,6 @@ import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
-
-import io.netty.buffer.ArrowBuf;
 
 @FunctionTemplate(name = "convert_toBIGINT_HADOOPV", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
 @SuppressWarnings("unused") // found through classpath search

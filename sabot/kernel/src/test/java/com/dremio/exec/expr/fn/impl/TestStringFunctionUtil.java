@@ -17,6 +17,7 @@ package com.dremio.exec.expr.fn.impl;
 
 import static org.junit.Assert.assertEquals;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.junit.After;
@@ -27,8 +28,6 @@ import org.junit.Test;
 import com.dremio.common.AutoCloseables;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Unit tests for StringFunctionUtil

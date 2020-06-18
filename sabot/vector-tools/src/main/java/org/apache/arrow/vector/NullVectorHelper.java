@@ -15,12 +15,11 @@
  */
 package org.apache.arrow.vector;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.dremio.exec.proto.UserBitShared.SerializedField.Builder;
-
-import io.netty.buffer.ArrowBuf;
 
 public class NullVectorHelper implements ValueVectorHelper {
 

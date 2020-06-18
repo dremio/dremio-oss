@@ -36,4 +36,13 @@ public interface ExecutorSelectionService extends Service {
    * @param executorSelectionContext Context information
    */
   ExecutorSelectionHandle getExecutors(int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext);
+
+  /**
+   * Get all active executor endpoints. Used for "select sys.*" queries.
+   *
+   * @param desiredNumExecutors
+   * @param executorSelectionContext
+   * @return
+   */
+  ExecutorSelectionHandle getAllActiveExecutors(ExecutorSelectionContext executorSelectionContext);
 }

@@ -20,6 +20,7 @@ import java.util.List;
 
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
@@ -33,6 +34,13 @@ public class MaestroObservers implements MaestroObserver {
   //create object using 'of'
   private MaestroObservers() {  }
 
+
+  @Override
+  public void beginState(AttemptEvent event) {
+    for (final MaestroObserver observer : chain) {
+      observer.beginState(event);
+    }
+  }
 
   @Override
   public void commandPoolWait(long waitInMillis) {

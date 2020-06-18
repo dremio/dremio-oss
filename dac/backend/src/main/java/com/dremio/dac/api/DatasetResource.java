@@ -46,6 +46,7 @@ import com.google.common.collect.Lists;
 @APIResource
 @Secured
 @Path("/dataset")
+@RolesAllowed({"admin", "user"})
 @Consumes(APPLICATION_JSON)
 @Produces(APPLICATION_JSON)
 public class DatasetResource {
@@ -59,7 +60,6 @@ public class DatasetResource {
   }
 
   @GET
-  @RolesAllowed({"admin"})
   @Path("/{id}/reflection")
   public ResponseList<Reflection> listReflectionsForDataset(@PathParam("id") String id) {
     Optional<DatasetConfig> dataset = catalogServiceHelper.getDatasetById(id);
@@ -81,7 +81,6 @@ public class DatasetResource {
   }
 
   @POST
-  @RolesAllowed({"admin"})
   @Path("/{id}/reflection/recommendation")
   public ResponseList<Reflection> getReflectionRecommendationsForDataset(@PathParam("id") String id) {
     Optional<DatasetConfig> dataset = catalogServiceHelper.getDatasetById(id);

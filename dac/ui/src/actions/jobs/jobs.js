@@ -156,6 +156,58 @@ export function loadJobDetails(jobId, viewId) {
   };
 }
 
+export const REFLECTION_JOBS_REQUEST = 'REFLECTION_JOBS_REQUEST';
+export const REFLECTION_JOBS_SUCCESS = 'REFLECTION_JOBS_SUCCESS';
+export const REFLECTION_JOBS_FAILURE = 'REFLECTION_JOBS_FAILURE';
+
+export function loadReflectionJobs(reflectionId, viewId) {
+  const meta = { reflectionId, viewId };
+
+  const apiCall = new APIV2Call()
+    .path('jobs')
+    .path('reflection')
+    .path(reflectionId);
+
+  return {
+    [RSAA]:{
+      types: [
+        {type: REFLECTION_JOBS_REQUEST, meta},
+        {type: REFLECTION_JOBS_SUCCESS, meta},
+        {type: REFLECTION_JOBS_FAILURE, meta}
+      ],
+      method: 'GET',
+      endpoint: apiCall
+    }
+  };
+}
+
+export const REFLECTION_JOB_DETAILS_REQUEST = 'REFLECTION_JOB_DETAILS_REQUEST';
+export const REFLECTION_JOB_DETAILS_SUCCESS = 'REFLECTION_JOB_DETAILS_SUCCESS';
+export const REFLECTION_JOB_DETAILS_FAILURE = 'REFLECTION_JOB_DETAILS_FAILURE';
+
+export function loadReflectionJobDetails(jobId, reflectionId, viewId) {
+  const meta = { jobId, viewId };
+
+  const apiCall = new APIV2Call()
+    .path('job')
+    .path(jobId)
+    .path('reflection')
+    .path(reflectionId)
+    .path('details');
+
+  return {
+    [RSAA]:{
+      types: [
+        {type: REFLECTION_JOB_DETAILS_REQUEST, meta},
+        schemaUtils.getSuccessActionTypeWithSchema(REFLECTION_JOB_DETAILS_SUCCESS, jobDetailsSchema, meta),
+        {type: REFLECTION_JOB_DETAILS_FAILURE, meta}
+      ],
+      method: 'GET',
+      endpoint: apiCall
+    }
+  };
+}
+
 export const CANCEL_JOB_REQUEST = 'CANCEL_JOB_REQUEST';
 export const CANCEL_JOB_SUCCESS = 'CANCEL_JOB_SUCCESS';
 export const CANCEL_JOB_FAILURE = 'CANCEL_JOB_FAILURE';
@@ -181,6 +233,36 @@ export const cancelJobAndShowNotification = (jobId) => (dispatch) => {
     .then(action => dispatch(addNotification(action.payload.message, 'success' )));
 };
 
+export const CANCEL_REFLECTION_JOB_REQUEST = 'CANCEL_REFLECTION_JOB_REQUEST';
+export const CANCEL_REFLECTION_JOB_SUCCESS = 'CANCEL_REFLECTION_JOB_SUCCESS';
+export const CANCEL_REFLECTION_JOB_FAILURE = 'CANCEL_REFLECTION_JOB_FAILURE';
+
+const cancelReflectionJob = (jobId, reflectionId) => {
+  const apiCall = new APIV2Call()
+    .path('job')
+    .path(jobId)
+    .path('reflection')
+    .path(reflectionId)
+    .path('cancel');
+
+  return {
+    [RSAA]: {
+      types: [
+        CANCEL_REFLECTION_JOB_REQUEST,
+        CANCEL_REFLECTION_JOB_SUCCESS,
+        CANCEL_REFLECTION_JOB_FAILURE
+      ],
+      method: 'POST',
+      endpoint: apiCall
+    }
+  };
+};
+
+
+export const cancelReflectionJobAndShowNotification = (jobId, reflectionId) => (dispatch) => {
+  return dispatch(cancelReflectionJob(jobId, reflectionId))
+    .then(action => dispatch(addNotification(action.payload.message, 'success' )));
+};
 
 export const ASK_GNARLY_STARTED = 'ASK_GNARLY_STARTED';
 export const ASK_GNARLY_SUCCESS = 'ASK_GNARLY_SUCCESS';
@@ -243,6 +325,26 @@ export function showJobProfile(profileUrl) {
   return (dispatch, getState) => {
     const apiCall = new APIV2Call()
       .fullpath(profileUrl)
+      .param('Authorization', localStorageUtils.getAuthToken());
+
+    const location = getState().routing.locationBeforeTransitions;
+    return dispatch(
+      push({...location, state: {
+        modal: 'JobProfileModal',
+        profileUrl: apiCall.toString()
+      }})
+    );
+  };
+}
+
+export function showReflectionJobProfile(profileUrl, reflectionId) {
+  return (dispatch, getState) => {
+    // add the reflection id to the end of the url, but before the ? (url always has ?attemptId)
+    const split = profileUrl.split('/');
+    split[2] = split[2].replace('?', `/reflection/${reflectionId}?`);
+
+    const apiCall = new APIV2Call()
+      .fullpath(split.join('/'))
       .param('Authorization', localStorageUtils.getAuthToken());
 
     const location = getState().routing.locationBeforeTransitions;

@@ -21,6 +21,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import javax.annotation.Nullable;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
@@ -44,8 +45,6 @@ import com.dremio.sabot.op.spi.TerminalOperator;
 import com.google.common.base.Function;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.FluentIterable;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Round Robin Sender broadcasts incoming batches to receivers in a round robin fashion.

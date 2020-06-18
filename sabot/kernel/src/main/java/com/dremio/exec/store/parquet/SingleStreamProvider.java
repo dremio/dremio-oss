@@ -18,6 +18,7 @@ package com.dremio.exec.store.parquet;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.util.AutoCloseables;
@@ -29,8 +30,6 @@ import com.dremio.io.ArrowBufFSInputStream;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * An InputStreamProvider that uses a single stream.

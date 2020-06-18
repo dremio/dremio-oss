@@ -27,7 +27,7 @@ import com.dremio.service.namespace.NamespaceKey;
  * Interface used to retrieve virtual and physical datasets. This is always contextualized to a single user and
  * default schema. Implementations must be thread-safe
  */
-public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, DatasetCatalog, SourceCatalog {
+public interface Catalog extends SimpleCatalog<Catalog>, EntityExplorer, DatasetCatalog, SourceCatalog, InformationSchemaCatalog {
   /**
    * @return all tables that have been requested from this catalog.
    */

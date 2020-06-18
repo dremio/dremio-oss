@@ -49,9 +49,9 @@ import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.DocumentWriter;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.LegacyIndexedStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.proto.model.UpdateId;
@@ -501,7 +501,7 @@ public class MaterializationStore {
   /**
    * {@link MaterializationStore} creator
    */
-  public static final class MaterializationStoreCreator implements LegacyStoreCreationFunction<LegacyIndexedStore<MaterializationId, Materialization>> {
+  public static final class MaterializationStoreCreator implements LegacyIndexedStoreCreationFunction<MaterializationId, Materialization> {
     @Override
     public LegacyIndexedStore<MaterializationId, Materialization> build(LegacyStoreBuildingFactory factory) {
       return factory.<MaterializationId, Materialization>newStore()
@@ -516,7 +516,7 @@ public class MaterializationStore {
   /**
    * {@link Refresh} store creator
    */
-  public static final class RefreshStoreCreator implements LegacyStoreCreationFunction<LegacyIndexedStore<RefreshId, Refresh>> {
+  public static final class RefreshStoreCreator implements LegacyIndexedStoreCreationFunction<RefreshId, Refresh> {
     @Override
     public LegacyIndexedStore<RefreshId, Refresh> build(LegacyStoreBuildingFactory factory) {
       return factory.<RefreshId, Refresh>newStore()

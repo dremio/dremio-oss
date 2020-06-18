@@ -24,7 +24,8 @@ import java.util.concurrent.TimeUnit;
 
 import com.dremio.common.exceptions.FieldSizeLimitExceptionHelper;
 import com.dremio.exec.store.hive.exec.HiveAbstractReader.HiveOperatorContextOptions;
-import io.netty.buffer.ArrowBuf;
+
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;

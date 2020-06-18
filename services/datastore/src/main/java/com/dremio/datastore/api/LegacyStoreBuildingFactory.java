@@ -21,6 +21,7 @@ import com.dremio.datastore.api.LegacyKVStoreProvider.LegacyStoreBuilder;
  * Internal Interface for defining how to build a legacy kv store.
  */
 @Deprecated
+@FunctionalInterface
 public interface LegacyStoreBuildingFactory {
   /**
    * Create a new key-value store which preserves key ordering

@@ -48,7 +48,13 @@ import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.work.WorkStats;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.security.CredentialsService;
+import com.dremio.service.catalog.InformationSchemaServiceGrpc;
+import com.dremio.service.catalog.InformationSchemaServiceGrpc.InformationSchemaServiceBlockingStub;
+import com.dremio.service.conduit.client.ConduitProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.dremio.service.coordinator.ServiceSetDecorator;
@@ -71,7 +77,8 @@ public class SabotContext implements AutoCloseable {
   private final NodeEndpoint endpoint;
   private final FunctionImplementationRegistry functionRegistry;
   private final DecimalFunctionImplementationRegistry decimalFunctionImplementationRegistry;
-  private final SystemOptionManager systemOptions;
+  private final OptionManager optionManager;
+  private final SystemOptionManager systemOptionManager;
   private final Provider<WorkStats> workStatsProvider;
   private final CodeCompiler compiler;
   private final ScanResult classpathScan;
@@ -85,16 +92,18 @@ public class SabotContext implements AutoCloseable {
   private final Provider<AccelerationManager> accelerationManager;
   private final Provider<AccelerationListManager> accelerationListManager;
   private final Provider<CatalogService> catalogService;
+  private final ConduitProvider conduitProvider;
   private final Provider<ViewCreatorFactory> viewCreatorFactory;
   private final DremioConfig dremioConfig;
   private final BufferAllocator queryPlanningAllocator;
   private final Provider<SpillService> spillService;
   private final Provider<ConnectionReader> connectionReaderProvider;
-  private final ClusterResourceInformation clusterInfo;
+  private final GroupResourceInformation clusterInfo;
   private final FileSystemWrapper fileSystemWrapper;
   private final CredentialsService credentialsService;
   private final JobResultInfoProvider jobResultInfoProvider;
   private final List<RulesFactory> rules;
+  private final OptionValidatorListing optionValidatorListing;
 
   public SabotContext(
       DremioConfig dremioConfig,
@@ -105,6 +114,7 @@ public class SabotContext implements AutoCloseable {
       LogicalPlanPersistence lpPersistence,
       BufferAllocator allocator,
       ClusterCoordinator coord,
+      GroupResourceInformation groupResourceInformation,
       Provider<WorkStats> workStatsProvider,
       LegacyKVStoreProvider kvStoreProvider,
       NamespaceService.Factory namespaceServiceFactory,
@@ -115,13 +125,16 @@ public class SabotContext implements AutoCloseable {
       Provider<AccelerationManager> accelerationManager,
       Provider<AccelerationListManager> accelerationListManager,
       Provider<CatalogService> catalogService,
+      ConduitProvider conduitProvider,
       Provider<ViewCreatorFactory> viewCreatorFactory,
       BufferAllocator queryPlanningAllocator,
       Provider<SpillService> spillService,
       Provider<ConnectionReader> connectionReaderProvider,
       CredentialsService credentialsService,
       JobResultInfoProvider jobResultInfoProvider,
-      SystemOptionManager systemOptionManager
+      OptionManager optionManager,
+      SystemOptionManager systemOptionManager,
+      OptionValidatorListing optionValidatorListing
   ) {
     this.dremioConfig = dremioConfig;
     this.config = config;
@@ -130,6 +143,7 @@ public class SabotContext implements AutoCloseable {
     this.workStatsProvider = workStatsProvider;
     this.classpathScan = scan;
     this.coord = coord;
+    this.clusterInfo = groupResourceInformation;
     this.endpoint = checkNotNull(endpoint);
     this.lpPersistence = lpPersistence;
     this.accelerationManager = accelerationManager;
@@ -137,10 +151,11 @@ public class SabotContext implements AutoCloseable {
     this.connectionReaderProvider = connectionReaderProvider;
 
     this.reader = new PhysicalPlanReader(config, classpathScan, lpPersistence, endpoint, catalogService, this);
-    this.systemOptions = systemOptionManager;
-    this.functionRegistry = new FunctionImplementationRegistry(config, classpathScan, systemOptions);
-    this.decimalFunctionImplementationRegistry = new DecimalFunctionImplementationRegistry(config, classpathScan, systemOptions);
-    this.compiler = new CodeCompiler(config, systemOptions);
+    this.optionManager = optionManager;
+    this.systemOptionManager = systemOptionManager;
+    this.functionRegistry = new FunctionImplementationRegistry(config, classpathScan, this.optionManager);
+    this.decimalFunctionImplementationRegistry = new DecimalFunctionImplementationRegistry(config, classpathScan, this.optionManager);
+    this.compiler = new CodeCompiler(config, this.optionManager);
     this.kvStoreProvider = kvStoreProvider;
     this.namespaceServiceFactory = namespaceServiceFactory;
     this.datasetListing = datasetListing;
@@ -148,22 +163,23 @@ public class SabotContext implements AutoCloseable {
     this.queryObserverFactory = queryObserverFactory;
     this.materializationProvider = materializationProvider;
     this.catalogService = catalogService;
+    this.conduitProvider = conduitProvider;
     this.viewCreatorFactory = viewCreatorFactory;
     this.queryPlanningAllocator = queryPlanningAllocator;
     this.spillService = spillService;
-    this.clusterInfo = new ClusterResourceInformation(coord);
     this.fileSystemWrapper = config.getInstance(
       FileSystemWrapper.FILE_SYSTEM_WRAPPER_CLASS,
       FileSystemWrapper.class,
       (fs, storageId, conf, operatorContext, enableAsync, isMetadataEnabled) -> fs,
       dremioConfig,
-      systemOptions,
+      this.optionManager,
       allocator,
       new ServiceSetDecorator(coord.getServiceSet(Role.EXECUTOR)),
       endpoint);
     this.credentialsService = credentialsService;
     this.jobResultInfoProvider = jobResultInfoProvider;
     this.rules = getRulesFactories(scan);
+    this.optionValidatorListing = optionValidatorListing;
   }
 
   private static List<RulesFactory> getRulesFactories(ScanResult scan) {
@@ -197,6 +213,7 @@ public class SabotContext implements AutoCloseable {
     Provider<AccelerationManager> accelerationManager,
     Provider<AccelerationListManager> accelerationListManager,
     Provider<CatalogService> catalogService,
+    ConduitProvider conduitProvider,
     Provider<ViewCreatorFactory> viewCreatorFactory,
     BufferAllocator queryPlanningAllocator,
     Provider<SpillService> spillService,
@@ -204,12 +221,14 @@ public class SabotContext implements AutoCloseable {
     CredentialsService credentialsService,
     JobResultInfoProvider jobResultInfoProvider,
     PhysicalPlanReader physicalPlanReader,
+    OptionManager optionManager,
     SystemOptionManager systemOptionManager,
     FunctionImplementationRegistry functionImplementationRegistry,
     DecimalFunctionImplementationRegistry decimalFunctionImplementationRegistry,
     CodeCompiler codeCompiler,
-    ClusterResourceInformation clusterInfo,
-    FileSystemWrapper fileSystemWrapper
+    GroupResourceInformation clusterInfo,
+    FileSystemWrapper fileSystemWrapper,
+    OptionValidatorListing optionValidatorListing
   ) {
     this.dremioConfig = dremioConfig;
     this.config = config;
@@ -226,7 +245,8 @@ public class SabotContext implements AutoCloseable {
 
     // Escaping 'this'
     this.reader = physicalPlanReader;
-    this.systemOptions = systemOptionManager;
+    this.optionManager = optionManager;
+    this.systemOptionManager = systemOptionManager;
     this.functionRegistry = functionImplementationRegistry;
     this.decimalFunctionImplementationRegistry = decimalFunctionImplementationRegistry;
     this.compiler = codeCompiler;
@@ -238,6 +258,7 @@ public class SabotContext implements AutoCloseable {
     this.queryObserverFactory = queryObserverFactory;
     this.materializationProvider = materializationProvider;
     this.catalogService = catalogService;
+    this.conduitProvider = conduitProvider;
     this.viewCreatorFactory = viewCreatorFactory;
     this.queryPlanningAllocator = queryPlanningAllocator;
     this.spillService = spillService;
@@ -246,6 +267,7 @@ public class SabotContext implements AutoCloseable {
     this.credentialsService = credentialsService;
     this.jobResultInfoProvider = jobResultInfoProvider;
     this.rules = getRulesFactories(scan);
+    this.optionValidatorListing = optionValidatorListing;
   }
 
   private void checkIfCoordinator() {
@@ -286,11 +308,15 @@ public class SabotContext implements AutoCloseable {
   }
 
   /**
-   * @return the system options manager. It is important to note that this manager only contains options at the
+   * @return the option manager. It is important to note that this manager only contains options at the
    * "system" level and not "session" level.
    */
-  public SystemOptionManager getOptionManager() {
-    return systemOptions;
+  public OptionManager getOptionManager() {
+    return optionManager;
+  }
+
+  public SystemOptionManager getSystemOptionManager() {
+    return systemOptionManager;
   }
 
   public NodeEndpoint getEndpoint() {
@@ -333,7 +359,7 @@ public class SabotContext implements AutoCloseable {
     return getMaster();
   }
 
-  public ClusterResourceInformation getClusterResourceInformation() {
+  public GroupResourceInformation getClusterResourceInformation() {
     return clusterInfo;
   }
 
@@ -377,6 +403,14 @@ public class SabotContext implements AutoCloseable {
 
   public CatalogService getCatalogService() {
     return catalogService.get();
+  }
+
+  public ConduitProvider getConduitProvider() {
+    return conduitProvider;
+  }
+
+  public InformationSchemaServiceBlockingStub getInformationSchemaServiceBlockingStub() {
+    return InformationSchemaServiceGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster());
   }
 
   public SpillService getSpillService() {
@@ -459,5 +493,9 @@ public class SabotContext implements AutoCloseable {
 
   public JobResultInfoProvider getJobResultInfoProvider() {
     return jobResultInfoProvider;
+  }
+
+  public OptionValidatorListing getOptionValidatorListing() {
+    return optionValidatorListing;
   }
 }

@@ -68,6 +68,8 @@ public abstract class JoinPruleBase extends Prule {
     final RelMetadataQuery mq = join.getCluster().getMetadataQuery();
     // Right node is the one that is being considered to be broadcasted..
     double targetRowCount = mq.getRowCount(right);
+    int targetColumnCount = right.getRowType().getFieldCount();
+    double targetCellCount = targetRowCount * targetColumnCount;
     double otherRowCount = mq.getRowCount(left);
 
     if (targetRowCount < PrelUtil.getSettings(join.getCluster()).getBroadcastThreshold()
@@ -76,6 +78,12 @@ public abstract class JoinPruleBase extends Prule {
       // DX-3862:  For broadcast joins, the cost should not just consider the traits and join type.  If the broadcast table is small enough,
       // we shouldn't need to worry too much and allow broadcast join and see what the planner picks.
       final PlannerSettings plannerSettings = PrelUtil.getSettings(join.getCluster());
+      double cellCountThreshold = plannerSettings.getOptions().getOption(PlannerSettings.BROADCAST_CELL_COUNT_THRESHOLD);
+      if (targetCellCount > cellCountThreshold) {
+        // DX-17913 : For cases when the table is too big due to large number of columns, we should not do the broadcast join.
+        logger.debug("Won't do broadcast join if the size of the table is too big based of total number of cells (rows x columns)");
+        return false;
+      }
       if (targetRowCount <= plannerSettings.getOptions().getOption(PlannerSettings.BROADCAST_MIN_THRESHOLD)) {
         logger.debug("Enable broadcast plan? true (rightRowCount {} smaller than minimum broadcast threshold)", targetRowCount);
         return true;

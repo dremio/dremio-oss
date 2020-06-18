@@ -203,13 +203,31 @@ class DetailsContent extends Component {
     return (
       <div>
         <div className='detail-row'>
-          <h4>{la('Plan')}</h4>
+          <h4>{la('State Durations')}</h4>
           <ul>
-            <ListItem label={la('Planning Time')}>
+            <ListItem label={la('Pending')}>
+              <span>{jobsUtils.msToHHMMSS(lastAttempt && lastAttempt.get('pendingTime'))}</span>
+            </ListItem>
+            <ListItem label={la('Metadata Retrieval')}>
+              <span>{jobsUtils.msToHHMMSS(lastAttempt && lastAttempt.get('metadataRetrievalTime'))}</span>
+            </ListItem>
+            <ListItem label={la('Planning')}>
               <span>{jobsUtils.msToHHMMSS(lastAttempt && lastAttempt.get('planningTime'))}</span>
             </ListItem>
-            <ListItem label={la('Enqueued Time')}>
-              <span>{jobsUtils.formatJobDuration(lastAttempt && lastAttempt.get('enqueuedTime'))}</span>
+            <ListItem label={la('Engine Start')}>
+              <span>{jobsUtils.msToHHMMSS(lastAttempt && lastAttempt.get('engineStartTime'))}</span>
+            </ListItem>
+            <ListItem label={la('Queued')}>
+              <span>{jobsUtils.msToHHMMSS(lastAttempt && lastAttempt.get('queuedTime'))}</span>
+            </ListItem>
+            <ListItem label={la('Execution Planning')}>
+              <span>{jobsUtils.msToHHMMSS(lastAttempt && lastAttempt.get('executionPlanningTime'))}</span>
+            </ListItem>
+            <ListItem label={la('Starting')}>
+              <span>{jobsUtils.msToHHMMSS(lastAttempt && lastAttempt.get('startingTime'))}</span>
+            </ListItem>
+            <ListItem label={la('Running')}>
+              <span>{jobsUtils.msToHHMMSS(lastAttempt && lastAttempt.get('runningTime'))}</span>
             </ListItem>
           </ul>
         </div>
@@ -221,7 +239,7 @@ class DetailsContent extends Component {
           <h4>{la('Process')}</h4>
           <ul>
             <ListItem label={la('Execution Time')}>
-              <span>{jobsUtils.formatJobDuration(lastAttempt && lastAttempt.get('executionTime'))}</span>
+              <span>{jobsUtils.formatJobDuration(lastAttempt && lastAttempt.get('runningTime'))}</span>
             </ListItem>
             <ListItem label={la('Top Operations')}>
               {this.getTopOperations(jobDetails.get('topOperations'))}

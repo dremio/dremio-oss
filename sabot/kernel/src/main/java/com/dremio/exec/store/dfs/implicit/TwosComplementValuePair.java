@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store.dfs.implicit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
@@ -25,8 +26,6 @@ import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.store.dfs.implicit.AdditionalColumnsRecordReader.Populator;
 import com.dremio.exec.util.DecimalUtils;
 import com.dremio.sabot.op.scan.OutputMutator;
-
-import io.netty.buffer.ArrowBuf;
 
 public class TwosComplementValuePair extends NameValuePair<byte[]>{
 

@@ -347,6 +347,14 @@ class DatasetManager {
     }
 
     try {
+      // We will attempt to save the dataset, so ensure we have access to the source before saving
+      userNamespaceService.getSource(new NamespaceKey(key.getRoot()));
+    } catch (NamespaceException ignored) {
+      logger.debug("Unable to obtain source {}.", key.getRoot());
+      return null;
+    }
+
+    try {
       plugin.getSaver()
           .save(datasetConfig, handle.get(), plugin.unwrap(StoragePlugin.class), opportunisticSave, retrievalOptions);
     } catch (ConcurrentModificationException cme) {

@@ -36,7 +36,6 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
-import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
@@ -48,7 +47,8 @@ import com.google.common.collect.ImmutableMap;
 public class InfoSchemaStoragePlugin implements StoragePlugin, SupportsReadSignature, SupportsListingDatasets {
   public static String NAME = "INFORMATION_SCHEMA";
 
-  static final ImmutableMap<String, InfoSchemaTable> TABLE_MAP = FluentIterable.from(InfoSchemaTable.values())
+  static final ImmutableMap<String, InformationSchemaTable> TABLE_MAP =
+    FluentIterable.from(InformationSchemaTable.values())
       .uniqueIndex(input -> input.name().toLowerCase());
 
   private final SabotContext context;
@@ -97,7 +97,7 @@ public class InfoSchemaStoragePlugin implements StoragePlugin, SupportsReadSigna
 
   @Override
   public DatasetHandleListing listDatasetHandles(GetDatasetOption... options) {
-    return () -> Arrays.stream(InfoSchemaTable.values()).iterator();
+    return () -> Arrays.stream(InformationSchemaTable.values()).iterator();
   }
 
   @Override
@@ -106,7 +106,7 @@ public class InfoSchemaStoragePlugin implements StoragePlugin, SupportsReadSigna
       return Optional.empty();
     }
 
-    final InfoSchemaTable table = TABLE_MAP.get(datasetPath.getName().toLowerCase());
+    final InformationSchemaTable table = TABLE_MAP.get(datasetPath.getName().toLowerCase());
     if (table == null) {
       return Optional.empty();
     }
@@ -120,12 +120,12 @@ public class InfoSchemaStoragePlugin implements StoragePlugin, SupportsReadSigna
       PartitionChunkListing chunkListing,
       GetMetadataOption... options
   ) {
-    return datasetHandle.unwrap(InfoSchemaTable.class);
+    return datasetHandle.unwrap(InformationSchemaTable.class);
   }
 
   @Override
   public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) {
-    return datasetHandle.unwrap(InfoSchemaTable.class);
+    return datasetHandle.unwrap(InformationSchemaTable.class);
   }
 
   @Override

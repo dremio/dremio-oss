@@ -50,7 +50,7 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.exec.server.options.SessionOptionManagerFactoryImpl;
 import com.dremio.exec.work.protector.UserWorker;
-import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.sabot.rpc.user.UserRPCServer.UserClientConnectionImpl;
 import com.dremio.service.users.UserService;
 
@@ -84,6 +84,8 @@ public class TestUserRpcServer {
   final byte[] pBody = "abc".getBytes(UTF_8);
   @Mock ByteBuf dBody;
   @Mock ResponseSender responseSender;
+  @Mock
+  OptionValidatorListing optionValidatorListing;
 
   private MockTracer tracer = new MockTracer();
   private UserRPCServer server;
@@ -102,7 +104,7 @@ public class TestUserRpcServer {
     when(userSession.isTracingEnabled()).thenReturn(enabled);
 
 
-    server = new UserRPCServer(rpcConfig, userServiceProvider, nodeEndpointProvider, ingestor, worker, allocator, loopGroup, impersonationManager, tracer);
+    server = new UserRPCServer(rpcConfig, userServiceProvider, nodeEndpointProvider, ingestor, worker, allocator, loopGroup, impersonationManager, tracer, optionValidatorListing);
   }
 
   @After
@@ -185,8 +187,7 @@ public class TestUserRpcServer {
     // create a UserClientConnection, create an associated SessionOptionManager
     final UserClientConnectionImpl userClientConnection = server.initRemoteConnection(socketChannel);
     final String uuid = userClientConnection.getUuid().toString();
-    server.getSessionOptionManagerFactory()
-      .getOrCreate(uuid, mock(OptionManager.class));
+    server.getSessionOptionManagerFactory().getOrCreate(uuid);
 
     // SessionOptionManagerFactory should contain the SessionOptionManager associated with this connection.
     assertTrue(containsSessionOptionManager(uuid));

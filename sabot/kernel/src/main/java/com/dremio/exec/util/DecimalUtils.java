@@ -20,9 +20,10 @@ import java.math.BigInteger;
 import java.math.MathContext;
 import java.math.RoundingMode;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.google.common.base.Preconditions;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /**

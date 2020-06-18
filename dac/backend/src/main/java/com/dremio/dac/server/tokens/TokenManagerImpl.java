@@ -31,7 +31,7 @@ import com.dremio.dac.server.DACConfig;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators.PositiveLongValidator;
 import com.dremio.service.scheduler.Schedule;
@@ -59,7 +59,7 @@ public class TokenManagerImpl implements TokenManager {
 
   private final Provider<LegacyKVStoreProvider> kvProvider;
   private final Provider<SchedulerService> schedulerService;
-  private final Provider<SystemOptionManager> optionManagerProvider;
+  private final Provider<OptionManager> optionManagerProvider;
   private final boolean isMaster;
   private final int cacheSize;
   private final int cacheExpiration;
@@ -69,7 +69,7 @@ public class TokenManagerImpl implements TokenManager {
 
   public TokenManagerImpl(final Provider<LegacyKVStoreProvider> kvProvider,
                           final Provider<SchedulerService> schedulerService,
-                          final Provider<SystemOptionManager> optionManagerProvider,
+                          final Provider<OptionManager> optionManagerProvider,
                           final boolean isMaster,
                           final DACConfig config) {
     this(kvProvider,
@@ -83,7 +83,7 @@ public class TokenManagerImpl implements TokenManager {
   @VisibleForTesting
   TokenManagerImpl(final Provider<LegacyKVStoreProvider> kvProvider,
                    final Provider<SchedulerService> schedulerService,
-                   final Provider<SystemOptionManager> optionManagerProvider,
+                   final Provider<OptionManager> optionManagerProvider,
                    final boolean isMaster,
                    final int cacheSize,
                    final int cacheExpiration) {

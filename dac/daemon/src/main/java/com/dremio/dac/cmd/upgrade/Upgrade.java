@@ -42,6 +42,7 @@ import com.dremio.dac.proto.model.source.UpgradeStatus;
 import com.dremio.dac.proto.model.source.UpgradeTaskRun;
 import com.dremio.dac.proto.model.source.UpgradeTaskStore;
 import com.dremio.dac.server.DACConfig;
+import com.dremio.dac.support.BasicSupportService;
 import com.dremio.dac.support.SupportService;
 import com.dremio.dac.support.UpgradeStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -193,19 +194,22 @@ public class Upgrade {
    */
   @VisibleForTesting
   public void validateUpgrade(final LegacyKVStoreProvider storeProvider, final String curEdition) throws Exception {
-    final ConfigurationStore configurationStore = new ConfigurationStore(storeProvider);
-    final ConfigurationEntry entry = configurationStore.get(SupportService.DREMIO_EDITION);
-    if (entry != null && entry.getValue() != null) {
-      final String prevEdition = new String(entry.getValue().toByteArray());
-      if(!Strings.isNullOrEmpty(prevEdition) && !prevEdition.equals(curEdition)) {
-        throw new Exception(String.format("Illegal upgrade from %s to %s", prevEdition, curEdition));
+    if (!getDACConfig().isMigrationEnabled()) {
+      // If the migration is disabled, validate this task.
+      final ConfigurationStore configurationStore = new ConfigurationStore(storeProvider);
+      final ConfigurationEntry entry = configurationStore.get(SupportService.DREMIO_EDITION);
+      if (entry != null && entry.getValue() != null) {
+        final String prevEdition = new String(entry.getValue().toByteArray());
+        if (!Strings.isNullOrEmpty(prevEdition) && !prevEdition.equals(curEdition)) {
+          throw new Exception(String.format("Illegal upgrade from %s to %s", prevEdition, curEdition));
+        }
       }
     }
-
   }
 
   public void run(final LegacyKVStoreProvider storeProvider) throws Exception {
-    final Optional<ClusterIdentity> identity = SupportService.getClusterIdentity(storeProvider);
+    final Optional<ClusterIdentity> identity =
+      BasicSupportService.getClusterIdentity(storeProvider);
     final UpgradeStore upgradeStore = new UpgradeStore(storeProvider);
 
     if (!identity.isPresent()) {
@@ -251,7 +255,7 @@ public class Upgrade {
 
     try {
       clusterIdentity.setVersion(toClusterVersion(VERSION));
-      SupportService.updateClusterIdentity(storeProvider, clusterIdentity);
+      BasicSupportService.updateClusterIdentity(storeProvider, clusterIdentity);
     } catch (Throwable e) {
       throw new RuntimeException("Failed to update store version", e);
     }

@@ -123,7 +123,7 @@ export class LoginForm extends PureComponent {
               style={{display: viewState.get('isInProgress') ? 'block' : 'none', ...styles.spinner}}/>
           </div>
           <div style={{display: 'flex', alignItems: 'center'}}>
-            <a href='https://www.dremio.com/legal/privacy-policy' target='_blank'>Privacy</a>
+            <a href='https://www.dremio.com/legal/privacy-policy' target='_blank'>{la('Privacy')}</a>
           </div>
         </div>
       </InnerComplexForm>

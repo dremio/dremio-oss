@@ -17,6 +17,7 @@ package com.dremio.dac.server.test;
 
 import static com.dremio.dac.server.test.SampleDataPopulator.DEFAULT_USER_NAME;
 import static com.dremio.exec.proto.UserBitShared.PlanPhaseProfile;
+import static com.dremio.service.users.SystemUser.SYSTEM_USER;
 import static java.lang.String.format;
 import static javax.ws.rs.core.MediaType.TEXT_HTML;
 
@@ -35,6 +36,8 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.container.ContainerRequestContext;
+import javax.ws.rs.container.ResourceContext;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.SecurityContext;
@@ -44,6 +47,8 @@ import org.glassfish.jersey.server.mvc.Viewable;
 import com.dremio.dac.admin.ProfileResource;
 import com.dremio.dac.annotations.Bootstrap;
 import com.dremio.dac.annotations.RestResourceUsedForTesting;
+import com.dremio.dac.model.usergroup.UserName;
+import com.dremio.dac.server.DACSecurityContext;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
@@ -86,6 +91,9 @@ public class TestResource {
   private final ReflectionServiceHelper reflectionHelper;
   private final OptionManager optionManager;
 
+  @Context
+  private ResourceContext resourceContext;
+
   @Inject
   public TestResource(InitializerRegistry init, SabotContext context, UserService userService,
                       LegacyKVStoreProvider provider, JobsService jobsService,
@@ -109,6 +117,8 @@ public class TestResource {
   @POST
   @Path("create")
   public void createTestDataset() throws Exception {
+    setSecurityContext();
+
     refreshNow("cp");
 
     // TODO: Clean up this mess
@@ -139,6 +149,8 @@ public class TestResource {
   @POST
   @Path("clear")
   public void clearTestDataset() throws Exception {
+    setSecurityContext();
+
     TestUtilities.clear(catalogService, provider, null, null);
   }
 
@@ -197,6 +209,7 @@ public class TestResource {
           .setId(queryId)
           .build())
         .setAttempt(attempt)
+        .setUserName(DEFAULT_USER_NAME)
         .build();
       profile = jobsService.getProfile(request);
     } catch (JobNotFoundException ignored) {
@@ -209,5 +222,14 @@ public class TestResource {
       }
     }
     return "Not Found";
+  }
+
+  /**
+   * The test REST API runs with no auth, so we explicitly set the SYSTEM user here.
+   */
+  private void setSecurityContext() {
+    final ContainerRequestContext requestContext = resourceContext.getResource(ContainerRequestContext.class);
+
+    requestContext.setSecurityContext(new DACSecurityContext(new UserName(SYSTEM_USER.getUserName()), SYSTEM_USER, requestContext));
   }
 }

@@ -35,6 +35,7 @@ import com.dremio.exec.planner.sql.handlers.commands.CommandRunner.CommandType;
 import com.dremio.exec.planner.sql.handlers.commands.PreparedPlan;
 import com.dremio.exec.proto.CoordExecRPC.RpcType;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
@@ -51,6 +52,7 @@ import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.user.OptionProvider;
 import com.dremio.options.OptionManager;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.exception.ResourceUnavailableException;
 import com.dremio.service.Pointer;
 import com.dremio.service.commandpool.CommandPool;
@@ -101,10 +103,19 @@ public class AttemptManager implements Runnable {
   public static final String INJECTOR_TRY_END_ERROR = "run-try-end";
 
   @VisibleForTesting
-  public static final String INJECTOR_PLAN_ERROR = "plan-error";
+  public static final String INJECTOR_PENDING_ERROR = "pending-error";
+
+  @VisibleForTesting
+  public static final String INJECTOR_PENDING_PAUSE = "pending-pause";
 
   @VisibleForTesting
   public static final String INJECTOR_PLAN_PAUSE = "plan-pause";
+
+  @VisibleForTesting
+  public static final String INJECTOR_PLAN_ERROR = "plan-error";
+
+  @VisibleForTesting
+  public static final String INJECTOR_METADATA_RETRIEVAL_PAUSE = "metadata-retrieval-pause";
 
   private final AttemptId attemptId;
   private final QueryId queryId;
@@ -167,7 +178,6 @@ public class AttemptManager implements Runnable {
     if (options != null){
       options.applyOptions(optionManager);
     }
-
     profileTracker = new AttemptProfileTracker(queryId, queryContext,
       queryRequest.getDescription(),
       () -> state,
@@ -297,17 +307,27 @@ public class AttemptManager implements Runnable {
       injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_TRY_BEGINNING_ERROR,
         ForemanException.class);
 
+      // Get the resource information of the cluster/engine before planning begins.
+      final GroupResourceInformation groupResourceInformation =
+        maestroService.getGroupResourceInformation(queryContext.getOptions());
+      queryContext.setGroupResourceInformation(groupResourceInformation);
+
+      observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.PENDING));
+
       // planning is done in the command pool
       commandPool.submit(CommandPool.Priority.LOW, attemptId.toString() + ":foreman-planning",
         (waitInMillis) -> {
           observer.commandPoolWait(waitInMillis);
           observer.queryStarted(queryRequest, queryContext.getSession().getCredentials().getUserName());
 
-          injector.injectPause(queryContext.getExecutionControls(), INJECTOR_PLAN_PAUSE, logger);
-          injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_PLAN_ERROR,
+          injector.injectPause(queryContext.getExecutionControls(), INJECTOR_PENDING_PAUSE, logger);
+          injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_PENDING_ERROR,
             ForemanException.class);
 
           plan();
+          injector.injectPause(queryContext.getExecutionControls(), INJECTOR_PLAN_PAUSE, logger);
+          injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_PLAN_ERROR,
+            ForemanException.class);
           return null;
         }, runInSameThread).get();
 
@@ -322,6 +342,7 @@ public class AttemptManager implements Runnable {
         asyncCommand.executionStarted();
       }
 
+      observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.RUNNING));
       moveToState(QueryState.RUNNING, null);
 
       injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_TRY_END_ERROR,
@@ -382,9 +403,14 @@ public class AttemptManager implements Runnable {
   }
 
   private void plan() throws Exception {
+    // query parsing and dataset retrieval (both from source and kvstore).
+    observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.METADATA_RETRIEVAL));
+
     CommandCreator creator = newCommandCreator(queryContext, observer, prepareId);
     command = creator.toCommand();
     logger.debug("Using command: {}.", command);
+
+    injector.injectPause(queryContext.getExecutionControls(), INJECTOR_METADATA_RETRIEVAL_PAUSE, logger);
 
     switch (command.getCommandType()) {
       case ASYNC_QUERY:
@@ -521,7 +547,11 @@ public class AttemptManager implements Runnable {
 
     @Override
     public void close() {
-      Preconditions.checkState(!isClosed);
+      if (isClosed) {
+        // This can happen if the AttemptManager closes the result first (on error), and later, receives the completion
+        // callback from maestro.
+        return;
+      }
       Preconditions.checkState(resultState != null);
 
       try {
@@ -558,6 +588,7 @@ public class AttemptManager implements Runnable {
       if (resultState != state) {
         recordNewState(resultState);
       }
+      observer.beginState(AttemptObserver.toEvent(convertTerminalToAttemptState(resultState)));
 
       final UserException uex;
       if (resultException != null) {
@@ -652,6 +683,7 @@ public class AttemptManager implements Runnable {
         case CANCELED: {
           assert exception == null;
           recordNewState(QueryState.CANCELED);
+          maestroService.cancelQuery(queryId);
           foremanResult.setCompleted(QueryState.CANCELED);
           foremanResult.close();
           return;
@@ -753,6 +785,23 @@ public class AttemptManager implements Runnable {
 
   private void recordNewState(final QueryState newState) {
     state = newState;
+  }
+
+  private AttemptEvent.State convertTerminalToAttemptState(final QueryState state) {
+    Preconditions.checkArgument((state == QueryState.COMPLETED
+      || state == QueryState.CANCELED
+      || state == QueryState.FAILED));
+
+    switch (state) {
+      case COMPLETED:
+        return AttemptEvent.State.COMPLETED;
+      case CANCELED:
+        return AttemptEvent.State.CANCELED;
+      case FAILED:
+        return AttemptEvent.State.FAILED;
+      default:
+        return AttemptEvent.State.INVALID_STATE;
+    }
   }
 }
 

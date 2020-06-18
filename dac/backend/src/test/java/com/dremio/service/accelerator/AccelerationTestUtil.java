@@ -29,6 +29,7 @@ import org.junit.Assert;
 
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.folder.FolderPath;
+import com.dremio.dac.model.sources.SourceName;
 import com.dremio.dac.model.sources.SourcePath;
 import com.dremio.dac.model.spaces.HomeName;
 import com.dremio.dac.model.spaces.SpacePath;
@@ -74,11 +75,13 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
   public static final String EMPLOYEES_FILE = "employees.json";
   public static final String EMPLOYEES_WITH_NULL_FILE = "employees_with_null.json";
   public static final String EMPLOYEES_VIRTUAL_DATASET_NAME = "ds_emp";
+  public static final String EMPLOYEES_WITH_NULL_VIRTUAL_DATASET_NAME = "ds_emp_null";
   public static final String RENAMED_EMPLOYEES_VIRTUAL_DATASET_NAME = "renamed_ds_emp";
 
 
   // Available Datasets
   public static final DatasetPath EMPLOYEES = new DatasetPath(Arrays.asList(TEST_SOURCE, EMPLOYEES_FILE));
+  public static final DatasetPath EMPLOYEES_WITH_NULL = new DatasetPath(Arrays.asList(TEST_SOURCE, EMPLOYEES_WITH_NULL_FILE));
   public static final DatasetPath EMPLOYEES_VIRTUAL = new DatasetPath(Arrays.asList(TEST_SPACE, EMPLOYEES_VIRTUAL_DATASET_NAME));
 
   public static final FolderPath TEST_FOLDER_PATH = new FolderPath(Arrays.asList(TEST_SPACE, TEST_FOLDER));
@@ -113,6 +116,7 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
     NamespaceKey key = new SourcePath(TEST_SOURCE).toNamespaceKey();
     SourceConfig config;
     try {
+      getSourceService().unregisterSourceWithRuntime(new SourceName(TEST_SOURCE));
       config = getNamespaceService().getSource(key);
       if (config != null) {
         getNamespaceService().deleteSource(key, config.getTag());
@@ -148,6 +152,19 @@ public abstract class AccelerationTestUtil extends BaseTestServer {
 
   public void addEmployeesJson() throws Exception {
     addJson(EMPLOYEES, new DatasetPath(Arrays.asList(TEST_SPACE, EMPLOYEES_VIRTUAL_DATASET_NAME)));
+  }
+
+  public void removeEmployeesJson() throws Exception {
+    deleteDataset(new DatasetPath(Arrays.asList(TEST_SPACE, EMPLOYEES_VIRTUAL_DATASET_NAME)));
+  }
+
+  public void addEmployeesWithNullJson() throws Exception {
+    addJson(EMPLOYEES_WITH_NULL, new DatasetPath(Arrays.asList(TEST_SPACE, EMPLOYEES_WITH_NULL_VIRTUAL_DATASET_NAME)));
+  }
+
+  public void removeEmployeesWithNullJson() {
+    deleteDataset(new DatasetPath(Arrays.asList(TEST_SPACE, EMPLOYEES_WITH_NULL_VIRTUAL_DATASET_NAME)));
+
   }
 
   public void renameDataset(DatasetPath ds, DatasetPath dsNew) {

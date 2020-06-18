@@ -247,6 +247,74 @@ public class TestExampleQueries extends PlanTestBase {
     test("select * from cp.\"tpch/lineitem.parquet\" where l_returnflag in ('a','b','c','d','e','f','g','h','i','j') or l_returnflag != 'x' limit 10");
   }
 
+  // DX-22772
+  @Test
+  public void testGroupbyWithManyVarcharColumns() throws Exception {
+    test("select max(l_quantity) from cp.\"tpch/lineitem" +
+      ".parquet\" group by l_returnflag, " +
+      "concat(l_returnflag, '00'), " +
+      "concat(l_returnflag, '01'), " +
+      "concat(l_returnflag, '02'), " +
+      "concat(l_returnflag, '03'), " +
+      "concat(l_returnflag, '04'), " +
+      "concat(l_returnflag, '05'), " +
+      "concat(l_returnflag, '06'), " +
+      "concat(l_returnflag, '07'), " +
+      "concat(l_returnflag, '08'), " +
+      "concat(l_returnflag, '09'), " +
+      "concat(l_returnflag, '00'), " +
+      "concat(l_returnflag, '11'), " +
+      "concat(l_returnflag, '12'), " +
+      "concat(l_returnflag, '13'), " +
+      "concat(l_returnflag, '14'), " +
+      "concat(l_returnflag, '15'), " +
+      "concat(l_returnflag, '16'), " +
+      "concat(l_returnflag, '17'), " +
+      "concat(l_returnflag, '18'), " +
+      "concat(l_returnflag, '19'), " +
+      "concat(l_returnflag, '20'), " +
+      "concat(l_returnflag, '21'), " +
+      "concat(l_returnflag, '22'), " +
+      "concat(l_returnflag, '23'), " +
+      "concat(l_returnflag, '24'), " +
+      "concat(l_returnflag, '25'), " +
+      "concat(l_returnflag, '26')" +
+      "");
+  }
+
+  @Test
+  public void testGroupbyWithManyFixedColumns() throws Exception {
+    test("select max(l_quantity) from cp.\"tpch/lineitem" +
+      ".parquet\" group by l_discount, " +
+      "l_discount + 1, " +
+      "l_discount + 2, " +
+      "l_discount + 3, " +
+      "l_discount + 4, " +
+      "l_discount + 5, " +
+      "l_discount + 6, " +
+      "l_discount + 7, " +
+      "l_discount + 8, " +
+      "l_discount + 9, " +
+      "l_discount + 10, " +
+      "l_discount + 11, " +
+      "l_discount + 12, " +
+      "l_discount + 13, " +
+      "l_discount + 14, " +
+      "l_discount + 15, " +
+      "l_discount + 16, " +
+      "l_discount + 17, " +
+      "l_discount + 18, " +
+      "l_discount + 19, " +
+      "l_discount + 20, " +
+      "l_discount + 21, " +
+      "l_discount + 22, " +
+      "l_discount + 23, " +
+      "l_discount + 24, " +
+      "l_discount + 25, " +
+      "l_discount + 26" +
+      "");
+  }
+
 
   @Test
   public void unknownListTypeCtas() throws Exception {

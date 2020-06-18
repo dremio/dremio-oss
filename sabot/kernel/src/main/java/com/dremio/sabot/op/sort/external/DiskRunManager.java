@@ -222,13 +222,28 @@ public class DiskRunManager implements AutoCloseable {
       mergeState = MergeState.COPY;
       return true;
     } catch (OutOfMemoryException e) {
+      if (diskRuns.size() <= 2) {
+        final String message = "DiskRunManager: Unable to secure enough memory to merge spilled sort data.";
+        final long totalMaxBatchSizeAllRuns = getMaxBatchSizeAllRuns(diskRuns);
+        final long reservation = totalMaxBatchSizeAllRuns + (targetBatchSizeInBytes * 3);
+        /* we are here for OOM because we couldnt't create a copy allocator for loading batches from even 2 disk runs
+         * so record all the information including how much copy allocator tried to reserve before it failed.
+         * see getCopierAllocator, the computation has been borrowed from that function.
+         */
+        tracer.reserveMemoryForDiskRunCopyOOMEvent(reservation, Long.MAX_VALUE, totalMaxBatchSizeAllRuns);
+        tracer.setDiskRunState(diskRuns.size(), spillCount(), mergeCount(), getMaxBatchSize());
+        tracer.setDiskRunCopyAllocatorState(copierAllocator);
+        tracer.setExternalSortAllocatorState(parentAllocator);
+        throw tracer.prepareAndThrowException(e, message);
+      }
       mergeState = MergeState.MERGE;
       // reattempt with smaller list
     }
 
     // We failed to reserve memory to handle all runs, so attempt to merge some runs
 
-    int runsToMerge = diskRuns.size() / 2;
+    int runsToMerge = (diskRuns.size() + 1) / 2;
+
     List<DiskRun> runList = null;
     while (true) {
       try {
@@ -244,7 +259,7 @@ public class DiskRunManager implements AutoCloseable {
         return false;
       } catch (OutOfMemoryException e) {
         // reattempt with smaller list
-        runsToMerge /= 2;
+        runsToMerge = (runsToMerge + 1) / 2;
         diskRunMerger = null;
         for (DiskRun run : runList) {
           run.resetOpenStatus();
@@ -551,6 +566,7 @@ public class DiskRunManager implements AutoCloseable {
           assert copied > 0 : "couldn't copy any rows, probably run out of memory while doing so";
           outgoing.setAllCount(copied);
           final int batchSize = spillBatch(outgoing, copied, this.microSpillState.outputStream);
+          totalDataSpilled += batchSize;
           this.microSpillState.maxBatchSize = Math.max(this.microSpillState.maxBatchSize, batchSize);
           this.microSpillState.recordsSpilled += copied;
           ++(this.microSpillState.batchesSpilled);

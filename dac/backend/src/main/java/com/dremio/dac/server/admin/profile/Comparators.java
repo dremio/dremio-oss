@@ -19,6 +19,7 @@ import java.util.Comparator;
 
 import org.apache.commons.lang3.tuple.Pair;
 
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.NodePhaseProfile;
@@ -120,6 +121,12 @@ interface Comparators {
     @Override
     public int compare(NodePhaseProfile o1, NodePhaseProfile o2) {
       return o1.getEndpoint().getAddress().compareTo(o2.getEndpoint().getAddress());
+    }
+  };
+
+  Comparator<AttemptEvent> stateStartTime = new Comparator<AttemptEvent>() {
+    public int compare(final AttemptEvent a1, final AttemptEvent a2) {
+      return Long.compare(a1.getStartTime(), a2.getStartTime());
     }
   };
 }

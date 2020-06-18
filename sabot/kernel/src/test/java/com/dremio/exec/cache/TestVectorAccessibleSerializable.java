@@ -30,6 +30,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.Float8Vector;
 import org.apache.arrow.vector.IntVector;
@@ -63,8 +64,6 @@ import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 import com.google.common.collect.Lists;
 import com.google.common.io.Files;
-
-import io.netty.buffer.ArrowBuf;
 
 public class TestVectorAccessibleSerializable extends ExecTest {
   @Rule public final TestRule TIMEOUT = TestTools.getTimeoutRule(90, TimeUnit.SECONDS); // 90secs

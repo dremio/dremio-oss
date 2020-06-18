@@ -28,6 +28,7 @@ import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.proto.UserProtos.Property;
 import com.dremio.exec.proto.UserProtos.RecordBatchFormat;
 import com.dremio.exec.proto.UserProtos.UserProperties;
+import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.SessionOptionManager;
 import com.dremio.exec.store.ischema.InfoSchemaConstants;
 import com.dremio.exec.work.user.SubstitutionSettings;
@@ -155,6 +156,7 @@ public class UserSession {
   private UserCredentials credentials;
   private NamespaceKey defaultSchemaPath;
   private SessionOptionManager sessionOptionManager;
+  private OptionManager optionManager;
 
   private RpcEndpointInfos clientInfos;
   private boolean useLegacyCatalogName = false;
@@ -176,9 +178,13 @@ public class UserSession {
       return new Builder();
     }
 
-    public Builder withSessionOptionManager(SessionOptionManager sessionOptionManager) {
+    public Builder withSessionOptionManager(SessionOptionManager sessionOptionManager, OptionManager fallback) {
       userSession.sessionOptionManager = sessionOptionManager;
-      userSession.maxMetadataCount = (int) sessionOptionManager.getOption(MAX_METADATA_COUNT);
+      userSession.optionManager = OptionManagerWrapper.Builder.newBuilder()
+        .withOptionManager(fallback)
+        .withOptionManager(sessionOptionManager)
+        .build();
+      userSession.maxMetadataCount = (int) userSession.optionManager.getOption(MAX_METADATA_COUNT);
       return this;
     }
 
@@ -276,6 +282,10 @@ public class UserSession {
   }
 
   public OptionManager getOptions() {
+    return optionManager;
+  }
+
+  public SessionOptionManager getSessionOptionManager() {
     return sessionOptionManager;
   }
 

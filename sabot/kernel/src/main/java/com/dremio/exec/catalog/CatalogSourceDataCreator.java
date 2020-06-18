@@ -18,8 +18,8 @@ package com.dremio.exec.catalog;
 
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.source.proto.SourceInternalData;
@@ -27,7 +27,7 @@ import com.dremio.service.namespace.source.proto.SourceInternalData;
 /**
  * Creator for catalog source data kvstore
  */
-public class CatalogSourceDataCreator implements LegacyStoreCreationFunction<LegacyKVStore<NamespaceKey, SourceInternalData>> {
+public class CatalogSourceDataCreator implements LegacyKVStoreCreationFunction<NamespaceKey, SourceInternalData> {
   @Override
   public LegacyKVStore<NamespaceKey, SourceInternalData> build(LegacyStoreBuildingFactory factory) {
     return factory.<NamespaceKey, SourceInternalData>newStore()

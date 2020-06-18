@@ -38,6 +38,7 @@ import org.glassfish.jersey.server.ChunkedOutput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.explore.model.DownloadFormat;
@@ -49,12 +50,15 @@ import com.dremio.dac.resource.NotificationResponse.ResponseType;
 import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.service.datasets.DatasetDownloadManager;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
+import com.dremio.dac.service.errors.InvalidReflectionJobException;
 import com.dremio.dac.service.errors.JobResourceNotFoundException;
 import com.dremio.dac.util.DownloadUtil;
 import com.dremio.service.job.CancelJobRequest;
+import com.dremio.service.job.CancelReflectionJobRequest;
 import com.dremio.service.job.JobDetails;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobSummaryRequest;
+import com.dremio.service.job.ReflectionJobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobProtobuf;
@@ -65,7 +69,9 @@ import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobWarningException;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsService;
+import com.dremio.service.jobs.ReflectionJobValidationException;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 
 /**
  * Resource for getting single job summary/overview/details
@@ -219,6 +225,80 @@ public class JobResource extends BaseResourceWithAllocator {
     @QueryParam("downloadFormat") DownloadFormat downloadFormat
   ) throws JobResourceNotFoundException, JobNotFoundException {
     return doDownload(previewJobId, downloadFormat);
+  }
+
+  // Get details of reflection job
+  @GET
+  @Path("/reflection/{reflectionId}/details")
+  @Produces(APPLICATION_JSON)
+  public JobDetailsUI getReflectionJobDetail(@PathParam("jobId") String jobId,
+                                             @PathParam("reflectionId") String reflectionId) throws JobResourceNotFoundException {
+    final JobDetails jobDetails;
+
+    if (Strings.isNullOrEmpty(reflectionId)) {
+      throw UserException.validationError()
+        .message("reflectionId cannot be null or empty")
+        .build();
+    }
+
+    try {
+      JobDetailsRequest.Builder jobDetailsRequestBuilder = JobDetailsRequest.newBuilder()
+        .setJobId(com.dremio.service.job.proto.JobProtobuf.JobId.newBuilder().setId(jobId).build())
+        .setProvideResultInfo(true)
+        .setUserName(securityContext.getUserPrincipal().getName());
+
+      ReflectionJobDetailsRequest request = ReflectionJobDetailsRequest.newBuilder()
+        .setJobDetailsRequest(jobDetailsRequestBuilder.build())
+        .setReflectionId(reflectionId)
+        .build();
+
+      jobDetails = jobsService.getReflectionJobDetails(request);
+    } catch (JobNotFoundException e) {
+      throw JobResourceNotFoundException.fromJobNotFoundException(e);
+    } catch (ReflectionJobValidationException e) {
+      throw new InvalidReflectionJobException(e.getJobId().getId(), e.getReflectionId());
+    }
+
+    return JobDetailsUI.of(jobDetails);
+  }
+
+  @POST
+  @Path("/reflection/{reflectionId}/cancel")
+  @Produces(APPLICATION_JSON)
+  public NotificationResponse cancelReflectionJob(@PathParam("jobId") String jobId,
+                                                  @PathParam("reflectionId") String reflectionId) throws JobResourceNotFoundException {
+    if (Strings.isNullOrEmpty(reflectionId)) {
+      throw UserException.validationError()
+        .message("reflectionId cannot be null or empty")
+        .build();
+    }
+
+    try {
+      final String username = securityContext.getUserPrincipal().getName();
+
+
+      CancelJobRequest cancelJobRequest = CancelJobRequest.newBuilder()
+        .setUsername(username)
+        .setJobId(JobsProtoUtil.toBuf(new JobId(jobId)))
+        .setReason(String.format("Query cancelled by user '%s'", username))
+        .build();
+
+      CancelReflectionJobRequest cancelReflectionJobRequest = CancelReflectionJobRequest.newBuilder()
+        .setCancelJobRequest(cancelJobRequest)
+        .setReflectionId(reflectionId)
+        .build();
+
+      jobsService.cancelReflectionJob(cancelReflectionJobRequest);
+      return new NotificationResponse(ResponseType.OK, "Job cancellation requested");
+    } catch(JobNotFoundException e) {
+      throw JobResourceNotFoundException.fromJobNotFoundException(e);
+    } catch (ReflectionJobValidationException e) {
+      throw new InvalidReflectionJobException(e.getJobId().getId(), e.getReflectionId());
+    } catch(JobWarningException e) {
+      return new NotificationResponse(ResponseType.WARN, e.getMessage());
+    } catch(JobException e) {
+      return new NotificationResponse(ResponseType.ERROR, e.getMessage());
+    }
   }
 
   protected Response doDownload(JobId previewJobId, DownloadFormat downloadFormat) throws JobResourceNotFoundException, JobNotFoundException {

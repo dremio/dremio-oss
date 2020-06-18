@@ -15,10 +15,10 @@
  */
 package com.dremio.services.fabric.simple;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.dremio.exec.rpc.RpcException;
 import com.google.protobuf.MessageLite;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Interface for implementing reception and handling of a single type of message.

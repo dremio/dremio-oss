@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
-import com.dremio.exec.store.ischema.tables.TablesTable;
+import com.dremio.service.catalog.Table;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
@@ -66,7 +66,7 @@ public interface EntityExplorer {
    * @param path The path to constraint the listing to.
    * @return The set of tables within the provided path.
    */
-  Iterable<TablesTable.Table> listDatasets(NamespaceKey path);
+  Iterable<Table> listDatasets(NamespaceKey path);
 
   /**
    * Retrieve a table

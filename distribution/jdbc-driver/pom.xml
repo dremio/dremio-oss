@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>4.3.1-202005202256080999-5dcfb82a</version>
+    <version>4.5.0-202006180205030236-1a5d28da</version>
   </parent>
 
   <artifactId>dremio-jdbc-driver</artifactId>
@@ -207,34 +207,6 @@
         <exclusion>
           <groupId>org.apache.poi</groupId>
           <artifactId>poi-ooxml</artifactId>
-        </exclusion>
-        <exclusion>
-          <artifactId>lucene-core</artifactId>
-          <groupId>org.apache.lucene</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>lucene-highlighter</artifactId>
-          <groupId>org.apache.lucene</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>lucene-codecs</artifactId>
-          <groupId>org.apache.lucene</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>lucene-analyzers-common</artifactId>
-          <groupId>org.apache.lucene</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>lucene-queries</artifactId>
-          <groupId>org.apache.lucene</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>lucene-queryparser</artifactId>
-          <groupId>org.apache.lucene</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>rocksdbjni</artifactId>
-          <groupId>org.rocksdb</groupId>
         </exclusion>
         <exclusion>
           <artifactId>rsql-parser</artifactId>
@@ -676,6 +648,7 @@
             <relocation><pattern>com.dremio.sabot.</pattern><shadedPattern>cdjd.com.dremio.sabot.</shadedPattern></relocation>
             <relocation><pattern>com.dremio.service.</pattern><shadedPattern>cdjd.com.dremio.service.</shadedPattern></relocation>
             <relocation><pattern>com.dremio.services.</pattern><shadedPattern>cdjd.com.dremio.services.</shadedPattern></relocation>
+            <relocation><pattern>com.dremio.ssl.</pattern><shadedPattern>cdjd.com.dremio.ssl.</shadedPattern></relocation>
             <relocation><pattern>com.dremio.telemetry.</pattern><shadedPattern>cdjd.com.dremio.telemetry.</shadedPattern></relocation>
             <relocation><pattern>com.dremio.io.</pattern><shadedPattern>cdjd.com.dremio.io.</shadedPattern></relocation>
 
@@ -834,8 +807,8 @@
                 <exclude>com/dremio/sabot/op/**</exclude>
                 <exclude>com/dremio/sabot/task/**</exclude>
                 <exclude>com/dremio/sabot/threads/**</exclude>
+                <exclude>com/dremio/service/conduit/**</exclude>
                 <exclude>com/dremio/services/fabric/**</exclude>
-                <exclude>com/dremio/ssl/**</exclude>
                 <exclude>com/github/slugify/**</exclude>
                 <exclude>com/clearspring/**</exclude>
                 <exclude>com/hubspot/jackson/**</exclude>

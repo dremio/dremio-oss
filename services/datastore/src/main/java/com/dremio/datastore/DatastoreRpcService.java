@@ -17,6 +17,7 @@ package com.dremio.datastore;
 
 import javax.inject.Provider;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.datastore.RemoteDataStoreProtobuf.ContainsRequest;
@@ -44,8 +45,6 @@ import com.dremio.services.fabric.simple.SendEndpoint;
 import com.dremio.services.fabric.simple.SendEndpointCreator;
 import com.dremio.services.fabric.simple.SentResponseMessage;
 import com.google.protobuf.MessageLite;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Rpc Service. Registers protocol and creates endpoints to master node.

@@ -15,9 +15,9 @@
  */
 package com.dremio.sabot.op.common.ht2;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 public class ControlBlock implements AutoCloseable {

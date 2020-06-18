@@ -18,15 +18,20 @@ package com.dremio.service.jobs;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Test;
 
+import com.dremio.exec.proto.beans.AttemptEvent;
+import com.dremio.exec.proto.beans.AttemptEvent.State;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.ResourceSchedulingInfo;
+import com.google.common.base.Preconditions;
 
 /**
  * Unit tests for {@link AttemptsHelper}
@@ -36,6 +41,24 @@ import com.dremio.service.job.proto.ResourceSchedulingInfo;
  * - ensure the assumptions we used to implement AttemptsHelper still hold (i.e. until planning is done JobDetails.timeSpentInPlanning is null
  */
 public class TestAttemptsHelper {
+
+  private AttemptsHelper attemptsHelper;
+
+  public TestAttemptsHelper() {
+    List<AttemptEvent> events = new ArrayList<>();
+    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.PENDING).setStartTime(1));
+    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.METADATA_RETRIEVAL).setStartTime(2));
+    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.PLANNING).setStartTime(3));
+    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.ENGINE_START).setStartTime(4));
+    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.QUEUED).setStartTime(5));
+    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.EXECUTION_PLANNING).setStartTime(6));
+    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.STARTING).setStartTime(7));
+    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.RUNNING).setStartTime(8));
+    events.add(new com.dremio.exec.proto.beans.AttemptEvent().setState(State.COMPLETED).setStartTime(9));
+
+    JobAttempt jobAttempt = new JobAttempt().setStateListList(events);
+    attemptsHelper = new AttemptsHelper(jobAttempt);
+  }
 
   @Test
   public void testGetEnqueuedTime() {
@@ -50,7 +73,7 @@ public class TestAttemptsHelper {
       .setState(JobState.ENQUEUED);
 
     assertTrue("Enqueued job has wrong enqueued time",
-      AttemptsHelper.getEnqueuedTime(attempt) >= TimeUnit.HOURS.toMillis(3));
+      AttemptsHelper.getLegacyEnqueuedTime(attempt) >= TimeUnit.HOURS.toMillis(3));
   }
 
   @Test
@@ -65,7 +88,7 @@ public class TestAttemptsHelper {
       .setInfo(info)
       .setState(JobState.FAILED);
 
-    assertEquals(0L, AttemptsHelper.getEnqueuedTime(attempt));
+    assertEquals(0L, AttemptsHelper.getLegacyEnqueuedTime(attempt));
   }
 
   @Test
@@ -81,7 +104,7 @@ public class TestAttemptsHelper {
       .setState(JobState.ENQUEUED)
       .setDetails(new JobDetails());
 
-    assertEquals(0L, AttemptsHelper.getPlanningTime(attempt));
+    assertEquals(0L, AttemptsHelper.getLegacyPlanningTime(attempt));
   }
 
   @Test
@@ -97,7 +120,53 @@ public class TestAttemptsHelper {
       .setState(JobState.ENQUEUED)
       .setDetails(new JobDetails());
 
-    assertEquals(0L, AttemptsHelper.getExecutionTime(attempt));
+    assertEquals(0L, AttemptsHelper.getLegacyExecutionTime(attempt));
   }
 
+  @Test
+  public void testGetPendingTime() {
+    Preconditions.checkNotNull(attemptsHelper.getPendingTime());
+    assertTrue(1L == attemptsHelper.getPendingTime());
+  }
+  @Test
+  public void testGetMetadataRetrievalTime() {
+    Preconditions.checkNotNull(attemptsHelper.getMetadataRetrievalTime());
+    assertTrue(1L == attemptsHelper.getMetadataRetrievalTime());
+  }
+
+  @Test
+  public void testPlanningTime() {
+    Preconditions.checkNotNull(attemptsHelper.getPlanningTime());
+    assertTrue(1L == attemptsHelper.getPlanningTime());
+  }
+
+  @Test
+  public void testGetEngineStartTime() {
+    Preconditions.checkNotNull(attemptsHelper.getEngineStartTime());
+    assertTrue(1L == attemptsHelper.getEngineStartTime());
+  }
+
+  @Test
+  public void testGetQueuedTime() {
+    Preconditions.checkNotNull(attemptsHelper.getQueuedTime());
+    assertTrue(1L == attemptsHelper.getQueuedTime());
+  }
+
+  @Test
+  public void testGetExecutionPlanningTime() {
+    Preconditions.checkNotNull(attemptsHelper.getExecutionPlanningTime());
+    assertTrue(1L == attemptsHelper.getExecutionPlanningTime());
+  }
+
+  @Test
+  public void testGetStartingTime() {
+    Preconditions.checkNotNull(attemptsHelper.getStartingTime());
+    assertTrue(1L == attemptsHelper.getStartingTime());
+  }
+
+  @Test
+  public void testGetRunningTime() {
+    Preconditions.checkNotNull(attemptsHelper.getRunningTime());
+    assertTrue(1L == attemptsHelper.getRunningTime());
+  }
 }

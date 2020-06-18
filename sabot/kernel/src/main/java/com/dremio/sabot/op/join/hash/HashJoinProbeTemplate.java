@@ -22,13 +22,13 @@ import java.util.List;
 
 import javax.inject.Named;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.calcite.rel.core.JoinRelType;
 
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.common.hashtable.HashTable;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 public abstract class HashJoinProbeTemplate implements HashJoinProbe {

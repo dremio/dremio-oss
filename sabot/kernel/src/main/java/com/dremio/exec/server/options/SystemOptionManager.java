@@ -19,7 +19,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Iterator;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -28,15 +27,16 @@ import javax.inject.Provider;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.exec.exception.StoreException;
 import com.dremio.exec.serialization.JacksonSerializer;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidator;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.options.OptionValueProto;
@@ -54,7 +54,7 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
   public static final String STORE_NAME = "options";
   public static final String LEGACY_STORE_NAME = "sys.options";
 
-  private final DefaultOptionManager fallback;
+  private final OptionValidatorListing optionValidatorListing;
   private final LogicalPlanPersistence lpPersistance;
   private final Provider<LegacyKVStoreProvider> storeProvider;
   private final boolean inMemory;
@@ -65,11 +65,12 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
    */
   private LegacyKVStore<String, OptionValueProto> options;
 
-  public SystemOptionManager(DefaultOptionManager fallback,
+  public SystemOptionManager(OptionValidatorListing optionValidatorListing,
                              LogicalPlanPersistence lpPersistence,
                              final Provider<LegacyKVStoreProvider> storeProvider,
                              boolean inMemory) {
-    this.fallback = fallback;
+    super(optionValidatorListing);
+    this.optionValidatorListing = optionValidatorListing;
     this.lpPersistance = lpPersistence;
     this.storeProvider = storeProvider;
     this.inMemory = inMemory;
@@ -99,7 +100,7 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
         final OptionValue value = entry.getValue();
 
         try {
-          final OptionValidator validator = getValidator(name);
+          final OptionValidator validator = optionValidatorListing.getValidator(name);
           final String canonicalName = validator.getOptionName().toLowerCase(Locale.ROOT);
           if (!name.equals(canonicalName)) {
             // for backwards compatibility <= 1.1, rename to lower case.
@@ -140,7 +141,7 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     }
   }
 
-  public static class OptionProtoStoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<String, OptionValueProto>> {
+  public static class OptionProtoStoreCreator implements LegacyKVStoreCreationFunction<String, OptionValueProto> {
     @Override
     public LegacyKVStore<String, OptionValueProto> build(LegacyStoreBuildingFactory factory) {
       return factory.<String, OptionValueProto>newStore()
@@ -151,22 +152,23 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     }
   }
 
+  @Override
   public boolean isValid(String name){
-    return fallback.isValid(name);
+    return optionValidatorListing.isValid(name);
   }
 
+  @Override
   public boolean isSet(String name){
     return options.get(name.toLowerCase(Locale.ROOT)) != null;
   }
 
   @Override
   public Iterator<OptionValue> iterator() {
-    final Map<String, OptionValue> buildList = fallback.getOptions();
-    // override if changed
+    OptionList optionList = new OptionList();
     options.find().forEach(
-      entry -> buildList.put(entry.getKey(), OptionValueProtoUtils.toOptionValue(entry.getValue()))
+      entry -> optionList.add(OptionValueProtoUtils.toOptionValue(entry.getValue()))
     );
-    return buildList.values().iterator();
+    return optionList.iterator();
   }
 
   @Override
@@ -176,35 +178,35 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     if (value != null) {
       return OptionValueProtoUtils.toOptionValue(value);
     }
-
-    // otherwise, return default.
-    return fallback.getOption(name);
+    return null;
   }
 
   @Override
-  public void setOption(final OptionValue value) {
+  public boolean setOption(final OptionValue value) {
     checkArgument(value.getType() == OptionType.SYSTEM, "OptionType must be SYSTEM.");
     final String name = value.getName().toLowerCase(Locale.ROOT);
-    final OptionValidator validator = getValidator(name);
+    final OptionValidator validator = optionValidatorListing.getValidator(name);
 
     validator.validate(value); // validate the option
 
     if (options.get(name) == null && value.equals(validator.getDefault())) {
-      return; // if the option is not overridden, ignore setting option to default
+      return true; // no need to set option if value is the default value
     }
     options.put(name, OptionValueProtoUtils.toOptionValueProto(value));
+    return true;
   }
 
   @Override
-  public void deleteOption(final String name, OptionType type) {
+  public boolean deleteOption(final String name, OptionType type) {
     checkArgument(type == OptionType.SYSTEM, "OptionType must be SYSTEM.");
 
-    getValidator(name); // ensure option exists
+    optionValidatorListing.getValidator(name); // ensure option exists
     options.delete(name.toLowerCase(Locale.ROOT));
+    return true;
   }
 
   @Override
-  public void deleteAllOptions(OptionType type) {
+  public boolean deleteAllOptions(OptionType type) {
     checkArgument(type == OptionType.SYSTEM, "OptionType must be SYSTEM.");
     final Set<String> names = Sets.newHashSet();
     options.find().forEach(
@@ -213,24 +215,13 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     for (final String name : names) {
       options.delete(name.toLowerCase(Locale.ROOT)); // should be lowercase
     }
-  }
-
-  @Override
-  public OptionList getOptionList() {
-    final OptionList result = new OptionList();
-    final Iterator<OptionValue> optionIter = iterator();
-    optionIter.forEachRemaining(result::add);
-    return result;
-  }
-
-  @Override
-  public OptionValidator getValidator(String name) {
-    return fallback.getValidator(name);
+    return true;
   }
 
   /**
    * @return all system options that have been set to a non-default value
    */
+  @Override
   public OptionList getNonDefaultOptions() {
     OptionList nonDefaultOptions = new OptionList();
     options.find().forEach(
@@ -257,7 +248,7 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
 
       final String optionName = key.substring(SYSTEM_OPTION_PREFIX.length());
 
-      OptionValidator validator = getValidator(optionName.toLowerCase(Locale.ROOT));
+      OptionValidator validator = optionValidatorListing.getValidator(optionName.toLowerCase(Locale.ROOT));
       if(validator == null){
         logger.warn("Failure resolving system property of {}. No property with this name found.", optionName);
         continue;
@@ -291,4 +282,8 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
 
   }
 
+  @Override
+  protected boolean supportsOptionType(OptionType type) {
+    return type == OptionType.SYSTEM;
+  }
 }

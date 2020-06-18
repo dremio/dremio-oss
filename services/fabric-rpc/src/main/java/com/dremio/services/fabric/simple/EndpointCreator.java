@@ -21,6 +21,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.dremio.common.util.concurrent.DremioFutures;
 import com.dremio.exec.rpc.FutureBitCommand;
 import com.dremio.exec.rpc.RpcException;
@@ -32,7 +34,6 @@ import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.NettyArrowBuf;
 
 /**

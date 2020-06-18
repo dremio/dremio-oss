@@ -41,6 +41,7 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.SearcherManager;
 import org.apache.lucene.search.Sort;
 import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.store.AlreadyClosedException;
 import org.apache.lucene.store.BaseDirectory;
 import org.apache.lucene.store.MMapDirectory;
 import org.apache.lucene.store.RAMDirectory;
@@ -61,7 +62,7 @@ import com.google.common.collect.ImmutableList;
  * Local search index based on lucene.
  */
 public class LuceneSearchIndex implements AutoCloseable {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LuceneSearchIndex.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LuceneSearchIndex.class);
 
 
   /**
@@ -154,11 +155,16 @@ public class LuceneSearchIndex implements AutoCloseable {
     private void commitLoop() {
       while (!closed) {
 
-        try {
-          Thread.sleep(COMMIT_FREQUENCY);
-        } catch (InterruptedException e) {
-          // thread interrupted, exit immediately
-          return;
+        synchronized(this) {
+          try {
+            this.wait(COMMIT_FREQUENCY);
+            if (closed) {
+              return;
+            }
+          } catch (InterruptedException e) {
+            // thread interrupted, exit immediately
+            return;
+          }
         }
 
         // Do not commit while reindexing
@@ -180,7 +186,13 @@ public class LuceneSearchIndex implements AutoCloseable {
     @Override
     public void close() {
       closed = true;
-      commitThread.interrupt();
+      /* Do not interrupt committer thread because it might be calling writer.commit(), ClosedByInterruptException might
+         be triggered and the locks will be invalidated inside writer.commit(), and then the next writer.commit() will
+         fail with AlreadyClosedException. Let the thread exit gracefully by calling notify().
+       */
+      synchronized (this) {
+        this.notify();
+      }
 
       while (true) {
         try {
@@ -297,6 +309,9 @@ public class LuceneSearchIndex implements AutoCloseable {
     try (CommitCloser committer = commitWrapper.open(name)) {
       writer.commit();
       committer.succeeded();
+    } catch (AlreadyClosedException e) {
+      logger.error("Failed to commit.", e);
+      throw e;
     }
   }
 

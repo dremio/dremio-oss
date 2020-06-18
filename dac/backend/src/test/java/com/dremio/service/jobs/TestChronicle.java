@@ -59,8 +59,8 @@ public class TestChronicle extends BaseTestServer {
     final String name = InProcessServerBuilder.generateName();
     server = InProcessServerBuilder.forName(name)
       .directExecutor()
-      .addService(l(JobsServer.class).new JobsServiceAdapter())
-      .addService(l(JobsServer.class).new Chronicle())
+      .addService(new JobsServiceAdapter(p(LocalJobsService.class)))
+      .addService(new Chronicle(p(LocalJobsService.class)))
       .build();
     server.start();
 
@@ -102,6 +102,8 @@ public class TestChronicle extends BaseTestServer {
       .build());
 
     assertEquals(com.dremio.service.job.JobState.COMPLETED, jobSummary.getJobState());
+    assertEquals(com.dremio.exec.proto.UserBitShared.AttemptEvent.State.COMPLETED,
+      jobSummary.getStateList(jobSummary.getStateListCount()-1).getState());
 
     //get last attempt and modify state
     JobAttempt jobAttempt = JobsProtoUtil.getLastAttempt(chronicleStub.getJobDetails(JobDetailsRequest.newBuilder()
@@ -128,6 +130,7 @@ public class TestChronicle extends BaseTestServer {
         .addAllPath(jobAttempt.getInfo().getDatasetPathList())
         .setVersion(jobAttempt.getInfo().getDatasetVersion())
         .build())
+      .addAllStateList(JobsProtoUtil.toStuff2(jobAttempt.getStateListList()))
       .build());
 
     //retrieve jobSummary

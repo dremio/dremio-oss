@@ -225,8 +225,11 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
   }
 
   @Override
-  protected ContainerHolder getUnknownContainer(String name) throws IOException {
-    // no lazy loading since it is slow.
+  protected ContainerHolder getUnknownContainer(String containerName) throws IOException {
+    if (containerProvider.doesContainerExists(containerName)) {
+      return new ContainerCreatorImpl(this, containerName).toContainerHolder();
+    }
+
     return null;
   }
 

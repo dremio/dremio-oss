@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BoundsChecking;
 import org.apache.arrow.vector.holders.VarCharHolder;
 import org.joda.time.chrono.ISOChronology;
@@ -22,7 +23,6 @@ import org.joda.time.chrono.ISOChronology;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.google.common.base.Charsets;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 public class StringFunctionHelpers {

@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ValueHolder;
@@ -53,10 +54,14 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.proto.UserBitShared.WorkloadType;
 import com.dremio.exec.proto.UserProtos.QueryPriority;
-import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.SabotContext;
+import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.EagerCachingOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.server.options.QueryOptionManager;
+import com.dremio.exec.server.options.SessionOptionManager;
+import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.PartitionExplorer;
 import com.dremio.exec.store.PartitionExplorerImpl;
@@ -67,6 +72,7 @@ import com.dremio.exec.util.Utilities;
 import com.dremio.exec.work.WorkStats;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.common.ResourceSchedulingContext;
 import com.dremio.sabot.exec.context.BufferManagerImpl;
 import com.dremio.sabot.exec.context.CompilationOptions;
@@ -80,8 +86,6 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
-import io.netty.buffer.ArrowBuf;
-
 // TODO - consider re-name to PlanningContext, as the query execution context actually appears
 // in fragment contexts
 public class QueryContext implements AutoCloseable, ResourceSchedulingContext, OptimizerRulesContext {
@@ -91,7 +95,8 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   private final UserSession session;
   private final QueryId queryId;
 
-  private final OptionManager queryOptions;
+  private final OptionManager optionManager;
+  private final QueryOptionManager queryOptionManager;
   private final ExecutionControls executionControls;
   private final PlannerSettings plannerSettings;
   private final OperatorTable table;
@@ -105,6 +110,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   private final Catalog catalog;
   private final SubstitutionProviderFactory substitutionProviderFactory;
   private final FunctionImplementationRegistry functionImplementationRegistry;
+  private GroupResourceInformation groupResourceInformation;
 
   /* Stores constants and their holders by type */
   private final Map<String, Map<MinorType, ValueHolder>> constantValueHolderCache;
@@ -163,12 +169,17 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     this.session = session;
     this.queryId = queryId;
 
-    this.queryOptions = new QueryOptionManager(session.getOptions());
-    this.executionControls = new ExecutionControls(queryOptions, sabotContext.getEndpoint());
-    this.plannerSettings = new PlannerSettings(sabotContext.getConfig(), queryOptions,
-        sabotContext.getClusterResourceInformation());
-    this.plannerSettings.setNumEndPoints(sabotContext.getExecutors().size());
-    functionImplementationRegistry = this.queryOptions.getOption(PlannerSettings
+    this.queryOptionManager = new QueryOptionManager(sabotContext.getOptionValidatorListing());
+    this.optionManager = OptionManagerWrapper.Builder.newBuilder()
+      .withOptionManager(new DefaultOptionManager(sabotContext.getOptionValidatorListing()))
+      .withOptionManager(new EagerCachingOptionManager(sabotContext.getSystemOptionManager()))
+      .withOptionManager(session.getOptions())
+      .withOptionManager(queryOptionManager)
+      .build();
+    this.executionControls = new ExecutionControls(optionManager, sabotContext.getEndpoint());
+    this.plannerSettings = new PlannerSettings(sabotContext.getConfig(), optionManager,
+      () -> groupResourceInformation);
+    functionImplementationRegistry = this.optionManager.getOption(PlannerSettings
       .ENABLE_DECIMAL_V2)? sabotContext.getDecimalFunctionImplementationRegistry() : sabotContext
       .getFunctionImplementationRegistry();
     this.table = new OperatorTable(functionImplementationRegistry);
@@ -189,7 +200,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     final ViewExpansionContext viewExpansionContext = new ViewExpansionContext(queryUserName);
     final SchemaConfig schemaConfig = SchemaConfig.newBuilder(queryUserName)
         .defaultSchema(session.getDefaultSchemaPath())
-        .optionManager(queryOptions)
+        .optionManager(optionManager)
         .setViewExpansionContext(viewExpansionContext)
         .exposeInternalSources(session.exposeInternalSources())
         .setDatasetValidityChecker(datasetValidityChecker)
@@ -227,7 +238,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   public RuleSet getInjectedRules(PlannerPhase phase) {
     return RuleSets.ofList(sabotContext.getInjectedRulesFactories()
         .stream()
-        .flatMap(rf -> rf.getRules(phase, queryOptions).stream())
+        .flatMap(rf -> rf.getRules(phase, optionManager).stream())
         .collect(Collectors.toList()));
   }
 
@@ -259,8 +270,35 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     return session.getCredentials().getUserName();
   }
 
+  /**
+   * Get the OptionManager for this context.
+   */
   public OptionManager getOptions() {
-    return queryOptions;
+    return optionManager;
+  }
+
+  /**
+   * Get the QueryOptionManager. Do not use unless use case specifically needs query options.
+   * If an OptionManager is needed, use getOptions instead.
+   */
+  public QueryOptionManager getQueryOptionManager() {
+    return queryOptionManager;
+  }
+
+  /**
+   * Get the SessionOptionManager. Do not use unless use case specifically needs session options.
+   * If an OptionManager is needed, use getOptions instead.
+   */
+  public SessionOptionManager getSessionOptionManager() {
+    return session.getSessionOptionManager();
+  }
+
+  /**
+   * Get the SystemOptionManager. Do not use unless use case specifically needs system options.
+   * If an OptionManager is needed, use getOptions instead.
+   */
+  public SystemOptionManager getSystemOptionManager() {
+    return sabotContext.getSystemOptionManager();
   }
 
   public ExecutionControls getExecutionControls() {
@@ -281,10 +319,6 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     return sabotContext.getExecutors();
   }
 
-  public ClusterResourceInformation getClusterResourceInformation() {
-    return sabotContext.getClusterResourceInformation();
-  }
-
   public SabotConfig getConfig() {
     return sabotContext.getConfig();
   }
@@ -294,8 +328,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
    * @return
    */
   public OptionList getNonDefaultOptions() {
-    final OptionList nonDefaultOptions = queryOptions.getOptionList();
-    nonDefaultOptions.mergeIfNotPresent(sabotContext.getOptionManager().getNonDefaultOptions());
+    final OptionList nonDefaultOptions = optionManager.getNonDefaultOptions();
     return nonDefaultOptions;
   }
 
@@ -389,6 +422,14 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     return valueHolder;
   }
 
+  public void setGroupResourceInformation(GroupResourceInformation groupResourceInformation) {
+    this.groupResourceInformation = groupResourceInformation;
+  }
+
+  public GroupResourceInformation getGroupResourceInformation() {
+    return groupResourceInformation;
+  }
+
   @Override
   public void close() throws Exception {
     try {
@@ -403,6 +444,6 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
 
   @Override
   public CompilationOptions getCompilationOptions() {
-    return new CompilationOptions(queryOptions);
+    return new CompilationOptions(optionManager);
   }
 }

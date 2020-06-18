@@ -28,7 +28,7 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   @Test
   public void testFilterPushdown_Equal() throws Exception {
     final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA='INFORMATION_SCHEMA'";
-    final String scan = "query=[type: TERM term {   field: \"SEARCH_SCHEMA\"   value: \"INFORMATION_SCHEMA\" } ]";
+    final String scan = "query=[equals {   field: \"SEARCH_SCHEMA\"   stringValue: \"INFORMATION_SCHEMA\" } ]";
 
     testHelper(query, scan, false);
   }
@@ -45,7 +45,7 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   @Test
   public void testFilterPushdown_Like() throws Exception {
     final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE '%SCH%'";
-    final String scan = "query=[type: WILDCARD wildcard {   field: \"SEARCH_SCHEMA\"   value: \"*SCH*\" } ]";
+    final String scan = "query=[like {   field: \"SEARCH_SCHEMA\"   pattern: \"%SCH%\" } ]";
 
     testHelper(query, scan, false);
   }
@@ -53,7 +53,7 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   @Test
   public void testFilterPushdown_LikeWithEscape() throws Exception {
     final String query = "SELECT * FROM INFORMATION_SCHEMA.\"TABLES\" WHERE TABLE_SCHEMA LIKE '%\\\\SCH%' ESCAPE '\\'";
-    final String scan = "query=[type: WILDCARD wildcard {   field: \"SEARCH_SCHEMA\"   value: \"*\\\\\\\\SCH*\" } ])";
+    final String scan = "query=[like {   field: \"SEARCH_SCHEMA\"   pattern: \"%\\\\\\\\SCH%\"   escape: \"\\\\\" } ])";
 
     testHelper(query, scan, false);
   }
@@ -63,7 +63,7 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
     final String query = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE " +
         "TABLE_SCHEMA = 'sys' AND " +
         "TABLE_NAME <> 'version'";
-    final String scan = "query=[type: TERM term {   field: \"SEARCH_SCHEMA\"   value: \"sys\" } ]";
+    final String scan = "query=[equals {   field: \"SEARCH_SCHEMA\"   stringValue: \"sys\" } ]";
 
     testHelper(query, scan, true);
   }
@@ -83,7 +83,7 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   @Test
   public void testFilterPushDownWithProject_Equal() throws Exception {
     final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.\"COLUMNS\" WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA'";
-    final String scan = "query=[type: TERM term {   field: \"SEARCH_SCHEMA\"   value: \"INFORMATION_SCHEMA\" } ]";
+    final String scan = "query=[equals {   field: \"SEARCH_SCHEMA\"   stringValue: \"INFORMATION_SCHEMA\" } ]";
     testHelper(query, scan, false);
   }
 
@@ -98,7 +98,7 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   @Test
   public void testFilterPushDownWithProject_Like() throws Exception {
     final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.\"COLUMNS\" WHERE TABLE_NAME LIKE '%BL%'";
-    final String scan = "query=[type: WILDCARD wildcard {   field: \"SEARCH_NAME\"   value: \"*BL*\" } ]";
+    final String scan = "query=[like {   field: \"SEARCH_NAME\"   pattern: \"%BL%\" } ]";
     testHelper(query, scan, false);
   }
 
@@ -109,9 +109,10 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
         "TABLE_NAME = 'version' AND " +
         "COLUMN_NAME like 'commit%s' AND " + // this is not expected to pushdown into scan
         "IS_NULLABLE = 'YES'"; // this is not expected to pushdown into scan
-    final String scan = "query=[type: BOOLEAN boolean {   op: AND   clauses {     type: TERM     term {       field: \"SEARCH_SCHEMA\"       value: \"sys\"     }   }   clauses {     type: TERM     term {       field: \"SEARCH_NAME\"       value: \"version\"     }   } } ]";
+    final String scan = "query=[and {   clauses {     equals {       field: \"SEARCH_SCHEMA\"       stringValue: \"sys\"     }   }   clauses {     equals {       field: \"SEARCH_NAME\"       stringValue: \"version\"     }   } } ]";
     testHelper(query, scan, true);
   }
+
 
   private void testHelper(final String query, String filterInScan, boolean filterPrelExpected) throws Exception {
     final String plan = getPlanInString("EXPLAIN PLAN FOR " + query, OPTIQ_FORMAT);

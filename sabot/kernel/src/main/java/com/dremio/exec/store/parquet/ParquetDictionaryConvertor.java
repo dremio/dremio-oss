@@ -18,7 +18,7 @@ package com.dremio.exec.store.parquet;
 
 import java.util.Optional;
 
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 
 /**
  * Converts the values in the dictionary values. Applicable only for dictionary encoded parquets.

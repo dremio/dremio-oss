@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.calcite.rel.core.JoinRelType;
@@ -41,7 +42,6 @@ import com.dremio.sabot.op.copier.FieldBufferCopier6;
 import com.dremio.sabot.op.join.hash.BuildInfo;
 import com.google.common.base.Stopwatch;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 public class VectorizedProbe implements AutoCloseable {

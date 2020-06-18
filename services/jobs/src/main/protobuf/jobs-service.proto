@@ -38,6 +38,10 @@ service JobsService {
   rpc Cancel (CancelJobRequest) returns (google.protobuf.Empty) {}
 
   rpc SubscribeToJobEvents(com.dremio.service.job.proto.JobId) returns (stream JobEvent) {}
+
+  rpc SubscribeToReflectionJobEvents(ReflectionJobEventsRequest) returns (stream JobEvent) {}
+
+  rpc CancelReflectionJob (CancelReflectionJobRequest) returns (google.protobuf.Empty) {}
 }
 
 service Chronicle {
@@ -58,6 +62,14 @@ service Chronicle {
   rpc GetJobsForParent (JobsWithParentDatasetRequest) returns (stream JobDetails) {}
 
   rpc StoreJobResult (StoreJobResultRequest) returns (google.protobuf.Empty) {}
+
+  rpc GetReflectionJobSummary (ReflectionJobSummaryRequest) returns (JobSummary) {}
+
+  rpc GetReflectionJobDetails (ReflectionJobDetailsRequest) returns (JobDetails) {}
+
+  rpc SearchReflectionJobs (SearchReflectionJobsRequest) returns (stream JobSummary) {}
+
+  rpc GetReflectionJobProfile (ReflectionJobProfileRequest) returns (exec.shared.QueryProfile) {}
 }
 
 message JobEvent {
@@ -85,6 +97,7 @@ message StoreJobResultRequest {
   double original_cost = 12;
   repeated string output_table = 13;
   VersionedDatasetPath dataset = 14;
+  repeated exec.shared.AttemptEvent state_list = 15;
 }
 
 message JobSummaryRequest {
@@ -116,6 +129,26 @@ message JobSummary {
   int64 output_records = 20;
   bool output_limited = 21;
   int64 record_count = 22;
+  repeated exec.shared.AttemptEvent state_list = 23;
+}
+
+//proto2 enums cannot be used directly in proto3 syntax
+//definition already exists UserBitShared.proto
+message AttemptEvent {
+	enum State {
+    INVALID_STATE = 0;
+    PENDING = 1;
+    METADATA_RETRIEVAL = 2;
+    PLANNING = 3;
+    QUEUED = 4;
+    ENGINE_START = 5;
+    EXECUTION_PLANNING = 6;
+    STARTING = 7;
+    RUNNING = 8;
+    COMPLETED = 9;
+    CANCELED = 10;
+    FAILED = 11;
+  }
 }
 
 message JobDetailsRequest {
@@ -136,6 +169,7 @@ message JobDetails {
 message QueryProfileRequest {
   com.dremio.service.job.proto.JobId job_id = 1;
   int32 attempt = 2;
+  string user_name = 3;
 }
 
 //proto2 enums cannot be used directly in proto3 syntax (it's okay if an imported proto2 message uses them)
@@ -151,6 +185,11 @@ enum JobState {
   CANCELED = 7;
   FAILED = 8;
   COMPLETED = 9;
+  PENDING = 10;
+  METADATA_RETRIEVAL = 11;
+  QUEUED = 12;
+  ENGINE_START = 13;
+  EXECUTION_PLANNING = 14;
 }
 
 enum QueryType {
@@ -276,3 +315,35 @@ message DownloadSettings {
   bool runInSingleThread = 3;
 }
 
+message ReflectionJobSummaryRequest {
+  JobSummaryRequest job_summary_request = 1;
+  string reflection_id = 2;
+}
+
+message ReflectionJobDetailsRequest {
+  JobDetailsRequest job_details_request = 1;
+  string reflection_id = 2;
+}
+
+message SearchReflectionJobsRequest {
+  string user_name = 1;
+  string reflection_id = 2;
+  int32 offset = 3;
+  int32 limit = 4;
+}
+
+message ReflectionJobEventsRequest {
+  com.dremio.service.job.proto.JobId job_id = 1;
+  string reflectionId= 2;
+  string user_name = 3;
+}
+
+message ReflectionJobProfileRequest {
+  QueryProfileRequest query_profile_request = 1;
+  string reflection_id = 2;
+}
+
+message CancelReflectionJobRequest {
+  CancelJobRequest cancel_job_request = 1;
+  string reflection_id = 4;
+}

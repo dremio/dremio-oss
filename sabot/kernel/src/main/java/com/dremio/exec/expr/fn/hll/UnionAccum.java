@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.expr.fn.hll;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ObjectHolder;
 
@@ -24,8 +25,6 @@ import com.yahoo.memory.WritableMemory;
 import com.yahoo.sketches.hll.HllSketch;
 import com.yahoo.sketches.hll.TgtHllType;
 import com.yahoo.sketches.hll.Union;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * An accumulator that designed to combine one or more separate HLL values into a single HLL

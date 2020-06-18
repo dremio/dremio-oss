@@ -25,6 +25,8 @@ import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent.State;
 import com.dremio.exec.proto.UserBitShared.FragmentState;
 
 /**
@@ -39,6 +41,8 @@ public class TestProfileMerger {
         .setPlan("PLAN_VALUE")
         .setQuery("Select * from plan")
         .setState(UserBitShared.QueryResult.QueryState.COMPLETED)
+        .addStateList(AttemptEvent.newBuilder()
+          .setState(State.COMPLETED).setStartTime(20L).build())
         .build();
 
     final UserBitShared.QueryProfile expectedMergedProfile =
@@ -58,18 +62,24 @@ public class TestProfileMerger {
         .setPlan("PLAN_VALUE")
         .setQuery("Select * from plan")
         .setState(UserBitShared.QueryResult.QueryState.ENQUEUED)
+        .addStateList(AttemptEvent.newBuilder()
+          .setState(State.QUEUED).setStartTime(20L).build())
         .build();
 
     final UserBitShared.QueryProfile tailProfile =
       UserBitShared.QueryProfile.newBuilder()
         .setErrorNode("ERROR_NODE")
         .setState(UserBitShared.QueryResult.QueryState.CANCELED)
+        .addStateList(AttemptEvent.newBuilder()
+          .setState(State.CANCELED).setStartTime(20L).build())
         .build();
 
     final UserBitShared.QueryProfile expectedMergedProfile =
       UserBitShared.QueryProfile.newBuilder()
         .setErrorNode("ERROR_NODE")
         .setState(UserBitShared.QueryResult.QueryState.CANCELED)
+        .addStateList(AttemptEvent.newBuilder()
+          .setState(State.CANCELED).setStartTime(20L).build())
         .setTotalFragments(0)
         .setFinishedFragments(0)
         .build();
@@ -90,6 +100,8 @@ public class TestProfileMerger {
         .setPlan("PLAN_VALUE")
         .setQuery("Select * from plan")
         .setState(UserBitShared.QueryResult.QueryState.ENQUEUED)
+        .addStateList(AttemptEvent.newBuilder()
+          .setState(State.QUEUED).setStartTime(20L).build())
         .build();
 
     final CoordExecRPC.ExecutorQueryProfile executorQueryProfile =
@@ -108,6 +120,8 @@ public class TestProfileMerger {
         .setPlan("PLAN_VALUE")
         .setQuery("Select * from plan")
         .setState(UserBitShared.QueryResult.QueryState.ENQUEUED)
+        .addStateList(AttemptEvent.newBuilder()
+          .setState(State.QUEUED).setStartTime(20L).build())
         .addNodeProfile(
           UserBitShared.NodeQueryProfile.newBuilder()
             .setEndpoint(nodeEndPoint)
@@ -154,6 +168,8 @@ public class TestProfileMerger {
         .setQuery("Select * from plan")
         .setErrorNode("ERROR_NODE")
         .setState(UserBitShared.QueryResult.QueryState.CANCELED)
+        .addStateList(AttemptEvent.newBuilder()
+          .setState(State.CANCELED).setStartTime(20L).build())
         .build();
 
     final UserBitShared.QueryProfile expectedMergedProfile =
@@ -162,6 +178,8 @@ public class TestProfileMerger {
         .setQuery("Select * from plan")
         .setErrorNode("ERROR_NODE")
         .setState(UserBitShared.QueryResult.QueryState.CANCELED)
+        .addStateList(AttemptEvent.newBuilder()
+          .setState(State.CANCELED).setStartTime(20L).build())
         .addNodeProfile(
           UserBitShared.NodeQueryProfile.newBuilder()
             .setEndpoint(nodeEndPoint)

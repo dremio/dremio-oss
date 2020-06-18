@@ -18,6 +18,7 @@ package com.dremio.services.fabric;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.junit.Test;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -28,8 +29,6 @@ import com.dremio.services.fabric.simple.ProtocolBuilder;
 import com.dremio.services.fabric.simple.ReceivedResponseMessage;
 import com.dremio.services.fabric.simple.SendEndpointCreator;
 import com.dremio.services.fabric.simple.SentResponseMessage;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Protocol builder test.

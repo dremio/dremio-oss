@@ -29,15 +29,19 @@ import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.PhysicalPlanReader;
+import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryCompletion;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryFirstError;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryScreenCompletion;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.work.foreman.CompletionListener;
+import com.dremio.options.OptionManager;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.resource.exception.ResourceAllocationException;
 import com.dremio.sabot.rpc.ExecToCoordStatusHandler;
@@ -137,6 +141,8 @@ public class MaestroServiceImpl implements MaestroService {
     queryTracker.allocateResources();
 
     try {
+      observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.EXECUTION_PLANNING));
+
       // do execution planning in the bound pool
       commandPool.get().submit(CommandPool.Priority.MEDIUM,
         QueryIdHelper.getQueryId(queryId) + ":execution-planning",
@@ -152,6 +158,7 @@ public class MaestroServiceImpl implements MaestroService {
       throw new ExecutionSetupException("failure during execution planning", e);
     }
 
+    observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.STARTING));
     // propagate the fragments.
     queryTracker.startFragments();
 
@@ -189,6 +196,11 @@ public class MaestroServiceImpl implements MaestroService {
   }
 
   @Override
+  public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager) throws ResourceAllocationException {
+    return resourceAllocator.get().getGroupResourceInformation(optionManager);
+  }
+
+  @Override
   public void close() throws Exception {
   }
 
@@ -210,6 +222,7 @@ public class MaestroServiceImpl implements MaestroService {
 
     @Override
     public void screenCompleted(NodeQueryScreenCompletion completion) throws RpcException {
+      logger.debug("Screen complete message came in for id {}", completion.getId());
       QueryTracker queryTracker = activeQueryMap.get(completion.getId());
       if (queryTracker == null) {
         logger.debug("screen completion message arrived post query termination, dropping. Query [{}] from node {}.",
@@ -221,6 +234,7 @@ public class MaestroServiceImpl implements MaestroService {
 
     @Override
     public void nodeQueryCompleted(NodeQueryCompletion completion) throws RpcException {
+      logger.debug("Node query complete message came in for id {}", completion.getId());
       QueryTracker queryTracker = activeQueryMap.get(completion.getId());
       if (queryTracker == null) {
         logger.debug("A node query completion message arrived post query termination, dropping. Query [{}] from node {}.",
@@ -232,6 +246,7 @@ public class MaestroServiceImpl implements MaestroService {
 
     @Override
     public void nodeQueryMarkFirstError(NodeQueryFirstError error) throws RpcException {
+      logger.debug("Node Query error came in for id {} ", error.getHandle().getQueryId());
       QueryTracker queryTracker = activeQueryMap.get(error.getHandle().getQueryId());
       if (queryTracker == null) {
         logger.debug("A node query error message arrived post query termination, dropping. Query [{}] from node {}.",

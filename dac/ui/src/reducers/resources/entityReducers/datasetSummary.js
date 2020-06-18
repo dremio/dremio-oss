@@ -23,10 +23,10 @@ export default function data(state, action) {
   case LOAD_EXPLORE_ENTITIES_SUCCESS:
     return state.set('datasetSummary', null);
   case NEW_UNTITLED_FAILURE: //read data set summary here
-    case LOAD_EXPLORE_ENTITIES_FAILURE: {
-      const datasetSummary = lodashGet(action, 'payload.response.details.datasetSummary') || null;
-      return state.set('datasetSummary', datasetSummary);
-    }
+  case LOAD_EXPLORE_ENTITIES_FAILURE: {
+    const datasetSummary = lodashGet(action, 'payload.response.details.datasetSummary') || null;
+    return state.set('datasetSummary', datasetSummary);
+  }
   default:
     return state;
   }

@@ -28,7 +28,7 @@ import io.opentracing.contrib.grpc.TracingClientInterceptor;
  */
 public final class GrpcChannelBuilderFactory {
 
-  private static final int MAX_RETRY = Integer.parseInt(System.getProperty("dremio.grpc.retry_max", "10"));
+  public static final int MAX_RETRY = Integer.parseInt(System.getProperty("dremio.grpc.retry_max", "10"));
 
   private final Tracer tracer;
 

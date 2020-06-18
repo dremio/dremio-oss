@@ -18,6 +18,7 @@ package com.dremio.sabot.op.join.nlje;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.util.Preconditions;
 import org.apache.calcite.rel.core.JoinRelType;
@@ -31,8 +32,6 @@ import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.copier.FieldBufferCopier;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Manages the matching and outputting process of NLJ. Will output both match records and unmatched probe records in the left/full cases.

@@ -84,4 +84,56 @@ public class TestSchemaChange extends BaseTestQuery {
       test("ALTER SYSTEM RESET \"" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "\"");
     }
   }
+
+  @Test
+  public void testParquetStructExtraField() throws Exception {
+      // test folder has two parquet files
+      //a.parquet has: 1 [{"f1":1,"f2":{"f_f_1":1,"f_f_2":2}}]
+      //b.parquet has: 2 [{"f1":2,"f2":{"f_f_1":2,"f_f_3":3}}]
+
+      // run select * to promote dataset
+
+      String query = String.format("select * from dfs_root.\"%s/struct_extra_hdfs_test/\"", TEST_RES_PATH);
+      try {
+        test(query);
+      } catch (Exception e) {
+        // first attempt fails
+        assertTrue(e.getMessage()
+          .contains("New schema found. Please reattempt the query."));
+      }
+
+      try {
+        test(query);
+      } catch (Exception e) {
+        // second attempt fails
+        assertTrue(e.getMessage()
+          .contains("New schema found. Please reattempt the query."));
+      }
+
+      // third attempt should pass
+      test(query);
+
+      // at this point dataset schema should be
+      // col1 int, col2 array<struct<f1:int, f2:struct<f_f_1:int,f_f_2:int,f_f_3:int>>>
+
+      query = String.format("select col1, col2[0].f1 as f1, col2[0].f2.f_f_1 as ff1, col2[0].f2.f_f_2 as ff2 " +
+        "from dfs_root.\"%s/struct_extra_hdfs_test/\"", TEST_RES_PATH);
+      testBuilder()
+      .sqlQuery(query)
+      .unOrdered()
+      .baselineColumns("col1", "f1", "ff1", "ff2")
+      .baselineValues(1,1,1,2)
+      .baselineValues(2,2,2,null)
+      .go();
+
+      query = String.format("select col1, col2[0].f1 as f1, col2[0].f2.f_f_1 as ff1, col2[0].f2.f_f_3 as ff3 " +
+        "from dfs_root.\"%s/struct_extra_hdfs_test/\"", TEST_RES_PATH);
+      testBuilder()
+        .sqlQuery(query)
+        .unOrdered()
+        .baselineColumns("col1", "f1", "ff1", "ff3")
+        .baselineValues(1,1,1,null)
+        .baselineValues(2,2,2,3)
+        .go();
+  }
 }

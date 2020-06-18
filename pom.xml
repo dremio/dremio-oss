@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>4.3.1-202005202256080999-5dcfb82a</version>
+  <version>4.5.0-202006180205030236-1a5d28da</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,7 +38,7 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>0.18.0-20200505155812-4c5cbe98c7-dremio</arrow.version>
+    <arrow.version>0.18.0-20200611130341-f4a85bd19b-dremio</arrow.version>
     <avatica.version>1.12.0</avatica.version>
     <calcite.version>1.16.0-202005121834460402-d60e02b</calcite.version>
     <derby.version>10.14.2.0</derby.version>
@@ -56,7 +56,7 @@
     <iceberg.version>0.7.0-incubating</iceberg.version>
 
     <plugin.hive2.azure-storage.version>8.3.0</plugin.hive2.azure-storage.version>
-    <plugin.hive2.azure-datalake.version>2.3.3-201901300025380807-2bdda72</plugin.hive2.azure-datalake.version>
+    <plugin.hive2.azure-datalake.version>2.3.3-202004281751280881-379c12c</plugin.hive2.azure-datalake.version>
     <plugin.hive2.hadoop-azure.version>2.8.5-dremio-r2-d1532684d9fd0f51b3451fda22d5f0be503a167c</plugin.hive2.hadoop-azure.version>
     <plugin.hive2.hadoop-azure-datalake.version>2.8.5</plugin.hive2.hadoop-azure-datalake.version>
     <plugin.hive2.aws-sdk.version>1.11.761</plugin.hive2.aws-sdk.version>
@@ -79,7 +79,7 @@
 
     <plugin.hive3.hadoop.version>3.2.1-dremio-202005181459080402-feba629</plugin.hive3.hadoop.version>
     <plugin.hive3.azure-storage.version>8.3.0</plugin.hive3.azure-storage.version>
-    <plugin.hive3.azure-datalake.version>2.3.3-201901300025380807-2bdda72</plugin.hive3.azure-datalake.version>
+    <plugin.hive3.azure-datalake.version>2.3.3-202004281751280881-379c12c</plugin.hive3.azure-datalake.version>
     <plugin.hive3.hadoop-azure.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure.version>
     <plugin.hive3.hadoop-azure-datalake.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure-datalake.version>
     <plugin.hive3.aws-hadoop.version>${plugin.hive3.hadoop.version}</plugin.hive3.aws-hadoop.version>
@@ -120,7 +120,7 @@
     <zookeeper.version>3.4.14</zookeeper.version>
     <curator.version>2.12.0</curator.version>
     <aws-sdk.version>1.11.761</aws-sdk.version>
-    <aws-sdk-2.version>2.11.11</aws-sdk-2.version>
+    <aws-sdk-2.version>2.11.13</aws-sdk-2.version>
     <openhft-affinity.version>3.1.7</openhft-affinity.version>
     <fbs.version>1.9.0</fbs.version>
     <rocksdb.version>5.14.2</rocksdb.version>
@@ -3058,7 +3058,13 @@ limitations under the License.
       <dependency>
         <groupId>com.microsoft.azure</groupId>
         <artifactId>azure-data-lake-store-sdk</artifactId>
-        <version>2.3.3-201901300025380807-2bdda72</version>
+        <version>2.3.3-202004281751280881-379c12c</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.wildfly.openssl</groupId>
+            <artifactId>wildfly-openssl</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>javax.xml.stream</groupId>

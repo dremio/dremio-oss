@@ -50,6 +50,7 @@ import com.dremio.jdbc.SchemaChangeListener;
 import com.dremio.jdbc.SqlTimeoutException;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 
 
@@ -58,6 +59,12 @@ class DremioCursor implements Cursor {
   /** Size of JDBC batch queue (in batches) above which throttling begins. */
   public static final String JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD = "dremio.jdbc.batch_queue_throttling_threshold";
   public static final String IS_CATALOG_NAME = "DREMIO";
+  // END_OF_STREAM_MESSAGE gets added to batchQueue to signal the waiting threads
+  // that there is no more data in the queue, therefore aborting the operations waiting
+  // on the queue early, rather than waiting for the timeout to abort the operation.
+  // We cannot have null as the END_OF_STREAM_MESSAGE as adding a null to LinkedBlockingDeque
+  // throws a NullPointerException.
+  public static final QueryDataBatch END_OF_STREAM_MESSAGE = new QueryDataBatch(null, null);
 
   ////////////////////////////////////////
   // ResultsListener:
@@ -82,11 +89,8 @@ class DremioCursor implements Cursor {
 
     private volatile UserException executionFailureException;
 
-    // TODO:  Revisit "completed".  Determine and document exactly what it
-    // means.  Some uses imply that it means that incoming messages indicate
-    // that the _query_ has _terminated_ (not necessarily _completing_
-    // normally), while some uses imply that it's some other state of the
-    // ResultListener.  Some uses seem redundant.)
+    // Completed means a state of ResultListener where we have
+    // received all the data from the server.
     volatile boolean completed = false;
 
     /** Whether throttling of incoming data is active. */
@@ -100,6 +104,8 @@ class DremioCursor implements Cursor {
     final LinkedBlockingDeque<QueryDataBatch> batchQueue =
         Queues.newLinkedBlockingDeque();
 
+    private final long batchQueuePollTimeoutMs;
+
     // time (as epoch in millis) the query should complete before
     private long shouldCompleteBefore = Long.MAX_VALUE;
 
@@ -107,11 +113,24 @@ class DremioCursor implements Cursor {
      * ...
      * @param  batchQueueThrottlingThreshold
      *         queue size threshold for throttling server
+     * @param  batchQueuePollTimeoutMs
+     *         timeout for batchQueue.Poll() in ms
      */
-    ResultsListener( int batchQueueThrottlingThreshold ) {
+    @VisibleForTesting
+    ResultsListener( int batchQueueThrottlingThreshold, long batchQueuePollTimeoutMs ) {
       instanceId = nextInstanceId++;
       this.batchQueueThrottlingThreshold = batchQueueThrottlingThreshold;
+      this.batchQueuePollTimeoutMs = batchQueuePollTimeoutMs;
       logger.debug( "[#{}] Query listener created.", instanceId );
+    }
+
+    /**
+     * ...
+     * @param  batchQueueThrottlingThreshold
+     *         queue size threshold for throttling server
+     */
+    ResultsListener( int batchQueueThrottlingThreshold ) {
+      this(batchQueueThrottlingThreshold, 50);
     }
 
     /**
@@ -205,8 +224,10 @@ class DremioCursor implements Cursor {
     @Override
     public void queryCompleted(QueryState state) {
       logger.debug( "[#{}] Received query completion: {}.", instanceId, state );
-      releaseIfFirst();
       completed = true;
+      // Add an END_OF_STREAM_MESSAGE batch to the queue to signify no more data.
+      batchQueue.add(END_OF_STREAM_MESSAGE);
+      releaseIfFirst();
     }
 
     QueryId getQueryId() {
@@ -238,7 +259,11 @@ class DremioCursor implements Cursor {
           if (remaining < 0) {
             throw new TimeoutException("Query did not complete before timeout expiration");
           }
-          QueryDataBatch qdb = batchQueue.poll(Math.min(remaining, 50), TimeUnit.MILLISECONDS);
+          final QueryDataBatch qdb = completed ? batchQueue.poll() :
+            batchQueue.poll(Math.min(remaining, batchQueuePollTimeoutMs), TimeUnit.MILLISECONDS);
+          if (qdb == END_OF_STREAM_MESSAGE) {
+            return null;
+          }
           if (qdb != null) {
             lastDequeuedBatchNumber++;
             logger.debug( "[#{}] Dequeued query data batch #{}: {}.",
@@ -272,15 +297,24 @@ class DremioCursor implements Cursor {
       }
       while (!batchQueue.isEmpty()) {
         QueryDataBatch qdb = batchQueue.poll();
+        // This correctly skips over the END_OF_STREAM_MESSAGE as it has null data.
         if (qdb != null && qdb.getData() != null) {
           qdb.getData().release();
         }
       }
+
+      completed = true;
+      // Add an END_OF_STREAM_MESSAGE batch to the queue to signify no more data in a race condition
+      // when the app has two threads, one that is calling ResultSet.next(), and another one where
+      // the app is calling Statement.cancel(), the call to next() won't get interrupted as the
+      // next() thread will have already entered the wait on the queue before seeing the cancel
+      // has been requested.
+      batchQueue.add(END_OF_STREAM_MESSAGE);
+
       // Close may be called before the first result is received and therefore
       // when the main thread is blocked waiting for the result.  In that case
       // we want to unblock the main thread.
-      firstMessageReceived.countDown(); // TODO:  Why not call releaseIfFirst as used elsewhere?
-      completed = true;
+      releaseIfFirst();
     }
 
   }

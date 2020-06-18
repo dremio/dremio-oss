@@ -31,6 +31,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.EventLoopCloseable;
 import com.dremio.exec.rpc.TransportCheck;
 import com.dremio.exec.work.protector.UserWorker;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.service.Service;
 import com.dremio.service.users.UserService;
 import com.dremio.telemetry.api.metrics.Metrics;
@@ -52,6 +53,7 @@ public class UserServer implements Service {
   private final Provider<UserWorker> worker;
   private final boolean allowPortHunting;
   protected final Tracer tracer;
+  private final Provider<OptionValidatorListing> optionValidatorProvider;
 
   private EventLoopCloseable eventLoopCloseable;
   private BufferAllocator allocator;
@@ -67,7 +69,8 @@ public class UserServer implements Service {
     Provider<NodeEndpoint> nodeEndpointProvider,
     Provider<UserWorker> worker,
     boolean allowPortHunting,
-    Tracer tracer
+    Tracer tracer,
+    Provider<OptionValidatorListing> optionValidatorProvider
   ) {
     this.config = config;
     this.executorService = executorService;
@@ -77,6 +80,7 @@ public class UserServer implements Service {
     this.worker = worker;
     this.allowPortHunting = allowPortHunting;
     this.tracer = tracer;
+    this.optionValidatorProvider = optionValidatorProvider;
   }
 
   public int getPort() {
@@ -125,7 +129,8 @@ public class UserServer implements Service {
         getAllocator(),
         eventLoopGroup,
         null,
-        tracer);
+        tracer,
+        optionValidatorProvider.get());
   }
 
   protected Provider<UserService> getUserServiceProvider() {

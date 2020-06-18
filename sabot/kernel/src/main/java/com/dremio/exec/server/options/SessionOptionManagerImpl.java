@@ -15,7 +15,6 @@
  */
 package com.dremio.exec.server.options;
 
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -24,10 +23,10 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import com.dremio.common.map.CaseInsensitiveMap;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidator;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
 
 /**
  * {@link OptionManager} that holds options within {@link com.dremio.sabot.rpc.user.UserSession} context. Options
@@ -40,6 +39,7 @@ import com.google.common.collect.Collections2;
  * in the reset query itself.
  */
 public class SessionOptionManagerImpl extends InMemoryOptionManager implements SessionOptionManager {
+  private final OptionValidatorListing optionValidatorListing;
   private final AtomicInteger queryCount = new AtomicInteger(0);
 
   /**
@@ -48,18 +48,19 @@ public class SessionOptionManagerImpl extends InMemoryOptionManager implements S
   private final Map<String, ImmutablePair<Integer, Integer>> shortLivedOptions =
     CaseInsensitiveMap.newConcurrentMap();
 
-  public SessionOptionManagerImpl(OptionManager systemOptions) {
-    super(systemOptions, CaseInsensitiveMap.newConcurrentMap());
+  public SessionOptionManagerImpl(OptionValidatorListing optionValidatorListing) {
+    super(optionValidatorListing, CaseInsensitiveMap.newConcurrentMap());
+    this.optionValidatorListing = optionValidatorListing;
   }
 
   @Override
-  boolean setLocalOption(final OptionValue value) {
-    final boolean set = super.setLocalOption(value);
-    if (!set) {
+  public boolean setOption(final OptionValue value) {
+    optionValidatorListing.getValidator(value.getName()).validate(value);
+    if (!super.setOption(value)) {
       return false;
     }
     final String name = value.getName();
-    final OptionValidator validator = getValidator(name); // if set, validator must exist.
+    final OptionValidator validator = optionValidatorListing.getValidator(name);
     final boolean shortLived = validator.isShortLived();
     if (shortLived) {
       final int start = queryCount.get() + 1; // start from the next query
@@ -71,8 +72,8 @@ public class SessionOptionManagerImpl extends InMemoryOptionManager implements S
   }
 
   @Override
-  OptionValue getLocalOption(final String name) {
-    final OptionValue value = super.getLocalOption(name);
+  public OptionValue getOption(final String name) {
+    final OptionValue value = super.getOption(name);
     if (shortLivedOptions.containsKey(name)) {
       if (withinRange(name)) {
         return value;
@@ -81,7 +82,7 @@ public class SessionOptionManagerImpl extends InMemoryOptionManager implements S
       final int start = shortLivedOptions.get(name).getLeft();
       // option is not in effect if queryNumber < start
       if (queryNumber < start) {
-        return getValidator(name).getDefault();
+        return optionValidatorListing.getValidator(name).getDefault();
       // reset if queryNumber <= end
       } else {
         options.remove(name);
@@ -107,12 +108,6 @@ public class SessionOptionManagerImpl extends InMemoryOptionManager implements S
       return !shortLivedOptions.containsKey(name) || withinRange(name);
     }
   };
-
-  @Override
-  Iterable<OptionValue> getLocalOptions() {
-    final Collection<OptionValue> liveOptions = Collections2.filter(options.values(), isLive);
-    return liveOptions;
-  }
 
   @Override
   protected boolean supportsOptionType(OptionType type) {

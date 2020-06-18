@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.util.JsonStringArrayList;
@@ -42,8 +43,6 @@ import com.dremio.exec.proto.UserBitShared.QueryType;
 import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.util.ByteBufUtil.HadoopWritables;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
-
-import io.netty.buffer.ArrowBuf;
 
 public class TestConvertFunctions extends BaseTestQuery {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestConvertFunctions.class);

@@ -17,11 +17,14 @@ package com.dremio.exec.physical.impl;
 
 
 import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.List;
 
 import org.joda.time.Period;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.util.DecimalUtils;
 import com.dremio.sabot.BaseTestFunction;
 import com.dremio.sabot.Fixtures;
@@ -125,5 +128,24 @@ public class TestCastFunctions extends BaseTestFunction {
     }
     Assert.assertEquals("Expected a number format exception", NumberFormatException.class,
             exceptionClass);
+  }
+
+  @Test
+  public void fromListUserException() {
+    final List<String> input1 = Arrays.asList(new String[] {"abc123", "abc456"});
+    Class exceptionClass = null;
+    String expectedErrorMessage = "";
+    try {
+      testFunctions(new Object[][]{
+        {"cast(c0 as varchar(30))", input1, "abc"}
+      });
+    } catch (Exception e) {
+      Throwable rootCause = e.getCause().getCause();
+      exceptionClass = rootCause.getClass();
+      expectedErrorMessage = e.getCause().getCause().getMessage();
+    }
+    Assert.assertEquals("Excepted a user exception", UserException.class, exceptionClass);
+    Assert.assertTrue(
+      expectedErrorMessage.startsWith("Dremio does not support casting or coercing list"));
   }
 }

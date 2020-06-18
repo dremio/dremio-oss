@@ -17,17 +17,17 @@ package com.dremio.exec.rpc;
 
 import java.util.Optional;
 
-import com.dremio.exec.rpc.ssl.SSLEngineFactory;
+import org.apache.arrow.memory.BufferAllocator;
+
+import com.dremio.exec.rpc.BasicClientWithConnection.ServerConnection;
+import com.dremio.ssl.SSLEngineFactory;
+import com.google.protobuf.Internal.EnumLite;
+import com.google.protobuf.MessageLite;
+import com.google.protobuf.Parser;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-
-import org.apache.arrow.memory.BufferAllocator;
-
-import com.google.protobuf.Internal.EnumLite;
-import com.dremio.exec.rpc.BasicClientWithConnection.ServerConnection;
-import com.google.protobuf.MessageLite;
-import com.google.protobuf.Parser;
 
 public abstract class BasicClientWithConnection<T extends EnumLite, HANDSHAKE_SEND extends MessageLite, HANDSHAKE_RESPONSE extends MessageLite> extends BasicClient<T, ServerConnection, HANDSHAKE_SEND, HANDSHAKE_RESPONSE>{
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BasicClientWithConnection.class);

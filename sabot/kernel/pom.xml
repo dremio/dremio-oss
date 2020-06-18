@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.sabot</groupId>
     <artifactId>dremio-sabot-parent</artifactId>
-    <version>4.3.1-202005202256080999-5dcfb82a</version>
+    <version>4.5.0-202006180205030236-1a5d28da</version>
   </parent>
   <artifactId>dremio-sabot-kernel</artifactId>
   <name>Sabot - Kernel</name>
@@ -119,6 +119,12 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-namespace</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-namespace</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -608,6 +614,11 @@
     <dependency>
       <groupId>com.dremio.services</groupId>
       <artifactId>dremio-services-jobtelemetry-client</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-catalog-api</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

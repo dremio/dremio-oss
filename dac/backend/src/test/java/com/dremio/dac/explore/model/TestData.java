@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
@@ -85,8 +86,6 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Unittests for {@link com.dremio.dac.model.job.JobDataFragmentWrapper}. Currently it only tests the serialization aspects such as

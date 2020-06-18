@@ -15,11 +15,11 @@
  */
 package org.apache.arrow.vector;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.dremio.common.expression.CompleteType;
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
-
-import io.netty.buffer.ArrowBuf;
 
 public class FixedWidthVectorHelper<T extends BaseFixedWidthVector> extends BaseValueVectorHelper<T> {
 

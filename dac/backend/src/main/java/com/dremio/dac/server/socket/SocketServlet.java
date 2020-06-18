@@ -160,7 +160,16 @@ public class SocketServlet extends WebSocketServlet {
         } else if (msg instanceof ListenRecords) {
           JobId id = ((ListenRecords) msg).getId();
           jobsService.registerListener(id, new RecordsListener(id, this));
+        } else if (msg instanceof SocketMessage.ListenReflectionJobDetails) {
+          JobId id = ((SocketMessage.ListenReflectionJobDetails) msg).getId();
+          String reflectionId = ((SocketMessage.ListenReflectionJobDetails) msg).getReflectionId();
+          jobsService.registerReflectionJobListener(id, user.getName(), reflectionId, new DetailsListener(id, this));
+        } else if (msg instanceof SocketMessage.ListenReflectionJobProgress) {
+          JobId id = ((SocketMessage.ListenReflectionJobProgress) msg).getId();
+          String reflectionId = ((SocketMessage.ListenReflectionJobProgress) msg).getReflectionId();
+          jobsService.registerReflectionJobListener(id, user.getName(), reflectionId, new ProgressListener(id, this));
         }
+
       } catch (Exception e) {
         logger.warn("Failure handling socket message of {}.", message, e);
         send(new SocketMessage.ErrorPayload(e.getMessage()));

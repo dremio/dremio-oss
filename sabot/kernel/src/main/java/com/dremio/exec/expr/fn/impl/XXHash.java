@@ -15,9 +15,9 @@
  */
 package com.dremio.exec.expr.fn.impl;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BoundsChecking;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 public final class XXHash extends HashBase{

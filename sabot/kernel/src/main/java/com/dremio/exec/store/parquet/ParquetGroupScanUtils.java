@@ -45,7 +45,6 @@ import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.dfs.CompleteFileWork.FileWorkImpl;
 import com.dremio.exec.store.dfs.FileSelection;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -109,7 +108,7 @@ public class ParquetGroupScanUtils {
     List<SchemaPath> columns,
     BatchSchema schema,
     Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns,
-    List<ParquetFilterCondition> conditions, SystemOptionManager optionManager)
+    List<ParquetFilterCondition> conditions, OptionManager optionManager)
       throws IOException {
     this.schema = schema;
     this.formatPlugin = formatPlugin;

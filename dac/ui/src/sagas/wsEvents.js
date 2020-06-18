@@ -17,13 +17,21 @@ import { all, put, select, takeEvery } from 'redux-saga/effects';
 
 import { WS_MESSAGE_JOB_DETAILS, WS_MESSAGE_JOB_PROGRESS } from 'utils/socket';
 
-import { loadJobDetails, updateJobState }  from 'actions/jobs/jobs';
+import { loadJobDetails, loadReflectionJobDetails, updateJobState } from 'actions/jobs/jobs';
 
 const getLocation = state => state.routing.locationBeforeTransitions;
 
 function *handleUpdateJobDetails(action) {
   if (action.error) return;
-  yield put(loadJobDetails(action.payload.jobId.id));
+
+  const location = yield select(getLocation);
+  if (location.pathname.indexOf('/jobs/reflection/') > -1) {
+    const split = location.pathname.split('/');
+    const reflectionId = split[split.length - 1];
+    yield put(loadReflectionJobDetails(action.payload.jobId.id, reflectionId));
+  } else {
+    yield put(loadJobDetails(action.payload.jobId.id));
+  }
 }
 
 function *handleJobProgressChanged(action) {

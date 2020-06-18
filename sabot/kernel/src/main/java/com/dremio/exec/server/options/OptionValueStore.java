@@ -24,8 +24,8 @@ import javax.annotation.Nullable;
 import javax.inject.Provider;
 
 import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.exec.serialization.InstanceSerializer;
 import com.dremio.options.OptionValue;
 import com.google.common.base.Function;
@@ -39,7 +39,7 @@ import com.google.common.collect.Iterables;
 class OptionValueStore {
 //  private static final Logger logger = LoggerFactory.getLogger(OptionValueStore.class);
 
-  public interface OptionValueStoreCreator extends LegacyStoreCreationFunction<LegacyKVStore<String, byte[]>> {}
+  public interface OptionValueStoreCreator extends LegacyKVStoreCreationFunction<String, byte[]> {}
 
   private final Provider<LegacyKVStoreProvider> kvStoreProvider;
   private final Class<? extends OptionValueStoreCreator> storeCreatorClass;

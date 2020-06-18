@@ -19,11 +19,13 @@ import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.exec.rpc.Acks;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.sabot.rpc.ExecToCoordResultsHandler;
+import com.dremio.service.grpc.CloseableBindableService;
 import com.dremio.service.jobresults.JobResultsRequest;
 import com.dremio.service.jobresults.JobResultsResponse;
 import com.dremio.service.jobresults.JobResultsServiceGrpc;
@@ -35,7 +37,7 @@ import io.netty.buffer.ByteBuf;
 /**
  * Job Results gRPC service.
  */
-public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResultsServiceImplBase {
+public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResultsServiceImplBase implements CloseableBindableService {
 
   private Provider<ExecToCoordResultsHandler> execToCoordResultsHandlerProvider;
   private final BufferAllocator allocator;
@@ -71,6 +73,11 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
         responseObserver.onCompleted();
       }
     };
+  }
+
+  @Override
+  public void close() throws Exception {
+    AutoCloseables.close(allocator);
   }
 
   private static class JobResultsGrpcLocalResponseSender implements ResponseSender {

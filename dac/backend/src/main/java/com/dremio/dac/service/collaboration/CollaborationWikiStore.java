@@ -25,9 +25,9 @@ import com.dremio.datastore.SearchTypes;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.DocumentWriter;
 import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyIndexedStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
 import com.google.common.base.Optional;
@@ -107,7 +107,7 @@ public class CollaborationWikiStore {
   /**
    * store creator
    */
-  public static final class CollaborationWikiStoreStoreCreator implements LegacyStoreCreationFunction<LegacyIndexedStore<String, CollaborationWiki>> {
+  public static final class CollaborationWikiStoreStoreCreator implements LegacyIndexedStoreCreationFunction<String, CollaborationWiki> {
     @Override
     public LegacyIndexedStore<String, CollaborationWiki> build(LegacyStoreBuildingFactory factory) {
       return factory.<String, CollaborationWiki>newStore()

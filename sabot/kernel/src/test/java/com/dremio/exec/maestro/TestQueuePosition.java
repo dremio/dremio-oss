@@ -77,7 +77,8 @@ public class TestQueuePosition {
       check(i, (ResourceSchedulingDecisionInfo) args[0]);
       return null;
     }).when(observer).resourcesScheduled(Mockito.any());
-    BasicResourceAllocator ra = new BasicResourceAllocator(() -> clusterCoordinator);
+    BasicResourceAllocator ra = new BasicResourceAllocator(() -> clusterCoordinator,
+      null);
     ResourceTracker resourceTracker = new ResourceTracker(plan, context, ra, observer);
   }
 

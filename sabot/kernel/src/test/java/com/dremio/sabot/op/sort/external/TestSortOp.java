@@ -20,6 +20,7 @@ import static java.util.Collections.singletonList;
 import static org.apache.calcite.rel.RelFieldCollation.Direction.ASCENDING;
 import static org.apache.calcite.rel.RelFieldCollation.NullDirection.FIRST;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.TimeUnit;
 
@@ -120,9 +121,11 @@ public class TestSortOp extends BaseTestOperator {
 
       final long batchesSpilled = stats.getLongStat(ExternalSortOperator.Metric.BATCHES_SPILLED);
       final long spillFiles = stats.getLongStat(ExternalSortOperator.Metric.SPILL_COUNT);
+      final long spilledData = stats.getLongStat(ExternalSortOperator.Metric.TOTAL_SPILLED_DATA_SIZE);
 
       assertEquals(batchesSpilled, 20 /*numRows/targetBatchSize*/);
       assertEquals(spillFiles, 2);
+      assertTrue(spilledData > 0);
     }
   }
 
@@ -140,9 +143,11 @@ public class TestSortOp extends BaseTestOperator {
 
       final long batchesSpilled = stats.getLongStat(ExternalSortOperator.Metric.BATCHES_SPILLED);
       final long spillFiles = stats.getLongStat(ExternalSortOperator.Metric.SPILL_COUNT);
+      final long spilledData = stats.getLongStat(ExternalSortOperator.Metric.TOTAL_SPILLED_DATA_SIZE);
 
       assertEquals(batchesSpilled, 0);
       assertEquals(spillFiles, 2);
+      assertTrue(spilledData > 0);
     }
   }
 

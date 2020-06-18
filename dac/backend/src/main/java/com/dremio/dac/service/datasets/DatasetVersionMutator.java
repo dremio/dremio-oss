@@ -48,9 +48,9 @@ import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
+import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -158,10 +158,15 @@ public class DatasetVersionMutator {
       final List<VirtualDatasetUI> allVersions = FluentIterable.from(getAllVersions(oldPath)).toList();
       final Map<NameDatasetRef, NameDatasetRef> newPrevLinks = Maps.newHashMap();
       for (final VirtualDatasetUI ds : allVersions) {
-        if (ds.getPreviousVersion() != null) {
-          newPrevLinks.put(ds.getPreviousVersion(),
-              new NameDatasetRef(newPath.toString())
-                  .setDatasetVersion(ds.getPreviousVersion().getDatasetVersion()));
+        final NameDatasetRef previousVersion = ds.getPreviousVersion();
+        if (previousVersion != null) {
+          // Only rewrite the path if its equal to the old path.
+          final String path = previousVersion.getDatasetPath().equals(oldPath.toString()) ?
+            newPath.toString() :
+            previousVersion.getDatasetPath();
+          newPrevLinks.put(previousVersion,
+              new NameDatasetRef(path)
+                  .setDatasetVersion(previousVersion.getDatasetVersion()));
         }
       }
       // rename all old versions, link the previous version correctly
@@ -352,7 +357,7 @@ public class DatasetVersionMutator {
   /**
    * Storage creator for dataset versions.
    */
-  public static class VersionStoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<VersionDatasetKey, VirtualDatasetVersion>> {
+  public static class VersionStoreCreator implements LegacyKVStoreCreationFunction<VersionDatasetKey, VirtualDatasetVersion> {
 
     @Override
     public LegacyKVStore<VersionDatasetKey, VirtualDatasetVersion> build(LegacyStoreBuildingFactory factory) {

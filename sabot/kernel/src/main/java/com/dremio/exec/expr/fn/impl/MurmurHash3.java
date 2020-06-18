@@ -13,14 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-
-
 package com.dremio.exec.expr.fn.impl;
 
-import io.netty.buffer.ArrowBuf;
-import io.netty.util.internal.PlatformDependent;
+import org.apache.arrow.memory.ArrowBuf;
 
+import io.netty.util.internal.PlatformDependent;
 
 /**
  *

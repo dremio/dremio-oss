@@ -23,7 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
+import java.util.Collections;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.Term;
@@ -57,7 +57,7 @@ public class TestReIndexer {
 
   private static ReIndexer reIndexer;
   private static IndexManager indexManager;
-  private static CoreIndexedStore store;
+  private static CoreIndexedStore<String, String> store;
 
   @BeforeClass
   public static void setup() {
@@ -71,9 +71,7 @@ public class TestReIndexer {
       .valueFormat(Format.ofString());
 
     reIndexer = new ReIndexer(indexManager,
-        new HashMap<String, CoreStoreProviderImpl.StoreWithId>() {{
-          put(storeName, new CoreStoreProviderImpl.StoreWithId<String, String>(helper, store));
-        }});
+        Collections.singletonMap(storeName, new CoreStoreProviderImpl.StoreWithId<String, String>(helper, store)));
   }
 
   @Test

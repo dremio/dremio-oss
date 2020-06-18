@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import java.util.Arrays;
 import java.util.Random;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.VarBinaryVector;
 import org.apache.arrow.vector.VarCharVector;
@@ -28,8 +29,6 @@ import org.junit.Test;
 
 import com.dremio.sabot.BaseTestWithAllocator;
 import com.google.common.base.Charsets;
-
-import io.netty.buffer.ArrowBuf;
 
 public class TestVarBinaryPivot extends BaseTestWithAllocator {
 

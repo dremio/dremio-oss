@@ -53,10 +53,14 @@ import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePlugin;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceKey;
@@ -107,11 +111,16 @@ public class TestPluginsManager {
     when(sabotContext.getLpPersistence())
         .thenReturn(lpp);
 
-    final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(CLASSPATH_SCAN_RESULT);
-    final SystemOptionManager som = new SystemOptionManager(defaultOptionManager, lpp, () -> storeProvider, true);
+    final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
+    final SystemOptionManager som = new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
+    final OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
+      .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+      .withOptionManager(som)
+      .build();
+
     som.start();
     when(sabotContext.getOptionManager())
-        .thenReturn(som);
+        .thenReturn(optionManager);
 
     // used in start
     when(sabotContext.getKVStoreProvider())
@@ -130,7 +139,7 @@ public class TestPluginsManager {
     LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
     schedulerService = mock(SchedulerService.class);
     mockScheduleInvocation();
-    plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, som, dremioConfig,
+    plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, dremioConfig,
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
       ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), CatalogServiceMonitor.DEFAULT);
     plugins.start();

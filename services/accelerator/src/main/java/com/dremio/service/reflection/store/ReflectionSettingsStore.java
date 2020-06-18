@@ -19,9 +19,9 @@ import javax.inject.Provider;
 
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
@@ -84,7 +84,7 @@ public class ReflectionSettingsStore {
   /**
    * {@link ReflectionSettingsStore} creator
    */
-  public static final class StoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<NamespaceKey, AccelerationSettings>> {
+  public static final class StoreCreator implements LegacyKVStoreCreationFunction<NamespaceKey, AccelerationSettings> {
     @Override
     public LegacyKVStore<NamespaceKey, AccelerationSettings> build(LegacyStoreBuildingFactory factory) {
       return factory.<NamespaceKey, AccelerationSettings>newStore()

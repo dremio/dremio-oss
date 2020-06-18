@@ -103,7 +103,7 @@ public class TestMetadataProviderFromFilter {
 
   @Test
   public void testMetadataFilter() throws Exception {
-    assertEquals(spaceKey, MetadataProvider.fromFilter(schema, table));
+    assertEquals(spaceKey, MetadataProvider.getTableKeyFromFilter(schema, table));
   }
 
   private static UserProtos.LikeFilter toFilter(String pattern, String escape) {

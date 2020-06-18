@@ -18,6 +18,7 @@ package org.apache.arrow.vector.complex;
 
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -28,8 +29,6 @@ import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
-
-import io.netty.buffer.ArrowBuf;
 
 public class ListVectorHelper extends BaseRepeatedValueVectorHelper<ListVector> {
   private ListVector listVector;

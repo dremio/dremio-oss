@@ -2213,6 +2213,7 @@
         },
         "kind-of": {
           "version": "6.0.2",
+          "integrity": "sha512-s5kLOcnH0XqDO+FvuaLX8DDjZ18CGFk7VygH40QoKPUQhW4e2rvM0rwUq0t8IQDOwYSeLK01U90OjzBTme2QqA==",
           "dev": true
         }
       }
@@ -3357,6 +3358,7 @@
         },
         "minimist": {
           "version": "1.2.0",
+          "integrity": "sha1-o1AIsg9BOD7sH7kU9M1d95omQoQ=",
           "dev": true
         },
         "postcss-value-parser": {
@@ -4695,6 +4697,7 @@
         },
         "kind-of": {
           "version": "6.0.2",
+          "integrity": "sha512-s5kLOcnH0XqDO+FvuaLX8DDjZ18CGFk7VygH40QoKPUQhW4e2rvM0rwUq0t8IQDOwYSeLK01U90OjzBTme2QqA==",
           "dev": true
         }
       }
@@ -4788,6 +4791,7 @@
         },
         "minimist": {
           "version": "1.2.0",
+          "integrity": "sha1-o1AIsg9BOD7sH7kU9M1d95omQoQ=",
           "dev": true
         },
         "schema-utils": {
@@ -6314,8 +6318,8 @@
       }
     },
     "jquery": {
-      "version": "3.4.1",
-      "integrity": "sha512-36+AdBzCL+y6qjw5Tx7HgzeGCzC81MDDgaUP8ld2zhx58HdqXGoBd+tHdrBMiyjGQs0Hxs/MLZTu/eHNJJuWPw=="
+      "version": "3.5.1",
+      "integrity": "sha512-XwIBPqcMn57FxfT+Go5pzySnm4KWkT1Tv7gjrpT1srtf8Weynl6R273VJ5GjkRb51IzMp5nbaPjJXMWeju2MKg=="
     },
     "jquery-param": {
       "version": "0.2.0",
@@ -9106,6 +9110,7 @@
         },
         "minimist": {
           "version": "1.2.0",
+          "integrity": "sha1-o1AIsg9BOD7sH7kU9M1d95omQoQ=",
           "dev": true
         }
       }
@@ -10072,6 +10077,7 @@
         },
         "kind-of": {
           "version": "6.0.2",
+          "integrity": "sha512-s5kLOcnH0XqDO+FvuaLX8DDjZ18CGFk7VygH40QoKPUQhW4e2rvM0rwUq0t8IQDOwYSeLK01U90OjzBTme2QqA==",
           "dev": true
         }
       }

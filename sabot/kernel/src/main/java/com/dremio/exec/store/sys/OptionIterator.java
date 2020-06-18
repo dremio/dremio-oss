@@ -72,7 +72,7 @@ public class OptionIterator implements Iterator<Object> {
     if (value.getType() == OptionType.BOOT) {
       status = Status.BOOT;
     } else {
-      final OptionValue def = fragmentOptions.getValidator(value.getName()).getDefault();
+      final OptionValue def = fragmentOptions.getOptionValidatorListing().getValidator(value.getName()).getDefault();
       if (value.equalsIgnoreType(def)) {
         status = Status.DEFAULT;
         } else {

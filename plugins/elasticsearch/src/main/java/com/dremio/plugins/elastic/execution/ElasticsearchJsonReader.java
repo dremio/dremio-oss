@@ -18,6 +18,7 @@ package com.dremio.plugins.elastic.execution;
 import java.io.IOException;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
@@ -34,8 +35,6 @@ import com.dremio.plugins.elastic.ElasticsearchConstants;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonToken;
 import com.google.common.base.Preconditions;
-import io.netty.buffer.ArrowBuf;
-
 
 public class ElasticsearchJsonReader extends BaseJsonProcessor {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ElasticsearchJsonReader.class);

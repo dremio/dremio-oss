@@ -34,6 +34,7 @@ import io.grpc.stub.StreamObserver;
  * Provides a grpc server facade on top of the underlying ExecToCoordStatusHandler
  */
 public class MaestroGrpcServerFacade extends MaestroServiceGrpc.MaestroServiceImplBase {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MaestroGrpcServerFacade.class);
 
   private final Provider<ExecToCoordStatusHandler> execToCoordStatusHandlerProvider;
 

@@ -16,14 +16,14 @@
 package com.dremio.datastore.indexed.doughnut;
 
 import com.dremio.datastore.api.IndexedStore;
+import com.dremio.datastore.api.IndexedStoreCreationFunction;
 import com.dremio.datastore.api.StoreBuildingFactory;
-import com.dremio.datastore.api.StoreCreationFunction;
 import com.dremio.datastore.format.Format;
 
 /**
  * DoughnutStore for IndexedStore tests.
  */
-public class DoughnutIndexedStore implements StoreCreationFunction<IndexedStore<String, Doughnut>> {
+public class DoughnutIndexedStore implements IndexedStoreCreationFunction<String, Doughnut> {
   @Override
   public IndexedStore<String, Doughnut> build(StoreBuildingFactory factory) {
     return factory.<String, Doughnut>newStore()

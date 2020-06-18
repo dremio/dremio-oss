@@ -17,9 +17,9 @@ package com.dremio.exec.vector.complex.fn;
 
 import java.io.IOException;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.hadoop.fs.Seekable;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBufInputStream;
 
 /**

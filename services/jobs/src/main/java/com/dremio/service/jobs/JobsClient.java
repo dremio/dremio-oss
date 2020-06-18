@@ -15,9 +15,6 @@
  */
 package com.dremio.service.jobs;
 
-import static com.dremio.service.jobs.JobsRpcUtils.getJobsHostname;
-import static com.dremio.service.jobs.JobsRpcUtils.getJobsPort;
-
 import javax.inject.Provider;
 
 import org.apache.arrow.flight.FlightClient;
@@ -27,7 +24,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.service.Service;
+import com.dremio.service.conduit.client.ConduitProvider;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.service.job.ChronicleGrpc;
 import com.dremio.service.job.ChronicleGrpc.ChronicleBlockingStub;
@@ -36,7 +35,6 @@ import com.dremio.service.job.JobsServiceGrpc.JobsServiceBlockingStub;
 import com.dremio.service.job.JobsServiceGrpc.JobsServiceStub;
 
 import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 
 /**
  * Client that maintains the lifecycle of a channel over which job RPC requests are made to the jobs service. After the
@@ -49,6 +47,8 @@ public class JobsClient implements Service {
   private final GrpcChannelBuilderFactory grpcFactory;
   private final BufferAllocator allocator;
   private final Provider<Integer> portProvider;
+  private final ConduitProvider conduitProvider;
+  private final Provider<CoordinationProtos.NodeEndpoint> selfEndpoint;
 
   private ManagedChannel channel;
   private JobsServiceBlockingStub blockingStub;
@@ -56,28 +56,19 @@ public class JobsClient implements Service {
   private ChronicleBlockingStub chronicleBlockingStub;
   private FlightClient flightClient;
 
-  JobsClient(GrpcChannelBuilderFactory grpcFactory, Provider<BufferAllocator> allocator, Provider<Integer> portProvider) {
+  JobsClient(GrpcChannelBuilderFactory grpcFactory, Provider<BufferAllocator> allocator,
+             Provider<Integer> portProvider, final Provider<CoordinationProtos.NodeEndpoint> selfEndpoint,
+             ConduitProvider conduitProvider) {
     this.grpcFactory = grpcFactory;
     this.allocator = allocator.get().newChildAllocator(getClass().getName(), 0, Long.MAX_VALUE);
     this.portProvider = portProvider;
+    this.selfEndpoint = selfEndpoint;
+    this.conduitProvider = conduitProvider;
   }
 
   @Override
   public void start() {
-    ManagedChannelBuilder<?> builder;
-    int port = portProvider == null ? getJobsPort() : portProvider.get();
-    if (getJobsHostname() == null || getJobsHostname().isEmpty()) {
-        builder = JobsRpcUtils.newLocalChannelBuilder(grpcFactory, port);
-    } else {
-      builder = grpcFactory.newManagedChannelBuilder(getJobsHostname(), port);
-    }
-
-    builder.maxInboundMetadataSize(Integer.MAX_VALUE) // Accomodate large error messages like OOM
-      .maxInboundMessageSize(Integer.MAX_VALUE) //Since FlightClient shares the channel we need to accommodate FlightServer.MAX_GRPC_MESSAGE_SIZE
-      .usePlaintext();
-
-    channel = builder.build();
-
+    channel = this.conduitProvider.getOrCreateChannel(selfEndpoint.get());
     blockingStub = JobsServiceGrpc.newBlockingStub(channel);
     asyncStub = JobsServiceGrpc.newStub(channel);
     flightClient = FlightGrpcUtils.createFlightClient(allocator, channel);
@@ -85,6 +76,7 @@ public class JobsClient implements Service {
 
     logger.info("Job channel created to authority '{}'", channel.authority());
   }
+
 
   @Override
   public void close() throws Exception {

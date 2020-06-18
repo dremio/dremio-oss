@@ -54,7 +54,7 @@ import com.google.common.collect.ImmutableMap;
  * Datastore provider for master node.
  */
 @KVStoreProviderType(type="LocalDB")
-public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWithId> {
+public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWithId<?, ?>> {
   private static final Logger logger = LoggerFactory.getLogger(LocalKVStoreProvider.class);
   public static final String CONFIG_HOSTNAME = "hostName";
   public static final String CONFIG_BASEDIRECTORY = "baseDirectory";
@@ -69,7 +69,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
   private final String hostName;
   private final ScanResult scan;
 
-  private ImmutableMap<Class<? extends StoreCreationFunction<?>>, KVStore<?, ?>> stores;
+  private ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> stores;
 
   @VisibleForTesting
   public LocalKVStoreProvider(ScanResult scan, String baseDirectory, boolean inMemory, boolean timed) {
@@ -129,6 +129,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
     );
   }
 
+  @Override
   @VisibleForTesting
   public <K, V> StoreBuilder<K, V> newStore(){
     return new LocalStoreBuilder<>(coreStoreProvider.<K, V>newStore());
@@ -136,7 +137,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
 
   @SuppressWarnings("unchecked")
   @Override
-  public <T extends KVStore<?, ?>> T getStore(Class<? extends StoreCreationFunction<T>> creator) {
+  public <K, V, T extends KVStore<K, V>> T getStore(Class<? extends StoreCreationFunction<K, V, T>> creator) {
     return (T) Preconditions.checkNotNull(stores.get(creator), "Unknown store creator %s", creator.getName());
   }
 
@@ -185,7 +186,7 @@ public class LocalKVStoreProvider implements KVStoreProvider, Iterable<StoreWith
   }
 
   @Override
-  public Iterator<StoreWithId> iterator() {
+  public Iterator<StoreWithId<?, ?>> iterator() {
     return coreStoreProvider.iterator();
   }
 

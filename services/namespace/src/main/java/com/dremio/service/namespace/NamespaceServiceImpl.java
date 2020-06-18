@@ -66,11 +66,12 @@ import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.LegacyIndexedStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
+import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
@@ -146,7 +147,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   /**
    * Creator for name space kvstore.
    */
-  public static class NamespaceStoreCreator implements LegacyStoreCreationFunction<LegacyIndexedStore<String, NameSpaceContainer>> {
+  public static class NamespaceStoreCreator implements LegacyIndexedStoreCreationFunction<String, NameSpaceContainer> {
 
     @Override
     public LegacyIndexedStore<String, NameSpaceContainer> build(LegacyStoreBuildingFactory factory) {
@@ -171,7 +172,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   /**
    * KVStore creator for partition chunks table
    */
-  public static class PartitionChunkCreator implements LegacyStoreCreationFunction<LegacyIndexedStore<PartitionChunkId, PartitionChunk>> {
+  public static class PartitionChunkCreator implements LegacyIndexedStoreCreationFunction<PartitionChunkId, PartitionChunk> {
 
     @SuppressWarnings("unchecked")
     @Override
@@ -193,7 +194,7 @@ public class NamespaceServiceImpl implements NamespaceService {
   /**
    * KVStore creator for multisplits table
    */
-  public static class MultiSplitStoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<PartitionChunkId, MultiSplit>> {
+  public static class MultiSplitStoreCreator implements LegacyKVStoreCreationFunction<PartitionChunkId, MultiSplit> {
 
     @Override
     public LegacyKVStore<PartitionChunkId, MultiSplit> build(LegacyStoreBuildingFactory factory) {
@@ -414,8 +415,8 @@ public class NamespaceServiceImpl implements NamespaceService {
     // make sure the id remains the same
     final String idInExistingContainer = getId(existingContainer);
     if (!idInExistingContainer.equals(idInContainer)) {
-      throw new ConcurrentModificationException(String.format("There already exists an entity of type [%s] at given path [%s] with Id %s. Unable to replace with Id %s",
-          existingContainer.getType(), newOrUpdatedEntity.getPathKey().getPath(), idInExistingContainer, idInContainer));
+      throw UserException.invalidMetadataError().message("There already exists an entity of type [%s] at given path [%s] with Id %s. Unable to replace with Id %s",
+          existingContainer.getType(), newOrUpdatedEntity.getPathKey().getPath(), idInExistingContainer, idInContainer).buildSilently();
     }
 
     return true;

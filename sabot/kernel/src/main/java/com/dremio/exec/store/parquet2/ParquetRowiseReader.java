@@ -28,7 +28,6 @@ import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.SimpleIntVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.impl.VectorContainerWriter;
-import org.apache.arrow.vector.types.Types.MinorType;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -57,7 +56,6 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.store.parquet.AbstractParquetReader;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.ParquetColumnResolver;
@@ -243,32 +241,19 @@ public class ParquetRowiseReader extends AbstractParquetReader {
       } else {
         columnsNotFound = new ArrayList<>();
         projection = getProjection(schema, columnResolver.getProjectedParquetColumns(), columnResolver, columnsNotFound);
-        if(projection == null){
-            projection = schema;
-        }
-        if(columnsNotFound!=null && columnsNotFound.size()>0) {
-          nullFilledVectors = new ArrayList<>();
-          for(SchemaPath col: columnsNotFound){
-            nullFilledVectors.add(
-              (IntVector)output.addField(new Field(col.getAsUnescapedPath(), true,
-                              MinorType.INT.getType(), null),
-                      (Class<? extends ValueVector>) TypeHelper.getValueVectorClass(MinorType.INT)));
-          }
-        }
         if(columnsNotFound.size()==getColumns().size()){
           noColumnsFound=true;
         }
       }
 
+      writer = new VectorContainerWriter(output);
       if(!noColumnsFound) {
-        writer = new VectorContainerWriter(output);
         // Discard the columns not found in the schema when create ParquetRecordMaterializer, since they have been added to output already.
         final Collection<SchemaPath> columns = columnsNotFound == null || columnsNotFound.size() == 0 ? columnResolver.getProjectedParquetColumns():
           CollectionUtils.subtract(columnResolver.getProjectedParquetColumns(), columnsNotFound);
         recordMaterializer = new ParquetRecordMaterializer(columnResolver, output, writer, projection, columns, context.getOptions(), arrowSchema, schemaHelper);
+        logger.debug("Requesting schema {}", projection);
       }
-
-      logger.debug("Requesting schema {}", projection);
 
       if (output.getSchemaChanged() && !readEvenIfSchemaChanges) {
         logger.info("Detected schema change. Not initializing further readers.");
@@ -278,13 +263,6 @@ public class ParquetRowiseReader extends AbstractParquetReader {
       boolean schemaOnly = (operatorContext == null) || (footer.getBlocks().size() == 0);
 
       if (!schemaOnly) {
-
-        Map<ColumnPath, ColumnChunkMetaData> paths = new HashMap<>();
-
-        for (ColumnChunkMetaData md : footer.getBlocks().get(rowGroupIndex).getColumns()) {
-          paths.put(md.getPath(), md);
-        }
-
         Path filePath = Path.of(path);
 
         BlockMetaData blockMetaData = footer.getBlocks().get(rowGroupIndex);
@@ -294,7 +272,16 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         pageReadStore = new ColumnChunkIncReadStore(recordCount,
           codec, operatorContext.getAllocator(),
           filePath, inputStreamProvider);
+      }
 
+      if (!schemaOnly && !noColumnsFound) {
+
+
+        Map<ColumnPath, ColumnChunkMetaData> paths = new HashMap<>();
+
+        for (ColumnChunkMetaData md : footer.getBlocks().get(rowGroupIndex).getColumns()) {
+          paths.put(md.getPath(), md);
+        }
         for (String[] path : projection.getPaths()) {
           Type type = schema.getType(path);
           if (type.isPrimitive()) {
@@ -303,9 +290,6 @@ public class ParquetRowiseReader extends AbstractParquetReader {
           }
         }
 
-      }
-
-      if (!schemaOnly && !noColumnsFound) {
         ColumnIOFactory factory = new ColumnIOFactory(false);
         MessageColumnIO columnIO = factory.getColumnIO(projection, schema);
 
@@ -390,11 +374,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         }
         long recordsToRead = 0;
         recordsToRead = Math.min(numRowsPerBatch, footer.getBlocks().get(rowGroupIndex).getRowCount() - mockRecordsRead);
-        if (nullFilledVectors != null) {
-          for (ValueVector vv : nullFilledVectors) {
-            vv.setValueCount((int) recordsToRead);
-          }
-        }
+        writer.setValueCount((int)recordsToRead);
         mockRecordsRead += recordsToRead;
         totalRead += recordsToRead;
         return (int) recordsToRead;

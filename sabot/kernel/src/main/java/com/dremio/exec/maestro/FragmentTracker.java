@@ -16,6 +16,7 @@
 package com.dremio.exec.maestro;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -143,12 +144,17 @@ class FragmentTracker implements AutoCloseable {
 
   public void nodeCompleted(NodeQueryCompletion completion) {
     if (completion.hasFirstError()) {
+      logger.debug("received node completion with error for query {} from node {}:{}",
+        QueryIdHelper.getQueryId(queryId), completion.getEndpoint().getAddress(), completion.getEndpoint().getFabricPort());
+
       checkAndUpdateFirstError(UserRemoteException.create(completion.getFirstError()));
     }
     markNodeDone(completion.getEndpoint());
   }
 
   public void screenCompleted() {
+    logger.debug("received screen completion for query {}, cancelling remaining fragments",
+      QueryIdHelper.getQueryId(queryId));
     cancelExecutingFragmentsInternal();
   }
 
@@ -159,8 +165,6 @@ class FragmentTracker implements AutoCloseable {
     // Note that by the time we build and send the failure message, its possible that we get a completion message
     // from the last fragments that were running on the dead nodes which may cause the query to be marked completed
     // which is actually correct in this case as the node died after all its fragments completed.
-    final StringBuilder failedNodeDesc = new StringBuilder();
-    boolean atLeastOneFailure = false;
 
     List<NodeEndpoint> nodesToMarkDead = new ArrayList<>();
     for (final NodeEndpoint ep : unregisteredNodes) {
@@ -175,20 +179,11 @@ class FragmentTracker implements AutoCloseable {
         continue;
       }
       nodesToMarkDead.add(minimalEp);
-
-      // fragments were running on the SabotNode, capture node name for exception or logging message
-      if (atLeastOneFailure) {
-        failedNodeDesc.append(", ");
-      } else {
-        atLeastOneFailure = true;
-      }
-      failedNodeDesc.append(ep.getAddress());
-      failedNodeDesc.append(":");
-      failedNodeDesc.append(ep.getUserPort());
     }
 
-    if (atLeastOneFailure) {
+    if (nodesToMarkDead.size() > 0) {
       lostNodes.addAll(nodesToMarkDead);
+      String failedNodeDesc = nodesToStringDesc(nodesToMarkDead);
       logger.warn("Nodes [{}] no longer registered in cluster.  Canceling query {}",
               failedNodeDesc, QueryIdHelper.getQueryId(queryId));
 
@@ -203,8 +198,31 @@ class FragmentTracker implements AutoCloseable {
     }
   }
 
+  private String nodesToStringDesc(Collection<NodeEndpoint> nodes) {
+    final StringBuilder desc = new StringBuilder();
+    boolean isFirst = true;
+
+    for (NodeEndpoint ep : nodes) {
+      if (isFirst) {
+        isFirst = false;
+      } else {
+        desc.append(", ");
+      }
+      desc.append(ep.getAddress());
+      desc.append(":");
+      desc.append(ep.getUserPort());
+    }
+    return desc.toString();
+  }
+
   private void markNodeDone(NodeEndpoint endpoint) {
-    pendingNodes.remove(endpoint);
+    if (pendingNodes.remove(endpoint)) {
+      logger.debug("node completed for query {} from node {}:{}, pending nodes {}",
+        QueryIdHelper.getQueryId(queryId), endpoint.getAddress(), endpoint.getFabricPort(), nodesToStringDesc(pendingNodes));
+    } else {
+      logger.warn("handling completion for query {} on node {}:{}, which is not in the list of pending nodes {}, ignoring message",
+        QueryIdHelper.getQueryId(queryId), endpoint.getAddress(), endpoint.getFabricPort(), nodesToStringDesc(pendingNodes));
+    }
     checkAndNotifyCompletionListener();
   }
 
@@ -223,6 +241,9 @@ class FragmentTracker implements AutoCloseable {
       .build();
 
     for (NodeEndpoint endpoint : pendingNodes) {
+      logger.debug("sending cancellation for query {} to node {}:{}",
+        QueryIdHelper.getQueryId(queryId), endpoint.getAddress(), endpoint.getFabricPort());
+
       executorServiceClientFactory.getClientForEndpoint(endpoint).cancelFragments(fragments, new SignalListener(endpoint, fragments,
         SignalListener.Signal.CANCEL));
     }

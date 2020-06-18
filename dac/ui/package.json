@@ -55,7 +55,7 @@
     "hoconfig-js": "^0.1.12",
     "hoist-non-react-statics": "^1.0.6",
     "immutable": "^3.8.1",
-    "jquery": "^3.4.1",
+    "jquery": "^3.5.1",
     "jquery-param": "^0.2.0",
     "jsplumb": "2.1.4",
     "lodash": "^4.17.14",

@@ -486,7 +486,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * @param config
    * @return
    */
-  private Supplier<SourceState> newStartSupplier(SourceConfig config) {
+  private Supplier<SourceState> newStartSupplier(SourceConfig config, final boolean isStart) {
     try {
       return nameSupplier("start-" + sourceConfig.getName(), () -> {
         try {
@@ -510,7 +510,11 @@ public class ManagedStoragePlugin implements AutoCloseable {
 
           try {
             // failed to startup, make sure to close.
-            plugin.close();
+            if (isStart) {
+              AutoCloseables.close(metadataManager, plugin);
+            } else {
+              plugin.close();
+            }
             plugin = null;
           } catch (Exception ex) {
             e.addSuppressed(new RuntimeException("Cleanup exception after initial failure.", ex));
@@ -533,7 +537,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
   private CompletableFuture<SourceState> startAsync(final SourceConfig config) {
     // we run this in a separate thread to allow early timeout. This doesn't use the scheduler since that is
     // bound and we're frequently holding a lock when running this.
-    return CompletableFuture.supplyAsync(newStartSupplier(config), executor);
+    return CompletableFuture.supplyAsync(newStartSupplier(config, true), executor);
   }
 
   /**
@@ -813,7 +817,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
                 continue;
               }
               plugin = conf.newPlugin(context, sourceConfig.getName(), this::getId);
-              return newStartSupplier(sourceConfig).get();
+              return newStartSupplier(sourceConfig, false).get();
             }
           }
 

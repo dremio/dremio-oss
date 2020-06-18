@@ -18,6 +18,7 @@ package com.dremio.exec.work.user;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
@@ -31,7 +32,6 @@ import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 
 public class LocalUserUtil {

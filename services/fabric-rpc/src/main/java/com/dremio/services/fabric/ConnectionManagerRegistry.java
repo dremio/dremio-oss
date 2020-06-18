@@ -22,8 +22,8 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.rpc.RpcConfig;
-import com.dremio.exec.rpc.ssl.SSLEngineFactory;
 import com.dremio.services.fabric.proto.FabricProto.FabricIdentity;
+import com.dremio.ssl.SSLEngineFactory;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.collect.Maps;
 

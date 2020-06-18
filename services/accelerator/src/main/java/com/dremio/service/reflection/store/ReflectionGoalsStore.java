@@ -41,9 +41,9 @@ import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.DocumentWriter;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.LegacyIndexedStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionGoalState;
@@ -203,7 +203,7 @@ public class ReflectionGoalsStore {
   /**
    * Reflection user store creator
    */
-  public static class StoreCreator implements LegacyStoreCreationFunction<LegacyIndexedStore<ReflectionId, ReflectionGoal>> {
+  public static class StoreCreator implements LegacyIndexedStoreCreationFunction<ReflectionId, ReflectionGoal> {
 
     @Override
     public LegacyIndexedStore<ReflectionId, ReflectionGoal> build(LegacyStoreBuildingFactory factory) {

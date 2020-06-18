@@ -24,6 +24,7 @@ import java.util.Formatter;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 
@@ -43,7 +44,6 @@ import com.koloboke.collect.hash.HashConfig;
 import com.koloboke.collect.impl.hash.HashConfigWrapper;
 import com.koloboke.collect.impl.hash.LHashCapacities;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /**
@@ -133,7 +133,8 @@ public final class LBlockHashTable implements AutoCloseable {
     this.MAX_VALUES_PER_BATCH = Numbers.nextPowerOfTwo(maxHashTableBatchSize);
     this.BITS_IN_CHUNK = Long.numberOfTrailingZeros(MAX_VALUES_PER_BATCH);
     this.CHUNK_OFFSET_MASK = (1 << BITS_IN_CHUNK) - 1;
-    this.variableBlockMaxLength = (pivot.getVariableCount() == 0) ? 0 : (MAX_VALUES_PER_BATCH * (((defaultVariableLengthSize + VAR_OFFSET_SIZE) * pivot.getVariableCount()) + VAR_LENGTH_SIZE));
+    this.variableBlockMaxLength = (pivot.getVariableCount() == 0) ? 0 :
+      (ACTUAL_VALUES_PER_BATCH * (((defaultVariableLengthSize + VAR_OFFSET_SIZE) * pivot.getVariableCount()) + VAR_LENGTH_SIZE));
     this.preallocatedSingleBatch = false;
     this.allocatedForFixedBlocks = 0;
     this.allocatedForVarBlocks = 0;

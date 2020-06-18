@@ -16,6 +16,7 @@
 package org.apache.arrow.vector.complex;
 
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVectorHelper;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -28,8 +29,6 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.dremio.exec.proto.UserBitShared.SerializedField.Builder;
-
-import io.netty.buffer.ArrowBuf;
 
 public class UnionVectorHelper implements ValueVectorHelper {
   private UnionVector unionVector;

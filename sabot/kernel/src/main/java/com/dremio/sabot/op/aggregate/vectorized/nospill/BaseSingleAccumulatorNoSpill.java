@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.IntStream;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.FixedWidthVector;
 import org.apache.arrow.vector.util.DecimalUtility;
@@ -29,7 +30,6 @@ import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /**

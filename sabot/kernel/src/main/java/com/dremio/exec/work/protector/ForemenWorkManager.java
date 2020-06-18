@@ -54,7 +54,6 @@ import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
-import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.work.SafeExit;
 import com.dremio.exec.work.foreman.TerminationListenerRegistry;
 import com.dremio.exec.work.rpc.CoordProtocol;
@@ -390,11 +389,11 @@ public class ForemenWorkManager implements Service, SafeExit {
    * Handler for in-process queries
    */
   private class LocalQueryExecutorImpl implements LocalQueryExecutor {
-    private final SystemOptionManager options;
+    private final OptionManager options;
     private final Executor executor;
 
 
-    public LocalQueryExecutorImpl(SystemOptionManager options, Executor executor) {
+    public LocalQueryExecutorImpl(OptionManager options, Executor executor) {
       super();
       this.options = options;
       this.executor = executor;
@@ -418,17 +417,17 @@ public class ForemenWorkManager implements Service, SafeExit {
         final QueryObserver oobJobObserver = new OutOfBandQueryObserver(observer, executor);
 
         final UserSession session = UserSession.Builder.newBuilder()
-            .withSessionOptionManager(new SessionOptionManagerImpl(options))
-            .setSupportComplexTypes(true)
-            .withCredentials(UserCredentials
-                .newBuilder()
-                .setUserName(config.getUsername())
-                .build())
-            .exposeInternalSources(config.isExposingInternalSources())
-            .withDefaultSchema(config.getSqlContext())
-            .withSubstitutionSettings(config.getSubstitutionSettings())
-            .withClientInfos(UserRpcUtils.getRpcEndpointInfos("Dremio Java local client"))
-            .build();
+          .withSessionOptionManager(new SessionOptionManagerImpl(options.getOptionValidatorListing()), options)
+          .setSupportComplexTypes(true)
+          .withCredentials(UserCredentials
+            .newBuilder()
+            .setUserName(config.getUsername())
+            .build())
+          .exposeInternalSources(config.isExposingInternalSources())
+          .withDefaultSchema(config.getSqlContext())
+          .withSubstitutionSettings(config.getSubstitutionSettings())
+          .withClientInfos(UserRpcUtils.getRpcEndpointInfos("Dremio Java local client"))
+          .build();
 
         final ReAttemptHandler attemptHandler = newInternalAttemptHandler(options, config.isFailIfNonEmptySent());
         final UserRequest userRequest = new UserRequest(prepare ? RpcType.CREATE_PREPARED_STATEMENT : RpcType.RUN_QUERY, query, runInSameThread);
@@ -477,7 +476,7 @@ public class ForemenWorkManager implements Service, SafeExit {
                 final ReAttemptHandler attemptHandler = newExternalAttemptHandler(session.getOptions());
                 submit(externalId, oobObserver, session, request, registry, null, attemptHandler);
                 return null;
-              }, false);
+              }, request.runInSameThread());
     }
 
     @Override

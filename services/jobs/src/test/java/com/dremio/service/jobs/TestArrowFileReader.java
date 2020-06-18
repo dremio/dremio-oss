@@ -501,9 +501,13 @@ public class TestArrowFileReader extends DremioTest {
     return container;
   }
 
+  public OperatorContext getOperatorContext() {
+    return Mockito.mock(OperatorContext.class);
+  }
+
   /** Helper method that write the given batches to a file with given name and returns the file metadata */
   private ArrowFileMetadata writeArrowFile(VectorContainer... batches) throws Exception {
-    final OperatorContext opContext = Mockito.mock(OperatorContext.class);
+    OperatorContext opContext = getOperatorContext();
     when(opContext.getFragmentHandle()).thenReturn(FragmentHandle.newBuilder().setMajorFragmentId(2323).setMinorFragmentId(234234).build());
 
     final EasyWriter writerConf = mock(EasyWriter.class);
@@ -557,6 +561,14 @@ public class TestArrowFileReader extends DremioTest {
       assertEquals(Long.valueOf(fileSizeCaptor.getValue()), Long.valueOf(file.getLen()));
     }
 
-    return ArrowFileReader.toBean(ArrowFileFormat.ArrowFileMetadata.parseFrom(metadataCaptor.getValue()));
+    ArrowFileMetadata arrowFileMetadata =
+      ArrowFileReader.toBean(ArrowFileFormat.ArrowFileMetadata.parseFrom(metadataCaptor.getValue()));
+
+    assertArrowFileMetadata(arrowFileMetadata);
+    return arrowFileMetadata;
+  }
+
+  public void assertArrowFileMetadata(ArrowFileMetadata arrowFileMetadata) {
+     // no-op. This is overridden in derived class.
   }
 }

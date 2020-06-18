@@ -20,7 +20,7 @@ import java.util.concurrent.ExecutionException;
 
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValidator;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.options.TypeValidators.BooleanValidator;
@@ -33,7 +33,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 
 /**
- * A read-only OptionManager that caches the response from the delegate OptionMangager.
+ * A read-only OptionManager that lazily caches the response from the delegate OptionManager.
  */
 public class CachingOptionManager implements OptionManager {
 
@@ -59,17 +59,17 @@ public class CachingOptionManager implements OptionManager {
   }
 
   @Override
-  public void setOption(OptionValue value) {
+  public boolean setOption(OptionValue value) {
     throw new UnsupportedOperationException("NYI");
   }
 
   @Override
-  public void deleteOption(String name, OptionType type) {
+  public boolean deleteOption(String name, OptionType type) {
     throw new UnsupportedOperationException("NYI");
   }
 
   @Override
-  public void deleteAllOptions(OptionType type) {
+  public boolean deleteAllOptions(OptionType type) {
     throw new UnsupportedOperationException("NYI");
   }
 
@@ -103,13 +103,17 @@ public class CachingOptionManager implements OptionManager {
   }
 
   @Override
-  public OptionList getOptionList() {
+  public OptionList getDefaultOptions() {
     throw new UnsupportedOperationException("NYI");
   }
 
   @Override
-  public OptionValidator getValidator(String name) {
+  public OptionList getNonDefaultOptions() {
     throw new UnsupportedOperationException("NYI");
   }
 
+  @Override
+  public OptionValidatorListing getOptionValidatorListing() {
+    throw new UnsupportedOperationException("NYI");
+  }
 }

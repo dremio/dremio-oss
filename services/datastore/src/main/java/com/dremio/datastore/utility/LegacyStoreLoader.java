@@ -37,7 +37,7 @@ public class LegacyStoreLoader {
    * @return a map of all legacy store impls with the provided legacy factory.
    */
   @Deprecated
-  public static ImmutableMap<Class<? extends LegacyStoreCreationFunction<?>>, LegacyKVStore<?, ?>> buildLegacyStores(ScanResult scan, LegacyStoreBuildingFactory factory){
+  public static ImmutableMap<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>> buildLegacyStores(ScanResult scan, LegacyStoreBuildingFactory factory){
     return buildLegacyStores(scan.getImplementations(LegacyStoreCreationFunction.class), factory);
   }
 
@@ -49,9 +49,9 @@ public class LegacyStoreLoader {
    */
   @SuppressWarnings({ "rawtypes", "unchecked" })
   @Deprecated
-  public static ImmutableMap<Class<? extends LegacyStoreCreationFunction<?>>, LegacyKVStore<?, ?>> buildLegacyStores(
+  public static ImmutableMap<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>> buildLegacyStores(
     Set<Class<? extends LegacyStoreCreationFunction>> impls, LegacyStoreBuildingFactory factory) {
-    ImmutableMap.Builder builder = ImmutableMap.<Class<? extends LegacyStoreCreationFunction<?>>, LegacyKVStore<?, ?>>builder();
+    ImmutableMap.Builder builder = ImmutableMap.<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>>builder();
 
     for(Class<? extends LegacyStoreCreationFunction> functionClass : impls) {
       try {
@@ -62,7 +62,7 @@ public class LegacyStoreLoader {
       }
     }
 
-    final ImmutableMap<Class<? extends LegacyStoreCreationFunction<?>>, LegacyKVStore<?, ?>> map = builder.build();
+    final ImmutableMap<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>> map = builder.build();
     logger.debug("Loaded the following StoreCreationFunctions: {}.", map.keySet());
     return map;
   }

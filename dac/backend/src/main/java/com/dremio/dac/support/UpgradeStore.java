@@ -30,9 +30,9 @@ import com.dremio.dac.proto.model.source.UpgradeTaskRun;
 import com.dremio.dac.proto.model.source.UpgradeTaskStore;
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -166,6 +166,7 @@ public class UpgradeStore {
       .map(Map.Entry::getValue).collect(Collectors.toList());
   }
 
+  @Override
   public String toString() {
     List<UpgradeTaskStore> upgradeTaskStores = getAllUpgradeTasks();
     StringBuilder strB = new StringBuilder();
@@ -224,8 +225,8 @@ public class UpgradeStore {
   /**
    * UpgradeTaskStoreCreator
    */
-  public static class UpgradeTaskStoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<UpgradeTaskId,
-        UpgradeTaskStore>> {
+  public static class UpgradeTaskStoreCreator
+      implements LegacyKVStoreCreationFunction<UpgradeTaskId, UpgradeTaskStore> {
 
     @Override
     public LegacyKVStore<UpgradeTaskId, UpgradeTaskStore> build(LegacyStoreBuildingFactory factory) {

@@ -172,7 +172,9 @@ public class Limit0LogicalToPhysicalTest extends BaseTestQuery {
 
   private static UserSession session() {
     return UserSession.Builder.newBuilder()
-      .withSessionOptionManager(new SessionOptionManagerImpl(getSabotContext().getOptionManager()))
+      .withSessionOptionManager(
+        new SessionOptionManagerImpl(getSabotContext().getOptionValidatorListing()),
+        getSabotContext().getOptionManager())
       .withUserProperties(UserProtos.UserProperties.getDefaultInstance())
       .withCredentials(UserBitShared.UserCredentials.newBuilder().setUserName("foo").build())
       .setSupportComplexTypes(true)

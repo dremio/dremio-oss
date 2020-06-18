@@ -17,6 +17,7 @@ package com.dremio.exec.server;
 
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,6 +39,7 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.InformationSchemaServiceImpl;
 import com.dremio.exec.exception.NodeStartupException;
 import com.dremio.exec.maestro.MaestroService;
 import com.dremio.exec.maestro.MaestroServiceImpl;
@@ -45,6 +47,8 @@ import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.service.executor.ExecutorServiceProductClientFactory;
 import com.dremio.exec.service.jobresults.JobResultsSoftwareClientFactory;
@@ -64,6 +68,9 @@ import com.dremio.exec.work.rpc.CoordToExecTunnelCreator;
 import com.dremio.exec.work.rpc.CoordTunnelCreator;
 import com.dremio.exec.work.user.LocalQueryExecutor;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
+import com.dremio.resource.ClusterResourceInformation;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.QueryCancelTool;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.resource.basic.BasicResourceAllocator;
@@ -85,6 +92,11 @@ import com.dremio.service.BindingProvider;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.commandpool.CommandPoolFactory;
+import com.dremio.service.conduit.client.ConduitProvider;
+import com.dremio.service.conduit.client.ConduitProviderImpl;
+import com.dremio.service.conduit.server.ConduitServer;
+import com.dremio.service.conduit.server.ConduitServiceRegistry;
+import com.dremio.service.conduit.server.ConduitServiceRegistryImpl;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ExecutorSetService;
 import com.dremio.service.coordinator.LocalExecutorSetService;
@@ -377,7 +389,6 @@ public class SabotNode implements AutoCloseable {
     private final ClusterCoordinator clusterCoordinator;
     private final boolean allRoles;
     private final BootStrapContext bootstrap;
-    private final DefaultOptionManager defaultOptionManager;
 
     public SabotModule(DremioConfig config, ScanResult classpathScan, SingletonRegistry registry,
                        ClusterCoordinator clusterCoordinator, boolean allRoles, BootStrapContext bootstrap) {
@@ -387,7 +398,6 @@ public class SabotNode implements AutoCloseable {
       this.clusterCoordinator = clusterCoordinator;
       this.allRoles = allRoles;
       this.bootstrap = bootstrap;
-      this.defaultOptionManager = new DefaultOptionManager(classpathScan);
     }
 
     @Override
@@ -399,6 +409,7 @@ public class SabotNode implements AutoCloseable {
         bind(BufferAllocator.class).toInstance(bootstrap.getAllocator());
         bind(ExecutorService.class).toInstance(bootstrap.getExecutor());
         bind(LogicalPlanPersistence.class).toInstance(new LogicalPlanPersistence(config.getSabotConfig(), classpathScan));
+        bind(OptionValidatorListing.class).toInstance(new OptionValidatorListingImpl(classpathScan));
 
         // KVStore
         final LegacyKVStoreProvider kvStoreProvider = new LocalKVStoreProvider(classpathScan, null, true, true).asLegacy();
@@ -421,6 +432,9 @@ public class SabotNode implements AutoCloseable {
         final boolean allowPortHunting = true;
         final boolean useIP = false;
 
+        final ConduitServiceRegistry conduitServiceRegistry = new ConduitServiceRegistryImpl();
+        bind(ConduitServiceRegistry.class).toInstance(conduitServiceRegistry);
+
         bind(NodeRegistration.class).asEagerSingleton();
 
         // CatalogService is expensive to create so we eagerly create it
@@ -438,6 +452,9 @@ public class SabotNode implements AutoCloseable {
                 EnumSet.allOf(ClusterCoordinator.Role.class)
         ));
 
+        conduitServiceRegistry.registerService(new InformationSchemaServiceImpl(getProvider(CatalogService.class),
+          bootstrap::getExecutor));
+
         // cluster coordinator
         bind(ClusterCoordinator.class).toInstance(clusterCoordinator);
 
@@ -450,7 +467,8 @@ public class SabotNode implements AutoCloseable {
                 getProvider(NodeEndpoint.class),
                 getProvider(UserWorker.class),
                 allowPortHunting,
-                TracerFacade.INSTANCE
+                TracerFacade.INSTANCE,
+                getProvider(OptionValidatorListing.class)
         ));
 
         // Fabric Service - eagerly created
@@ -467,6 +485,11 @@ public class SabotNode implements AutoCloseable {
                 bootstrap.getExecutor()
         );
         bind(FabricService.class).toInstance(fabricService);
+
+        bind(ConduitServer.class).toInstance(new ConduitServer(getProvider(ConduitServiceRegistry.class), 0,
+          Optional.empty()));
+        bind(ConduitProvider.class)
+            .toInstance(new ConduitProviderImpl(getProvider(NodeEndpoint.class), Optional.empty()));
 
         final CoordExecService coordExecService = new CoordExecService(
                 bootstrap.getConfig(),
@@ -495,7 +518,8 @@ public class SabotNode implements AutoCloseable {
 
         bind(SystemTablePluginConfigProvider.class).toInstance(new SystemTablePluginConfigProvider());
 
-        bind(ResourceAllocator.class).toInstance(new BasicResourceAllocator(getProvider(ClusterCoordinator.class)));
+        bind(ResourceAllocator.class).toInstance(new BasicResourceAllocator(getProvider(ClusterCoordinator.class),
+          getProvider(GroupResourceInformation.class)));
 
         bind(ExecutorSelectorFactory.class).toInstance(new ExecutorSelectorFactoryImpl());
 
@@ -505,8 +529,6 @@ public class SabotNode implements AutoCloseable {
         bind(ContextInformationFactory.class).toInstance(new ContextInformationFactory());
 
         bind(CommandPool.class).toInstance(CommandPoolFactory.INSTANCE.newPool(config, TracerFacade.INSTANCE));
-
-        bind(OptionManager.class).to(SystemOptionManager.class);
 
         bind(LocalJobTelemetryServer.class).toInstance(new LocalJobTelemetryServer(
           gRpcServerBuilderFactory, getProvider(LegacyKVStoreProvider.class),
@@ -518,8 +540,17 @@ public class SabotNode implements AutoCloseable {
 
     @Provides
     @Singleton
-    SystemOptionManager getOptionManager(LogicalPlanPersistence lpPersistence, Provider<LegacyKVStoreProvider> kvStoreProvider) {
-      return new SystemOptionManager(defaultOptionManager, lpPersistence, kvStoreProvider, false);
+    SystemOptionManager getSystemOptionManager(OptionValidatorListing optionValidatorListing, LogicalPlanPersistence lpp, Provider<LegacyKVStoreProvider> kvStoreProvider) throws Exception {
+      return new SystemOptionManager(optionValidatorListing, lpp, kvStoreProvider, false);
+    }
+
+    @Provides
+    @Singleton
+    OptionManager getOptionManager(OptionValidatorListing optionValidatorListing, SystemOptionManager systemOptionManager) throws Exception {
+      return OptionManagerWrapper.Builder.newBuilder()
+        .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+        .withOptionManager(systemOptionManager)
+        .build();
     }
 
     @Provides
@@ -545,7 +576,6 @@ public class SabotNode implements AutoCloseable {
         contextInformationFactory,
         workloadTicketDepot,
         taskPool,
-        defaultOptionManager,
         maestroServiceClientFactoryProvider,
         jobTelemetryClientFactoryProvider,
         jobResultsSoftwareClientFactoryProvider
@@ -561,9 +591,11 @@ public class SabotNode implements AutoCloseable {
     @Singleton
     ContextService getContextService(
             Provider<ClusterCoordinator> clusterCoordinator,
+            Provider<GroupResourceInformation> resourceInformation,
             Provider<WorkStats> workStats,
             Provider<LegacyKVStoreProvider> kvStoreProvider,
             Provider<FabricService> fabricService,
+            Provider<ConduitServer> conduitServer,
             Provider<UserServer> userServer,
             Provider<MaterializationDescriptorProvider> materializationDescriptorProvider,
             Provider<QueryObserverFactory> queryObserverFactory,
@@ -573,16 +605,21 @@ public class SabotNode implements AutoCloseable {
             Provider<DatasetListingService> datasetListingService,
             Provider<UserService> userService,
             Provider<CatalogService> catalogService,
+            Provider<ConduitProvider> conduitProvider,
             Provider<SpillService> spillService,
             Provider<ConnectionReader> connectionReader,
-            Provider<SystemOptionManager> systemOptionManager
+            Provider<OptionManager> optionManagerProvider,
+            Provider<SystemOptionManager> systemOptionManagerProvider,
+            Provider<OptionValidatorListing> optionValidatorListingProvider
     ) {
       return new ContextService(
               bootstrap,
               clusterCoordinator,
+              resourceInformation,
               workStats,
               kvStoreProvider,
               fabricService,
+              conduitServer,
               userServer,
               materializationDescriptorProvider,
               queryObserverFactory,
@@ -592,14 +629,17 @@ public class SabotNode implements AutoCloseable {
               datasetListingService,
               userService,
               catalogService,
+              conduitProvider,
               Providers.of(null),
               spillService,
               connectionReader,
               CredentialsService::new,
               () -> JobResultInfoProvider.NOOP,
-              systemOptionManager,
+              optionManagerProvider,
+              systemOptionManagerProvider,
               Providers.of(null),
               Providers.of(null),
+              optionValidatorListingProvider,
               allRoles
       );
     }
@@ -608,6 +648,12 @@ public class SabotNode implements AutoCloseable {
     @Provides
     NodeEndpoint getNodeEndpoint(ContextService contextService) {
       return contextService.get().getEndpoint();
+    }
+
+    @Singleton
+    @Provides
+    GroupResourceInformation getGroupResourceInformation(Provider<ClusterCoordinator> coordinatorProvider) {
+      return new ClusterResourceInformation(coordinatorProvider);
     }
 
     @Singleton

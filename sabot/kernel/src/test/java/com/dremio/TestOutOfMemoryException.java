@@ -33,6 +33,7 @@ import com.dremio.exec.testing.ControlsInjectionUtil;
 import com.dremio.sabot.exec.WorkloadTicketDepot;
 import com.dremio.sabot.exec.WorkloadTicketDepotService;
 import com.dremio.sabot.exec.fragment.FragmentExecutor;
+import com.dremio.sabot.exec.fragment.FragmentExecutorBuilder;
 import com.dremio.sabot.op.receiver.IncomingBuffers;
 
 public class TestOutOfMemoryException extends BaseTestQuery {
@@ -98,4 +99,32 @@ public class TestOutOfMemoryException extends BaseTestQuery {
       Assert.assertTrue("Error doesn't have context", uex.getMessage().contains("Allocator dominators:"));
     }
   }
+
+  @Test
+  @Ignore
+  public void testFragmentExecutorBuildOOM() throws Exception {
+    setSessionOption(ExecConstants.SLICE_TARGET, "10");
+
+    final String controlsString = Controls.newBuilder()
+            .addException(FragmentExecutorBuilder.class, FragmentExecutorBuilder.INJECTOR_DO_WORK, OutOfMemoryException.class)
+            .build();
+    ControlsInjectionUtil.setControls(client, controlsString);
+
+    String query = "select l_orderkey from cp.\"tpch/lineitem.parquet\" group by l_orderkey having sum(l_quantity) > 300";
+
+    try {
+      test(query);
+
+      // Should never reach here.
+      Assert.fail("Query did not hit the injected out-of-memory exception in FragmentExecutorBuilder#build");
+    } catch (UserException uex) {
+      // Verify that query has hit the injected out-of-memory exception.
+      DremioPBError error = uex.getOrCreatePBError(false);
+      Assert.assertEquals(DremioPBError.ErrorType.RESOURCE, error.getErrorType());
+      Assert.assertTrue("Error message isn't related to memory error",
+              uex.getMessage().contains(UserException.MEMORY_ERROR_MSG));
+      Assert.assertTrue("Error doesn't have context", uex.getMessage().contains("Allocator dominators:"));
+    }
+  }
+
 }

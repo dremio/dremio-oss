@@ -108,6 +108,7 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.client.DremioClient;
+import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.server.SabotContext;
@@ -118,19 +119,18 @@ import com.dremio.options.OptionManager;
 import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.service.Binder;
 import com.dremio.service.BindingProvider;
+import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.job.proto.JobId;
-import com.dremio.service.jobs.HybridJobsService;
 import com.dremio.service.jobs.JobNotFoundException;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobStatusListener;
-import com.dremio.service.jobs.JobsRpcUtils;
-import com.dremio.service.jobs.JobsServer;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.space.proto.FolderConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import com.dremio.service.reflection.ReflectionAdministrationService;
 import com.dremio.service.users.SimpleUserService;
 import com.dremio.service.users.UserService;
 import com.dremio.services.fabric.api.FabricService;
@@ -303,8 +303,8 @@ public abstract class BaseTestServer extends BaseClientUtils {
     return publicAPI.path("v" + version);
   }
 
-  public static WebTarget getMasterPublicAPI() {
-    return masterPublicAPI;
+  public static WebTarget getMasterPublicAPI(Integer version) {
+    return masterPublicAPI.path("v" + version);
   }
 
   protected static DACDaemon getCurrentDremioDaemon() {
@@ -431,7 +431,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
 
   protected static void initializeCluster(final boolean isMultiNode, DACModule dacModule, Function<ObjectMapper, ObjectMapper> mapperUpdate) throws Exception {
     final String hostname = InetAddress.getLocalHost().getCanonicalHostName();
-    Provider<Integer> jobsPortProvider = () -> currentDremioDaemon.getBindingProvider().lookup(JobsServer.class).getPort();
+    Provider<Integer> jobsPortProvider = () -> currentDremioDaemon.getBindingProvider().lookup(ConduitServer.class).getPort();
     if (isMultiNode) {
       logger.info("Running tests in multinode mode");
 
@@ -460,7 +460,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .autoPort(true)
               .allowTestApis(testApiEnabled)
               .serveUI(false)
-              .jobServerEnabled(false)
+              .jobServerEnabled(true)
               .inMemoryStorage(inMemoryStorage)
               .writePath(folder1.getRoot().getAbsolutePath())
               .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
@@ -470,7 +470,6 @@ public abstract class BaseTestServer extends BaseClientUtils {
           DremioTest.CLASSPATH_SCAN_RESULT,
           dacModule);
       masterDremioDaemon.init();
-      masterDremioDaemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
 
       // remote coordinator node
       int zkPort = masterDremioDaemon.getBindingProvider().lookup(ZkServer.class).getPort();
@@ -482,9 +481,10 @@ public abstract class BaseTestServer extends BaseClientUtils {
               .allowTestApis(testApiEnabled)
               .serveUI(false)
               .inMemoryStorage(inMemoryStorage)
+              .jobServerEnabled(true)
               .writePath(folder2.getRoot().getAbsolutePath())
               .with(DremioConfig.DIST_WRITE_PATH_STRING, distpath)
-              .clusterMode(ClusterMode.DISTRIBUTED)
+            .clusterMode(ClusterMode.DISTRIBUTED)
               .localPort(masterDremioDaemon.getBindingProvider().lookup(FabricService.class).getPort() + 1)
               .isRemote(true)
               .with(DremioConfig.ENABLE_EXECUTOR_BOOL, false)
@@ -492,7 +492,6 @@ public abstract class BaseTestServer extends BaseClientUtils {
               DremioTest.CLASSPATH_SCAN_RESULT,
           dacModule);
       startCurrentDaemon();
-      currentDremioDaemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
 
       // remote executor node
       executorDaemon = DACDaemon.newDremioDaemon(
@@ -531,9 +530,6 @@ public abstract class BaseTestServer extends BaseClientUtils {
           );
       masterDremioDaemon = null;
       startCurrentDaemon();
-      if (JobsRpcUtils.isOverSocket()) {
-        currentDremioDaemon.getBindingProvider().lookup(HybridJobsService.class).setPortProvider(jobsPortProvider);
-      }
     }
 
     initClient(mapperUpdate.apply(configureObjectMapper()));
@@ -617,6 +613,12 @@ public abstract class BaseTestServer extends BaseClientUtils {
     });
     SabotContext context = dremioBinder.lookup(SabotContext.class);
     dremioBinder.bind(OptionManager.class, context.getOptionManager());
+
+    dremioBinder.bindProvider(ReflectionAdministrationService.class, () -> {
+      ReflectionAdministrationService.Factory factory = dremioBindingProvider.lookup(ReflectionAdministrationService.Factory.class);
+      return factory.get(new ReflectionContext(DEFAULT_USER_NAME, true));
+    });
+
     return dremioBinder;
   }
 
@@ -628,7 +630,7 @@ public abstract class BaseTestServer extends BaseClientUtils {
   }
 
   private static int getResourceAllocatorCount() {
-    return l(DremioServer.class).getBufferAllocatorFactory()
+    return l(BufferAllocatorFactory.class)
       .getBaseAllocator()
       .getChildAllocators()
       .size();

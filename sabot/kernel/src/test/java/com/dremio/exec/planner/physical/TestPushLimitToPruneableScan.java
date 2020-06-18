@@ -63,10 +63,11 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.dfs.PruneableScan;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
+import com.dremio.resource.ClusterResourceInformation;
 import com.dremio.service.namespace.PartitionChunkMetadata;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.PartitionProtobuf.Affinity;
@@ -332,10 +333,12 @@ public class TestPushLimitToPruneableScan extends DremioTest {
     .thenReturn(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
     when(optionManager.getOption(eq(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getOptionName())))
     .thenReturn(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getDefault());
+    when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
     ClusterResourceInformation info = mock(ClusterResourceInformation.class);
     when(info.getExecutorNodeCount()).thenReturn(1);
 
-    plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, info);
+    plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG,
+      optionManager, () -> info);
     cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), REX_BUILDER);
     metadata = new TableMetadataImpl(pluginId, DATASET_CONFIG, "testuser", MaterializedSplitsPointer.of(0, Arrays.asList(
         TEST_PARTITION_CHUNK_METADATA_1, TEST_PARTITION_CHUNK_METADATA_2, TEST_PARTITION_CHUNK_METADATA_3

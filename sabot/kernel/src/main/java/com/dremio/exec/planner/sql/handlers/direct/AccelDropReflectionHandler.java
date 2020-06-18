@@ -21,6 +21,7 @@ import java.util.List;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.SchemaUtilities.TableWithPath;
 import com.dremio.exec.planner.sql.parser.SqlDropReflection;
@@ -32,17 +33,19 @@ public class AccelDropReflectionHandler extends SimpleDirectHandler {
 
   private final Catalog catalog;
   private final AccelerationManager accel;
+  private final ReflectionContext reflectionContext;
 
-  public AccelDropReflectionHandler(Catalog catalog, AccelerationManager accel) {
+  public AccelDropReflectionHandler(Catalog catalog, AccelerationManager accel, ReflectionContext reflectionContext) {
     this.catalog = catalog;
     this.accel = accel;
+    this.reflectionContext = reflectionContext;
   }
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlDropReflection dropReflection = SqlNodeUtil.unwrap(sqlNode, SqlDropReflection.class);
     TableWithPath table = SchemaUtilities.verify(catalog, dropReflection.getTblName());
-    accel.dropLayout(table.getPath(), dropReflection.getLayoutId().toString());
+    accel.dropLayout(table.getPath(), dropReflection.getLayoutId().toString(), reflectionContext);
     return Collections.singletonList(SimpleCommandResult.successful("Reflection dropped."));
   }
 

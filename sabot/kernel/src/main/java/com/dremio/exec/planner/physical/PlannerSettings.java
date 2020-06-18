@@ -28,7 +28,6 @@ import org.apache.calcite.util.CancelFlag;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.conf.SourceType;
-import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.server.options.CachingOptionManager;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidator;
@@ -45,7 +44,9 @@ import com.dremio.options.TypeValidators.QueryLevelOptionValidation;
 import com.dremio.options.TypeValidators.RangeDoubleValidator;
 import com.dremio.options.TypeValidators.RangeLongValidator;
 import com.dremio.options.TypeValidators.StringValidator;
+import com.dremio.resource.GroupResourceInformation;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
 
 @Options
@@ -66,6 +67,8 @@ public class PlannerSettings implements Context{
   public static final double DEFAULT_FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR = 1.0d;
   // default off heap memory for planning (256M)
   private static final long DEFAULT_MAX_OFF_HEAP_ALLOCATION_IN_BYTES = 256 * 1024 * 1024;
+  private static final long DEFAULT_BROADCAST_THRESHOLD = 10000000;
+  private static final long DEFAULT_CELL_COUNT_THRESHOLD = 10 * DEFAULT_BROADCAST_THRESHOLD; // 10 times DEFAULT_BROADCAST_THRESHOLD
   public static final LongValidator PLANNER_MEMORY_RESERVATION = new RangeLongValidator("planner.reservation_bytes",
     0L, Long.MAX_VALUE, 0L);
   public static final LongValidator PLANNER_MEMORY_LIMIT = new RangeLongValidator("planner.memory_limit",
@@ -83,7 +86,8 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator MULTIPHASE = new BooleanValidator("planner.enable_multiphase_agg", true);
   public static final OptionValidator BROADCAST = new BooleanValidator("planner.enable_broadcast_join", true);
   public static final LongValidator BROADCAST_MIN_THRESHOLD = new PositiveLongValidator("planner.broadcast_min_threshold", MAX_BROADCAST_THRESHOLD, 500000);
-  public static final LongValidator BROADCAST_THRESHOLD = new PositiveLongValidator("planner.broadcast_threshold", MAX_BROADCAST_THRESHOLD, 10000000);
+  public static final LongValidator BROADCAST_THRESHOLD = new PositiveLongValidator("planner.broadcast_threshold", MAX_BROADCAST_THRESHOLD, DEFAULT_BROADCAST_THRESHOLD);
+  public static final LongValidator BROADCAST_CELL_COUNT_THRESHOLD = new PositiveLongValidator("planner.broadcast_cellcount_threshold", MAX_BROADCAST_THRESHOLD, DEFAULT_CELL_COUNT_THRESHOLD);
   public static final DoubleValidator BROADCAST_FACTOR = new RangeDoubleValidator("planner.broadcast_factor", 0, Double.MAX_VALUE, 2.0d);
   public static final DoubleValidator NESTEDLOOPJOIN_FACTOR = new RangeDoubleValidator("planner.nestedloopjoin_factor", 0, Double.MAX_VALUE, 100.0d);
   public static final BooleanValidator NLJOIN_FOR_SCALAR = new BooleanValidator("planner.enable_nljoin_for_scalar_only", false);
@@ -258,15 +262,16 @@ public class PlannerSettings implements Context{
 
   private final SabotConfig sabotConfig;
   public final OptionManager options;
-  private final ClusterResourceInformation clusterInfo;
+  private Supplier<GroupResourceInformation> resourceInformation;
 
   // This flag is used by AbstractRelOptPlanner to set it's "cancelFlag".
   private final CancelFlag cancelFlag = new CancelFlag(new AtomicBoolean());
 
-  public PlannerSettings(SabotConfig config, OptionManager options, ClusterResourceInformation clusterInfo){
+  public PlannerSettings(SabotConfig config, OptionManager options,
+                         Supplier<GroupResourceInformation> resourceInformation) {
     this.sabotConfig = config;
     this.options = new CachingOptionManager(options);
-    this.clusterInfo = clusterInfo;
+    this.resourceInformation = resourceInformation;
   }
 
   public SabotConfig getSabotConfig() {
@@ -310,7 +315,7 @@ public class PlannerSettings implements Context{
   }
 
   public int numEndPoints() {
-    return numEndPoints;
+    return resourceInformation.get().getExecutorNodeCount();
   }
 
   public double getRowCountEstimateFactor(){
@@ -349,10 +354,6 @@ public class PlannerSettings implements Context{
     return useDefaultCosting;
   }
 
-  public void setNumEndPoints(int numEndPoints) {
-    this.numEndPoints = numEndPoints;
-  }
-
   public void setUseDefaultCosting(boolean defcost) {
     this.useDefaultCosting = defcost;
   }
@@ -368,8 +369,11 @@ public class PlannerSettings implements Context{
    * @return max width per node
    */
   long getMaxWidthPerNode() {
-    Preconditions.checkState(clusterInfo != null, "Need a valid reference for Cluster Resource Information");
-    return clusterInfo.getAverageExecutorCores(options);
+    Preconditions.checkNotNull(resourceInformation, "Need a valid reference for " +
+      "Resource Information");
+    Preconditions.checkNotNull(resourceInformation.get(), "Need a valid reference for " +
+      "Resource Information");
+    return resourceInformation.get().getAverageExecutorCores(options);
   }
 
   public boolean isHashAggEnabled() {
@@ -522,7 +526,7 @@ public class PlannerSettings implements Context{
    * @return number of executor nodes
    */
   public int getExecutorCount() {
-    return clusterInfo.getExecutorNodeCount();
+    return resourceInformation.get().getExecutorNodeCount();
   }
 
   public boolean isJoinOptimizationEnabled() {

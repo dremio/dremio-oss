@@ -15,19 +15,22 @@
  */
 import moment from 'moment';
 
+import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 import timeUtils from './timeUtils';
 
-// see JobState.java
+// see AttemptEvent.State
 export const JobState = {
-  NOT_SUBMITTED: 'NOT_SUBMITTED',
+  PENDING: 'PENDING',
+  METADATA_RETRIEVAL: 'METADATA_RETRIEVAL',
+  PLANNING: 'PLANNING',
+  QUEUED: 'QUEUED',
+  ENGINE_START: 'ENGINE_START',
+  EXECUTION_PLANNING: 'EXECUTION_PLANNING',
   STARTING: 'STARTING',
   RUNNING: 'RUNNING',
   COMPLETED: 'COMPLETED',
   CANCELED: 'CANCELED',
-  FAILED: 'FAILED',
-  CANCELLATION_REQUESTED: 'CANCELLATION_REQUESTED',
-  ENQUEUED: 'ENQUEUED',
-  PLANNING: 'PLANNING'
+  FAILED: 'FAILED'
 };
 
 const RECORD_STEP = 1000;
@@ -96,6 +99,9 @@ class JobsUtils {
   }
 
   msToHHMMSS(ms) {
+    if (ms === undefined) {
+      return '-';
+    }
     return timeUtils.durationWithZero(moment.duration(ms));
   }
 
@@ -152,7 +158,13 @@ class JobsUtils {
   }
 
   navigationURLForLayoutId(id, createFullUrl) {
-    const url = `/jobs?filters=${encodeURIComponent(JSON.stringify({'contains':[id]}))}`;
+    let url;
+
+    if (!localStorageUtils.getUserData().admin) {
+      url = `/jobs/reflection/${id}`;
+    } else {
+      url = `/jobs?filters=${encodeURIComponent(JSON.stringify({'contains': [id]}))}`;
+    }
     return createFullUrl ? (window.location.origin + url) : url;
   }
 

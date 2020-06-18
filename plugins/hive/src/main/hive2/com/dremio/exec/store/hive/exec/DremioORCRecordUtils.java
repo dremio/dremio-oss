@@ -22,7 +22,8 @@ package com.dremio.exec.store.hive.exec;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
-import io.netty.buffer.ArrowBuf;
+
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.hadoop.fs.BlockLocation;
 import org.apache.hadoop.fs.ByteBufferUtil;

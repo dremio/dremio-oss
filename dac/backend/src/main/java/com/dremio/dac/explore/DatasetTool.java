@@ -109,6 +109,8 @@ import io.protostuff.ByteString;
  * Class that helps with generating common dataset patterns.
  */
 public class DatasetTool {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DatasetTool.class);
+
   private final DatasetVersionMutator datasetService;
   private final JobsService jobsService;
   private final QueryExecutor executor;
@@ -647,45 +649,56 @@ public class DatasetTool {
     tipVersion = tipVersion != null ? tipVersion : versionToMarkCurrent;
 
     final List<HistoryItem> historyItems = new ArrayList<>();
-    VirtualDatasetUI currentDataset;
+    VirtualDatasetUI currentDataset = null;
     DatasetVersion currentVersion = tipVersion;
     DatasetPath currentPath = datasetPath;
     NameDatasetRef previousVersion;
-    do {
-      currentDataset = datasetService.getVersion(currentPath, currentVersion);
-      DatasetVersionResourcePath versionedResourcePath =
+    try {
+      do {
+        currentDataset = datasetService.getVersion(currentPath, currentVersion);
+        DatasetVersionResourcePath versionedResourcePath =
           new DatasetVersionResourcePath(currentPath, currentVersion);
 
-      // grab the most recent job for this dataset version (note the use of limit 1 to avoid
-      // retrieving all results, the API just returns a list, so this also has to index into the returned list
-      // that will always contain a single element)
-      final SearchJobsRequest request = SearchJobsRequest.newBuilder()
-        .setDataset(VersionedDatasetPath.newBuilder()
-          .addAllPath(currentDataset.getFullPathList())
-          .setVersion(currentDataset.getVersion().getVersion())
-          .build())
-        .setLimit(1)
-        .build();
-      Iterable<JobSummary> jobSummaries = jobsService.searchJobs(request);
-      final JobState jobState;
-      // jobs are not persisted forever so we may not have a job for this version of the dataset
-      Iterator<JobSummary> iterator = jobSummaries.iterator();
-      if (iterator.hasNext()) {
-        jobState = JobsProtoUtil.toStuff(iterator.next().getJobState());
-      } else {
-        jobState = JobState.COMPLETED;
-      }
-      historyItems.add(
+        // grab the most recent job for this dataset version (note the use of limit 1 to avoid
+        // retrieving all results, the API just returns a list, so this also has to index into the returned list
+        // that will always contain a single element)
+        final SearchJobsRequest request = SearchJobsRequest.newBuilder()
+          .setDataset(VersionedDatasetPath.newBuilder()
+            .addAllPath(currentDataset.getFullPathList())
+            .setVersion(currentDataset.getVersion().getVersion())
+            .build())
+          .setLimit(1)
+          .build();
+        Iterable<JobSummary> jobSummaries = jobsService.searchJobs(request);
+        final JobState jobState;
+        // jobs are not persisted forever so we may not have a job for this version of the dataset
+        Iterator<JobSummary> iterator = jobSummaries.iterator();
+        if (iterator.hasNext()) {
+          jobState = JobsProtoUtil.toStuff(iterator.next().getJobState());
+        } else {
+          jobState = JobState.COMPLETED;
+        }
+        historyItems.add(
           new HistoryItem(versionedResourcePath, jobState,
-              TransformBase.unwrap(currentDataset.getLastTransform()).accept(new DescribeTransformation()), username(),
-              currentDataset.getCreatedAt(), 0L, true, null, null));
+            TransformBase.unwrap(currentDataset.getLastTransform()).accept(new DescribeTransformation()), username(),
+            currentDataset.getCreatedAt(), 0L, true, null, null));
 
-      previousVersion = currentDataset.getPreviousVersion();
-      if (previousVersion != null) {
-        currentVersion = new DatasetVersion(previousVersion.getDatasetVersion());
-        currentPath = new DatasetPath(previousVersion.getDatasetPath());
+        previousVersion = currentDataset.getPreviousVersion();
+        if (previousVersion != null) {
+          currentVersion = new DatasetVersion(previousVersion.getDatasetVersion());
+          currentPath = new DatasetPath(previousVersion.getDatasetPath());
+        }
+      } while (previousVersion != null);
+    } catch (DatasetNotFoundException e) {
+      // If for some reason the history chain is broken/corrupt, we will get an DatasetNotFoundException.  If we have a
+      // partial history, we return it.  If no history items are found, rethrow the exception.
+      if (currentDataset == null) {
+        throw e;
       }
-    } while (previousVersion != null);
+
+      logger.warn("Dataset history for [{}] and tip version [{}] is broken at path [{}] and version [{}]", datasetPath,
+        tipVersion, currentPath, currentVersion);
+    }
 
     Collections.reverse(historyItems);
 

@@ -20,6 +20,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseValueVectorHelper;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
@@ -35,8 +36,6 @@ import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.dremio.exec.proto.UserBitShared.SerializedField.Builder;
 import com.google.common.base.Preconditions;
-
-import io.netty.buffer.ArrowBuf;
 
 public class StructVectorHelper implements ValueVectorHelper {
   private StructVector structVector;

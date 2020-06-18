@@ -54,7 +54,7 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
   private final BufferAllocator allocator;
   private final String hostName;
   private final ScanResult scan;
-  private ImmutableMap<Class<? extends StoreCreationFunction<?>>, KVStore<?, ?>> stores;
+  private ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> stores;
   private String masterHostName;
 
   public RemoteKVStoreProvider(ScanResult scan, Provider<NodeEndpoint> masterNode, Provider<FabricService> fabricService, BufferAllocator allocator, String hostName) {
@@ -87,10 +87,11 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
 
   @SuppressWarnings("unchecked")
   @Override
-  public <T extends KVStore<?, ?>> T getStore(Class<? extends StoreCreationFunction<T>> creator) {
+  public <K, V, T extends KVStore<K, V>> T getStore(Class<? extends StoreCreationFunction<K, V, T>> creator) {
     return (T) Preconditions.checkNotNull(stores.get(creator), "Unknown store creator %s", creator.getName());
   }
 
+  @Override
   @VisibleForTesting
   public <K, V> StoreBuilder<K, V> newStore(){
     return new RemoteStoreBuilder<>();

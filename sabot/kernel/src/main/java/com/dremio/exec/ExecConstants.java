@@ -227,14 +227,9 @@ public interface ExecConstants {
   OptionValidator MONGO_BSON_RECORD_READER_VALIDATOR = new BooleanValidator(MONGO_BSON_RECORD_READER, true);
 
   /* Mongo Rules */
-  BooleanValidator MONGO_RULES_AGGREGATE = new BooleanValidator("store.mongo.enable_aggregate_rule", false);
   BooleanValidator MONGO_RULES_FILTER = new BooleanValidator("store.mongo.enable_filter_rule", true);
-  BooleanValidator MONGO_RULES_FLATTEN = new BooleanValidator("store.mongo.enable_flatten_rule", false);
-  BooleanValidator MONGO_RULES_LIMIT = new BooleanValidator("store.mongo.enable_limit_rule", false);
   BooleanValidator MONGO_RULES_SORT = new BooleanValidator("store.mongo.enable_sort_rule", false);
   BooleanValidator MONGO_RULES_PROJECT = new BooleanValidator("store.mongo.enable_project_rule", true);
-  BooleanValidator MONGO_RULES_TOPN = new BooleanValidator("store.mongo.enable_topn_rule", false);
-  BooleanValidator MONGO_RULES_SAMPLE = new BooleanValidator("store.mongo.enable_sample_rule", false);
 
   /* Elastic Rules */
   BooleanValidator ELASTIC_RULES_AGGREGATE = new BooleanValidator("store.elastic.enable_aggregate_rule", true);
@@ -451,4 +446,6 @@ public interface ExecConstants {
 
   // global hive-async option
   BooleanValidator ENABLE_HIVE_ASYNC = new TypeValidators.BooleanValidator("store.hive.async", true);
+
+  BooleanValidator ENABLE_REMOTE_JOB_FETCH = new BooleanValidator("jobs.remote.fetch_enabled", true);
 }

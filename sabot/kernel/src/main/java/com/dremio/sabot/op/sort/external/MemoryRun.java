@@ -73,7 +73,6 @@ class MemoryRun implements AutoCloseable {
   private RecordBatchItem tail;
 
   private long maxBatchSize;
-  private int minRecordCount = Character.MAX_VALUE;
   private int recordLength;
   private int size;
 
@@ -190,9 +189,6 @@ class MemoryRun implements AutoCloseable {
     }
 
     recordLength += recordCount;
-    if (recordCount < minRecordCount) {
-      minRecordCount = recordCount;
-    }
 
     // We can safely transfer ownership of data into our allocator since this will always succeed (even if we
     // become overlimit).
@@ -311,8 +307,7 @@ class MemoryRun implements AutoCloseable {
   public void closeToDisk(DiskRunManager manager) throws Exception {
     Sv4HyperContainer container = new Sv4HyperContainer(allocator, schema);
     container.clear();
-    // passing minRecordCount to closeToContainer() will ensure we will spill batches of this size
-    SelectionVector4 sv4 = closeToContainer(container, minRecordCount);
+    SelectionVector4 sv4 = closeToContainer(container, this.targetBatchSize);
     container.setSelectionVector4(sv4);
     manager.spill(container, copyTargetAllocator);
 
@@ -322,7 +317,7 @@ class MemoryRun implements AutoCloseable {
   public void startMicroSpilling(DiskRunManager diskRunManager) throws Exception {
     final Sv4HyperContainer sv4HyperContainer  = new Sv4HyperContainer(allocator, schema);
     sv4HyperContainer.clear();
-    final SelectionVector4 sv4 = closeToContainer(sv4HyperContainer, minRecordCount);
+    final SelectionVector4 sv4 = closeToContainer(sv4HyperContainer, this.recordLength);
     sv4HyperContainer.setSelectionVector4(sv4);
     sv4HyperContainer.setRecordCount(sv4HyperContainer.getSelectionVector4().getTotalCount());
     diskRunManager.startMicroSpilling(sv4HyperContainer);

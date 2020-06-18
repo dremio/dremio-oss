@@ -21,7 +21,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -36,6 +35,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import com.dremio.common.exceptions.UserException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetSplitListing;
 import com.dremio.connector.metadata.EntityPath;
@@ -341,7 +341,7 @@ public class TestDatasetMetadataSaver {
     saveDataset(s, ds, dsConfig, dsPath, false, false, Long.MAX_VALUE);
 
     dsConfig.setId(new EntityId().setId("Bogus"));
-    expectedException.expect(new ExceptionMatcher<>("There already exists an entity", ConcurrentModificationException.class));
+    expectedException.expect(new ExceptionMatcher<>("There already exists an entity", UserException.class));
     saveDataset(s, ds, dsConfig, dsPath, false, true, Long.MAX_VALUE);
   }
 

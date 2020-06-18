@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.math.BigDecimal;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.DecimalHelper;
@@ -39,7 +40,6 @@ import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 
 /**

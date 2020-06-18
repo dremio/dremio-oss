@@ -584,12 +584,11 @@ public class TestNativeFunctions extends BaseTestFunction {
       InExpression.COUNT.set(0);
       // Note: This test casts the string as a BigINT. For now, this is not available in Gandiva
       // Hence, this leads to excessive splits and will eventually be implemented in Java using
-      // the OrIn optimization
+      // the OrIn optimization.
       testFunctions(new Object[][]{
         {"booleanOr(c0 = 1l, c0 = 2l, c0 = 3l, c0 != 10l, c0 = 4l, c0 = 5l, c0 = 6l, c0 = 7l, c0 " +
           "= 8l, c0 = 9l)", "10", false}}
       );
-      // should switch to java and evaluate an in
       Assert.assertEquals(1, InExpression.COUNT.get());
     } finally {
       InExpression.COUNT.set(0);
@@ -612,7 +611,6 @@ public class TestNativeFunctions extends BaseTestFunction {
           "'6', c0 = '7', c0 = '8', c0 = '9', c0 = " +
           "'10')", 9l, true}}
       );
-      // should switch to java and evaluate an in
       Assert.assertEquals(1, InExpression.COUNT.get());
     } finally {
       InExpression.COUNT.set(0);
@@ -829,6 +827,19 @@ public class TestNativeFunctions extends BaseTestFunction {
       {"extractday(date_sub(c0, 10))", date("1970-01-12"), 2l},
       {"extractday(date_diff(c0, 10))", ts("1970-01-12T10:20:33"), 2l},
       {"extractday(subtract(c0, 10))", ts("1970-01-12T10:20:33"), 2l},
+    });
+  }
+
+  @Test
+  public void testDateTruncFunctions() {
+    testFunctions(new Object[][]{
+      {"extractday(date_trunc_Month(c0))", date("2020-11-12"), 1L},
+      {"extractmonth(date_trunc_Month(c0))", date("2020-11-12"), 11L},
+      {"extractyear(date_trunc_Month(c0))", date("2020-11-12"), 2020L},
+
+      {"extractday(date_trunc_Year(c0))", date("2020-11-12"), 1L},
+      {"extractmonth(date_trunc_Year(c0))", date("2020-11-12"), 1L},
+      {"extractyear(date_trunc_Year(c0))", date("2020-11-12"), 2020L},
     });
   }
 

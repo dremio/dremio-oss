@@ -84,10 +84,12 @@ public final class QueryParser {
       QueryId queryId = QueryId.newBuilder().setPart1(ID_MAJOR).setPart2(ID_MINOR.incrementAndGet()).build();
 
       UserSession session = UserSession.Builder.newBuilder()
-          .withSessionOptionManager(new SessionOptionManagerImpl(sabotContext.getOptionManager()))
-          .withCredentials(UserCredentials.newBuilder()
-              .setUserName(query.getUsername())
-              .build())
+        .withSessionOptionManager(
+          new SessionOptionManagerImpl(sabotContext.getOptionValidatorListing()),
+          sabotContext.getOptionManager())
+        .withCredentials(UserCredentials.newBuilder()
+          .setUserName(query.getUsername())
+          .build())
           .withUserProperties(UserProperties.getDefaultInstance())
           .build();
       return new QueryContext(session, sabotContext, queryId);
@@ -132,6 +134,7 @@ public final class QueryParser {
     try{
       // inner try to make sure query context is closed.
       try(QueryContext context = newQueryContext(query)) {
+        context.setGroupResourceInformation(sabotContext.getClusterResourceInformation());
 
         QueryMetadata.Builder builder = QueryMetadata.builder(sabotContext.getNamespaceService(query.getUsername()))
           .addQuerySql(query.getSql())

@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.ValueVector;
@@ -51,8 +52,6 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.sabot.Fixtures.DataRow;
 import com.google.common.base.Preconditions;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Generates a table with lot of nested data types and two scalar types

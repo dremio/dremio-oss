@@ -88,8 +88,9 @@ export class SignupForm extends Component {
               type={ButtonTypes.NEXT}
               text={la('Next')}
             />
-            <div className='largerFontSize'>
-              {<Link to={{ ...this.props.location, state: { modal: 'AboutModal' }}}>
+            <div>
+              <a href='https://www.dremio.com/legal/privacy-policy' target='_blank'>{la('Privacy')}</a>
+              {' '} | {<Link to={{ ...this.props.location, state: { modal: 'AboutModal' }}}>
                 {la('About Dremio')}
               </Link>}
             </div>

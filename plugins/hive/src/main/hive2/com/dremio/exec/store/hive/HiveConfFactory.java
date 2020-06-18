@@ -45,6 +45,14 @@ public class HiveConfFactory {
   private static final String FS_S3_IMPL = "fs.s3.impl";
   private static final String FS_S3_IMPL_DEFAULT = "org.apache.hadoop.fs.s3a.S3AFileSystem";
 
+  private static final String FS_S3_MAXIMUM_CONNECTIONS = "fs.s3a.connection.maximum";
+  private static final String FS_S3_FAST_UPLOAD = "fs.s3a.fast.upload";
+  private static final String FS_S3_FAST_UPLOAD_BUFFER = "fs.s3a.fast.upload.buffer";
+  private static final String FS_S3_FAST_UPLOAD_ACTIVE_BLOCKS = "fs.s3a.fast.upload.active.blocks";
+  private static final String FS_S3_MAX_THREADS = "fs.s3a.threads.max";
+  private static final String FS_S3_MULTIPART_SIZE = "fs.s3a.multipart.size";
+  private static final String FS_S3_MAX_TOTAL_TASKS = "fs.s3a.max.total.tasks";
+
   // ADL Hadoop file system implementation
   private static final ImmutableMap<String, String> ADL_PROPS = ImmutableMap.of(
     "fs.adl.impl", "org.apache.hadoop.fs.adl.AdlFileSystem",
@@ -116,8 +124,19 @@ public class HiveConfFactory {
     setConf(hiveConf, HIVE_ENABLE_CACHE_FOR_HDFS, config.isCachingEnabledForHDFS);
     setConf(hiveConf, HIVE_MAX_HIVE_CACHE_SPACE, config.maxCacheSpacePct);
 
+    addS3Properties(hiveConf);
     addUserProperties(hiveConf, config);
     return hiveConf;
+  }
+
+  private static void addS3Properties(HiveConf hiveConf) {
+    setConf(hiveConf, FS_S3_MAXIMUM_CONNECTIONS, "1000");
+    setConf(hiveConf, FS_S3_FAST_UPLOAD, "true");
+    setConf(hiveConf, FS_S3_FAST_UPLOAD_BUFFER, "disk");
+    setConf(hiveConf, FS_S3_FAST_UPLOAD_ACTIVE_BLOCKS, "4");
+    setConf(hiveConf, FS_S3_MAX_THREADS, "24");
+    setConf(hiveConf, FS_S3_MULTIPART_SIZE, "67108864");
+    setConf(hiveConf, FS_S3_MAX_TOTAL_TASKS, "30");
   }
 
   /**

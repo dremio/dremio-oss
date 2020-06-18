@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.store;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.IntVector;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.StructVector;
@@ -28,8 +29,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.exec.ExecTest;
-
-import io.netty.buffer.ArrowBuf;
 
 public class HiveParquetCopierTest extends ExecTest {
   @Test

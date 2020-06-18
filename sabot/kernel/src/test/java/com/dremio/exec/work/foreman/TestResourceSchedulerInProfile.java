@@ -34,8 +34,10 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.options.OptionManager;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
+import com.dremio.resource.ResourceSchedulingObserver;
 import com.dremio.resource.ResourceSchedulingProperties;
 import com.dremio.resource.ResourceSchedulingResult;
 import com.dremio.resource.ResourceSet;
@@ -93,6 +95,7 @@ public class TestResourceSchedulerInProfile extends DremioTest {
       @Override
       public ResourceSchedulingResult allocate(ResourceSchedulingContext queryContext,
         ResourceSchedulingProperties resourceSchedulingProperties,
+        ResourceSchedulingObserver observer,
         Consumer<ResourceSchedulingDecisionInfo> resourceDecisionConsumer) {
 
         final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo = new ResourceSchedulingDecisionInfo();
@@ -102,6 +105,11 @@ public class TestResourceSchedulerInProfile extends DremioTest {
 
         return new ResourceSchedulingResult(resourceSchedulingDecisionInfo,
           Futures.immediateFuture(new ResourceSet.ResourceSetNoOp()));
+      }
+
+      @Override
+      public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager) {
+        return null;
       }
 
       @Override
@@ -120,7 +128,7 @@ public class TestResourceSchedulerInProfile extends DremioTest {
       () -> UserBitShared.QueryResult.QueryState.COMPLETED,
       AbstractAttemptObserver.NOOP, null);
     ResourceSchedulingDecisionInfo info =
-      ra.allocate(null, null, x -> {}).getResourceSchedulingDecisionInfo();
+      ra.allocate(null, null, ResourceSchedulingObserver.NO_OP, x -> {}).getResourceSchedulingDecisionInfo();
     tracker.getObserver().resourcesScheduled(info);
 
     UserBitShared.QueryProfile queryProfile = tracker.getPlanningProfile();

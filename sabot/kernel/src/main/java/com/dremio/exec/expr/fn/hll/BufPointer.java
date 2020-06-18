@@ -15,7 +15,7 @@
  */
 package com.dremio.exec.expr.fn.hll;
 
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 
 public class BufPointer {
   public ArrowBuf value;

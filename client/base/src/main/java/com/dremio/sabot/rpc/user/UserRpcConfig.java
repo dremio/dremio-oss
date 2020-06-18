@@ -43,7 +43,7 @@ import com.dremio.exec.proto.UserProtos.RpcType;
 import com.dremio.exec.proto.UserProtos.RunQuery;
 import com.dremio.exec.proto.UserProtos.UserToBitHandshake;
 import com.dremio.exec.rpc.RpcConfig;
-import com.dremio.exec.rpc.ssl.SSLConfig;
+import com.dremio.ssl.SSLConfig;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 

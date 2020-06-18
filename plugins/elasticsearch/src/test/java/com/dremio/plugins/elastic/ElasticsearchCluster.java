@@ -208,7 +208,7 @@ public class ElasticsearchCluster implements Closeable {
     List<Host> hosts = ImmutableList.of(new Host(host, port));
 
     this.pool = new ElasticConnectionPool(hosts, sslEnabled ? TLSValidationMode.UNSECURE : TLSValidationMode.OFF, new ElasticsearchAuthentication(hosts, authenticationType,
-      username, password, accessKey, accessSecret, regionName), 10000, useWhiteList);
+      username, password, accessKey, accessSecret, regionName), 30000, useWhiteList);
     pool.connect();
     connection = pool.getRandomConnection();
     webTarget = connection.getTarget();

@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
@@ -63,8 +64,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-
-import io.netty.buffer.ArrowBuf;
 
 public class ConvertFromJsonConverter extends BasePrelVisitor<Prel, Void, RuntimeException> {
 

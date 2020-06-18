@@ -33,6 +33,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.SqlUtils;
 import com.dremio.exec.catalog.Catalog;
 import com.dremio.exec.catalog.DremioTable;
+import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.SchemaUtilities.TableWithPath;
@@ -56,10 +57,12 @@ public class AccelCreateReflectionHandler extends SimpleDirectHandler {
 
   private final Catalog catalog;
   private final AccelerationManager accel;
+  private final ReflectionContext reflectionContext;
 
-  public AccelCreateReflectionHandler(Catalog catalog, AccelerationManager accel) {
+  public AccelCreateReflectionHandler(Catalog catalog, AccelerationManager accel, ReflectionContext reflectionContext) {
     this.catalog = catalog;
     this.accel = accel;
+    this.reflectionContext = reflectionContext;
   }
 
   @Override
@@ -84,7 +87,7 @@ public class AccelCreateReflectionHandler extends SimpleDirectHandler {
         table.qualifyColumns(addLayout.getPartitionList()),
         addLayout.getPartitionDistributionStrategy()
     );
-    accel.addLayout(table.getPath(), layout);
+    accel.addLayout(table.getPath(), layout, reflectionContext);
     return Collections.singletonList(SimpleCommandResult.successful("Layout added."));
   }
 

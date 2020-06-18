@@ -19,6 +19,7 @@ package org.apache.arrow.vector;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.common.types.TypeProtos;
@@ -26,8 +27,6 @@ import com.dremio.common.types.TypeProtos.DataMode;
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
-
-import io.netty.buffer.ArrowBuf;
 
 public abstract class BaseValueVectorHelper<T extends FieldVector> implements ValueVectorHelper {
 

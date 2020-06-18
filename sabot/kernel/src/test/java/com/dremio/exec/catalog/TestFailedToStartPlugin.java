@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
@@ -58,9 +59,13 @@ import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePluginRulesFactory;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.NamespaceKey;
@@ -77,10 +82,11 @@ import com.dremio.service.scheduler.LocalSchedulerService;
 import com.dremio.service.scheduler.Schedule;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.test.DremioTest;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Sets;
 
 /**
- *
+ * Test PluginManager failed to start due to issue in starting StoragePlugin or Source being in bad state
  */
 public class TestFailedToStartPlugin extends DremioTest {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestFailedToStartPlugin.class);
@@ -91,8 +97,10 @@ public class TestFailedToStartPlugin extends DremioTest {
   private SchedulerService schedulerService;
   private static MockUpPlugin mockUpPlugin;
   private SystemOptionManager som;
+  private OptionManager optionManager;
   private NamespaceService mockNamespaceService;
   private DatasetListingService mockDatasetListingService;
+  private SourceConfig mockUpConfig;
 
   private static final String MOCK_UP = "mockup-failed-to-start";
 
@@ -113,7 +121,7 @@ public class TestFailedToStartPlugin extends DremioTest {
         .setDatasetDefinitionRefreshAfterMs(100L)
         .setDatasetDefinitionExpireAfterMs(1L);
 
-    final SourceConfig mockUpConfig = new SourceConfig()
+    mockUpConfig = new SourceConfig()
         .setName(MOCK_UP)
         .setMetadataPolicy(rapidRefreshPolicy)
         .setCtime(100L)
@@ -146,11 +154,15 @@ public class TestFailedToStartPlugin extends DremioTest {
     when(sabotContext.getLpPersistence())
         .thenReturn(lpp);
 
-    final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(CLASSPATH_SCAN_RESULT);
-    som = new SystemOptionManager(defaultOptionManager, lpp, () -> storeProvider, true);
+    final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
+    som = new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
+    optionManager = OptionManagerWrapper.Builder.newBuilder()
+      .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+      .withOptionManager(som)
+      .build();
     som.start();
     when(sabotContext.getOptionManager())
-        .thenReturn(som);
+        .thenReturn(optionManager);
 
     when(sabotContext.isMaster())
       .thenReturn(true);
@@ -216,6 +228,19 @@ public class TestFailedToStartPlugin extends DremioTest {
     }
   }
 
+  private static void confirmNoRefresh(InvocationCounter counter) throws Exception {
+    long initialCount = counter.getCount();
+    Stopwatch watch = Stopwatch.createStarted();
+    while (watch.elapsed(TimeUnit.SECONDS) < 3) {
+      assertEquals(initialCount, counter.getCount());
+      Thread.sleep(1);
+    }
+    watch.stop();
+  }
+
+  /**
+   * When plugin fails to start, no background refresh.
+   */
   @Test
   public void testFailedToStart() throws Exception {
     InvocationCounter refreshCounter = new InvocationCounter();
@@ -233,18 +258,26 @@ public class TestFailedToStartPlugin extends DremioTest {
     };
     LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
 
-    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, som, DremioConfig.create(),
+    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
       ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor)) {
 
+      // test if StoragePlugin fails to start
+      // SourceMetadataManager will be closed and wakeup task will be cancelled, so no background refresh
       mockUpPlugin.setThrowAtStart();
       assertEquals(0, mockUpPlugin.getNumFailedStarts());
       plugins.start();
       // mockUpPlugin should be failing over and over right around now
-      waitForRefresh(wakeupCounter);
+      confirmNoRefresh(refreshCounter);
+      assertTrue(wakeupCounter.getCount() > 0); // most likely wakeupCounter.getCount() == 1
       long currNumFailedStarts = mockUpPlugin.getNumFailedStarts();
       assertTrue(currNumFailedStarts > 1);
+
+      // test if StoragePlugin successfully starts
       mockUpPlugin.unsetThrowAtStart();
+      final String mockUpName = MOCK_UP + "2";
+      mockUpConfig.setName(mockUpName);
+      plugins.create(mockUpConfig, mockUpName, null);
       waitForRefresh(refreshCounter);
       currNumFailedStarts = mockUpPlugin.getNumFailedStarts();
       waitForRefresh(refreshCounter);
@@ -252,6 +285,11 @@ public class TestFailedToStartPlugin extends DremioTest {
     }
   }
 
+  /**
+   * If StoragePlugin starts with bad state, background refresh won't happen.
+   * If StoragePlugin starts with healthy state and later goes down, background refresh should be running and
+   * getting datasets should fail.
+   */
   @Test
   public void testBadSourceAtStart() throws Exception {
     InvocationCounter refreshCounter = new InvocationCounter();
@@ -270,23 +308,46 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
 
-    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, som, DremioConfig.create(),
+    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
       ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor)) {
 
+      // Setting bad state at start will close SourceMetadataManager
+      // and wakeup task will be cancelled, no background refresh
       mockUpPlugin.setSimulateBadState(true);
-      assertEquals(false, mockUpPlugin.gotDatasets());
-      plugins.start();
-      // metadata refresh should be running right now
-      waitForRefresh(wakeupCounter);
       assertFalse(mockUpPlugin.gotDatasets());
+      plugins.start();
+      confirmNoRefresh(refreshCounter);
+      assertTrue(wakeupCounter.getCount() > 0); // most likely wakeupCounter.getCount() == 1
+      assertFalse(mockUpPlugin.gotDatasets());
+
+      // healthy state at start
       mockUpPlugin.setSimulateBadState(false);
-      // Give metadata refresh a chance to run again
-      waitForRefresh(refreshCounter);
+      final String mockUpName = MOCK_UP + "2";
+      mockUpConfig.setName(mockUpName);
+      plugins.create(mockUpConfig, mockUpName, null);
+      // metadata background refresh should be running right now
+      waitForRefresh(wakeupCounter);
       assertTrue(mockUpPlugin.gotDatasets());
+
+      // test metadata background refresh is happening
       mockUpPlugin.unsetGotDatasets();
       waitForRefresh(refreshCounter);
       assertTrue(mockUpPlugin.gotDatasets());
+
+      // test if source does down
+      mockUpPlugin.setSimulateBadState(true);
+      // skipping metadata background refresh because source is in bad state
+      confirmNoRefresh(refreshCounter);
+      assertTrue(mockUpPlugin.gotDatasets()); // because refreshDatasetNames is not run
+
+      // test if source is up again
+      mockUpPlugin.unsetGotDatasets(); // reset
+      mockUpPlugin.setSimulateBadState(false);
+      // Give metadata refresh a chance to run again
+      waitForRefresh(wakeupCounter);
+      assertTrue(mockUpPlugin.gotDatasets());
+
     }
   }
 

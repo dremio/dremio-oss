@@ -17,9 +17,9 @@ package com.dremio.exec.util;
 
 import java.util.Arrays;
 
-import com.google.common.primitives.Longs;
+import org.apache.arrow.memory.ArrowBuf;
 
-import io.netty.buffer.ArrowBuf;
+import com.google.common.primitives.Longs;
 
 public class DecimalMixedEndianGT8BytesComparator extends DecimalMixedEndianComparatorImpl {
 

@@ -26,8 +26,11 @@ import com.google.common.collect.ImmutableMap;
 /**
  * Utility class to load defined KVStores.
  */
-public class StoreLoader {
+public final class StoreLoader {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StoreLoader.class);
+
+  private StoreLoader() {
+  }
 
   /**
    * Create a map of stores defined in the provided scan using the provided factory.
@@ -35,7 +38,7 @@ public class StoreLoader {
    * @param factory StoreBuildingFactory for building KVStore implementations.
    * @return a map of all kv store impls with the provided factory.
    */
-  public static ImmutableMap<Class<? extends StoreCreationFunction<?>>, KVStore<?, ?>> buildStores(ScanResult scan, StoreBuildingFactory factory){
+  public static ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> buildStores(ScanResult scan, StoreBuildingFactory factory){
     return buildStores(scan.getImplementations(StoreCreationFunction.class), factory);
   }
 
@@ -46,9 +49,9 @@ public class StoreLoader {
    * @return a map of all kv store impls with the provided factory.
    */
   @SuppressWarnings({ "rawtypes", "unchecked" })
-  public static ImmutableMap<Class<? extends StoreCreationFunction<?>>, KVStore<?, ?>> buildStores(
+  public static ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> buildStores(
     Set<Class<? extends StoreCreationFunction>> impls, StoreBuildingFactory factory) {
-    ImmutableMap.Builder builder = ImmutableMap.<Class<? extends StoreCreationFunction<?>>, KVStore<?, ?>>builder();
+    ImmutableMap.Builder builder = ImmutableMap.<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>>builder();
 
     for(Class<? extends StoreCreationFunction> functionClass : impls) {
       try {
@@ -59,7 +62,7 @@ public class StoreLoader {
       }
     }
 
-    final ImmutableMap<Class<? extends StoreCreationFunction<?>>, KVStore<?, ?>> map = builder.build();
+    final ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> map = builder.build();
     logger.debug("Loaded the following StoreCreationFunctions: {}.", map.keySet());
     return map;
   }

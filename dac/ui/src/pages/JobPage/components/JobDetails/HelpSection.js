@@ -23,7 +23,6 @@ import './HelpSection.less';
 
 import { askGnarly } from 'actions/jobs/jobs';
 import { callIfChatAllowedOrWarn } from 'actions/account';
-import { downloadFile } from 'sagas/downloadFile';
 
 import { getViewState } from 'selectors/resources';
 
@@ -48,11 +47,11 @@ Click “Ask Dremio” to share the query profile with Dremio Support or “Emai
 export class HelpSection extends PureComponent {
   static propTypes = {
     jobId: PropTypes.string.isRequired,
+    downloadFile: PropTypes.func,
 
     // connected:
     callIfChatAllowedOrWarn: PropTypes.func.isRequired,
     askGnarly: PropTypes.func.isRequired,
-    downloadFile: PropTypes.func.isRequired,
     downloadViewState: PropTypes.instanceOf(Immutable.Map).isRequired
   };
 
@@ -61,11 +60,7 @@ export class HelpSection extends PureComponent {
   };
 
   handleDownload = () => {
-    this.props.downloadFile({
-      url: `/support/${this.props.jobId}/download`,
-      method: 'POST',
-      viewId: this.props.downloadViewState.get('viewId')
-    });
+    this.props.downloadFile(this.props.downloadViewState.get('viewId'));
   }
 
   handleEmail = () => {
@@ -133,8 +128,7 @@ function mapStateToProps(state, props) {
 
 export default connect(mapStateToProps, {
   askGnarly,
-  callIfChatAllowedOrWarn,
-  downloadFile
+  callIfChatAllowedOrWarn
 })(HelpSection);
 
 

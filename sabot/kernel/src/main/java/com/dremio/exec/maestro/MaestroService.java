@@ -21,7 +21,9 @@ import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.work.SafeExit;
 import com.dremio.exec.work.foreman.CompletionListener;
+import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.exception.ResourceAllocationException;
 import com.dremio.sabot.rpc.ExecToCoordStatusHandler;
 import com.dremio.service.Service;
@@ -71,6 +73,13 @@ public interface MaestroService extends Service, SafeExit {
    * Get the count of active queries.
    */
   int getActiveQueryCount();
+
+  /* Get the resource information for the group (cluster or engine).
+   *
+   * @param optionManager optionManager
+   * @return resource information.
+   */
+  GroupResourceInformation getGroupResourceInformation(OptionManager optionManager) throws ResourceAllocationException;
 
   /**
    * Get the rpc handler for status msgs from executor nodes.

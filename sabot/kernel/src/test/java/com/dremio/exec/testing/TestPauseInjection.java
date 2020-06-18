@@ -46,7 +46,9 @@ import com.dremio.service.coordinator.local.LocalClusterCoordinator;
 public class TestPauseInjection extends BaseTestQuery {
 
   private static final UserSession session = UserSession.Builder.newBuilder()
-    .withSessionOptionManager(new SessionOptionManagerImpl(nodes[0].getContext().getOptionManager()))
+    .withSessionOptionManager(
+      new SessionOptionManagerImpl(nodes[0].getContext().getOptionValidatorListing()),
+      nodes[0].getContext().getOptionManager())
     .withCredentials(UserCredentials.newBuilder()
         .setUserName("foo")
         .build())
@@ -163,7 +165,9 @@ public class TestPauseInjection extends BaseTestQuery {
       final SabotContext nodeContext2 = node2.getContext();
 
       final UserSession session = UserSession.Builder.newBuilder()
-        .withSessionOptionManager(new SessionOptionManagerImpl(nodeContext1.getOptionManager()))
+        .withSessionOptionManager(
+          new SessionOptionManagerImpl(nodeContext1.getOptionValidatorListing()),
+          nodeContext1.getOptionManager())
         .withCredentials(UserCredentials.newBuilder()
           .setUserName("foo")
           .build())

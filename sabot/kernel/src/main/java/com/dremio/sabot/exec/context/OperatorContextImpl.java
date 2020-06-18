@@ -18,6 +18,9 @@ package com.dremio.sabot.exec.context;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
+import javax.inject.Provider;
+
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.memory.OutOfMemoryException;
@@ -33,6 +36,7 @@ import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.selection.SelectionVector2;
@@ -44,8 +48,6 @@ import com.dremio.sabot.op.filter.VectorContainerWithSV;
 import com.dremio.service.spill.SpillService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
-
-import io.netty.buffer.ArrowBuf;
 
 @VisibleForTesting
 public class OperatorContextImpl extends OperatorContext implements AutoCloseable {
@@ -68,6 +70,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
   private final OptionManager optionManager;
   private final int targetBatchSize;
   private final NodeDebugContextProvider nodeDebugContextProvider;
+  private final Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider;
   private final SpillService spillService;
   private final EndpointsIndex endpointsIndex;
 
@@ -89,12 +92,14 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
     int targetBatchSize,
     TunnelProvider tunnelProvider,
     List<FragmentAssignment> assignments,
+    Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider,
     EndpointsIndex endpointsIndex) throws OutOfMemoryException {
     this.config = config;
     this.handle = handle;
     this.allocator = allocator;
     this.fragmentOutputAllocator = fragmentOutputAllocator;
     this.popConfig = popConfig;
+    this.nodeEndpointProvider = nodeEndpointProvider;
 
     //some unit test cases pass null optionManager
     final int bufCapacity = (optionManager != null) ?
@@ -122,7 +127,7 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
       ) {
 
     this(config, null, null, allocator, allocator, null, null, null, null, null, null,
-      optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), null);
+      optionManager, null, NodeDebugContextProvider.NOOP, targetBatchSize, null, ImmutableList.of(), null, null);
   }
 
   @Override
@@ -177,6 +182,11 @@ public class OperatorContextImpl extends OperatorContext implements AutoCloseabl
 
   public EndpointsIndex getEndpointsIndex() {
     return endpointsIndex;
+  }
+
+  @Override
+  public Provider<CoordinationProtos.NodeEndpoint> getNodeEndpointProvider() {
+    return nodeEndpointProvider;
   }
 
   @Override

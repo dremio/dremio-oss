@@ -60,7 +60,6 @@ import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Pointer;
 import com.dremio.service.execselector.ExecutorSelectionContext;
 import com.dremio.service.execselector.ExecutorSelectionHandle;
-import com.dremio.service.execselector.ExecutorSelectionHandleImpl;
 import com.dremio.service.execselector.ExecutorSelectionService;
 import com.dremio.service.execselector.ExecutorSelectionUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -111,7 +110,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
     long sliceTarget = context.getPlannerSettings().getSliceTarget();
     this.parallelizationThreshold = sliceTarget > 0 ? sliceTarget : 1;
 
-    final long configuredMaxWidthPerNode = context.getClusterResourceInformation().getAverageExecutorCores(optionManager);
+    final long configuredMaxWidthPerNode = context.getGroupResourceInformation().getAverageExecutorCores(optionManager);
     if (configuredMaxWidthPerNode == 0) {
       ExecutorSelectionUtils.throwEngineOffline(resourceSchedulingDecisionInfo.getQueueTag());
     }
@@ -123,7 +122,9 @@ public class SimpleParallelizer implements ParallelizationParameters {
       logger.debug("Cluster load {} exceeded cutoff, max_width_factor = {}. current max_width = {}",
         clusterLoad, maxWidthFactor, this.maxWidthPerNode);
     }
-    this.executionMap = new ExecutionNodeMap(context.getActiveEndpoints());
+    final ExecutorSelectionHandle handle =
+      executorSelectionService.getAllActiveExecutors(new ExecutorSelectionContext(resourceSchedulingDecisionInfo));
+    this.executionMap = new ExecutionNodeMap(handle.getExecutors());
     this.maxGlobalWidth = (int) optionManager.getOption(ExecConstants.MAX_WIDTH_GLOBAL);
     this.affinityFactor = optionManager.getOption(ExecConstants.AFFINITY_FACTOR);
     this.useNewAssignmentCreator = !optionManager.getOption(ExecConstants.OLD_ASSIGNMENT_CREATOR);
@@ -284,9 +285,11 @@ public class SimpleParallelizer implements ParallelizationParameters {
     }
     int idealNumNodes = IntMath.divide(idealNumFragments, targetNumFragsPerNode, RoundingMode.CEILING);
     final Stopwatch stopwatch = Stopwatch.createStarted();
+    final ExecutorSelectionContext context =
+      new ExecutorSelectionContext(resourceSchedulingDecisionInfo);
     final ExecutorSelectionHandle handle = hasHardAffinity.value
-        ? new ExecutorSelectionHandleImpl(queryContext.getActiveEndpoints())
-        : executorSelectionService.getExecutors(idealNumNodes, new ExecutorSelectionContext(resourceSchedulingDecisionInfo));
+        ? executorSelectionService.getAllActiveExecutors(context)
+        : executorSelectionService.getExecutors(idealNumNodes, context);
     final ExecutionPlanningResources executionPlanningResources = new ExecutionPlanningResources(planningSet, handle);
     final Collection<NodeEndpoint> selectedEndpoints = handle.getExecutors();
     stopwatch.stop();

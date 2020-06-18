@@ -97,7 +97,7 @@ public class LegacyKVStoreAdapter<K, V> implements LegacyKVStore<K, V> {
   @Override
   @SuppressWarnings("unchecked")
   public Iterable<Map.Entry<K, V>> find(LegacyFindByRange<K> find) {
-    FindByRange findByRange =
+    FindByRange<K> findByRange =
       new ImmutableFindByRange.Builder()
         .setEnd(find.getEnd())
         .setStart(find.getStart())

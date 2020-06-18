@@ -85,13 +85,15 @@ public class ExecutionPlanCreator {
     final PhysicalPlan plan,
     ResourceSet allocationSet,
     PlanningSet planningSet,
-    ExecutorSelectionService executorSelectionService
+    ExecutorSelectionService executorSelectionService,
+    ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo
   ) throws ExecutionSetupException {
 
     final Root rootOperator = plan.getRoot();
     final Fragment rootOperatorFragment = rootOperator.accept(MakeFragmentsVisitor.INSTANCE, null);
 
-    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer, executorSelectionService);
+    final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext,
+      observer, executorSelectionService, resourceSchedulingDecisionInfo);
     final long queryPerNodeFromResourceAllocation =  allocationSet.getPerNodeQueryMemoryLimit();
     planningSet.setMemoryAllocationPerNode(queryPerNodeFromResourceAllocation);
 
@@ -99,7 +101,7 @@ public class ExecutionPlanCreator {
     MemoryAllocationUtilities.setupBoundedMemoryAllocations(
         plan,
         queryContext.getOptions(),
-        queryContext.getClusterResourceInformation(),
+        queryContext.getGroupResourceInformation(),
         planningSet,
         queryPerNodeFromResourceAllocation);
 
@@ -151,6 +153,11 @@ public class ExecutionPlanCreator {
     ExecutorSelectionService executorSelectionService = new ExecutorSelectionService() {
       @Override
       public ExecutorSelectionHandle getExecutors(int desiredNumExecutors, ExecutorSelectionContext executorSelectionContext) {
+        return new ExecutorSelectionHandleImpl(endpoints);
+      }
+
+      @Override
+      public ExecutorSelectionHandle getAllActiveExecutors(ExecutorSelectionContext executorSelectionContext) {
         return new ExecutorSelectionHandleImpl(endpoints);
       }
 

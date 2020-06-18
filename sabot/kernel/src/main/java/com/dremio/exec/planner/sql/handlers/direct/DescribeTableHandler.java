@@ -29,7 +29,7 @@ import org.apache.calcite.tools.RelConversionException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.DremioPrepareTable;
-import com.dremio.exec.store.ischema.tables.ColumnsTable;
+import com.dremio.exec.store.ischema.Column;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Joiner;
@@ -71,7 +71,7 @@ public class DescribeTableHandler implements SqlDirectHandler<DescribeTableHandl
       }
 
       for(RelDataTypeField field : type.getFieldList()){
-        ColumnsTable.Column c = new ColumnsTable.Column("dremio", path.getParent().toUnescapedString(), path.getLeaf(), field);
+        Column c = new Column("dremio", path.getParent().toUnescapedString(), path.getLeaf(), field);
         if(column == null || column.equals(field.getName())){
           Integer precision = c.NUMERIC_PRECISION;
           Integer scale = c.NUMERIC_SCALE;

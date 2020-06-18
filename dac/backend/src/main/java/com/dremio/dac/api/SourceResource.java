@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.api;
 
+import static com.dremio.dac.server.UIOptions.ALLOW_GLUE_SOURCE;
 import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.util.List;
@@ -175,9 +176,15 @@ public class SourceResource {
     final ConnectionReader connectionReader = sabotContext.getConnectionReaderProvider().get();
     final ResponseList<SourceTypeTemplate> types = new ResponseList<>();
 
+    final boolean showGlue = sabotContext.getOptionManager().getOption(ALLOW_GLUE_SOURCE);
+
     for(Class<? extends ConnectionConf<?, ?>> input : connectionReader.getAllConnectionConfs().values()) {
       // we can't use isInternal as its not a static method, instead we only show listable sources
       if (isListable(input)) {
+        // glue is hidden by default
+        if (!showGlue && input.getAnnotation(SourceType.class).value().equals("AWSGLUE")) {
+          continue;
+        }
         types.add(SourceTypeTemplate.fromSourceClass(input, false));
       }
     }

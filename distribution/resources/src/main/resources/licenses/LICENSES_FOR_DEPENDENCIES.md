@@ -102,12 +102,12 @@
 |API Common                                                  |1.8.1               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |array.prototype.flat                                        |1.2.1               |MIT                 |
-|Arrow Flight Core                                           |0.18.0-20200505155812-4c5cbe98c7-dremio|Apache 2.0          |
-|Arrow Flight GRPC                                           |0.18.0-20200505155812-4c5cbe98c7-dremio|Apache 2.0          |
-|Arrow Format                                                |0.18.0-20200505155812-4c5cbe98c7-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |0.18.0-20200505155812-4c5cbe98c7-dremio|Apache 2.0          |
-|Arrow Memory                                                |0.18.0-20200505155812-4c5cbe98c7-dremio|Apache 2.0          |
-|Arrow Vectors                                               |0.18.0-20200505155812-4c5cbe98c7-dremio|Apache 2.0          |
+|Arrow Flight Core                                           |0.18.0-20200611130341-f4a85bd19b-dremio|Apache 2.0          |
+|Arrow Flight GRPC                                           |0.18.0-20200611130341-f4a85bd19b-dremio|Apache 2.0          |
+|Arrow Format                                                |0.18.0-20200611130341-f4a85bd19b-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |0.18.0-20200611130341-f4a85bd19b-dremio|Apache 2.0          |
+|Arrow Memory                                                |0.18.0-20200611130341-f4a85bd19b-dremio|Apache 2.0          |
+|Arrow Vectors                                               |0.18.0-20200611130341-f4a85bd19b-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -118,30 +118,30 @@
 |attr-accept                                                 |1.1.0               |MIT                 |
 |AutoValue Annotations                                       |1.6.5               |Apache 2.0          |
 |AWS Event Stream                                            |1.0.1               |Apache 2.0          |
-|AWS Java SDK :: Annotations                                 |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: Arns                                        |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: Auth                                        |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: AWS Core                                    |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: Core :: Protocols :: AWS Json Protocol      |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: Core :: Protocols :: AWS Query Protocol     |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: Core :: Protocols :: AWS Xml Protocol       |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: Core :: Protocols :: Protocol Core          |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: HTTP Client Interface                       |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: HTTP Clients :: Apache                      |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: HTTP Clients :: Netty Non Blocking I/O      |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: Profiles                                    |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: Regions                                     |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: SDK Core                                    |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: Services :: Amazon S3                       |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS Secrets Manager             |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: Services :: AWS STS                         |2.11.11             |Apache 2.0          |
-|AWS Java SDK :: Utilities                                   |2.11.11             |Apache 2.0          |
+|AWS Java SDK :: Annotations                                 |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: Arns                                        |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: Auth                                        |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: AWS Core                                    |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: Core :: Protocols :: AWS Json Protocol      |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: Core :: Protocols :: AWS Query Protocol     |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: Core :: Protocols :: AWS Xml Protocol       |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: Core :: Protocols :: Protocol Core          |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: HTTP Client Interface                       |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: HTTP Clients :: Apache                      |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: HTTP Clients :: Netty Non Blocking I/O      |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: Profiles                                    |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: Regions                                     |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: SDK Core                                    |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: Services :: Amazon S3                       |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: Services :: AWS Secrets Manager             |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: Services :: AWS STS                         |2.11.13             |Apache 2.0          |
+|AWS Java SDK :: Utilities                                   |2.11.13             |Apache 2.0          |
 |AWS Java SDK For Amazon DynamoDB                            |1.11.761            |Apache 2.0          |
 |AWS Java SDK for AWS STS                                    |1.11.761            |Apache 2.0          |
 |AWS SDK for AWS KMS                                         |1.11.761            |Apache 2.0          |
 |AWS SDK for AWS S3                                          |1.11.761            |Apache 2.0          |
 |AWS SDK for Java - Core                                     |1.11.761            |Apache 2.0          |
-|Azure Data Lake Store - Java client SDK                     |2.3.3-201901300025380807-2bdda72|MIT License         |
+|Azure Data Lake Store - Java client SDK                     |2.3.3-202004281751280881-379c12c|MIT License         |
 |babel-plugin-transform-runtime                              |6.23.0              |MIT                 |
 |babel-runtime                                               |6.25.0              |MIT                 |
 |base16                                                      |1.0.0               |MIT                 |
@@ -221,12 +221,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |4.3.1               |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |4.3.1               |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |4.3.1               |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |4.3.1               |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |4.3.1               |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |4.3.1               |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |4.5.0               |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |4.5.0               |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |4.5.0               |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |4.5.0               |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |4.5.0               |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |4.5.0               |Dremio Free Software License 1.0|
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
 |element-closest                                             |2.0.2               |CC0-1.0             |
@@ -442,7 +442,7 @@
 |JMES Path Query library                                     |1.11.761            |Apache 2.0          |
 |Joda-Time                                                   |2.9                 |Apache 2.0          |
 |JOpt Simple                                                 |5.0.2               |MIT                 |
-|jquery                                                      |3.4.1               |MIT                 |
+|jquery                                                      |3.5.1               |MIT                 |
 |jquery-param                                                |0.2.0               |MIT                 |
 |js-tokens                                                   |3.0.2               |MIT                 |
 |JSch                                                        |0.1.54              |BSD 3-clause        |

@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.work.foreman;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -31,6 +32,7 @@ import com.dremio.exec.planner.observer.AttemptObservers;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.serialization.RelSerializerFactory;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.work.protector.UserRequest;
 import com.dremio.exec.work.protector.UserResult;
 import com.dremio.options.OptionManager;
@@ -69,6 +71,7 @@ class AttemptProfileTracker {
   private long endPlanningTime;  // NB: tracks the end of both planning and resource scheduling. Name match the profile object, which was kept intact for legacy reasons
   private long startTime;
   private long endTime;
+  private List<AttemptEvent> stateList = new ArrayList<>();
 
   private volatile UserBitShared.QueryProfile planningProfile;
   private volatile UserBitShared.QueryId prepareId;
@@ -181,6 +184,9 @@ class AttemptProfileTracker {
     if (endPlanningTime > 0) {
       builder.setPlanningEnd(endPlanningTime);
     }
+    if(stateList != null) {
+      builder.clearStateList().addAllStateList(stateList);
+    }
 
     try {
       builder.setNonDefaultOptionsJSON(JSON_PRETTY_SERIALIZER.writeValueAsString(queryContext.getNonDefaultOptions()));
@@ -285,6 +291,9 @@ class AttemptProfileTracker {
   // add latest state to the profile builder.
   private void addLatestState(UserBitShared.QueryProfile.Builder builder) {
     builder.setState(queryStateSupplier.get());
+    if (stateList != null) {
+      builder.clearStateList().addAllStateList(stateList);
+    }
 
     // update times.
     builder.setStart(startTime);
@@ -321,6 +330,11 @@ class AttemptProfileTracker {
     @Override
     public void resourcesScheduled(ResourceSchedulingDecisionInfo info) {
       resourceSchedulingDecisionInfo = info;
+    }
+
+    @Override
+    public void beginState(AttemptEvent event) {
+      stateList.add(event);
     }
   }
 

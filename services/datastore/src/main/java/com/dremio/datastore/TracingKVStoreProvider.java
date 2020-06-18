@@ -103,7 +103,7 @@ public class TracingKVStoreProvider implements KVStoreProvider {
 
   @Override
   @SuppressWarnings("unchecked")
-  public <T extends KVStore<?, ?>> T getStore(Class<? extends StoreCreationFunction<T>> creator) {
+  public <K, V, T extends KVStore<K, V>> T getStore(Class<? extends StoreCreationFunction<K, V, T>> creator) {
     final KVStore<?, ?> ret = kvProvider.getStore(creator);
 
     if (ret instanceof IndexedStore) {

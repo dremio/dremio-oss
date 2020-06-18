@@ -98,7 +98,7 @@ public class JobDataWrapper implements JobData {
   public static JobDataFragmentWrapper getJobData(JobsService jobsService, BufferAllocator allocator, JobId jobId, int offset, int limit) {
     try (final FlightStream stream = jobsService.getJobsClient().getFlightClient()
       .getStream(new JobsFlightTicket(jobId.getId(), offset, limit).toTicket())) {
-      List<RecordBatchHolder> batches = JobDataClientUtils.getData(stream, allocator, offset, limit);
+      List<RecordBatchHolder> batches = JobDataClientUtils.getData(stream, allocator, limit);
       return new JobDataFragmentWrapper(offset, ReleasingData.from(new RecordBatches(batches), jobId));
     } catch (FlightRuntimeException fre) {
       Optional<UserException> ue = JobsRpcUtils.fromFlightRuntimeException(fre);

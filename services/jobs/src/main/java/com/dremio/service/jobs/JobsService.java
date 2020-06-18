@@ -18,6 +18,7 @@ package com.dremio.service.jobs;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.service.Service;
 import com.dremio.service.job.CancelJobRequest;
+import com.dremio.service.job.CancelReflectionJobRequest;
 import com.dremio.service.job.JobCounts;
 import com.dremio.service.job.JobCountsRequest;
 import com.dremio.service.job.JobDetails;
@@ -28,7 +29,11 @@ import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.JobsWithParentDatasetRequest;
 import com.dremio.service.job.QueryProfileRequest;
+import com.dremio.service.job.ReflectionJobDetailsRequest;
+import com.dremio.service.job.ReflectionJobProfileRequest;
+import com.dremio.service.job.ReflectionJobSummaryRequest;
 import com.dremio.service.job.SearchJobsRequest;
+import com.dremio.service.job.SearchReflectionJobsRequest;
 import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.proto.JobId;
 
@@ -103,6 +108,7 @@ public interface JobsService extends Service {
    * @return
    */
   QueryProfile getProfile(QueryProfileRequest queryProfileRequest) throws JobNotFoundException;
+
   /**
    * Cancel the provided jobId as the provided user.
    *
@@ -127,6 +133,67 @@ public interface JobsService extends Service {
    * @return Jobs Client
    */
   JobsClient getJobsClient();
+
+  /**
+   * Get job summary for the job
+   *
+   * @param jobSummaryRequest JobSummaryRequest
+   * @return              JobSummary for a given request
+   * @throws JobNotFoundException if job is not found
+   * @throws ReflectionJobValidationException if reflectionId doesn't belong to the job.
+   */
+  JobSummary getReflectionJobSummary(ReflectionJobSummaryRequest jobSummaryRequest) throws JobNotFoundException, ReflectionJobValidationException;
+
+
+  /**
+   * Get details of a job.
+   * @param request ReflectionJobDetails Request
+   * @return                  Job for given request
+   * @throws JobNotFoundException if job is not found
+   * @throws ReflectionJobValidationException if reflectionId doesn't belong to the job.
+   */
+  JobDetails getReflectionJobDetails(ReflectionJobDetailsRequest request) throws JobNotFoundException, ReflectionJobValidationException;
+
+
+  /**
+   * Cancel the provided jobId with reflectionId as the provided user.
+   *
+   * Cancellation is asynchronous.
+   *
+   * @param request cancellation request
+   */
+  void cancelReflectionJob(CancelReflectionJobRequest request) throws JobException;
+
+
+  /**
+   * Register a listener that listens for events associated with a particular job with given reflectionId.
+   * <p>
+   * Throws exception if the requested JobId is not currently active.
+   *
+   * @param jobId job to listen to
+   * @param userName user issuing the request
+   * @param reflectionId reflectionId associated with the job
+   * @param listener The listener to be informed of job update events.
+   */
+  void registerReflectionJobListener(JobId jobId, String userName, String reflectionId, ExternalStatusListener listener);
+
+
+  /**
+   * Search jobs.
+   *
+   * @param request request
+   * @return jobs that match
+   */
+  Iterable<JobSummary> searchReflectionJobs(SearchReflectionJobsRequest request);
+
+
+  /**
+   * Retrieve the query profile of jobId and attempt
+   *
+   * @param request for QueryProfile
+   * @return
+   */
+  QueryProfile getReflectionJobProfile(ReflectionJobProfileRequest request) throws JobNotFoundException, ReflectionJobValidationException;
 }
 
 

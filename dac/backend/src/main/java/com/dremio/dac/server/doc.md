@@ -300,6 +300,13 @@
  - GET /job/{jobId}/r/{rowNum}/c/{columnName} (path params: jobId={com.dremio.service.job.proto.JobId}, rowNum={int}, columnName={String})   
    > `<=` java.lang.Object   
 
+ - POST /job/{jobId}/reflection/{reflectionId}/cancel (path params: jobId={String}, reflectionId={String})   
+   > `=>`   
+   > `<=` [com.dremio.dac.resource.NotificationResponse](#class-comdremiodacresourcenotificationresponse)   
+
+ - GET /job/{jobId}/reflection/{reflectionId}/details (path params: jobId={String}, reflectionId={String})   
+   > `<=` [com.dremio.dac.model.job.JobDetailsUI](#class-comdremiodacmodeljobjobdetailsui)   
+
  - POST /job/{jobId}/cancel (path params: jobId={String})   
    > `=>`   
    > `<=` [com.dremio.dac.resource.NotificationResponse](#class-comdremiodacresourcenotificationresponse)   
@@ -311,6 +318,9 @@
 ## Resource defined by class com.dremio.dac.resource.JobsResource
 
  - GET /jobs?filter={String}&sort={String}&order={com.dremio.dac.model.job.ResultOrder}&offset={int}0&limit={int}100   
+   > `<=` [com.dremio.dac.model.job.JobsUI](#class-comdremiodacmodeljobjobsui)   
+
+ - GET /jobs/reflection/{reflectionId}?offset={int}0&limit={int}100 (path params: reflectionId={String})   
    > `<=` [com.dremio.dac.model.job.JobsUI](#class-comdremiodacmodeljobjobsui)   
 
 
@@ -343,11 +353,20 @@
  - GET /profiles/cancel/{queryid} (path params: queryid={String})   
    > `<=` [com.dremio.dac.resource.NotificationResponse](#class-comdremiodacresourcenotificationresponse)   
 
+ - GET /profiles/cancel/{queryid}/reflection/{reflectionId} (path params: queryid={String}, reflectionId={String})   
+   > `<=` [com.dremio.dac.resource.NotificationResponse](#class-comdremiodacresourcenotificationresponse)   
+
+ - GET /profiles/reflection/{reflectionId}/{queryid}.json?attempt={int}0 (path params: queryid={String}, reflectionId={String})   
+   > `<=` String   
+
  - GET /profiles/{queryid}?attempt={int}0 (path params: queryid={String})   
    > `<=` [org.glassfish.jersey.server.mvc.Viewable](#class-orgglassfishjerseyservermvcviewable)   
 
  - GET /profiles/{queryid}.json?attempt={int}0 (path params: queryid={String})   
    > `<=` String   
+
+ - GET /profiles/{queryid}/reflection/{reflectionId}?attempt={int}0 (path params: queryid={String}, reflectionId={String})   
+   > `<=` [org.glassfish.jersey.server.mvc.Viewable](#class-orgglassfishjerseyservermvcviewable)   
 
 
 ## Resource defined by class com.dremio.provision.resource.ProvisioningResource
@@ -858,7 +877,7 @@
     owner: "abc",
     preview: true | false,
     recordsReturned: 1,
-    state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+    state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
     transformDescription: "abc",
     versionedResourcePath: "abc",
   },
@@ -1055,7 +1074,7 @@
         owner: "abc",
         preview: true | false,
         recordsReturned: 1,
-        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
         transformDescription: "abc",
         versionedResourcePath: "abc",
       },
@@ -1104,7 +1123,7 @@
       owner: "abc",
       preview: true | false,
       recordsReturned: 1,
-      state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+      state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
       transformDescription: "abc",
       versionedResourcePath: "abc",
     },
@@ -1232,7 +1251,7 @@
         owner: "abc",
         preview: true | false,
         recordsReturned: 1,
-        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
         transformDescription: "abc",
         versionedResourcePath: "abc",
       },
@@ -1294,7 +1313,7 @@
         owner: "abc",
         preview: true | false,
         recordsReturned: 1,
-        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
         transformDescription: "abc",
         versionedResourcePath: "abc",
       },
@@ -1355,7 +1374,7 @@
         owner: "abc",
         preview: true | false,
         recordsReturned: 1,
-        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+        state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
         transformDescription: "abc",
         versionedResourcePath: "abc",
       },
@@ -1732,7 +1751,7 @@
           owner: "abc",
           preview: true | false,
           recordsReturned: 1,
-          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
           transformDescription: "abc",
           versionedResourcePath: "abc",
         },
@@ -1963,12 +1982,19 @@
   attemptDetails: [
     {
       commandPoolWaitTime: 1,
-      enqueuedTime: 1,
+      engineStartTime: 1,
+      executionPlanningTime: 1,
       executionTime: 1,
+      metadataRetrievalTime: 1,
+      pendingTime: 1,
       planningTime: 1,
       profileUrl: "abc",
+      queuedTime: 1,
       reason: "abc",
-      result: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+      result: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
+      runningTime: 1,
+      startingTime: 1,
+      totalTime: 1,
     },
     ...
   ],
@@ -2075,7 +2101,7 @@
   spilled: true | false,
   sql: "abc",
   startTime: 1,
-  state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+  state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
   stats: {
     inputBytes: 1,
     inputRecords: 1,
@@ -2205,6 +2231,7 @@
     endpoint: {
       address: "abc",
       availableCores: 1,
+      conduitPort: 1,
       engineId: {
         id: "abc",
       },
@@ -2479,7 +2506,7 @@
       user: "abc",
     },
     reason: "NONE" | "OUT_OF_MEMORY" | "SCHEMA_CHANGE" | "INVALID_DATASET_METADATA" | "JSON_FIELD_CHANGE" | "RESOURCE_TIMEOUT",
-    state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+    state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
     stats: {
       inputBytes: 1,
       inputRecords: 1,
@@ -2537,7 +2564,7 @@
       snowflakeAccelerated: true | false,
       spilled: true | false,
       startTime: 1,
-      state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+      state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
       user: "abc",
     },
     ...
@@ -2790,7 +2817,7 @@
           owner: "abc",
           preview: true | false,
           recordsReturned: 1,
-          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
           transformDescription: "abc",
           versionedResourcePath: "abc",
         },
@@ -3137,7 +3164,7 @@
               owner: "abc",
               preview: true | false,
               recordsReturned: 1,
-              state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+              state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
               transformDescription: "abc",
               versionedResourcePath: "abc",
             },
@@ -3479,7 +3506,7 @@
           owner: "abc",
           preview: true | false,
           recordsReturned: 1,
-          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
           transformDescription: "abc",
           versionedResourcePath: "abc",
         },
@@ -3805,7 +3832,7 @@
           owner: "abc",
           preview: true | false,
           recordsReturned: 1,
-          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+          state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
           transformDescription: "abc",
           versionedResourcePath: "abc",
         },
@@ -4120,7 +4147,7 @@
               owner: "abc",
               preview: true | false,
               recordsReturned: 1,
-              state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING",
+              state: "NOT_SUBMITTED" | "STARTING" | "RUNNING" | "COMPLETED" | "CANCELED" | "FAILED" | "CANCELLATION_REQUESTED" | "ENQUEUED" | "PLANNING" | "PENDING" | "METADATA_RETRIEVAL" | "QUEUED" | "ENGINE_START" | "EXECUTION_PLANNING" | "INVALID_STATE",
               transformDescription: "abc",
               versionedResourcePath: "abc",
             },

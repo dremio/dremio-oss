@@ -54,12 +54,17 @@ export default class JobStateIcon extends PureComponent {
 
 const icons = {
   'NOT_SUBMITTED': 'Ellipsis',
-  'STARTING': 'Ellipsis',
+  'STARTING': 'Starting',
   'RUNNING': { src: 'Loader', className: 'spinner' },
   'COMPLETED': 'OKSolid',
   'CANCELED': 'Canceled',
   'FAILED': 'ErrorSolid',
   'CANCELLATION_REQUESTED': 'CanceledGray',
   'ENQUEUED': 'Ellipsis',
-  'PLANNING': 'Ellipsis'
+  'PLANNING': 'Planning',
+  'PENDING': 'PendingDiamond',
+  'METADATA_RETRIEVAL': 'Planning',
+  'QUEUED': 'Queued',
+  'ENGINE_START': 'EngineStart',
+  'EXECUTION_PLANNING': 'Starting'
 };

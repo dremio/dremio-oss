@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -53,8 +54,6 @@ import com.dremio.service.spill.DefaultSpillServiceOptions;
 import com.dremio.service.spill.SpillService;
 import com.dremio.service.spill.SpillServiceImpl;
 import com.dremio.test.AllocatorRule;
-
-import io.netty.buffer.ArrowBuf;
 
 public class TestSpoolingBuffer extends ExecTest {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(TestSpoolingBuffer.class);

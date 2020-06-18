@@ -42,6 +42,7 @@ import com.dremio.exec.physical.base.Writer;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.fragment.Wrapper;
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
@@ -170,6 +171,76 @@ public final class JobsServiceUtil {
       return JobState.FAILED;
     default:
       return JobState.NOT_SUBMITTED;
+    }
+  }
+
+  /**
+   * Returns job status, given attempt state.
+   *
+   * @param state attempt state
+   * @return job status
+   */
+  static JobState attemptStatusToJobStatus(AttemptEvent.State state) {
+    switch (state) {
+      case METADATA_RETRIEVAL:
+        return com.dremio.service.job.proto.JobState.METADATA_RETRIEVAL;
+      case STARTING:
+        return com.dremio.service.job.proto.JobState.STARTING;
+      case PLANNING:
+        return com.dremio.service.job.proto.JobState.PLANNING;
+      case RUNNING:
+        return com.dremio.service.job.proto.JobState.RUNNING;
+      case COMPLETED:
+        return com.dremio.service.job.proto.JobState.COMPLETED;
+      case CANCELED:
+        return com.dremio.service.job.proto.JobState.CANCELED;
+      case FAILED:
+        return com.dremio.service.job.proto.JobState.FAILED;
+      case QUEUED:
+        return com.dremio.service.job.proto.JobState.QUEUED;
+      case PENDING:
+        return com.dremio.service.job.proto.JobState.PENDING;
+      case ENGINE_START:
+        return com.dremio.service.job.proto.JobState.ENGINE_START;
+      case EXECUTION_PLANNING:
+        return com.dremio.service.job.proto.JobState.EXECUTION_PLANNING;
+      default:
+        return com.dremio.service.job.proto.JobState.INVALID_STATE;
+    }
+  }
+
+  /**
+   * convert proto to beans external state
+   *
+   * @param state external state
+   * @return external status
+   */
+  static com.dremio.exec.proto.beans.AttemptEvent.State convertAttemptStatus(AttemptEvent.State state) {
+    switch (state) {
+      case METADATA_RETRIEVAL:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.METADATA_RETRIEVAL;
+      case STARTING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.STARTING;
+      case PLANNING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.PLANNING;
+      case RUNNING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.RUNNING;
+      case COMPLETED:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.COMPLETED;
+      case CANCELED:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.CANCELED;
+      case FAILED:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.FAILED;
+      case QUEUED:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.QUEUED;
+      case PENDING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.PENDING;
+      case ENGINE_START:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.ENGINE_START;
+      case EXECUTION_PLANNING:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.EXECUTION_PLANNING;
+      default:
+        return com.dremio.exec.proto.beans.AttemptEvent.State.INVALID_STATE;
     }
   }
 
@@ -325,7 +396,9 @@ public final class JobsServiceUtil {
       .setState(JobsProtoUtil.toStuff(request.getJobState()))
       .setInfo(getJobInfo(request))
       .setAttemptId(request.getAttemptId())
-      .setEndpoint(JobsProtoUtil.toStuff(request.getEndpoint())));
+      .setEndpoint(JobsProtoUtil.toStuff(request.getEndpoint()))
+      .setStateListList(JobsProtoUtil.toBuf2(request.getStateListList())));
+
     return jobAttempts;
   }
 
@@ -340,10 +413,19 @@ public final class JobsServiceUtil {
     final JobInfo firstJobAttemptInfo = firstJobAttempt.getInfo();
     final JobAttempt lastJobAttempt = job.getJobAttempt();
     final JobInfo lastJobAttemptInfo = lastJobAttempt.getInfo();
+    final List<com.dremio.exec.proto.beans.AttemptEvent> stateList;
+    synchronized (lastJobAttempt) {
+      if (lastJobAttempt.getStateListList() == null) {
+        stateList = new ArrayList<>();
+      } else {
+        stateList = new ArrayList<>(lastJobAttempt.getStateListList());
+      }
+    }
 
     JobSummary.Builder jobSummaryBuilder = JobSummary.newBuilder()
       .setJobId(JobsProtoUtil.toBuf(job.getJobId()))
       .setJobState(JobsProtoUtil.toBuf(lastJobAttempt.getState()))
+      .addAllStateList(JobsProtoUtil.toStuff2(stateList))
       .setUser(firstJobAttemptInfo.getUser())
       .addAllDatasetPath(lastJobAttemptInfo.getDatasetPathList())
       .setRequestType(JobsProtoUtil.toBuf(lastJobAttemptInfo.getRequestType()))
@@ -403,10 +485,15 @@ public final class JobsServiceUtil {
 
   static JobDetails toJobDetails(Job job, boolean provideResultInfo) {
     final JobDetails.Builder jobDetailsBuilder = JobDetails.newBuilder();
-    jobDetailsBuilder.setJobId(JobsProtoUtil.toBuf(job.getJobId()))
-      .addAllAttempts(job.getAttempts().stream()
-        .map(JobsProtoUtil::toBuf)
-        .collect(Collectors.toList()))
+    int numAttempts = job.getAttempts().size();
+    for (int i = 0; i <  numAttempts; ++i) {
+      JobAttempt attempt = job.getAttempts().get(i);
+      synchronized (attempt) {
+        jobDetailsBuilder.addAttempts(JobsProtoUtil.toBuf(attempt));
+      }
+    }
+    jobDetailsBuilder
+      .setJobId(JobsProtoUtil.toBuf(job.getJobId()))
       .setCompleted(job.isCompleted());
 
     if (provideResultInfo && job.getJobAttempt().getState() == JobState.COMPLETED) {

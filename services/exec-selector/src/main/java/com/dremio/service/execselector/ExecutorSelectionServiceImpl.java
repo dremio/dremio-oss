@@ -15,6 +15,7 @@
  */
 package com.dremio.service.execselector;
 
+import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -26,6 +27,7 @@ import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.NodeStatusListener;
+import com.dremio.service.coordinator.ServiceSet;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
@@ -145,11 +147,19 @@ public class ExecutorSelectionServiceImpl implements ExecutorSelectionService {
 
   @Override
   public void close() throws Exception {
-    clusterCoordinatorProvider.get()
-        .getServiceSet(ClusterCoordinator.Role.EXECUTOR)
-        .removeNodeStatusListener(nodeStatusListener);
+    final ServiceSet serviceSet = clusterCoordinatorProvider.get().getServiceSet(ClusterCoordinator.Role.EXECUTOR);
+    if (serviceSet != null) {
+      serviceSet.removeNodeStatusListener(nodeStatusListener);
+    }
     eventQueue.close();
     closeSelector();
+  }
+
+  @Override
+  public ExecutorSelectionHandle getAllActiveExecutors(ExecutorSelectionContext executorSelectionContext) {
+    Collection<NodeEndpoint> nodeEndpoints =
+      clusterCoordinatorProvider.get().getServiceSet(ClusterCoordinator.Role.EXECUTOR).getAvailableEndpoints();
+    return new ExecutorSelectionHandleImpl(nodeEndpoints);
   }
 
   @Override
@@ -224,5 +234,9 @@ public class ExecutorSelectionServiceImpl implements ExecutorSelectionService {
       AutoCloseables.close(selector);
       selector = null;
     }
+  }
+
+  ExecutorSelectorProvider getExecutorSelectorProvider() {
+    return executorSelectorProvider;
   }
 }

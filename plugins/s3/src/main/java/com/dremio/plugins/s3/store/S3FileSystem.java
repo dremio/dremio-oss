@@ -25,6 +25,8 @@ import static org.apache.hadoop.fs.s3a.Constants.SECURE_CONNECTIONS;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
@@ -38,7 +40,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import org.apache.arrow.util.VisibleForTesting;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -64,9 +65,10 @@ import com.dremio.exec.store.dfs.DremioFileSystemCache;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.plugins.util.ContainerFileSystem;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.FinalizablePhantomReference;
 import com.google.common.base.FinalizableReference;
 import com.google.common.base.FinalizableReferenceQueue;
-import com.google.common.base.FinalizableWeakReference;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -87,7 +89,6 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
 import software.amazon.awssdk.services.sts.model.GetCallerIdentityRequest;
-import software.amazon.awssdk.services.sts.model.StsException;
 
 /**
  * FileSystem implementation that treats multiple s3 buckets as a unified namespace
@@ -130,14 +131,13 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
       @Override
       public S3Client load(String bucket) {
         final S3Client syncClient = configClientBuilder(S3Client.builder(), bucket).build();
-        registerReference(syncClient, client -> {
+        return registerReference(S3Client.class, syncClient, client -> {
           try {
             syncClient.close();
           } catch (Exception e) {
             logger.warn("Failed to close the S3 sync client for bucket {}", e);
           }
         });
-        return syncClient;
       }
     });
 
@@ -154,7 +154,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         final AWSCredentialProviderList credentialsProvider = S3AUtils.createAWSCredentialProviderSet(S3_URI, clientKey.s3Config);
         final AmazonS3 s3Client = clientFactory.createS3Client(S3_URI, "", credentialsProvider);
 
-        registerReference(s3Client, client -> {
+        return registerReference(AmazonS3.class, s3Client, client -> {
           client.shutdown();
 
           try {
@@ -165,48 +165,58 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
             }
           } catch (Exception e) {
               logger.warn("Failed to close AWS credentials provider", e);
-            }
+          }
         });
-
-        return s3Client;
-
       }
     });
 
-  private AmazonS3 s3;
-  private boolean useWhitelistedBuckets;
+  @VisibleForTesting
+  protected AmazonS3 s3;
 
+  private boolean useWhitelistedBuckets;
 
   /**
    * Register an object with a callback to clean up the object once no hard reference to the object
-   * exists.
-   *
-   * An important point is that finalizer should not directly refer to the object itself, otherwise the object
-   * will never be garbage collected!
+   * exists and get a proxy to the object to be used for the cache
    *
    * @param <T>
+   * @param iface the object interface to be proxied
    * @param value
    * @param finalizer method invoked when the value is ready to be finalized
-   * @return
+   * @return a facade to the object to be used instead of value
    */
-  private static <T> T registerReference(T value, Consumer<T> finalizer) {
-    // Weak references vs Phatom references
-    // If using phantom references, the referent will always be null
-    // but in our scenario we want the referent to be closed before being gc'ed, so using weak references instead
-    // so that object will be enqueued into the reference queue once ready to be finalized but before being reclaimed.
-    final FinalizableWeakReference<T> reference = new FinalizableWeakReference<T>(value, FINALIZABLE_REFERENCE_QUEUE) {
+  private static <T> T registerReference(Class<T> iface, T value, Consumer<T> finalizer) {
+    assert iface.isInterface();
+
+    @SuppressWarnings("unchecked")
+    final T proxy = (T) Proxy.newProxyInstance(iface.getClassLoader(), new Class<?>[] { iface },
+        (object, method, args) -> {
+          try {
+            return method.invoke(value, args);
+          } catch (InvocationTargetException e) {
+            throw e.getCause();
+          }
+        });
+
+    // Proxy object is intended to be cached and used by code.
+    // Once proxy is finalized, reference will be added to the queue and finalizeReference will be called, giving us a chance
+    // to finalize properly value
+    // Note that value cannot be garbaged collected since there's a strong reference between value and reference (captured by
+    // the anonymous instance
+    final FinalizablePhantomReference<T> reference = new FinalizablePhantomReference<T>(proxy, FINALIZABLE_REFERENCE_QUEUE) {
       @Override
       public void finalizeReferent() {
-        // remove reference from reference list
+        // remove reference from reference list (references) to avoid it to grow constantly over time
+        // it will also allow for value to be garbage collected after the method returns
         REFERENCES.remove(this);
-        finalizer.accept(this.get());
+        finalizer.accept(value);
       }
     };
 
-    // Register the reference
+    // Register the reference -  important to make sure that reference is not garbaged collected
     REFERENCES.add(reference);
 
-    return value;
+    return proxy;
   }
 
   public S3FileSystem() {
@@ -260,8 +270,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
           stsClient.getCallerIdentity(request);
           return true;
         });
-      } catch (StsException | Retryer.OperationFailedAfterRetriesException e) {
-        throw new RuntimeException(String.format("Credential Verification failed. Exception: %s ", e.getMessage()), e);
+      } catch (Retryer.OperationFailedAfterRetriesException e) {
+        throw new RuntimeException("Credential Verification failed.", e);
       }
   }
 
@@ -294,17 +304,28 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
   }
 
   @Override
-  protected ContainerHolder getUnknownContainer(String name) {
-    // no lazy loading
-
+  protected ContainerHolder getUnknownContainer(String containerName) throws IOException {
     // Per docs, if invalid security credentials are used to execute
     // AmazonS3#doesBucketExist method, the client is not able to distinguish
     // between bucket permission errors and invalid credential errors, and the
     // method could return an incorrect result.
 
-    // New S3 buckets will be visible on the next refresh.
-
-    return null;
+    // Coordinator node gets the new bucket information by overall refresh in the containerMap
+    // This method is implemented only for the cases when executor is falling behind.
+    boolean containerFound = false;
+    try {
+      // getBucketLocation ensures that given user account has permissions for the bucket.
+      containerFound = s3.doesBucketExistV2(containerName) &&
+        s3.getBucketAcl(containerName).getGrantsAsList().stream()
+          .anyMatch(g -> g.getGrantee().getIdentifier().equals(s3.getS3AccountOwner().getId()));
+    } catch (AmazonS3Exception e) {
+      if (e.getMessage().contains("Access Denied")) {
+        // Ignorable because user doesn't have permissions. We'll omit this case.
+        logger.info("Ignoring \"" + containerName + "\" because of logged in AWS account doesn't have access rights on this bucket." + e.getMessage());
+      }
+      logger.error("Error while looking up for the unknown container " + containerName, e);
+    }
+    return containerFound ? new BucketCreator(getConf(), containerName).toContainerHolder() : null;
   }
 
   private software.amazon.awssdk.regions.Region getAWSBucketRegion(String bucketName) throws SdkClientException {

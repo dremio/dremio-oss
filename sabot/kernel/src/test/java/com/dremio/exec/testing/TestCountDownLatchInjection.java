@@ -36,7 +36,9 @@ import com.dremio.service.Pointer;
 public class TestCountDownLatchInjection extends BaseTestQuery {
 
   private static final UserSession session = UserSession.Builder.newBuilder()
-    .withSessionOptionManager(new SessionOptionManagerImpl(nodes[0].getContext().getOptionManager()))
+    .withSessionOptionManager(
+      new SessionOptionManagerImpl(nodes[0].getContext().getOptionValidatorListing()),
+      nodes[0].getContext().getOptionManager())
     .withCredentials(UserCredentials.newBuilder()
       .setUserName("foo")
       .build())

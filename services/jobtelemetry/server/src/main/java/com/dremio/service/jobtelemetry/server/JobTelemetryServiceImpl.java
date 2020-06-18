@@ -312,6 +312,10 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
     }
   }
 
+  int getNumInprogressWrites() {
+    return bgProfileWriter.getNumInprogressWrites();
+  }
+
   @Override
   public void close() throws Exception {
     AutoCloseables.close(bgProfileWriter, progressMetricsPublisher, metricsStore,

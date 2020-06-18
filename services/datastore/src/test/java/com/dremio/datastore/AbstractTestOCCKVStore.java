@@ -54,7 +54,7 @@ public abstract class AbstractTestOCCKVStore<K, V> {
 
   // CHECKSTYLE:OFF VisibilityModifier
   @Parameterized.Parameter
-  public Class<StoreCreationFunction<KVStore<K, V>>> storeCreationFunction;
+  public Class<? extends StoreCreationFunction<K, V, KVStore<K, V>>> storeCreationFunction;
 
   @Parameterized.Parameter(1)
   public DataGenerator<K, V> gen;

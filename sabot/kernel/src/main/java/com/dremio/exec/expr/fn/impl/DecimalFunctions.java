@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 
 import javax.inject.Inject;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.BitHolder;
 import org.apache.arrow.vector.holders.DecimalHolder;
@@ -43,8 +44,6 @@ import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.expr.fn.FunctionGenerationHelper;
 import com.dremio.exec.expr.fn.OutputDerivation;
-
-import io.netty.buffer.ArrowBuf;
 
 
 public class DecimalFunctions {

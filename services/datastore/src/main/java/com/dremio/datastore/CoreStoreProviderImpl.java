@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.StreamSupport;
 
@@ -45,18 +44,13 @@ import com.dremio.datastore.indexed.CoreIndexedStoreImpl;
 import com.dremio.datastore.indexed.LuceneSearchIndex;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.cache.RemovalListener;
-import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 
 /**
  * Service that manages creation and management of various store types.
  */
-public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Iterable<CoreStoreProviderImpl.StoreWithId>  {
+public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Iterable<CoreStoreProviderImpl.StoreWithId<?, ?>>  {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CoreStoreProviderImpl.class);
 
   private static final boolean REINDEX_ON_CRASH_DISABLED = Boolean.getBoolean("dremio.catalog.disable_reindex_on_crash");
@@ -88,7 +82,7 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
   private static final DirectoryStream.Filter<Path> METADATA_FILES_GLOB = p -> p.toString().endsWith(METADATA_FILE_SUFFIX);
   private static final String ALARM = ".indexing";
 
-  private final ConcurrentMap<String, StoreWithId> idToStore = new ConcurrentHashMap<>();
+  private final ConcurrentMap<String, StoreWithId<?, ?>> idToStore = new ConcurrentHashMap<>();
 
   private final boolean timed;
   private final boolean inMemory;
@@ -99,23 +93,6 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
   private final File metaDataFilesDir;
 
   private final AtomicBoolean closed = new AtomicBoolean(false);
-
-  private final LoadingCache<String, StoreWithId> stores = CacheBuilder.newBuilder()
-      .removalListener(new RemovalListener<String, StoreWithId>() {
-        @Override
-        public void onRemoval(RemovalNotification<String, StoreWithId> notification) {
-        }
-      })
-      .build(new CacheLoader<String, StoreWithId>() {
-        @Override
-        public StoreWithId load(String tableName) throws Exception {
-          if (!idToStore.containsKey(tableName)) {
-            throw new DatastoreFatalException("Cannot find store " + tableName);
-          }
-
-          return idToStore.get(tableName);
-        }
-      });
 
   private File alarmFile;
 
@@ -248,8 +225,8 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
   }
 
   @Override
-  public Iterator<StoreWithId> iterator() {
-    return Iterators.unmodifiableIterator(stores.asMap().values().iterator());
+  public Iterator<StoreWithId<?, ?>> iterator() {
+    return Iterators.unmodifiableIterator(idToStore.values().iterator());
   }
 
   @Override
@@ -274,7 +251,7 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
   public CoreKVStore<Object, Object> getStore(String storeId) {
     StoreWithId storeWithId = idToStore.get(storeId);
     if(storeWithId != null){
-      return (CoreKVStore<Object, Object>) storeWithId.store;
+      return storeWithId.store;
     }
 
     throw new DatastoreException("Invalid store id " + storeId);
@@ -282,12 +259,11 @@ public class CoreStoreProviderImpl implements CoreStoreProviderRpcService, Itera
 
   @Override
   public String getStoreID(String name) {
-    try{
-      return stores.get(name).id;
-    } catch (ExecutionException ex){
-      Throwables.propagateIfInstanceOf(ex.getCause(), DatastoreException.class);
-      throw new DatastoreException(ex);
+    StoreWithId<?, ?> storeWithId = idToStore.get(name);
+    if (storeWithId == null) {
+      throw new DatastoreFatalException("Cannot find store " + name);
     }
+    return storeWithId.id;
   }
 
   /**

@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
-import com.dremio.exec.rpc.ssl.SSLConfig;
+import com.dremio.ssl.SSLConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;

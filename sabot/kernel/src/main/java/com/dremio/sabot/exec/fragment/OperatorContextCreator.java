@@ -20,6 +20,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 
+import javax.inject.Provider;
+
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
@@ -32,6 +34,7 @@ import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.EndpointsIndex;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.CoordExecRPC.FragmentAssignment;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.testing.ExecutionControls;
@@ -68,6 +71,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
   private final TunnelProvider tunnelProvider;
   private final List<FragmentAssignment> assignments;
   private final EndpointsIndex endpointsIndex;
+  private Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider;
 
   public OperatorContextCreator(FragmentStats stats, BufferAllocator allocator, CodeCompiler compiler,
                                 SabotConfig config, FragmentHandle handle, ExecutionControls executionControls,
@@ -75,10 +79,12 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
                                 NamespaceService namespaceService, OptionManager options,
                                 ExecutorService executor, SpillService spillService, ContextInformation contextInformation,
                                 NodeDebugContextProvider nodeDebugContextProvider, TunnelProvider tunnelProvider,
-                                List<FragmentAssignment> assignments, EndpointsIndex endpointsIndex) {
+                                List<FragmentAssignment> assignments, EndpointsIndex endpointsIndex,
+                                Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider) {
     super();
     this.stats = stats;
     this.allocator = allocator;
+    this.nodeEndpointProvider = nodeEndpointProvider;
     this.fragmentOutputAllocator = null;
     this.compiler = compiler;
     this.config = config;
@@ -138,6 +144,7 @@ class OperatorContextCreator implements OperatorContext.Creator, AutoCloseable {
         popConfig.getProps().getTargetBatchSize(),
         tunnelProvider,
         assignments,
+        nodeEndpointProvider,
         endpointsIndex);
       operatorContexts.add(context);
       closeable.commit();

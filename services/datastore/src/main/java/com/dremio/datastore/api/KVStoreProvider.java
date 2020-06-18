@@ -29,7 +29,7 @@ public interface KVStoreProvider extends Service {
    * @param creator The creator function.
    * @return The associated kvstore, already initialized.
    */
-  <T extends KVStore<?, ?>> T getStore(Class<? extends StoreCreationFunction<T>> creator);
+  <K, V, T extends KVStore<K, V>> T getStore(Class<? extends StoreCreationFunction<K, V, T>> creator);
 
   /**
    * Get method to retrieve the StoreBuilder of this KVStoreProvider.

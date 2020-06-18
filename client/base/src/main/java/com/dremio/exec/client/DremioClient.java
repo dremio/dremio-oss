@@ -82,7 +82,6 @@ import com.dremio.exec.rpc.RpcConnectionHandler;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcFuture;
 import com.dremio.exec.rpc.TransportCheck;
-import com.dremio.exec.rpc.ssl.SSLConfig;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserClient;
 import com.dremio.sabot.rpc.user.UserResultsListener;
@@ -93,6 +92,8 @@ import com.dremio.service.coordinator.ElectionListener;
 import com.dremio.service.coordinator.ElectionRegistrationHandle;
 import com.dremio.service.coordinator.ServiceSet;
 import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
+import com.dremio.ssl.SSLConfig;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ForwardingListenableFuture;
@@ -302,14 +303,29 @@ public class DremioClient implements Closeable, ConnectionThrottle {
       return;
     }
 
+    final NodeEndpoint endpoint = setUpResources(connect, props);
+
+    try{
+      connect(endpoint);
+      connected = true;
+    } finally {
+      if (!connected) {
+        cleanUpResources();
+      }
+    }
+  }
+
+  @VisibleForTesting
+  NodeEndpoint setUpResources(String connect, Properties props) throws RpcException {
+
     final NodeEndpoint endpoint;
     if (isDirectConnection) {
       final String[] connectInfo = props.getProperty("direct").split(":");
       final String port = connectInfo.length==2?connectInfo[1]:config.getString(INITIAL_USER_PORT);
       endpoint = NodeEndpoint.newBuilder()
-              .setAddress(connectInfo[0])
-              .setUserPort(Integer.parseInt(port))
-              .build();
+        .setAddress(connectInfo[0])
+        .setUserPort(Integer.parseInt(port))
+        .build();
     } else {
       if (clusterCoordinator == null) {
         try {
@@ -335,9 +351,9 @@ public class DremioClient implements Closeable, ConnectionThrottle {
         }
 
         upBuilder.addProperties(
-            Property.newBuilder()
-                .setKey(key)
-                .setValue(props.getProperty(key)));
+          Property.newBuilder()
+            .setKey(key)
+            .setValue(props.getProperty(key)));
       }
 
       this.props = upBuilder.build();
@@ -345,8 +361,8 @@ public class DremioClient implements Closeable, ConnectionThrottle {
 
     eventLoopGroup = createEventLoop(config.getInt(CLIENT_RPC_THREADS), "Client-");
     executor = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60L, TimeUnit.SECONDS,
-        new SynchronousQueue<Runnable>(),
-        new NamedThreadFactory("dremio-client-executor-")) {
+      new SynchronousQueue<Runnable>(),
+      new NamedThreadFactory("dremio-client-executor-")) {
       @Override
       protected void afterExecute(final Runnable r, final Throwable t) {
         if (t != null) {
@@ -356,10 +372,10 @@ public class DremioClient implements Closeable, ConnectionThrottle {
       }
     };
     client = new UserClient(clientName, config, supportComplexTypes, connectionAllocator, eventLoopGroup, executor,
-        SSLConfig.of(props));
+      SSLConfig.of(props));
     logger.debug("Connecting to server {}:{}", endpoint.getAddress(), endpoint.getUserPort());
-    connect(endpoint);
-    connected = true;
+
+    return endpoint;
   }
 
   protected static EventLoopGroup createEventLoop(int size, String prefix) {
@@ -389,7 +405,8 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     return false;
   }
 
-  private void connect(NodeEndpoint endpoint) throws RpcException {
+  @VisibleForTesting
+  void connect(NodeEndpoint endpoint) throws RpcException {
     final FutureHandler f = new FutureHandler();
     client.connect(f, endpoint, props, getUserCredentials());
     try {
@@ -408,40 +425,7 @@ public class DremioClient implements Closeable, ConnectionThrottle {
    */
   @Override
   public void close() {
-    if (this.client != null) {
-      this.client.close();
-    }
-    AutoCloseables.closeNoChecked(recordAllocator);
-    AutoCloseables.closeNoChecked(connectionAllocator);
-    if (this.ownsAllocator && rootAllocator != null) {
-      AutoCloseables.closeNoChecked(rootAllocator);
-    }
-
-    if (clusterCoordinator != null) {
-      try {
-        clusterCoordinator.close();
-        clusterCoordinator = null;
-      } catch (Exception e) {
-        logger.warn("Error while closing Cluster Coordinator.", e);
-      }
-    }
-
-    if (eventLoopGroup != null) {
-      try {
-        eventLoopGroup.shutdownGracefully(0, 0, TimeUnit.SECONDS).sync();
-      } catch (InterruptedException e) {
-        logger.warn("Failure while shutting down event loop in dremio client. ", e);
-        Thread.interrupted();
-      }
-    }
-
-    if (executor != null) {
-      executor.shutdownNow();
-    }
-
-    // TODO:  Did DRILL-1735 changes cover this TODO?:
-    // TODO: fix tests that fail when this is called.
-    //allocator.close();
+    cleanUpResources();
     connected = false;
   }
 
@@ -800,7 +784,6 @@ public class DremioClient implements Closeable, ConnectionThrottle {
         for(final QueryDataBatch queryDataBatch : results) {
           queryDataBatch.release();
         }
-
         throw RpcException.mapException(t);
       }
     }
@@ -846,5 +829,43 @@ public class DremioClient implements Closeable, ConnectionThrottle {
     public ByteBuf getBuffer() {
       return null;
     }
+  }
+
+  @VisibleForTesting
+  void cleanUpResources() {
+    final List<AutoCloseable> resources = new ArrayList<AutoCloseable>();
+
+    resources.add(client);
+    resources.add(recordAllocator);
+    resources.add(connectionAllocator);
+    if (this.ownsAllocator) {
+      resources.add(rootAllocator);
+    }
+    resources.add(clusterCoordinator);
+
+    resources.add(new AutoCloseable() {
+      public void close() throws Exception {
+        try {
+          eventLoopGroup.shutdownGracefully(0, 0, TimeUnit.SECONDS).sync();
+        } catch (InterruptedException e) {
+          logger.warn("Failure while shutting down event loop in dremio client. ", e);
+          Thread.interrupted();
+        }
+      }
+    });
+
+    resources.add(executor::shutdownNow);
+
+    try {
+      AutoCloseables.close(resources);
+    } catch(Exception e) {
+      logger.warn("Error while cleaning up resources in DremioClient", e);
+    } finally {
+      client = null;
+      clusterCoordinator = null;
+      eventLoopGroup = null;
+      executor= null;
+    }
+
   }
 }

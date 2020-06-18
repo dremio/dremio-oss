@@ -39,7 +39,6 @@ export const AWS_INSTANCE_TYPE_OPTIONS = [
   {label: 'm5d.8xlarge (32c/128gb)', value: 'm5d.8xlarge'},
   {label: 'r5d.4xlarge (16c/128gb)', value: 'r5d.4xlarge'},
   {label: 'c5d.18xlarge (72c/144gb)', value: 'c5d.18xlarge'},
-  {label: 'r5ad.4xlarge (16c/128gb)', value: 'r5ad.4xlarge'},
   {label: 'i3.4xlarge (16c/122gb)', value: 'i3.4xlarge'}
 ];
 

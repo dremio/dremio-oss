@@ -18,7 +18,7 @@ package com.dremio.exec.server.options;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.google.common.annotations.VisibleForTesting;
 
 /**
@@ -33,9 +33,11 @@ public class SessionOptionManagerFactoryImpl implements SessionOptionManagerFact
 
   // map of session ids to session option managers
   private final Map<String, SessionOptionManager> sessionOptionManagers;
+  private final OptionValidatorListing optionValidatorListing;
 
-  public SessionOptionManagerFactoryImpl() {
+  public SessionOptionManagerFactoryImpl(OptionValidatorListing optionValidatorListing) {
     this.sessionOptionManagers = new ConcurrentHashMap<>();
+    this.optionValidatorListing = optionValidatorListing;
   }
 
   /**
@@ -44,12 +46,12 @@ public class SessionOptionManagerFactoryImpl implements SessionOptionManagerFact
    * and add it to the map.
    *
    * @param sessionId session Id
-   * @param fallbackOptionManager fallback option manager
    * @return a SessionOptionManager for the current session
    */
   @Override
-  public SessionOptionManager getOrCreate(String sessionId, OptionManager fallbackOptionManager) {
-    return sessionOptionManagers.computeIfAbsent(sessionId, id -> new SessionOptionManagerImpl(fallbackOptionManager));
+  public SessionOptionManager getOrCreate(String sessionId) {
+    return sessionOptionManagers.computeIfAbsent(sessionId, id ->
+      new SessionOptionManagerImpl(optionValidatorListing));
   }
 
   /**

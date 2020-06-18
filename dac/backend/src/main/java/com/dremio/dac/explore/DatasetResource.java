@@ -99,10 +99,10 @@ public class DatasetResource extends BaseResourceWithAllocator {
   private final DatasetVersionMutator datasetService;
   private final JobsService jobsService;
   private final SecurityContext securityContext;
+  private final ReflectionServiceHelper reflectionServiceHelper;
   private final DatasetPath datasetPath;
   private final NamespaceService namespaceService;
   private final CollaborationHelper collaborationService;
-  private ReflectionSettings reflectionSettings;
 
   @Inject
   public DatasetResource(
@@ -119,8 +119,8 @@ public class DatasetResource extends BaseResourceWithAllocator {
     this.namespaceService = namespaceService;
     this.jobsService = jobsService;
     this.securityContext = securityContext;
+    this.reflectionServiceHelper = reflectionServiceHelper;
     this.datasetPath = datasetPath;
-    this.reflectionSettings = reflectionServiceHelper.getReflectionSettings();
     this.collaborationService = collaborationService;
   }
 
@@ -153,6 +153,7 @@ public class DatasetResource extends BaseResourceWithAllocator {
       throw new IllegalArgumentException(msg);
     }
 
+    final ReflectionSettings reflectionSettings = reflectionServiceHelper.getReflectionSettings();
     final AccelerationSettings settings = reflectionSettings.getReflectionSettings(datasetPath.toNamespaceKey());
     final AccelerationSettingsDescriptor descriptor = new AccelerationSettingsDescriptor()
       .setAccelerationRefreshPeriod(settings.getRefreshPeriod())
@@ -210,6 +211,7 @@ public class DatasetResource extends BaseResourceWithAllocator {
       Preconditions.checkArgument(Strings.isNullOrEmpty(descriptor.getRefreshField()), "leave refresh field empty for full updates");
     }
 
+    final ReflectionSettings reflectionSettings = reflectionServiceHelper.getReflectionSettings();
     final AccelerationSettings settings = reflectionSettings.getReflectionSettings(datasetPath.toNamespaceKey());
     final AccelerationSettings descriptorSettings = new AccelerationSettings()
       .setAccelerationTTL(settings.getAccelerationTTL()) // needed to use protobuf equals
@@ -257,6 +259,7 @@ public class DatasetResource extends BaseResourceWithAllocator {
     DatasetUI datasetUI = newDataset(virtualDataset);
 
     datasetService.deleteDataset(datasetPath, savedTag);
+    final ReflectionSettings reflectionSettings = reflectionServiceHelper.getReflectionSettings();
     reflectionSettings.removeSettings(datasetPath.toNamespaceKey());
     return datasetUI;
   }

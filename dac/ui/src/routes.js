@@ -13,13 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { Route, IndexRoute, Redirect, IndexRedirect } from 'react-router';
+import { IndexRedirect, IndexRoute, Redirect, Route } from 'react-router';
 import React from 'react';
 
-import { UserIsAuthenticated, UserIsAdmin, CheckUserAuthentication } from '@app/components/Auth/authWrappers';
+import { CheckUserAuthentication, UserIsAdmin, UserIsAuthenticated } from '@app/components/Auth/authWrappers';
 
 import { ENTITY_TYPES } from '@app/constants/Constants';
-import { startExplorePageListener, explorePageLocationChanged, explorePageExit } from '@app/actions/explore/dataset/data';
+import {
+  explorePageExit,
+  explorePageLocationChanged,
+  startExplorePageListener
+} from '@app/actions/explore/dataset/data';
 import Acceleration from '@inject/pages/AdminPage/subpages/acceleration/Acceleration';
 import Roles from '@inject/pages/AdminPage/subpages/Roles';
 import Votes from '@inject/pages/AdminPage/subpages/Votes';
@@ -33,6 +37,7 @@ import { exploreStateKey } from '@app/selectors/explore';
 import { LOGIN_PATH, SIGNUP_PATH } from '@app/sagas/loginLogout';
 import { lazy } from '@app/components/Lazy';
 import Activation from '@inject/pages/AdminPage/subpages/Activation';
+import ReflectionJobsPage from '@inject/pages/JobPage/ReflectionJobsPage';
 
 import App from './containers/App';
 
@@ -59,10 +64,8 @@ import Advanced from './pages/AdminPage/subpages/Advanced';
 import Provisioning from './pages/AdminPage/subpages/Provisioning';
 import Support from './pages/AdminPage/subpages/Support';
 
-
 import AdminModals from './pages/AdminPage/AdminModals';
 import AccountModals from './pages/AccountPage/AccountModals';
-
 
 import JobPage from './pages/JobPage/JobPage';
 import JobModals from './pages/JobPage/JobModals';
@@ -126,6 +129,7 @@ export default dispatch => (
     <Route component={CheckUserAuthentication}>
       <Route component={UserIsAuthenticated(JobModals)}>
         <Route component={Page}>
+          <Route path='/jobs/reflection/:reflectionId' component={ReflectionJobsPage} />
           <Route path='/jobs(/:queryId)' component={JobPage} />
         </Route>
       </Route>

@@ -85,9 +85,12 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.options.TypeValidators.BooleanValidator;
@@ -309,7 +312,8 @@ public class BaseTestOperator extends ExecTest {
     OperatorCreatorRegistry registry = new OperatorCreatorRegistry(result);
 
     LegacyKVStoreProvider storeProvider;
-    SystemOptionManager options;
+    OptionManager options;
+    SystemOptionManager systemOptionManager;
     CodeCompiler compiler;
     ExecutionControls ec;
     FunctionLookupContext functionLookup;
@@ -328,9 +332,14 @@ public class BaseTestOperator extends ExecTest {
             return storeProvider;
           }
         };
-        final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(result);
-        options = new SystemOptionManager(defaultOptionManager, persistence, storeProviderProvider, false);
-        options.start();
+        final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(result);
+        systemOptionManager = new SystemOptionManager(optionValidatorListing, persistence, storeProviderProvider, false);
+        options = OptionManagerWrapper.Builder.newBuilder()
+          .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+          .withOptionManager(systemOptionManager)
+          .build();
+
+        systemOptionManager.start();
         compiler = new CodeCompiler(config, options);
         ec = new ExecutionControls(options, NodeEndpoint.getDefaultInstance());
         decimalFunctionLookup = new DecimalFunctionImplementationRegistry(config, result, options);
@@ -390,7 +399,7 @@ public class BaseTestOperator extends ExecTest {
           targetBatchSize,
           Mockito.mock(TunnelProvider.class),
           ImmutableList.of(),
-          endpointsIndex);
+          null, endpointsIndex);
     }
 
     public OperatorContextImpl getNewOperatorContext(BufferAllocator child, PhysicalOperator pop, int targetBatchSize) throws Exception {
@@ -407,7 +416,7 @@ public class BaseTestOperator extends ExecTest {
     }
     @Override
     public void close() throws Exception {
-      AutoCloseables.close(options, storeProvider, allocator, rootAllocator, executor);
+      AutoCloseables.close(systemOptionManager, storeProvider, allocator, rootAllocator, executor);
     }
 
     /**

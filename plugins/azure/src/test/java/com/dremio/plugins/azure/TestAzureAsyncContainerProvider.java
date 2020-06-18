@@ -172,6 +172,23 @@ public class TestAzureAsyncContainerProvider {
     assertEquals(expectedContainers, receivedContainers);
   }
 
+  @Test
+  public void testDoesContainerExists() throws ExecutionException, InterruptedException {
+    AzureStorageFileSystem parentClass = mock(AzureStorageFileSystem.class);
+    AzureAuthTokenProvider authTokenProvider = getMockAuthTokenProvider();
+    AsyncHttpClient client = mock(AsyncHttpClient.class);
+    Response response = mock(Response.class);
+    when(response.getHeader(any(String.class))).thenReturn("");
+    when(response.getStatusCode()).thenReturn(200);
+    ListenableFuture<Response> future = mock(ListenableFuture.class);
+    when(future.get()).thenReturn(response);
+    when(client.executeRequest(any(Request.class))).thenReturn(future);
+
+    AzureAsyncContainerProvider containerProvider = new AzureAsyncContainerProvider(
+      client, "azurestoragev2hier", authTokenProvider, parentClass, true);
+    assertTrue(containerProvider.doesContainerExists("container"));
+  }
+
   private byte[] readStaticResponse(String fileName) throws IOException {
     // response is big, hence kept in a separate file within test/resources folder
     try (InputStream is = this.getClass().getClassLoader().getResourceAsStream(fileName)) {

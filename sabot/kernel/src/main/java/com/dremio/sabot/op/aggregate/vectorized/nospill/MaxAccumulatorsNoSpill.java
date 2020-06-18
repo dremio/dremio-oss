@@ -18,6 +18,7 @@ package com.dremio.sabot.op.aggregate.vectorized.nospill;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.DecimalVector;
 import org.apache.arrow.vector.FieldVector;
@@ -28,7 +29,6 @@ import org.apache.arrow.vector.util.ByteFunctionHelpers;
 import com.dremio.exec.util.DecimalUtils;
 import com.dremio.sabot.op.common.ht2.LBlockHashTableNoSpill;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 public class MaxAccumulatorsNoSpill {

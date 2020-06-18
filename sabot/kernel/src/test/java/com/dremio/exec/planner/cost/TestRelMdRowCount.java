@@ -42,6 +42,7 @@ import org.mockito.Mockito;
 
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.datastore.api.KVStore;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreCreationFunction;
@@ -53,13 +54,17 @@ import com.dremio.exec.planner.physical.ProjectPrel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.physical.UnionExchangePrel;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
-import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.sys.SystemPluginConf;
 import com.dremio.exec.store.sys.SystemScanPrel;
 import com.dremio.exec.store.sys.SystemTable;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
+import com.dremio.resource.ClusterResourceInformation;
 import com.dremio.sabot.op.join.JoinUtils;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;
@@ -82,7 +87,8 @@ public class TestRelMdRowCount {
   public void setup() throws Exception {
     final LegacyKVStoreProvider storeProvider = new LegacyKVStoreProvider() {
       @Override
-      public <T extends LegacyKVStore<?, ?>> T getStore(Class<? extends LegacyStoreCreationFunction<T>> creator) {
+      public <K, V, T extends LegacyKVStore<K, V>, U extends KVStore<K, V>>
+      T getStore(Class<? extends LegacyStoreCreationFunction<K, V, T, U>> creator) {
         LegacyKVStore<?,?> store = mock(LegacyKVStore.class);
         when(store.find()).thenReturn(Collections.emptyList());
         return (T) store;
@@ -98,14 +104,18 @@ public class TestRelMdRowCount {
 
       }
     };
-    final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(DremioTest.CLASSPATH_SCAN_RESULT);
-    final SystemOptionManager optionManager = new SystemOptionManager(defaultOptionManager, new LogicalPlanPersistence(DremioTest.DEFAULT_SABOT_CONFIG, DremioTest.CLASSPATH_SCAN_RESULT),
-      () -> storeProvider, false);
-    optionManager.start();
+    final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(DremioTest.CLASSPATH_SCAN_RESULT);
+    SystemOptionManager som = new SystemOptionManager(optionValidatorListing, new LogicalPlanPersistence(DremioTest.DEFAULT_SABOT_CONFIG, DremioTest.CLASSPATH_SCAN_RESULT), () -> storeProvider, false);
+    OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
+      .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+      .withOptionManager(som)
+      .build();
+    som.start();
 
     ClusterResourceInformation info = mock(ClusterResourceInformation.class);
     when(info.getExecutorNodeCount()).thenReturn(1);
-    PlannerSettings plannerSettings = new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, info);
+    PlannerSettings plannerSettings =
+      new PlannerSettings(DremioTest.DEFAULT_SABOT_CONFIG, optionManager, () -> info);
     cluster = RelOptCluster.create(new VolcanoPlanner(plannerSettings), rexBuilder);
     cluster.setMetadataProvider(DefaultRelMetadataProvider.INSTANCE);
   }

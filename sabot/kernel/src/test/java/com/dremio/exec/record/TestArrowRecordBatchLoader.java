@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.record;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.complex.ListVector;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
@@ -27,7 +28,6 @@ import com.dremio.sabot.op.receiver.RawFragmentBatch;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 
 public class TestArrowRecordBatchLoader extends DremioTest {

@@ -16,6 +16,7 @@
 package com.dremio.exec.maestro;
 
 import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.work.QueryWorkUnit;
@@ -26,6 +27,10 @@ public abstract class AbstractMaestroObserver implements MaestroObserver {
 
   public static final AbstractMaestroObserver NOOP = new AbstractMaestroObserver() {
   };
+
+  @Override
+  public void beginState(AttemptEvent event) {
+  }
 
   @Override
   public void planParallelStart() {

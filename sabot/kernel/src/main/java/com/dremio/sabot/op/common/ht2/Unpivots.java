@@ -18,6 +18,7 @@ package com.dremio.sabot.op.common.ht2;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.FieldVector;
 
@@ -26,7 +27,6 @@ import com.dremio.sabot.op.common.ht2.Reallocators.Reallocator;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 public class Unpivots {

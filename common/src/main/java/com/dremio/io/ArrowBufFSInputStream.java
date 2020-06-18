@@ -21,9 +21,10 @@ import java.nio.ByteBuffer;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.google.common.primitives.Ints;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 
 /**

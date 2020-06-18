@@ -15,8 +15,17 @@
  */
 package com.dremio.service.jobs;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
+
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent.State;
 import com.dremio.service.job.proto.JobAttempt;
 import com.dremio.service.job.proto.JobDetails;
 import com.dremio.service.job.proto.JobInfo;
@@ -27,6 +36,51 @@ import com.dremio.service.job.proto.ResourceSchedulingInfo;
  * Helper methods for computing various metrics out of {@link JobAttempt}
  */
 public class AttemptsHelper {
+
+  private final Map<AttemptEvent.State, Long> stateDurations;
+  private final List<AttemptEvent> events;
+
+  public AttemptsHelper(JobAttempt jobAttempt) {
+    Map<State, Long> stateDurations = new HashMap<>();
+    final List<AttemptEvent> events;
+    if (jobAttempt.getStateListList() == null) {
+      events = new ArrayList<>();
+    } else {
+      events = new ArrayList<>(JobsProtoUtil.toStuff2(jobAttempt.getStateListList()));
+    }
+    Collections.sort(events, Comparator.comparingLong(AttemptEvent::getStartTime));
+    this.events = events;
+
+    long timeSpent;
+    for (int i=0; i < events.size(); i++) {
+      if (isTerminal(events.get(i).getState())) {
+        break;
+      }
+      if (i == events.size()-1) {
+        timeSpent = System.currentTimeMillis() - events.get(i).getStartTime();
+      } else {
+        timeSpent = events.get(i+1).getStartTime() - events.get(i).getStartTime();
+      }
+      long finalTimeSpent = timeSpent;
+      stateDurations.compute(events.get(i).getState(), (k,v) -> (v==null) ? finalTimeSpent : v + finalTimeSpent);
+    }
+    this.stateDurations = stateDurations;
+  }
+
+  private boolean isTerminal(AttemptEvent.State state) {
+    return (state == State.COMPLETED ||
+      state == State.CANCELED ||
+      state == State.FAILED);
+  }
+
+  /**
+   * True if the job has some state durations. Jobs that were run in older dremio versions (pre 4.5) will not have any.
+   *
+   * @return true if the job has state durations.
+   */
+  public boolean hasStateDurations() {
+    return !stateDurations.isEmpty();
+  }
 
   /**
    * @return wait before planning in milliseconds
@@ -43,7 +97,7 @@ public class AttemptsHelper {
    * @return computed enqueued duration in milliseconds,
    *         null if {@link ResourceSchedulingInfo} is missing from the {@link JobInfo}
    */
-  public static long getEnqueuedTime(JobAttempt jobAttempt) {
+  public static long getLegacyEnqueuedTime(JobAttempt jobAttempt) {
     final JobInfo jobInfo = jobAttempt.getInfo();
     if (jobInfo == null) {
       return 0;
@@ -75,9 +129,9 @@ public class AttemptsHelper {
     return Optional.ofNullable(jobAttempt.getInfo().getCommandPoolWaitMillis()).orElse(0L);
   }
 
-  public static long getPlanningTime(JobAttempt jobAttempt) {
+  public static long getLegacyPlanningTime(JobAttempt jobAttempt) {
     long planningScheduling = Optional.ofNullable(jobAttempt.getDetails().getTimeSpentInPlanning()).orElse(0L);
-    final long enqueuedTime = getEnqueuedTime(jobAttempt);
+    final long enqueuedTime = getLegacyEnqueuedTime(jobAttempt);
 
     // take into account the fact that JobDetails.timeSpentInPlanning will only be set after the query starts executing
     planningScheduling = Math.max(planningScheduling, enqueuedTime);
@@ -85,7 +139,7 @@ public class AttemptsHelper {
     return planningScheduling - enqueuedTime;
   }
 
-  public static long getExecutionTime(JobAttempt jobAttempt) {
+  public static long getLegacyExecutionTime(JobAttempt jobAttempt) {
     final JobInfo jobInfo = jobAttempt.getInfo();
     if (jobInfo == null) {
       return 0;
@@ -103,4 +157,51 @@ public class AttemptsHelper {
     return finishTime - startTime - planningScheduling;
   }
 
+  private Long getDuration(AttemptEvent.State state) {
+    if (!stateDurations.containsKey(state)) {
+      return null;
+    }
+    return stateDurations.get(state);
+  }
+
+  public Long getPendingTime() {
+    return getDuration(State.PENDING);
+  }
+
+  public Long getMetadataRetrievalTime() {
+    return getDuration(State.METADATA_RETRIEVAL);
+  }
+
+  public Long getPlanningTime() {
+    return getDuration(State.PLANNING);
+  }
+
+  public Long getQueuedTime() {
+    return getDuration(State.QUEUED);
+  }
+
+  public Long getEngineStartTime() {
+    return getDuration(State.ENGINE_START);
+  }
+
+  public Long getExecutionPlanningTime() {
+    return getDuration(State.EXECUTION_PLANNING);
+  }
+
+  public Long getStartingTime() {
+    return getDuration(State.STARTING);
+  }
+
+  public Long getRunningTime() { return getDuration(State.RUNNING);
+  }
+
+  public Long getTotalTime() {
+    if (events.size() > 0) {
+      if (isTerminal(events.get(events.size()-1).getState())) {
+        return events.get(events.size()-1).getStartTime() - events.get(0).getStartTime();
+      }
+      return System.currentTimeMillis() - events.get(0).getStartTime();
+    }
+    return null;
+  }
 }

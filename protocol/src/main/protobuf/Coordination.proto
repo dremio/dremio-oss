@@ -40,6 +40,7 @@ message NodeEndpoint {
   // available number of cores per executor
   optional int32 available_cores = 104;
   optional string node_tag = 105;
+  optional int32 conduit_port = 106;
   optional exec.enginemanagement.EngineId engine_id = 201;
   optional exec.enginemanagement.SubEngineId sub_engine_id = 202;
 }

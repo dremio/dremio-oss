@@ -236,21 +236,21 @@ public class TestJobService extends BaseTestServer {
     // retrieve the UI jobDetails
     JobDetailsUI detailsUI = new JobDetailsUI(job.getJobId(), new JobDetails(), JobResource.getPaginationURL(job.getJobId()), job.getAttempts(), JobResource.getDownloadURL(getJobDetails(job)), null, null, null, false, null, null);
 
-    assertEquals("Enqueued time of second attempt was not 0.", (long)detailsUI.getAttemptDetails().get(1).getEnqueuedTime(), 0L);
+    assertEquals("Enqueued time of second attempt was not 0.", (long)detailsUI.getAttemptDetails().get(1).getQueuedTime(), 0L);
     assertEquals("Planning time of second attempt was not 0.", (long)detailsUI.getAttemptDetails().get(1).getPlanningTime(), 0L);
-    assertEquals("Enqueued time of third attempt was not 0.", (long)detailsUI.getAttemptDetails().get(2).getEnqueuedTime(), 0L);
+    assertEquals("Enqueued time of third attempt was not 0.", (long)detailsUI.getAttemptDetails().get(2).getQueuedTime(), 0L);
     assertEquals("Planning time of third attempt was not 0.", (long)detailsUI.getAttemptDetails().get(2).getPlanningTime(), 0L);
-    assertEquals("Enqueued time of fourth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(3).getEnqueuedTime(), 0L);
+    assertEquals("Enqueued time of fourth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(3).getQueuedTime(), 0L);
     assertEquals("Planning time of fourth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(3).getPlanningTime(), 0L);
-    assertEquals("Enqueued time of fifth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(4).getEnqueuedTime(), 0L);
+    assertEquals("Enqueued time of fifth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(4).getQueuedTime(), 0L);
     assertEquals("Planning time of fifth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(4).getPlanningTime(), 0L);
-    assertEquals("Enqueued time of sixth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(5).getEnqueuedTime(), 0L);
+    assertEquals("Enqueued time of sixth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(5).getQueuedTime(), 0L);
     assertEquals("Planning time of sixth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(5).getPlanningTime(), 0L);
-    assertEquals("Enqueued time of seventh attempt was not 0.", (long)detailsUI.getAttemptDetails().get(6).getEnqueuedTime(), 0L);
+    assertEquals("Enqueued time of seventh attempt was not 0.", (long)detailsUI.getAttemptDetails().get(6).getQueuedTime(), 0L);
     assertEquals("Planning time of seventh attempt was not 0.", (long)detailsUI.getAttemptDetails().get(6).getPlanningTime(), 0L);
-    assertEquals("Enqueued time of eighth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(7).getEnqueuedTime(), 0L);
+    assertEquals("Enqueued time of eighth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(7).getQueuedTime(), 0L);
     assertEquals("Planning time of eighth attempt was not 0.", (long)detailsUI.getAttemptDetails().get(7).getPlanningTime(), 0L);
-    assertTrue("Enqueued time of final attempt was less than 0.", detailsUI.getAttemptDetails().get(8).getEnqueuedTime() >= 0);
+    assertTrue("Enqueued time of final attempt was less than 0.", detailsUI.getAttemptDetails().get(8).getQueuedTime() >= 0);
     assertEquals("Planning time of final attempt was not 0.", (long)detailsUI.getAttemptDetails().get(8).getPlanningTime(), 0L);
   }
 

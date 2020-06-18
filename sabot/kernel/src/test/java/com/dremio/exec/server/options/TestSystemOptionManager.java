@@ -28,6 +28,7 @@ import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.serialization.JacksonSerializer;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValueProto;
 import com.dremio.test.DremioTest;
@@ -57,8 +58,8 @@ public class TestSystemOptionManager extends DremioTest {
     final LegacyKVStore<String, OptionValueProto> kvStore = kvStoreProvider.getStore(
       SystemOptionManager.OptionProtoStoreCreator.class);
 
-    final DefaultOptionManager dom = new DefaultOptionManager(CLASSPATH_SCAN_RESULT);
-    final SystemOptionManager som = new SystemOptionManager(dom, lpp, () -> kvStoreProvider, false);
+    final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
+    final SystemOptionManager som = new SystemOptionManager(optionValidatorListing, lpp, () -> kvStoreProvider, false);
 
     // Persistent Store to directly add legacy options
     final OptionValueStore persistentStore = new OptionValueStore(

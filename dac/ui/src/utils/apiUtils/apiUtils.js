@@ -18,6 +18,7 @@ import Immutable from 'immutable';
 
 import { API_URL_V2, API_URL_V3 } from '@app/constants/Api';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
+import APICall from '@app/core/APICall';
 
 /**
  * Error names from api middleware.
@@ -117,7 +118,13 @@ class ApiUtils {
       ...options.headers
     }); // protect against older chrome browsers
 
-    const url = endpoint.startsWith('/') ? `${apiVersion}${endpoint}` : `${apiVersion}/${endpoint}`;
+    let url;
+
+    if (endpoint instanceof APICall) {
+      url = endpoint.toString();
+    } else {
+      url = endpoint.startsWith('/') ? `${apiVersion}${endpoint}` : `${apiVersion}/${endpoint}`;
+    }
 
     return fetch(url, {...options, headers})
       .then(response => response.ok ? response : Promise.reject(response));

@@ -43,7 +43,7 @@ public class NoopKVStoreProvider implements KVStoreProvider {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(NoopKVStoreProvider.class);
 
   private final ScanResult scan;
-  private ImmutableMap<Class<? extends StoreCreationFunction<?>>, KVStore<?, ?>> stores;
+  private ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> stores;
 
   public NoopKVStoreProvider(
     ScanResult scan,
@@ -57,10 +57,11 @@ public class NoopKVStoreProvider implements KVStoreProvider {
 
   @SuppressWarnings("unchecked")
   @Override
-  public <T extends KVStore<?, ?>> T getStore(Class<? extends StoreCreationFunction<T>> creator) {
+  public <K, V, T extends KVStore<K, V>> T getStore(Class<? extends StoreCreationFunction<K, V, T>> creator) {
     return (T) Preconditions.checkNotNull(stores.get(creator), "Unknown store creator %s", creator.getName());
   }
 
+  @Override
   @VisibleForTesting
   public <K, V> StoreBuilder<K, V> newStore(){
     return new ExecutorStoreBuilder<>();

@@ -26,6 +26,7 @@ import java.util.List;
 
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.AllocationReservation;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.junit.After;
@@ -38,7 +39,6 @@ import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.exec.rpc.ExecToCoordTunnel;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBufAllocator;
 
 /**

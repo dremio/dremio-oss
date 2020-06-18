@@ -26,6 +26,8 @@ import org.junit.rules.ExpectedException;
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent.State;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.service.grpc.GrpcServerBuilderFactory;
@@ -84,6 +86,8 @@ public class TestLocalJobTelemetryServer {
         .setPlan("PLAN_VALUE")
         .setQuery("Select * from plan")
         .setState(UserBitShared.QueryResult.QueryState.ENQUEUED)
+        .addStateList(AttemptEvent.newBuilder()
+          .setState(State.QUEUED).setStartTime(20L).build())
         .build();
     client.getBlockingStub().putQueryPlanningProfile(
       PutPlanningProfileRequest.newBuilder()
@@ -98,6 +102,8 @@ public class TestLocalJobTelemetryServer {
         .setQuery("Select * from plan")
         .setErrorNode("ERROR_NODE")
         .setState(UserBitShared.QueryResult.QueryState.CANCELED)
+        .addStateList(AttemptEvent.newBuilder()
+          .setState(State.CANCELED).setStartTime(20L).build())
         .build();
     client.getBlockingStub().putQueryTailProfile(
       PutTailProfileRequest.newBuilder()
@@ -112,6 +118,8 @@ public class TestLocalJobTelemetryServer {
         .setQuery("Select * from plan")
         .setErrorNode("ERROR_NODE")
         .setState(UserBitShared.QueryResult.QueryState.CANCELED)
+        .addStateList(AttemptEvent.newBuilder()
+          .setState(State.CANCELED).setStartTime(20L).build())
         .setTotalFragments(0)
         .setFinishedFragments(0)
         .build();

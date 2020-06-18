@@ -15,6 +15,7 @@
  */
 package com.dremio.sabot.exec.context;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
@@ -23,8 +24,6 @@ import com.dremio.exec.expr.fn.FunctionErrorContext;
 import com.dremio.exec.store.PartitionExplorer;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Defines the query state and shared resources available to Functions through

@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.DateMilliVector;
@@ -42,8 +43,6 @@ import org.joda.time.DateTimeConstants;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
-
-import io.netty.buffer.ArrowBuf;
 
 public class NullableFixedByteAlignedReaders {
 

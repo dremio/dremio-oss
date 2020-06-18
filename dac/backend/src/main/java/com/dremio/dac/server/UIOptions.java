@@ -36,4 +36,6 @@ public final class UIOptions {
   * Specifies weather non admin users are able to perform CRUD operations for spaces
   */
   public static final BooleanValidator ALLOW_SPACE_MANAGEMENT = new BooleanValidator("ui.space.allow-manage", false);
+
+  public static final BooleanValidator ALLOW_GLUE_SOURCE = new BooleanValidator("ui.glue.allow", false);
 }

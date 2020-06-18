@@ -33,6 +33,8 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent.State;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
 import com.dremio.exec.proto.UserBitShared.MinorFragmentProfile;
@@ -60,6 +62,7 @@ public class ProfileWrapper {
   private final List<NodeWrapper> nodeProfiles;
   private final List<OperatorWrapper> operatorProfiles;
   private final AccelerationWrapper accelerationDetails;
+  private final Map<AttemptEvent.State, Long> stateDurations;
 
   public ProfileWrapper(final QueryProfile profile, boolean debug) {
     this.profile = profile;
@@ -130,6 +133,89 @@ public class ProfileWrapper {
       logger.warn("Failed to deserialize acceleration details", e);
     }
     accelerationDetails = wrapper;
+
+
+    Map<AttemptEvent.State, Long> stateDurations = new HashMap<>();
+    final List<AttemptEvent> events = new ArrayList<>(profile.getStateListList());
+    Collections.sort(events, Comparators.stateStartTime);
+
+    for (int i = 0; i < events.size() - 1; i++) {
+      if (isTerminal(events.get(i).getState())) {
+        break;
+      }
+      long timeSpent = events.get(i + 1).getStartTime() - events.get(i).getStartTime();
+      stateDurations.compute(events.get(i).getState(), (k, v) -> (v == null) ? timeSpent : v + timeSpent);
+    }
+    this.stateDurations = stateDurations;
+  }
+
+  private boolean isTerminal(AttemptEvent.State state) {
+    return (state == State.COMPLETED ||
+      state == State.CANCELED ||
+      state == State.FAILED);
+  }
+
+  private String getDuration(AttemptEvent.State state) {
+    if (state == profile.getStateList(profile.getStateListCount()-1).getState()) {
+      return "in progress";
+    }
+    if (!stateDurations.containsKey(state)) {
+      return "-";
+    }
+    return NUMBER_FORMAT.format(stateDurations.get(state)) + "ms";
+  }
+
+  public String getPendingTime() {
+    return hasStateDurations() ? getDuration(State.PENDING) : "-";
+  }
+
+  public String getMetadataRetrievalTime() {
+    return hasStateDurations() ? getDuration(State.METADATA_RETRIEVAL) : "-";
+  }
+
+  public String getPlanningTime() {
+    return hasStateDurations() ? getDuration(State.PLANNING) : getLegacyPlanningTime();
+  }
+
+  public String getQueuedTime() {
+    return hasStateDurations() ? getDuration(State.QUEUED) : getLegacyQueueTime();
+  }
+
+  public String getEngineStartTime() {
+    return hasStateDurations() ? getDuration(State.ENGINE_START) : "-";
+  }
+
+  public String getExecutionPlanningTime() {
+    return hasStateDurations() ? getDuration(State.EXECUTION_PLANNING) : "-";
+  }
+
+  public String getStartingTime() {
+    return hasStateDurations() ? getDuration(State.STARTING) : "-";
+  }
+
+  public String getRunningTime() {
+    return hasStateDurations() ? getDuration(State.RUNNING) : "-";
+  }
+
+  private boolean hasQueryTerminated() {
+    UserBitShared.QueryResult.QueryState queryState = profile.getState();
+    return queryState == UserBitShared.QueryResult.QueryState.COMPLETED ||
+      queryState == UserBitShared.QueryResult.QueryState.CANCELED ||
+      queryState == UserBitShared.QueryResult.QueryState.FAILED;
+  }
+
+  public String getTotalTime() {
+    if (!hasQueryTerminated()) {
+      return "in progress";
+    }
+
+    long startTime = profile.getStart();
+    long endTime = profile.getEnd();
+    if (endTime >= startTime) {
+      return NUMBER_FORMAT.format(endTime - startTime) + "ms";
+    } else {
+      return "-";
+    }
   }
 
   /**
@@ -149,7 +235,7 @@ public class ProfileWrapper {
    * completed, returns "Still planning".
    */
   @SuppressWarnings("unused")
-  public String getPlanningTime() {
+  public String getLegacyPlanningTime() {
     final QueryProfile profile = getProfile();
     if (!profile.hasPlanningStart() || profile.getPlanningStart() == 0) {
       return "Planning not started";
@@ -172,7 +258,7 @@ public class ProfileWrapper {
   }
 
   @SuppressWarnings("unused")
-  public String getQueueTime() {
+  public String getLegacyQueueTime() {
     UserBitShared.ResourceSchedulingProfile r = profile.getResourceSchedulingProfile();
     if (r == null || r.getResourceSchedulingStart() == 0 || r.getResourceSchedulingEnd() == 0) {
       return "";
@@ -246,6 +332,15 @@ public class ProfileWrapper {
 
   public QueryProfile getProfile() {
     return profile;
+  }
+
+  public boolean hasStateDurations() {
+    return profile.getStateListCount() > 0;
+  }
+
+  public String getStateName() {
+    return hasStateDurations() ?
+      profile.getStateList(profile.getStateListCount()-1).getState().name() : profile.getState().name();
   }
 
   public AccelerationWrapper getAccelerationDetails() {

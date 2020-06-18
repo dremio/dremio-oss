@@ -22,7 +22,9 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.ValueVector;
@@ -64,8 +66,6 @@ import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Record batch used for a particular scan. Operators against one or more
@@ -417,6 +417,12 @@ public class ScanOperator implements ProducerOperator {
         .addAllSlowIoInfos(ioStats.slowIOInfoList)
         .build());
     }
+
+    operatorStats.setLongStat(Metric.JAVA_BUILD_TIME, TimeUnit.NANOSECONDS.toMillis(operatorStats.getLongStat(Metric.JAVA_BUILD_TIME)));
+    operatorStats.setLongStat(Metric.JAVA_EXECUTE_TIME, TimeUnit.NANOSECONDS.toMillis(operatorStats.getLongStat(Metric.JAVA_EXECUTE_TIME)));
+    operatorStats.setLongStat(Metric.GANDIVA_BUILD_TIME, TimeUnit.NANOSECONDS.toMillis(operatorStats.getLongStat(Metric.GANDIVA_BUILD_TIME)));
+    operatorStats.setLongStat(Metric.GANDIVA_EXECUTE_TIME, TimeUnit.NANOSECONDS.toMillis(operatorStats.getLongStat(Metric.GANDIVA_EXECUTE_TIME)));
+
   }
 
 }

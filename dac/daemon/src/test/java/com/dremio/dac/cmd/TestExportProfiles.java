@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
+import java.time.LocalDateTime;
 
 import javax.ws.rs.client.Entity;
 
@@ -107,7 +108,8 @@ public class TestExportProfiles extends BaseTestServer {
     final JobId jobId = JobsServiceTestUtils.submitJobAndWaitUntilCompletion(jobsService, jobRequest);
 
     // Get a profile from the job
-    final QueryProfileRequest request = QueryProfileRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).setAttempt(0).build();
+    final QueryProfileRequest request = QueryProfileRequest.newBuilder()
+      .setJobId(JobsProtoUtil.toBuf(jobId)).setAttempt(0).setUserName(DEFAULT_USERNAME).build();
 
     return jobsService.getProfile(request);
   }
@@ -140,6 +142,26 @@ public class TestExportProfiles extends BaseTestServer {
     expectSuccess(getBuilder(getAPIv2().path("export-profiles"))
       .buildPost(Entity.entity(new ExportProfilesParams(tmpPath, ExportProfilesParams.WriteFileMode.FAIL_IF_EXISTS, null, null, ExportProfilesParams.ExportFormatType.JSON, 1), JSON)), ExportProfilesStats.class);
     verifyResult(tmpPath, queryProfile, "online");
+  }
+
+  /**
+   * Test export-profiles display message when no profiles were found.
+   */
+  @Test
+  public void testRetrieveExportProfileStats() throws Exception {
+    final String tmpPath = folder0.newFolder("testStats").getAbsolutePath();
+    final LocalDateTime toDate = LocalDateTime.now();
+    final LocalDateTime fromDate = toDate.minusDays(30);
+    ExportProfilesStats stats = new ExportProfilesStats(0, 0, 0, tmpPath);
+
+    String expect = String.format("Defaulting to %s to %s. No profiles were found for the duration.", fromDate, toDate);
+    assertEquals(expect, stats.retrieveStats(fromDate, toDate, false));
+
+    expect = String.format("No profiles were found from %s to %s.", fromDate, toDate);
+    assertEquals(expect, stats.retrieveStats(fromDate, toDate, true));
+
+    expect = String.format("No profiles were found.");
+    assertEquals(expect, stats.retrieveStats(null, null, false));
   }
 
   @Test

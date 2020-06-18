@@ -39,7 +39,14 @@ export const JOB_STATUS = {
   canceled: 'CANCELED',
   failed: 'FAILED',
   cancellationRequested: 'CANCELLATION_REQUESTED',
-  enqueued: 'ENQUEUED'
+  enqueued: 'ENQUEUED',
+  pending: 'PENDING',
+  planning: 'PLANNING',
+  metadataRetrieval: 'METADATA_RETRIEVAL',
+  engineStart: 'ENGINE_START',
+  queued: 'QUEUED',
+  executionPlanning: 'EXECUTION_PLANNING'
+
 };
 
 export const isWorking = (status) => {
@@ -47,7 +54,13 @@ export const isWorking = (status) => {
     JOB_STATUS.starting,
     JOB_STATUS.enqueued,
     JOB_STATUS.running,
-    JOB_STATUS.cancellationRequested].includes(status);
+    JOB_STATUS.cancellationRequested,
+    JOB_STATUS.pending,
+    JOB_STATUS.metadataRetrieval,
+    JOB_STATUS.planning,
+    JOB_STATUS.engineStart,
+    JOB_STATUS.queued,
+    JOB_STATUS.executionPlanning].includes(status);
 };
 
 @injectIntl
@@ -73,7 +86,13 @@ export class ExploreTableJobStatus extends Component {
     [JOB_STATUS.canceled]: la('Canceled'),
     [JOB_STATUS.failed]: la('Failed'),
     [JOB_STATUS.cancellationRequested]: la('Cancellation Requested'),
-    [JOB_STATUS.enqueued]: la('Enqueued')
+    [JOB_STATUS.enqueued]: la('Enqueued'),
+    [JOB_STATUS.pending]: la('Pending'),
+    [JOB_STATUS.metadataRetrieval]: la('Metadata Retrieval'),
+    [JOB_STATUS.planning]: la('Planning'),
+    [JOB_STATUS.engineStart]: la('Engine Start'),
+    [JOB_STATUS.queued]: la('Queued'),
+    [JOB_STATUS.executionPlanning]: la('Execution Planning')
   };
 
   doButtonAction = (actionType) => {
@@ -126,7 +145,13 @@ export class ExploreTableJobStatus extends Component {
   getCancellable = jobStatus => {
     return jobStatus === JOB_STATUS.running
       || jobStatus === JOB_STATUS.starting
-      || jobStatus === JOB_STATUS.enqueued;
+      || jobStatus === JOB_STATUS.enqueued
+      || jobStatus === JOB_STATUS.pending
+      || jobStatus === JOB_STATUS.metadataRetrieval
+      || jobStatus === JOB_STATUS.planning
+      || jobStatus === JOB_STATUS.engineStart
+      || jobStatus === JOB_STATUS.queued
+      || jobStatus === JOB_STATUS.executionPlanning;
   };
 
   render() {

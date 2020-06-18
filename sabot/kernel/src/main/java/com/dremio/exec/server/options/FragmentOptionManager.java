@@ -21,7 +21,7 @@ import java.util.SortedSet;
 
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValidator;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.google.common.collect.TreeMultimap;
@@ -32,11 +32,10 @@ import com.google.common.collect.TreeMultimap;
 public class FragmentOptionManager extends BaseOptionManager {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentOptionManager.class);
 
-  private final DefaultOptionManager fallback;
   private final TreeMultimap<String, OptionValue> optionMap;
 
-  public FragmentOptionManager(DefaultOptionManager defaultOptionManager, OptionList nonDefaultOptions) {
-    this.fallback = defaultOptionManager;
+  public FragmentOptionManager(OptionValidatorListing optionValidatorListing, OptionList nonDefaultOptions) {
+    super(optionValidatorListing);
     this.optionMap = getMapFromOptionList(nonDefaultOptions);
   }
 
@@ -54,17 +53,17 @@ public class FragmentOptionManager extends BaseOptionManager {
   }
 
   @Override
-  public void setOption(OptionValue value) {
+  public boolean setOption(OptionValue value) {
     throw new UnsupportedOperationException("FragmentOptionManager does not support options mutation.");
   }
 
   @Override
-  public void deleteOption(String name, OptionType type) {
+  public boolean deleteOption(String name, OptionType type) {
     throw new UnsupportedOperationException("FragmentOptionManager does not support options deletion.");
   }
 
   @Override
-  public void deleteAllOptions(OptionType type) {
+  public boolean deleteAllOptions(OptionType type) {
     throw new UnsupportedOperationException("FragmentOptionManager does not support options deletions for all.");
   }
 
@@ -74,26 +73,19 @@ public class FragmentOptionManager extends BaseOptionManager {
     if (!values.isEmpty()) {
       return values.last();
     }
-    return fallback.getOption(name);
+    return null;
   }
 
   @Override
-  public OptionList getOptionList() {
+  public OptionList getNonDefaultOptions() {
     final OptionList result = new OptionList();
-    final TreeMultimap<String, OptionValue> buildMap = TreeMultimap.create(optionMap);
-    fallback.iterator().forEachRemaining(value -> buildMap.put(value.getName(), value));
-    result.addAll(buildMap.values());
+    result.addAll(optionMap.values());
     return result;
   }
 
   @Override
-  public OptionValidator getValidator(String name) {
-    return fallback.getValidator(name);
-  }
-
-  @Override
   public Iterator<OptionValue> iterator() {
-    return getOptionList().iterator();
+    return getNonDefaultOptions().iterator();
   }
 
 }

@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.AllocationListener;
 import org.apache.arrow.memory.AllocationReservation;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.memory.OutOfMemoryException;
@@ -39,7 +40,6 @@ import com.dremio.sabot.op.copier.Copier;
 import com.dremio.sabot.op.copier.CopierOperator;
 import com.dremio.sabot.op.sort.external.Sv4HyperContainer;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBufAllocator;
 
 public class TestCopiers extends BaseTestOperator {

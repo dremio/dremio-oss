@@ -20,6 +20,7 @@ import static org.apache.arrow.vector.types.Types.getMinorTypeForArrowType;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BaseFixedWidthVector;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.FixedWidthVectorHelper;
@@ -90,8 +91,6 @@ import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * generated from TypeHelper.java

@@ -15,7 +15,7 @@
  */
 import { shallow } from 'enzyme';
 
-import { JobDetails } from './JobDetails';
+import JobDetails from './JobDetails';
 
 describe('JobDetails', () => {
 
@@ -50,42 +50,5 @@ describe('JobDetails', () => {
     expect(wrapper.find('TabsNavigation')).to.have.length(1);
     expect(wrapper.find('TabsContent')).to.have.length(1);
     wrapper.instance().componentWillUnmount();
-  });
-
-  describe('componentWillReceiveProps', () => {
-    it('should call loadJobDetails when jobId changes', () => {
-      const wrapper = shallow(<JobDetails {...commonProps}/>);
-      expect(commonProps.loadJobDetails).to.be.calledOnce;
-
-      wrapper.setProps({jobId: commonProps.jobId});
-      expect(commonProps.loadJobDetails).to.be.calledOnce;
-      wrapper.setProps({jobId: '456'});
-      expect(commonProps.loadJobDetails).to.be.calledTwice;
-      wrapper.instance().componentWillUnmount();
-    });
-  });
-
-  describe('load', () => {
-    it('should handle 404 responses and call updateViewState', (done) => {
-      const props = {
-        ...commonProps,
-        loadJobDetails: sinon.stub().returns(Promise.resolve({
-          meta: {
-            jobId: commonProps.jobId
-          },
-          error: true,
-          payload: {
-            status: 404
-          }
-        })),
-        updateViewState: () => {
-          // we expect updateViewState to get called
-          done();
-        }
-      };
-
-      const wrapper = shallow(<JobDetails {...props}/>);
-      wrapper.instance().componentWillUnmount();
-    });
   });
 });

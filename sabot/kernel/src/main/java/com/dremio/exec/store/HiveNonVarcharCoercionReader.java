@@ -166,8 +166,8 @@ public class HiveNonVarcharCoercionReader implements AutoCloseable {
     );
     javaCodeGenWatch.stop();
     OperatorStats stats = context.getStats();
-    stats.addLongStat(ScanOperator.Metric.JAVA_BUILD_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
-    stats.addLongStat(ScanOperator.Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    stats.addLongStat(ScanOperator.Metric.JAVA_BUILD_TIME, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(ScanOperator.Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
     stats.addLongStat(ScanOperator.Metric.NUM_HIVE_PARQUET_DECIMAL_COERCIONS, numDecimalCoercions);
     gandivaCodeGenWatch.reset();
     javaCodeGenWatch.reset();
@@ -191,8 +191,8 @@ public class HiveNonVarcharCoercionReader implements AutoCloseable {
       }
     }
     OperatorStats stats = context.getStats();
-    stats.addLongStat(ScanOperator.Metric.JAVA_EXECUTE_TIME, javaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
-    stats.addLongStat(ScanOperator.Metric.GANDIVA_EXECUTE_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.MILLISECONDS));
+    stats.addLongStat(ScanOperator.Metric.JAVA_EXECUTE_TIME, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(ScanOperator.Metric.GANDIVA_EXECUTE_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
     javaCodeGenWatch.reset();
     gandivaCodeGenWatch.reset();
   }

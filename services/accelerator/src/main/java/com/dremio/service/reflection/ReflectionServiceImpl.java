@@ -66,10 +66,8 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
-import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
-import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
@@ -79,6 +77,7 @@ import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.dataset.proto.RefreshMethod;
 import com.dremio.service.reflection.MaterializationCache.CacheException;
 import com.dremio.service.reflection.MaterializationCache.CacheHelper;
 import com.dremio.service.reflection.MaterializationCache.CacheViewer;
@@ -151,7 +150,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
   }
 
   private MaterializationDescriptorProvider materializationDescriptorProvider;
-  private AccelerationManager accelerationManager;
   private final Provider<SchedulerService> schedulerService;
   private final Provider<JobsService> jobsService;
   private final Provider<NamespaceService> namespaceService;
@@ -253,10 +251,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     return materializationDescriptorProvider;
   }
 
-  public AccelerationManager getAccelerationManager() {
-    return accelerationManager;
-  }
-
   @Override
   public void start() {
     this.materializationDescriptorProvider = new MaterializationDescriptorProviderImpl();
@@ -323,8 +317,6 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         }
       );
     }
-
-    this.accelerationManager = new AccelerationManagerImpl(this, namespaceService.get());
 
     scheduleNextCacheRefresh(new CacheRefresher());
   }
@@ -422,7 +414,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
       .setUserName(SYSTEM_USERNAME)
       .build();
     return UserSession.Builder.newBuilder()
-      .withSessionOptionManager(new SessionOptionManagerImpl(options))
+      .withSessionOptionManager(new SessionOptionManagerImpl(options.getOptionValidatorListing()), options)
       .withCredentials(credentials)
       .exposeInternalSources(true)
       .build();
@@ -798,7 +790,26 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     };
   }
 
-  private SystemOptionManager getOptionManager() {
+  @Override
+  public long getReflectionSize(ReflectionId reflectionId) {
+    if (doesReflectionHaveAnyMaterializationDone(reflectionId)) {
+      return getMetrics(getLastDoneMaterialization(reflectionId)).getFootprint();
+    }
+
+    return -1;
+  }
+
+  @Override
+  public boolean isReflectionIncremental(ReflectionId reflectionId) {
+    Optional<ReflectionEntry> entry = getEntry(reflectionId);
+    if (entry.isPresent()) {
+      return entry.get().getRefreshMethod() == RefreshMethod.INCREMENTAL;
+    }
+
+    return false;
+  }
+
+  private OptionManager getOptionManager() {
     return sabotContext.get().getOptionManager();
   }
 

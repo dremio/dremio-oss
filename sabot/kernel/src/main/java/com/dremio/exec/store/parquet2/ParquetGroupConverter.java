@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
@@ -77,8 +78,6 @@ import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-
-import io.netty.buffer.ArrowBuf;
 
 
 abstract class ParquetGroupConverter extends GroupConverter implements ParquetListElementConverter {

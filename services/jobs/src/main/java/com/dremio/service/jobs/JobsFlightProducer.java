@@ -17,6 +17,8 @@ package com.dremio.service.jobs;
 
 import static org.apache.arrow.util.Preconditions.checkNotNull;
 
+import javax.inject.Provider;
+
 import org.apache.arrow.flight.Action;
 import org.apache.arrow.flight.ActionType;
 import org.apache.arrow.flight.Criteria;
@@ -44,10 +46,10 @@ import io.grpc.Status;
  */
 public class JobsFlightProducer implements FlightProducer, AutoCloseable {
   private static final Logger logger = LoggerFactory.getLogger(JobsFlightProducer.class);
-  private final LocalJobsService jobsService;
+  private final Provider<LocalJobsService> jobsService;
   private final BufferAllocator allocator;
 
-  JobsFlightProducer(LocalJobsService jobsService, BufferAllocator allocator) {
+  public JobsFlightProducer(Provider<LocalJobsService> jobsService, BufferAllocator allocator) {
     this.jobsService = jobsService;
     this.allocator = checkNotNull(allocator).newChildAllocator("jobs-flight-producer", 0, Long.MAX_VALUE);
   }
@@ -69,21 +71,24 @@ public class JobsFlightProducer implements FlightProducer, AutoCloseable {
       final int offset = jobsFlightTicket.getOffset();
       final int limit = jobsFlightTicket.getLimit();
 
-      try (final JobDataFragment jobDataFragment = jobsService.getJobData(JobsProtoUtil.toStuff(jobId), offset, limit)) {
+      try (final JobDataFragment jobDataFragment = jobsService.get().getJobData(JobsProtoUtil.toStuff(jobId), offset, limit)) {
         final Schema schema = jobDataFragment.getSchema();
         try (final VectorSchemaRoot root = VectorSchemaRoot.create(schema, allocator)) {
           serverStreamListener.start(root);
           for (RecordBatchHolder holder : jobDataFragment.getRecordBatches()) {
             // iterate over the columns
+            int numRecords = holder.size();
             for (int i = 0; i < schema.getFields().size(); i++) {
               ValueVector vector = root.getVector(schema.getFields().get(i).getName());
               ValueVector dataVector = holder.getData().getVectors().get(i);
+              int k = 0; // index at which value need to written in "vector" from "dataVector"
               // iterate over values in the column to copy data
-              for (int j = 0; j < dataVector.getValueCount(); j++ ) {
-                vector.copyFromSafe(j, j, dataVector);
+              for (int j = holder.getStart(); j < holder.getEnd(); j++, k++ ) {
+                // Copy value at dataVector[j] into vector[k]
+                vector.copyFromSafe(j, k, dataVector);
               }
-              vector.setValueCount(dataVector.getValueCount());
-              root.setRowCount(dataVector.getValueCount());
+              vector.setValueCount(numRecords);
+              root.setRowCount(numRecords);
             }
             serverStreamListener.putNext();
             root.allocateNew();

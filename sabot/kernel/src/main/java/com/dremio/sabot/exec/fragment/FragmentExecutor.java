@@ -291,9 +291,9 @@ public class FragmentExecutor {
 
       injector.injectChecked(executionControls, INJECTOR_DO_WORK, OutOfMemoryError.class);
 
-    } catch (OutOfMemoryError e) {
+    } catch (OutOfMemoryError | OutOfMemoryException e) {
       // handle out of memory errors differently from other error types.
-      if (e instanceof OutOfDirectMemoryError || "Direct buffer memory".equals(e.getMessage()) || INJECTOR_DO_WORK.equals(e.getMessage())) {
+      if (e instanceof OutOfDirectMemoryError || e instanceof OutOfMemoryException || "Direct buffer memory".equals(e.getMessage()) || INJECTOR_DO_WORK.equals(e.getMessage())) {
         transitionToFailed(UserException.memoryError(e)
             .addContext(MemoryDebugInfo.getDetailsOnAllocationFailure(new OutOfMemoryException(e), allocator))
             .buildSilently());
@@ -439,6 +439,7 @@ public class FragmentExecutor {
 
     if(!flushable.flushMessages()) {
       // rerun retire if we have messages still pending send completion.
+      logger.debug("fragment retire blocked on downstream");
       taskState = State.BLOCKED_ON_DOWNSTREAM;
       return;
     }
@@ -450,6 +451,7 @@ public class FragmentExecutor {
 
     if(!flushable.flushMessages()) {
       // rerun retire if we have messages still pending send completion.
+      logger.debug("fragment retire blocked on downstream");
       taskState = State.BLOCKED_ON_DOWNSTREAM;
       return;
     } else {

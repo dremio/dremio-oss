@@ -657,6 +657,7 @@ public class HiveTestDataGenerator {
 
     createParquetTableWithDoubleFloatType(hiveDriver, "parquet_double_to_float");
     createParquetTableWithDeeplyNestedColumns(hiveDriver);
+    createParquetStructExtraField(hiveDriver);
 
 
     // This test requires a systemop alteration. Refresh metadata on hive seems to timeout the test preventing re-use of an existing table. Hence, creating a new table.
@@ -2561,5 +2562,26 @@ public class HiveTestDataGenerator {
     executeQuery(hiveDriver, createTable);
     executeQuery(hiveDriver, insertTable);
     executeQuery(hiveDriver, createExternalTable);
+  }
+
+  private void createParquetStructExtraField(final Driver hiveDriver) throws Exception {
+    final File structWithExtraField = new File(BaseTestQuery.getTempDir("struct_extra_test"));
+    structWithExtraField.mkdirs();
+    final URL structWithExtraFieldParquetUrl = Resources.getResource("struct_extra_test.parquet");
+    if (structWithExtraFieldParquetUrl == null) {
+      throw new IOException(String.format("Unable to find path %s.", "struct_extra_test.parquet"));
+    }
+
+    // parquet file has following columns with one valid row
+    // col1 int, col2 array<struct<f1:int, f2:struct<f_f_1>>> with value 1, [{f1:1, f2:{2}}]
+    final File structWithExtraFieldFile = new File(structWithExtraField, "struct_extra_test.parquet");
+    structWithExtraFieldFile.deleteOnExit();
+    structWithExtraField.deleteOnExit();
+    Files.write(Paths.get(structWithExtraFieldFile.toURI()), Resources.toByteArray(structWithExtraFieldParquetUrl));
+
+    final String structExtraFieldTest = "create external table struct_extra_test_ext(" +
+      "col1 int, col2 array<struct<f1:int, f2:struct<f_f_1:int, f_f_2:int>>>)" +
+      "stored as parquet location '" + structWithExtraFieldFile.getParent() + "'";
+    executeQuery(hiveDriver, structExtraFieldTest);
   }
 }

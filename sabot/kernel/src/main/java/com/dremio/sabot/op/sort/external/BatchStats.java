@@ -18,13 +18,12 @@ package com.dremio.sabot.op.sort.external;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.ReferenceManager;
 import org.apache.arrow.vector.ValueVector;
 
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorWrapper;
-
-import io.netty.buffer.ArrowBuf;
 
 class BatchStats {
 

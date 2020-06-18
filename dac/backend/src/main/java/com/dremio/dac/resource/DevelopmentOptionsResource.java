@@ -40,7 +40,7 @@ import com.google.common.base.Preconditions;
  */
 @RestResource
 @Secured
-@RolesAllowed({"admin", "user"})
+@RolesAllowed({"admin"})
 @Path("/development_options")
 public class DevelopmentOptionsResource {
   private ReflectionServiceHelper reflectionServiceHelper;

@@ -18,6 +18,7 @@ package com.dremio.exec.client;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocatorFactory;
 
@@ -35,8 +36,6 @@ import com.dremio.exec.util.VectorUtil;
 import com.dremio.sabot.rpc.user.QueryDataBatch;
 import com.dremio.sabot.rpc.user.UserResultsListener;
 import com.google.common.base.Stopwatch;
-
-import io.netty.buffer.ArrowBuf;
 
 public class PrintingResultsListener implements UserResultsListener {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PrintingResultsListener.class);

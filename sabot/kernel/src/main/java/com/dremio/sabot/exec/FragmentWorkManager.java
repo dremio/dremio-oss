@@ -39,7 +39,6 @@ import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.SabotNode;
-import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.service.executor.ExecutorServiceImpl;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.work.SafeExit;
@@ -98,7 +97,6 @@ public class FragmentWorkManager implements Service, SafeExit {
   private final Provider<JobResultsClientFactory> jobResultsClientFactoryProvider;
 
   private ExtendedLatch exitLatch = null; // This is used to wait to exit when things are still running
-  private DefaultOptionManager defaultOptionManager;
   private com.dremio.exec.service.executor.ExecutorService executorService;
 
   public FragmentWorkManager(
@@ -110,7 +108,6 @@ public class FragmentWorkManager implements Service, SafeExit {
     final Provider<ContextInformationFactory> contextInformationFactory,
     final Provider<WorkloadTicketDepot> workloadTicketDepotProvider,
     final Provider<TaskPool> taskPool,
-    final DefaultOptionManager defaultOptionManager,
     final Provider<MaestroClientFactory> maestroServiceClientFactoryProvider,
     final Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider,
     final Provider<JobResultsClientFactory> jobResultsClientFactoryProvider) {
@@ -122,7 +119,6 @@ public class FragmentWorkManager implements Service, SafeExit {
     this.contextInformationFactory = contextInformationFactory;
     this.workloadTicketDepotProvider = workloadTicketDepotProvider;
     this.pool = taskPool;
-    this.defaultOptionManager = defaultOptionManager;
     this.workStats = new WorkStatsImpl();
     this.executorService = new ExecutorServiceImpl.NoExecutorService();
     this.maestroServiceClientFactoryProvider = maestroServiceClientFactoryProvider;
@@ -315,8 +311,8 @@ public class FragmentWorkManager implements Service, SafeExit {
         context.getNodeDebugContextProvider(),
         bitContext.getSpillService(),
         ClusterCoordinator.Role.fromEndpointRoles(identity.get().getRoles()),
-        defaultOptionManager,
-        jobResultsClientFactoryProvider);
+        jobResultsClientFactoryProvider,
+        identity);
 
     executorService = new ExecutorServiceImpl(fragmentExecutors,
             bitContext, builder);

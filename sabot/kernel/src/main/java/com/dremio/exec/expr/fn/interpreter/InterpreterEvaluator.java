@@ -23,6 +23,7 @@ import java.lang.reflect.Method;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.ValueHolderHelper;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.holders.BitHolder;
@@ -56,8 +57,6 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-
-import io.netty.buffer.ArrowBuf;
 
 public class InterpreterEvaluator {
 

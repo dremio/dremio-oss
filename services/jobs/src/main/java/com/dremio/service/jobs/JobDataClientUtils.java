@@ -16,6 +16,7 @@
 package com.dremio.service.jobs;
 
 import static com.dremio.service.jobs.RecordBatchHolder.newRecordBatchHolder;
+import static java.lang.Integer.min;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,36 +51,27 @@ public final class JobDataClientUtils {
    * Streams JobData from server over gRPC and creates list of RecordBatchHolder to populate JobDataFragment
    * @param stream flight stream for a particular job
    * @param allocator allocator for vectors
-   * @param offset start index of results
    * @param limit max number of results to fetch
    * @return
    */
-  public static List<RecordBatchHolder> getData(FlightStream stream, BufferAllocator allocator, int offset, int limit) {
+  public static List<RecordBatchHolder> getData(FlightStream stream, BufferAllocator allocator, int limit) {
     final List<RecordBatchHolder> batches = new ArrayList<>();
     try (final VectorContainer container = new VectorContainer(allocator);
          final VectorSchemaRoot root = stream.getRoot()) {
 
-      int runningCount = 0;
       int remaining = limit;
 
       while (stream.next()) {
         VectorContainer.transferFromRoot(root, container, allocator);
 
         final int currentBatchCount = root.getRowCount();
-        runningCount += currentBatchCount;
-
-        // skip batch if offset is beyond
-        if (offset >= runningCount) {
-          continue;
-        }
-        // start at start of batch or the offset minus the start index of the current batch
-        final int batchStart = Math.max(0, offset - (runningCount - currentBatchCount));
-        // end at the end of batch or the at the limit
-        final int batchEnd = Math.min(currentBatchCount, batchStart + remaining);
+        // Determine batchEnd so that we are not returning more records
+        // than the limit even when there are extra batches are in the stream.
+        int batchEnd = min(currentBatchCount, remaining);
 
         final RecordBatchHolder batchHolder = newRecordBatchHolder(
           new RecordBatchData(container, allocator),
-          batchStart,
+          0,
           batchEnd
         );
         batches.add(batchHolder);
@@ -115,7 +107,7 @@ public final class JobDataClientUtils {
     final Ticket ticket = new JobsFlightTicket(jobId.getId(), offset, limit).toTicket();
     try (FlightStream flightStream = flightClient.getStream(ticket)) {
       return new JobDataFragmentImpl(new RecordBatches(JobDataClientUtils.getData(
-        flightStream, bufferAllocator, offset, limit)), offset, jobId);
+        flightStream, bufferAllocator, limit)), offset, jobId);
     } catch (FlightRuntimeException fre) {
       Optional<UserException> ue = JobsRpcUtils.fromFlightRuntimeException(fre);
       throw ue.isPresent() ? ue.get() : fre;

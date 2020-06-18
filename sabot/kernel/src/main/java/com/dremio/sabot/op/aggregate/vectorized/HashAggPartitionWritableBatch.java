@@ -18,14 +18,13 @@ package com.dremio.sabot.op.aggregate.vectorized;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.op.common.ht2.LBlockHashTable;
 import com.google.common.base.Preconditions;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * Works like a SelectionVector/Iterator over HashAggPartition buffers

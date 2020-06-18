@@ -33,8 +33,8 @@ import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 import com.dremio.config.DremioConfig;
-import com.dremio.exec.rpc.ssl.SSLConfig;
 import com.dremio.exec.rpc.ssl.SSLConfigurator;
+import com.dremio.ssl.SSLConfig;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 

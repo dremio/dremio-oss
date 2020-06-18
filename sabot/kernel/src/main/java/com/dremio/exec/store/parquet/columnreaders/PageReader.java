@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.parquet.bytes.BytesInput;
 import org.apache.parquet.column.Dictionary;
@@ -52,8 +53,6 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
-
-import io.netty.buffer.ArrowBuf;
 
 // class to keep track of the read position of variable length columns
 public class PageReader {

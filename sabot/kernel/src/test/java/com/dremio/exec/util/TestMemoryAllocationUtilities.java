@@ -44,7 +44,11 @@ import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.TypeValidators;
 import com.google.common.collect.ImmutableMap;
 
@@ -60,7 +64,8 @@ public class TestMemoryAllocationUtilities extends ExecTest {
   private static final NodeEndpoint N1 = NodeEndpoint.newBuilder().setAddress("n1").build();
   private static final NodeEndpoint N2 = NodeEndpoint.newBuilder().setAddress("n2").build();
 
-  private SystemOptionManager options;
+  private OptionManager options;
+  private SystemOptionManager systemOptionManager;
   private LegacyKVStoreProvider kvstoreprovider;
 
    @Before
@@ -68,17 +73,19 @@ public class TestMemoryAllocationUtilities extends ExecTest {
      kvstoreprovider =
        new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, true).asLegacy();
      kvstoreprovider.start();
-     final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(CLASSPATH_SCAN_RESULT);
-     options = new SystemOptionManager(
-         defaultOptionManager,
-         new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT),
-       () -> kvstoreprovider, false);
-     options.start();
+     final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
+     systemOptionManager = new SystemOptionManager(
+       optionValidatorListing, new LogicalPlanPersistence(DEFAULT_SABOT_CONFIG, CLASSPATH_SCAN_RESULT), () -> kvstoreprovider, false);
+     options = OptionManagerWrapper.Builder.newBuilder()
+       .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+       .withOptionManager(systemOptionManager)
+       .build();
+     systemOptionManager.start();
   }
 
    @After
    public void teardown() throws Exception {
-     AutoCloseables.close(options, kvstoreprovider);
+     AutoCloseables.close(systemOptionManager, kvstoreprovider);
    }
 
   /**

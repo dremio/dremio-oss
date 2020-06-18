@@ -25,16 +25,6 @@ import "remote_datastore.proto";
 
 // request and response definitions of dataset listing service
 
-message DLFindRequest { // DatasetListingService#find
-  optional string username = 1;
-  optional com.dremio.datastore.SearchRequest request = 2;
-}
-
-message DLFindResponse {
-  repeated bytes response = 1; // TODO(DX-10857): change from opaque object to protobuf;
-  optional string failureMessage = 2;
-}
-
 message DLGetSourcesRequest { // DatasetListingService#getSources
   optional string username = 1;
 }

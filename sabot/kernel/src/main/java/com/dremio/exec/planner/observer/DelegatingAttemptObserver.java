@@ -31,6 +31,7 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.rpc.RpcOutcomeListener;
@@ -46,6 +47,11 @@ public class DelegatingAttemptObserver implements AttemptObserver {
 
   public DelegatingAttemptObserver(AttemptObserver observer) {
     this.observer = observer;
+  }
+
+  @Override
+  public void beginState(AttemptEvent event) {
+    observer.beginState(event);
   }
 
   @Override

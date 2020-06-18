@@ -42,36 +42,15 @@ import com.google.common.collect.ImmutableList;
 /**
  * Reflection service
  */
-public interface ReflectionService extends Service {
-  Iterable<ReflectionGoal> getAllReflections();
-
-  Iterable<ReflectionGoal> getReflectionsByDatasetPath(NamespaceKey path);
-
-  Iterable<ReflectionGoal> getReflectionsByDatasetId(String datasetid);
-
-  ReflectionId create(ReflectionGoal goal);
-
-  ReflectionId createExternalReflection(String name, List<String> dataset, List<String> targetDataset);
+public interface ReflectionService extends Service, ReflectionAdministrationService {
 
   Iterable<ExternalReflection> getAllExternalReflections();
 
   Optional<ExternalReflection> getExternalReflectionById(String id);
 
-  Iterable<ExternalReflection> getExternalReflectionByDatasetPath(List<String> datasetPath);
-
-  void dropExternalReflection(String id);
-
-  void update(ReflectionGoal goal);
-
-  void remove(ReflectionGoal goal);
-
   Optional<ReflectionEntry> getEntry(ReflectionId reflectionId);
 
-  Optional<ReflectionGoal> getGoal(ReflectionId reflectionId);
-
   ExcludedReflectionsProvider getExcludedReflectionsProvider();
-
-  boolean doesReflectionHaveAnyMaterializationDone(ReflectionId reflectionId);
 
   Materialization getLastDoneMaterialization(ReflectionId reflectionId);
 
@@ -81,28 +60,10 @@ public interface ReflectionService extends Service {
 
   MaterializationMetrics getMetrics(Materialization materialization);
 
-  List<ReflectionGoal> getRecommendedReflections(String datasetId);
-
-  void requestRefresh(String datasetId);
-
-  int getEnabledReflectionCountForDataset(String datasetid);
-
-  /**
-   * Set whether to expose available materializations for substitution.
-   *
-   * @param enable True if you want substitution enabled.
-   */
-  void setSubstitutionEnabled(boolean enable);
-
-  boolean isSubstitutionEnabled();
-
   /**
    * wakes up the reflection manager if it isn't already running.
    */
   Future<?> wakeupManager(String reason);
-
-  @VisibleForTesting
-  void clearAll();
 
   @VisibleForTesting
   Iterable<DependencyEntry> getDependencies(ReflectionId reflectionId);
@@ -113,11 +74,7 @@ public interface ReflectionService extends Service {
 
   Iterable<Refresh> getRefreshes(Materialization materialization);
 
-  ReflectionSettings getReflectionSettings();
-
   Provider<CacheViewer> getCacheViewerProvider();
-
-  long getTotalReflectionSize(ReflectionId reflectionId);
 
   /**
    * mainly useful to reduce conflicts on the implementation when we update this interface
@@ -180,6 +137,11 @@ public interface ReflectionService extends Service {
     @Override
     public boolean isSubstitutionEnabled() {
       return false;
+    }
+
+    @Override
+    public long getReflectionSize(ReflectionId reflectionId) {
+      return 0;
     }
 
     @Override
@@ -257,6 +219,11 @@ public interface ReflectionService extends Service {
     @Override
     public int getEnabledReflectionCountForDataset(String datasetid) {
       return 0;
+    }
+
+    @Override
+    public boolean isReflectionIncremental(ReflectionId reflectionId) {
+      return false;
     }
 
     @Override

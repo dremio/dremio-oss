@@ -94,6 +94,7 @@ import com.dremio.exec.planner.logical.PreProcessRel;
 import com.dremio.exec.planner.logical.ProjectRel;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
+import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.PlannerSettings;
@@ -120,10 +121,12 @@ import com.dremio.exec.planner.sql.SqlConverter.RelRootPlus;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.FindNonJdbcConventionRexSubQuery;
 import com.dremio.exec.planner.sql.handlers.RexSubQueryUtils.RelsWithRexSubQueryTransformer;
 import com.dremio.exec.planner.sql.parser.UnsupportedOperatorsVisitor;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.dfs.FilesystemScanDrel;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.exec.work.foreman.SqlUnsupportedException;
 import com.dremio.exec.work.foreman.UnsupportedRelOperatorException;
+import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.op.fromjson.ConvertFromJsonConverter;
 import com.dremio.sabot.op.join.JoinUtils;
@@ -171,6 +174,10 @@ public class PrelTransformer {
 
   public static ConvertedRelNode validateAndConvert(SqlHandlerConfig config, SqlNode sqlNode, RelTransformer relTransformer) throws ForemanSetupException, RelConversionException, ValidationException {
     final Pair<SqlNode, RelDataType> validatedTypedSqlNode = validateNode(config, sqlNode);
+    if (config.getObserver() != null) {
+      config.getObserver().beginState(AttemptObserver.toEvent(UserBitShared.AttemptEvent.State.PLANNING));
+    }
+
     final SqlNode validated = validatedTypedSqlNode.getKey();
     final RelNode rel = convertToRel(config, validated, relTransformer);
     final RelNode preprocessedRel = preprocessNode(config, rel);
@@ -693,7 +700,7 @@ public class PrelTransformer {
     /* 6.)
      * Insert LocalExchange (mux and/or demux) nodes
      */
-    phyRelNode = InsertLocalExchangeVisitor.insertLocalExchanges(phyRelNode, queryOptions, context.getClusterResourceInformation());
+    phyRelNode = InsertLocalExchangeVisitor.insertLocalExchanges(phyRelNode, queryOptions, context.getGroupResourceInformation());
 
     /*
      * 7.)
@@ -750,10 +757,14 @@ public class PrelTransformer {
   }
 
   public static PhysicalPlan convertToPlan(SqlHandlerConfig config, PhysicalOperator op, Runnable committer) {
+    OptionList options = new OptionList();
+    options.merge(config.getContext().getQueryOptionManager().getNonDefaultOptions());
+    options.merge(config.getContext().getSessionOptionManager().getNonDefaultOptions());
+
     PlanPropertiesBuilder propsBuilder = PlanProperties.builder();
     propsBuilder.type(PlanType.PHYSICAL);
     propsBuilder.version(1);
-    propsBuilder.options(new JSONOptions(config.getContext().getOptions().getOptionList()));
+    propsBuilder.options(new JSONOptions(options));
     propsBuilder.resultMode(ResultMode.EXEC);
     propsBuilder.generator("default", "handler");
     List<PhysicalOperator> ops = Lists.newArrayList();

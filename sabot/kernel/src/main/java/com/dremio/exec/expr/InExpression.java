@@ -20,6 +20,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
 import org.apache.arrow.vector.holders.NullableDateMilliHolder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
@@ -40,8 +41,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.sun.codemodel.JClass;
 import com.sun.codemodel.JCodeModel;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * A special expression used during compilation that is an optimization over a multi-or.

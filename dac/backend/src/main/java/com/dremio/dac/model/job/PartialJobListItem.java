@@ -149,6 +149,11 @@ public class PartialJobListItem {
       case RUNNING:
       case STARTING:
       case PLANNING:
+      case PENDING:
+      case METADATA_RETRIEVAL:
+      case QUEUED:
+      case ENGINE_START:
+      case EXECUTION_PLANNING:
         return false;
       case CANCELED:
       case COMPLETED:

@@ -88,6 +88,19 @@ public final class NamespaceTestUtils {
     ns.addOrUpdateDataset(dsPath, ds);
   }
 
+  public static void addDS(NamespaceService ns, String name, String sql) throws Exception {
+    final NamespaceKey dsPath = new NamespaceKey(PathUtils.parseFullPath(name));
+    final DatasetConfig ds = new DatasetConfig();
+    final VirtualDataset vds = new VirtualDataset();
+    vds.setVersion(DatasetVersion.newVersion());
+    vds.setSql(sql);
+    ds.setType(DatasetType.VIRTUAL_DATASET);
+    ds.setVirtualDataset(vds);
+    ds.setFullPathList(dsPath.getPathComponents());
+    ds.setName(dsPath.getName());
+    ns.addOrUpdateDataset(dsPath, ds);
+  }
+
   public static void addFile(NamespaceService ns, List<String> path) throws Exception {
     NamespaceKey filePath = new NamespaceKey(path);
     final boolean isHome = path.get(0).startsWith("@");

@@ -34,7 +34,7 @@ import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.expr.annotations.FunctionTemplate.FunctionScope;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 
 /**
  * Freemarker generated from template ${.template_name}

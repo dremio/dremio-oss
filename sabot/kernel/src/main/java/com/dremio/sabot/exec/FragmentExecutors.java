@@ -154,6 +154,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
    * @param clerk
    */
   public void activateFragments(QueryId queryId, QueriesClerk clerk) {
+    logger.debug("received activation for query {}", QueryIdHelper.getQueryId(queryId));
     for (FragmentTicket fragmentTicket : clerk.getFragmentTickets(queryId)) {
       activateFragment(fragmentTicket.getHandle());
     }
@@ -169,6 +170,7 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
    * @param clerk
    */
   public void cancelFragments(QueryId queryId, QueriesClerk clerk) {
+    logger.debug("received cancel for query {}", QueryIdHelper.getQueryId(queryId));
     maestroProxy.setQueryCancelled(queryId);
     for (FragmentTicket fragmentTicket : clerk.getFragmentTickets(queryId)) {
       cancelFragment(fragmentTicket.getHandle());

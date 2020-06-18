@@ -15,22 +15,18 @@
  */
 package com.dremio.exec.server.options;
 
-import com.dremio.options.OptionManager;
-
 /**
  * Interface for managing options set at the session level.
  */
 public interface SessionOptionManagerFactory {
   /**
    * Given a session Id and context, fetch or create the appropriate
-   * SessionOptionManager.
+   * OptionManager.
    *
    * @param sessionId session Id
-   * @param fallbackOptionManager fallback option manager
    * @return
    */
-  SessionOptionManager getOrCreate(String sessionId,
-                            OptionManager fallbackOptionManager);
+  SessionOptionManager getOrCreate(String sessionId);
 
   /**
    * Delete the SessionOptionManager associated with the session ID.

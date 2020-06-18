@@ -17,9 +17,9 @@ package com.dremio.services.configuration;
 
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
 import com.google.common.base.Preconditions;
@@ -51,7 +51,7 @@ public class ConfigurationStore {
   /**
    * Support storage creator.
    */
-  public static final class ConfigurationStoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<String, ConfigurationEntry>> {
+  public static final class ConfigurationStoreCreator implements LegacyKVStoreCreationFunction<String, ConfigurationEntry> {
     @Override
     public LegacyKVStore<String, ConfigurationEntry> build(LegacyStoreBuildingFactory factory) {
       return factory.<String, ConfigurationEntry>newStore()

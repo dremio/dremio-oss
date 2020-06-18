@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>4.3.1-202005202256080999-5dcfb82a</version>
+    <version>4.5.0-202006180205030236-1a5d28da</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -338,12 +338,24 @@
       <groupId>org.glassfish</groupId>
       <artifactId>javax.el</artifactId>
     </dependency>
-      <dependency>
-          <groupId>com.dremio.services</groupId>
-          <artifactId>dremio-services-jobtelemetry-server</artifactId>
-          <version>${project.version}</version>
-          <scope>compile</scope>
-      </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-jobtelemetry-server</artifactId>
+      <version>${project.version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.immutables</groupId>
+      <artifactId>value</artifactId>
+      <version>2.8.1</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>de.flapdoodle.embed</groupId>
+      <artifactId>de.flapdoodle.embed.process</artifactId>
+      <version>2.1.2</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -560,22 +572,12 @@
               <systemPropertyVariables>
                 <dremio_multinode>true</dremio_multinode>
                 <dremio.service.jobs.over_socket>true</dremio.service.jobs.over_socket>
-
-                <test.master-active.localPort>${test.master-active.localPort}</test.master-active.localPort>
-                <test.master-active.httpPort>${test.master-active.httpPort}</test.master-active.httpPort>
-                <test.master-active.clientPort>${test.master-active.clientPort}</test.master-active.clientPort>
-                <test.master-backup.localPort>${test.master-backup.localPort}</test.master-backup.localPort>
-                <test.master-backup.httpPort>${test.master-backup.httpPort}</test.master-backup.httpPort>
-                <test.master-backup.clientPort>${test.master-backup.clientPort}</test.master-backup.clientPort>
-                <test.non-master.localPort>${test.non-master.localPort}</test.non-master.localPort>
-                <test.non-master.httpPort>${test.non-master.httpPort}</test.non-master.httpPort>
-                <test.non-master.clientPort>${test.non-master.clientPort}</test.non-master.clientPort>
-                <test.zk.enabled.port>${test.zk.enabled.port}</test.zk.enabled.port>
               </systemPropertyVariables>
               <excludes>
                 <exclude>com.dremio.dac.server.TestBackupManager</exclude>
                 <exclude>com.dremio.dac.TestResetPassword</exclude>
                 <exclude>com.dremio.dac.resource.TestBootstrapResource</exclude>
+                <exclude>com.dremio.service.jobs.TestReflectionJob</exclude>
               </excludes>
             </configuration>
           </execution>
@@ -593,36 +595,6 @@
                 <include>**/Test*Job*.java</include>
                 <include>**/*Job*Test.java</include>
               </includes>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <executions>
-          <execution>
-            <id>reserve-network-port</id>
-            <goals>
-              <goal>reserve-network-port</goal>
-            </goals>
-            <phase>process-resources</phase>
-            <configuration>
-              <!-- Conservative range of ports to avoid ephemeral port ranges -->
-              <minPortNumber>1024</minPortNumber>
-              <maxPortNumber>9999</maxPortNumber>
-              <portNames>
-                <portName>test.master-active.localPort</portName>
-                <portName>test.master-active.httpPort</portName>
-                <portName>test.master-active.clientPort</portName>
-                <portName>test.master-backup.localPort</portName>
-                <portName>test.master-backup.httpPort</portName>
-                <portName>test.master-backup.clientPort</portName>
-                <portName>test.non-master.localPort</portName>
-                <portName>test.non-master.httpPort</portName>
-                <portName>test.non-master.clientPort</portName>
-                <portName>test.zk.enabled.port</portName>
-              </portNames>
             </configuration>
           </execution>
         </executions>

@@ -16,9 +16,8 @@
 package com.dremio.exec.server.options;
 
 import com.dremio.common.map.CaseInsensitiveMap;
-import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue.OptionType;
 
 /**
@@ -27,15 +26,8 @@ import com.dremio.options.OptionValue.OptionType;
 public class QueryOptionManager extends InMemoryOptionManager {
 //  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryOptionManager.class);
 
-  public QueryOptionManager(OptionManager sessionOptions) {
-    super(sessionOptions, CaseInsensitiveMap.<OptionValue>newHashMap());
-  }
-
-  @Override
-  public OptionList getOptionList() {
-    OptionList list = super.getOptionList();
-    list.merge(fallback.getOptionList());
-    return list;
+  public QueryOptionManager(final OptionValidatorListing optionValidatorListing) {
+    super(optionValidatorListing, CaseInsensitiveMap.newHashMap());
   }
 
   @Override

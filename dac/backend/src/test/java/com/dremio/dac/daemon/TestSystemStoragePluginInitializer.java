@@ -47,11 +47,15 @@ import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.FileSystemWrapper;
 import com.dremio.exec.store.dfs.InternalFileConf;
 import com.dremio.exec.store.sys.SystemTablePluginConfigProvider;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.local.LocalClusterCoordinator;
@@ -146,11 +150,16 @@ public class TestSystemStoragePluginInitializer {
     when(sabotContext.getLpPersistence())
       .thenReturn(lpp);
 
-    final DefaultOptionManager defaultOptionManager = new DefaultOptionManager(CLASSPATH_SCAN_RESULT);
-    final SystemOptionManager som = new SystemOptionManager(defaultOptionManager, lpp, () -> storeProvider, true);
+    final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
+    final SystemOptionManager som = new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
+    OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
+      .withOptionManager(new DefaultOptionManager(optionValidatorListing))
+      .withOptionManager(som)
+      .build();
+
     som.start();
     when(sabotContext.getOptionManager())
-      .thenReturn(som);
+      .thenReturn(optionManager);
 
     when(sabotContext.getKVStoreProvider())
       .thenReturn(storeProvider);
@@ -196,7 +205,7 @@ public class TestSystemStoragePluginInitializer {
       () -> allocator,
       () -> storeProvider,
       () -> datasetListingService,
-      () -> som,
+      () -> optionManager,
       dremioConfig,
       EnumSet.allOf(ClusterCoordinator.Role.class)
     );

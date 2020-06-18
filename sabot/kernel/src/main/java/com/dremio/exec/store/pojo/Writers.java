@@ -18,6 +18,7 @@ package com.dremio.exec.store.pojo;
 import java.lang.reflect.Field;
 import java.sql.Timestamp;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.Float8Vector;
@@ -31,8 +32,6 @@ import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.types.TypeProtos.MinorType;
 import com.dremio.common.types.Types;
 import com.google.common.base.Charsets;
-
-import io.netty.buffer.ArrowBuf;
 
 public class Writers {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Writers.class);

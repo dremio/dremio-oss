@@ -120,7 +120,8 @@ public class TestJobResource extends BaseTestServer {
 
       Assert.assertTrue("expected job to cancel successfully",
         Arrays
-          .asList(JobState.PLANNING, JobState.RUNNING, JobState.ENQUEUED, JobState.STARTING, JobState.CANCELLATION_REQUESTED, JobState.CANCELED)
+          .asList(JobState.PLANNING, JobState.RUNNING, JobState.STARTING, JobState.CANCELED, JobState.PENDING,
+            JobState.METADATA_RETRIEVAL, JobState.QUEUED, JobState.ENGINE_START, JobState.EXECUTION_PLANNING)
           .contains(jobState));
 
       if (jobState == JobState.CANCELED) {

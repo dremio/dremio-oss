@@ -19,6 +19,7 @@ import java.io.OutputStream;
 
 import javax.inject.Inject;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.holders.VarCharHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
@@ -31,8 +32,6 @@ import com.dremio.exec.expr.annotations.Output;
 import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
 import com.dremio.exec.vector.complex.fn.JsonWriter;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * UDFs to format lists

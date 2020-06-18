@@ -24,7 +24,7 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.proto.GeneralRPCProtos.RpcMode;
 import com.dremio.exec.rpc.RpcConnectionHandler.FailureType;
-import com.dremio.exec.rpc.ssl.SSLEngineFactory;
+import com.dremio.ssl.SSLEngineFactory;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Internal.EnumLite;
 import com.google.protobuf.MessageLite;
@@ -411,6 +411,7 @@ public abstract class BasicClient<T extends EnumLite, R extends RemoteConnection
           connectionHandler.connectionSucceeded(connection);
           logger.trace("Handshake completed successfully on {}", connection);
         } catch (RpcException ex) {
+          logger.debug("Failure while validating handshake", ex);
           connectionHandler.connectionFailed(FailureType.HANDSHAKE_VALIDATION, ex);
         }
       }

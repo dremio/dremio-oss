@@ -202,6 +202,7 @@ public final class JobsServiceTestUtils {
     return jobsService.getProfile(
       QueryProfileRequest.newBuilder()
         .setJobId(JobsProtoUtil.toBuf(jobId))
+        .setUserName(request.getSqlQuery().getUsername())
         .setAttempt(0)
         .build());
   }

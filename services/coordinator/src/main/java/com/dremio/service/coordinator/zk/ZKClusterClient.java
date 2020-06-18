@@ -152,7 +152,7 @@ class ZKClusterClient implements com.dremio.service.Service {
       .connectString(connectionString)
       .build();
     curator.getConnectionStateListenable().addListener(new InitialConnectionListener());
-    curator.getConnectionStateListenable().addListener(new ConnectionLogger());
+    curator.getConnectionStateListenable().addListener(new ConnectionListener());
     curator.start();
     discovery = newDiscovery(clusterId);
 
@@ -162,7 +162,7 @@ class ZKClusterClient implements com.dremio.service.Service {
 
     if (!config.getBoolean(ZK_RETRY_UNLIMITED) && !this.initialConnection.await(config.getLong(ZK_INITIAL_TIMEOUT_MS), TimeUnit.MILLISECONDS)) {
       logger.info("Failed to get initial connection to ZK");
-      connectionLostHandler.handleZKLost();
+      connectionLostHandler.handleConnectionState(ConnectionState.LOST);
     } else {
       this.initialConnection.await();
     }
@@ -371,14 +371,14 @@ class ZKClusterClient implements com.dremio.service.Service {
     }
   }
 
-  private class ConnectionLogger implements ConnectionStateListener {
+  private class ConnectionListener implements ConnectionStateListener {
 
     @Override
     public void stateChanged(CuratorFramework client, ConnectionState newState) {
-      logger.info("ZK connection state changed to {}", newState);
-      if (newState == ConnectionState.LOST) {
-        connectionLostHandler.handleZKLost();
+      if (connectionLostHandler.stateLoggingEnabled()) {
+        logger.info("ZK connection state changed to {}", newState);
       }
+      connectionLostHandler.handleConnectionState(newState);
     }
   }
 

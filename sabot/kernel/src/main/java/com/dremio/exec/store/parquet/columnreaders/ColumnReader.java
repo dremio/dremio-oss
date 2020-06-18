@@ -17,6 +17,7 @@ package com.dremio.exec.store.parquet.columnreaders;
 
 import java.io.IOException;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.parquet.column.ColumnDescriptor;
@@ -26,8 +27,6 @@ import org.apache.parquet.schema.PrimitiveType;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
-
-import io.netty.buffer.ArrowBuf;
 
 public abstract class ColumnReader<V extends ValueVector> {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ColumnReader.class);

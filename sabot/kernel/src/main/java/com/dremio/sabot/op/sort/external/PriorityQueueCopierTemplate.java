@@ -19,6 +19,7 @@ import java.io.IOException;
 
 import javax.inject.Named;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.DensityAwareVector;
@@ -34,8 +35,6 @@ import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.op.sort.external.DiskRunManager.DiskRunIterator;
 import com.google.common.collect.Iterables;
-
-import io.netty.buffer.ArrowBuf;
 
 public abstract class PriorityQueueCopierTemplate implements PriorityQueueCopier {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PriorityQueueCopierTemplate.class);

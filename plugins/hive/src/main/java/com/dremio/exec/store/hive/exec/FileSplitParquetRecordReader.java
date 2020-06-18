@@ -492,7 +492,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
       if (!compatible) {
         BatchSchemaField batchSchemaFieldInTable = BatchSchemaField.fromField(fieldInTable.get());
         BatchSchemaField batchSchemaFieldInFile = BatchSchemaField.fromField(fieldInFileSchema);
-        throw UserException.schemaChangeError().message("Field [%s] has incompatible types in file and table." +
+        throw UserException.unsupportedError().message("Field [%s] has incompatible types in file and table." +
             " Type in fileschema: [%s], type in tableschema: [%s]", fieldInFileSchema.getName(), batchSchemaFieldInFile, batchSchemaFieldInTable).buildSilently();
       }
     }

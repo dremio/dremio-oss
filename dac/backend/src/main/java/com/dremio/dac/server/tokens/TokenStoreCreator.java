@@ -17,14 +17,14 @@ package com.dremio.dac.server.tokens;
 
 import com.dremio.dac.proto.model.tokens.SessionState;
 import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 
 /**
  * Token store creator.
  */
-public final class TokenStoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<String, SessionState>> {
+public final class TokenStoreCreator implements LegacyKVStoreCreationFunction<String, SessionState> {
 
   @Override
   public LegacyKVStore<String, SessionState> build(final LegacyStoreBuildingFactory factory) {

@@ -20,14 +20,16 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.exec.ops.ReflectionContext;
+
 public interface AccelerationManager {
   Logger logger = LoggerFactory.getLogger(AccelerationManager.class);
 
   void dropAcceleration(List<String> path, boolean raiseErrorIfNotFound);
-  void addLayout(List<String> path, LayoutDefinition definition);
-  void addExternalReflection(String name, List<String> table, List<String> targetTable);
-  void dropLayout(List<String> path, String layoutId);
-  void toggleAcceleration(List<String> path, LayoutDefinition.Type type, boolean enable);
+  void addLayout(List<String> path, LayoutDefinition definition, ReflectionContext reflectionContext);
+  void addExternalReflection(String name, List<String> table, List<String> targetTable, ReflectionContext reflectionContext);
+  void dropLayout(List<String> path, String layoutId, ReflectionContext reflectionContext);
+  void toggleAcceleration(List<String> path, LayoutDefinition.Type type, boolean enable, ReflectionContext reflectionContext);
   void replanlayout(String layoutId);
   <T> T unwrap(Class<T> clazz);
 
@@ -42,22 +44,22 @@ public interface AccelerationManager {
     }
 
     @Override
-    public void addLayout(List<String> path, LayoutDefinition definition) {
+    public void addLayout(List<String> path, LayoutDefinition definition, ReflectionContext reflectionContext) {
       throw new UnsupportedOperationException("AccelerationManager.addLayout() called on a non-coordinator node");
     }
 
     @Override
-    public void addExternalReflection(String name, List<String> table, List<String> targetTable) {
+    public void addExternalReflection(String name, List<String> table, List<String> targetTable, ReflectionContext reflectionContext) {
       throw new UnsupportedOperationException("AccelerationManager.addExternalReflection() called on a non-coordinator node");
     }
 
     @Override
-    public void dropLayout(List<String> path, String layoutId) {
+    public void dropLayout(List<String> path, String layoutId, ReflectionContext reflectionContext) {
       throw new UnsupportedOperationException("AccelerationManager.dropLayout() called on a non-coordinator node");
     }
 
     @Override
-    public void toggleAcceleration(List<String> path, LayoutDefinition.Type type, boolean enable) {
+    public void toggleAcceleration(List<String> path, LayoutDefinition.Type type, boolean enable, ReflectionContext reflectionContext) {
       throw new UnsupportedOperationException("AccelerationManager.toggleAcceleration() called on a non-coordinator node");
     }
 

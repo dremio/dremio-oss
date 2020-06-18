@@ -46,13 +46,14 @@ import io.netty.util.HashedWheelTimer;
  * Prepares new instances of AsyncHttpClient
  */
 public final class AzureAsyncHttpClientUtils {
+  public static final int DEFAULT_REQUEST_TIMEOUT = 10_000;
+  public static final String XMS_VERSION = "2019-07-07"; // represents version compatibility of the client.
+
   private static final Logger logger = LoggerFactory.getLogger(AzureAsyncHttpClientUtils.class);
   private static final int DEFAULT_IDLE_TIME = 60_000;
-  private static final int DEFAULT_REQUEST_TIMEOUT = 10_000;
   private static final int DEFAULT_CLEANER_PERIOD = 1_000;
   private static final int MAX_RETRIES = 4;
   private static final String AZURE_ENDPOINT = "dfs.core.windows.net";
-  private static final String XMS_VERSION = "2019-07-07"; // represents version compatibility of the client.
   private static final String USER_AGENT_VAL = String.format("azsdk-java-azure-storage-blob/12.4.0 (%s; %s %s)",
     System.getProperty("java.version"),
     System.getProperty("os.name"),
@@ -103,7 +104,7 @@ public final class AzureAsyncHttpClientUtils {
     try {
       return URLEncoder.encode(raw, "UTF-8");
     } catch (UnsupportedEncodingException e) {
-      logger.warn("Error while enconding " + raw, e);
+      logger.warn("Error while encoding " + raw, e);
       return raw;
     }
   }

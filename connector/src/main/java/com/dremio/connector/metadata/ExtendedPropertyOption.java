@@ -20,9 +20,9 @@ import java.util.stream.Stream;
 
 
 /**
- * Option passed to {@link SourceMetadata#getDatasetMetadata} and {@link SourceMetadata#listPartitionChunks}
+ * Option passed to {@link SourceMetadata#getDatasetHandle}, {@link SourceMetadata#getDatasetMetadata} and {@link SourceMetadata#listPartitionChunks}
  */
-public class ExtendedPropertyOption implements GetMetadataOption, ListPartitionChunkOption {
+public class ExtendedPropertyOption implements GetDatasetOption, GetMetadataOption, ListPartitionChunkOption {
 
   private final BytesOutput extendedProperty;
 

@@ -40,6 +40,7 @@ import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.CustomHashAggDataGenerator;
 import com.dremio.sabot.CustomHashAggDataGeneratorDecimal;
@@ -659,6 +660,7 @@ public class TestSpillingHashAgg extends BaseTestOperator {
     try (BufferAllocator allocator = allocatorRule.newAllocator("test-spilling-hashagg", 0, Long.MAX_VALUE)) {
       when(context.getAllocator()).thenReturn(allocator);
       OptionManager optionManager = mock(OptionManager.class);
+      when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
       try (BufferAllocator alloc = context.getAllocator().newChildAllocator("sample-alloc", 0, Long.MAX_VALUE);
           OperatorContextImpl operatorContext = new OperatorContextImpl(context.getConfig(), alloc, optionManager, 1000);
           final VectorizedHashAggOperator op = new VectorizedHashAggOperator(agg, operatorContext)) {

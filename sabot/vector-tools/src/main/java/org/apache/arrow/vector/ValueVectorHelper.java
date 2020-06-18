@@ -15,11 +15,10 @@
  */
 package org.apache.arrow.vector;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.exec.proto.UserBitShared.SerializedField;
-
-import io.netty.buffer.ArrowBuf;
 
 public interface ValueVectorHelper {
 

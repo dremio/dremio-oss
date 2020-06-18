@@ -343,6 +343,26 @@ message QueryProfile {
   optional string cancel_reason = 35;
   optional int64 command_pool_wait_millis = 36;
   optional bytes serialized_plan = 37;
+  repeated AttemptEvent state_list = 38;
+}
+
+message AttemptEvent {
+	enum State {
+    INVALID_STATE = 0;
+    PENDING = 1;
+    METADATA_RETRIEVAL = 2;
+    PLANNING = 3;
+    QUEUED = 4;
+    ENGINE_START = 5;
+    EXECUTION_PLANNING = 6;
+    STARTING = 7;
+    RUNNING = 8;
+    COMPLETED = 9;
+    CANCELED = 10;
+    FAILED = 11;
+  }
+  optional State state = 1;
+  optional int64 start_time = 2;
 }
 
 message ResourceSchedulingProfile {

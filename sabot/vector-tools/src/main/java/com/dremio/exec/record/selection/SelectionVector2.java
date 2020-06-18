@@ -15,11 +15,10 @@
  */
 package com.dremio.exec.record.selection;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.exec.record.DeadBuf;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  * A selection vector that fronts, at most, a

@@ -25,6 +25,7 @@ import java.sql.Clob;
 import java.sql.Date;
 import java.sql.NClob;
 import java.sql.Ref;
+import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.RowId;
 import java.sql.SQLException;
@@ -37,10 +38,6 @@ import java.sql.Types;
 import java.util.Calendar;
 import java.util.Map;
 import java.util.TimeZone;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.calcite.avatica.AvaticaResultSet;
 import org.apache.calcite.avatica.AvaticaSite;
@@ -50,20 +47,10 @@ import org.apache.calcite.avatica.Meta;
 import org.apache.calcite.avatica.QueryState;
 import org.apache.calcite.avatica.util.Cursor;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.utils.protos.QueryIdHelper;
-import com.dremio.exec.client.DremioClient;
-import com.dremio.exec.proto.UserBitShared.QueryId;
-import com.dremio.exec.proto.UserBitShared.QueryResult;
-import com.dremio.exec.record.RecordBatchLoader;
-import com.dremio.exec.rpc.ConnectionThrottle;
 import com.dremio.jdbc.AlreadyClosedSqlException;
 import com.dremio.jdbc.DremioResultSet;
 import com.dremio.jdbc.ExecutionCanceledSqlException;
 import com.dremio.jdbc.SchemaChangeListener;
-import com.dremio.sabot.rpc.user.QueryDataBatch;
-import com.dremio.sabot.rpc.user.UserResultsListener;
-import com.google.common.collect.Queues;
 
 
 /**
@@ -77,11 +64,6 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
   private final DremioConnectionImpl connection;
 
   SchemaChangeListener changeListener;
-  final ResultsListener resultsListener;
-  private final DremioClient client;
-  // TODO:  Resolve:  Since is barely manipulated here in DremioResultSetImpl,
-  //  move down into DremioCursor and have this.clean() have cursor clean it.
-  final RecordBatchLoader batchLoader;
   boolean hasPendingCancelationNotification;
 
 
@@ -90,11 +72,6 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
                      TimeZone timeZone, Meta.Frame firstFrame) throws SQLException {
     super(statement, state, signature, resultSetMetaData, timeZone, firstFrame);
     connection = (DremioConnectionImpl) statement.getConnection();
-    client = connection.getClient();
-    final int batchQueueThrottlingThreshold =
-        client.getConfig().getInt(DremioCursor.JDBC_BATCH_QUEUE_THROTTLING_THRESHOLD );
-    resultsListener = new ResultsListener(batchQueueThrottlingThreshold);
-    batchLoader = new RecordBatchLoader(client.getRecordAllocator());
     cursor = new DremioCursor(connection, statement, signature);
   }
 
@@ -1887,7 +1864,6 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     return null;
   }
 
-
   ////////////////////////////////////////
 
   @Override
@@ -1910,217 +1886,4 @@ class DremioResultSetImpl extends AvaticaResultSet implements DremioResultSet {
     return this;
 
   }
-
-
-  ////////////////////////////////////////
-  // ResultsListener:
-
-  static class ResultsListener implements UserResultsListener {
-    private static final org.slf4j.Logger logger =
-        org.slf4j.LoggerFactory.getLogger(ResultsListener.class);
-
-    private static volatile int nextInstanceId = 1;
-
-    /** (Just for logging.) */
-    private final int instanceId;
-
-    private final int batchQueueThrottlingThreshold;
-
-    /** (Just for logging.) */
-    private volatile QueryId queryId;
-
-    /** (Just for logging.) */
-    private int lastReceivedBatchNumber;
-    /** (Just for logging.) */
-    private int lastDequeuedBatchNumber;
-
-    private volatile UserException executionFailureException;
-
-    // TODO:  Revisit "completed".  Determine and document exactly what it
-    // means.  Some uses imply that it means that incoming messages indicate
-    // that the _query_ has _terminated_ (not necessarily _completing_
-    // normally), while some uses imply that it's some other state of the
-    // ResultListener.  Some uses seem redundant.)
-    volatile boolean completed = false;
-
-    /** Whether throttling of incoming data is active. */
-    private final AtomicBoolean throttled = new AtomicBoolean( false );
-    private volatile ConnectionThrottle throttle;
-
-    private volatile boolean closed = false;
-    // TODO:  Rename.  It's obvious it's a latch--but what condition or action
-    // does it represent or control?
-    private CountDownLatch latch = new CountDownLatch(1);
-    private AtomicBoolean receivedMessage = new AtomicBoolean(false);
-
-    final LinkedBlockingDeque<QueryDataBatch> batchQueue =
-        Queues.newLinkedBlockingDeque();
-
-
-    /**
-     * ...
-     * @param  batchQueueThrottlingThreshold
-     *         queue size threshold for throttling server
-     */
-    ResultsListener( int batchQueueThrottlingThreshold ) {
-      instanceId = nextInstanceId++;
-      this.batchQueueThrottlingThreshold = batchQueueThrottlingThreshold;
-      logger.debug( "[#{}] Query listener created.", instanceId );
-    }
-
-    /**
-     * Starts throttling if not currently throttling.
-     * @param  throttle  the "throttlable" object to throttle
-     * @return  true if actually started (wasn't throttling already)
-     */
-    private boolean startThrottlingIfNot( ConnectionThrottle throttle ) {
-      final boolean started = throttled.compareAndSet( false, true );
-      if ( started ) {
-        this.throttle = throttle;
-        throttle.setAutoRead(false);
-      }
-      return started;
-    }
-
-    /**
-     * Stops throttling if currently throttling.
-     * @return  true if actually stopped (was throttling)
-     */
-    private boolean stopThrottlingIfSo() {
-      final boolean stopped = throttled.compareAndSet( true, false );
-      if ( stopped ) {
-        throttle.setAutoRead(true);
-        throttle = null;
-      }
-      return stopped;
-    }
-
-    // TODO:  Doc.:  Release what if what is first relative to what?
-    private boolean releaseIfFirst() {
-      if (receivedMessage.compareAndSet(false, true)) {
-        latch.countDown();
-        return true;
-      }
-
-      return false;
-    }
-
-    @Override
-    public void queryIdArrived(QueryId queryId) {
-      logger.debug( "[#{}] Received query ID: {}.",
-                    instanceId, QueryIdHelper.getQueryId( queryId ) );
-      this.queryId = queryId;
-    }
-
-    @Override
-    public void submissionFailed(UserException ex) {
-      logger.debug( "Received query failure:", instanceId, ex );
-      this.executionFailureException = ex;
-      completed = true;
-      close();
-      logger.info( "[#{}] Query failed: ", instanceId, ex );
-    }
-
-    @Override
-    public void dataArrived(QueryDataBatch result, ConnectionThrottle throttle) {
-      lastReceivedBatchNumber++;
-      logger.debug( "[#{}] Received query data batch #{}: {}.",
-                    instanceId, lastReceivedBatchNumber, result );
-
-      // If we're in a closed state, just release the message.
-      if (closed) {
-        result.release();
-        // TODO:  Revisit member completed:  Is ResultListener really completed
-        // after only one data batch after being closed?
-        completed = true;
-        return;
-      }
-
-      // We're active; let's add to the queue.
-      batchQueue.add(result);
-
-      // Throttle server if queue size has exceed threshold.
-      if (batchQueue.size() > batchQueueThrottlingThreshold ) {
-        if ( startThrottlingIfNot( throttle ) ) {
-          logger.debug( "[#{}] Throttling started at queue size {}.",
-                        instanceId, batchQueue.size() );
-        }
-      }
-
-      releaseIfFirst();
-    }
-
-    @Override
-    public void queryCompleted(QueryResult.QueryState state) {
-      logger.debug( "[#{}] Received query completion: {}.", instanceId, state );
-      releaseIfFirst();
-      completed = true;
-    }
-
-    QueryId getQueryId() {
-      return queryId;
-    }
-
-
-    /**
-     * Gets the next batch of query results from the queue.
-     * @return  the next batch, or {@code null} after last batch has been returned
-     * @throws UserException
-     *         if the query failed
-     * @throws InterruptedException
-     *         if waiting on the queue was interrupted
-     */
-    QueryDataBatch getNext() throws UserException, InterruptedException {
-      while (true) {
-        if (executionFailureException != null) {
-          logger.debug( "[#{}] Dequeued query failure exception: {}.",
-                        instanceId, executionFailureException );
-          throw executionFailureException;
-        }
-        if (completed && batchQueue.isEmpty()) {
-          return null;
-        } else {
-          QueryDataBatch qdb = batchQueue.poll(50, TimeUnit.MILLISECONDS);
-          if (qdb != null) {
-            lastDequeuedBatchNumber++;
-            logger.debug( "[#{}] Dequeued query data batch #{}: {}.",
-                          instanceId, lastDequeuedBatchNumber, qdb );
-
-            // Unthrottle server if queue size has dropped enough below threshold:
-            if ( batchQueue.size() < batchQueueThrottlingThreshold / 2
-                 || batchQueue.size() == 0  // (in case threshold < 2)
-                 ) {
-              if ( stopThrottlingIfSo() ) {
-                logger.debug( "[#{}] Throttling stopped at queue size {}.",
-                              instanceId, batchQueue.size() );
-              }
-            }
-            return qdb;
-          }
-        }
-      }
-    }
-
-    void close() {
-      logger.debug( "[#{}] Query listener closing.", instanceId );
-      closed = true;
-      if ( stopThrottlingIfSo() ) {
-        logger.debug( "[#{}] Throttling stopped at close() (at queue size {}).",
-                      instanceId, batchQueue.size() );
-      }
-      while (!batchQueue.isEmpty()) {
-        QueryDataBatch qdb = batchQueue.poll();
-        if (qdb != null && qdb.getData() != null) {
-          qdb.getData().release();
-        }
-      }
-      // Close may be called before the first result is received and therefore
-      // when the main thread is blocked waiting for the result.  In that case
-      // we want to unblock the main thread.
-      latch.countDown(); // TODO:  Why not call releaseIfFirst as used elsewhere?
-      completed = true;
-    }
-
-  }
-
 }

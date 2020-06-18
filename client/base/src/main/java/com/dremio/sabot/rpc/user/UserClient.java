@@ -21,6 +21,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executor;
 
+import javax.net.ssl.SSLException;
+
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.config.SabotConfig;
@@ -55,8 +57,9 @@ import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.RpcConnectionHandler;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcFuture;
-import com.dremio.exec.rpc.ssl.SSLConfig;
-import com.dremio.exec.rpc.ssl.SSLEngineFactoryImpl;
+import com.dremio.ssl.SSLConfig;
+import com.dremio.ssl.SSLEngineFactory;
+import com.dremio.ssl.SSLEngineFactoryImpl;
 import com.google.common.collect.Sets;
 import com.google.protobuf.MessageLite;
 
@@ -83,11 +86,19 @@ public class UserClient extends BasicClientWithConnection<RpcType, UserToBitHand
         BitToUserHandshake.class,
         BitToUserHandshake.PARSER,
         "user client",
-        SSLEngineFactoryImpl.create(sslConfig)
+        newSSLEngineFactory(sslConfig)
     );
 
     this.clientName = checkNotNull(clientName);
     this.supportComplexTypes = supportComplexTypes;
+  }
+
+  private static Optional<SSLEngineFactory> newSSLEngineFactory(Optional<SSLConfig> sslConfig) throws RpcException {
+    try {
+      return SSLEngineFactoryImpl.create(sslConfig);
+    } catch (SSLException e) {
+      throw new RpcException(e);
+    }
   }
 
   public RpcEndpointInfos getServerInfos() {

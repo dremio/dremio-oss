@@ -75,6 +75,7 @@ public class Clean {
        * @param value Value of parameter
        * @throws ParameterException
        */
+      @Override
       public void validate(String name, String value) throws ParameterException {
 
         try {
@@ -165,7 +166,7 @@ public class Clean {
         AdminLogger.log("No operation requested, printing store Stats.");
       }
 
-      for(StoreWithId id : provider.unwrap(LocalKVStoreProvider.class)) {
+      for(StoreWithId<?, ?> id : provider.unwrap(LocalKVStoreProvider.class)) {
         KVAdmin admin = id.getStore().getAdmin();
         AdminLogger.log(admin.getStats());
       }
@@ -189,7 +190,7 @@ public class Clean {
 
       if(options.hasActiveOperation()) {
         AdminLogger.log("\n\nFinal Store Status.");
-        for(StoreWithId id : provider.unwrap(LocalKVStoreProvider.class)) {
+        for(StoreWithId<?, ?> id : provider.unwrap(LocalKVStoreProvider.class)) {
           KVAdmin admin = id.getStore().getAdmin();
           AdminLogger.log(admin.getStats());
         }

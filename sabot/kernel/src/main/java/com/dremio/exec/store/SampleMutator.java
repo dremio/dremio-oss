@@ -18,6 +18,7 @@ package com.dremio.exec.store;
 import java.util.Collection;
 import java.util.Map;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.ValueVector;
@@ -34,8 +35,6 @@ import com.dremio.sabot.op.scan.MutatorSchemaChangeCallBack;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
-
-import io.netty.buffer.ArrowBuf;
 
 
 /**

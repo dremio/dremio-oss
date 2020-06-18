@@ -25,6 +25,7 @@ import java.util.List;
 import org.apache.arrow.flatbuf.Buffer;
 import org.apache.arrow.flatbuf.FieldNode;
 import org.apache.arrow.flatbuf.RecordBatch;
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.AllocationHelper;
@@ -45,8 +46,6 @@ import com.dremio.sabot.op.receiver.RawFragmentBatch;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
-
-import io.netty.buffer.ArrowBuf;
 
 
 /**

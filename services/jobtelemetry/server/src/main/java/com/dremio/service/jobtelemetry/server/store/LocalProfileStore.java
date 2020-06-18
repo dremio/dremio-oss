@@ -28,9 +28,9 @@ import org.slf4j.LoggerFactory;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.AttemptIdUtils;
 import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordinationProtos;
@@ -169,7 +169,7 @@ public class LocalProfileStore implements ProfileStore {
   /**
    * Creator for full profiles kvstore.
    */
-  public static final class KVProfileStoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<AttemptId, UserBitShared.QueryProfile>> {
+  public static final class KVProfileStoreCreator implements LegacyKVStoreCreationFunction<AttemptId, UserBitShared.QueryProfile> {
     @Override
     public LegacyKVStore<AttemptId, UserBitShared.QueryProfile> build(LegacyStoreBuildingFactory factory) {
       return factory

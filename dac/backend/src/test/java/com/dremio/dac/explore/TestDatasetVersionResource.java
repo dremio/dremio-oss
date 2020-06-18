@@ -30,12 +30,15 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.dremio.dac.api.Dataset;
+import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.explore.model.DatasetUIWithHistory;
 import com.dremio.dac.explore.model.HistoryItem;
 import com.dremio.dac.explore.model.InitialPreviewResponse;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
+import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.server.ApiErrorModel;
 import com.dremio.dac.server.BaseTestServer;
+import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.InvalidQueryException;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.DatasetVersion;
@@ -186,6 +189,78 @@ public class TestDatasetVersionResource extends BaseTestServer {
 
     InitialPreviewResponse initialPreviewResponse = expectSuccess(getBuilder(target).buildGet(), new GenericType<InitialPreviewResponse>() {});
     assertEquals(newVDS.getSql(), initialPreviewResponse.getDataset().getSql());
+  }
+
+  @Test
+  public void testRenameShouldNotBreakHistory() throws Exception {
+    Dataset parentVDS = createVDS(Arrays.asList("dsvTest", "renameParentVDS"),"select * from sys.version");
+    Dataset vds = expectSuccess(getBuilder(getPublicAPI(3).path("catalog")).buildPost(Entity.json(parentVDS)), new GenericType<Dataset>() {});
+
+    // create a derivation of parentVDS
+    String parentDataset = String.join(".", parentVDS.getPath());
+    DatasetVersion datasetVersion = DatasetVersion.newVersion();
+    WebTarget target = getAPIv2()
+      .path("datasets")
+      .path("new_untitled")
+      .queryParam("parentDataset", parentDataset)
+      .queryParam("newVersion", datasetVersion)
+      .queryParam("limit", 120);
+    InitialPreviewResponse initialPreviewResponse = expectSuccess(getBuilder(target).buildPost(Entity.json(null)), new GenericType<InitialPreviewResponse>() {});
+
+    // save the derivation a new VDS
+    target = getAPIv2()
+      .path("dataset")
+      .path("tmp.UNTITLED")
+      .path("version")
+      .path(datasetVersion.getVersion())
+      .path("save")
+      .queryParam("as", "dsvTest.renameVDS");
+    DatasetUIWithHistory dswh = expectSuccess(getBuilder(target).buildPost(Entity.json(null)), new GenericType<DatasetUIWithHistory>() {});
+
+    // modify the sql of the new VDS by doing a transform
+    DatasetVersion datasetVersion2 = DatasetVersion.newVersion();
+    String dsPath = String.join(".", dswh.getDataset().getFullPath());
+
+    target = getAPIv2()
+      .path("dataset")
+      .path(dsPath)
+      .path("version")
+      .path(dswh.getDataset().getDatasetVersion().getVersion())
+      .path("transformAndPreview")
+      .queryParam("newVersion", datasetVersion2);
+
+    TransformUpdateSQL transformSql = new TransformUpdateSQL();
+    transformSql.setSql("SELECT \"version\" FROM dsvTest.renameParentVDS");
+
+    initialPreviewResponse = expectSuccess(getBuilder(target).buildPost(Entity.json(transformSql)), new GenericType<InitialPreviewResponse>() {});
+
+    // save the transform as a third VDS
+    target = getAPIv2()
+      .path("dataset")
+      .path(dsPath)
+      .path("version")
+      .path(initialPreviewResponse.getDataset().getDatasetVersion().getVersion())
+      .path("save")
+      .queryParam("as", "dsvTest.renameVDS2");
+
+    DatasetUIWithHistory dswh2 = expectSuccess(getBuilder(target).buildPost(Entity.json(null)), new GenericType<DatasetUIWithHistory>() {});
+
+    DatasetVersionMutator mutator = l(DatasetVersionMutator.class);
+    VirtualDatasetUI renameDataset = mutator.renameDataset(new DatasetPath(dswh2.getDataset().getFullPath()), new DatasetPath(Arrays.asList("dsvTest", "renameVDS2-new")));
+
+    // edit original sql
+    parentDataset = String.join(".", renameDataset.getFullPathList());
+    datasetVersion = DatasetVersion.newVersion();
+
+    target = getAPIv2()
+      .path("datasets")
+      .path("new_untitled")
+      .queryParam("parentDataset", parentDataset)
+      .queryParam("newVersion", datasetVersion)
+      .queryParam("limit", 0);
+    initialPreviewResponse = expectSuccess(getBuilder(target).buildPost(Entity.json(null)), new GenericType<InitialPreviewResponse>() {});
+
+    InitialPreviewResponse reapplyResult = reapply(getDatasetVersionPath(initialPreviewResponse.getDataset()));
   }
 
   private Dataset createVDS(List<String> path, String sql) {

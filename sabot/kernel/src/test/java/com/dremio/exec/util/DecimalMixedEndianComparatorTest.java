@@ -17,6 +17,7 @@ package com.dremio.exec.util;
 
 import java.math.BigDecimal;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.After;
 import org.junit.Assert;
@@ -27,8 +28,6 @@ import org.junit.Test;
 import com.dremio.common.AutoCloseables;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
-
-import io.netty.buffer.ArrowBuf;
 
 public class DecimalMixedEndianComparatorTest extends DremioTest {
   private BufferAllocator testAllocator;

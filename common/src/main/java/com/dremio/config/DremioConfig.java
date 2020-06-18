@@ -72,6 +72,8 @@ public class DremioConfig extends NestedConfig {
   public static final String KERBEROS_KEYTAB_PATH = "services.kerberos.keytab.file.path";
 
   public static final String JOBS_ENABLED_BOOL = "services.jobs.enabled";
+  public static final String NO_OP_CLUSTER_COORDINATOR_ENABLED = "debug.noop.cluster" +
+    ".coordinator.enabled";
 
   /**
    * Path where ui config is located
@@ -86,6 +88,7 @@ public class DremioConfig extends NestedConfig {
 
   public static final String CLIENT_PORT_INT = "services.coordinator.client-endpoint.port";
   public static final String SERVER_PORT_INT = "services.fabric.port";
+  public static final String CONDUIT_PORT_INT = "services.conduit.port";
 
   public static final String AUTOUPGRADE = "services.coordinator.auto-upgrade";
 
@@ -111,6 +114,7 @@ public class DremioConfig extends NestedConfig {
   public static final String YARN_APP_CLASSPATH = "provisioning.yarn.app.classpath";
   public static final String YARN_APP_CLASSPATH_PREFIX = "provisioning.yarn.app.classpath-prefix";
   public static final String EC2_EFS_FSID = "provisioning.ec2.efs.fsid";
+  public static final String MIGRATION_ENABLED = "provisioning.migration.enabled";
 
   /**
    * Path where debug options are located

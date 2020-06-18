@@ -20,20 +20,21 @@ import java.net.UnknownHostException;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 
+import javax.net.ssl.SSLException;
+
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.rpc.EventLoopCloseable;
 import com.dremio.exec.rpc.RpcCommand;
 import com.dremio.exec.rpc.RpcConfig;
-import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.TransportCheck;
-import com.dremio.exec.rpc.ssl.SSLEngineFactory;
 import com.dremio.services.fabric.api.FabricCommandRunner;
 import com.dremio.services.fabric.api.FabricProtocol;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.services.fabric.proto.FabricProto.FabricIdentity;
+import com.dremio.ssl.SSLEngineFactory;
 import com.google.protobuf.MessageLite;
 
 import io.netty.channel.EventLoopGroup;
@@ -133,7 +134,7 @@ public class FabricServiceImpl implements FabricService {
     AutoCloseables.close(server, registry, eventLoopCloseable, allocator);
   }
 
-  protected Optional<SSLEngineFactory> getSSLEngineFactory() throws RpcException {
+  protected Optional<SSLEngineFactory> getSSLEngineFactory() throws SSLException {
     return Optional.empty();
   }
 

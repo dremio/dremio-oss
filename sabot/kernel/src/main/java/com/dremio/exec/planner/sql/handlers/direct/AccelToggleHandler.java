@@ -21,6 +21,7 @@ import java.util.List;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.exec.catalog.Catalog;
+import com.dremio.exec.ops.ReflectionContext;
 import com.dremio.exec.planner.sql.SchemaUtilities;
 import com.dremio.exec.planner.sql.parser.SqlAccelToggle;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
@@ -32,17 +33,19 @@ public class AccelToggleHandler extends SimpleDirectHandler {
 
   private final Catalog catalog;
   private final AccelerationManager accel;
+  private final ReflectionContext reflectionContext;
 
-  public AccelToggleHandler(Catalog catalog, AccelerationManager accel) {
+  public AccelToggleHandler(Catalog catalog, AccelerationManager accel, ReflectionContext reflectionContext) {
     this.catalog = catalog;
     this.accel = accel;
+    this.reflectionContext = reflectionContext;
   }
 
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws Exception {
     final SqlAccelToggle toggle = SqlNodeUtil.unwrap(sqlNode, SqlAccelToggle.class);
     List<String> names = SchemaUtilities.verify(catalog, toggle.getTblName()).getPath();
-    accel.toggleAcceleration(names, toggle.isRaw() ? LayoutDefinition.Type.RAW : LayoutDefinition.Type.AGGREGATE, toggle.isEnable());
+    accel.toggleAcceleration(names, toggle.isRaw() ? LayoutDefinition.Type.RAW : LayoutDefinition.Type.AGGREGATE, toggle.isEnable(), reflectionContext);
     return Collections.singletonList(SimpleCommandResult.successful(toggle.isEnable() ? "Acceleration enabled." : "Acceleration disabled."));
   }
 

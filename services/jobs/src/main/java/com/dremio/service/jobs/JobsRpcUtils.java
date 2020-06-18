@@ -15,8 +15,6 @@
  */
 package com.dremio.service.jobs;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.security.AccessControlException;
 import java.util.Optional;
 
@@ -29,17 +27,13 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.exec.proto.UserBitShared.DremioPBError;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
-import com.dremio.service.grpc.GrpcChannelBuilderFactory;
-import com.dremio.service.grpc.GrpcServerBuilderFactory;
 import com.dremio.type.AnyTypeUtil;
 import com.google.common.base.Preconditions;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.rpc.Status;
 
-import io.grpc.ManagedChannelBuilder;
 import io.grpc.Metadata;
-import io.grpc.ServerBuilder;
 import io.grpc.Status.Code;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
@@ -54,58 +48,9 @@ public final class JobsRpcUtils {
   private static final Logger logger = LoggerFactory.getLogger(JobsRpcUtils.class);
 
   private static final String GRPC_STATUS_METADATA = "grpc-status-details-bin";
-  private static final String IN_PROCESS_SERVICE_NAME = "local_jobs_service";
-  private static final String JOBS_HOSTNAME = System.getProperty("services.jobs.hostname");
-  private static final int JOBS_PORT = Integer.getInteger("services.jobs.port", 21467);
   private static final Metadata.BinaryMarshaller<Status> marshaller =
     ProtoLiteUtils.metadataMarshaller(Status.getDefaultInstance());
-  /**
-   * If RPC is over socket. Otherwise, use in process RPCs.
-   *
-   * Default is false.
-   *
-   * @return true iff RPC should be over socket
-   */
-  public static boolean isOverSocket() {
-    return Boolean.getBoolean("dremio.service.jobs.over_socket");
-  }
 
-  /**
-   * Create a new server builder.
-   *
-   * @return server builder
-   */
-  static ServerBuilder<?> newServerBuilder(GrpcServerBuilderFactory grpcFactory, int port) {
-    if (!isOverSocket()) {
-      return grpcFactory.newInProcessServerBuilder(IN_PROCESS_SERVICE_NAME);
-    }
-
-    return grpcFactory.newServerBuilder(port);
-  }
-
-  static String getJobsHostname() {
-    return JOBS_HOSTNAME;
-  }
-
-  static int getJobsPort() {
-    return JOBS_PORT;
-  }
-
-  /**
-   * Create a new channel builder.
-   *
-   * @return channel builder
-   */
-  static ManagedChannelBuilder<?> newLocalChannelBuilder(GrpcChannelBuilderFactory grpcFactory, int port) {
-    if (!isOverSocket()) {
-      return grpcFactory.newInProcessChannelBuilder(IN_PROCESS_SERVICE_NAME);
-    }
-    try {
-      return grpcFactory.newManagedChannelBuilder(InetAddress.getLocalHost().getCanonicalHostName(), port);
-    } catch (UnknownHostException e) {
-      throw new IllegalStateException("Unable to get host name");
-    }
-  }
 
   /**
    * Converts the given {@link UserException} to a {@link StatusRuntimeException}.
@@ -232,6 +177,8 @@ public final class JobsRpcUtils {
       responseObserver.onError(toStatusRuntimeException((UserException) t));
     } else if (t instanceof JobNotFoundException) {
       responseObserver.onError(io.grpc.Status.NOT_FOUND.asException());
+    } else if (t instanceof ReflectionJobValidationException) {
+      responseObserver.onError(io.grpc.Status.INVALID_ARGUMENT.asException());
     } else if (t instanceof AccessControlException) {
       responseObserver.onError(io.grpc.Status.PERMISSION_DENIED.asRuntimeException());
     } else if (t instanceof StatusException) {

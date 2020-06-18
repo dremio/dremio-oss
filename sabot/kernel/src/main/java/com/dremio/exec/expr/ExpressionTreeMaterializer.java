@@ -75,7 +75,7 @@ public class ExpressionTreeMaterializer {
     LogicalExpression e = ExpressionTreeMaterializer.materialize(expr, schema, collector,
       functionLookupContext, allowComplex, allowGandivaFunctions);
     if (collector.hasErrors()) {
-      throw new SchemaChangeException(String.format("Failure while trying to materialize incoming schema.  Errors:\n %s.", collector.toErrorString()));
+      throw new SchemaChangeException(String.format("%s.", collector.toErrorString()));
     }
     return e;
   }
@@ -274,23 +274,48 @@ public class ExpressionTreeMaterializer {
   }
 
   static void logFunctionResolutionError(ErrorCollector errorCollector, FunctionCall call) {
+    // if function is a cast* function, handle it in
+    // logCastFunctionResolutionError.
+    if (call.getName().toLowerCase().startsWith("cast")) {
+      logCastFunctionResolutionError(errorCollector, call);
+    }
+    // add error to collector
+    else {
+      StringBuilder sb = new StringBuilder();
+      sb.append("Failure finding function: ");
+      sb.append(call.getName());
+      sb.append("(");
+      boolean first = true;
+      for (LogicalExpression e : call.args) {
+        CompleteType type = e.getCompleteType();
+        if (first) {
+          first = false;
+        } else {
+          sb.append(", ");
+        }
+        sb.append(Describer.describe(type));
+      }
+      sb.append(")");
+
+      errorCollector.addGeneralError(sb.toString());
+    }
+  }
+
+  /**
+   * DX-21665, this function is created to print out helpful error messages when
+   * CAST is not supported from one data type to another, For example, LIST to VARCHAR.
+   * @param errorCollector collect error message and return
+   * @param call function resolution call, expect a cast Function call.
+   */
+  static void logCastFunctionResolutionError(ErrorCollector errorCollector, FunctionCall call){
     // add error to collector
     StringBuilder sb = new StringBuilder();
-    sb.append("Failure finding function: ");
-    sb.append(call.getName());
-    sb.append("(");
-    boolean first = true;
-    for(LogicalExpression e : call.args) {
-      CompleteType type = e.getCompleteType();
-      if (first) {
-        first = false;
-      } else {
-        sb.append(", ");
-      }
-      sb.append(Describer.describe(type));
-    }
-    sb.append(")");
-
+    String targetType = call.getName();
+    sb.append("Dremio does not support casting or coercing ");
+    LogicalExpression targetTypeExpression = call.args.get(0);
+    sb.append(Describer.describe(targetTypeExpression.getCompleteType()).toLowerCase());
+    sb.append(" to ");
+    sb.append(targetType.replace("cast", "").toLowerCase());
     errorCollector.addGeneralError(sb.toString());
   }
 }

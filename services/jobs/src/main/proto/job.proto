@@ -39,6 +39,12 @@ enum JobState {
   CANCELLATION_REQUESTED = 6;
   ENQUEUED = 7;
   PLANNING = 8;
+  PENDING = 9;
+  METADATA_RETRIEVAL = 10;
+  QUEUED = 11;
+  ENGINE_START = 12;
+  EXECUTION_PLANNING = 13;
+  INVALID_STATE = 14;
 }
 
 message JobId {
@@ -259,6 +265,7 @@ message JobAttempt {
   optional bytes acceleration_details = 8;
   optional bytes snowflake_details = 9;
   repeated ExtraInfo extra_info = 10;
+  repeated exec.shared.AttemptEvent state_list = 11;
 }
 
 message ExtraInfo {

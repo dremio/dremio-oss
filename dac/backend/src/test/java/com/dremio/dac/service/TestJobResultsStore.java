@@ -15,6 +15,7 @@
  */
 package com.dremio.dac.service;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -93,6 +94,43 @@ public class TestJobResultsStore extends BaseTestServer {
     allocator.close();
   }
 
+  /**
+   * Are UI query results honoring offset and limit properly ?
+   * Are actual results same as expected results ?
+   */
+  @Test
+  public void testResultsHonoringOffsetLimit() throws Exception {
+    final JobsService jobsService = l(JobsService.class);
+    SqlQuery sqlQuery = getQueryFromSQL("select * from cp.\"datasets/parquet/5000rows.parquet\" LIMIT 5000");
+    final JobId jobId = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+                .setSqlQuery(sqlQuery)
+                .setQueryType(QueryType.UI_RUN)
+                .build()
+    );
+
+    int[] offsets = new int[]      {   0,   0, 3967, 3968, 3968};
+    int[] limits = new int[]       {5000, 100,  100,  100, 6000};
+    int[] expectedRows = new int[] {5000, 100,  100,  100, 1032};
+
+    for(int i=0;i<offsets.length; i++) {
+
+     JobDataFragment storedResult = l(LocalJobsService.class).getJobData(jobId, offsets[i], limits[i]);
+     try (
+        final JobDataFragment result = JobDataClientUtils.getJobData(jobsService,
+                                                                     allocator,
+                                                                     jobId,
+                                                                     offsets[i],
+                                                                     limits[i]);
+      ) {
+        assertEquals("Number of records received are incorrect for offset:" + offsets[i] + ", limit:" + limits[i],
+                     expectedRows[i] ,
+                     result.getReturnedRowCount());
+        validateResults(storedResult, result);
+      }
+    }
+  }
+
   @Test
   public void testJobResultStore() throws Exception {
     populateInitialData();
@@ -107,28 +145,35 @@ public class TestJobResultsStore extends BaseTestServer {
     );
     JobDataFragment storedResult = l(LocalJobsService.class).getJobData(jobId, 0, 10);
     try (final JobDataFragment result = JobDataClientUtils.getJobData(jobsService, allocator, jobId, 0, 10)) {
-      for (Field column: result.getSchema()) {
-        assertTrue(storedResult.getSchema().getFields().contains(column));
-      }
-      for (int i=0; i<result.getReturnedRowCount(); i++) {
-        boolean found = false;
-        List<Object> valuesFromResult = new ArrayList<>();
-        for(Field c : result.getSchema()) {
-          valuesFromResult.add(result.extractValue(c.getName(), i));
-        }
+      validateResults(storedResult,
+                      result);
+    }
+  }
 
-        for (int j=0; j<storedResult.getReturnedRowCount(); j++) {
-          List<Object> valuesFromStored = new ArrayList<>();
-          for(Field c : storedResult.getSchema()) {
-            valuesFromStored.add(storedResult.extractValue(c.getName(), j));
-          }
-          if (valuesFromResult.equals(valuesFromStored)) {
-            found = true;
-            break;
-          }
-        }
-        assertTrue("Missing row numbered [" + i + "] from " + JSONUtil.toString(new JobDataFragmentWrapper(0, storedResult)), found);
+  private void validateResults(JobDataFragment expectedResult,
+                               JobDataFragment actualResult) {
+    for (Field column: actualResult.getSchema()) {
+      assertTrue(expectedResult.getSchema().getFields().contains(column));
+    }
+    for (int i=0; i<actualResult.getReturnedRowCount(); i++) {
+      boolean found = false;
+      List<Object> valuesFromResult = new ArrayList<>();
+      for(Field c : actualResult.getSchema()) {
+        valuesFromResult.add(actualResult.extractValue(c.getName(), i));
       }
+
+      for (int j = 0; j< expectedResult.getReturnedRowCount(); j++) {
+        List<Object> valuesFromStored = new ArrayList<>();
+        for(Field c : expectedResult.getSchema()) {
+          valuesFromStored.add(expectedResult.extractValue(c.getName(), j));
+        }
+        if (valuesFromResult.equals(valuesFromStored)) {
+          found = true;
+          break;
+        }
+      }
+      assertTrue("Missing row numbered [" + i + "] from " + JSONUtil.toString(new JobDataFragmentWrapper(0,
+                                                                                                         expectedResult)), found);
     }
   }
 

@@ -30,6 +30,7 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.DeferredException;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.scanner.persistence.ScanResult;
@@ -43,12 +44,15 @@ import com.dremio.exec.planner.fragment.CachedFragmentReader;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.proto.CoordExecRPC.PlanFragmentMajor;
 import com.dremio.exec.proto.CoordExecRPC.SchedulingInfo;
+import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.server.NodeDebugContextProvider;
 import com.dremio.exec.server.options.DefaultOptionManager;
 import com.dremio.exec.server.options.FragmentOptionManager;
-import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.testing.ControlsInjector;
+import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
@@ -72,7 +76,10 @@ import com.dremio.service.jobresults.client.JobResultsClientFactory;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.spill.SpillService;
 import com.dremio.services.jobresults.common.JobResultsTunnel;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+
+import io.netty.util.internal.OutOfDirectMemoryError;
 
 /**
  * Singleton utility to help in constructing a FragmentExecutor.
@@ -80,17 +87,21 @@ import com.google.common.base.Preconditions;
 public class FragmentExecutorBuilder {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentExecutorBuilder.class);
+  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(FragmentExecutorBuilder.class);
 
   static final String PIPELINE_RES_GRP = "pipeline";
   static final String WORK_QUEUE_RES_GRP = "work-queue";
   static final String OOB_QUEUE = "oob-queue";
+
+  @VisibleForTesting
+  public static final String INJECTOR_DO_WORK = "injectOOMOnBuild";
 
   private final QueriesClerk clerk;
   private final MaestroProxy maestroProxy;
   private final SabotConfig config;
   private final ClusterCoordinator coord;
   private final ExecutorService executorService;
-  private final SystemOptionManager optionManager;
+  private final OptionManager optionManager;
   private final ExecConnectionCreator dataCreator;
   private final NamespaceService namespace;
 
@@ -104,8 +115,8 @@ public class FragmentExecutorBuilder {
   private final ContextInformationFactory contextInformationFactory;
   private final NodeDebugContextProvider nodeDebugContextProvider;
   private final SpillService spillService;
-  private final DefaultOptionManager defaultOptionManager;
   private final Provider<JobResultsClientFactory> jobResultsClientFactoryProvider;
+  private Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider;
 
   public FragmentExecutorBuilder(
     QueriesClerk clerk,
@@ -113,7 +124,7 @@ public class FragmentExecutorBuilder {
     SabotConfig config,
     ClusterCoordinator coord,
     ExecutorService executorService,
-    SystemOptionManager optionManager,
+    OptionManager optionManager,
     ExecConnectionCreator dataCreator,
     ScanResult scanResult,
     PhysicalPlanReader planReader,
@@ -125,8 +136,8 @@ public class FragmentExecutorBuilder {
     NodeDebugContextProvider nodeDebugContextProvider,
     SpillService spillService,
     Set<ClusterCoordinator.Role> roles,
-    DefaultOptionManager defaultOptionManager,
-    Provider<JobResultsClientFactory> jobResultsClientFactoryProvider) {
+    Provider<JobResultsClientFactory> jobResultsClientFactoryProvider,
+    Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider) {
     this.clerk = clerk;
     this.maestroProxy = maestroProxy;
     this.config = config;
@@ -139,13 +150,13 @@ public class FragmentExecutorBuilder {
     this.opCreator = new OperatorCreatorRegistry(scanResult);
     this.funcRegistry = functions;
     this.decimalFuncRegistry = decimalFunctions;
+    this.nodeEndpointProvider = nodeEndpointProvider;
     this.compiler = new CodeCompiler(config, optionManager);
     this.roles = roles;
     this.sources = sources;
     this.contextInformationFactory = contextInformationFactory;
     this.nodeDebugContextProvider = nodeDebugContextProvider;
     this.spillService = spillService;
-    this.defaultOptionManager = defaultOptionManager;
     this.jobResultsClientFactoryProvider = jobResultsClientFactoryProvider;
   }
 
@@ -196,85 +207,106 @@ public class FragmentExecutorBuilder {
         throw new ExecutionSetupException("Failure while getting memory allocator for fragment.", e);
       }
 
-      final FragmentStats stats = new FragmentStats(allocator, handle, fragment.getAssignment(), optionManager.getOption(ExecConstants.STORE_IO_TIME_WARN_THRESH_MILLIS));
-      final SharedResourceManager sharedResources = SharedResourceManager.newBuilder()
-        .addGroup(PIPELINE_RES_GRP)
-        .addGroup(WORK_QUEUE_RES_GRP)
-        .build();
+      try {
+        final FragmentStats stats = new FragmentStats(allocator, handle, fragment.getAssignment(), optionManager.getOption(ExecConstants.STORE_IO_TIME_WARN_THRESH_MILLIS));
+        final SharedResourceManager sharedResources = SharedResourceManager.newBuilder()
+            .addGroup(PIPELINE_RES_GRP)
+            .addGroup(WORK_QUEUE_RES_GRP)
+            .build();
 
-      if (!roles.contains(ClusterCoordinator.Role.COORDINATOR)) {
-        // set the SYSTEM options in the system option manager, but only do it on non-coordinator nodes
-        for (OptionValue option : list.getSystemOptions()) {
-          optionManager.setOption(option);
+        if (!roles.contains(ClusterCoordinator.Role.COORDINATOR)) {
+          // set the SYSTEM options in the system option manager, but only do it on non-coordinator nodes
+          for (OptionValue option : list.getSystemOptions()) {
+            optionManager.setOption(option);
+          }
         }
-      }
-      // add the remaining options (QUERY, SESSION) to the fragment option manager
-      final OptionManager fragmentOptions = new FragmentOptionManager(defaultOptionManager, list);
+        // add the remaining options (QUERY, SESSION) to the fragment option manager
+        final FragmentOptionManager fragmentOptionManager = new FragmentOptionManager(
+            optionManager.getOptionValidatorListing(), list);
+        final OptionManager fragmentOptions = OptionManagerWrapper.Builder.newBuilder()
+            .withOptionManager(new DefaultOptionManager(optionManager.getOptionValidatorListing()))
+            .withOptionManager(fragmentOptionManager)
+            .build();
 
-      final FlushableSendingAccountor flushable = new FlushableSendingAccountor(sharedResources.getGroup(PIPELINE_RES_GRP));
-      final ExecutionControls controls = new ExecutionControls(fragmentOptions, fragment.getAssignment());
+        final FlushableSendingAccountor flushable = new FlushableSendingAccountor(sharedResources.getGroup(PIPELINE_RES_GRP));
+        final ExecutionControls controls = new ExecutionControls(fragmentOptions, fragment.getAssignment());
 
-      final ContextInformation contextInfo =
-          contextInformationFactory.newContextFactory(major.getCredentials(), major.getContext());
+        final ContextInformation contextInfo =
+            contextInformationFactory.newContextFactory(major.getCredentials(), major.getContext());
 
-      // create rpc connections
-      final JobResultsTunnel jobResultsTunnel = jobResultsClientFactoryProvider.get()
-        .getJobResultsClient(major.getForeman(), allocator, QueryIdHelper.getFragmentId(fragment.getHandle())).getTunnel();
-      final DeferredException exception = new DeferredException();
-      final StatusHandler handler = new StatusHandler(exception);
-      final TunnelProvider tunnelProvider = new TunnelProviderImpl(flushable.getAccountor(), jobResultsTunnel, dataCreator, handler, sharedResources.getGroup(PIPELINE_RES_GRP));
+        // create rpc connections
+        final JobResultsTunnel jobResultsTunnel = jobResultsClientFactoryProvider.get()
+            .getJobResultsClient(major.getForeman(), allocator, QueryIdHelper.getFragmentId(fragment.getHandle())).getTunnel();
+        final DeferredException exception = new DeferredException();
+        final StatusHandler handler = new StatusHandler(exception);
+        final TunnelProvider tunnelProvider = new TunnelProviderImpl(flushable.getAccountor(), jobResultsTunnel, dataCreator, handler, sharedResources.getGroup(PIPELINE_RES_GRP));
 
-      final OperatorContextCreator creator = new OperatorContextCreator(
-          stats,
-          allocator,
-          compiler,
-          config,
-          handle,
-          controls,
-          funcRegistry,
-          decimalFuncRegistry,
-          namespace,
-          fragmentOptions,
-          executorService,
-          spillService,
-          contextInfo,
-          nodeDebugContextProvider,
-          tunnelProvider,
-          major.getAllAssignmentList(),
-          cachedReader.getPlanFragmentsIndex().getEndpointsIndex());
-
-      final FragmentStatusReporter statusReporter = new FragmentStatusReporter(fragment.getHandle(), stats,
-        maestroProxy, allocator);
-      final FragmentExecutor executor = new FragmentExecutor(
-          statusReporter,
-          config,
-          controls,
-          fragment,
-          coord,
-          cachedReader,
-          sharedResources,
-          opCreator,
-          allocator,
-          contextInfo,
-          creator,
-          funcRegistry,
-          decimalFuncRegistry,
-          tunnelProvider,
-          flushable,
-          fragmentOptions,
-          stats,
-          ticket,
-          sources,
-          exception,
-          eventProvider,
-          spillService
+        final OperatorContextCreator creator = new OperatorContextCreator(
+            stats,
+            allocator,
+            compiler,
+            config,
+            handle,
+            controls,
+            funcRegistry,
+            decimalFuncRegistry,
+            namespace,
+            fragmentOptions,
+            executorService,
+            spillService,
+            contextInfo,
+            nodeDebugContextProvider,
+            tunnelProvider,
+            major.getAllAssignmentList(),
+            cachedReader.getPlanFragmentsIndex().getEndpointsIndex(),
+            nodeEndpointProvider
           );
 
-      commit.commit();
-      return executor;
+        final FragmentStatusReporter statusReporter = new FragmentStatusReporter(fragment.getHandle(), stats,
+            maestroProxy, allocator);
+        final FragmentExecutor executor = new FragmentExecutor(
+            statusReporter,
+            config,
+            controls,
+            fragment,
+            coord,
+            cachedReader,
+            sharedResources,
+            opCreator,
+            allocator,
+            contextInfo,
+            creator,
+            funcRegistry,
+            decimalFuncRegistry,
+            tunnelProvider,
+            flushable,
+            fragmentOptions,
+            stats,
+            ticket,
+            sources,
+            exception,
+            eventProvider,
+            spillService
+        );
+        commit.commit();
 
+        injector.injectChecked(controls, INJECTOR_DO_WORK, OutOfMemoryException.class);
+
+        return executor;
+      } catch (Exception e) {
+        UserException.Builder builder = UserException.systemError(e).message("Failure while constructing fragment.")
+                .addContext("Location - ",
+                        String.format("Major Fragment:%d, Minor fragment:%d", handle.getMajorFragmentId(), handle.getMinorFragmentId()));
+
+        OutOfMemoryException oom = ErrorHelper.findWrappedCause(e, OutOfMemoryException.class);
+        if (oom != null) {
+          nodeDebugContextProvider.addMemoryContext(builder, oom);
+        } else if (ErrorHelper.findWrappedCause(e, OutOfDirectMemoryError.class) != null) {
+          nodeDebugContextProvider.addMemoryContext(builder);
+        }
+        throw builder.build(logger);
+      }
     }
-
   }
 
   @SuppressWarnings("serial")

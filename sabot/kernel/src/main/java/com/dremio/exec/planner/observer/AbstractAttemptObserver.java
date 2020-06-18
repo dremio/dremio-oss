@@ -31,6 +31,7 @@ import com.dremio.exec.planner.acceleration.substitution.SubstitutionInfo;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.rpc.RpcOutcomeListener;
@@ -44,6 +45,10 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
 
   public static final AbstractAttemptObserver NOOP = new AbstractAttemptObserver() {
   };
+
+  @Override
+  public void beginState(AttemptEvent event) {
+  }
 
   @Override
   public void planText(String text, long millisTaken) {

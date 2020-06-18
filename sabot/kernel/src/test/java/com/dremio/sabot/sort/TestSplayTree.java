@@ -19,6 +19,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Random;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Rule;
 import org.junit.Test;
@@ -27,8 +28,6 @@ import com.dremio.sabot.op.sort.external.SplayTree;
 import com.dremio.sabot.op.sort.external.SplayTree.SplayIterator;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
-
-import io.netty.buffer.ArrowBuf;
 
 public class TestSplayTree extends DremioTest {
 

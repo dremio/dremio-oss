@@ -18,6 +18,7 @@ package com.dremio.exec.expr;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
@@ -42,8 +43,6 @@ import com.dremio.sabot.exec.context.FunctionContext;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
-import io.netty.buffer.ArrowBuf;
 
 public class ClassProducerImpl implements ClassProducer {
 

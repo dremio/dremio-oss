@@ -25,14 +25,13 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.RelWriter;
 
 import com.dremio.common.expression.SchemaPath;
-import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.fragment.DistributionAffinity;
 import com.dremio.exec.planner.physical.PhysicalPlanCreator;
 import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.store.TableMetadata;
-import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
+import com.dremio.service.catalog.SearchQuery;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 
@@ -41,7 +40,7 @@ import com.google.common.base.Preconditions;
  */
 public class InfoSchemaScanPrel extends ScanPrelBase {
 
-  private final InfoSchemaTable table;
+  private final InformationSchemaTable table;
   private final SearchQuery query;
   private final StoragePluginId pluginId;
 
@@ -57,7 +56,8 @@ public class InfoSchemaScanPrel extends ScanPrelBase {
 
     super(cluster, traitSet, table, dataset.getStoragePluginId(), dataset, projectedColumns, observedRowcountAdjustment);
     this.pluginId = dataset.getStoragePluginId();
-    this.table = Preconditions.checkNotNull(InfoSchemaStoragePlugin.TABLE_MAP.get(dataset.getName().getName().toLowerCase()), "Unexpected system table.");
+    this.table = Preconditions.checkNotNull(
+      InfoSchemaStoragePlugin.TABLE_MAP.get(dataset.getName().getName().toLowerCase()), "Unexpected system table.");
     this.query = query;
   }
 
@@ -74,10 +74,6 @@ public class InfoSchemaScanPrel extends ScanPrelBase {
   @Override
   public boolean hasFilter() {
     return query != null;
-  }
-
-  public InfoSchemaTable getInfoSchemaTable() {
-    return table;
   }
 
   @Override

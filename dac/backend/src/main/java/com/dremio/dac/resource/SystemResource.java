@@ -39,11 +39,11 @@ import com.dremio.dac.annotations.Secured;
 import com.dremio.dac.model.system.Nodes.NodeInfo;
 import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.server.ClusterResourceInformation;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.exec.store.sys.NodeInstance;
 import com.dremio.exec.work.NodeStatsListener;
+import com.dremio.resource.GroupResourceInformation;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.services.fabric.api.FabricService;
@@ -92,7 +92,7 @@ public class SystemResource extends BaseResourceWithAllocator {
   @Path("/cluster-resource-info")
   @Produces(MediaType.APPLICATION_JSON)
   public ResourceInfo getClusterResourceInformation() {
-    ClusterResourceInformation clusterResourceInformation =
+    GroupResourceInformation clusterResourceInformation =
       context.get().getClusterResourceInformation();
 
     ResourceInfo result;

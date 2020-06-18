@@ -49,7 +49,7 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
 
   private final MaterializationStore materializationStore;
   private Provider<ReflectionStatusService> reflectionStatusService;
-  private Provider<ReflectionService> reflectionService;
+  private final Provider<ReflectionService> reflectionService;
   private final Provider<FabricService> fabric;
   private ReflectionTunnelCreator reflectionTunnelCreator;
 
@@ -62,7 +62,7 @@ public class AccelerationListManagerImpl implements AccelerationListManager {
   public AccelerationListManagerImpl(
       Provider<LegacyKVStoreProvider> storeProvider,
       Provider<ReflectionStatusService> reflectionStatusService,
-      Provider<ReflectionService> reflectionService,
+      Provider<ReflectionService>  reflectionService,
       final Provider<FabricService> fabric,
       Provider<BufferAllocator> allocatorProvider,
       Provider<DremioConfig> dremioConfigProvider,

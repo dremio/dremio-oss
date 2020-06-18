@@ -16,6 +16,7 @@
 package com.dremio.exec.maestro;
 
 import com.dremio.exec.planner.fragment.PlanningSet;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.proto.UserBitShared.FragmentRpcSizeStats;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
 import com.dremio.exec.work.QueryWorkUnit;
@@ -23,6 +24,12 @@ import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
 public interface MaestroObserver {
+
+  /**
+   * Called to report the beginning of a new state.
+   * Called multiple times during a query lifetime
+   */
+  void beginState(AttemptEvent event);
 
   /**
    * Called to report the wait in the command pool.

@@ -135,6 +135,8 @@ public class TestYarnController {
     assertTrue(jvmOptions.contains(" -Djava.security.auth.login.config=/opt/mapr/conf/mapr.login.conf"));
     assertTrue(jvmOptions.contains(" -Dpaths.spilling=[maprfs:///var/mapr/local/${NM_HOST}/mapred/spill]"));
     assertFalse(jvmOptions.contains("JAVA_HOME"));
+    assertTrue(jvmOptions.contains(" -DMAPR_IMPALA_RA_THROTTLE"));
+    assertTrue(jvmOptions.contains(" -DMAPR_MAX_RA_STREAMS"));
     assertTrue(jvmOptions.contains(" -D"+VM.DREMIO_CPU_AVAILABLE_PROPERTY + "=2"));
 
     DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {

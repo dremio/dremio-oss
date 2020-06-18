@@ -18,6 +18,7 @@ package org.apache.arrow.vector.complex;
 
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.ValueVectorHelper;
@@ -32,8 +33,6 @@ import com.dremio.exec.proto.UserBitShared.NamePart;
 import com.dremio.exec.proto.UserBitShared.SerializedField;
 import com.dremio.exec.proto.UserBitShared.SerializedField.Builder;
 import com.google.common.base.Preconditions;
-
-import io.netty.buffer.ArrowBuf;
 
 public class NonNullableStructVectorHelper implements ValueVectorHelper {
   private NonNullableStructVector structVector;

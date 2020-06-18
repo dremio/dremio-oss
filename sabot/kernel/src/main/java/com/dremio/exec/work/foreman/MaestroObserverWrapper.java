@@ -19,6 +19,7 @@ import com.dremio.exec.maestro.MaestroObserver;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.work.QueryWorkUnit;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 
@@ -27,6 +28,11 @@ public class MaestroObserverWrapper implements MaestroObserver {
 
   public MaestroObserverWrapper(final AttemptObserver observer) {
     this.observer = observer;
+  }
+
+  @Override
+  public void beginState(AttemptEvent event) {
+    observer.beginState(event);
   }
 
   @Override

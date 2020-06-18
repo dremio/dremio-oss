@@ -97,7 +97,8 @@ public final class LocalAdmin {
       throw new UnsupportedOperationException("This operation is only supported to local admin");
     }
     ProfilesExporter exporter = ExportProfilesResource.getExporter(params);
-    System.out.println(exporter.export(getKVStoreProvider()).retrieveStats());
+    System.out.println(exporter.export(getKVStoreProvider())
+      .retrieveStats(null, null, false));
   }
 
   public void backup(String path, String binaryStr, String includeProfilesStr) throws Exception {

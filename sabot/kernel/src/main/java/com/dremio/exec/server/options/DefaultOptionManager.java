@@ -15,108 +15,63 @@
  */
 package com.dremio.exec.server.options;
 
-import java.lang.reflect.Field;
-import java.util.Collection;
 import java.util.Iterator;
-import java.util.Map;
 
-import com.dremio.common.exceptions.UserException;
-import com.dremio.common.map.CaseInsensitiveMap;
-import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionValidator;
+import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
-import com.dremio.options.Options;
-import com.google.common.collect.ImmutableMap;
 
 /**
  * Option manager for static defaults.
  */
 public class DefaultOptionManager extends BaseOptionManager {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DefaultOptionManager.class);
-  private final CaseInsensitiveMap<OptionValidator> validators;
 
-  public DefaultOptionManager(ScanResult scanResult) {
-    this.validators = getValidators(scanResult);
-  }
+  private final OptionValidatorListing optionValidatorListing;
 
-  private static CaseInsensitiveMap<OptionValidator> getValidators(ScanResult scanResult) {
-    ImmutableMap.Builder<String, OptionValidator> builder = ImmutableMap.builder();
-    for(Class<?> clazz: scanResult.getAnnotatedClasses(Options.class)) {
-      for(Field field: clazz.getDeclaredFields()) {
-        if (!(OptionValidator.class.isAssignableFrom(field.getType()))) {
-          continue;
-        }
-
-        final OptionValidator optionValidator;
-        try {
-          optionValidator = (OptionValidator) field.get(null);
-        } catch (IllegalAccessException e) {
-          logger.info("Ignoring not-accessible option {}.{}", clazz.getName(), field.getName(), e);
-          continue;
-        }
-        builder.put(optionValidator.getOptionName(), optionValidator);
-      }
-    }
-
-    return CaseInsensitiveMap.newImmutableMap(builder.build());
+  public DefaultOptionManager(OptionValidatorListing optionValidatorListing) {
+      super(optionValidatorListing);
+      this.optionValidatorListing = optionValidatorListing;
   }
 
   @Override
-  public void setOption(OptionValue value) {
+  public boolean setOption(OptionValue value) {
     throw new UnsupportedOperationException("Cannot set option in DefaultOptionManager");
   }
 
   @Override
-  public void deleteOption(String name, OptionValue.OptionType type) {
+  public boolean deleteOption(String name, OptionValue.OptionType type) {
     throw new UnsupportedOperationException("Cannot delete option in DefaultOptionManager");
   }
 
   @Override
-  public void deleteAllOptions(OptionValue.OptionType type) {
+  public boolean deleteAllOptions(OptionValue.OptionType type) {
     throw new UnsupportedOperationException("Cannot delete all options in DefaultOptionManager");
   }
 
   @Override
   public OptionValue getOption(String name) {
-    final OptionValidator optionValidator = getValidator(name);
+    final OptionValidator optionValidator = optionValidatorListing.getValidator(name);
     return optionValidator.getDefault();
   }
 
   @Override
-  public OptionList getOptionList() {
-    final OptionList result = new OptionList();
-    final Collection<OptionValue> optionValues = getOptions().values();
-    result.addAll(optionValues);
+  public Iterator<OptionValue> iterator() {
+    return getDefaultOptions().iterator();
+  }
+
+  @Override
+  public OptionList getDefaultOptions() {
+    OptionList result = new OptionList();
+    optionValidatorListing.iterator().forEachRemaining(
+      validator -> result.add(validator.getDefault())
+    );
     return result;
   }
 
   @Override
-  public OptionValidator getValidator(String name) {
-    final OptionValidator validator = validators.get(name);
-    if (validator == null) {
-      throw UserException.validationError()
-        .message(String.format("The option '%s' does not exist.", name))
-        .build(logger);
-    }
-    return validator;
+  protected boolean supportsOptionType(OptionValue.OptionType type) {
+    return false;
   }
-
-  @Override
-  public Iterator<OptionValue> iterator() {
-    return getOptions().values().iterator();
-  }
-
-  Map<String, OptionValue> getOptions() {
-    final Map<String, OptionValue> optionMap = CaseInsensitiveMap.newHashMap();
-
-    // Unpack OptionValues from validators
-    validators.forEach((key, value) -> optionMap.put(key, value.getDefault()));
-    return optionMap;
-  }
-
-  public boolean isValid(String name) {
-    return validators.containsKey(name);
-  }
-
 }

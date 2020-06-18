@@ -29,7 +29,11 @@ import org.junit.Test;
 
 import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.server.options.DefaultOptionManager;
+import com.dremio.exec.server.options.OptionManagerWrapper;
+import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.service.scheduler.SchedulerService;
 import com.dremio.test.DremioTest;
@@ -47,10 +51,14 @@ public class TestTokenManager {
 
   @BeforeClass
   public static void startServices() throws Exception {
-    SystemOptionManager systemOptionManager = mock(SystemOptionManager.class);
-    when(systemOptionManager.getOption("token.expiration.min")).thenReturn(OptionValue.createOption
+    OptionManager optionManager = OptionManagerWrapper.Builder.newBuilder()
+      .withOptionValidatorProvider(mock(OptionValidatorListingImpl.class))
+      .withOptionManager(mock(DefaultOptionManager.class))
+      .withOptionManager(mock(SystemOptionManager.class))
+      .build();
+    when(optionManager.getOption("token.expiration.min")).thenReturn(OptionValue.createOption
       (OptionValue.Kind.LONG, OptionValue.OptionType.SYSTEM, "token.expiration.min","30"));
-    when(systemOptionManager.getOption("token.release.leadership.ms")).thenReturn(OptionValue.createOption
+    when(optionManager.getOption("token.release.leadership.ms")).thenReturn(OptionValue.createOption
       (OptionValue.Kind.LONG, OptionValue.OptionType.SYSTEM, "token.release.leadership.ms","144000000"));
 
     provider =
@@ -69,10 +77,10 @@ public class TestTokenManager {
           return mock(SchedulerService.class);
         }
       },
-      new Provider<SystemOptionManager>() {
+      new Provider<OptionManager>() {
         @Override
-        public SystemOptionManager get() {
-          return systemOptionManager;
+        public OptionManager get() {
+          return optionManager;
         }
       },
     false, 10, 10);

@@ -27,7 +27,6 @@
 package com.dremio.exec.expr.fn.impl.gcast;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ArrowBuf;
 
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
@@ -37,7 +36,7 @@ import com.dremio.exec.expr.annotations.Param;
 import com.dremio.exec.expr.annotations.Workspace;
 import org.apache.arrow.vector.holders.*;
 import javax.inject.Inject;
-import io.netty.buffer.ArrowBuf;
+import org.apache.arrow.memory.ArrowBuf;
 
 /**
  * generated from ${.template_name} ${type.from} ${type.to} ${type.major}

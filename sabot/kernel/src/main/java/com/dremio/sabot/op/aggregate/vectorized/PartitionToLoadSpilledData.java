@@ -18,6 +18,7 @@ package com.dremio.sabot.op.aggregate.vectorized;
 
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BaseFixedWidthVector;
@@ -29,8 +30,6 @@ import com.dremio.common.util.Numbers;
 import com.dremio.exec.expr.TypeHelper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-
-import io.netty.buffer.ArrowBuf;
 
 /**
  *

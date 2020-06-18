@@ -15,9 +15,9 @@
  */
 package com.dremio.services.fabric.simple;
 
-import com.google.protobuf.MessageLite;
+import org.apache.arrow.memory.ArrowBuf;
 
-import io.netty.buffer.ArrowBuf;
+import com.google.protobuf.MessageLite;
 
 /**
  * A response on the reception side. Note that this is similar to a response on

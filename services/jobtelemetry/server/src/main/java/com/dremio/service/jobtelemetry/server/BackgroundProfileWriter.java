@@ -62,6 +62,10 @@ public class BackgroundProfileWriter implements AutoCloseable {
     return Optional.of(future);
   }
 
+  int getNumInprogressWrites() {
+    return inProgressWrites.size();
+  }
+
   @Override
   public void close() throws Exception {
     AutoCloseables.close(executor);

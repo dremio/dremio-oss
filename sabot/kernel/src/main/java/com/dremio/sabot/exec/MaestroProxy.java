@@ -46,6 +46,8 @@ public class MaestroProxy implements AutoCloseable {
   private final LoadingCacheWithExpiry<QueryId, MaestroProxyQueryTracker> trackers;
   private final CloseableSchedulerThreadPool retryPool =
     new CloseableSchedulerThreadPool("maestro-proxy-retry", 1);
+  private final CloseableSchedulerThreadPool timeoutThreadPool =
+    new CloseableSchedulerThreadPool("maestro-proxy-timeout", 2);
   private final long evictionDelayMillis;
 
   public MaestroProxy(
@@ -68,7 +70,7 @@ public class MaestroProxy implements AutoCloseable {
         @Override
         public MaestroProxyQueryTracker load(QueryId queryId) throws Exception {
           return new MaestroProxyQueryTracker(queryId, selfEndpoint,
-            evictionDelayMillis, retryPool, clusterCoordinator);
+            evictionDelayMillis, retryPool, clusterCoordinator, timeoutThreadPool);
         }
       },
     null, evictionDelayMillis);
@@ -135,6 +137,6 @@ public class MaestroProxy implements AutoCloseable {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(trackers, retryPool);
+    AutoCloseables.close(trackers, retryPool, timeoutThreadPool);
   }
 }

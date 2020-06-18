@@ -20,22 +20,26 @@ import java.util.concurrent.ExecutionException;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
+import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.proto.UserBitShared.AttemptEvent;
 import com.dremio.exec.testing.ControlsInjector;
 import com.dremio.exec.testing.ControlsInjectorFactory;
 import com.dremio.exec.util.Utilities;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
+import com.dremio.resource.ResourceSchedulingObserver;
 import com.dremio.resource.ResourceSchedulingProperties;
 import com.dremio.resource.ResourceSchedulingResult;
 import com.dremio.resource.ResourceSet;
 import com.dremio.resource.exception.ResourceAllocationException;
+import com.dremio.resource.exception.ResourceUnavailableException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 
 /**
  * Tracks cluster/queue resources held by the query during execution.
  */
-class ResourceTracker implements AutoCloseable {
+public class ResourceTracker implements AutoCloseable {
   private static final org.slf4j.Logger logger =
     org.slf4j.LoggerFactory.getLogger(ResourceTracker.class);
   private static final ControlsInjector injector =
@@ -48,7 +52,16 @@ class ResourceTracker implements AutoCloseable {
   public static final String INJECTOR_RESOURCE_ALLOCATE_ERROR = "resourceAllocateError";
 
   @VisibleForTesting
+  public static final String INJECTOR_RESOURCE_ALLOCATE_UNAVAILABLE_ERROR = "resourceAllocateUnavailableError";
+
+  @VisibleForTesting
   public static final String INJECTOR_RESOURCE_ALLOCATE_PAUSE = "resourceAllocatePause";
+
+  @VisibleForTesting
+  public static final String INJECTOR_ENGINE_START_PAUSE = "engine-start-pause";
+
+  @VisibleForTesting
+  public static final String INJECTOR_QUEUED_PAUSE = "queued-pause";
 
   ResourceTracker(
     PhysicalPlan physicalPlan,
@@ -74,10 +87,27 @@ class ResourceTracker implements AutoCloseable {
 
     injector.injectChecked(context.getExecutionControls(), INJECTOR_RESOURCE_ALLOCATE_ERROR,
       IllegalStateException.class);
+    injector.injectChecked(context.getExecutionControls(), INJECTOR_RESOURCE_ALLOCATE_UNAVAILABLE_ERROR,
+      ResourceUnavailableException.class);
     injector.injectPause(context.getExecutionControls(), INJECTOR_RESOURCE_ALLOCATE_PAUSE, logger);
 
+    ResourceSchedulingObserver resourceSchedulingObserver = new ResourceSchedulingObserver() {
+      @Override
+      public void beginEngineStart() {
+        observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.ENGINE_START));
+        injector.injectPause(context.getExecutionControls(), INJECTOR_ENGINE_START_PAUSE, logger);
+      }
+
+      @Override
+      public void beginQueueWait() {
+        observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.QUEUED));
+        injector.injectPause(context.getExecutionControls(), INJECTOR_QUEUED_PAUSE, logger);
+      }
+    };
     long startTimeMs = System.currentTimeMillis();
-    ResourceSchedulingResult resourceSchedulingResult = resourceAllocator.allocate(context, resourceSchedulingProperties, (x) -> {
+    ResourceSchedulingResult resourceSchedulingResult = resourceAllocator.allocate(context, resourceSchedulingProperties,
+      resourceSchedulingObserver,
+      (x) -> {
       resourceSchedulingDecisionInfo = x;
       resourceSchedulingDecisionInfo.setResourceSchedulingProperties(resourceSchedulingProperties);
       resourceSchedulingDecisionInfo.setSchedulingStartTimeMs(startTimeMs);

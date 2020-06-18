@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.dac.proto.model.collaboration.CollaborationTag;
@@ -37,7 +38,6 @@ import com.dremio.services.fabric.simple.SendEndpointCreator;
 import com.dremio.services.fabric.simple.SentResponseMessage;
 import com.google.protobuf.ByteString;
 
-import io.netty.buffer.ArrowBuf;
 import io.protostuff.LinkedBuffer;
 
 /**

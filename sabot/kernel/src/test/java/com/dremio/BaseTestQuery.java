@@ -727,6 +727,31 @@ public class BaseTestQuery extends ExecTest {
 
   }
 
+  // captures queryId and state.
+  public static class QueryIdCapturingListener extends SilentListener {
+    private QueryId queryId;
+    private QueryState queryState;
+
+    @Override
+    public void queryIdArrived(QueryId queryId) {
+      this.queryId = queryId;
+    }
+
+    @Override
+    public void queryCompleted(QueryState queryState) {
+      this.queryState = queryState;
+    }
+
+    public QueryId getQueryId() {
+      return queryId;
+    }
+
+    public QueryState getQueryState() {
+      return queryState;
+    }
+  }
+
+
   public static int getRecordCount(List<QueryDataBatch> result) throws UnsupportedEncodingException, SchemaChangeException {
     int i = 0;
     for (QueryDataBatch batch : result) {

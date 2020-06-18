@@ -40,7 +40,6 @@ import org.eclipse.jetty.util.resource.Resource;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 
-import com.dremio.common.AutoCloseables;
 import com.dremio.dac.daemon.DremioBinder;
 import com.dremio.dac.daemon.ServerHealthMonitor;
 import com.dremio.dac.server.socket.SocketServlet;
@@ -48,7 +47,6 @@ import com.dremio.dac.server.tokens.TokenManager;
 import com.dremio.dac.server.tracing.ServerTracingDynamicFeature;
 import com.dremio.dac.server.tracing.SpanFinishingFilter;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
-import com.dremio.exec.server.BootStrapContext;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.jobs.JobsService;
@@ -68,7 +66,6 @@ public class DremioServer {
   private KeyStore trustStore;
   private AccessLogFilter accessLogFilter;
   private int port = -1;
-  private BufferAllocatorFactory bufferAllocatorFactory;
   private ServerConnector serverConnector;
   private ServletContextHandler servletContextHandler;
   private boolean serviceStarted = false;
@@ -89,6 +86,7 @@ public class DremioServer {
     Provider<SabotContext> contextProvider,
     Provider<RestServerV2> restServerProvider,
     Provider<APIServer> apiServerProvider,
+    DremioBinder dremioBinder,
     Tracer tracer,
     String uiType,
     boolean isInternalUS
@@ -116,8 +114,6 @@ public class DremioServer {
       wsHolder.setInitOrder(3);
       servletContextHandler.addServlet(wsHolder, "/apiv2/socket");
 
-      bufferAllocatorFactory = new BufferAllocatorFactory(registry.lookup(BootStrapContext.class).getAllocator(), "WebServer");
-
       // Rest API
       ResourceConfig restServer = restServerProvider.get();
 
@@ -125,7 +121,7 @@ public class DremioServer {
       restServer.property(RestServerV2.TEST_API_ENABLE, config.allowTestApis);
       restServer.property(RestServerV2.FIRST_TIME_API_ENABLE, isInternalUS);
 
-      restServer.register(new DremioBinder(registry, bufferAllocatorFactory));
+      restServer.register(dremioBinder);
       restServer.register(new ServerTracingDynamicFeature(tracer));
 
       final ServletHolder restHolder = new ServletHolder(new ServletContainer(restServer));
@@ -134,7 +130,7 @@ public class DremioServer {
 
       // Public API
       ResourceConfig apiServer = apiServerProvider.get();
-      apiServer.register(new DremioBinder(registry, bufferAllocatorFactory));
+      apiServer.register(dremioBinder);
       apiServer.register(new ServerTracingDynamicFeature(tracer));
 
       final ServletHolder apiHolder = new ServletHolder(new ServletContainer(apiServer));
@@ -256,17 +252,11 @@ public class DremioServer {
     return trustStore;
   }
 
-  @VisibleForTesting
-  BufferAllocatorFactory getBufferAllocatorFactory() {
-    return bufferAllocatorFactory;
-  }
-
   public Server getJettyServer() {
     return embeddedJetty;
   }
 
   public void close() throws Exception {
-    AutoCloseables.close(bufferAllocatorFactory);
     embeddedJetty.stop();
   }
 }

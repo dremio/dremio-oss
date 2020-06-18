@@ -22,9 +22,9 @@ import javax.inject.Provider;
 
 import com.dremio.datastore.VersionExtractor;
 import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.service.reflection.DependencyEntry;
 import com.dremio.service.reflection.proto.ReflectionDependencies;
@@ -99,7 +99,7 @@ public class DependenciesStore {
   /**
    * {@link DependenciesStore} creator
    */
-  public static final class StoreCreator implements LegacyStoreCreationFunction<LegacyKVStore<ReflectionId, ReflectionDependencies>> {
+  public static final class StoreCreator implements LegacyKVStoreCreationFunction<ReflectionId, ReflectionDependencies> {
     @Override
     public LegacyKVStore<ReflectionId, ReflectionDependencies> build(LegacyStoreBuildingFactory factory) {
       return factory.<ReflectionId, ReflectionDependencies>newStore()

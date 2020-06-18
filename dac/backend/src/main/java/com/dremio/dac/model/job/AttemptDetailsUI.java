@@ -29,37 +29,81 @@ public class AttemptDetailsUI {
   private final String reason;
   private final JobState result;
   private final String profileUrl;
-  private final Long planningTime;
-  private final Long enqueuedTime;
   private final Long executionTime;
   private final Long commandPoolWaitTime;
+  private final Long pendingTime;
+  private final Long metadataRetrievalTime;
+  private final Long planningTime;
+  private final Long queuedTime;
+  private final Long engineStartTime;
+  private final Long executionPlanningTime;
+  private final Long startingTime;
+  private final Long runningTime;
+  private final Long totalTime;
 
   @JsonCreator
   public AttemptDetailsUI(
       @JsonProperty("reason") String reason,
       @JsonProperty("result") JobState result,
       @JsonProperty("profileUrl") String profileUrl,
-      @JsonProperty("planningTime") Long planningTime,
-      @JsonProperty("enqueuedTime") Long enqueuedTime,
       @JsonProperty("executionTime") Long executionTime,
-      @JsonProperty("commandPoolWaitTime") Long commandPoolWaitTime) {
+      @JsonProperty("commandPoolWaitTime") Long commandPoolWaitTime,
+      @JsonProperty("pendingTime") Long pendingTime,
+      @JsonProperty("metadataRetrievalTime") Long metadataRetrievalTime,
+      @JsonProperty("planningTime") Long planningTime,
+      @JsonProperty("queuedTime") Long queuedTime,
+      @JsonProperty("engineStartTime") Long engineStartTime,
+      @JsonProperty("executionPlanningTime") Long executionPlanningTime,
+      @JsonProperty("startingTime") Long startingTime,
+      @JsonProperty("runningTime") Long runningTime,
+      @JsonProperty("totalTime") Long totalTime){
     this.reason = reason;
     this.result = result;
     this.profileUrl = profileUrl;
-    this.planningTime = planningTime;
-    this.enqueuedTime = enqueuedTime;
     this.executionTime = executionTime;
     this.commandPoolWaitTime = commandPoolWaitTime;
+    this.pendingTime = pendingTime;
+    this.metadataRetrievalTime = metadataRetrievalTime;
+    this.planningTime = planningTime;
+    this.queuedTime = queuedTime;
+    this.engineStartTime = engineStartTime;
+    this.executionPlanningTime = executionPlanningTime;
+    this.startingTime = startingTime;
+    this.runningTime = runningTime;
+    this.totalTime = totalTime;
   }
 
   public AttemptDetailsUI(final JobAttempt jobAttempt, final JobId jobId, final int attemptIndex) {
+    AttemptsHelper attemptsHelper = new AttemptsHelper(jobAttempt);
     reason = AttemptsUIHelper.constructAttemptReason(jobAttempt.getReason());
     result = jobAttempt.getState();
     profileUrl = "/profiles/" + jobId.getId() + "?attempt=" + attemptIndex;
-    enqueuedTime = AttemptsHelper.getEnqueuedTime(jobAttempt);
-    planningTime = AttemptsHelper.getPlanningTime(jobAttempt);
-    executionTime = AttemptsHelper.getExecutionTime(jobAttempt);
+
     commandPoolWaitTime = AttemptsHelper.getCommandPoolWaitTime(jobAttempt);
+    if (attemptsHelper.hasStateDurations()) {
+      pendingTime = attemptsHelper.getPendingTime();
+      metadataRetrievalTime = attemptsHelper.getMetadataRetrievalTime();
+      planningTime = attemptsHelper.getPlanningTime();
+      queuedTime = attemptsHelper.getQueuedTime();
+      engineStartTime = attemptsHelper.getEngineStartTime();
+      executionPlanningTime = attemptsHelper.getExecutionPlanningTime();
+      startingTime = attemptsHelper.getStartingTime();
+      runningTime = attemptsHelper.getRunningTime();
+      executionTime = runningTime;
+      totalTime = attemptsHelper.getTotalTime();
+    } else {
+      // legacy jobs
+      pendingTime = null;
+      metadataRetrievalTime = null;
+      planningTime = AttemptsHelper.getLegacyPlanningTime(jobAttempt);
+      queuedTime = AttemptsHelper.getLegacyEnqueuedTime(jobAttempt);
+      executionTime = AttemptsHelper.getLegacyExecutionTime(jobAttempt);
+      engineStartTime = null;
+      executionPlanningTime = null;
+      startingTime = null;
+      runningTime = executionTime;
+      totalTime = planningTime + queuedTime + runningTime;
+    }
   }
 
   public String getReason() {
@@ -74,19 +118,47 @@ public class AttemptDetailsUI {
     return profileUrl;
   }
 
-  public Long getPlanningTime() {
-    return planningTime;
-  }
-
-  public Long getEnqueuedTime() {
-    return enqueuedTime;
-  }
-
   public Long getExecutionTime() {
     return executionTime;
   }
 
   public Long getCommandPoolWaitTime() {
     return commandPoolWaitTime;
+  }
+
+  public Long getPendingTime() {
+    return pendingTime;
+  }
+
+  public Long getMetadataRetrievalTime() {
+    return metadataRetrievalTime;
+  }
+
+  public Long getPlanningTime() {
+    return planningTime;
+  }
+
+  public Long getQueuedTime() {
+    return queuedTime;
+  }
+
+  public Long getEngineStartTime() {
+    return engineStartTime;
+  }
+
+  public Long getExecutionPlanningTime() {
+    return executionPlanningTime;
+  }
+
+  public Long getStartingTime() {
+    return startingTime;
+  }
+
+  public Long getRunningTime() {
+    return runningTime;
+  }
+
+  public Long getTotalTime() {
+    return totalTime;
   }
 }

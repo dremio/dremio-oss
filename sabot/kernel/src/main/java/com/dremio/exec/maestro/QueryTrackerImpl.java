@@ -41,7 +41,7 @@ import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
-class QueryTrackerImpl implements QueryTracker {
+public class QueryTrackerImpl implements QueryTracker {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(QueryTrackerImpl.class);
   private static final ControlsInjector injector =
     ControlsInjectorFactory.getInjector(QueryTrackerImpl.class);
@@ -54,6 +54,9 @@ class QueryTrackerImpl implements QueryTracker {
 
   @VisibleForTesting
   public static final String INJECTOR_NODE_COMPLETION_ERROR = "nodeCompletionError";
+
+  @VisibleForTesting
+  public static final String INJECTOR_STARTING_PAUSE = "startingPause";
 
   private final QueryId queryId;
   private final QueryContext context;
@@ -116,7 +119,8 @@ class QueryTrackerImpl implements QueryTracker {
 
     executionPlan = ExecutionPlanCreator.getExecutionPlan(context, reader, observer, physicalPlan,
       resourceTracker.getResources(),
-      executionPlanningResources.getPlanningSet(), executorSelectionService);
+      executionPlanningResources.getPlanningSet(), executorSelectionService,
+      resourceTracker.getResourceSchedulingDecisionInfo());
     observer.planCompleted(executionPlan);
     physicalPlan = null; // no longer needed
   }
@@ -135,6 +139,8 @@ class QueryTrackerImpl implements QueryTracker {
       }
     };
 
+    injector.injectPause(context.getExecutionControls(),
+      INJECTOR_STARTING_PAUSE, logger);
     try {
       FragmentStarter starter = new FragmentStarter(executorServiceClientFactory,
         resourceTracker.getResourceSchedulingDecisionInfo(),

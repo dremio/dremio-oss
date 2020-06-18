@@ -19,9 +19,9 @@ package org.apache.arrow.vector;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.util.DecimalUtility;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.buffer.ByteBuf;
 
 public class DecimalHelper {

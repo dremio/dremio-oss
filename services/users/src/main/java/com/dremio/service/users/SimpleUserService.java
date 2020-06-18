@@ -42,9 +42,9 @@ import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.DocumentWriter;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
+import com.dremio.datastore.api.LegacyIndexedStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
-import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.format.Format;
 import com.dremio.datastore.indexed.IndexKey;
 import com.dremio.service.users.proto.UID;
@@ -452,7 +452,7 @@ public class SimpleUserService implements UserService {
   /**
    * Class for creating kvstore.
    */
-  public static class UserGroupStoreBuilder implements LegacyStoreCreationFunction<LegacyIndexedStore<UID, UserInfo>> {
+  public static class UserGroupStoreBuilder implements LegacyIndexedStoreCreationFunction<UID, UserInfo> {
 
     @Override
     public LegacyIndexedStore<UID, UserInfo> build(LegacyStoreBuildingFactory factory) {

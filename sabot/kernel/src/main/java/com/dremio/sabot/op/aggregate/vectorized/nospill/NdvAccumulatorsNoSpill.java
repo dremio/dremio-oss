@@ -18,6 +18,7 @@ package com.dremio.sabot.op.aggregate.vectorized.nospill;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferManager;
 import org.apache.arrow.vector.BaseVariableWidthVector;
 import org.apache.arrow.vector.DecimalVector;
@@ -29,7 +30,6 @@ import com.yahoo.memory.Memory;
 import com.yahoo.sketches.hll.HllSketch;
 import com.yahoo.sketches.hll.Union;
 
-import io.netty.buffer.ArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 

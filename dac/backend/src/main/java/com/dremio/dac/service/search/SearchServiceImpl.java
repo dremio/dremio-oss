@@ -54,7 +54,7 @@ import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.indexed.AuxiliaryIndex;
 import com.dremio.exec.ExecConstants;
-import com.dremio.exec.server.options.SystemOptionManager;
+import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.NamespaceUtils;
@@ -73,7 +73,7 @@ public class SearchServiceImpl implements SearchService {
   public static final String LOCAL_TASK_LEADER_NAME = "searchservice";
 
   private final Provider<NamespaceService> namespaceServiceProvider;
-  private final Provider<SystemOptionManager> optionManagerProvider;
+  private final Provider<OptionManager> optionManagerProvider;
 
   private final Provider<LegacyKVStoreProvider> storeProvider;
   private final Provider<SchedulerService> schedulerService;
@@ -86,7 +86,7 @@ public class SearchServiceImpl implements SearchService {
 
   public SearchServiceImpl(
     Provider<NamespaceService> namespaceServiceProvider,
-    Provider<SystemOptionManager> optionManagerProvider,
+    Provider<OptionManager> optionManagerProvider,
     Provider<LegacyKVStoreProvider> storeProvider,
     Provider<SchedulerService> schedulerService,
     ExecutorService executorService

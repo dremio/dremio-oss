@@ -325,5 +325,9 @@ public class TestWebSocket extends BaseTestServer {
 
       return Lists.newArrayList(messages);
     }
+
+    public Session getSession() {
+      return session;
+    }
   }
 }

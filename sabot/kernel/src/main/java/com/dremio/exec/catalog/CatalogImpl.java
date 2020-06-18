@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.ConcurrentModificationException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -36,22 +37,22 @@ import com.dremio.connector.metadata.AttributeValue;
 import com.dremio.connector.metadata.EntityPath;
 import com.dremio.datastore.ProtostuffSerializer;
 import com.dremio.datastore.SearchQueryUtils;
-import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.Serializer;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
 import com.dremio.exec.record.BatchSchema;
-import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.dfs.IcebergTableProps;
-import com.dremio.exec.store.ischema.tables.InfoSchemaTable;
-import com.dremio.exec.store.ischema.tables.SchemataTable.Schema;
-import com.dremio.exec.store.ischema.tables.TablesTable.Table;
+import com.dremio.options.OptionManager;
+import com.dremio.service.catalog.Schema;
+import com.dremio.service.catalog.SearchQuery;
+import com.dremio.service.catalog.Table;
+import com.dremio.service.catalog.TableSchema;
 import com.dremio.service.listing.DatasetListingService;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.DatasetIndexKeys;
@@ -89,7 +90,7 @@ public class CatalogImpl implements Catalog {
   private final CatalogServiceImpl.SourceModifier sourceModifier;
   private final String username;
 
-  private final SystemOptionManager optionManager;
+  private final OptionManager optionManager;
   private final NamespaceService systemNamespaceService;
   private final NamespaceService.Factory namespaceFactory;
   private final DatasetListingService datasetListingService;
@@ -97,12 +98,13 @@ public class CatalogImpl implements Catalog {
 
   private final NamespaceService userNamespaceService;
   private final DatasetManager datasets;
+  private final InformationSchemaCatalog iscDelegate;
 
   CatalogImpl(
       MetadataRequestOptions options,
       PluginRetriever pluginRetriever,
       CatalogServiceImpl.SourceModifier sourceModifier,
-      SystemOptionManager optionManager,
+      OptionManager optionManager,
       NamespaceService systemNamespaceService,
       NamespaceService.Factory namespaceFactory,
       DatasetListingService datasetListingService,
@@ -122,6 +124,7 @@ public class CatalogImpl implements Catalog {
     this.userNamespaceService = namespaceFactory.get(username);
 
     this.datasets = new DatasetManager(pluginRetriever, userNamespaceService, optionManager);
+    this.iscDelegate = new InformationSchemaCatalogImpl(userNamespaceService);
   }
 
   @Override
@@ -229,27 +232,35 @@ public class CatalogImpl implements Catalog {
 
   @Override
   public Iterable<String> listSchemas(NamespaceKey path) {
-    final SearchQuery filter = path.size() == 0
-        ? null
-        : SearchQueryUtils.newTermQuery(DatasetIndexKeys.UNQUOTED_LC_SCHEMA, path.toUnescapedString().toLowerCase());
-    return FluentIterable.from(InfoSchemaTable.SCHEMATA.<Schema>asIterable("N/A", username, datasetListingService, filter))
-        .transform(new com.google.common.base.Function<Schema, String>() {
+    final SearchQuery searchQuery =
+      path.size() == 0 ? null : SearchQuery.newBuilder()
+        .setEquals(SearchQuery.Equals.newBuilder()
+          .setField(DatasetIndexKeys.UNQUOTED_LC_SCHEMA.getIndexFieldName())
+          .setStringValue(path.toUnescapedString().toLowerCase())
+          .build())
+        .build();
+    final Iterable<Schema> iterable = () -> listSchemata(searchQuery);
 
-          @Override
-          public String apply(Schema input) {
-            return input.SCHEMA_NAME;
-          }
-        });
+    return FluentIterable.from(iterable)
+        .transform(input -> input.getSchemaName());
   }
 
   @Override
   public Iterable<Table> listDatasets(NamespaceKey path) {
-    final SearchQuery filter = SearchQueryUtils.and(
-      SearchQueryUtils.newTermQuery(DatasetIndexKeys.UNQUOTED_LC_SCHEMA, path.toUnescapedString().toLowerCase()),
-      SearchQueryUtils.newTermQuery(NamespaceIndexKeys.ENTITY_TYPE.getIndexFieldName(), NameSpaceContainer.Type.DATASET.getNumber())
-    );
+    final SearchQuery searchQuery =
+      SearchQuery.newBuilder()
+        .setAnd(SearchQuery.And.newBuilder()
+          .addClauses(SearchQuery.newBuilder()
+            .setEquals(SearchQuery.Equals.newBuilder()
+              .setField(DatasetIndexKeys.UNQUOTED_LC_SCHEMA.getIndexFieldName())
+              .setStringValue(path.toUnescapedString().toLowerCase())))
+          .addClauses(SearchQuery.newBuilder()
+            .setEquals(SearchQuery.Equals.newBuilder()
+              .setField(NamespaceIndexKeys.ENTITY_TYPE.getIndexFieldName())
+              .setIntValue(NameSpaceContainer.Type.DATASET.getNumber()))))
+        .build();
 
-    return InfoSchemaTable.TABLES.<Table>asIterable("N/A", username, datasetListingService, filter);
+    return () -> listTables(searchQuery);
   }
 
   @Override
@@ -733,5 +744,30 @@ public class CatalogImpl implements Catalog {
 
   private enum SchemaType {
     SOURCE, SPACE, HOME, UNKNOWN
+  }
+
+  @Override
+  public Iterator<com.dremio.service.catalog.Catalog> listCatalogs(SearchQuery searchQuery) {
+    return iscDelegate.listCatalogs(searchQuery);
+  }
+
+  @Override
+  public Iterator<Schema> listSchemata(SearchQuery searchQuery) {
+    return iscDelegate.listSchemata(searchQuery);
+  }
+
+  @Override
+  public Iterator<com.dremio.service.catalog.Table> listTables(SearchQuery searchQuery) {
+    return iscDelegate.listTables(searchQuery);
+  }
+
+  @Override
+  public Iterator<com.dremio.service.catalog.View> listViews(SearchQuery searchQuery) {
+    return iscDelegate.listViews(searchQuery);
+  }
+
+  @Override
+  public Iterator<TableSchema> listTableSchemata(SearchQuery searchQuery) {
+    return iscDelegate.listTableSchemata(searchQuery);
   }
 }

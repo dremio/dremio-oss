@@ -169,7 +169,7 @@ const styles = {
   rightPart: {
     display: 'flex',
     justifyContent: 'flex-end',
-    width: '100%'
+    marginLeft: 'auto'
   },
   detailsHeader: {
     height: 38,
