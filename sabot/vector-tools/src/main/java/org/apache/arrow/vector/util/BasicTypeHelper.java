@@ -157,7 +157,9 @@ import org.apache.arrow.vector.holders.ValueHolder;
 import org.apache.arrow.vector.holders.VarBinaryHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
 import org.apache.arrow.vector.types.Types.MinorType;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
 
 import com.dremio.common.types.TypeProtos.MajorType;
 import com.dremio.common.util.ObjectType;
@@ -466,7 +468,8 @@ public class BasicTypeHelper {
       }
       return listVector;
     case STRUCT:
-      StructVector structVector = new StructVector(field.getName(), allocator, callBack);
+      StructVector structVector = new StructVector(field.getName(), allocator, new FieldType(true, ArrowType.Struct.INSTANCE, null, null),
+        callBack);
       if (!children.isEmpty()) {
         structVector.initializeChildrenFromFields(children);
       }

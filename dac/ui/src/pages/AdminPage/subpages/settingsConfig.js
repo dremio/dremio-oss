@@ -65,3 +65,10 @@ export const FIELD_OVERRIDES = {
 
   'dremio.exec.operator_batch_bytes': ByteField
 };
+
+export const SETTINGS_TOOL_ID = {
+  powerbi: 'client.tools.powerbi',
+  tableau: 'client.tools.tableau',
+  qlik: 'client.tools.qlik',
+  qlikEnabled: 'support.dac.qlik'
+};

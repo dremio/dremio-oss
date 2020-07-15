@@ -141,11 +141,11 @@ public class UpdateDatasetSplitIdTask extends UpgradeTask implements LegacyUpgra
 
     final SabotConfig sabotConfig = DACConfig.newConfig().getConfig().getSabotConfig();
     final ScanResult classpathScan = ClassPathScanner.fromPrescan(sabotConfig);
-    try (final LegacyKVStoreProvider storeProvider =
-      new LocalKVStoreProvider(classpathScan, args[0], false, true).asLegacy()) {
+    try (final LocalKVStoreProvider storeProvider =
+      new LocalKVStoreProvider(classpathScan, args[0], false, true)) {
       storeProvider.start();
 
-      final UpgradeContext context = new UpgradeContext(storeProvider, null, null, null);
+      final UpgradeContext context = new UpgradeContext(storeProvider.asLegacy(), null, null, null);
       final UpdateDatasetSplitIdTask task = new UpdateDatasetSplitIdTask();
       task.upgrade(context);
     }

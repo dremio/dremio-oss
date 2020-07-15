@@ -26,7 +26,7 @@ import { showConfirmationDialog } from 'actions/confirmation';
 import { getUserName } from 'selectors/account';
 import { getLocation } from 'selectors/routing';
 
-import { constructFullPath, constructFullPathAndEncode, getUniqueName } from 'utils/pathUtils';
+import { constructFullPath, getUniqueName } from 'utils/pathUtils';
 import { APIV2Call } from '@app/core/APICall';
 import { getLocationChangePredicate } from './utils';
 
@@ -44,8 +44,8 @@ export function* fetchQlikApp(dataset) {
   yield put({type: Actions.LOAD_QLIK_APP_START});
 
   const headers = new Headers();
-  const displayFullPath = dataset.get('displayFullPath') || dataset.get('fullPathList');
-  const href = `/qlik/${constructFullPathAndEncode(displayFullPath)}`;
+  const id = dataset.get('entityId') || dataset.get('id');
+  const href = `/qlik/${id}`;
 
   headers.append('Accept', 'text/plain+qlik-app');
   if (localStorageUtils) {

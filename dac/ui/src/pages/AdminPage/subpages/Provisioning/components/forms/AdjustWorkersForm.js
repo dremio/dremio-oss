@@ -17,99 +17,101 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 
-import { TextField } from 'components/Fields';
-import { InnerComplexForm, connectComplexForm } from 'components/Forms/connectComplexForm.js';
-import { getViewState } from 'selectors/resources';
-import { changeWorkersSize } from 'actions/resources/provisioning';
-import * as ButtonTypes from 'components/Buttons/ButtonTypes';
-import Button from 'components/Buttons/Button';
-import ViewStateWrapper from 'components/ViewStateWrapper';
+import { FieldWithError, TextField } from '@app/components/Fields';
+import { connectComplexForm } from '@app/components/Forms/connectComplexForm.js';
+import { FormBody, ModalForm, modalFormProps } from '@app/components/Forms';
+import { changeWorkersSize } from '@app/actions/resources/provisioning';
+import { applyValidators, isNumber, isRequired } from '@app/utils/validation';
+
 import ResourceSummary from './../ResourceSummary';
 
 const VIEW_ID = 'AdjustWorkersForm';
+const FIELDS = ['containerCount'];
+
+function validate(values) {
+  return {
+    ...applyValidators(values, [
+      isRequired('containerCount', la('Executors count')),
+      isNumber('containerCount', la('Executors count'))
+    ])
+  };
+}
 
 export class AdjustWorkersForm extends Component {
   static propTypes = {
-    fields: PropTypes.object,
-    viewState: PropTypes.instanceOf(Immutable.Map),
-    parent: PropTypes.object,
     onCancel: PropTypes.func,
     handleSubmit: PropTypes.func,
     changeWorkersSize: PropTypes.func,
-    entity: PropTypes.instanceOf(Immutable.Map)
-  }
+    entity: PropTypes.instanceOf(Immutable.Map),
+    fields: PropTypes.object,
+    values: PropTypes.object,
+    style: PropTypes.object
+  };
+  static defaultProps = {
+    entity: Immutable.Map()
+  };
+
 
   submit = (values) => {
     this.props.changeWorkersSize(values, this.props.entity.get('id'), VIEW_ID).then(() => {
-      this.props.onCancel();
+      this.props.onCancel(); //hide form
     });
-  }
+  };
 
   render() {
-    const { fields, viewState, entity } = this.props;
+    const {fields, handleSubmit, style, entity} = this.props;
     return (
-      <div>
-        <ViewStateWrapper viewState={viewState} />
-        <InnerComplexForm
-          {...this.props}
-          style={styles.form}
-          onSubmit={this.submit}>
-          <div style={{...styles.formRow, marginBottom: 10}}>
+      <ModalForm
+        {...modalFormProps(this.props)}
+        onSubmit={handleSubmit(this.submit)}
+        confirmText={la('Adjust')}
+      >
+        <FormBody style={style}>
+          <ResourceSummary entity={entity}/>
+          <FieldWithError
+            style={styles.formRow}
+            label={la('Executors')}
+            labelStyle={styles.formLabel}
+            {...fields.containerCount}
+          >
             <TextField {...fields.containerCount} type='number' style={{ width: 80 }} step={1} min={0} />
-            <ResourceSummary entity={entity} />
-          </div>
-          <div style={styles.footer}>
-            <Button
-              type={ButtonTypes.CANCEL}
-              text={la('Cancel')}
-              disableSubmit
-              onClick={this.props.onCancel}
-            />
-            <Button
-              style={{marginLeft: 5}}
-              type={ButtonTypes.NEXT}
-              text={la('Adjust')}
-            />
-          </div>
-        </InnerComplexForm>
-      </div>
+          </FieldWithError>
+        </FormBody>
+      </ModalForm>
     );
   }
 }
 
-const styles = {
-  formRow: {
-    display: 'flex',
-    width: '100%',
-    paddingLeft: 10
-  },
-  form: {
-    paddingTop: 0
-  },
-  footer: {
-    display: 'flex',
-    background: '#f3f3f3',
-    paddingTop: 10,
-    paddingBottom: 5,
-    paddingRight: 10,
-    justifyContent: 'flex-end',
-    width: '100%'
-  }
-};
-
-function mapToFormState(state, ownProps) {
+function mapStateToProps(state, ownProps) {
   const initialValues = {
     containerCount: ownProps.entity.getIn(['dynamicConfig', 'containerCount']) || 0
   };
   return {
-    viewState: getViewState(state, VIEW_ID),
     initialValues
   };
 }
 
 export default connectComplexForm({
   form: 'automaticAcceleration',
-  fields: ['containerCount']
-}, [], mapToFormState, {
+  validate,
+  fields: FIELDS,
+  initialValues: {}
+}, [], mapStateToProps, {
   changeWorkersSize
 })(AdjustWorkersForm);
+
+
+const styles = {
+  formRow: {
+    display: 'flex',
+    width: '100%'
+  },
+  formLabel: {
+    display: 'block',
+    margin: '6px 50px 0 0',
+    fontWeight: 500,
+    fontSize: 12,
+    color: '#333333'
+  }
+};
+

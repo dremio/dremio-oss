@@ -164,8 +164,7 @@ public class ArrowRecordBatchLoader implements VectorAccessible, Iterable<Vector
   }
 
   private static void loadBuffers(FieldVector vector, Field field, Iterator<ArrowBuf> buffers, Iterator<ArrowFieldNode> nodes) {
-    checkArgument(nodes.hasNext(),
-        "no more field nodes for for field " + field + " and vector " + vector);
+    checkArgument(nodes.hasNext(), "no more field nodes for for field %s and vector %s", field, vector);
     ArrowFieldNode fieldNode = nodes.next();
     List<BufferLayout> bufferLayouts = TypeLayout.getTypeLayout(field.getType()).getBufferLayouts();
     List<ArrowBuf> ownBuffers = new ArrayList<>(bufferLayouts.size());

@@ -72,10 +72,10 @@ import com.google.common.collect.Maps;
  */
 public class ScanOperator implements ProducerOperator {
   private static final Logger logger = LoggerFactory.getLogger(ScanOperator.class);
-  private static final ControlsInjector injector = ControlsInjectorFactory.getInjector(ScanOperator.class);
+  protected static final ControlsInjector injector = ControlsInjectorFactory.getInjector(ScanOperator.class);
 
   /** Main collection of fields' value vectors. */
-  private final VectorContainer outgoing;
+  protected final VectorContainer outgoing;
 
   public enum Metric implements MetricDef {
     @Deprecated
@@ -128,17 +128,17 @@ public class ScanOperator implements ProducerOperator {
   }
 
   /** Fields' value vectors indexed by fields' keys. */
-  private final Map<String, ValueVector> fieldVectorMap = Maps.newHashMap();
-  private State state = State.NEEDS_SETUP;
-  private final OperatorContext context;
-  private Iterator<RecordReader> readers;
-  private RecordReader currentReader;
+  protected final Map<String, ValueVector> fieldVectorMap = Maps.newHashMap();
+  protected State state = State.NEEDS_SETUP;
+  protected final OperatorContext context;
+  protected Iterator<RecordReader> readers;
+  protected RecordReader currentReader;
   private final ScanMutator mutator;
   private MutatorSchemaChangeCallBack callBack = new MutatorSchemaChangeCallBack();
   private final BatchSchema schema;
   private final ImmutableList<SchemaPath> selectedColumns;
   private final List<String> tableSchemaPath;
-  private final SubScan config;
+  protected final SubScan config;
   private final GlobalDictionaries globalDictionaries;
   private final Stopwatch readTime = Stopwatch.createUnstarted();
 
@@ -198,7 +198,7 @@ public class ScanOperator implements ProducerOperator {
     return state;
   }
 
-  private void setupReader(RecordReader reader) throws Exception {
+  protected void setupReader(RecordReader reader) throws Exception {
     try(RollbackCloseable commit = AutoCloseables.rollbackable(reader)){
       BatchSchema initialSchema = outgoing.getSchema();
       setupReaderAsCorrectUser(reader);
@@ -283,12 +283,14 @@ public class ScanOperator implements ProducerOperator {
     return outgoing.setAllCount(recordCount);
   }
 
-  private void checkAndLearnSchema(){
+  protected void checkAndLearnSchema(){
     if (mutator.getSchemaChanged()) {
       outgoing.buildSchema(SelectionVectorMode.NONE);
       final BatchSchema newSchema = mutator.transformFunction.apply(outgoing.getSchema());
       if (config.mayLearnSchema() && tableSchemaPath != null) {
         throw UserException.schemaChangeError()
+            .addContext("Original Schema", config.getFullSchema().toString())
+            .addContext("New Schema", newSchema.toString())
             .message("New schema found. Please reattempt the query. Multiple attempts may be necessary to fully learn the schema.")
             .setAdditionalExceptionContext(new SchemaChangeExceptionContext(tableSchemaPath, newSchema))
             .build(logger);

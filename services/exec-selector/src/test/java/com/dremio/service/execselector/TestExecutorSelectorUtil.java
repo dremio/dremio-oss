@@ -36,7 +36,16 @@ public final class TestExecutorSelectorUtil {
    * Check whether the state of the selectionService has reached 'expected'
    */
   private static void checkServiceState(ExecutorSelectionService selectionService, Set<String> expectedAddresses) throws Exception {
-    try (ExecutorSelectionHandle hdl = selectionService.getExecutors(expectedAddresses.size(), new ExecutorSelectionContext())) {
+    checkServiceState(selectionService, expectedAddresses, new ExecutorSelectionContext());
+  }
+
+  /**
+   * Check whether the state of the selectionService has reached 'expected'
+   */
+  private static void checkServiceState(ExecutorSelectionService selectionService,
+                                        Set<String> expectedAddresses,
+                                        ExecutorSelectionContext executorSelectionContext) throws Exception {
+    try (ExecutorSelectionHandle hdl = selectionService.getExecutors(expectedAddresses.size(), executorSelectionContext)) {
       Collection<NodeEndpoint> nodes = hdl.getExecutors();
       if (expectedAddresses.size() != nodes.size()) {
         assertEquals(expectedAddresses.size(), nodes.size());
@@ -56,17 +65,18 @@ public final class TestExecutorSelectorUtil {
    * Wait until the executor selection service reaches 'totalNumExecutors'
    */
   static void waitForExecutors(ExecutorSelectionService selectionService, int totalNumExecutors) throws Exception {
-    // Processing of executors happens in a separate thread. Must give it a moment to act
+    // Processing of events happens in a separate thread. Must give it a moment to act
+    ExecutorSelectionServiceImpl service = (ExecutorSelectionServiceImpl) selectionService;
     final int timeoutMs = 5_000;  // we expect this to happen a *lot* sooner
     int attemptNum = 0;
     while (++attemptNum < timeoutMs &&
-        ((ExecutorSelectionServiceImpl)selectionService).getNumExecutors() != totalNumExecutors) {
+      ((service.getNumExecutors() != totalNumExecutors) || !service.eventsCompleted())) {
       try {
         Thread.sleep(1);
       } catch (Exception e) {
       }
     }
-    assertEquals(totalNumExecutors, (((ExecutorSelectionServiceImpl) selectionService).getNumExecutors()));
+    assertEquals(totalNumExecutors, service.getNumExecutors());
   }
 
   /**
@@ -78,4 +88,19 @@ public final class TestExecutorSelectorUtil {
     waitForExecutors(selectionService, totalNumExecutors);
     checkServiceState(selectionService, expectedAddresses);
   }
+
+  /**
+   * Wait until the executor selection service reaches 'totalNumExecutors', then check whether the endpoints returned
+   * by the executor selection service match the expected set of endpoints.
+   * Given executorSelectioinContext is used get the executors from selectionService.
+   * Please note: only the endpoint's address will be compared
+   */
+  static void checkExecutors(ExecutorSelectionService selectionService,
+                             ExecutorSelectionContext executorSelectionContext,
+                             int totalNumExecutors,
+                             Set<String> expectedAddresses) throws Exception {
+    waitForExecutors(selectionService, totalNumExecutors);
+    checkServiceState(selectionService, expectedAddresses, executorSelectionContext);
+  }
+
 }

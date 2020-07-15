@@ -23,10 +23,11 @@ import java.util.Objects;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.hive.metastore.api.Partition;
 
+import com.dremio.common.util.Closeable;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
-import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
+import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.AbstractIterator;
 
@@ -125,7 +126,7 @@ public class HivePartitionChunkListing implements PartitionChunkListing {
   private class HivePartitionChunkIterator extends AbstractIterator<PartitionChunk> {
     @Override
     public PartitionChunk computeNext() {
-      try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+      try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
         do {
           // Check if current hive partition does not have remaining splits.
           if (!currentPartitionMetadata.getInputSplitBatchIterator().hasNext()) {

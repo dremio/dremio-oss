@@ -348,6 +348,14 @@
    > `<=` javax.ws.rs.core.Response   
 
 
+## Resource defined by class com.dremio.dac.resource.PowerBIResource
+
+ - GET /powerbi/{datasetId}   
+   > `=>`   
+   > Host: {String}   
+   > `<=` javax.ws.rs.core.Response   
+
+
 ## Resource defined by class com.dremio.dac.admin.ProfileResource
 
  - GET /profiles/cancel/{queryid} (path params: queryid={String})   
@@ -395,8 +403,10 @@
 
 ## Resource defined by class com.dremio.dac.explore.bi.QlikResource
 
- - GET /qlik/{datasetPath}   
-   > `<=` [com.dremio.service.namespace.dataset.proto.DatasetConfig](#class-comdremioservicenamespacedatasetprotodatasetconfig)   
+ - GET /qlik/{datasetId}   
+   > `=>`   
+   > Host: {String}   
+   > `<=` javax.ws.rs.core.Response   
 
 
 ## Resource defined by class com.dremio.dac.resource.ResourceTreeResource
@@ -592,7 +602,7 @@
 
 ## Resource defined by class com.dremio.dac.resource.TableauResource
 
- - GET /tableau/{datasetPath}   
+ - GET /tableau/{datasetId}   
    > `=>`   
    > Host: {String}   
    > `<=` javax.ws.rs.core.Response   
@@ -2228,10 +2238,11 @@
       ],
       waitInClient: 1,
     },
-    endpoint: {
+    endpoint: { /** NodeEndpoint **/
       address: "abc",
       availableCores: 1,
       conduitPort: 1,
+      dremioVersion: "abc",
       engineId: {
         id: "abc",
       },
@@ -2484,6 +2495,32 @@
           },
           path: "abc",
           recordCount: 1,
+          screenNodeEndpoint: { /** NodeEndpoint **/
+            address: "abc",
+            availableCores: 1,
+            conduitPort: 1,
+            dremioVersion: "abc",
+            engineId: {
+              id: "abc",
+            },
+            fabricPort: 1,
+            maxDirectMemory: 1,
+            nodeTag: "abc",
+            provisionId: "abc",
+            roles: {
+              distributedCache: true | false,
+              javaExecutor: true | false,
+              logicalPlan: true | false,
+              master: true | false,
+              physicalPlan: true | false,
+              sqlQuery: true | false,
+            },
+            startTime: 1,
+            subEngineId: {
+              id: "abc",
+            },
+            userPort: 1,
+          },
         },
         ...
       ],
@@ -4299,6 +4336,7 @@
   cpu: 1.0,
   host: "abc",
   ip: "abc",
+  isCompatible: true | false,
   isCoordinator: true | false,
   isExecutor: true | false,
   isMaster: true | false,
@@ -4624,183 +4662,6 @@ any
 }
 ```
 
-## `class com.dremio.service.namespace.dataset.proto.DatasetConfig`
-- Example:
-```
-{
-  accelerationId: "abc",
-  createdAt: 1,
-  datasetFieldsList: [
-    {
-      fieldName: "abc",
-      fieldSchema: { /** ByteString **/
-        empty: true | false,
-      },
-    },
-    ...
-  ],
-  fullPathList: [
-    "abc",
-    ...
-  ],
-  id: {
-    id: "abc",
-  },
-  lastModified: 1,
-  name: "abc",
-  owner: "abc",
-  physicalDataset: {
-    accelerationSettings: {
-      accelerationTTL: {
-        duration: 1,
-        unit: "SECONDS" | "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS",
-      },
-      gracePeriod: 1,
-      method: "FULL" | "INCREMENTAL",
-      neverExpire: true | false,
-      neverRefresh: true | false,
-      refreshField: "abc",
-      refreshPeriod: 1,
-      tag: "abc",
-      version: 1,
-    },
-    allowApproxStats: true | false,
-    deprecatedDatasetSchema: { /** ByteString **/
-      empty: true | false,
-    },
-    formatSettings: {
-      ctime: 1,
-      extendedConfig: { /** ByteString **/
-        empty: true | false,
-      },
-      fullPathList: [
-        "abc",
-        ...
-      ],
-      location: "abc",
-      name: "abc",
-      owner: "abc",
-      tag: "abc",
-      type: "UNKNOWN" | "TEXT" | "JSON" | "CSV" | "TSV" | "PSV" | "AVRO" | "PARQUET" | "HTTP_LOG" | "EXCEL" | "XLS" | "ARROW" | "ICEBERG",
-      version: 1,
-    },
-    isAppendOnly: true | false,
-  },
-  readDefinition: {
-    extendedProperty: { /** ByteString **/
-      empty: true | false,
-    },
-    lastRefreshDate: 1,
-    partitionColumnsList: [
-      "abc",
-      ...
-    ],
-    readSignature: { /** ByteString **/
-      empty: true | false,
-    },
-    scanStats: {
-      cpuCost: 1.0,
-      diskCost: 1.0,
-      recordCount: 1,
-      scanFactor: 1.0,
-      type: "NO_EXACT_ROW_COUNT" | "EXACT_ROW_COUNT",
-    },
-    sortColumnsList: [
-      "abc",
-      ...
-    ],
-    splitVersion: 1,
-  },
-  recordSchema: { /** ByteString **/
-    empty: true | false,
-  },
-  schemaVersion: 1,
-  tag: "abc",
-  totalNumSplits: 1,
-  type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
-  version: 1,
-  virtualDataset: {
-    calciteFieldsList: [
-      { /** ViewFieldType **/
-        endUnit: "abc",
-        fractionalSecondPrecision: 1,
-        isNullable: true | false,
-        name: "abc",
-        precision: 1,
-        scale: 1,
-        startUnit: "abc",
-        type: "abc",
-        typeFamily: "abc",
-      },
-      ...
-    ],
-    contextList: [
-      "abc",
-      ...
-    ],
-    fieldOriginsList: [
-      {
-        name: "abc",
-        originsList: [
-          {
-            columnName: "abc",
-            derived: true | false,
-            tableList: [
-              "abc",
-              ...
-            ],
-          },
-          ...
-        ],
-      },
-      ...
-    ],
-    grandParentsList: [
-      { /** ParentDataset **/
-        datasetPathList: [
-          "abc",
-          ...
-        ],
-        level: 1,
-        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
-      },
-      ...
-    ],
-    parentsList: [
-      { /** ParentDataset **/
-        datasetPathList: [
-          "abc",
-          ...
-        ],
-        level: 1,
-        type: "INVALID_DATASET_TYPE" | "VIRTUAL_DATASET" | "PHYSICAL_DATASET" | "PHYSICAL_DATASET_SOURCE_FILE" | "PHYSICAL_DATASET_SOURCE_FOLDER" | "PHYSICAL_DATASET_HOME_FILE" | "PHYSICAL_DATASET_HOME_FOLDER",
-      },
-      ...
-    ],
-    requiredFieldsList: [
-      "abc",
-      ...
-    ],
-    sql: "abc",
-    sqlFieldsList: [
-      { /** ViewFieldType **/
-        endUnit: "abc",
-        fractionalSecondPrecision: 1,
-        isNullable: true | false,
-        name: "abc",
-        precision: 1,
-        scale: 1,
-        startUnit: "abc",
-        type: "abc",
-        typeFamily: "abc",
-      },
-      ...
-    ],
-    version: "abc",
-  },
-}
-```
-
 ## `class com.dremio.service.namespace.file.FileFormat`
 - Example:
 ```
@@ -4997,6 +4858,20 @@ any
   clusterType: "YARN" | "MESOS" | "EC2" | "KUBERNETES" | "GCE" | "AZURE",
   containers: {
     decommissioningCount: 1,
+    decommissioningList: [
+      { /** Container **/
+        containerId: "abc",
+        containerPropertyList: [
+          { /** Property **/
+            key: "abc",
+            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+            value: "abc",
+          },
+          ...
+        ],
+      },
+      ...
+    ],
     disconnectedList: [
       { /** Container **/
         containerId: "abc",
@@ -5012,6 +4887,20 @@ any
       ...
     ],
     pendingCount: 1,
+    pendingList: [
+      { /** Container **/
+        containerId: "abc",
+        containerPropertyList: [
+          { /** Property **/
+            key: "abc",
+            type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+            value: "abc",
+          },
+          ...
+        ],
+      },
+      ...
+    ],
     provisioningCount: 1,
     runningList: [
       { /** Container **/
@@ -5038,6 +4927,7 @@ any
   id: "abc",
   name: "abc",
   shutdownInterval: 1,
+  stateChangeTime: 1,
   tag: "abc",
   yarnProps: {
     distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
@@ -5088,6 +4978,20 @@ any
       clusterType: "YARN" | "MESOS" | "EC2" | "KUBERNETES" | "GCE" | "AZURE",
       containers: {
         decommissioningCount: 1,
+        decommissioningList: [
+          { /** Container **/
+            containerId: "abc",
+            containerPropertyList: [
+              { /** Property **/
+                key: "abc",
+                type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+                value: "abc",
+              },
+              ...
+            ],
+          },
+          ...
+        ],
         disconnectedList: [
           { /** Container **/
             containerId: "abc",
@@ -5103,6 +5007,20 @@ any
           ...
         ],
         pendingCount: 1,
+        pendingList: [
+          { /** Container **/
+            containerId: "abc",
+            containerPropertyList: [
+              { /** Property **/
+                key: "abc",
+                type: "JAVA_PROP" | "SYSTEM_PROP" | "ENV_VAR",
+                value: "abc",
+              },
+              ...
+            ],
+          },
+          ...
+        ],
         provisioningCount: 1,
         runningList: [
           { /** Container **/
@@ -5129,6 +5047,7 @@ any
       id: "abc",
       name: "abc",
       shutdownInterval: 1,
+      stateChangeTime: 1,
       tag: "abc",
       yarnProps: {
         distroType: "OTHER" | "APACHE" | "CDH" | "HDP" | "MAPR",
@@ -5162,6 +5081,7 @@ any
 
 
 #V2 Others: 
+## class com.dremio.dac.explore.bi.PowerBIMessageBodyGenerator
 ## class com.dremio.dac.explore.bi.QlikAppMessageBodyGenerator
 ## class com.dremio.dac.explore.bi.TableauMessageBodyGenerator
 ## class com.dremio.dac.server.DACAuthFilterFeature

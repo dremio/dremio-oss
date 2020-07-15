@@ -26,6 +26,7 @@ import com.dremio.exec.enginemanagement.proto.EngineManagementProtos;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.beans.NodeEndpoint;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
+import com.dremio.exec.store.easy.arrow.ArrowFileReader;
 import com.dremio.sabot.exec.context.OperatorContext;
 
 /**

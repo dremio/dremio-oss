@@ -19,6 +19,7 @@ import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
@@ -106,7 +107,7 @@ public class ExecutionPlanCreator {
         queryPerNodeFromResourceAllocation);
 
     // pass all query, session and non-default system options to the fragments
-    final OptionList fragmentOptions = queryContext.getNonDefaultOptions();
+    final OptionList fragmentOptions = filterDCSControlOptions(queryContext.getNonDefaultOptions());
 
     // index repetitive items to reduce rpc size.
     final PlanFragmentsIndex.Builder indexBuilder = new PlanFragmentsIndex.Builder();
@@ -171,7 +172,7 @@ public class ExecutionPlanCreator {
     };
     final SimpleParallelizer parallelizer = new SimpleParallelizer(queryContext, observer, executorSelectionService);
     // pass all query, session and non-default system options to the fragments
-    final OptionList fragmentOptions = queryContext.getNonDefaultOptions();
+    final OptionList fragmentOptions = filterDCSControlOptions(queryContext.getNonDefaultOptions());
 
     CoordExecRPC.QueryContextInformation queryContextInformation = queryContext.getQueryContextInfo();
 
@@ -204,6 +205,19 @@ public class ExecutionPlanCreator {
     traceFragments(queryContext, planFragments);
 
     return new ExecutionPlan(queryContext.getQueryId(), plan, planFragments, indexBuilder);
+  }
+
+  // remove any dcs control options; these will not be present in executor image
+  private static OptionList filterDCSControlOptions(OptionList nonDefaultSystemOptions) {
+    OptionList nonDCSControlOptions = new OptionList();
+    nonDCSControlOptions.addAll(nonDefaultSystemOptions.stream().filter(option -> {
+        if (option.getName().startsWith("dcs.control")) {
+          return false;
+        }
+        return true;
+      }
+    ).collect(Collectors.toList()));
+    return nonDCSControlOptions;
   }
 
   private static void traceFragments(QueryContext queryContext, List<PlanFragmentFull> fullPlanFragments) {

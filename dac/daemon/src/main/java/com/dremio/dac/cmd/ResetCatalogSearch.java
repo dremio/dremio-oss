@@ -20,7 +20,7 @@ import static com.dremio.dac.service.search.SearchIndexManager.CONFIG_KEY;
 import java.util.Optional;
 
 import com.dremio.dac.server.DACConfig;
-import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.services.configuration.ConfigurationStore;
 
 /**
@@ -45,17 +45,17 @@ public class ResetCatalogSearch {
       throw new UnsupportedOperationException("Reset catalog search should be run on master node");
     }
 
-    final Optional<LegacyKVStoreProvider> providerOptional = CmdUtils.getLegacyKVStoreProvider(dacConfig.getConfig());
+    final Optional<LocalKVStoreProvider> providerOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig());
     if (!providerOptional.isPresent()) {
       AdminLogger.log("Failed to complete catalog search reset. No KVStore detected.");
       return;
     }
 
-    try (LegacyKVStoreProvider provider = providerOptional.get()) {
+    try (LocalKVStoreProvider provider = providerOptional.get()) {
       provider.start();
 
       AdminLogger.log("Resetting catalog search...");
-      final ConfigurationStore configStore = new ConfigurationStore(provider);
+      final ConfigurationStore configStore = new ConfigurationStore(provider.asLegacy());
       configStore.delete(CONFIG_KEY);
       AdminLogger.log("Catalog search reset will be completed in 1 minute after Dremio starts.");
     }

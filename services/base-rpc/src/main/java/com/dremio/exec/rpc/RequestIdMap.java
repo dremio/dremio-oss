@@ -81,13 +81,23 @@ class RequestIdMap {
 
   }
 
+  /**
+   * Adds a new RpcListener to the map.
+   * @param handler The outcome handler to be notified when the response arrives.
+   * @param clazz The Class associated with the response object.
+   * @param connection The remote connection.
+   * @param <V> The response object type.
+   * @return The new listener. Also carries the coordination id for use in the rpc message.
+   * @throws IllegalStateException if the channel has already closed.
+   * @throws IllegalArgumentException if attempt to reuse a coordination id when previous coordination id has not been removed.
+   */
   public <V> ChannelListenerWithCoordinationId createNewRpcListener(RpcOutcomeListener<V> handler, Class<V> clazz,
       RemoteConnection connection) {
     final int i = lastCoordinationId.incrementAndGet();
     final RpcListener<V> future = new RpcListener<V>(handler, clazz, i, connection);
     final Object old;
     synchronized (map) {
-      Preconditions.checkArgument(isOpen.get(),
+      Preconditions.checkState(isOpen.get(),
           "Attempted to send a message when connection is no longer valid. %s", connectionName);
       old = map.put(i, future);
     }

@@ -22,7 +22,7 @@ import static org.junit.Assert.fail;
 import org.junit.Test;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.proto.UserBitShared.DremioPBError.ErrorType;
 import com.dremio.test.DremioTest;
@@ -66,7 +66,7 @@ public class TestSimpleUserService {
   @Test
   public void testUsers() throws Exception {
     try(final LegacyKVStoreProvider kvstore =
-      new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy()) {
+      LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
       initUserStore(kvstore, userGroupService);
@@ -160,7 +160,7 @@ public class TestSimpleUserService {
   @Test
   public void testSearch() throws Exception {
     try(final LegacyKVStoreProvider kvstore =
-      new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy()) {
+      LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvstore.start();
       final SimpleUserService userGroupService = new SimpleUserService(() -> kvstore);
       initUserStore(kvstore, userGroupService);

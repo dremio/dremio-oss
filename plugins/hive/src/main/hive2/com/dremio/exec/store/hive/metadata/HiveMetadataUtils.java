@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import com.dremio.exec.store.hive.HivePf4jPlugin;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -73,6 +74,7 @@ import org.slf4j.helpers.MessageFormatter;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.DateTimes;
+import com.dremio.common.util.Closeable;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetSplit;
 import com.dremio.connector.metadata.DatasetSplitAffinity;
@@ -86,7 +88,6 @@ import com.dremio.exec.catalog.ColumnCountTooLargeException;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.dfs.implicit.DecimalTools;
-import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
 import com.dremio.exec.store.hive.HiveClient;
 import com.dremio.exec.store.hive.HiveSchemaConverter;
 import com.dremio.exec.store.hive.HiveUtilities;
@@ -166,7 +167,7 @@ public class HiveMetadataUtils {
   }
 
   public static InputFormat<?, ?> getInputFormat(Table table, final HiveConf hiveConf) {
-    try (final ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+    try (final Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       final JobConf job = new JobConf(hiveConf);
       final Class<? extends InputFormat> inputFormatClazz = getInputFormatClass(job, table, null);
       job.setInputFormat(inputFormatClazz);
@@ -576,8 +577,6 @@ public class HiveMetadataUtils {
     final long totalSizeOfInputSplits = inputSplitSizes.stream().mapToLong(Long::longValue).sum();
     final int estimatedRecordSize = tableMetadata.getBatchSchema().estimateRecordSize(statsParams.getListSizeEstimate(), statsParams.getVarFieldSizeEstimate());
 
-    metadataAccumulator.accumulateTotalBytesToScanFactor(totalSizeOfInputSplits);
-
     for (int i = 0; i < inputSplits.size(); i++) {
       final InputSplit inputSplit = inputSplits.get(i);
       final long inputSplitLength = inputSplitSizes.get(i);
@@ -803,7 +802,7 @@ public class HiveMetadataUtils {
                                                        HiveConf hiveConf,
                                                        int partitionId,
                                                        int maxInputSplitsPerPartition) {
-    try (final ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+    try (final Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       final Table table = tableMetadata.getTable();
       final Properties tableProperties = tableMetadata.getTableProperties();
       final JobConf job = new JobConf(hiveConf);
@@ -1222,7 +1221,7 @@ public class HiveMetadataUtils {
   }
 
   public static Class<? extends InputFormat> getInputFormatClass(final JobConf job, final Table table, final Partition partition) {
-    try (final ContextClassLoaderSwapper cls = ContextClassLoaderSwapper.newInstance()) {
+    try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       if (partition != null) {
         if (partition.getSd().getInputFormat() != null) {
           return (Class<? extends InputFormat>) Class.forName(partition.getSd().getInputFormat());

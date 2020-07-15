@@ -33,7 +33,7 @@ import io.netty.buffer.UnsafeDirectLittleEndian;
 public class FakeAllocator implements BufferAllocator {
 
   private static final UnsafeDirectLittleEndian emptyUdle = (new PooledByteBufAllocatorL()).empty;
-  private static ArrowBuf empty = new ArrowBuf(null, null, 0, 0, true);
+  private static ArrowBuf empty = new ArrowBuf(null, null, 0, 0);
   public static BufferAllocator INSTANCE = new FakeAllocator();
 
   private FakeAllocator() {}

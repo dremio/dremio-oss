@@ -110,6 +110,7 @@ enum LegacySourceType {
   ADL = 22;
   GCS = 23;
   INTERNAL = 24;
+  AWSGLUE = 25;
 }
 
 // Internally computed details about a source. Background tasks will routinely change this data

@@ -25,7 +25,7 @@ import java.util.UUID;
 import org.junit.Test;
 
 import com.dremio.common.config.LogicalPlanPersistence;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
@@ -68,7 +68,7 @@ public class TestUpdateS3CredentialType extends DremioTest {
 
   private void checkUpdateHelper(S3PluginConfig s3OldPluginConfig, AWSAuthenticationType authenticationType) throws Exception {
     try (final LegacyKVStoreProvider kvStoreProvider =
-      new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false).asLegacy()) {
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       kvStoreProvider.start();
       LegacyKVStore<String, NameSpaceContainer> namespace = kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
       newS3Source(namespace, "s3 plugin config", s3OldPluginConfig);

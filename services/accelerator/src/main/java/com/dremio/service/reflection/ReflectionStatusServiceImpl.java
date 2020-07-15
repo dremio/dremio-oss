@@ -247,9 +247,9 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
 
     // now check if the query and target datasets didn't change
     try {
-      if (!reflection.getQueryDatasetHash().equals(computeDatasetHash(queryDataset, namespaceService.get()))) {
+      if (!reflection.getQueryDatasetHash().equals(computeDatasetHash(queryDataset, namespaceService.get(), false))) {
         return ExternalReflectionStatus.STATUS.OUT_OF_SYNC;
-      } else if (!reflection.getTargetDatasetHash().equals(computeDatasetHash(targetDataset, namespaceService.get()))) {
+      } else if (!reflection.getTargetDatasetHash().equals(computeDatasetHash(targetDataset, namespaceService.get(), false))) {
         return ExternalReflectionStatus.STATUS.OUT_OF_SYNC;
       }
     } catch (NamespaceException e) {

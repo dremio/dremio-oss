@@ -66,6 +66,7 @@ public class TestSourceMetadataManager {
   private static final int MAX_COLUMNS = 800;
   private static final int MAX_NESTED_LEVELS = 16;
   private OptionManager optionManager;
+  private final MetadataRefreshInfoBroadcaster broadcaster = mock(MetadataRefreshInfoBroadcaster.class);
 
   @Rule
   public final ExpectedException thrownException = ExpectedException.none();
@@ -75,6 +76,7 @@ public class TestSourceMetadataManager {
     optionManager = mock(OptionManager.class);
     when(optionManager.getOption(eq(CatalogOptions.SPLIT_COMPRESSION_TYPE)))
       .thenAnswer((Answer) invocation -> NamespaceService.SplitCompression.SNAPPY.toString());
+    doNothing().when(broadcaster).communicateChange(any());
   }
 
   @Test
@@ -118,7 +120,8 @@ public class TestSourceMetadataManager {
         mock(LegacyKVStore.class),
         msp,
         optionManager,
-        CatalogServiceMonitor.DEFAULT);
+        CatalogServiceMonitor.DEFAULT,
+        () -> broadcaster);
 
     assertEquals(DatasetCatalog.UpdateStatus.DELETED,
         manager.refreshDataset(new NamespaceKey(""), DatasetRetrievalOptions.DEFAULT));
@@ -161,7 +164,8 @@ public class TestSourceMetadataManager {
         mock(LegacyKVStore.class),
         msp,
         optionManager,
-        CatalogServiceMonitor.DEFAULT);
+        CatalogServiceMonitor.DEFAULT,
+        () -> broadcaster);
 
 
     assertEquals(DatasetCatalog.UpdateStatus.UNCHANGED,
@@ -211,7 +215,8 @@ public class TestSourceMetadataManager {
         mock(LegacyKVStore.class),
         msp,
         optionManager,
-        CatalogServiceMonitor.DEFAULT);
+        CatalogServiceMonitor.DEFAULT,
+        () -> broadcaster);
 
     assertEquals(DatasetCatalog.UpdateStatus.DELETED,
         manager.refreshDataset(new NamespaceKey(""), DatasetRetrievalOptions.DEFAULT));
@@ -252,7 +257,8 @@ public class TestSourceMetadataManager {
         mock(LegacyKVStore.class),
         msp,
         optionManager,
-        CatalogServiceMonitor.DEFAULT);
+        CatalogServiceMonitor.DEFAULT,
+        () -> broadcaster);
 
     assertEquals(DatasetCatalog.UpdateStatus.UNCHANGED,
         manager.refreshDataset(new NamespaceKey(""),
@@ -307,7 +313,8 @@ public class TestSourceMetadataManager {
         mock(LegacyKVStore.class),
         msp,
         optionManager,
-        CatalogServiceMonitor.DEFAULT
+        CatalogServiceMonitor.DEFAULT,
+        () -> broadcaster
     );
 
     manager.refreshDataset(new NamespaceKey(""),
@@ -374,7 +381,8 @@ public class TestSourceMetadataManager {
       mock(LegacyKVStore.class),
       msp,
       optionManager,
-      CatalogServiceMonitor.DEFAULT
+      CatalogServiceMonitor.DEFAULT,
+      () -> broadcaster
     );
 
     assertEquals(DatasetCatalog.UpdateStatus.CHANGED,
@@ -420,7 +428,8 @@ public class TestSourceMetadataManager {
         mock(LegacyKVStore.class),
         msp,
         optionManager,
-        CatalogServiceMonitor.DEFAULT
+        CatalogServiceMonitor.DEFAULT,
+        () -> broadcaster
     );
 
     thrownException.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION,

@@ -35,7 +35,6 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
-import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.AccessControlList;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
@@ -45,6 +44,7 @@ import com.amazonaws.services.s3.model.Owner;
 import com.amazonaws.services.s3.model.Permission;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
 import software.amazon.awssdk.services.sts.StsClientBuilder;
@@ -168,7 +168,7 @@ public class TestS3FileSystem {
     AtomicInteger retryAttemptNo = new AtomicInteger(1);
     when(mockedClient.getCallerIdentity(any(GetCallerIdentityRequest.class))).then(invocationOnMock -> {
       if (retryAttemptNo.incrementAndGet() < 10) {
-        throw new SdkClientException("Unable to load credentials from service endpoint.");
+        throw SdkClientException.builder().message("Unable to load credentials from service endpoint.").build();
       }
       return null;
     });

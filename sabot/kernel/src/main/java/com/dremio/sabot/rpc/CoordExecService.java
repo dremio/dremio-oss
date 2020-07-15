@@ -245,8 +245,8 @@ public class CoordExecService implements Service {
           break;
 
         case RpcType.REQ_NODE_QUERY_COMPLETION_VALUE:
-          NodeQueryCompletion screenCompletion = get(pBody, NodeQueryCompletion.PARSER);
-          execStatus.get().nodeQueryCompleted(screenCompletion);
+          NodeQueryCompletion nodeQueryCompletion = get(pBody, NodeQueryCompletion.PARSER);
+          execStatus.get().nodeQueryCompleted(nodeQueryCompletion);
           sender.send(OK);
           break;
 
@@ -255,6 +255,7 @@ public class CoordExecService implements Service {
           execStatus.get().nodeQueryMarkFirstError(firstError);
           sender.send(OK);
           break;
+
         case RpcType.REQ_NODE_QUERY_PROFILE_VALUE:
           ExecutorQueryProfile profile = get(pBody, ExecutorQueryProfile.PARSER);
           // propagate to job-telemetry service (in-process server).

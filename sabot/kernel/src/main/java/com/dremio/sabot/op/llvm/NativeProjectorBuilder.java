@@ -23,6 +23,7 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Schema;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.expression.LogicalExpression;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.sabot.exec.context.FunctionContext;
@@ -36,7 +37,8 @@ public class NativeProjectorBuilder {
   private final NativeProjectEvaluator NO_OP = new NoOpNativeProjectEvaluator();
 
   private List<ExprPairing> exprs = new ArrayList<>();
-  private List<ValueVector> allocationVectors = new ArrayList<>();
+  private List<ValueVector> allocationVectorsForOpt = new ArrayList<>();
+  private List<ValueVector> allocationVectorsForNoOpt = new ArrayList<>();
   private final VectorAccessible incoming;
   private final FunctionContext functionContext;
 
@@ -49,10 +51,10 @@ public class NativeProjectorBuilder {
    * Add the provided expression to the native evaluator.
    * @param expr The expression to be written into the output vector.
    * @param outputVector the vector to write to.
-   * @return true if expression can be handled natively. false if the expression cannot be handled natively.
+   * @param optimize should optimize the llvm build
    */
-  public void add(LogicalExpression expr, ValueVector outputVector) throws GandivaException {
-    ExprPairing pairing = new ExprPairing(expr, (FieldVector) outputVector);
+  public void add(LogicalExpression expr, ValueVector outputVector, boolean optimize) throws GandivaException {
+    ExprPairing pairing = new ExprPairing(expr, (FieldVector) outputVector, optimize);
     exprs.add(pairing);
   }
 
@@ -61,23 +63,46 @@ public class NativeProjectorBuilder {
       return NO_OP;
     }
 
-    final NativeProjector projector = new NativeProjector(incoming, incomingSchema, functionContext);
+    final NativeProjector projectorWithOpt = new NativeProjector(incoming, incomingSchema, functionContext, true);
+    final NativeProjector projectorWithNoOpt = new NativeProjector(incoming, incomingSchema, functionContext, false);
     for (ExprPairing e : exprs) {
-      projector.add(e.expr, e.outputVector);
-      allocationVectors.add(e.outputVector);
+      if (e.optimize) {
+        projectorWithOpt.add(e.expr, e.outputVector);
+        allocationVectorsForOpt.add(e.outputVector);
+      } else {
+        projectorWithNoOpt.add(e.expr, e.outputVector);
+        allocationVectorsForNoOpt.add(e.outputVector);
+      }
     }
-    projector.build();
+    if (!allocationVectorsForOpt.isEmpty()) {
+      projectorWithOpt.build();
+    }
+    if (!allocationVectorsForNoOpt.isEmpty()) {
+      projectorWithNoOpt.build();
+    }
 
     return new NativeProjectEvaluator() {
 
       @Override
       public void close() throws Exception {
-        projector.close();
+        List<NativeProjector> projectors = new ArrayList<>();
+        if (!allocationVectorsForOpt.isEmpty()) {
+          projectors.add(projectorWithOpt);
+        }
+        if (!allocationVectorsForNoOpt.isEmpty()) {
+          projectors.add(projectorWithNoOpt);
+        }
+        AutoCloseables.close(projectors);
       }
 
       @Override
       public void evaluate(int recordCount) throws Exception{
-        projector.execute(recordCount, allocationVectors);
+        if (!allocationVectorsForOpt.isEmpty()) {
+          projectorWithOpt.execute(recordCount, allocationVectorsForOpt);
+        }
+        if (!allocationVectorsForNoOpt.isEmpty()) {
+          projectorWithNoOpt.execute(recordCount, allocationVectorsForNoOpt);
+        }
       }};
 
   }
@@ -85,10 +110,13 @@ public class NativeProjectorBuilder {
   private static class ExprPairing {
     private final LogicalExpression expr;
     private final FieldVector outputVector;
-    public ExprPairing(LogicalExpression expr, FieldVector outputVector) {
+    private final boolean optimize;
+
+    public ExprPairing(LogicalExpression expr, FieldVector outputVector, boolean optimize) {
       super();
       this.expr = expr;
       this.outputVector = outputVector;
+      this.optimize = optimize;
     }
 
   }

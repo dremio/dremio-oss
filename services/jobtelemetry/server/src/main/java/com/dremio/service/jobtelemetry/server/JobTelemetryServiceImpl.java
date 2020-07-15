@@ -158,6 +158,7 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
 
   private void putProgressMetrics(ExecutorQueryProfile profile) {
     String nodeAddress = profile.getEndpoint().getAddress();
+    logger.debug("Updating progress metrics for query {}", profile.getQueryId());
     metricsStore.put(profile.getQueryId(), nodeAddress, profile.getProgress());
   }
 
@@ -247,10 +248,15 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
   }
 
   private QueryProfile fetchOrBuildMergedProfile(QueryId queryId) {
-    // check for the merged Query profile and return if present
-    Optional<QueryProfile> fullProfile = profileStore.getFullProfile(queryId);
-    if (fullProfile.isPresent()) {
-      return fullProfile.get();
+    final QueryProfile planningProfile = profileStore.getPlanningProfile(queryId).orElse(null);
+    final QueryProfile tailProfile = profileStore.getTailProfile(queryId).orElse(null);
+
+    if (planningProfile == null && tailProfile == null) {
+      // check for the merged Query profile and return if present
+      Optional<QueryProfile> fullProfile = profileStore.getFullProfile(queryId);
+      if (fullProfile.isPresent()) {
+        return fullProfile.get();
+      }
     }
 
     QueryProfile mergedProfile = buildFullProfile(queryId);

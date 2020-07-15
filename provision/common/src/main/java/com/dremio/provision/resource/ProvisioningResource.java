@@ -253,6 +253,9 @@ public class ProvisioningResource {
     ImmutableClusterResponse.Builder response = ClusterResponse.builder();
 
     response.setCurrentState(cluster.getState());
+    if(cluster.getStateChangeTime() != null) {
+      response.setStateChangeTime(cluster.getStateChangeTime());
+    }
     if (cluster.getError() != null) {
       response.setError(cluster.getError());
     }

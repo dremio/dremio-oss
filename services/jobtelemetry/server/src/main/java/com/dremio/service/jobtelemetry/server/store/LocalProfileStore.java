@@ -112,6 +112,7 @@ public class LocalProfileStore implements ProfileStore {
   public synchronized void putExecutorProfile(UserBitShared.QueryId queryId,
                                               CoordinationProtos.NodeEndpoint endpoint,
                                               CoordExecRPC.ExecutorQueryProfile profile) {
+    LOGGER.debug("Updating profile store for query id {}", queryId);
     if (deletedQueryIds.asMap().containsKey(queryId)) {
       return;
     }

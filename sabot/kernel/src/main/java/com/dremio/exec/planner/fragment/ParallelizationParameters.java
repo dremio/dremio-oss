@@ -49,4 +49,9 @@ public interface ParallelizationParameters {
    * @return The assignment balance factor.
    */
   double getAssignmentCreatorBalanceFactor();
+
+  /**
+   * @return true if affinity should be ignored for leaf fragments.
+   */
+  boolean shouldIgnoreLeafAffinity();
 }

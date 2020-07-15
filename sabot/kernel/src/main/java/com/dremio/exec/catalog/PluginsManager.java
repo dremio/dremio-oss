@@ -26,6 +26,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import javax.inject.Provider;
+
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
 import com.dremio.concurrent.Runnables;
@@ -80,6 +82,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
   private final CatalogServiceMonitor monitor;
   private Cancellable refresher;
   private final NamespaceService systemNamespace;
+  private final Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider;
 
   public PluginsManager(
     SabotContext context,
@@ -91,7 +94,8 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore,
     SchedulerService scheduler,
     ConnectionReader reader,
-    CatalogServiceMonitor monitor
+    CatalogServiceMonitor monitor,
+    Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider
   ) {
     // context should only be used for MangedStoragePlugin
     this.context = context;
@@ -104,6 +108,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     this.datasetListing = datasetListingService;
     this.startupWait = VM.isDebugEnabled() ? TimeUnit.DAYS.toMillis(365) : optionManager.getOption(CatalogOptions.STARTUP_WAIT_MAX);
     this.monitor = monitor;
+    this.broadcasterProvider = broadcasterProvider;
   }
 
   ConnectionReader getReader() {
@@ -263,7 +268,8 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
         config,
         optionManager,
         reader,
-        monitor.forPlugin(config.getName())
+        monitor.forPlugin(config.getName()),
+        broadcasterProvider
         );
     return msp;
   }

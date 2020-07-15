@@ -143,7 +143,8 @@ public class BasicResourceAllocator implements ResourceAllocator {
   }
 
   @Override
-  public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager) {
+  public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager,
+                                                              ResourceSchedulingProperties resourceSchedulingProperties) {
     return clusterResourceInformationProvider.get();
   }
 

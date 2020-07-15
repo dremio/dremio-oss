@@ -98,6 +98,11 @@ public class TestHardAffinityFragmentParallelizer {
       public double getAssignmentCreatorBalanceFactor() {
         return 1.5;
       }
+
+      @Override
+      public boolean shouldIgnoreLeafAffinity() {
+        return false;
+      }
     };
   }
 

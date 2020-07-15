@@ -21,7 +21,9 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -38,10 +40,11 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.config.DremioConfig;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
+import com.dremio.exec.catalog.MetadataRefreshInfoBroadcaster;
 import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.rpc.CloseableThreadPool;
@@ -106,7 +109,7 @@ public class TestSystemStoragePluginInitializer {
     final SabotContext sabotContext = mock(SabotContext.class);
 
     storeProvider =
-      new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false).asLegacy();
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     storeProvider.start();
 
     namespaceService = new NamespaceServiceImpl(storeProvider);
@@ -196,6 +199,9 @@ public class TestSystemStoragePluginInitializer {
 
     reader = ConnectionReader.of(DremioTest.CLASSPATH_SCAN_RESULT, DremioTest.DEFAULT_SABOT_CONFIG);
 
+    final MetadataRefreshInfoBroadcaster broadcaster = mock(MetadataRefreshInfoBroadcaster.class);
+    doNothing().when(broadcaster).communicateChange(any());
+
     catalogService = new CatalogServiceImpl(
       () -> sabotContext,
       () -> new LocalSchedulerService(1),
@@ -206,6 +212,7 @@ public class TestSystemStoragePluginInitializer {
       () -> storeProvider,
       () -> datasetListingService,
       () -> optionManager,
+      () -> broadcaster,
       dremioConfig,
       EnumSet.allOf(ClusterCoordinator.Role.class)
     );

@@ -59,7 +59,9 @@ public interface ResourceAllocator extends Service {
    * @param optionManager optionManager
    * @return resource information.
    */
-  GroupResourceInformation getGroupResourceInformation(final OptionManager optionManager) throws ResourceAllocationException;
+  GroupResourceInformation getGroupResourceInformation(final OptionManager optionManager,
+                                                       final ResourceSchedulingProperties resourceSchedulingProperties)
+    throws ResourceAllocationException;
 
   ResourceAllocator ResourceAllocatorNOOP = new ResourceAllocator(){
     @Override
@@ -81,7 +83,8 @@ public interface ResourceAllocator extends Service {
     }
 
     @Override
-    public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager) {
+    public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager,
+                                                                ResourceSchedulingProperties resourceSchedulingProperties) {
       return null;
     }
   };

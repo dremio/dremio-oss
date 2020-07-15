@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.service.job.proto.JobProtobuf;
 
 import io.grpc.Status;

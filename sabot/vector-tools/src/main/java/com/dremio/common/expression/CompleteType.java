@@ -581,6 +581,16 @@ public class CompleteType {
       }
 
       @Override
+      public Class<? extends ValueHolder> visit(ArrowType.LargeBinary type) {
+        throw new UnsupportedOperationException("Dremio does not support LargeBinary yet.");
+      }
+
+      @Override
+      public Class<? extends ValueHolder> visit(ArrowType.LargeUtf8 type) {
+        throw new UnsupportedOperationException("Dremio does not support LargeUtf8 yet.");
+      }
+
+      @Override
       public Class<? extends ValueHolder> visit(ArrowType.Duration type) {
         throw new UnsupportedOperationException("Dremio does not support duration yet.");
       }

@@ -24,7 +24,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import com.dremio.common.expression.CompleteType;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.catalog.Schema;
@@ -61,7 +61,7 @@ public class TestInformationSchemaCatalog {
 
   @Before
   public void setUp() throws Exception {
-    kvStoreProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy();
+    kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
 
     namespaceService = new NamespaceServiceImpl(kvStoreProvider);

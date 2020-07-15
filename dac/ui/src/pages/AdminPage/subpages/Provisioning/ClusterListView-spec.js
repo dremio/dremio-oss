@@ -16,7 +16,7 @@
 import { shallow } from 'enzyme';
 import Immutable from 'immutable';
 
-import ClusterListView from './ClusterListView';
+import {ClusterListView} from './ClusterListView';
 
 describe('ClusterListView', () => {
   let minimalProps;
@@ -27,8 +27,8 @@ describe('ClusterListView', () => {
     commonProps = {
       ...minimalProps,
       provisions: Immutable.fromJS([
-        {id: {id: '1'}},
-        {id: {id: '2'}}
+        {id: '1'},
+        {id: '2'}
       ])
     };
   });
@@ -38,11 +38,10 @@ describe('ClusterListView', () => {
     expect(wrapper).to.have.length(1);
   });
 
-  it('should render SingleCluster components based on props.provisions', () => {
+  it('should render the list based on props.provisions', () => {
     const wrapper = shallow(<ClusterListView {...commonProps}/>);
     expect(wrapper).to.have.length(1);
-    const clustersWrapper = wrapper.find('Connect(SingleCluster)');
-    expect(clustersWrapper).to.have.length(commonProps.provisions.size);
-    expect(clustersWrapper.get(0).props.entity).to.eql(commonProps.provisions.get(0));
+    expect(wrapper.find('EnginesFilter')).to.have.length(1);
+    expect(wrapper.find('StatefulTableViewer')).to.have.length(1);
   });
 });

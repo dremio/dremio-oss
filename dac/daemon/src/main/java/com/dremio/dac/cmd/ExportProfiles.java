@@ -35,6 +35,7 @@ import com.dremio.dac.resource.ExportProfilesResource;
 import com.dremio.dac.resource.ExportProfilesStats;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.server.admin.profile.ProfilesExporter;
+import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.google.common.annotations.VisibleForTesting;
 
@@ -193,14 +194,14 @@ public class ExportProfiles {
 
   private static void exportOffline(ExportProfilesOptions options, DACConfig dacConfig)
     throws Exception {
-    Optional<LegacyKVStoreProvider> providerOptional = CmdUtils.getLegacyKVStoreProvider(dacConfig.getConfig());
+    Optional<LocalKVStoreProvider> providerOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig());
     if (!providerOptional.isPresent()) {
       AdminLogger.log("No database found. Profiles are not exported");
       return;
     }
-    try (LegacyKVStoreProvider kvStoreProvider = providerOptional.get()) {
+    try (LocalKVStoreProvider kvStoreProvider = providerOptional.get()) {
       kvStoreProvider.start();
-      exportOffline(options, kvStoreProvider);
+      exportOffline(options, kvStoreProvider.asLegacy());
     }
   }
 

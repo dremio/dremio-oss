@@ -15,9 +15,10 @@
  */
 package com.dremio.dac.model.system;
 
+import static com.dremio.common.util.DremioVersionUtils.isCompatibleVersion;
+
 import java.util.ArrayList;
 
-import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.dac.api.JsonISODateTime;
 import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.store.sys.NodeInstance;
@@ -43,6 +44,7 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
     private final Boolean isMaster;
     private final Boolean isCoordinator;
     private final Boolean isExecutor;
+    private final Boolean isCompatible;
     private final String nodeTag;
     private final String version;
     private final long start;
@@ -59,6 +61,7 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
       @JsonProperty("isMaster") Boolean isMaster,
       @JsonProperty("isCoordinator") Boolean isCoordinator,
       @JsonProperty("isExecutor") Boolean isExecutor,
+      @JsonProperty("isCompatible") Boolean isCompatible,
       @JsonProperty("nodeTag") String nodeTag,
       @JsonProperty("version") String version,
       @JsonISODateTime
@@ -74,6 +77,7 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
       this.isMaster = isMaster;
       this.isCoordinator = isCoordinator;
       this.isExecutor = isExecutor;
+      this.isCompatible = isCompatible;
       this.nodeTag = nodeTag;
       this.version = version;
       this.start = start;
@@ -91,6 +95,7 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
         nodeInstance.is_master,
         nodeInstance.is_coordinator,
         nodeInstance.is_executor,
+        isCompatibleVersion(nodeInstance.version),
         nodeInstance.node_tag,
         nodeInstance.version,
         nodeInstance.start.getMillis());
@@ -111,8 +116,9 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
         master,
         coord,
         exec,
+        isCompatibleVersion(endpoint.getDremioVersion()),
         endpoint.getNodeTag(),
-        DremioVersionInfo.getVersion(),
+        endpoint.getDremioVersion(),
         endpoint.getStartTime()
       );
     }
@@ -154,6 +160,8 @@ public class Nodes extends ArrayList<Nodes.NodeInfo> {
     public Boolean getIsExecutor() {
       return isExecutor;
     }
+
+    public Boolean getIsCompatible() { return isCompatible; }
 
     public String getNodeTag() {
       return nodeTag;

@@ -319,7 +319,7 @@
   }
 
 
-  a{
+  a, .link {
     color: @blue;
     text-decoration: none;
     outline: 0;
@@ -327,6 +327,10 @@
     &:hover{
       text-decoration: underline;
     }
+  }
+  .message-content a {
+    color: #333;
+    text-decoration: underline;
   }
   button:not([disabled]){
     cursor: pointer;

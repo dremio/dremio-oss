@@ -48,6 +48,7 @@ import org.slf4j.helpers.MessageFormatter;
 
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.Closeable;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.config.DremioConfig;
 import com.dremio.connector.ConnectorException;
@@ -57,6 +58,7 @@ import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetHandleListing;
 import com.dremio.connector.metadata.DatasetMetadata;
 import com.dremio.connector.metadata.EntityPath;
+import com.dremio.connector.metadata.ExtendedPropertyOption;
 import com.dremio.connector.metadata.GetDatasetOption;
 import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
@@ -67,12 +69,12 @@ import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
 import com.dremio.connector.metadata.options.AlterMetadataOption;
 import com.dremio.exec.ExecConstants;
-import com.dremio.connector.metadata.ExtendedPropertyOption;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.exec.store.StoragePluginRulesFactory;
+import com.dremio.exec.store.SupportsPF4JStoragePlugin;
 import com.dremio.exec.store.TimedRunnable;
 import com.dremio.exec.store.hive.exec.HiveDatasetOptions;
 import com.dremio.exec.store.hive.exec.HiveReaderProtoUtil;
@@ -120,13 +122,14 @@ import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
+import com.google.common.math.LongMath;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 import io.protostuff.ByteString;
 
 public class Hive3StoragePlugin extends BaseHiveStoragePlugin implements StoragePluginCreator.PF4JStoragePlugin, SupportsReadSignature,
-    SupportsListingDatasets, SupportsAlteringDatasetMetadata {
+    SupportsListingDatasets, SupportsAlteringDatasetMetadata, SupportsPF4JStoragePlugin {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Hive3StoragePlugin.class);
 
   private LoadingCache<String, HiveClient> clientsByUser;
@@ -143,6 +146,9 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin implements Storage
   private final OptionManager optionManager;
 
   private final AtomicBoolean isOpen = new AtomicBoolean(false);
+
+  private int signatureValidationParallelism = 16;
+  private long signatureValidationTimeoutMS = 2_000L;
 
   @VisibleForTesting
   public Hive3StoragePlugin(HiveConf hiveConf, SabotContext context, String name) {
@@ -170,6 +176,11 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin implements Storage
       hiveConf.getBoolVar(ConfVars.HIVE_AUTHORIZATION_ENABLED) ||
         hiveConf.getBoolVar(ConfVars.METASTORE_EXECUTE_SET_UGI) ||
         hiveConf.getBoolVar(ConfVars.METASTORE_USE_THRIFT_SASL);
+
+    if (optionManager != null) {
+      this.signatureValidationParallelism = Long.valueOf(optionManager.getOption(ExecConstants.HIVE_SIGNATURE_VALIDATION_PARALLELISM)).intValue();
+      this.signatureValidationTimeoutMS = optionManager.getOption(ExecConstants.HIVE_SIGNATURE_VALIDATION_TIMEOUT_MS);
+    }
   }
 
   @Override
@@ -270,14 +281,26 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin implements Storage
 
   private boolean hasFSPermission(String user, NamespaceKey key, List<FileSystemPartitionUpdateKey> updateKeys,
                                   HiveTableXattr tableXattr) {
-    try (ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+    try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       List<TimedRunnable<Boolean>> permissionCheckers = new ArrayList<>();
+      long totalChecks = 0, maxChecksInPartition = 0;
       for (FileSystemPartitionUpdateKey updateKey : updateKeys) {
         permissionCheckers.add(new FsTask(user, updateKey, TaskType.FS_PERMISSION));
+        totalChecks += updateKey.getCachedEntitiesCount();
+        maxChecksInPartition = Math.max(updateKey.getCachedEntitiesCount(), maxChecksInPartition);
       }
 
+      if (permissionCheckers.isEmpty()) {
+        return true;
+      }
+
+      final int effectiveParallelism = Math.min(signatureValidationParallelism,  permissionCheckers.size());
+      final long minimumTimeout = quietCheckedMultiply(signatureValidationTimeoutMS, maxChecksInPartition);
+      final long computedTimeout = quietCheckedMultiply((long) Math.ceil(totalChecks / effectiveParallelism), signatureValidationTimeoutMS);
+      final long timeout = Math.max(computedTimeout, minimumTimeout);
+
       Stopwatch stopwatch = Stopwatch.createStarted();
-      final List<Boolean> accessPermissions = TimedRunnable.run("check access permission for " + key, logger, permissionCheckers, 16);
+      final List<Boolean> accessPermissions = TimedRunnable.run("check access permission for " + key, logger, permissionCheckers, effectiveParallelism, timeout);
       stopwatch.stop();
       logger.debug("Checking access permission for {} took {} ms", key, stopwatch.elapsed(TimeUnit.MILLISECONDS));
       for (Boolean permission : accessPermissions) {
@@ -317,7 +340,7 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin implements Storage
 
     @Override
     protected Boolean runInner() throws Exception {
-      try (ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+      try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
         if (updateKey != null) {
           switch (taskType) {
             case FS_PERMISSION:
@@ -390,7 +413,8 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin implements Storage
     }
   }
 
-  private MetadataValidity checkHiveMetadata(HiveTableXattr tableXattr, EntityPath datasetPath, BatchSchema tableSchema) throws TException {
+  @VisibleForTesting
+  MetadataValidity checkHiveMetadata(HiveTableXattr tableXattr, EntityPath datasetPath, BatchSchema tableSchema) throws TException {
     final HiveClient client = getClient(SystemUser.SYSTEM_USERNAME);
 
     final HiveMetadataUtils.SchemaComponents schemaComponents = HiveMetadataUtils.resolveSchemaComponents(datasetPath.getComponents(), true);
@@ -463,17 +487,28 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin implements Storage
             final HiveReadSignature readSignature = HiveReadSignature.parseFrom(bytesOutputToByteArray(signature));
             // for now we only support fs based read signatures
             if (readSignature.getType() == HiveReadSignatureType.FILESYSTEM) {
-              try (ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+              try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
                 // get list of partition properties from read definition
                 List<TimedRunnable<Boolean>> signatureValidators = new ArrayList<>();
+                int totalChecks = 0, maxChecksInPartition = 0;
                 for (FileSystemPartitionUpdateKey updateKey : readSignature.getFsPartitionUpdateKeysList()) {
                   signatureValidators.add(new FsTask(SystemUser.SYSTEM_USERNAME, updateKey, TaskType.FS_VALIDATION));
+                  totalChecks += updateKey.getCachedEntitiesCount();
+                  maxChecksInPartition = Math.max(maxChecksInPartition, updateKey.getCachedEntitiesCount());
                 }
 
+                if (signatureValidators.isEmpty()) {
+                  return MetadataValidity.VALID;
+                }
+
+                final int effectiveParallelism = Math.min(signatureValidationParallelism,  signatureValidators.size());
+                final long minimumTimeout = quietCheckedMultiply(signatureValidationTimeoutMS, maxChecksInPartition);
+                final long computedTimeout = quietCheckedMultiply((long) Math.ceil(totalChecks / effectiveParallelism), signatureValidationTimeoutMS);
+                final long timeout = Math.max(computedTimeout, minimumTimeout);
+
                 Stopwatch stopwatch = Stopwatch.createStarted();
-                final List<Boolean> validations = TimedRunnable.run("check read signature for " +
-                    PathUtils.constructFullPath(datasetHandle.getDatasetPath().getComponents()),
-                  logger, signatureValidators, 16);
+                final List<Boolean> validations = runValidations(datasetHandle, signatureValidators,
+                  effectiveParallelism, timeout);
                 stopwatch.stop();
                 logger.debug("Checking read signature for {} took {} ms",
                   PathUtils.constructFullPath(datasetHandle.getDatasetPath().getComponents()),
@@ -502,6 +537,23 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin implements Storage
       }
     }
     return MetadataValidity.VALID;
+  }
+
+  @VisibleForTesting
+  List<Boolean> runValidations(DatasetHandle datasetHandle,
+                               List<TimedRunnable<Boolean>> signatureValidators,
+                               Integer effectiveParallelism, Long timeout) throws IOException {
+    return TimedRunnable.run("check read signature for " +
+        PathUtils.constructFullPath(datasetHandle.getDatasetPath().getComponents()),
+      logger, signatureValidators, effectiveParallelism, timeout);
+  }
+
+  private static long quietCheckedMultiply(long a, long b) {
+    try {
+      return LongMath.checkedMultiply(a, b);
+    } catch (ArithmeticException e) {
+      return Long.MAX_VALUE;
+    }
   }
 
   static byte[] bytesOutputToByteArray(BytesOutput signature) throws ConnectorException {
@@ -588,7 +640,7 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin implements Storage
 
   @Override
   public PartitionChunkListing listPartitionChunks(DatasetHandle datasetHandle, ListPartitionChunkOption... options) throws ConnectorException {
-    try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+    try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       boolean enforceVarcharWidth = false;
       Optional<BytesOutput> extendedProperty = ExtendedPropertyOption.getExtendedPropertyFromListPartitionChunkOption(options);
       if (extendedProperty.isPresent()) {
@@ -955,5 +1007,9 @@ public class Hive3StoragePlugin extends BaseHiveStoragePlugin implements Storage
       .message("The Hive source %s is either not started or already closed", this.getName())
       .addContext("name", this.getName())
       .buildSilently();
+  }
+
+  public <T> T getPF4JStoragePlugin() {
+    return (T) this;
   }
 }

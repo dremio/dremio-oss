@@ -105,9 +105,10 @@ export function decorateProvision(provision) {
     return prevField + parseInt(containerProperty.get('value'), 10);
   }, 0);
   const containers = provision.get('containers') || Immutable.Map();
-  const runningWorkers = containers.get('runningList') || Immutable.List();
-  const disconnectedWorkers = containers.get('disconnectedList') || Immutable.List();
+  const runningWorkers = containers.get('runningList') || Immutable.List(); //running or decommissioning
+  const disconnectedWorkers = containers.get('disconnectedList') || Immutable.List(); //running, but not recognized
   const decommissioningCount = containers.get('decommissioningCount') || 0;
+  const provisioningCount = containers.get('provisioningCount') || 0;
   const uiProperties = Immutable.fromJS({
     workersSummary: {
       total: provision.getIn(['dynamicConfig', 'containerCount']) || 0,
@@ -115,6 +116,7 @@ export function decorateProvision(provision) {
       pending: containers.get('pendingCount') || 0,
       disconnected: disconnectedWorkers.size,
       decommissioning: decommissioningCount,
+      provisioning: provisioningCount,
       totalRAM: sumField(runningWorkers, 'memoryMB') || 0,
       totalCores: sumField(runningWorkers, 'virtualCoreCount') || 0
     }

@@ -27,23 +27,31 @@ import { getErrorMessage } from '@app/reducers/resources/view';
 
 import { description } from 'uiTheme/radium/forms';
 import { formContext } from 'uiTheme/radium/typography';
-import './Support.less';
 
-import ViewStateWrapper from 'components/ViewStateWrapper';
-import SimpleButton from 'components/Buttons/SimpleButton';
-import TextField from 'components/Fields/TextField';
+import ViewStateWrapper from '@app/components/ViewStateWrapper';
+import SimpleButton from '@app/components/Buttons/SimpleButton';
+import TextField from '@app/components/Fields/TextField';
 import ApiUtils from '@app/utils/apiUtils/apiUtils';
-import SupportAccess, {RESERVED as SUPPORT_ACCESS_RESERVED} from '@inject/pages/AdminPage/subpages/SupportAccess';
-import FormUnsavedRouteLeave from 'components/Forms/FormUnsavedRouteLeave';
+import SupportAccess, { RESERVED as SUPPORT_ACCESS_RESERVED } from '@inject/pages/AdminPage/subpages/SupportAccess';
+import FormUnsavedRouteLeave from '@app/components/Forms/FormUnsavedRouteLeave';
+import AnalyzeTools, { RESERVED as ANALYZE_TOOLS_RESERVED } from '@app/pages/AdminPage/subpages/AnalyzeTools';
 
 import Header from '../components/Header';
 import SettingsMicroForm from './SettingsMicroForm';
 import { LABELS, LABELS_IN_SECTIONS } from './settingsConfig';
 import InternalSupportEmail, { RESERVED as INTERNAL_SUPPORT_RESERVED } from './InternalSupportEmail';
 
+import './Support.less';
+
 export const VIEW_ID = 'SUPPORT_SETTINGS_VIEW_ID';
 
-export const RESERVED = new Set([...(SUPPORT_ACCESS_RESERVED || []), ...INTERNAL_SUPPORT_RESERVED]);
+export const RESERVED = new Set(
+  [
+    ...(SUPPORT_ACCESS_RESERVED || []),
+    ...INTERNAL_SUPPORT_RESERVED,
+    ...ANALYZE_TOOLS_RESERVED
+  ]
+);
 
 export class Support extends PureComponent {
   static propTypes = {
@@ -210,6 +218,11 @@ export class Support extends PureComponent {
             renderSettings={this.renderSettingsMicroForm}
             descriptionStyle={styles.description}
           />}
+          <AnalyzeTools
+            renderSettings={this.renderSettingsMicroForm}
+            descriptionStyle={styles.description}
+            settings={this.props.settings}
+          />
           <InternalSupportEmail
             renderSettings={this.renderSettingsMicroForm}
             descriptionStyle={styles.description}

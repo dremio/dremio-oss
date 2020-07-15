@@ -24,6 +24,8 @@ import org.apache.arrow.vector.complex.reader.FieldReader;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ListWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.IntWriter;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.Test;
 
 import com.dremio.exec.ExecTest;
@@ -126,7 +128,7 @@ public class TestRepeated extends ExecTest {
      *  }
      */
 
-    final NonNullableStructVector structVector = new NonNullableStructVector("", allocator, null);
+    final NonNullableStructVector structVector = new NonNullableStructVector("", allocator, new FieldType(false, ArrowType.Struct.INSTANCE, null, null), null);
     final ComplexWriterImpl writer = new ComplexWriterImpl("col", structVector);
     final StructWriter struct = writer.rootAsStruct();
 

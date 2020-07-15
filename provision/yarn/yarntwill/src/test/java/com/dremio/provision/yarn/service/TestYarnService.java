@@ -63,7 +63,7 @@ import org.slf4j.Logger;
 
 import com.dremio.common.nodes.NodeProvider;
 import com.dremio.config.DremioConfig;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.provision.Cluster;
@@ -109,6 +109,7 @@ public class TestYarnService {
     YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
     Cluster cluster = new Cluster();
     cluster.setState(ClusterState.CREATED);
+    cluster.setStateChangeTime(System.currentTimeMillis());
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
     clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
@@ -154,6 +155,7 @@ public class TestYarnService {
     YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
     Cluster cluster = new Cluster();
     cluster.setState(ClusterState.CREATED);
+    cluster.setStateChangeTime(System.currentTimeMillis());
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
     clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
@@ -365,7 +367,7 @@ public class TestYarnService {
     assumeNonMaprProfile();
     try(
       final LegacyKVStoreProvider kvstore =
-        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy()) {
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       SingletonRegistry registry = new SingletonRegistry();
       registry.bind(LegacyKVStoreProvider.class, kvstore);
       registry.start();
@@ -401,7 +403,7 @@ public class TestYarnService {
     assumeNonMaprProfile();
     try (
       final LegacyKVStoreProvider kvstore =
-        new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy()) {
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT)) {
       SingletonRegistry registry = new SingletonRegistry();
       registry.bind(LegacyKVStoreProvider.class, kvstore);
       registry.start();
@@ -522,6 +524,7 @@ public class TestYarnService {
     }).when(twillController).onTerminated(any(Runnable.class), any(Executor.class));
 
     cluster.setState(ClusterState.CREATED);
+    cluster.setStateChangeTime(System.currentTimeMillis());
     ClusterEnriched clusterEnriched = yarnService.startCluster(cluster);
     assertEquals(ClusterState.STOPPED, clusterEnriched.getCluster().getState());
     assertNull(cluster.getRunId());
@@ -589,6 +592,7 @@ public class TestYarnService {
         try {
           Thread.sleep(1000);
           cluster.setState(ClusterState.FAILED);
+          cluster.setStateChangeTime(System.currentTimeMillis());
           cluster.setError("My error");
         } catch (InterruptedException e) {
           e.printStackTrace();
@@ -704,6 +708,7 @@ public class TestYarnService {
 
     Cluster myCluster = createCluster();
     myCluster.setState(ClusterState.RUNNING);
+    myCluster.setStateChangeTime(System.currentTimeMillis());
 
     YarnController controller = Mockito.mock(YarnController.class);
     YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
@@ -729,6 +734,7 @@ public class TestYarnService {
     YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
     Cluster cluster = new Cluster();
     cluster.setState(ClusterState.CREATED);
+    cluster.setStateChangeTime(System.currentTimeMillis());
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
     List<Property> propertyList = new ArrayList<>();
@@ -773,6 +779,7 @@ public class TestYarnService {
     YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
     Cluster cluster = new Cluster();
     cluster.setState(ClusterState.CREATED);
+    cluster.setStateChangeTime(System.currentTimeMillis());
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
     clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
@@ -822,6 +829,7 @@ public class TestYarnService {
     YarnService yarnService = new YarnService(new TestListener(), controller, Mockito.mock(NodeProvider.class));
     Cluster cluster = new Cluster();
     cluster.setState(ClusterState.CREATED);
+    cluster.setStateChangeTime(System.currentTimeMillis());
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
     clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));
@@ -876,6 +884,7 @@ public class TestYarnService {
   private Cluster createCluster() {
     final Cluster cluster = new Cluster();
     cluster.setState(ClusterState.CREATED);
+    cluster.setStateChangeTime(System.currentTimeMillis());
     cluster.setId(new ClusterId(UUID.randomUUID().toString()));
     ClusterConfig clusterConfig = new ClusterConfig();
     clusterConfig.setClusterSpec(new ClusterSpec().setContainerCount(2).setMemoryMBOffHeap(4096).setMemoryMBOnHeap(4096).setVirtualCoreCount(2));

@@ -129,20 +129,28 @@ public class ReflectionUtils {
     return t == DatasetType.PHYSICAL_DATASET_HOME_FILE || t == DatasetType.PHYSICAL_DATASET_HOME_FOLDER;
   }
 
-  public static Integer computeDatasetHash(DatasetConfig dataset, NamespaceService namespaceService) throws NamespaceException {
+  public static Integer computeDatasetHash(DatasetConfig dataset, NamespaceService namespaceService, boolean ignorePds) throws NamespaceException {
     Queue<DatasetConfig> q = new LinkedList<>();
     q.add(dataset);
     int hash = 1;
+    boolean isFirst = true;
     while (!q.isEmpty()) {
       dataset = q.poll();
       if (isPhysicalDataset(dataset.getType())) {
-        hash = 31 * hash + (dataset.getRecordSchema() == null ? 1 : dataset.getRecordSchema().hashCode());
-      } else {
-        hash = 31 * hash + dataset.getVirtualDataset().getSql().hashCode();
-        for (ParentDataset parent : dataset.getVirtualDataset().getParentsList()) {
-          q.add(namespaceService.getDataset(new NamespaceKey(parent.getDatasetPathList())));
+        if (!ignorePds || isFirst) {
+          hash = 31 * hash + (dataset.getRecordSchema() == null ? 1 : dataset.getRecordSchema().hashCode());
         }
+      } else {
+        int schemaHash = 0;
+        if (isFirst) {
+          schemaHash = dataset.getVirtualDataset().getSqlFieldsList().hashCode();
+        }
+        hash = 31 * hash + dataset.getVirtualDataset().getSql().hashCode() + schemaHash;
+          for (ParentDataset parent : dataset.getVirtualDataset().getParentsList()) {
+            q.add(namespaceService.getDataset(new NamespaceKey(parent.getDatasetPathList())));
+          }
       }
+      isFirst = false;
     }
     return hash;
   }
@@ -279,7 +287,7 @@ public class ReflectionUtils {
       return null;
     }
 
-    if (!externalReflection.getQueryDatasetHash().equals(computeDatasetHash(queryDataset, namespaceService))) {
+    if (!externalReflection.getQueryDatasetHash().equals(computeDatasetHash(queryDataset, namespaceService, false))) {
       logger.debug("Reflection {} excluded because query dataset {} is out of sync",
         externalReflection.getName(),
         PathUtils.constructFullPath(queryDataset.getFullPathList())
@@ -287,7 +295,7 @@ public class ReflectionUtils {
       return null;
     }
 
-    if (!externalReflection.getTargetDatasetHash().equals(computeDatasetHash(targetDataset, namespaceService))) {
+    if (!externalReflection.getTargetDatasetHash().equals(computeDatasetHash(targetDataset, namespaceService, false))) {
       logger.debug("Reflection {} excluded because target dataset {} is out of sync",
         externalReflection.getName(),
         PathUtils.constructFullPath(targetDataset.getFullPathList())

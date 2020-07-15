@@ -265,14 +265,14 @@ public class TestReflectionStatusService {
     // mock query dataset
     DatasetConfig queryDatasetConfig = new DatasetConfig();
     queryDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
-    Integer queryHash = ReflectionUtils.computeDatasetHash(queryDatasetConfig, namespaceService);
+    Integer queryHash = ReflectionUtils.computeDatasetHash(queryDatasetConfig, namespaceService, false);
     String queryDatasetId = UUID.randomUUID().toString();
     when(namespaceService.findDatasetByUUID(queryDatasetId)).thenReturn(queryDatasetConfig);
 
     // mock target dataset
     DatasetConfig targetDatasetConfig = new DatasetConfig();
     targetDatasetConfig.setType(DatasetType.PHYSICAL_DATASET);
-    Integer targetHash = ReflectionUtils.computeDatasetHash(targetDatasetConfig, namespaceService);
+    Integer targetHash = ReflectionUtils.computeDatasetHash(targetDatasetConfig, namespaceService, false);
     String targetDatasetId = UUID.randomUUID().toString();
     when(namespaceService.findDatasetByUUID(targetDatasetId)).thenReturn(targetDatasetConfig);
 

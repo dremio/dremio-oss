@@ -24,6 +24,7 @@ import com.dremio.exec.work.foreman.CompletionListener;
 import com.dremio.options.OptionManager;
 import com.dremio.options.Options;
 import com.dremio.resource.GroupResourceInformation;
+import com.dremio.resource.ResourceSchedulingProperties;
 import com.dremio.resource.exception.ResourceAllocationException;
 import com.dremio.sabot.rpc.ExecToCoordStatusHandler;
 import com.dremio.service.Service;
@@ -79,7 +80,8 @@ public interface MaestroService extends Service, SafeExit {
    * @param optionManager optionManager
    * @return resource information.
    */
-  GroupResourceInformation getGroupResourceInformation(OptionManager optionManager) throws ResourceAllocationException;
+  GroupResourceInformation getGroupResourceInformation(OptionManager optionManager,
+                                                       ResourceSchedulingProperties resourceSchedulingProperties) throws ResourceAllocationException;
 
   /**
    * Get the rpc handler for status msgs from executor nodes.

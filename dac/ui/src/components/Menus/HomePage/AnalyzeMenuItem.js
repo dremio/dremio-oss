@@ -19,9 +19,10 @@ import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import { injectIntl } from 'react-intl';
-
 import { connect } from 'react-redux';
 
+import config from 'dyn-load/utils/config';
+import { getAnalyzeToolsConfig } from '@app/utils/config';
 import MenuItem from 'components/Menus/MenuItem';
 import SubMenu from 'components/Menus/SubMenu';
 import Art from 'components/Art';
@@ -38,6 +39,7 @@ export class AnalyzeMenuItem extends Component {
     openTableau: PropTypes.func,
     openQlikSense: PropTypes.func,
     openPowerBI: PropTypes.func,
+    settings: PropTypes.instanceOf(Immutable.Map),
     closeMenu: PropTypes.func,
     intl: PropTypes.object.isRequired
   };
@@ -45,19 +47,29 @@ export class AnalyzeMenuItem extends Component {
   handleTableauClick = () => {
     this.props.openTableau(this.props.entity);
     this.props.closeMenu();
-  }
+  };
 
   handleQlikClick = () => {
     this.props.openQlikSense(this.props.entity);
     this.props.closeMenu();
-  }
+  };
 
   handlePowerBIClick = () => {
     this.props.openPowerBI(this.props.entity);
     this.props.closeMenu();
-  }
+  };
+
+  haveEnabledTools = (analyzeToolsConfig) => {
+    return analyzeToolsConfig.tableau.enabled
+      || analyzeToolsConfig.powerbi.enabled
+      || analyzeToolsConfig.qlik.enabled;
+  };
 
   render() {
+    const { settings } = this.props;
+    const analyzeToolsConfig = getAnalyzeToolsConfig(settings, config);
+    if (!this.haveEnabledTools(analyzeToolsConfig)) return null;
+
     return <MenuItem
       rightIcon={<Art src='TriangleRight.svg' alt={''} style={styles.rightIcon} />}
       menuItems={[
@@ -66,13 +78,18 @@ export class AnalyzeMenuItem extends Component {
             openTableau={this.handleTableauClick}
             openPowerBI={this.handlePowerBIClick}
             openQlikSense={this.handleQlikClick}
+            analyzeToolsConfig={analyzeToolsConfig}
           />
         </SubMenu>
       ]}>{la('Analyze With')}</MenuItem>;
   }
 }
 
-export default connect(null, {
+const mapStateToProps = (state) => ({
+  settings: state.resources.entities.get('setting')
+});
+
+export default connect(mapStateToProps, {
   openTableau,
   openQlikSense,
   openPowerBI

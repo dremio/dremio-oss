@@ -37,6 +37,7 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.helpers.NOPLogger;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.Closeable;
 import com.dremio.hive.thrift.TException;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -69,7 +70,7 @@ class HiveClientImpl implements HiveClient {
   static HiveClient createConnectedClientWithAuthz(final HiveClient processUserMetaStoreClient,
       final HiveConf hiveConf, final String userName, final UserGroupInformation ugiForRpc) throws MetaException {
 
-    try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+    try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       HiveConf hiveConfForClient = hiveConf;
       boolean needDelegationToken = false;
       final boolean impersonationEnabled = hiveConf.getBoolVar(ConfVars.HIVE_SERVER2_ENABLE_DOAS);
@@ -155,7 +156,7 @@ class HiveClientImpl implements HiveClient {
     try {
       doAsCommand(
         (PrivilegedExceptionAction<Void>) () -> {
-          try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+          try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
             client = Hive.get(hiveConf).getMSC();
           }
           return null;
@@ -301,7 +302,7 @@ class HiveClientImpl implements HiveClient {
 
     try {
       // Hive client can not be used for multiple requests at the same time.
-      try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+      try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
         value = cmd.run(client);
       }
     } catch (NoSuchObjectException e) {
@@ -315,7 +316,7 @@ class HiveClientImpl implements HiveClient {
       }
       reconnect();
 
-      try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+      try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
         value = cmd.run(client);
       }
     }
@@ -327,7 +328,7 @@ class HiveClientImpl implements HiveClient {
     reloginExpiringKeytabUser();
     doAsCommand(
       (PrivilegedExceptionAction<Void>) () -> {
-        try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+        try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
           client.reconnect();
         }
         return null;
@@ -355,7 +356,7 @@ class HiveClientImpl implements HiveClient {
 
   @Override
   public void close() {
-    try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+    try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       client.close();
     }
   }
@@ -364,7 +365,7 @@ class HiveClientImpl implements HiveClient {
     checkNotNull(ugi, "UserGroupInformation object required");
     try {
       return ugi.doAs((PrivilegedExceptionAction<T>) () -> {
-        try(ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+        try(Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
           return cmd.run();
         }
       });

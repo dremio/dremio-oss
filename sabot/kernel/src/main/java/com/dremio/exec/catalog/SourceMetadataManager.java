@@ -25,6 +25,8 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.LongSupplier;
 
+import javax.inject.Provider;
+
 import com.dremio.common.concurrent.AutoCloseableLock;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Closeable;
@@ -41,6 +43,7 @@ import com.dremio.connector.metadata.extensions.SupportsListingDatasets;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature.MetadataValidity;
 import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.exec.catalog.CatalogInternalRPC.UpdateLastRefreshDateRequest;
 import com.dremio.exec.catalog.CatalogServiceImpl.UpdateType;
 import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
 import com.dremio.exec.store.DatasetRetrievalOptions;
@@ -104,6 +107,7 @@ class SourceMetadataManager implements AutoCloseable {
   private final OptionManager optionManager;
   private final Lock runLock = new ReentrantLock();
   private volatile boolean initialized = false;
+  private final Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider;
 
   public SourceMetadataManager(
       NamespaceKey sourceName,
@@ -112,7 +116,8 @@ class SourceMetadataManager implements AutoCloseable {
       LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore,
       final ManagedStoragePlugin.MetadataBridge bridge,
       final OptionManager options,
-      final CatalogServiceMonitor monitor
+      final CatalogServiceMonitor monitor,
+      final Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider
       ) {
     this.sourceKey = sourceName;
     this.sourceDataStore = sourceDataStore;
@@ -121,6 +126,7 @@ class SourceMetadataManager implements AutoCloseable {
     this.optionManager = options;
     this.namesRefresh = new RefreshInfo(() -> bridge.getMetadataPolicy().getNamesRefreshMs());
     this.fullRefresh = new RefreshInfo(() -> bridge.getMetadataPolicy().getDatasetDefinitionRefreshAfterMs());
+    this.broadcasterProvider = broadcasterProvider;
 
     if(isMaster) {
       // we can schedule on all nodes since this is a clustered singleton and will only run on a single node.
@@ -138,6 +144,13 @@ class SourceMetadataManager implements AutoCloseable {
     return new DatasetSaver(bridge.getNamespaceService(),
         key -> localUpdateTime.put(key, System.currentTimeMillis()),
         optionManager);
+  }
+
+  public void setMetadataSyncInfo(UpdateLastRefreshDateRequest request) {
+    fullRefresh.set(request.getLastFullRefreshDateMs());
+    namesRefresh.set(request.getLastNamesRefreshDateMs());
+    logger.debug("Source '{}' saved last refresh; full refresh: {}; names refresh: {}.",
+      request.getPluginName(), fullRefresh.getLastStart(), namesRefresh.getLastStart());
   }
 
   boolean refresh(UpdateType updateType, MetadataPolicy policy, boolean throwOnFailure) throws NamespaceException {
@@ -254,10 +267,10 @@ class SourceMetadataManager implements AutoCloseable {
     }
 
     if (srcData.getLastNameRefreshDateMs() != null) {
-      namesRefresh.initialize(srcData.getLastNameRefreshDateMs());
+      namesRefresh.set(srcData.getLastNameRefreshDateMs());
     }
     if (srcData.getLastFullRefreshDateMs() != null) {
-      fullRefresh.initialize(srcData.getLastFullRefreshDateMs());
+      fullRefresh.set(srcData.getLastFullRefreshDateMs());
     }
     initialized = true;
   }
@@ -399,6 +412,17 @@ class SourceMetadataManager implements AutoCloseable {
 
       srcData.setLastFullRefreshDateMs(fullRefresh.getLastStart())
         .setLastNameRefreshDateMs(namesRefresh.getLastStart());
+      final UpdateLastRefreshDateRequest refreshRequest = UpdateLastRefreshDateRequest.newBuilder()
+        .setLastNamesRefreshDateMs(namesRefresh.getLastStart())
+        .setLastFullRefreshDateMs(fullRefresh.getLastStart())
+        .setPluginName(sourceKey.getName())
+        .build();
+      try {
+        broadcasterProvider.get().communicateChange(refreshRequest);
+      } catch (Exception e) {
+        logger.warn("Source '{}' unable to communicate last metadata refresh info changes with other coordinators.",
+          sourceKey.getName(), e);
+      }
       try {
         sourceDataStore.put(sourceKey, srcData);
       } catch (ConcurrentModificationException e) {
@@ -593,6 +617,10 @@ class SourceMetadataManager implements AutoCloseable {
     return fullRefresh.getLastStart();
   }
 
+  public long getLastNamesRefreshDateMs() {
+    return namesRefresh.getLastStart();
+  }
+
   /**
    * Describes info about last refresh.
    */
@@ -619,7 +647,7 @@ class SourceMetadataManager implements AutoCloseable {
       return lastDuration;
     }
 
-    public void initialize(long lastRefreshMS) {
+    public void set(long lastRefreshMS) {
       lastStart = lastRefreshMS;
     }
 

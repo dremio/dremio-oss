@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive3-plugin-parent</artifactId>
-    <version>4.5.0-202006180205030236-1a5d28da</version>
+    <version>4.6.0-202007150150090029-7f333d10</version>
   </parent>
 
   <artifactId>dremio-hive3-plugin</artifactId>
@@ -1261,6 +1261,38 @@
       <version>${datanucleus-jdo.version}</version>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-dac-backend</artifactId>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.glassfish</groupId>
+          <artifactId>javax.el</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-dac-backend</artifactId>
+      <version>${project.version}</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.glassfish</groupId>
+          <artifactId>javax.el</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-jobs</artifactId>
+      <version>${project.version}</version>
+      <classifier>tests</classifier>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -1322,6 +1354,7 @@
                   <excludes>
                     <exclude>**/Hive2StoragePluginConfig.java</exclude>
                     <exclude>**/hive2</exclude>
+                    <exclude>**/HiveStoragePluginTest.java</exclude>
                   </excludes>
                 </resource>
               </resources>

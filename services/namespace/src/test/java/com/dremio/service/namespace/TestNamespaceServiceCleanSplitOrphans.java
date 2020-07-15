@@ -36,8 +36,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import com.dremio.common.AutoCloseables;
-import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.SearchQueryUtils;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -78,7 +78,7 @@ public class TestNamespaceServiceCleanSplitOrphans {
   @Before
   public void populate() throws Exception {
     kvstore =
-      new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy();
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     kvstore.start();
 
     namespaceService = new NamespaceServiceImpl(kvstore);

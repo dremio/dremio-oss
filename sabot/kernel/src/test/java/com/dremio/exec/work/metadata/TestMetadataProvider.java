@@ -189,7 +189,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(23, tables.size());
+    assertEquals(25, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -209,6 +209,8 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "services", iterator.next());
     verifyTable("sys", "slicing_threads", iterator.next());
     verifyTable("sys", "threads", iterator.next());
+    verifyTable("sys", "timezone_abbrevs", iterator.next());
+    verifyTable("sys", "timezone_names", iterator.next());
     verifyTable("sys", "version", iterator.next());
     verifyTable("sys.cache", "datasets", iterator.next());
     verifyTable("sys.cache", "mount_points", iterator.next());
@@ -238,7 +240,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(22, tables.size());
+    assertEquals(24, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -258,6 +260,8 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "services", iterator.next());
     verifyTable("sys", "slicing_threads", iterator.next());
     verifyTable("sys", "threads", iterator.next());
+    verifyTable("sys", "timezone_abbrevs", iterator.next());
+    verifyTable("sys", "timezone_names", iterator.next());
     verifyTable("sys", "version", iterator.next());
     verifyTable("sys.cache", "datasets", iterator.next());
     verifyTable("sys.cache", "mount_points", iterator.next());
@@ -274,7 +278,7 @@ public class TestMetadataProvider extends BaseTestQuery {
 
     assertEquals(RequestStatus.OK, resp.getStatus());
     List<TableMetadata> tables = resp.getTablesList();
-    assertEquals(13, tables.size());
+    assertEquals(15, tables.size());
 
     Iterator<TableMetadata> iterator = tables.iterator();
     verifyTable("INFORMATION_SCHEMA", "CATALOGS", iterator.next());
@@ -286,6 +290,8 @@ public class TestMetadataProvider extends BaseTestQuery {
     verifyTable("sys", "nodes", iterator.next());
     verifyTable("sys", "options", iterator.next());
     verifyTable("sys", "reflections", iterator.next());
+    verifyTable("sys", "timezone_abbrevs", iterator.next());
+    verifyTable("sys", "timezone_names", iterator.next());
     verifyTable("sys", "version", iterator.next());
     verifyTable("sys.cache", "mount_points", iterator.next());
     verifyTable("sys.cache", "objects", iterator.next());
@@ -318,7 +324,7 @@ public class TestMetadataProvider extends BaseTestQuery {
     assertEquals(RequestStatus.OK, resp1.getStatus());
 
     final List<ColumnMetadata> columns1 = resp1.getColumnsList();
-    assertEquals(207, columns1.size());
+    assertEquals(214, columns1.size());
     assertTrue("incremental update column shouldn't be returned",
       columns1.stream().noneMatch(input -> input.getColumnName().equals(IncrementalUpdateUtils.UPDATE_COLUMN)));
   }

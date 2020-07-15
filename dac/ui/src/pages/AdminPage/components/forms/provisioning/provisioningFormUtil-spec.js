@@ -54,7 +54,9 @@ describe('#getInstanceTypeValue', () => {
     expect(getInstanceTypeValue('foo')).to.equal('foo');
   });
   it('returns value for valid label', () => {
-    expect(getInstanceTypeValue('m5d.8xlarge (32c/128gb)')).to.equal('m5d.8xlarge');
-    expect(getInstanceTypeValue('r5d.4xlarge (16c/128gb)')).to.equal('r5d.4xlarge');
+    expect(getInstanceTypeValue('Standard m5d.8xlarge (32c/128gb)')).to.equal('m5d.8xlarge');
+    expect(getInstanceTypeValue('High Memory r5d.4xlarge (16c/128gb)')).to.equal('r5d.4xlarge');
   });
 });
+
+//TODO test prepareProvisionValuesForSave when the fields are finalized

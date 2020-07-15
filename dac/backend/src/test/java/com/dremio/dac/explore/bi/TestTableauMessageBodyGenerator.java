@@ -65,7 +65,7 @@ import com.dremio.service.namespace.dataset.proto.DatasetType;
 @RunWith(Parameterized.class)
 public class TestTableauMessageBodyGenerator {
   @Parameters(name="{0}")
-  public static final Object[] getTestCases() {
+  public static Object[] getTestCases() {
     return new Object[] {
       new String[] { "basic", "UNTITLED.tmp", "[UNTITLED].[tmp]", ""},
       new String[] { "basic-with-custom-properties", "UNTITLED.tmp", "[UNTITLED].[tmp]", "FOO=BAR"},

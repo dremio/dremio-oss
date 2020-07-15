@@ -196,7 +196,7 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
       if (CompleteType.INT.equals(constantType)) {
         Set<Integer> intValues = in.getConstants().stream().map(constant -> ((IntExpression)
           constant).getInt()).collect(Collectors.toSet());
-        return TreeBuilder.makeInExpressionInt32(field, intValues);
+        return TreeBuilder.makeInExpressionInt32(TreeBuilder.makeField(field), intValues);
       }else if (CompleteType.BIGINT.equals(constantType)) {
         Set<Long> longValues = Sets.newHashSet();
         for (LogicalExpression constant : in.getConstants()) {
@@ -213,7 +213,7 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
             }
           }
         }
-        return TreeBuilder.makeInExpressionBigInt(field, longValues);
+        return TreeBuilder.makeInExpressionBigInt(TreeBuilder.makeField(field), longValues);
       }else if (CompleteType.VARCHAR.equals(constantType)){
         Set<String> stringValues = Sets.newHashSet();
         for (LogicalExpression constant : in.getConstants()) {
@@ -225,7 +225,7 @@ public class GandivaExpressionBuilder extends AbstractExprVisitor<TreeNode, Void
             stringValues.add(val);
           }
         }
-        return TreeBuilder.makeInExpressionString(field, stringValues);
+        return TreeBuilder.makeInExpressionString(TreeBuilder.makeField(field), stringValues);
       }else {
         // Should not reach here since the or-in conversion happens only for valid types
         throw new UnsupportedOperationException("In not supported in Gandiva. Was trying to create an in expression of " +

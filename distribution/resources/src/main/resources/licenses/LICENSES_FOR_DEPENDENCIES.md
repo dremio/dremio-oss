@@ -39,33 +39,33 @@
 |Apache Commons Text                                         |1.4                 |Apache 2.0          |
 |Apache Drill                                                |                    |Apache 2.0          |
 |Apache Hadoop Amazon Web Services support                   |2.8.5               |Apache 2.0          |
-|Apache Hadoop Amazon Web Services support                   |3.2.1-dremio-202005181459080402-feba629|Apache 2.0          |
+|Apache Hadoop Amazon Web Services support                   |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
 |Apache Hadoop Annotations                                   |2.8.5               |Apache 2.0          |
-|Apache Hadoop Annotations                                   |3.2.1-dremio-202005181459080402-feba629|Apache 2.0          |
+|Apache Hadoop Annotations                                   |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
 |Apache Hadoop Auth                                          |2.8.5               |Apache 2.0          |
-|Apache Hadoop Auth                                          |3.2.1-dremio-202005181459080402-feba629|Apache 2.0          |
+|Apache Hadoop Auth                                          |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
 |Apache Hadoop Azure Data Lake support                       |2.8.5               |Apache 2.0          |
-|Apache Hadoop Azure Data Lake support                       |3.2.1-dremio-202005181459080402-feba629|Apache 2.0          |
+|Apache Hadoop Azure Data Lake support                       |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
 |Apache Hadoop Azure support                                 |2.8.5-dremio-r2-d1532684d9fd0f51b3451fda22d5f0be503a167c|Apache 2.0          |
 |Apache Hadoop Client                                        |2.8.5               |Apache 2.0          |
-|Apache Hadoop Client                                        |3.2.1-dremio-202005181459080402-feba629|Apache 2.0          |
+|Apache Hadoop Client                                        |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
 |Apache Hadoop Common                                        |2.8.5               |Apache 2.0          |
-|Apache Hadoop Common                                        |3.2.1-dremio-202005181459080402-feba629|Apache 2.0          |
-|Apache Hadoop HDFS                                          |3.2.1-dremio-202005181459080402-feba629|Apache 2.0          |
+|Apache Hadoop Common                                        |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
+|Apache Hadoop HDFS                                          |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
 |Apache Hadoop HDFS Client                                   |2.8.5               |Apache 2.0          |
-|Apache Hadoop HDFS Client                                   |3.2.1-dremio-202005181459080402-feba629|Apache 2.0          |
+|Apache Hadoop HDFS Client                                   |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
 |Apache Hadoop MapReduce App                                 |2.8.5               |Apache 2.0          |
 |Apache Hadoop MapReduce Common                              |2.8.5               |Apache 2.0          |
-|Apache Hadoop MapReduce Common                              |3.2.1-dremio-202005181459080402-feba629|Apache 2.0          |
+|Apache Hadoop MapReduce Common                              |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
 |Apache Hadoop MapReduce Core                                |2.8.5               |Apache 2.0          |
-|Apache Hadoop MapReduce Core                                |3.2.1-dremio-202005181459080402-feba629|Apache 2.0          |
+|Apache Hadoop MapReduce Core                                |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
 |Apache Hadoop MapReduce JobClient                           |2.8.5               |Apache 2.0          |
-|Apache Hadoop MapReduce JobClient                           |3.2.1-dremio-202005181459080402-feba629|Apache 2.0          |
+|Apache Hadoop MapReduce JobClient                           |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
 |Apache Hadoop MapReduce Shuffle                             |2.8.5               |Apache 2.0          |
 |Apache Hadoop YARN API                                      |2.8.5               |Apache 2.0          |
-|Apache Hadoop YARN API                                      |3.2.1-dremio-202005181459080402-feba629|Apache 2.0          |
+|Apache Hadoop YARN API                                      |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
 |Apache Hadoop YARN Common                                   |2.8.5               |Apache 2.0          |
-|Apache Hadoop YARN Common                                   |3.2.1-dremio-202005181459080402-feba629|Apache 2.0          |
+|Apache Hadoop YARN Common                                   |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
 |Apache Hadoop YARN Server Common                            |2.8.5               |Apache 2.0          |
 |Apache HttpCore                                             |4.4.9               |Apache 2.0          |
 |Apache Iceberg (incubating)                                 |0.7.0-incubating    |Apache 2.0          |
@@ -73,8 +73,8 @@
 |Apache Iceberg (incubating)                                 |0.7.0-incubating    |Apache 2.0          |
 |Apache Iceberg (incubating)                                 |0.7.0-incubating    |Apache 2.0          |
 |Apache Iceberg (incubating)                                 |0.7.0-incubating    |Apache 2.0          |
-|Apache Log4j API                                            |2.12.1              |Apache 2.0          |
-|Apache Log4j to SLF4J Adapter                               |2.12.1              |Apache 2.0          |
+|Apache Log4j API                                            |2.13.3              |Apache 2.0          |
+|Apache Log4j to SLF4J Adapter                               |2.13.3              |Apache 2.0          |
 |Apache Parquet Arrow                                        |1.12.0-201905082117230809-0fe4d5d|Apache 2.0          |
 |Apache Parquet Avro                                         |1.10.1              |Apache 2.0          |
 |Apache Parquet Column                                       |1.12.0-201905082117230809-0fe4d5d|Apache 2.0          |
@@ -102,12 +102,12 @@
 |API Common                                                  |1.8.1               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |array.prototype.flat                                        |1.2.1               |MIT                 |
-|Arrow Flight Core                                           |0.18.0-20200611130341-f4a85bd19b-dremio|Apache 2.0          |
-|Arrow Flight GRPC                                           |0.18.0-20200611130341-f4a85bd19b-dremio|Apache 2.0          |
-|Arrow Format                                                |0.18.0-20200611130341-f4a85bd19b-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |0.18.0-20200611130341-f4a85bd19b-dremio|Apache 2.0          |
-|Arrow Memory                                                |0.18.0-20200611130341-f4a85bd19b-dremio|Apache 2.0          |
-|Arrow Vectors                                               |0.18.0-20200611130341-f4a85bd19b-dremio|Apache 2.0          |
+|Arrow Flight Core                                           |1.0.0-20200623121802-2d5074a27a-dremio|Apache 2.0          |
+|Arrow Flight GRPC                                           |1.0.0-20200623121802-2d5074a27a-dremio|Apache 2.0          |
+|Arrow Format                                                |1.0.0-20200623121802-2d5074a27a-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |1.0.0-20200623121802-2d5074a27a-dremio|Apache 2.0          |
+|Arrow Memory                                                |1.0.0-20200623121802-2d5074a27a-dremio|Apache 2.0          |
+|Arrow Vectors                                               |1.0.0-20200623121802-2d5074a27a-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -118,6 +118,7 @@
 |attr-accept                                                 |1.1.0               |MIT                 |
 |AutoValue Annotations                                       |1.6.5               |Apache 2.0          |
 |AWS Event Stream                                            |1.0.1               |Apache 2.0          |
+|AWS Glue Data Catalog Client for Apache Hive Metastore      |1.10.0-202006290831310925-84f4082|Apache 2.0          |
 |AWS Java SDK :: Annotations                                 |2.11.13             |Apache 2.0          |
 |AWS Java SDK :: Arns                                        |2.11.13             |Apache 2.0          |
 |AWS Java SDK :: Auth                                        |2.11.13             |Apache 2.0          |
@@ -221,12 +222,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |4.5.0               |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |4.5.0               |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |4.5.0               |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |4.5.0               |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |4.5.0               |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |4.5.0               |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |4.6.0               |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |4.6.0               |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |4.6.0               |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |4.6.0               |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |4.6.0               |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |4.6.0               |Dremio Free Software License 1.0|
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
 |element-closest                                             |2.0.2               |CC0-1.0             |
@@ -295,13 +296,13 @@
 |gud                                                         |1.0.0               |MIT                 |
 |Hadoop Winutils                                             |3.2.0               |Apache 2.0          |
 |Hadoop YARN Client                                          |2.8.5               |Apache 2.0          |
-|Hadoop YARN Client                                          |3.2.1-dremio-202005181459080402-feba629|Apache 2.0          |
+|Hadoop YARN Client                                          |3.2.1-dremio-202007112304180043-647afb0|Apache 2.0          |
 |has                                                         |1.0.1               |MIT                 |
 |has                                                         |1.0.3               |MIT                 |
 |has-symbols                                                 |1.0.0               |MIT                 |
 |HdrHistogram                                                |2.1.8               |CC0 1.0 Universal   |
 |HdrHistogram                                                |2.1.9               |CC0 1.0 Universal   |
-|Hibernate Validator Engine                                  |6.1.2.Final         |Apache 2.0          |
+|Hibernate Validator Engine                                  |6.1.5.Final         |Apache 2.0          |
 |history                                                     |3.3.0               |MIT                 |
 |HK2 API module                                              |2.6.1               |CDDL 1.1            |
 |HK2 Implementation Utilities                                |2.6.1               |CDDL 1.1            |
@@ -473,6 +474,8 @@
 |Kerby Kerb Utilities                                        |1.0.1               |Apache 2.0          |
 |Kerby PKIX Project                                          |1.0.1               |Apache 2.0          |
 |Kerby XDR Project                                           |1.0.1               |Apache 2.0          |
+|Koloboke Collections API                                    |1.0.0               |Apache 2.0          |
+|Koloboke Collections Implementation Commons                 |1.0.0               |Apache 2.0          |
 |Kotlin Common Standard Library                              |1.3.50              |Apache 2.0          |
 |Kotlin Standard Library                                     |1.3.50              |Apache 2.0          |
 |Kryo                                                        |4.0.1               |BSD 3-clause        |
@@ -482,6 +485,7 @@
 |lilith-data-logging                                         |8.2.0               |Apache 2.0          |
 |lilith-data-logging-protobuf                                |8.2.0               |Apache 2.0          |
 |lilith-sender                                               |8.2.0               |Apache 2.0          |
+|linkifyjs                                                   |2.1.9               |MIT                 |
 |lodash                                                      |4.17.14             |MIT                 |
 |lodash._getnative                                           |3.9.1               |MIT                 |
 |lodash.curry                                                |4.1.1               |MIT                 |
@@ -519,6 +523,7 @@
 |Lucene Spatial 3D                                           |6.6.0               |Apache 2.0          |
 |Lucene Spatial Extras                                       |6.6.0               |Apache 2.0          |
 |Lucene Suggest                                              |6.6.0               |Apache 2.0          |
+|LZ4 and XxHash                                              |1.7.1               |Apache 2.0          |
 |MariaDB                                                     |2.3.0               |LGPL v2.1           |
 |marked                                                      |0.7.0               |MIT                 |
 |Memory                                                      |0.9.0               |Apache 2.0          |

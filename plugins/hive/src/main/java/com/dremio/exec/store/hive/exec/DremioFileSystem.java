@@ -26,6 +26,7 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.Set;
 
+import com.dremio.common.FSConstants;
 import org.apache.commons.compress.utils.Lists;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -39,9 +40,9 @@ import org.apache.hadoop.fs.azurebfs.services.AuthType;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
 
-
+import com.dremio.common.util.Closeable;
+import com.dremio.common.util.concurrent.ContextClassLoaderSwapper;
 import com.dremio.exec.hadoop.HadoopFileSystem;
-import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
 import com.dremio.io.AsyncByteReader;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.FSOutputStream;
@@ -63,8 +64,6 @@ import com.google.common.base.Preconditions;
 public class DremioFileSystem extends FileSystem {
 
   private static final String FS_S3A_BUCKET = "fs.s3a.bucket.";
-  private static final String FS_S3A_ACCESS_KEY = "fs.s3a.access.key";
-  private static final String FS_S3A_SECRET_KEY = "fs.s3a.secret.key";
   private static final String FS_S3A_AWS_CREDENTIALS_PROVIDER = "fs.s3a.aws.credentials.provider";
   private com.dremio.io.file.FileSystem underLyingFs;
   private Path workingDir;
@@ -89,8 +88,7 @@ public class DremioFileSystem extends FileSystem {
       default:
         throw new UnsupportedOperationException("Unsupported async read path for hive parquet: " + name.getScheme());
     }
-    try (ContextClassLoaderSwapper swapper =
-           ContextClassLoaderSwapper.newInstance(HadoopFileSystem.class.getClassLoader())) {
+    try (Closeable swapper = swapClassLoader()) {
       underLyingFs = HadoopFileSystem.get(name, conf.iterator(), true);
     }
     workingDir = new Path(name).getParent();
@@ -205,8 +203,8 @@ public class DremioFileSystem extends FileSystem {
            secretKey = System.getenv("AWS_SECRET_ACCESS_KEY");
          }
          conf.set(FS_S3A_AWS_CREDENTIALS_PROVIDER, "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
-         conf.set(FS_S3A_ACCESS_KEY, accessKey);
-         conf.set(FS_S3A_SECRET_KEY, secretKey);
+         conf.set(FSConstants.FS_S3A_ACCESS_KEY, accessKey);
+         conf.set(FSConstants.FS_S3A_SECRET_KEY, secretKey);
        } else {
          conf.set(FS_S3A_AWS_CREDENTIALS_PROVIDER, "com.amazonaws.auth.InstanceProfileCredentialsProvider");
        }
@@ -220,13 +218,13 @@ public class DremioFileSystem extends FileSystem {
     String bucketAccessKey = conf.get(bucketConfName);
     if (StringUtils.isNotEmpty(bucketAccessKey)) {
       // dremio s3 file system does not support bucket overrides
-      conf.set(FS_S3A_ACCESS_KEY, bucketAccessKey);
+      conf.set(FSConstants.FS_S3A_ACCESS_KEY, bucketAccessKey);
     }
     String bucketSecretConfName = FS_S3A_BUCKET + originalURI.getAuthority() + ".secret.key";
     String bucketSecretKey = conf.get(bucketSecretConfName);
     if (StringUtils.isNotEmpty(bucketSecretKey)) {
       // dremio s3 file system does not support bucket overrides
-      conf.set(FS_S3A_SECRET_KEY, bucketSecretKey);
+      conf.set(FSConstants.FS_S3A_SECRET_KEY, bucketSecretKey);
     }
 
     String endpointForBucket = conf.get(FS_S3A_BUCKET + originalURI.getAuthority() + ".endpoint");
@@ -249,7 +247,7 @@ public class DremioFileSystem extends FileSystem {
 
   private String getAccessKey(Configuration conf) {
     String bucketConfName = FS_S3A_BUCKET + originalURI.getAuthority() + ".access.key";
-    return conf.get(bucketConfName, conf.get(FS_S3A_ACCESS_KEY));
+    return conf.get(bucketConfName, conf.get(FSConstants.FS_S3A_ACCESS_KEY));
   }
 
   private String getCredentialsProvider(Configuration conf) {
@@ -270,7 +268,7 @@ public class DremioFileSystem extends FileSystem {
   @Override
   public FSDataInputStream open(Path path, int i) throws IOException {
     FSInputStream fsInputStream = null;
-    try (ContextClassLoaderSwapper swapper = ContextClassLoaderSwapper.newInstance(HadoopFileSystem.class.getClassLoader())) {
+    try (Closeable swapper = swapClassLoader()) {
       fsInputStream = underLyingFs.open(com.dremio.io.file.Path.of(path.toUri()));
     }
     return new FSDataInputStream(new FSInputStreamWrapper(fsInputStream));
@@ -279,7 +277,7 @@ public class DremioFileSystem extends FileSystem {
   @Override
   public FSDataOutputStream create(Path path, FsPermission fsPermission, boolean overwrite, int i, short i1, long l, Progressable progressable) throws IOException {
     FSOutputStream fsOutputStream = null;
-    try (ContextClassLoaderSwapper swapper = ContextClassLoaderSwapper.newInstance(HadoopFileSystem.class.getClassLoader())) {
+    try (Closeable swapper = swapClassLoader()) {
       fsOutputStream = underLyingFs.create(com.dremio.io.file.Path.of(path.toUri()),
         overwrite);
     }
@@ -293,14 +291,14 @@ public class DremioFileSystem extends FileSystem {
 
   @Override
   public boolean rename(Path path, Path path1) throws IOException {
-    try (ContextClassLoaderSwapper swapper = ContextClassLoaderSwapper.newInstance(HadoopFileSystem.class.getClassLoader())) {
+    try (Closeable swapper = swapClassLoader()) {
       return underLyingFs.rename(com.dremio.io.file.Path.of(path.toUri()), com.dremio.io.file.Path.of(path1.toUri()));
     }
   }
 
   @Override
   public boolean delete(Path path, boolean recursive) throws IOException {
-    try (ContextClassLoaderSwapper swapper = ContextClassLoaderSwapper.newInstance(HadoopFileSystem.class.getClassLoader())) {
+    try (Closeable swapper = swapClassLoader()) {
       return underLyingFs.delete(com.dremio.io.file.Path.of(path.toUri()), recursive);
     }
   }
@@ -311,7 +309,7 @@ public class DremioFileSystem extends FileSystem {
     com.dremio.io.file.Path dremioPath = com.dremio.io.file.Path.of(path.toUri());
     DirectoryStream<FileAttributes> attributes = null;
     long defaultBlockSize;
-    try (ContextClassLoaderSwapper swapper = ContextClassLoaderSwapper.newInstance(HadoopFileSystem.class.getClassLoader())) {
+    try (Closeable swapper = swapClassLoader()) {
       attributes = underLyingFs.list(dremioPath);
       defaultBlockSize = underLyingFs.getDefaultBlockSize(dremioPath);
     }
@@ -335,7 +333,7 @@ public class DremioFileSystem extends FileSystem {
     String fsPerms = fsPermission.toString();
     Set<PosixFilePermission> posixFilePermission =
       PosixFilePermissions.fromString(fsPerms.substring(1, fsPerms.length()));
-    try (ContextClassLoaderSwapper swapper = ContextClassLoaderSwapper.newInstance(HadoopFileSystem.class.getClassLoader())) {
+    try (Closeable swapper = swapClassLoader()) {
       return underLyingFs.mkdirs(com.dremio.io.file.Path.of(path.toUri()), posixFilePermission);
     }
   }
@@ -345,7 +343,7 @@ public class DremioFileSystem extends FileSystem {
     com.dremio.io.file.Path dremioPath = com.dremio.io.file.Path.of(path.toUri());
     FileAttributes attributes = null;
     long defaultBlockSize;
-    try (ContextClassLoaderSwapper swapper = ContextClassLoaderSwapper.newInstance(HadoopFileSystem.class.getClassLoader())) {
+    try (Closeable swapper = swapClassLoader()) {
       attributes = underLyingFs.getFileAttributes(dremioPath);
       defaultBlockSize = underLyingFs.getDefaultBlockSize(dremioPath);
     }
@@ -363,7 +361,7 @@ public class DremioFileSystem extends FileSystem {
   }
 
   public AsyncByteReader getAsyncByteReader(AsyncByteReader.FileKey fileKey, OperatorStats operatorStats) throws IOException {
-    try (ContextClassLoaderSwapper swapper = ContextClassLoaderSwapper.newInstance(HadoopFileSystem.class.getClassLoader())) {
+    try (Closeable swapper = swapClassLoader()) {
       if (underLyingFs instanceof HadoopFileSystem) {
         return ((HadoopFileSystem) underLyingFs).getAsyncByteReader(fileKey, operatorStats);
       } else {
@@ -375,6 +373,14 @@ public class DremioFileSystem extends FileSystem {
   @Override
   public String getScheme() {
     return underLyingFs.getScheme();
+  }
+
+  /**
+   * swaps current threads class loader to use application class loader
+   * @return
+   */
+  private Closeable swapClassLoader() {
+    return ContextClassLoaderSwapper.swapClassLoader(HadoopFileSystem.class);
   }
 
 }

@@ -21,16 +21,22 @@ import static com.dremio.sabot.Fixtures.tr;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
+import java.util.Random;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.exec.physical.config.Project;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.sabot.BaseTestOperator;
 import com.dremio.sabot.Fixtures.Table;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.project.ProjectOperator;
 import com.google.common.collect.ImmutableList;
 
 import io.airlift.tpch.GenerationDefinition.TpchTable;
+import io.airlift.tpch.TpchGenerator;
 
 public class TestProject extends BaseTestOperator {
 
@@ -75,6 +81,34 @@ public class TestProject extends BaseTestOperator {
         );
 
     validateSingle(conf, ProjectOperator.class, TpchTable.REGION, 0.1, expected);
+  }
+
+  @Test
+  public void optimisationInProject() throws Exception {
+    StringBuilder sb = new StringBuilder();
+    Random random = new Random();
+    int i = 8000;
+    sb.append("r_regionkey < 10 AND r_regionkey > 20");
+    while (i-- > 0) {
+      sb.append(" AND r_regionkey < ").append(random.nextInt());
+    }
+
+    Project conf = new Project(PROPS, null, Arrays.asList(n(sb.toString(), "A"), n("r_regionkey + r_regionkey", "B")));
+    final Table expected = t(
+      th("A", "B"),
+      tr(false, 0L),
+      tr(false, 2L),
+      tr(false, 4L),
+      tr(false, 6L),
+      tr(false, 8L)
+    );
+
+    OperatorStats stats = validateSingle(conf, ProjectOperator.class, TpchGenerator.singleGenerator(TpchTable.REGION, 0.1, getTestAllocator()), expected, 4095);
+    List<UserBitShared.ExpressionSplitInfo> splitInfoList = stats.getProfile(true).getDetails().getSplitInfosList();
+
+    Assert.assertEquals(2, splitInfoList.size());
+    Assert.assertFalse(splitInfoList.get(0).getOptimize());
+    Assert.assertTrue(splitInfoList.get(1).getOptimize());
   }
 
 }

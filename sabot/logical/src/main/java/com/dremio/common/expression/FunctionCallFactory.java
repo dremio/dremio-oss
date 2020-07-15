@@ -110,6 +110,10 @@ public class FunctionCallFactory {
     return new BooleanOperator(replaceOpWithFuncName(functionName), args);
   }
 
+  public static LogicalExpression createBooleanOperator(String functionName, LogicalExpression... e) {
+    return createBooleanOperator(functionName, Lists.newArrayList(e));
+  }
+
   public static LogicalExpression createByOp(List<LogicalExpression> args, List<String> opTypes) {
     if (args.size() == 1) {
       return args.get(0);

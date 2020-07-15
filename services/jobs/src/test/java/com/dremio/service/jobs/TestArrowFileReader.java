@@ -58,6 +58,7 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.proto.ExecProtos.FragmentHandle;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
+import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.store.RecordWriter.OutputEntryListener;
@@ -67,6 +68,7 @@ import com.dremio.exec.store.dfs.easy.EasyFormatPlugin;
 import com.dremio.exec.store.dfs.easy.EasyWriter;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
+import com.dremio.exec.store.easy.arrow.ArrowFileReader;
 import com.dremio.exec.store.easy.arrow.ArrowFormatPluginConfig;
 import com.dremio.exec.store.easy.arrow.ArrowRecordWriter;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -127,7 +129,7 @@ public class TestArrowFileReader extends DremioTest {
       ArrowFileMetadata metadata = writeArrowFile(batchData);
       try(ArrowFileReader reader = new ArrowFileReader(HadoopFileSystem.getLocal(FS_CONF), com.dremio.io.file.Path.of(basePath.toUri()), metadata, allocator)) {
         {
-          List<RecordBatchHolder> batchHolders = reader.read(0, 0);
+          List<RecordBatchHolder> batchHolders = getRecords(reader, 0, 0, allocator);
           assertEquals(1, batchHolders.size());
 
           //verifyBatchHolder(batchHolders.get(0), 0, 0);
@@ -187,7 +189,7 @@ public class TestArrowFileReader extends DremioTest {
       try(ArrowFileReader reader = new ArrowFileReader(HadoopFileSystem.getLocal(FS_CONF), com.dremio.io.file.Path.of(basePath.toUri()), metadata, allocator)) {
         {
           // Get everything
-          List<RecordBatchHolder> batchHolders = reader.read(0, 5);
+          List<RecordBatchHolder> batchHolders = getRecords(reader, 0, 5, allocator);
           assertEquals(1, batchHolders.size());
 
           verifyBatchHolder(batchHolders.get(0), 0, 5);
@@ -199,7 +201,7 @@ public class TestArrowFileReader extends DremioTest {
         }
         {
           // Get a part of the batch starting from beginning
-          List<RecordBatchHolder> batchHolders = reader.read(0, 2);
+          List<RecordBatchHolder> batchHolders = getRecords(reader, 0, 2, allocator);
           assertEquals(1, batchHolders.size());
 
           verifyBatchHolder(batchHolders.get(0), 0, 2);
@@ -211,7 +213,7 @@ public class TestArrowFileReader extends DremioTest {
         }
         {
           // Get a part of the batch starting from the middle of the batch to end of the batch
-          List<RecordBatchHolder> batchHolders = reader.read(2, 2);
+          List<RecordBatchHolder> batchHolders = getRecords(reader, 2,2, allocator);
           assertEquals(1, batchHolders.size());
 
           verifyBatchHolder(batchHolders.get(0), 2, 4);
@@ -260,7 +262,7 @@ public class TestArrowFileReader extends DremioTest {
       try(ArrowFileReader reader = new ArrowFileReader(HadoopFileSystem.getLocal(FS_CONF), com.dremio.io.file.Path.of(basePath.toUri()), metadata, allocator)) {
         {
           // Get everything
-          List<RecordBatchHolder> batchHolders = reader.read(0, 15);
+          List<RecordBatchHolder> batchHolders = getRecords(reader, 0, 15, allocator);
           assertEquals(3, batchHolders.size());
 
           for(int i=0; i<3; i++) {
@@ -275,7 +277,7 @@ public class TestArrowFileReader extends DremioTest {
         }
         {
           // Get a part of the batch starting from beginning spanning two batches
-          List<RecordBatchHolder> batchHolders = reader.read(0, 7);
+          List<RecordBatchHolder> batchHolders = getRecords(reader, 0, 7, allocator);
           assertEquals(2, batchHolders.size());
 
           verifyBatchHolder(batchHolders.get(0), 0, 5);
@@ -294,7 +296,7 @@ public class TestArrowFileReader extends DremioTest {
         }
         {
           // Get a part of the batch starting from the middle of the first batch to middle of the third batch
-          List<RecordBatchHolder> batchHolders = reader.read(2, 11);
+          List<RecordBatchHolder> batchHolders = getRecords(reader, 2, 11, allocator);
           assertEquals(3, batchHolders.size());
 
           verifyBatchHolder(batchHolders.get(0), 2, 5);
@@ -316,7 +318,7 @@ public class TestArrowFileReader extends DremioTest {
         }
         {
           // Get a part of the batch starting from the middle of the second batch to middle of thrid batch
-          List<RecordBatchHolder> batchHolders = reader.read(7, 5);
+          List<RecordBatchHolder> batchHolders = getRecords(reader, 7, 5, allocator);
           assertEquals(2, batchHolders.size());
 
           verifyBatchHolder(batchHolders.get(0), 2, 5);
@@ -481,7 +483,7 @@ public class TestArrowFileReader extends DremioTest {
     assertEquals(MinorType.VARCHAR, Types.getMinorTypeForArrowType(schema.getColumn(1).getType()));
   }
 
-  private static void releaseBatches(List<RecordBatchHolder> holders) throws Exception {
+  protected static void releaseBatches(List<RecordBatchHolder> holders) throws Exception {
     for(RecordBatchHolder holder : holders) {
       holder.getData().close();
     }
@@ -570,5 +572,9 @@ public class TestArrowFileReader extends DremioTest {
 
   public void assertArrowFileMetadata(ArrowFileMetadata arrowFileMetadata) {
      // no-op. This is overridden in derived class.
+  }
+
+  public List<RecordBatchHolder> getRecords(ArrowFileReader reader, long start, long limit, BufferAllocator allocator) throws Exception {
+    return reader.read(start, limit);
   }
 }

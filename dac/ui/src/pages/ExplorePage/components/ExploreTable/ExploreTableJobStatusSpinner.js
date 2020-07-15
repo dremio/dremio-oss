@@ -20,7 +20,7 @@ import Spinner from '@app/components/Spinner';
 import FontIcon from '@app/components/Icon/FontIcon';
 import socket from '@app/utils/socket';
 
-import { JOB_STATUS, isWorking } from './ExploreTableJobStatus';
+import { isWorking, JOB_STATUS } from './ExploreTableJobStatus';
 
 export default class ExploreTableJobStatusSpinner extends Component {
   static propTypes = {
@@ -73,11 +73,11 @@ export default class ExploreTableJobStatusSpinner extends Component {
 
 const styles = {
   spinnerBase: {
-    position: 'relative'
+    position: 'relative',
+    width: 28,
+    height: 28
   },
   iconSpinner: {
-    width: 28,
-    height: 28,
     marginRight: -3
   }
 };

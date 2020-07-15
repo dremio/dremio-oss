@@ -66,10 +66,8 @@ import com.dremio.datastore.CoreKVStore;
 import com.dremio.datastore.KVStoreInfo;
 import com.dremio.datastore.KVStoreTuple;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.Document;
 import com.dremio.datastore.api.KVStore.PutOption;
-import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.store.dfs.PseudoDistributedFileSystem;
 import com.dremio.io.file.FileAttributes;
@@ -426,12 +424,9 @@ public final class BackupRestoreUtil {
     }
 
     final ScanResult scan = ClassPathScanner.fromPrescan(dacConfig.getConfig().getSabotConfig());
-    final LocalKVStoreProvider localKVStoreProvider = new LocalKVStoreProvider(scan, dbDir, false, true);
 
-    // We need to initialize the adapter so that we can instantiate any legacy KV store tables.
-    // Note that closing the adapter implicitly closes the wrapped provider.
-    try (final LegacyKVStoreProvider legacyStub = new LegacyKVStoreProviderAdapter(localKVStoreProvider, scan)) {
-      legacyStub.start();
+    try (final LocalKVStoreProvider localKVStoreProvider = new LocalKVStoreProvider(scan, dbDir, false, true)) {
+      localKVStoreProvider.start();
 
       // TODO after we add home file store type to configuration make sure we change homefile store construction.
       if (uploads.getScheme().equals("pdfs")) {

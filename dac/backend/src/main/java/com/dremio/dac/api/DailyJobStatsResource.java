@@ -46,7 +46,6 @@ import com.dremio.service.jobs.JobsService;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableList;
 
 
 /**
@@ -89,8 +88,7 @@ public class DailyJobStatsResource {
       final String filter = createJobFilter();
       requestBuilder.setFilterString(filter);
 
-      final List<JobSummary> jobs = ImmutableList.copyOf(jobsService.searchJobs(requestBuilder.build()));
-      final DailyJobStats stats = aggregateJobResults(jobs);
+      final DailyJobStats stats = aggregateJobResults(jobsService.searchJobs(requestBuilder.build()));
       return stats;
     } catch (Exception err) {
       logger.error("DailyJobStats failed: " + err.getMessage());
@@ -106,7 +104,7 @@ public class DailyJobStatsResource {
   }
 
   @VisibleForTesting
-  public DailyJobStatsResource.DailyJobStats aggregateJobResults(final List<JobSummary> jobs) {
+  public DailyJobStatsResource.DailyJobStats aggregateJobResults(final Iterable<JobSummary> jobs) {
 
     final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 

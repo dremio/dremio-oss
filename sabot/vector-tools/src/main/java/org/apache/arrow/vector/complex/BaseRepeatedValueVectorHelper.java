@@ -18,8 +18,8 @@ package org.apache.arrow.vector.complex;
 import static com.dremio.common.util.MajorTypeHelper.getArrowMinorType;
 
 import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BaseAllocator;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.CommonUtil;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
 import org.apache.arrow.vector.BaseValueVectorHelper;
 import org.apache.arrow.vector.types.pojo.FieldType;
@@ -124,7 +124,7 @@ public abstract class BaseRepeatedValueVectorHelper<T extends BaseRepeatedValueV
       baseSize = currentBufferCapacity;
     }
     long newAllocationSize = baseSize * 2L;
-    newAllocationSize = BaseAllocator.nextPowerOfTwo(newAllocationSize);
+    newAllocationSize = CommonUtil.nextPowerOfTwo(newAllocationSize);
     int size = LargeMemoryUtil.checkedCastToInt(newAllocationSize);
     ArrowBuf newBuf = allocator.buffer(size);
     newBuf.setZero(0, newBuf.capacity());

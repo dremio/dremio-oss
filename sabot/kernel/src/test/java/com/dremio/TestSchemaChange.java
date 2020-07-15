@@ -86,6 +86,21 @@ public class TestSchemaChange extends BaseTestQuery {
   }
 
   @Test
+  public void testOldAndNewSchemaVisibleOnSchemaChange() throws Exception {
+    test("ALTER SYSTEM SET \"" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "\" = false");
+    try {
+      final String query = String.format("select * from dfs_root.\"%s/schemachange/schemacontext/\"", TEST_RES_PATH);
+      test(query);
+    } catch (Exception e) {
+      assertTrue(e.getMessage().contains("New schema found. Please reattempt the query."));
+      assertTrue(e.getMessage().contains("Original Schema"));
+      assertTrue(e.getMessage().contains("New Schema"));
+    } finally {
+      test("ALTER SYSTEM RESET \"" + ExecConstants.ENABLE_REATTEMPTS.getOptionName() + "\"");
+    }
+  }
+
+  @Test
   public void testParquetStructExtraField() throws Exception {
       // test folder has two parquet files
       //a.parquet has: 1 [{"f1":1,"f2":{"f_f_1":1,"f_f_2":2}}]

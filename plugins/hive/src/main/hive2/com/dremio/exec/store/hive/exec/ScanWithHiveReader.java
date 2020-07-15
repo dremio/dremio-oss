@@ -56,11 +56,12 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.Closeable;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
-import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
+import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.HiveSettings;
 import com.dremio.exec.store.hive.HiveUtilities;
 import com.dremio.hive.proto.HiveReaderProto.HiveSplitXattr;
@@ -185,7 +186,7 @@ class ScanWithHiveReader {
           return readerUGI.doAs(new PrivilegedAction<RecordReader>() {
             @Override
             public RecordReader run() {
-              try (ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+              try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
                 final HiveSplitXattr splitAttr = HiveSplitXattr.parseFrom(split.getDatasetSplitInfo().getExtendedProperty());
                 final RecordReader innerReader = getRecordReader(splitAttr, tableXattr,
                   context, hiveConf, split, compositeReader, config, readerUGI);

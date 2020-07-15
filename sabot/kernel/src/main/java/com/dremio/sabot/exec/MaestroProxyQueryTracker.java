@@ -15,14 +15,12 @@
  */
 package com.dremio.sabot.exec;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -50,7 +48,6 @@ import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClient;
 import com.dremio.service.maestroservice.MaestroClient;
 import com.google.common.base.Preconditions;
-import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
 
@@ -85,7 +82,6 @@ class MaestroProxyQueryTracker implements MayExpire {
   private FragmentHandle errorFragmentHandle;
   private volatile boolean foremanDead;
   private AtomicInteger pendingMessages = new AtomicInteger(0);
-  private final ScheduledThreadPoolExecutor threadpoolWithTimeout;
 
   enum State {
     INVALID,
@@ -96,15 +92,13 @@ class MaestroProxyQueryTracker implements MayExpire {
   MaestroProxyQueryTracker(QueryId queryId, NodeEndpoint selfEndpoint,
                            long evictionDelayMillis,
                            ScheduledThreadPoolExecutor retryExecutor,
-                           ClusterCoordinator clusterCoordinator,
-                           ScheduledThreadPoolExecutor threadpoolWithTimeout) {
+                           ClusterCoordinator clusterCoordinator) {
     this.queryId = queryId;
     this.selfEndpoint = EndpointHelper.getMinimalEndpoint(selfEndpoint);
     this.evictionDelayMillis = evictionDelayMillis;
     this.retryExecutor = retryExecutor;
     this.expirationTime = System.currentTimeMillis() + evictionDelayMillis;
     this.clusterCoordinator = clusterCoordinator;
-    this.threadpoolWithTimeout = threadpoolWithTimeout;
   }
 
   /**
@@ -179,18 +173,24 @@ class MaestroProxyQueryTracker implements MayExpire {
       if (state == State.DONE) {
         return Optional.empty();
       }
-      Preconditions.checkState(queryTicket != null);
-
-      List<FragmentStatus> fragmentStatuses = new ArrayList<>(lastFragmentStatuses.values());
-      profile = ExecutorQueryProfile.newBuilder()
-        .setQueryId(queryId)
-        .setEndpoint(selfEndpoint)
-        .setProgress(buildProgressMetrics(fragmentStatuses))
-        .setNodeStatus(queryTicket.getStatus())
-        .addAllFragments(fragmentStatuses)
-        .build();
+      profile = getExecutorQueryProfile();
     }
     return Optional.of(jobTelemetryClient.putExecutorProfile(profile));
+  }
+
+  private ExecutorQueryProfile getExecutorQueryProfile() {
+    ExecutorQueryProfile profile;
+    Preconditions.checkState(queryTicket != null);
+
+    List<FragmentStatus> fragmentStatuses = new ArrayList<>(lastFragmentStatuses.values());
+    profile = ExecutorQueryProfile.newBuilder()
+      .setQueryId(queryId)
+      .setEndpoint(selfEndpoint)
+      .setProgress(buildProgressMetrics(fragmentStatuses))
+      .setNodeStatus(queryTicket.getStatus())
+      .addAllFragments(fragmentStatuses)
+      .build();
+    return profile;
   }
 
   static private QueryProgressMetrics buildProgressMetrics(List<FragmentStatus> fragmentStatuses) {
@@ -293,41 +293,28 @@ class MaestroProxyQueryTracker implements MayExpire {
     }
 
     // This is required so that all of the final metrics are reflected accurately.
-    Optional<ListenableFuture<Empty>> profileSendFuture = sendQueryProfile();
-
-    // if we are sending out a final profile update, add a listener to
-    // send out node completion after profile update is done(either success or error).
-    // IMPORTANT the calling method is synchronized, so dont try to access the future as part of
-    // this method it blocks any further updates to this handle and also blocks the rpc event
-    // queue;
-    if (profileSendFuture.isPresent()) {
-      // listener is invoked in all cases - normal  termination, error (or) cancellation
-      Futures.<Empty>withTimeout(profileSendFuture.get(), Duration.ofSeconds(1),
-        threadpoolWithTimeout).addListener(new Runnable() {
-        public void run() {
-          sendNodeCompletion();
-        }
-      }, ForkJoinPool.commonPool());
-    } else {
-      sendNodeCompletion();
-    }
+    ExecutorQueryProfile finalQueryProfile = getExecutorQueryProfile();
+    sendNodeCompletion(finalQueryProfile);
   }
 
 
-  public void sendNodeCompletion() {
+  public void sendNodeCompletion(ExecutorQueryProfile finalQueryProfile) {
     state = State.DONE;
     lastFragmentStatuses.clear(); // not required any more.
     queryTicket = null;
-    sendCompletionMessage();
+    sendCompletionMessage(finalQueryProfile);
+    error = null;
   }
 
-  private void sendCompletionMessage() {
+  private void sendCompletionMessage(ExecutorQueryProfile finalQueryProfile) {
     // all fragments are completed.
     final NodeQueryCompletion.Builder completionBuilder =
         NodeQueryCompletion.newBuilder()
             .setId(queryId)
             .setEndpoint(selfEndpoint)
-            .setResultsSent(resultsSent);
+            .setResultsSent(resultsSent)
+            .setFinalNodeQueryProfile(finalQueryProfile);
+
     if (error != null) {
       completionBuilder.setFirstError(error);
       completionBuilder.setErrorMajorFragmentId(errorFragmentHandle.getMajorFragmentId());

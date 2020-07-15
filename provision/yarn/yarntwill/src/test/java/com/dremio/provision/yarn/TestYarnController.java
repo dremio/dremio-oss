@@ -109,19 +109,7 @@ public class TestYarnController {
     assumeNonMaprProfile();
     YarnController yarnController = new YarnController();
     YarnConfiguration yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
-    List<Property> propertyList = new ArrayList<>();
-
-    propertyList.add(new Property("java.security.auth.login.config", "/opt/mapr/conf/mapr.login.conf")
-      .setType(PropertyType.JAVA_PROP));
-    propertyList.add(new Property("zookeeper.client.sasl", "false"));
-    propertyList.add(new Property("zookeeper.sasl.clientconfig", "Client"));
-    propertyList.add(new Property("zookeeper.saslprovider", "com.mapr.security.maprsasl.MaprSaslProvider"));
-    propertyList.add(new Property("-Xms4096m", "").setType(PropertyType.SYSTEM_PROP));
-    propertyList.add(new Property("-XX:ThreadStackSize", "512").setType(PropertyType.SYSTEM_PROP));
-    propertyList.add(new Property("paths.spilling", "[maprfs:///var/mapr/local/${NM_HOST}/mapred/spill]"));
-    propertyList.add(new Property("JAVA_HOME", "/abc/bcd").setType(PropertyType.ENV_VAR));
-
-    String jvmOptions = yarnController.prepareCommandOptions(yarnConfiguration, propertyList);
+    String jvmOptions = yarnController.prepareCommandOptions(yarnConfiguration, getProperties());
     logger.info("JVMOptions: {}", jvmOptions);
 
     assertTrue(jvmOptions.contains(" -Dpaths.dist=pdfs:///data/mydata/pdfs"));
@@ -162,6 +150,76 @@ public class TestYarnController {
     assertEquals(9216, runnable.getResourceSpecification().getMemorySize());
     assertEquals(2, runnable.getResourceSpecification().getVirtualCores());
     assertEquals(3, runnable.getResourceSpecification().getInstances());
+  }
+
+  private List<Property> getProperties() {
+    List<Property> propertyList = new ArrayList<>();
+
+    propertyList.add(new Property("java.security.auth.login.config", "/opt/mapr/conf/mapr.login.conf")
+      .setType(PropertyType.JAVA_PROP));
+    propertyList.add(new Property("zookeeper.client.sasl", "false"));
+    propertyList.add(new Property("zookeeper.sasl.clientconfig", "Client"));
+    propertyList.add(new Property("zookeeper.saslprovider", "com.mapr.security.maprsasl.MaprSaslProvider"));
+    propertyList.add(new Property("-Xms4096m", "").setType(PropertyType.SYSTEM_PROP));
+    propertyList.add(new Property("-XX:ThreadStackSize", "512").setType(PropertyType.SYSTEM_PROP));
+    propertyList.add(new Property("paths.spilling", "[maprfs:///var/mapr/local/${NM_HOST}/mapred/spill]"));
+    propertyList.add(new Property("JAVA_HOME", "/abc/bcd").setType(PropertyType.ENV_VAR));
+    return propertyList;
+  }
+
+  /**
+   * DREMIO_GC_OPTS,   Property added from UI,    Expected in JVM opts,  Should not be in JVM opts
+   * ----------------, ------------------------,  ---------------------, -------------------------
+   * empty               empty (i.e no GC option) empty                  -XX:+UseParallelGC or -XX:+UseG1GC
+   * empty               -XX:+UseG1GC             -XX:+UseG1GC           -XX:+UseParallelGC
+   * empty               -XX:+UseParallelGC       -XX:+UseParallelGC     -XX:+UseG1GC
+   * -XX:+UseG1GC        empty                    -XX:+UseG1GC           -XX:+UseParallelGC
+   * -XX:+UseG1GC        -XX:+UseG1GC             -XX:+UseG1GC           -XX:+UseParallelGC
+   * -XX:+UseG1GC        -XX:+UseParallelGC       -XX:+UseParallelGC     -XX:+UseG1GC
+   * -XX:+UseParallelGC  empty                    -XX:+UseParallelGC     -XX:+UseG1GC
+   * -XX:+UseParallelGC  -XX:+UseG1GC             -XX:+UseG1GC           -XX:+UseParallelGC
+   * -XX:+UseParallelGC  -XX:+UseParallelGC       -XX:+UseParallelGC     -XX:+UseG1GC
+   * @throws Exception
+   */
+  @Test
+  public void testDremioGCOptionsScenarios() throws Exception {
+    testDremioGCOptionsScenario("", "", "", "-XX:+UseParallelGC");
+    testDremioGCOptionsScenario("", "", "", "-XX:+UseG1GC");
+    testDremioGCOptionsScenario("", "-XX:+UseG1GC", "-XX:+UseG1GC", "-XX:+UseParallelGC");
+    testDremioGCOptionsScenario("", "-XX:+UseParallelGC", "-XX:+UseParallelGC", "-XX:+UseG1GC");
+    testDremioGCOptionsScenario("-XX:+UseG1GC", "", "-XX:+UseG1GC", "-XX:+UseParallelGC");
+    testDremioGCOptionsScenario("-XX:+UseG1GC", "-XX:+UseG1GC", "-XX:+UseG1GC", "-XX:+UseParallelGC");
+    testDremioGCOptionsScenario("-XX:+UseG1GC", "-XX:+UseParallelGC", "-XX:+UseParallelGC", "-XX:+UseG1GC");
+    testDremioGCOptionsScenario("-XX:+UseParallelGC", "", "-XX:+UseParallelGC", "-XX:+UseG1GC");
+    testDremioGCOptionsScenario("-XX:+UseParallelGC", "-XX:+UseG1GC", "-XX:+UseG1GC", "-XX:+UseParallelGC");
+    testDremioGCOptionsScenario("-XX:+UseParallelGC", "-XX:+UseParallelGC", "-XX:+UseParallelGC", "-XX:+UseG1GC");
+  }
+
+  private void testDremioGCOptionsScenario(String dremioGCOpts,
+                                           String systemProperty,
+                                           String expectedInJvmOptions,
+                                           String shouldNotBeInJvmOptions) throws Exception {
+    assumeNonMaprProfile();
+    YarnController yarnController = new YarnController() {
+      @Override
+      protected String getDremioGCOpts() {
+        return dremioGCOpts;
+      }
+    };
+
+    YarnConfiguration yarnConfiguration = createYarnConfig("resource-manager", "hdfs://name-node:8020");
+    List<Property> propertyList = getProperties();
+    if (systemProperty != null && !systemProperty.isEmpty()) {
+      propertyList.add(new Property(systemProperty, "").setType(PropertyType.SYSTEM_PROP));
+    }
+    String jvmOptions = yarnController.prepareCommandOptions(yarnConfiguration, propertyList);
+    logger.info("JVMOptions: {}", jvmOptions);
+    if (expectedInJvmOptions != null && !expectedInJvmOptions.isEmpty()) {
+      assertTrue(jvmOptions.contains(expectedInJvmOptions));
+    }
+    if (shouldNotBeInJvmOptions != null && !shouldNotBeInJvmOptions.isEmpty()) {
+      assertTrue(!jvmOptions.contains(shouldNotBeInJvmOptions));
+    }
   }
 
   @Test

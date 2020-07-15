@@ -19,11 +19,13 @@ import static com.dremio.common.util.JodaDateUtility.formatDate;
 import static com.dremio.common.util.JodaDateUtility.formatTimeStampMilli;
 import static org.joda.time.DateTimeZone.UTC;
 
+import java.io.File;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.joda.time.LocalDateTime;
 import org.joda.time.Period;
@@ -1410,4 +1412,77 @@ public class TestFunctionsQuery extends BaseTestQuery {
         .schemaBaseLine(ImmutableList.of(Pair.of(SchemaPath.getSimplePath("EXPR$0"), Types.optional(MinorType.STRUCT))))
         .go();
   }
+
+  @Test
+  public void testTimeStampConvertTimezone() throws Exception {
+    String query = "SELECT " +
+            "convert_timezone('+01:00', '+02:00', timestamp '2008-2-23 12:23:23') as NEW_TZ1, " +
+            "convert_timezone('+02:00', '+01:00', timestamp '2008-2-23 12:23:23') as NEW_TZ2, " +
+            "convert_timezone('UTC', 'Asia/Kolkata', timestamp '2008-2-23 12:23:23') as NEW_TZ3, " +
+            "convert_timezone('UTC', 'US/Hawaii', timestamp '2008-2-23 12:23:23') as NEW_TZ4 " +
+            "FROM cp.\"tpch/region.parquet\" limit 1";
+
+    LocalDateTime dateNewTz1 = formatTimeStampMilli.parseLocalDateTime("2008-02-23 13:23:23.0");
+    LocalDateTime dateNewTz2 = formatTimeStampMilli.parseLocalDateTime("2008-02-23 11:23:23.0");
+    LocalDateTime dateNewTz3 = formatTimeStampMilli.parseLocalDateTime("2008-02-23 17:53:23.0");
+    LocalDateTime dateNewTz4 = formatTimeStampMilli.parseLocalDateTime("2008-02-23 02:23:23.0");
+    testBuilder().sqlQuery(query)
+            .unOrdered()
+            .baselineColumns("NEW_TZ1", "NEW_TZ2", "NEW_TZ3", "NEW_TZ4")
+            .baselineValues(dateNewTz1, dateNewTz2, dateNewTz3, dateNewTz4)
+            .go();
+  }
+
+  @Test
+  public void toTimstampMultipleTZAbbrevs() throws Exception {
+    final String queryTable = "to_ts_multiple_abbrevs";
+    final String resultTable = "to_ts_multiple_abbrevs_results";
+    try (AutoCloseable c = enableIcebergTables()) {
+      String table = String.format("create table %s.%s(timest varchar)", TEMP_SCHEMA, queryTable);
+      String table2 = String.format("create table %s.%s(ts timestamp)", TEMP_SCHEMA, resultTable);
+      test(table);
+      test(table2);
+      Thread.sleep(1001);
+
+      // PST is UTC-8
+      String insertTable1 = String.format("insert into %s.%s values('2018-11-23T15:36:00.000PST')", TEMP_SCHEMA, queryTable);
+      String insertTable2 = String.format("insert into %s.%s values(timestamp '2018-11-23 23:36:00')", TEMP_SCHEMA, resultTable);
+      test(insertTable1);
+      test(insertTable2);
+      Thread.sleep(1001);
+      insertTable1 = String.format("insert into %s.%s values('2018-11-23T10:36:00.000PST')", TEMP_SCHEMA, queryTable);
+      insertTable2 = String.format("insert into %s.%s values(timestamp '2018-11-23 18:36:00')", TEMP_SCHEMA, resultTable);
+      test(insertTable1);
+      test(insertTable2);
+      Thread.sleep(1001);
+      // PDT is UTC-7
+      insertTable1 = String.format("insert into %s.%s values('2018-11-23T15:36:00.000PDT')", TEMP_SCHEMA, queryTable);
+      insertTable2 = String.format("insert into %s.%s values(timestamp '2018-11-23 22:36:00')", TEMP_SCHEMA, resultTable);
+      test(insertTable1);
+      test(insertTable2);
+      Thread.sleep(1001);
+      // IST is UTC+2
+      insertTable1 = String.format("insert into %s.%s values('2018-11-23T15:36:00.000IST')", TEMP_SCHEMA, queryTable);
+      insertTable2 = String.format("insert into %s.%s values(timestamp '2018-11-23 13:36:00')", TEMP_SCHEMA, resultTable);
+      test(insertTable1);
+      test(insertTable2);
+      Thread.sleep(1001);
+      insertTable1 = String.format("insert into %s.%s values('2018-11-23T15:36:00.000PST')", TEMP_SCHEMA, queryTable);
+      insertTable2 = String.format("insert into %s.%s values(timestamp '2018-11-23 23:36:00')", TEMP_SCHEMA, resultTable);
+      test(insertTable1);
+      test(insertTable2);
+      Thread.sleep(1001);
+
+      testBuilder()
+        .unOrdered()
+        .sqlQuery("select to_timestamp(timest, 'YYYY-MM-DD\"T\"HH24:MI:SS.FFFTZD') ts from " + TEMP_SCHEMA + "." + queryTable)
+        .sqlBaselineQuery("select * from " + TEMP_SCHEMA + "." + resultTable)
+        .go();
+    }
+    finally {
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), queryTable));
+      FileUtils.deleteQuietly(new File(getDfsTestTmpSchemaLocation(), resultTable));
+    }
+  }
+
 }

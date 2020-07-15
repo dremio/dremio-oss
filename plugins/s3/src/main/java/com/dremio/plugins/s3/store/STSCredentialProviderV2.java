@@ -25,13 +25,13 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.s3a.Constants;
 import org.apache.hadoop.util.VersionInfo;
 
+import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.dremio.common.exceptions.UserException;
 import com.google.common.base.Preconditions;
 
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.client.config.ClientOverrideConfiguration;
 import software.amazon.awssdk.core.client.config.SdkAdvancedClientOption;
@@ -57,7 +57,7 @@ public class STSCredentialProviderV2 implements AwsCredentialsProvider, SdkAutoC
       awsCredentialsProvider = StaticCredentialsProvider.create(AwsBasicCredentials.create(
         conf.get(Constants.ACCESS_KEY), conf.get(Constants.SECRET_KEY)));
     } else if (S3StoragePlugin.EC2_METADATA_PROVIDER.equals(conf.get(Constants.ASSUMED_ROLE_CREDENTIALS_PROVIDER))) {
-      awsCredentialsProvider = InstanceProfileCredentialsProvider.create();
+      awsCredentialsProvider = new SharedInstanceProfileCredentialsProvider();
     }
 
     final StsClientBuilder builder = StsClient.builder()
@@ -90,7 +90,7 @@ public class STSCredentialProviderV2 implements AwsCredentialsProvider, SdkAutoC
     return this.stsAssumeRoleCredentialsProvider.resolveCredentials();
   }
 
-  public static SdkHttpClient.Builder initConnectionSettings(Configuration conf) {
+  public static SdkHttpClient.Builder<?> initConnectionSettings(Configuration conf) {
     final ApacheHttpClient.Builder httpBuilder = ApacheHttpClient.builder();
     httpBuilder.maxConnections(intOption(conf, Constants.MAXIMUM_CONNECTIONS, Constants.DEFAULT_MAXIMUM_CONNECTIONS, 1));
     httpBuilder.connectionTimeout(

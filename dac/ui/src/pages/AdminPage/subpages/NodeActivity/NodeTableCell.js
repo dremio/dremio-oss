@@ -21,7 +21,8 @@ import { circle, container, nameContainer, nodeName, typeContainer } from './Nod
 
 export const NodeTableCellColors = {
   GREEN: 'green',
-  GREY: 'grey'
+  GREY: 'grey',
+  RED: 'red'
 };
 
 export default class NodeTableCell extends PureComponent {
@@ -37,7 +38,8 @@ export default class NodeTableCell extends PureComponent {
   // these colors are unique for this component (moved from old NodeActivityView)
   static colors = {
     [NodeTableCellColors.GREEN]: '#84D754',
-    [NodeTableCellColors.GREY]: '#777777'
+    [NodeTableCellColors.GREY]: '#777777',
+    [NodeTableCellColors.RED]: '#FF0000'
   };
 
   render() {

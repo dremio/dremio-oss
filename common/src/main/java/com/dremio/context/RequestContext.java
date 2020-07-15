@@ -126,6 +126,15 @@ public class RequestContext {
   }
 
   /**
+   * Returns an empty RequestContext.
+   *
+   * @return empty RequestContext
+   */
+  public static RequestContext empty() {
+    return EMPTY;
+  }
+
+  /**
    * Creates a key.
    *
    * @param name The key name.

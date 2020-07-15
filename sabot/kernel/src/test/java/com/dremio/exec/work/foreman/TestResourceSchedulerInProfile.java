@@ -108,7 +108,8 @@ public class TestResourceSchedulerInProfile extends DremioTest {
       }
 
       @Override
-      public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager) {
+      public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager,
+                                                                  ResourceSchedulingProperties resourceSchedulingProperties) {
         return null;
       }
 

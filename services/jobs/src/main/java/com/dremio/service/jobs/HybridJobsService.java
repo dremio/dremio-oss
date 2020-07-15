@@ -182,16 +182,12 @@ public class HybridJobsService implements JobsService {
 
   @Override
   public Iterable<JobSummary> searchJobs(SearchJobsRequest request) {
-    final List<JobSummary> jobSummaries = new ArrayList<>();
-    getChronicleBlockingStub().searchJobs(request).forEachRemaining(jobSummaries::add);
-    return jobSummaries;
+    return () -> getChronicleBlockingStub().searchJobs(request);
   }
 
   @Override
   public Iterable<JobDetails> getJobsForParent(JobsWithParentDatasetRequest jobsWithParentDatasetRequest) {
-    final List<JobDetails> jobDetails = new ArrayList<>();
-    getChronicleBlockingStub().getJobsForParent(jobsWithParentDatasetRequest).forEachRemaining(jobDetails::add);
-    return jobDetails;
+    return () -> getChronicleBlockingStub().getJobsForParent(jobsWithParentDatasetRequest);
   }
 
   @Override
@@ -273,7 +269,8 @@ public class HybridJobsService implements JobsService {
     } catch (StatusRuntimeException e) {
       if (e.getStatus().getCode().equals(Status.Code.PERMISSION_DENIED)) {
         throw new AccessControlException(
-          String.format("User [%s] does not have permission to access reflection [%s]", request.getUserName(), request.getReflectionId()));
+          String.format("Permission denied on user [%s] to access job history for reflection [%s]",
+            request.getUserName(), request.getReflectionId()));
       }
       throw e;
     }
@@ -302,7 +299,7 @@ public class HybridJobsService implements JobsService {
       throw new JobNotFoundException(jobId, sre);
     case PERMISSION_DENIED:
       throw new AccessControlException(
-          String.format("User [%s] does not have permission to access job [%s]", username, jobId));
+          String.format("Permission denied on user [%s] to access job [%s]", username, jobId));
     default:
       throw sre;
     }
@@ -319,7 +316,7 @@ public class HybridJobsService implements JobsService {
         throw new JobNotFoundException(jobId, sre);
       case PERMISSION_DENIED:
         throw new AccessControlException(
-          String.format("User [%s] does not have permission to access reflection [%s]", username, reflectionId));
+          String.format("Permission denied on user [%s] to access job for reflection [%s]", username, reflectionId));
       default:
         throw sre;
     }

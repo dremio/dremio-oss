@@ -18,11 +18,11 @@ package com.dremio.security;
 import java.io.IOException;
 import java.net.URI;
 
+import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
@@ -105,7 +105,7 @@ public class AwsSecretsManager implements Vault {
   }
 
   private AwsCredentialsProvider getAwsCredentials() {
-    return InstanceProfileCredentialsProvider.create();
+    return new SharedInstanceProfileCredentialsProvider();
   }
 
   /*

@@ -73,6 +73,11 @@ public class WebServer implements Service {
      * Tableau TDS media type (for Native Drill Connector)
      */
     public static final MediaType APPLICATION_TDS_DRILL_TYPE = new MediaType("application", "tds+drill");
+
+    /**
+     * Power BI DS media type
+     */
+    public static final String APPLICATION_PBIDS = "application/pbids";
   }
 
   /**

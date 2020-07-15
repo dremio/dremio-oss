@@ -135,6 +135,13 @@ public class UserSession {
       public void setValue(UserSession session, String value) {
         session.tracingEnabled = "true".equalsIgnoreCase(value);
       }
+    },
+
+    ROUTING_ENGINE {
+      @Override
+      public void setValue(UserSession session, String value) {
+        session.routingEngine = value;
+      }
     };
 
     /**
@@ -165,6 +172,7 @@ public class UserSession {
   private boolean supportFullyQualifiedProjections;
   private String routingTag;
   private String routingQueue;
+  private String routingEngine;
   private RecordBatchFormat recordBatchFormat = RecordBatchFormat.DREMIO_1_4;
   private boolean exposeInternalSources = false;
   private boolean tracingEnabled = false;
@@ -295,6 +303,10 @@ public class UserSession {
 
   public String getRoutingQueue() {
     return routingQueue;
+  }
+
+  public String getRoutingEngine() {
+    return routingEngine;
   }
 
   public UserCredentials getCredentials() {

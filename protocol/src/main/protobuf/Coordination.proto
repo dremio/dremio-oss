@@ -43,6 +43,7 @@ message NodeEndpoint {
   optional int32 conduit_port = 106;
   optional exec.enginemanagement.EngineId engine_id = 201;
   optional exec.enginemanagement.SubEngineId sub_engine_id = 202;
+  optional string dremio_version = 203;
 }
 
 message DremioServiceInstance {

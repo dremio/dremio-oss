@@ -29,7 +29,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.reflection.DependencyEntry.ReflectionDependency;
@@ -55,7 +55,7 @@ import com.google.common.collect.Sets;
 public class TestDependencyGraph {
 
   private static final LegacyKVStoreProvider kvstore =
-    new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy();
+      LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
 
   private static DependenciesStore dependenciesStore;
 

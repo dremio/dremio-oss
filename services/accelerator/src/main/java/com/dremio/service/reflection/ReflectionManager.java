@@ -651,8 +651,12 @@ public class ReflectionManager implements Runnable {
       // but if we really fail to handle a successful refresh job for 3 times in a row, the entry is in a bad state
       entry.setRefreshMethod(decision.getAccelerationSettings().getMethod())
         .setRefreshField(decision.getAccelerationSettings().getRefreshField())
-        .setDatasetHash(decision.getDatasetHash())
         .setDontGiveUp(dependencyManager.dontGiveUp(entry.getId()));
+      if (!optionManager.getOption(ReflectionOptions.STRICT_INCREMENTAL_REFRESH)) {
+        entry.setShallowDatasetHash(decision.getDatasetHash());
+      } else {
+        entry.setDatasetHash(decision.getDatasetHash());
+      }
     } catch (Exception | AssertionError e) {
       logger.warn("failed to handle reflection {} job done", getId(entry), e);
       materialization.setState(MaterializationState.FAILED)

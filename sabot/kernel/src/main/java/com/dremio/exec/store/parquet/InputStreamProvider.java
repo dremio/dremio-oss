@@ -16,6 +16,7 @@
 package com.dremio.exec.store.parquet;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
@@ -40,4 +41,12 @@ public interface InputStreamProvider extends AutoCloseable {
    * Is this provider reusing the same stream for all columns
    */
   boolean isSingleStream();
+
+  /**
+   * Obtains the boosted input stream for the given column.
+   * @param column Given column
+   * @return The boosted input stream
+   * @throws IOException
+   */
+  default InputStream getBoostedStream(ColumnChunkMetaData column) throws IOException { return null; }
 }

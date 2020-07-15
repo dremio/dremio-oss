@@ -87,6 +87,7 @@ public class KVStoreProviderHelper {
     config.put(LocalKVStoreProvider.CONFIG_BASEDIRECTORY, dremioConfig.getString(DremioConfig.DB_PATH_STRING));
     config.put(LocalKVStoreProvider.CONFIG_HOSTNAME, System.getProperty(KVSTORE_HOSTNAME_PROPERTY_NAME, thisNode));
     config.put(RemoteKVStoreProvider.HOSTNAME, thisNode);
+    config.put(DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS, dremioConfig.getLong(DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS));
 
     // find the appropriate KVStoreProvider from path
     // first check for the default behavior (if services.datastore.type is set to "default")

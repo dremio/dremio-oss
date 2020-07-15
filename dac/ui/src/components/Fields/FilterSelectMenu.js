@@ -81,7 +81,7 @@ export default class FilterSelectMenu extends PureComponent {
 
   state = {
     pattern: ''
-  }
+  };
 
   componentWillReceiveProps(nextProps) {
     this.updateValueIsSelected(nextProps);
@@ -119,7 +119,7 @@ export default class FilterSelectMenu extends PureComponent {
     // if (this.props.loadItemsForFilter) {
     //   this.props.loadItemsForFilter(value, 100);
     // }
-  }
+  };
 
   handleItemChange = (checked, id) => {
     if (checked) {
@@ -132,13 +132,13 @@ export default class FilterSelectMenu extends PureComponent {
     if (this.props.hideOnSelect) {
       this.handleRequestClose();
     }
-  }
+  };
 
   beforeDDClose = () => {
     this.setState({
       pattern: ''
     });
-  }
+  };
 
   renderItems(items) {
     return items.map((item, index) => {
@@ -239,7 +239,8 @@ const styles = {
     display: 'flex',
     flexWrap: 'wrap',
     flexDirection: 'column',
-    minWidth: 135
+    minWidth: 135,
+    paddingBottom: 3
   },
   divider: {
     borderTop: '1px solid #ccc',

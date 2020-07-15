@@ -143,7 +143,8 @@ function deleteUser(user) {
   };
 
   const apiCall = new APIV2Call()
-    .paths(user.getIn(['links', 'self']))
+    .path('user')
+    .path(user.get('userName'))
     .params({version: user.getIn(['userConfig', 'version'])});
 
   return {

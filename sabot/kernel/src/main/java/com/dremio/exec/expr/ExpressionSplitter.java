@@ -215,7 +215,7 @@ public class ExpressionSplitter implements AutoCloseable {
     SupportedEngines.Engine engineForSplit = executionEngine.contains(this
       .preferredEngine) ? this.preferredEngine : this.nonPreferredEngine;
     ExpressionSplit split = new ExpressionSplit(newExpr, myTracker, null, null, null, true,
-      engineForSplit, 0);
+      engineForSplit, 0, context);
 
     this.currentExprSplits.add(split);
 
@@ -557,7 +557,7 @@ public class ExpressionSplitter implements AutoCloseable {
     SupportedEngines.Engine engineForSplit = expr.getExecutionEngineForExpression().contains(this
       .preferredEngine) ? this.preferredEngine : this.nonPreferredEngine;
     ExpressionSplit split = new ExpressionSplit(newExpr, myTracker, fieldId, readContext, vvIn, false,
-      engineForSplit, myTracker.getIfExprBranches().size());
+      engineForSplit, myTracker.getIfExprBranches().size(), context);
     this.currentExprSplits.add(split);
 
     logger.trace("Split created {}", split.toString());
@@ -651,6 +651,7 @@ public class ExpressionSplitter implements AutoCloseable {
         .setInGandiva(x.getExecutionEngine().equals(Engine.GANDIVA))
         .setOutputName(x.getOutputName())
         .addAllDependsOn(x.getDependencies())
+        .setOptimize(x.getOptimize())
         .build())
       .collect(Collectors.toList());
   }

@@ -104,7 +104,7 @@ public class NodeInstance {
       coord,
       exec,
       ep.getNodeTag(),
-      nodeStats.getVersion(),
+      ep.getDremioVersion(),
       new DateTime(ep.getStartTime()),
       nodeStats.getLoad(),
       nodeStats.getConfiguredMaxWidth(),

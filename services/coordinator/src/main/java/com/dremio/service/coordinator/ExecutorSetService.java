@@ -16,12 +16,20 @@
 package com.dremio.service.coordinator;
 
 import com.dremio.exec.enginemanagement.proto.EngineManagementProtos;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.service.Service;
 
 /**
  * Service that provides executor sets.
  */
+@Options
 public interface ExecutorSetService extends Service {
+
+  // Whether to exclude or include incompatible executors in query planning and execution
+  // true - exclude
+  // false - Include
+  BooleanValidator DREMIO_VERSION_CHECK = new BooleanValidator("dremio.coordinator.enable_version_check", true);
 
   /**
    * Get the set of executors with the given queue tag.
@@ -31,4 +39,12 @@ public interface ExecutorSetService extends Service {
    * @return set of executors.
    */
   ListenableSet getExecutorSet(EngineManagementProtos.EngineId engineId, EngineManagementProtos.SubEngineId subEngineId);
+
+  /**
+   * Get the set of executors when engineId and subEngineId are not applicable
+   * @return
+   */
+  default ListenableSet getExecutorSet() {
+    return getExecutorSet(null, null);
+  }
 }

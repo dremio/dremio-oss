@@ -23,12 +23,21 @@ import * as QlikActions from 'actions/qlik';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 
 
-import { openQlikSense, fetchQlikApp, checkDsnList, requestPassword, getConnectionConfig, DSN,
-  getUniqueAppName, santizeAppName } from './qlik';
+import {
+  checkDsnList,
+  DSN,
+  fetchQlikApp,
+  getConnectionConfig,
+  getUniqueAppName,
+  openQlikSense,
+  requestPassword,
+  santizeAppName
+} from './qlik';
 
 describe('qlik saga', () => {
 
   const dataset = Immutable.fromJS({
+    id: 'testid',
     displayFullPath: ['myspace', 'foo'],
     apiLinks: {
       qlik: '/qlik/myspace.foo'
@@ -78,7 +87,7 @@ describe('qlik saga', () => {
         headers.append('Authorization', localStorageUtils.getAuthToken());
       }
       expect(JSON.stringify(next.value)).to.eql(
-        JSON.stringify(call(fetch, `${API_URL_V2}/qlik/myspace.foo`, {method: 'GET', headers}))
+        JSON.stringify(call(fetch, `${API_URL_V2}/qlik/testid`, {method: 'GET', headers}))
       );
 
       next = gen.next({

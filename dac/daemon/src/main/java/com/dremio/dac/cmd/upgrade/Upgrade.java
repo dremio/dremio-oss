@@ -45,6 +45,7 @@ import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.support.BasicSupportService;
 import com.dremio.dac.support.SupportService;
 import com.dremio.dac.support.UpgradeStore;
+import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.services.configuration.ConfigurationStore;
@@ -138,7 +139,7 @@ public class Upgrade {
     return upgradeTasks;
   }
 
-  private static Version retrieveStoreVersion(ClusterIdentity identity) {
+  static Version retrieveStoreVersion(ClusterIdentity identity) {
     final Version storeVersion = fromClusterVersion(identity.getVersion());
     return storeVersion != null ? storeVersion : LegacyUpgradeTask.VERSION_106;
   }
@@ -173,15 +174,15 @@ public class Upgrade {
   }
 
   public void run(boolean noDBOpenRetry) throws Exception {
-    Optional<LegacyKVStoreProvider> storeOptional = CmdUtils.getLegacyKVStoreProvider(dacConfig.getConfig(), classpathScan, noDBOpenRetry);
+    Optional<LocalKVStoreProvider> storeOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig(), classpathScan, noDBOpenRetry);
     if (!storeOptional.isPresent()) {
       AdminLogger.log("No database found. Skipping upgrade");
       return;
     }
-    try (final LegacyKVStoreProvider storeProvider = storeOptional.get()) {
+    try (final LocalKVStoreProvider storeProvider = storeOptional.get()) {
       storeProvider.start();
 
-      run(storeProvider);
+      run(storeProvider.asLegacy());
     }
 
   }

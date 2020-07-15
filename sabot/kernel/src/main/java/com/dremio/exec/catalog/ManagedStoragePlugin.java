@@ -49,6 +49,7 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.connector.metadata.extensions.SupportsAlteringDatasetMetadata;
 import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.exec.catalog.CatalogInternalRPC.UpdateLastRefreshDateRequest;
 import com.dremio.exec.catalog.CatalogServiceImpl.UpdateType;
 import com.dremio.exec.catalog.DatasetCatalog.UpdateStatus;
 import com.dremio.exec.catalog.conf.ConnectionConf;
@@ -141,7 +142,8 @@ public class ManagedStoragePlugin implements AutoCloseable {
       SourceConfig sourceConfig,
       OptionManager options,
       ConnectionReader reader,
-      CatalogServiceMonitor monitor) {
+      CatalogServiceMonitor monitor,
+      Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider) {
     this.rwlock = new ReentrantReadWriteLock(true);
     this.executor = executor;
     this.readLock = rwlock.readLock();
@@ -169,7 +171,8 @@ public class ManagedStoragePlugin implements AutoCloseable {
         sourceDataStore,
         new MetadataBridge(),
         options,
-        monitor);
+        monitor,
+        broadcasterProvider);
   }
 
   private AutoCloseableLock readLock() {
@@ -478,15 +481,19 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * @return A future that returns the state of this plugin once started (or throws Exception if the startup failed).
    */
   CompletableFuture<SourceState> startAsync() {
-    return startAsync(sourceConfig);
+    return startAsync(sourceConfig, true);
   }
 
   /**
    * Generate a supplier that produces source state
    * @param config
+   * @param closeMetaDataManager - During dremio startup, we don't close metadataManager when sources are in bad state,
+   *                             because we need state refresh for bad sources.
+   *                             When a user tries to add a source and it's in bad state, we close metadataManager to avoid
+   *                             wasting additional space.
    * @return
    */
-  private Supplier<SourceState> newStartSupplier(SourceConfig config, final boolean isStart) {
+  private Supplier<SourceState> newStartSupplier(SourceConfig config, final boolean closeMetaDataManager) {
     try {
       return nameSupplier("start-" + sourceConfig.getName(), () -> {
         try {
@@ -510,7 +517,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
 
           try {
             // failed to startup, make sure to close.
-            if (isStart) {
+            if (closeMetaDataManager) {
               AutoCloseables.close(metadataManager, plugin);
             } else {
               plugin.close();
@@ -534,10 +541,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * @param config The configuration to use for this startup.
    * @return A future that returns the state of this plugin once started (or throws Exception if the startup failed).
    */
-  private CompletableFuture<SourceState> startAsync(final SourceConfig config) {
+  private CompletableFuture<SourceState> startAsync(final SourceConfig config, final boolean isDuringStartUp) {
     // we run this in a separate thread to allow early timeout. This doesn't use the scheduler since that is
     // bound and we're frequently holding a lock when running this.
-    return CompletableFuture.supplyAsync(newStartSupplier(config, true), executor);
+    return CompletableFuture.supplyAsync(newStartSupplier(config, !isDuringStartUp), executor);
   }
 
   /**
@@ -692,8 +699,17 @@ public class ManagedStoragePlugin implements AutoCloseable {
   }
 
   @VisibleForTesting
-  long getLastFullRefreshDateMs() {
+  public long getLastFullRefreshDateMs() {
     return metadataManager.getLastFullRefreshDateMs();
+  }
+
+  @VisibleForTesting
+  public long getLastNamesRefreshDateMs() {
+    return metadataManager.getLastNamesRefreshDateMs();
+  }
+
+  void setMetadataSyncInfo(UpdateLastRefreshDateRequest request) {
+    metadataManager.setMetadataSyncInfo(request);
   }
 
   private static boolean isComplete(DatasetConfig config) {
@@ -885,7 +901,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     this.plugin = newConnectionConf.newPlugin(context, sourceKey.getRoot(), this::getId);
     try {
       logger.trace("Starting new plugin for [{}]", config.getName());
-      startAsync(config).get(waitMillis, TimeUnit.MILLISECONDS);
+      startAsync(config, false).get(waitMillis, TimeUnit.MILLISECONDS);
       try {
         AutoCloseables.close(oldPlugin);
       }catch(Exception ex) {

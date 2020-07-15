@@ -127,7 +127,8 @@ export class AddProvisionModal extends Component {
     return (
       <Modal
         title={title}
-        size='large'
+        size='medium'
+        style={{width: 775}}
         isOpen={isOpen}
         hide={hide}>
         {clusterTypeForm ? React.createElement(clusterTypeForm, {
@@ -161,7 +162,7 @@ export default connect(mapStateToProps, {
 
 const styles = {
   formBody: {
-    width: 860,
+    width: 770,
     margin: '0 auto'
   },
   stepOneStyle: {

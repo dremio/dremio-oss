@@ -69,6 +69,7 @@ import com.dremio.resource.basic.BasicResourceAllocator;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.LocalExecutorSetService;
 import com.dremio.service.execselector.ExecutorSelectionService;
 import com.dremio.service.execselector.ExecutorSelectionServiceImpl;
 import com.dremio.service.execselector.ExecutorSelectorFactoryImpl;
@@ -166,11 +167,14 @@ public class ResourceAllocationsTest extends BaseTestQuery {
       DirectProvider.wrap(Mockito.mock(CatalogService.class)), context);
 
     Provider<ClusterCoordinator> clusterCoordinatorProvider = DirectProvider.wrap(clusterCoordinator);
-    Provider<OptionManager> optionProvider = DirectProvider.wrap(context.getOptionManager());
+    Provider<OptionManager> optionManagerProvider = DirectProvider.wrap(context.getOptionManager());
     final BasicResourceAllocator resourceAllocator =
       new BasicResourceAllocator(clusterCoordinatorProvider, null);
     resourceAllocator.start();
-    final ExecutorSelectionService executorSelectionService = new ExecutorSelectionServiceImpl(clusterCoordinatorProvider, optionProvider,
+    final ExecutorSelectionService executorSelectionService = new ExecutorSelectionServiceImpl(
+        () -> new LocalExecutorSetService(clusterCoordinatorProvider,
+                                          optionManagerProvider),
+        optionManagerProvider,
         ExecutorSelectorFactoryImpl::new, new ExecutorSelectorProvider());
 
     QueryTrackerImpl foreman = new QueryTrackerImpl(null, queryContext, plan, pPlanReader,

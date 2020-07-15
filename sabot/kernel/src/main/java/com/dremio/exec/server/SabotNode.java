@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.server;
 
+import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
+
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -34,12 +36,18 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
+import com.dremio.context.RequestContext;
+import com.dremio.context.TenantContext;
+import com.dremio.context.UserContext;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
+import com.dremio.datastore.api.KVStoreProvider;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.InformationSchemaServiceImpl;
+import com.dremio.exec.catalog.MetadataRefreshInfoBroadcaster;
 import com.dremio.exec.exception.NodeStartupException;
 import com.dremio.exec.maestro.MaestroService;
 import com.dremio.exec.maestro.MaestroServiceImpl;
@@ -108,6 +116,8 @@ import com.dremio.service.execselector.ExecutorSelectorProvider;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.service.grpc.GrpcServerBuilderFactory;
+import com.dremio.service.grpc.MultiTenantGrpcServerBuilderFactory;
+import com.dremio.service.grpc.SingleTenantGrpcChannelBuilderFactory;
 import com.dremio.service.jobresults.client.JobResultsClientFactory;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.jobtelemetry.client.JobTelemetryExecutorClientFactory;
@@ -389,6 +399,7 @@ public class SabotNode implements AutoCloseable {
     private final ClusterCoordinator clusterCoordinator;
     private final boolean allRoles;
     private final BootStrapContext bootstrap;
+    private final RequestContext defaultRequestContext;
 
     public SabotModule(DremioConfig config, ScanResult classpathScan, SingletonRegistry registry,
                        ClusterCoordinator clusterCoordinator, boolean allRoles, BootStrapContext bootstrap) {
@@ -397,6 +408,9 @@ public class SabotNode implements AutoCloseable {
       this.registry = registry;
       this.clusterCoordinator = clusterCoordinator;
       this.allRoles = allRoles;
+      this.defaultRequestContext = RequestContext.empty()
+          .with(TenantContext.CTX_KEY, new TenantContext(TenantContext.DEFAULT_PRODUCT_TENANT_ID))
+          .with(UserContext.CTX_KEY, new UserContext(SYSTEM_USERNAME));
       this.bootstrap = bootstrap;
     }
 
@@ -412,17 +426,18 @@ public class SabotNode implements AutoCloseable {
         bind(OptionValidatorListing.class).toInstance(new OptionValidatorListingImpl(classpathScan));
 
         // KVStore
-        final LegacyKVStoreProvider kvStoreProvider = new LocalKVStoreProvider(classpathScan, null, true, true).asLegacy();
-        bind(LegacyKVStoreProvider.class).toInstance(kvStoreProvider);
+        final KVStoreProvider kvStoreProvider = new LocalKVStoreProvider(classpathScan, null, true, true);
+        bind(KVStoreProvider.class).toInstance(kvStoreProvider);
 
         bind(ConnectionReader.class).toInstance(ConnectionReader.of(classpathScan, config.getSabotConfig()));
         // bind default providers.
         bind(MaterializationDescriptorProvider.class).toInstance(MaterializationDescriptorProvider.EMPTY);
         bind(QueryObserverFactory.class).toInstance(QueryObserverFactory.DEFAULT);
-        bind(GrpcChannelBuilderFactory.class).toInstance(new GrpcChannelBuilderFactory(TracerFacade.INSTANCE));
+        bind(GrpcChannelBuilderFactory.class).toInstance(
+          new SingleTenantGrpcChannelBuilderFactory(TracerFacade.INSTANCE, defaultRequestContext));
 
         GrpcServerBuilderFactory gRpcServerBuilderFactory =
-          new GrpcServerBuilderFactory(TracerFacade.INSTANCE);
+          new MultiTenantGrpcServerBuilderFactory(TracerFacade.INSTANCE);
         bind(GrpcServerBuilderFactory.class).toInstance(gRpcServerBuilderFactory);
 
         // no authentication
@@ -437,6 +452,15 @@ public class SabotNode implements AutoCloseable {
 
         bind(NodeRegistration.class).asEagerSingleton();
 
+        final MetadataRefreshInfoBroadcaster broadcaster = new MetadataRefreshInfoBroadcaster(
+          getProvider(ConduitProvider.class),
+          () -> registry.provider(ClusterCoordinator.class)
+            .get()
+            .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
+            .getAvailableEndpoints(),
+          () -> registry.provider(SabotContext.class).get().getEndpoint()
+        );
+
         // CatalogService is expensive to create so we eagerly create it
         bind(CatalogService.class).toInstance(new CatalogServiceImpl(
                 getProvider(SabotContext.class),
@@ -448,6 +472,7 @@ public class SabotNode implements AutoCloseable {
                 getProvider(LegacyKVStoreProvider.class),
                 getProvider(DatasetListingService.class),
                 getProvider(OptionManager.class),
+                () -> broadcaster,
                 config,
                 EnumSet.allOf(ClusterCoordinator.Role.class)
         ));
@@ -669,13 +694,13 @@ public class SabotNode implements AutoCloseable {
     @Provides
     @Singleton
     ExecutorSelectionService getExecutorSelectionService(
-            Provider<ClusterCoordinator> clusterCoordinator,
+            Provider<ExecutorSetService> executorSetService,
             Provider<OptionManager> optionManagerProvider,
             Provider<ExecutorSelectorFactory> executorSelectorFactory,
             Provider<ExecutorSelectorProvider> executorSelectorProvider
     ) {
       return new ExecutorSelectionServiceImpl(
-              clusterCoordinator,
+              executorSetService,
               optionManagerProvider,
               executorSelectorFactory,
               executorSelectorProvider.get()
@@ -704,8 +729,10 @@ public class SabotNode implements AutoCloseable {
     @Provides
     @Singleton
     ExecutorSetService getExecutorSetService(
-            Provider<ClusterCoordinator> clusterCoordinator) {
-      return new LocalExecutorSetService(clusterCoordinator);
+            Provider<ClusterCoordinator> clusterCoordinator,
+            Provider<OptionManager> optionManagerProvider) {
+      return new LocalExecutorSetService(clusterCoordinator,
+                                         optionManagerProvider);
     }
 
     @Provides
@@ -840,5 +867,10 @@ public class SabotNode implements AutoCloseable {
       return new JobTelemetryClient(grpcChannelBuilderFactory, nodeEndpointProvider);
     }
 
+    @Provides
+    @Singleton
+    LegacyKVStoreProvider getLegacyKVStoreProvider(KVStoreProvider kvStoreProvider) {
+      return new LegacyKVStoreProviderAdapter(kvStoreProvider);
+    }
   }
 }

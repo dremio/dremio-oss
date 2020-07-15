@@ -21,6 +21,8 @@ import PropTypes from 'prop-types';
 
 import classNames from 'classnames';
 import {
+  onoffBtn,
+  onoffDot,
   base,
   labelContent,
   disabled as disabledCls,
@@ -50,7 +52,8 @@ export const checkboxPropTypes = {
   active: PropTypes.any,
   touched: PropTypes.any,
   visited: PropTypes.any,
-  autofilled: PropTypes.any
+  autofilled: PropTypes.any,
+  isOnOffSwitch: PropTypes.bool
 };
 
 @pureRender
@@ -62,6 +65,26 @@ export default class Checkbox extends Component {
     inputType: 'checkbox'
   };
 
+  renderOnOffSwitch(checked, label, labelBefore) {
+    const extraStyle = {};
+    if (label && labelBefore) {
+      extraStyle.marginLeft = 6;
+    } else if (label) { //label after
+      extraStyle.marginRight = 6;
+    }
+    if (checked) {
+      return <div className={onoffBtn} style={{...styles.switchOnBtn, ...extraStyle}}>
+        On <div className={onoffDot} style={styles.onDot}/>
+      </div>;
+    } else {
+      return <div className={onoffBtn} style={{...styles.switchOffBtn, ...extraStyle}}>
+        <div className={onoffDot} style={styles.offDot}/>
+        Off
+      </div>;
+    }
+  }
+
+
   renderDummyCheckbox(isChecked, style) {
     return <div className={classNames(dummy, isChecked && 'checked')} style={style}
       data-qa={this.props.dataQa || 'dummyCheckbox'}>
@@ -71,7 +94,7 @@ export default class Checkbox extends Component {
 
   render() {
     const {
-      style, label, dummyInputStyle,
+      style, label, dummyInputStyle, isOnOffSwitch,
       inputType, labelBefore,
       className, inverted, renderDummyInput,
       dataQa, initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled, // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -85,12 +108,30 @@ export default class Checkbox extends Component {
       <label className={classNames(['field', base, this.props.disabled && disabledCls, className])} key='container' style={style}>
         {labelBefore && labelSpan}
         <input type={inputType} style={{position: 'absolute', left: -10000}} {...props}/>
-        {renderDummyInput ?
-          renderDummyInput(props.checked, dummyInputStyle) :
-          this.renderDummyCheckbox(dummyCheckState, dummyInputStyle)
-        }
+        {renderDummyInput && renderDummyInput(props.checked, dummyInputStyle)}
+        {isOnOffSwitch && this.renderOnOffSwitch(props.checked, label, labelBefore)}
+        {!renderDummyInput && !isOnOffSwitch && this.renderDummyCheckbox(dummyCheckState, dummyInputStyle)}
         {!labelBefore && labelSpan}
       </label>
     );
   }
 }
+
+const styles = {
+  switchOnBtn: {
+    color: 'white',
+    backgroundColor: '#43B8C9'
+  },
+  switchOffBtn: {
+    color: '#333333',
+    backgroundColor: '#F6F6F6'
+  },
+  onDot: {
+    backgroundColor: 'white',
+    marginLeft: 8
+  },
+  offDot: {
+    backgroundColor: '#999999',
+    marginRight: 8
+  }
+};

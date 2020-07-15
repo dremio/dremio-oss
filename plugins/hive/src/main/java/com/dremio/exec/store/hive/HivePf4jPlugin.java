@@ -24,6 +24,8 @@ import org.apache.hadoop.security.UserGroupInformation;
 import org.pf4j.Plugin;
 import org.pf4j.PluginWrapper;
 
+import com.dremio.common.util.Closeable;
+import com.dremio.common.util.concurrent.ContextClassLoaderSwapper;
 import com.dremio.exec.util.GuavaPatcher;
 
 /**
@@ -33,7 +35,7 @@ public class HivePf4jPlugin extends Plugin {
   private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(HivePf4jPlugin.class);
 
   static {
-    try (ContextClassLoaderSwapper contextClassLoaderSwapper = ContextClassLoaderSwapper.newInstance()) {
+    try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       // Patching Guava for HBase 1.x compatibility
       try {
         GuavaPatcher.patchClassLoader(Thread.currentThread().getContextClassLoader());
@@ -70,5 +72,13 @@ public class HivePf4jPlugin extends Plugin {
 
   public HivePf4jPlugin(PluginWrapper wrapper) {
     super(wrapper);
+  }
+
+  /**
+   * Current thread's class loader is replaced with the class loader
+   * used to load hive plugin
+   */
+  public static Closeable swapClassLoader() {
+    return ContextClassLoaderSwapper.swapClassLoader(HivePf4jPlugin.class);
   }
 }

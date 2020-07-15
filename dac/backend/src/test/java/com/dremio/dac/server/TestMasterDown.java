@@ -40,9 +40,9 @@ import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.perf.Timer;
-import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.DACDaemon;
 import com.dremio.dac.daemon.ServerHealthMonitor;
+import com.dremio.dac.daemon.ZkServer;
 import com.dremio.dac.explore.model.DataPOJO;
 import com.dremio.dac.model.folder.Folder;
 import com.dremio.dac.model.job.JobDataFragment;
@@ -71,6 +71,8 @@ import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.InitializerRegistry;
 import com.dremio.service.conduit.server.ConduitServer;
+import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.service.coordinator.zk.ZKClusterCoordinator;
 import com.dremio.service.jobs.HybridJobsService;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
@@ -84,8 +86,6 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
-
-import de.flapdoodle.embed.process.runtime.Network;
 
 /**
  * Test that when master goes down services on other nodes wait in loop for master to come back up.
@@ -117,22 +117,17 @@ public class TestMasterDown extends BaseClientUtils {
   public static void init() throws Exception {
     Assume.assumeTrue(BaseTestServer.isMultinode());
     try (Timer.TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
-      final int[] ports = Network.getFreeServerPorts(Network.getLocalHost(), 7);
       masterDremioDaemon = DACDaemon.newDremioDaemon(
         DACConfig
           .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-          .autoPort(false)
+          .autoPort(true)
           .addDefaultUser(true)
           .allowTestApis(true)
           .serveUI(false)
           .jobServerEnabled(false)
           .inMemoryStorage(true)
           .writePath(folder1.getRoot().getAbsolutePath())
-          .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-          .localPort(ports[0])
-          .httpPort(ports[1])
-          .with(DremioConfig.CLIENT_PORT_INT, ports[2])
-          .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_PORT_INT, ports[6]),
+          .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED),
         DremioTest.CLASSPATH_SCAN_RESULT);
 
       // remote node
@@ -140,16 +135,12 @@ public class TestMasterDown extends BaseClientUtils {
         DACConfig
           .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
           .isMaster(false)
-          .autoPort(false)
+          .autoPort(true)
           .allowTestApis(true)
           .serveUI(false)
           .inMemoryStorage(true)
           .writePath(folder2.getRoot().getAbsolutePath())
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-          .localPort(ports[3])
-          .httpPort(ports[4])
-          .with(DremioConfig.CLIENT_PORT_INT, ports[5])
-          .zk(String.format("localhost:%d", ports[6]))
           .isRemote(true),
         DremioTest.CLASSPATH_SCAN_RESULT);
     }
@@ -281,6 +272,9 @@ public class TestMasterDown extends BaseClientUtils {
     Provider<Integer> jobsPortProvider = () -> currentDremioDaemon.getBindingProvider().lookup(ConduitServer.class).getPort();
 
     masterDremioDaemon.startPreServices();
+
+    ((ZKClusterCoordinator)currentDremioDaemon.getBindingProvider().lookup(ClusterCoordinator.class))
+      .setPortProvider(() -> masterDremioDaemon.getBindingProvider().lookup(ZkServer.class).getPort());
 
     currentDremioDaemon.startPreServices();
 

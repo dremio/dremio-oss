@@ -24,6 +24,7 @@ import javax.inject.Provider;
 import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.scanner.persistence.ScanResult;
+import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.AbstractStoreBuilder;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.IndexedStore;
@@ -56,6 +57,7 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
   private final ScanResult scan;
   private ImmutableMap<Class<? extends StoreCreationFunction<?, ?, ?>>, KVStore<?, ?>> stores;
   private String masterHostName;
+  private long remoteRpcTimeout;
 
   public RemoteKVStoreProvider(ScanResult scan, Provider<NodeEndpoint> masterNode, Provider<FabricService> fabricService, BufferAllocator allocator, String hostName) {
     this.masterNode = masterNode;
@@ -83,6 +85,7 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
     // in case of test configuration in masterless mode specify master directly
     // either masterNode should be specified or masterHostName
     masterHostName = String.valueOf(config.get(CONFIG_HOSTNAME));
+    this.remoteRpcTimeout = (Long)config.get(DremioConfig.REMOTE_DATASTORE_RPC_TIMEOUT_SECS);
   }
 
   @SuppressWarnings("unchecked")
@@ -112,7 +115,8 @@ public class RemoteKVStoreProvider implements KVStoreProvider {
         masterHost = masterNode;
       }
 
-      DatastoreRpcService rpcService = new DatastoreRpcService(masterHost, fabricService.get(), allocator, rpcHandler);
+      DatastoreRpcService rpcService = new DatastoreRpcService(masterHost, fabricService.get(), allocator, rpcHandler,
+        remoteRpcTimeout);
       rpcClient = new DatastoreRpcClient(rpcService);
     } catch (RpcException e) {
       throw new DatastoreFatalException("Failed to start rpc service", e);

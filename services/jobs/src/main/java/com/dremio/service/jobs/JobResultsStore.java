@@ -33,7 +33,10 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.exec.record.RecordBatchHolder;
+import com.dremio.exec.store.JobResultsStoreConfig;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
+import com.dremio.exec.store.easy.arrow.ArrowFileReader;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.service.Service;
@@ -56,7 +59,7 @@ import com.google.common.collect.Sets;
 
 /**
  * Stores and manages job results for max 30 days (default).
- * Each node stores job results on local disk.
+ * Each executor node stores job results on local disk.
  */
 public class JobResultsStore implements Service {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobResultsStore.class);
@@ -120,8 +123,8 @@ public class JobResultsStore implements Service {
   public boolean cleanup(JobId jobId) {
     final Path jobOutputDir = getJobOutputDir(jobId);
     try {
-      if (dfs.exists(jobOutputDir)) {
-        dfs.delete(jobOutputDir, true);
+      if (existsQueryResults(jobOutputDir, jobId)) {
+        deleteQueryResults(jobOutputDir, true, jobId);
         logger.debug("Deleted job output directory : {}", jobOutputDir);
       }
       return true;
@@ -135,7 +138,7 @@ public class JobResultsStore implements Service {
   public boolean jobOutputDirectoryExists(JobId jobId) {
     final Path jobOutputDir = getJobOutputDir(jobId);
     try {
-      return dfs.exists(jobOutputDir);
+      return existsQueryResults(jobOutputDir, jobId);
     } catch (IOException e) {
       return false;
     }
@@ -168,7 +171,7 @@ public class JobResultsStore implements Service {
     return jobDataRef;
   }
 
-  private static JobInfo getLastAttempt(JobResult jobResult) {
+  protected static JobInfo getLastAttempt(JobResult jobResult) {
     return jobResult.getAttemptsList().get(jobResult.getAttemptsList().size() - 1).getInfo();
   }
 
@@ -192,7 +195,7 @@ public class JobResultsStore implements Service {
       }
 
       final Path jobOutputDir = getJobOutputDir(jobId);
-      if (!dfs.isDirectory(jobOutputDir)) {
+      if (!isDirectory(jobOutputDir, jobId)) {
         throw UserException.dataReadError()
             .message("Job '%s' output doesn't exist", jobId.getId())
             .build(logger);
@@ -231,9 +234,8 @@ public class JobResultsStore implements Service {
       if (resultFilesToRead.isEmpty()) {
         // when the query returns no results at all or the requested range is invalid, return an empty record batch
         // for metadata purposes.
-        try (ArrowFileReader fileReader = new ArrowFileReader(dfs, jobOutputDir, resultMetadata.get(0), allocator)) {
-          batchHolders.addAll(fileReader.read(0, 0));
-        }
+        batchHolders.addAll(getQueryResults(jobOutputDir, resultMetadata.get(0), allocator, 0, 0));
+
       } else {
         runningFileRecordCount = 0;
         int remaining = limit;
@@ -246,10 +248,8 @@ public class JobResultsStore implements Service {
           // Min of remaining records in file or remaining records in total to read.
           final long fileLimit = Math.min(file.getRecordCount() - fileOffset, remaining);
 
-          try (ArrowFileReader fileReader = new ArrowFileReader(dfs, jobOutputDir, file, allocator)) {
-            batchHolders.addAll(fileReader.read(fileOffset, fileLimit));
-            remaining -= fileLimit;
-          }
+          batchHolders.addAll(getQueryResults(jobOutputDir, file, allocator, fileOffset, fileLimit));
+          remaining -= fileLimit;
 
           runningFileRecordCount += file.getRecordCount();
         }
@@ -261,6 +261,53 @@ public class JobResultsStore implements Service {
           .message("Failed to load results for job %s", jobId.getId())
           .build(logger);
     }
+  }
+
+  protected List<RecordBatchHolder> getQueryResults(Path jobOutputDir,
+                                                    ArrowFileMetadata arrowFileMetadata,
+                                                    BufferAllocator allocator,
+                                                    long fileOffset,
+                                                    long fileLimit) throws IOException {
+    try(ArrowFileReader fileReader = new ArrowFileReader(dfs, jobOutputDir, arrowFileMetadata, allocator)) {
+      return fileReader.read(fileOffset, fileLimit);
+    }
+  }
+
+  /**
+   * Check if path exists optionally using jobId
+   *
+   * @param jobOutputDir
+   * @param jobId might be used in derived class.
+   * @return
+   * @throws IOException
+   */
+  protected boolean existsQueryResults(Path jobOutputDir, JobId jobId) throws IOException {
+    return dfs.exists(jobOutputDir);
+  }
+
+  /**
+   * Delete the path recursively optionally using jobId
+   *
+   * @param jobOutputDir
+   * @param recursive
+   * @param jobId Used in derived class.
+   * @return
+   * @throws IOException
+   */
+  protected boolean deleteQueryResults(Path jobOutputDir, boolean recursive, JobId jobId) throws IOException {
+    return dfs.delete(jobOutputDir, recursive);
+  }
+
+  /**
+   * Check if directory is present optionally using jobId
+   *
+   * @param jobOutputDir
+   * @param jobId might be used in derived class.
+   * @return
+   * @throws IOException
+   */
+  protected boolean isDirectory(Path jobOutputDir, JobId jobId) throws IOException {
+    return dfs.isDirectory(jobOutputDir);
   }
 
   public JobData get(JobId jobId) {

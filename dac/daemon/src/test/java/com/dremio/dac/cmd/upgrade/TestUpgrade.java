@@ -48,7 +48,6 @@ import com.dremio.dac.proto.model.source.UpgradeTaskStore;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.support.SupportService;
 import com.dremio.dac.support.UpgradeStore;
-import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.services.configuration.ConfigurationStore;
@@ -69,7 +68,7 @@ public class TestUpgrade extends DremioTest {
    */
   public static final class TopPriorityTask extends UpgradeTask {
     public TopPriorityTask() {
-      super("test-top-priority-class", ImmutableList.of(UpdateExternalReflectionHash.taskUUID));
+      super("test-top-priority-class", ImmutableList.of(SetTableauDefaults.taskUUID));
     }
 
     @Override
@@ -105,9 +104,8 @@ public class TestUpgrade extends DremioTest {
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
-  private static final LegacyKVStoreProvider kvstore = new LegacyKVStoreProviderAdapter(
-    new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false),
-    DremioTest.CLASSPATH_SCAN_RESULT);
+  private static final LegacyKVStoreProvider kvstore =
+      LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
 
   private static UpgradeStore upgradeStore;
 
@@ -427,6 +425,7 @@ public class TestUpgrade extends DremioTest {
         instanceOf(MinimizeJobResultsMetadata.class),
         instanceOf(UpdateExternalReflectionHash.class),
         instanceOf(DeleteSysMaterializationsMetadata.class),
+        instanceOf(SetTableauDefaults.class),
         // Test task
         instanceOf(TopPriorityTask.class),
         // Final test task
@@ -525,6 +524,7 @@ public class TestUpgrade extends DremioTest {
       instanceOf(MinimizeJobResultsMetadata.class),
       instanceOf(UpdateExternalReflectionHash.class),
       instanceOf(DeleteSysMaterializationsMetadata.class),
+      instanceOf(SetTableauDefaults.class),
       // Test task
       instanceOf(TopPriorityTask.class),
       // Final test task
@@ -543,9 +543,8 @@ public class TestUpgrade extends DremioTest {
     final ByteString prevEdition = ByteString.copyFrom("OSS".getBytes());
     final ConfigurationEntry configurationEntry = new ConfigurationEntry();
     configurationEntry.setValue(prevEdition);
-    final LegacyKVStoreProvider kvStoreProvider = new LegacyKVStoreProviderAdapter(
-      new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false),
-      CLASSPATH_SCAN_RESULT);
+    final LegacyKVStoreProvider kvStoreProvider =
+        LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
     final ConfigurationStore configurationStore = new ConfigurationStore(kvStoreProvider);
     configurationStore.put(SupportService.DREMIO_EDITION, configurationEntry);
@@ -560,9 +559,8 @@ public class TestUpgrade extends DremioTest {
     final ByteString prevEdition = ByteString.copyFrom("OSS".getBytes());
     final ConfigurationEntry configurationEntry = new ConfigurationEntry();
     configurationEntry.setValue(prevEdition);
-    final LegacyKVStoreProvider kvStoreProvider = new LegacyKVStoreProviderAdapter(
-      new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false),
-      CLASSPATH_SCAN_RESULT);
+    final LegacyKVStoreProvider kvStoreProvider =
+        LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
     final ConfigurationStore configurationStore = new ConfigurationStore(kvStoreProvider);
     new Upgrade(DACConfig.newConfig(), CLASSPATH_SCAN_RESULT, false).validateUpgrade(kvStoreProvider, "OSS");

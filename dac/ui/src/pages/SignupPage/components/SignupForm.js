@@ -28,7 +28,6 @@ import { noUsersError } from 'actions/account';
 import { getViewState } from 'selectors/resources';
 import { connectComplexForm, InnerComplexForm } from 'components/Forms/connectComplexForm.js';
 import { divider, formRow } from 'uiTheme/radium/forms';
-import { Link } from 'react-router';
 import localStorageUtils from 'utils/storageUtils/localStorageUtils';
 
 import UserForm from 'components/Forms/UserForm';
@@ -88,11 +87,8 @@ export class SignupForm extends Component {
               type={ButtonTypes.NEXT}
               text={la('Next')}
             />
-            <div>
+            <div style={styles.footerLink}>
               <a href='https://www.dremio.com/legal/privacy-policy' target='_blank'>{la('Privacy')}</a>
-              {' '} | {<Link to={{ ...this.props.location, state: { modal: 'AboutModal' }}}>
-                {la('About Dremio')}
-              </Link>}
             </div>
           </div>
         </InnerComplexForm>
@@ -123,6 +119,9 @@ const styles = {
     width: '100%',
     alignItems: 'center',
     justifyContent: 'space-between'
+  },
+  footerLink: {
+    marginBottom: '5px'
   }
 };
 

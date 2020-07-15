@@ -53,6 +53,7 @@ import com.dremio.exec.work.protector.UserResult;
 import com.dremio.exec.work.user.OptionProvider;
 import com.dremio.options.OptionManager;
 import com.dremio.resource.GroupResourceInformation;
+import com.dremio.resource.ResourceSchedulingProperties;
 import com.dremio.resource.exception.ResourceUnavailableException;
 import com.dremio.service.Pointer;
 import com.dremio.service.commandpool.CommandPool;
@@ -307,9 +308,11 @@ public class AttemptManager implements Runnable {
       injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_TRY_BEGINNING_ERROR,
         ForemanException.class);
 
+      ResourceSchedulingProperties resourceSchedulingProperties = new ResourceSchedulingProperties();
+      resourceSchedulingProperties.setRoutingEngine(queryContext.getSession().getRoutingEngine());
       // Get the resource information of the cluster/engine before planning begins.
       final GroupResourceInformation groupResourceInformation =
-        maestroService.getGroupResourceInformation(queryContext.getOptions());
+        maestroService.getGroupResourceInformation(queryContext.getOptions(), resourceSchedulingProperties);
       queryContext.setGroupResourceInformation(groupResourceInformation);
 
       observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.PENDING));

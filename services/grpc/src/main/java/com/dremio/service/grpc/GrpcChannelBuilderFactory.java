@@ -15,66 +15,26 @@
  */
 package com.dremio.service.grpc;
 
-import com.dremio.telemetry.utils.GrpcTracerFacade;
-import com.dremio.telemetry.utils.TracerFacade;
-
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.opentracing.Tracer;
-import io.opentracing.contrib.grpc.TracingClientInterceptor;
 
 /**
- * Factory for creating gRPC ChannelBuilder in services.
+ * Interface for gRPC channel builder factory.
  */
-public final class GrpcChannelBuilderFactory {
-
-  public static final int MAX_RETRY = Integer.parseInt(System.getProperty("dremio.grpc.retry_max", "10"));
-
-  private final Tracer tracer;
-
-  public GrpcChannelBuilderFactory(Tracer tracer) {
-    this.tracer = new GrpcTracerFacade((TracerFacade) tracer);
-  }
+public interface GrpcChannelBuilderFactory {
+  int MAX_RETRY = Integer.parseInt(System.getProperty("dremio.grpc.retry_max", "10"));
 
   /**
    * Returns a new gRPC ManagedChannelBuilder with instrumentation.
    */
-  public ManagedChannelBuilder<?> newManagedChannelBuilder(String host, int port) {
-    final ManagedChannelBuilder<?> builder = ManagedChannelBuilder.forAddress(host, port);
-    addDefaultBuilderProperties(builder);
-
-    return builder;
-  }
+  ManagedChannelBuilder<?> newManagedChannelBuilder(String host, int port);
 
   /**
    * Returns a new gRPC ManagedChannelBuilder with instrumentation.
    */
-  public ManagedChannelBuilder<?> newManagedChannelBuilder(String target) {
-    final ManagedChannelBuilder<?> builder = ManagedChannelBuilder.forTarget(target);
-    addDefaultBuilderProperties(builder);
-
-    return builder;
-  }
+  ManagedChannelBuilder<?> newManagedChannelBuilder(String target);
 
   /**
    * Returns a new gRPC InProcessChannelBuilder with instrumentation.
    */
-  public ManagedChannelBuilder<?> newInProcessChannelBuilder(String processName) {
-    final ManagedChannelBuilder<?> builder = InProcessChannelBuilder.forName(processName);
-    addDefaultBuilderProperties(builder);
-
-    return builder;
-  }
-
-  /* Decorates a ManagedChannelBuilder with default properties.   */
-  private void addDefaultBuilderProperties(ManagedChannelBuilder<?> builder) {
-    final TracingClientInterceptor interceptor = TracingClientInterceptor
-      .newBuilder()
-      .withTracer(tracer)
-      .build();
-
-    builder.intercept(interceptor)
-       .enableRetry()
-       .maxRetryAttempts(MAX_RETRY);
-  }
+  ManagedChannelBuilder<?> newInProcessChannelBuilder(String processName);
 }

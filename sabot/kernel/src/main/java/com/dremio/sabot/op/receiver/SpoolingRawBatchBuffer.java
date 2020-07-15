@@ -144,7 +144,7 @@ public class SpoolingRawBatchBuffer extends BaseRawBatchBuffer<SpoolingRawBatchB
       final String id = String.format("spool-%s.%s.%s.%s.%s",
           qid, majorFragmentId, minorFragmentId, oppositeId, bufferIndex);
 
-      this.spillManager = new SpillManager(config, null, id, SPOOLING_CONFIG, spillService, "spooling sorted exchange");
+      this.spillManager = new SpillManager(config, null, id, SPOOLING_CONFIG, spillService, "spooling sorted exchange", null);
       this.spillFile = spillManager.getSpillFile("batches");
       outputStream = spillFile.create();
     } catch(Exception ex) {

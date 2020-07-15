@@ -68,6 +68,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
 import javax.ws.rs.client.Entity;
@@ -184,13 +185,17 @@ import com.dremio.dac.proto.model.dataset.TransformTrim;
 import com.dremio.dac.proto.model.dataset.TransformUpdateSQL;
 import com.dremio.dac.proto.model.dataset.VirtualDatasetUI;
 import com.dremio.dac.resource.SystemResource;
+import com.dremio.dac.resource.TableauResource;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.source.SourceService;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.dac.util.DatasetsUtil.ExtractRuleVisitor;
 import com.dremio.dac.util.JSONUtil;
+import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
+import com.dremio.options.OptionManager;
+import com.dremio.options.OptionValue;
 import com.dremio.service.jobs.HybridJobsService;
 import com.dremio.service.jobs.JobRequest;
 import com.dremio.service.jobs.JobsService;
@@ -232,39 +237,18 @@ public class TestServerExplore extends BaseTestServer {
   }
 
   @Test
-  public void testTableauVirtual() throws Exception {
-    setSpace();
-    DatasetUI ui = saveAs(
-      createDatasetFromParent("cp.\"tpch/supplier.parquet\"").getDataset(), new DatasetPath("spacefoo.boo")
-    ).getDataset();
-    expectSuccess(
-        getBuilder(
-            getAPIv2()
-                .path("tableau")
-                .path(new NamespaceKey(ui.getDisplayFullPath()).toUrlEncodedString()))
-        .header("Accept", "*/*")
-        .header("host", "localhost")
-        .buildGet());
+  public void testTableauPhysical() throws Exception {
+    testBIEndpoint("tableau", () -> {
+      final OptionManager optionManager = l(ContextService.class).get().getOptionManager();
+      optionManager.setOption(OptionValue.createBoolean(OptionValue.OptionType.SYSTEM,
+        TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(), true));
+      return null;
+    });
   }
 
   @Test
-  public void testTableauPhysical() throws Exception {
-    setSpace();
-    // create dataset so we get a namespace entry for the physical dataset.
-    DatasetUI ui = saveAs(
-      createDatasetFromParent("cp.\"tpch/supplier.parquet\"").getDataset(), new DatasetPath("spacefoo.boo")
-    ).getDataset();
-
-    expectSuccess(
-        getBuilder(
-            getAPIv2()
-                .path("tableau")
-                .path(new NamespaceKey(Arrays.asList("cp", "tpch/supplier.parquet")).toUrlEncodedString())
-                )
-        .header("Accept", "*/*")
-        .header("host", "localhost")
-        .buildGet());
-
+  public void testPowerBIPhysical() throws Exception {
+    testBIEndpoint("powerbi", null);
   }
 
   @Test
@@ -2346,5 +2330,27 @@ public class TestServerExplore extends BaseTestServer {
     //should success to edit original sql for a dataset that is copied, moved, and renamed
     final DatasetUI testDS = createDatasetFromParent("space2.ds1-copied-moved").getDataset();
     expectSuccess(reapplyInvocation(getDatasetVersionPath(testDS)));
+  }
+
+  private void testBIEndpoint(String endpoint, Callable<Void> biToolSetupCallback) throws Exception {
+    setSpace();
+    // create dataset so we get a namespace entry for the physical dataset.
+    final DatasetUI ui = saveAs(
+      createDatasetFromParent("cp.\"tpch/supplier.parquet\"").getDataset(), new DatasetPath("spacefoo.boo")
+    ).getDataset();
+
+    if (biToolSetupCallback != null) {
+      biToolSetupCallback.call();
+    }
+
+    expectSuccess(
+      getBuilder(
+        getAPIv2()
+          .path(endpoint)
+          .path(ui.getEntityId())
+      )
+        .header("Accept", "*/*")
+        .header("host", "localhost")
+        .buildGet());
   }
 }

@@ -20,6 +20,7 @@ import java.util.concurrent.ExecutionException;
 import javax.inject.Provider;
 
 import com.dremio.exec.proto.CoordinationProtos;
+import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.conduit.client.ConduitProvider;
 import com.dremio.service.job.ChronicleGrpc;
 import com.dremio.service.job.JobDetails;
@@ -28,6 +29,7 @@ import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.JobsServiceGrpc;
+import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.proto.JobProtobuf;
 
 import io.grpc.ManagedChannel;
@@ -62,6 +64,12 @@ public class RemoteJobServiceForwarder {
     final ManagedChannel channel = conduitProvider.get().getOrCreateChannel(target);
     final ChronicleGrpc.ChronicleBlockingStub stub = ChronicleGrpc.newBlockingStub(channel);
     return stub.getJobSummary(request);
+  }
+
+  public UserBitShared.QueryProfile getProfile(CoordinationProtos.NodeEndpoint target, QueryProfileRequest queryProfileRequest) {
+    final ManagedChannel channel = conduitProvider.get().getOrCreateChannel(target);
+    final ChronicleGrpc.ChronicleBlockingStub stub = ChronicleGrpc.newBlockingStub(channel);
+    return stub.getProfile(queryProfileRequest);
   }
 
   /**

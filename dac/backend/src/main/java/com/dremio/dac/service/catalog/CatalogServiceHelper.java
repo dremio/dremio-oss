@@ -806,7 +806,7 @@ public class CatalogServiceHelper {
       throw new ConcurrentModificationException(String.format("A space with the name [%s] already exists.", spaceName));
     }
 
-    namespaceService.addOrUpdateSpace(namespaceKey, getSpaceConfig(space), attributes);
+    namespaceService.addOrUpdateSpace(namespaceKey, getSpaceConfig(space).setCtime(System.currentTimeMillis()), attributes);
 
     return getSpaceFromConfig(namespaceService.getSpace(namespaceKey), null);
   }
@@ -817,7 +817,7 @@ public class CatalogServiceHelper {
 
     Preconditions.checkArgument(space.getName().equals(spaceConfig.getName()), "Space name is immutable.");
 
-    namespaceService.addOrUpdateSpace(namespaceKey, getSpaceConfig(space), attributes);
+    namespaceService.addOrUpdateSpace(namespaceKey, getSpaceConfig(space).setCtime(spaceConfig.getCtime()), attributes);
   }
 
   protected void deleteSpace(SpaceConfig spaceConfig, String version) throws NamespaceException {

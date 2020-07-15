@@ -56,7 +56,6 @@ public class BootStrapContext implements AutoCloseable {
   }
 
   public BootStrapContext(DremioConfig config, ScanResult classpathScan, SingletonRegistry registry) {
-
     registry.bind(Tracer.class, TracerFacade.INSTANCE);
     Telemetry.startTelemetry();
 

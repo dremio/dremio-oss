@@ -69,6 +69,7 @@ import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.Views;
 import com.dremio.exec.store.dfs.NASConf;
+import com.dremio.exec.util.TestUtilities;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.jobs.metadata.QueryMetadata;
@@ -355,6 +356,8 @@ public class SampleDataPopulator implements AutoCloseable {
 
     putDS("Sales-Sample", "ds3", new FromTable("LocalFS2.\"dac-sample2.json\"").wrap());
     putDS("Sales-Sample", "ds4", new FromSQL("select * from LocalFS2.\"dac-sample2.json\" where A >= 900").wrap());
+
+    TestUtilities.addClasspathSourceIf(context.getCatalogService());
 
     putDS("Tpch-Sample", "tpch20", new FromSQL(
       getFileContentsFromClassPath("queries/tpch/20.sql")

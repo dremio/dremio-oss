@@ -65,6 +65,10 @@ public class ValueExpressions {
     return new DateExpression(localDate.atTime(LocalTime.MIDNIGHT).toInstant(ZoneOffset.UTC).toEpochMilli());
   }
 
+  public static LogicalExpression getDateMilli(long epoch) {
+    return new DateExpression(epoch);
+  }
+
   /**
    * Parse date given in format 'YYYY-MM-DD' to millis in UTC timezone
    */
@@ -78,6 +82,10 @@ public class ValueExpressions {
     return new TimeExpression(Math.toIntExact(NANOSECONDS.toMillis(localTime.toNanoOfDay())));
   }
 
+  public static LogicalExpression getTimeMilli(int millis) {
+    return new TimeExpression(millis);
+  }
+
   /**
    * Parse time given in format 'hh:mm:ss' to millis in UTC timezone
    */
@@ -89,6 +97,10 @@ public class ValueExpressions {
   public static LogicalExpression getTimeStamp(TimestampString timestamp) {
     LocalDateTime localDateTime = LocalDateTime.parse(timestamp.toString(), DateTimes.CALCITE_LOCAL_DATETIME_FORMATTER);
     return new TimeStampExpression(localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli());
+  }
+
+  public static LogicalExpression getTimeStampMilli(long millis) {
+    return new TimeStampExpression(millis);
   }
 
   /**
@@ -105,6 +117,10 @@ public class ValueExpressions {
 
   public static LogicalExpression getIntervalDay(long intervalInMillis) {
       return new IntervalDayExpression(intervalInMillis);
+  }
+
+  public static LogicalExpression getDecimal(BigDecimal bigDecimal) {
+    return ValueExpressions.getDecimal(bigDecimal, bigDecimal.precision(), bigDecimal.scale());
   }
 
   public static LogicalExpression getDecimal(BigDecimal i, int precision, int scale) {

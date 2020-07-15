@@ -79,7 +79,7 @@ public class OperatorWrapper {
     "Max Wait Time", "Avg Peak Memory", "Max Peak Memory"};
 
   public static final String[] SPLIT_INFO_COLUMNS = { "Split Output Name", "Split Evaluated in Gandiva",
-    "Split Depends On", "Split Expression" };
+    "Split Depends On", "Split Expression", "LLVM Optimized" };
 
   public static final String[] SLOW_IO_INFO_COLUMNS = { "FilePath" , "IO Time (ns)", "IO Size", "Offset"};
 
@@ -308,6 +308,11 @@ public class OperatorWrapper {
           builder.appendString(String.join(",", splitInfo.getDependsOnList()));
         }
         builder.appendString(splitInfo.getNamedExpression().toString());
+        if (splitInfo.getInGandiva()) {
+          builder.appendString(splitInfo.getOptimize() ? "true" : "false");
+        } else {
+          builder.appendString("-");
+        }
         builder.endEntry();
       }
       builder.end();

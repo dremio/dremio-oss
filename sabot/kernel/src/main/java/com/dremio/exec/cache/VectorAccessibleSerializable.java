@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -46,6 +47,7 @@ import com.dremio.telemetry.api.metrics.Metrics.ResetType;
 import com.dremio.telemetry.api.metrics.Timer;
 import com.dremio.telemetry.api.metrics.Timer.TimerContext;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 
 import io.netty.util.internal.PlatformDependent;
@@ -92,6 +94,9 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
   private BufferAllocator decompressAllocator;
 
   private boolean retain = false;
+
+  private Stopwatch compressionWatch = Stopwatch.createUnstarted();
+  private Stopwatch uncompressionWatch = Stopwatch.createUnstarted();
 
   /**
    * De-serialize the batch
@@ -179,7 +184,9 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
         compressedDirectBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
         /* compress */
+        compressionWatch.start();
         int compressedLength = Snappy.compress(rawDirectBuffer, compressedDirectBuffer);
+        compressionWatch.stop();
 
         /* get compressed data into byte array for serializing to output stream */
         /* Use current thread buffer (safe to do since I/O operation is blocking) */
@@ -446,7 +453,9 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
         rawDirectBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
         /* uncompress */
+        uncompressionWatch.start();
         int uncompressedLength = Snappy.uncompress(compressedDirectBuffer, rawDirectBuffer);
+        uncompressionWatch.stop();
 
         /* update state */
         rawDataLength -= uncompressedLength;
@@ -454,6 +463,14 @@ public class VectorAccessibleSerializable extends AbstractStreamSerializable {
       }
     }
     outputBuffer.writerIndex(bufferPos);
+  }
+
+  public long compressionTime() {
+    return compressionWatch.elapsed(TimeUnit.NANOSECONDS);
+  }
+
+  public long uncompressionTime() {
+    return uncompressionWatch.elapsed(TimeUnit.NANOSECONDS);
   }
 
   private int getLEIntFromByteArray(byte[] array) {

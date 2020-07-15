@@ -54,16 +54,18 @@ public class NativeFilter implements AutoCloseable {
    * @param expr the filter expression
    * @param input the input container.
    * @param selectionVector - the output selection vector
-   * @param stats
+   * @param functionContext
+   * @param optimize - should optimize the llvm build
    * @return instance of Native Filter.
    * @throws GandivaException when we fail to make the gandiva filter
    */
   static public NativeFilter build(LogicalExpression expr, VectorAccessible input,
-                                   SelectionVector2 selectionVector, FunctionContext functionContext) throws GandivaException {
+                                   SelectionVector2 selectionVector, FunctionContext functionContext,
+                                   boolean optimize) throws GandivaException {
     Set referencedFields = Sets.newHashSet();
     Condition condition = GandivaExpressionBuilder.serializeExprToCondition(input, expr, referencedFields, functionContext);
     VectorSchemaRoot root = GandivaUtils.getSchemaRoot(input, referencedFields);
-    Filter filter = Filter.make(root.getSchema(), condition);
+    Filter filter = Filter.make(root.getSchema(), condition, optimize);
     return new NativeFilter(filter, root, selectionVector);
   }
 

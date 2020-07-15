@@ -26,6 +26,7 @@ import com.dremio.common.perf.Timer;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.dac.annotations.RestResource;
+import com.dremio.dac.explore.bi.PowerBIMessageBodyGenerator;
 import com.dremio.dac.explore.bi.QlikAppMessageBodyGenerator;
 import com.dremio.dac.explore.bi.TableauMessageBodyGenerator;
 import com.fasterxml.jackson.jaxrs.base.JsonMappingExceptionMapper;
@@ -82,6 +83,7 @@ public class RestServerV2 extends ResourceConfig {
     //  BODY WRITERS //
     register(QlikAppMessageBodyGenerator.class);
     register(TableauMessageBodyGenerator.class);
+    register(PowerBIMessageBodyGenerator.class);
 
 
     // PROPERTIES //

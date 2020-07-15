@@ -31,6 +31,7 @@ import {
   linkContainer,
   groupLayoutRow,
   elementLayoutRow,
+  elementLayoutRowFixed,
   elementLayoutHalf,
   elementLayoutFull
 } from './FormSection.less';
@@ -80,14 +81,13 @@ export default class FormSection extends Component {
               const isFixedSize = typeof size === 'number' && size > 0;
               const isHalfWidth = size === 'half';
               let style = null;
-              if (isFixedSize) {
-                style = {width: size};
-              } else if (isHalfWidth) {
+              if (isHalfWidth) {
                 style = {flex: 'none'};
               }
 
               const fieldClass = classNames({
-                [elementLayoutRow]: isLayoutRow,
+                [elementLayoutRow]: isLayoutRow && !isFixedSize,
+                [elementLayoutRowFixed]: isLayoutRow && isFixedSize,
                 [elementLayoutHalf]: !isFixedSize && isHalfWidth,
                 [elementLayoutFull]: !isFixedSize && !isHalfWidth // full width by default
               });
@@ -125,7 +125,7 @@ export default class FormSection extends Component {
     const iconType = collapsed ? 'ArrowRight.svg' : 'ArrowDownSmall.svg';
     const iconAlt = collapsed ? 'Expand Section' : 'Collapse Section';
 
-    return <div data-qa='section-toggle' style={styles.collapser}>
+    return <div data-qa='section-toggle'>
       <Art src={iconType} alt={iconAlt} style={styles.iconStyle}/>
     </div>;
   }
@@ -149,7 +149,7 @@ export default class FormSection extends Component {
     const help = sectionConfigJson.help;
     const link = sectionConfigJson.link;
 
-    let sectionLabelStyle = (sectionConfigJson.collapsible) ? {cursor: 'pointer'} : null;
+    let sectionLabelStyle = (sectionConfigJson.collapsible) ? styles.collapsibleLabel : null;
     // style overwrites for sub-section
     sectionLabelStyle = (sectionLevel) ? {...sectionLabelStyle, fontSize: '14px'} : sectionLabelStyle;
     const sectionBodyStyle = (sectionLevel) ? {marginBottom: 15} : null;
@@ -158,11 +158,11 @@ export default class FormSection extends Component {
       <div className={sectionBody} style={{...style, ...sectionBodyStyle}}>
         {sectionConfigJson.name &&
           <div className={sectionLabel} style={sectionLabelStyle} onClick={this.toggleCollapse}>
+            {this.renderCollapser(sectionConfigJson)}
             {sectionConfigJson.name}
             {sectionConfigJson.tooltip &&
             <HoverHelp content={sectionConfigJson.tooltip} />
             }
-            {this.renderCollapser(sectionConfigJson)}
           </div>
         }
         {!this.state.collapsed && <Fragment>
@@ -194,16 +194,12 @@ export default class FormSection extends Component {
 
 const styles = {
   iconStyle: {
-    width: 32,
-    height: 32,
-    marginBottom: 10
+    width: 26,
+    height: 26
   },
-  collapser: {
-    color: '#555555',
-    fontSize: '18px',
-    fontWeight: 300,
+  collapsibleLabel: {
     cursor: 'pointer',
-    marginTop: 20,
-    marginLeft: 10
+    paddingTop: 5,
+    borderTop: '1px solid rgba(0,0,0,0.1)'
   }
 };

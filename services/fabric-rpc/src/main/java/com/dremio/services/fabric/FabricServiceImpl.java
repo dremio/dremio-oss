@@ -77,8 +77,13 @@ public class FabricServiceImpl implements FabricService {
       Executor rpcHandleDispatcher
   ) {
     this.address = address;
-    this.initialPort = allowPortHunting ? initialPort + 333 : initialPort;
-    this.allowPortHunting = allowPortHunting;
+    if (initialPort == 0) {
+      this.initialPort = initialPort;
+      this.allowPortHunting = false;
+    } else {
+      this.initialPort = allowPortHunting ? initialPort + 333 : initialPort;
+      this.allowPortHunting = allowPortHunting;
+    }
     this.threadCount = threadCount;
     this.bootstrapAllocator = bootstrapAllocator;
     this.reservationInBytes = reservationInBytes;

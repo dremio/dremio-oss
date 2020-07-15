@@ -15,10 +15,9 @@
  */
 package com.dremio.datastore.adapter;
 
-import java.util.Set;
-
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.datastore.LegacyStoreBuilderHelper;
+import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.api.DocumentConverter;
 import com.dremio.datastore.api.IndexedStore;
 import com.dremio.datastore.api.KVStore;
@@ -31,7 +30,9 @@ import com.dremio.datastore.api.LegacyStoreCreationFunction;
 import com.dremio.datastore.api.StoreCreationFunction;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 
 /**
  * An adapter to bridge KVStoreProvider to LegacyKVStoreProvider.
@@ -39,58 +40,68 @@ import com.google.common.collect.ImmutableMap;
 public class LegacyKVStoreProviderAdapter implements LegacyKVStoreProvider {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LegacyKVStoreProviderAdapter.class);
 
-  private ImmutableMap<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>> stores;
   private final KVStoreProvider underlyingProvider;
-  private final ScanResult scan;
-  private final boolean startUnderlyingProvider;
 
-  public LegacyKVStoreProviderAdapter(KVStoreProvider underlyingProvider, ScanResult scan, boolean startUnderlyingProvider) {
+  private LoadingCache<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>> stores;
+
+  public LegacyKVStoreProviderAdapter(KVStoreProvider underlyingProvider) {
     this.underlyingProvider = underlyingProvider;
-    this.scan = scan;
-    this.startUnderlyingProvider = startUnderlyingProvider;
+    this.stores = CacheBuilder
+        .newBuilder()
+        .build(CacheLoader.from(this::newStore));
   }
 
-  public LegacyKVStoreProviderAdapter(KVStoreProvider underlyingProvider, ScanResult scan) {
-    this(underlyingProvider, scan, true);
+  /**
+   * Only use this method for tests
+   *
+   * @param scanResult
+   * @return
+   */
+  @Deprecated
+  public static LegacyKVStoreProvider inMemory(ScanResult scanResult) {
+    final LocalKVStoreProvider kvStoreProvider = new LocalKVStoreProvider(scanResult, null, true, false);
+    return new LegacyKVStoreProviderAdapter(kvStoreProvider) {
+      @Override
+      public void start() throws Exception {
+        kvStoreProvider.start();
+        super.start();
+      }
+
+      @Override
+      public void close() throws Exception {
+        super.close();
+        kvStoreProvider.close();
+      }
+    };
   }
 
   @Override
   public <K, V, T extends LegacyKVStore<K, V>, U extends KVStore<K, V>> T getStore(
       Class<? extends LegacyStoreCreationFunction<K, V, T, U>> creator) {
-    return (T) Preconditions.checkNotNull(stores.get(creator), "Unknown store creator %s", creator.getName());
+    return (T) Preconditions.checkNotNull(stores.getUnchecked(creator), "Unknown store creator %s", creator.getName());
   }
 
   @Override
   public void start() throws Exception {
     logger.info("Starting LegacyKVStoreProviderAdapter.");
-
-    if (startUnderlyingProvider) {
-      logger.info("Starting underlying KVStoreProvider.");
-      underlyingProvider.start();
-    }
-
-    // Find all implementations and preload them
-    final Set<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>> impls = (Set<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>>) (Object) scan
-        .getImplementations(LegacyStoreCreationFunction.class);
-    final ImmutableMap.Builder<Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>>, LegacyKVStore<?, ?>> builder = ImmutableMap.builder();
-    for (Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>> functionClass : impls) {
-      try {
-        LegacyStoreBuildingFactory factory = new LegacyStoreBuildingFactory() {
-          @Override
-          public <K, V> LegacyStoreBuilder<K, V> newStore() {
-            return LegacyKVStoreProviderAdapter.this.newStore(functionClass);
-          }
-        };
-        final LegacyKVStore<?, ?> store = functionClass.newInstance().build(factory);
-        builder.put(functionClass, store);
-      } catch (Exception e) {
-        logger.warn("Unable to load StoreCreationFunction {}", functionClass.getSimpleName(), e);
-      }
-    }
-    stores = builder.build();
   }
 
-  private <K, V> LegacyStoreBuilder<K, V> newStore(Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>> functionClass) {
+  private LegacyKVStore<?, ?> newStore(Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>> functionClass) {
+    try {
+      LegacyStoreBuildingFactory factory = new LegacyStoreBuildingFactory() {
+        @Override
+        public <K, V> LegacyStoreBuilder<K, V> newStore() {
+          return LegacyKVStoreProviderAdapter.this.newStoreBuilder(functionClass);
+        }
+      };
+      return functionClass.newInstance().build(factory);
+    } catch (Exception e) {
+      logger.warn("Unable to load StoreCreationFunction {}", functionClass.getSimpleName(), e);
+      return null;
+    }
+  }
+
+  private <K, V> LegacyStoreBuilder<K, V> newStoreBuilder(Class<? extends LegacyStoreCreationFunction<?, ?, ?, ?>> functionClass) {
     return new LegacyStoreBuilderAdapter<K, V>(() -> underlyingProvider.newStore()) {
       @Override
       protected KVStore<K, V> doBuild() {
@@ -106,8 +117,6 @@ public class LegacyKVStoreProviderAdapter implements LegacyKVStoreProvider {
 
   @Override
   public void close() throws Exception {
-    logger.info("Stopping LegacyKVStoreProviderAdapter by stopping underlying KVStoreProvider.");
-    underlyingProvider.close();
   }
 
   @Override

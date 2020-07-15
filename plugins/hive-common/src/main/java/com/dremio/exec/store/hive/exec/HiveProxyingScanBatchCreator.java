@@ -16,6 +16,7 @@
 package com.dremio.exec.store.hive.exec;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
+import com.dremio.exec.store.SupportsPF4JStoragePlugin;
 import com.dremio.exec.store.hive.StoragePluginCreator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
@@ -28,8 +29,11 @@ public class HiveProxyingScanBatchCreator implements ProducerOperator.Creator<Hi
 
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, OperatorContext context,
                                  HiveProxyingSubScan config) throws ExecutionSetupException {
-    final StoragePluginCreator.PF4JStoragePlugin plugin =
+    final SupportsPF4JStoragePlugin pf4JStoragePlugin =
       fragmentExecContext.getStoragePlugin(config.getPluginId());
+    final StoragePluginCreator.PF4JStoragePlugin plugin =
+      pf4JStoragePlugin.getPF4JStoragePlugin();
+
 
     return plugin.createScanBatchCreator().create(fragmentExecContext, context, config);
   }

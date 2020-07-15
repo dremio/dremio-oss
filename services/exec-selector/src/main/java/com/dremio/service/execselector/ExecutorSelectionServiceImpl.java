@@ -15,7 +15,6 @@
  */
 package com.dremio.service.execselector;
 
-import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -23,11 +22,14 @@ import javax.inject.Provider;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.concurrent.AutoCloseableLock;
+import com.dremio.exec.enginemanagement.proto.EngineManagementProtos.EngineId;
+import com.dremio.exec.enginemanagement.proto.EngineManagementProtos.SubEngineId;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.options.OptionManager;
-import com.dremio.service.coordinator.ClusterCoordinator;
+import com.dremio.resource.ResourceSchedulingDecisionInfo;
+import com.dremio.service.coordinator.ExecutorSetService;
+import com.dremio.service.coordinator.ListenableSet;
 import com.dremio.service.coordinator.NodeStatusListener;
-import com.dremio.service.coordinator.ServiceSet;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
@@ -78,7 +80,7 @@ public class ExecutorSelectionServiceImpl implements ExecutorSelectionService {
     }
   }
 
-  private final Provider<ClusterCoordinator> clusterCoordinatorProvider;
+  private final Provider<ExecutorSetService> execSetService;
   private final Provider<OptionManager> optionsProvider;
   private final Provider<ExecutorSelectorFactory> factoryProvider;
   private final ExecutorSelectorProvider executorSelectorProvider;
@@ -95,12 +97,12 @@ public class ExecutorSelectionServiceImpl implements ExecutorSelectionService {
   private final NodeStatusListener nodeStatusListener;
 
   public ExecutorSelectionServiceImpl(
-      final Provider<ClusterCoordinator> clusterCoordinatorProvider,
+      final Provider<ExecutorSetService> execSetService,
       final Provider<OptionManager> optionsProvider,
       final Provider<ExecutorSelectorFactory> factoryProvider,
       final ExecutorSelectorProvider executorSelectorProvider
     ) {
-    this.clusterCoordinatorProvider = clusterCoordinatorProvider;
+    this.execSetService = execSetService;
     this.optionsProvider = optionsProvider;
     this.factoryProvider = factoryProvider;
     this.executorSelectorProvider = executorSelectorProvider;
@@ -119,6 +121,11 @@ public class ExecutorSelectionServiceImpl implements ExecutorSelectionService {
         eventQueue.enqueue(new EndpointEvent(EndpointAction.ADD, registeredNodes));
       }
     };
+  }
+
+  @VisibleForTesting
+  public boolean eventsCompleted() {
+    return eventQueue.completed();
   }
 
   private void processEndpointEvent(EndpointEvent event) {
@@ -140,14 +147,12 @@ public class ExecutorSelectionServiceImpl implements ExecutorSelectionService {
       createSelector();
     }
     eventQueue.start();
-    clusterCoordinatorProvider.get()
-        .getServiceSet(ClusterCoordinator.Role.EXECUTOR)
-        .addNodeStatusListener(nodeStatusListener);
+    execSetService.get().getExecutorSet().addNodeStatusListener(nodeStatusListener);
   }
 
   @Override
   public void close() throws Exception {
-    final ServiceSet serviceSet = clusterCoordinatorProvider.get().getServiceSet(ClusterCoordinator.Role.EXECUTOR);
+    final ListenableSet serviceSet = execSetService.get().getExecutorSet();
     if (serviceSet != null) {
       serviceSet.removeNodeStatusListener(nodeStatusListener);
     }
@@ -157,9 +162,22 @@ public class ExecutorSelectionServiceImpl implements ExecutorSelectionService {
 
   @Override
   public ExecutorSelectionHandle getAllActiveExecutors(ExecutorSelectionContext executorSelectionContext) {
-    Collection<NodeEndpoint> nodeEndpoints =
-      clusterCoordinatorProvider.get().getServiceSet(ClusterCoordinator.Role.EXECUTOR).getAvailableEndpoints();
-    return new ExecutorSelectionHandleImpl(nodeEndpoints);
+    ResourceSchedulingDecisionInfo decision = executorSelectionContext.getResourceSchedulingDecisionInfo();
+    EngineId engineId = null;
+    SubEngineId subEngineId = null;
+    if(decision != null) {
+      engineId = decision.getEngineId();
+      subEngineId = decision.getSubEngineId();
+    }
+    return new ExecutorSelectionHandleImpl(getAvailableEndpoints(engineId, subEngineId));
+  }
+
+  private ListenableSet getExecutorSet(EngineId engineId, SubEngineId subEngineId) {
+    return execSetService.get().getExecutorSet(engineId, subEngineId);
+  }
+
+  private Set<NodeEndpoint> getAvailableEndpoints(EngineId engineId, SubEngineId subEngineId) {
+    return ImmutableSet.copyOf(getExecutorSet(engineId, subEngineId).getAvailableEndpoints());
   }
 
   @Override
@@ -224,7 +242,7 @@ public class ExecutorSelectionServiceImpl implements ExecutorSelectionService {
     //              and the state below will also include the node. The node add will end up being processed twice.
     //              However, according to the guarantees in the ExecutorSelector interface, having repeated events
     //              is expected
-    Set<NodeEndpoint> currentNodes = ImmutableSet.copyOf(clusterCoordinatorProvider.get().getServiceSet(ClusterCoordinator.Role.EXECUTOR).getAvailableEndpoints());
+    Set<NodeEndpoint> currentNodes = getAvailableEndpoints(null, null);
     selector.nodesRegistered(currentNodes);
     executorSelectorProvider.setCurrentSelector(selector);
   }

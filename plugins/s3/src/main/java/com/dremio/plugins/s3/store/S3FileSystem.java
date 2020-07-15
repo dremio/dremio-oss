@@ -58,6 +58,7 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.Region;
+import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.util.Retryer;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
@@ -82,7 +83,6 @@ import com.google.common.collect.Sets;
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.client.builder.AwsClientBuilder;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -106,6 +106,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
 
   private final Retryer retryer = new Retryer.Builder()
     .retryIfExceptionOfType(SdkClientException.class)
+    .retryIfExceptionOfType(software.amazon.awssdk.core.exception.SdkClientException.class)
     .setWaitStrategy(Retryer.WaitStrategy.EXPONENTIAL, 250, 2500)
     .setMaxRetries(10).build();
 
@@ -393,7 +394,7 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
         return StaticCredentialsProvider.create(AwsBasicCredentials.create(
           config.get(Constants.ACCESS_KEY), config.get(Constants.SECRET_KEY)));
       case EC2_METADATA_PROVIDER:
-        return InstanceProfileCredentialsProvider.create();
+        return new SharedInstanceProfileCredentialsProvider();
       case NONE_PROVIDER:
         return AnonymousCredentialsProvider.create();
       case ASSUME_ROLE_PROVIDER:

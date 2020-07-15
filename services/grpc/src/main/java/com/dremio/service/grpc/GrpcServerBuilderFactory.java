@@ -15,72 +15,24 @@
  */
 package com.dremio.service.grpc;
 
-import java.util.Set;
-
-import com.dremio.telemetry.utils.GrpcTracerFacade;
-import com.dremio.telemetry.utils.TracerFacade;
-import com.google.common.collect.Sets;
-
 import io.grpc.ServerBuilder;
-import io.grpc.ServerInterceptor;
-import io.grpc.inprocess.InProcessServerBuilder;
-import io.opentracing.Tracer;
-import io.opentracing.contrib.grpc.TracingServerInterceptor;
 
 /**
- * Factory for creating gRPC ServerBuilders in services.
+ * Interface for gRPC server builder factory.
  */
-public final class GrpcServerBuilderFactory {
-
-  private final Tracer tracer;
-  private final Set<ServerInterceptor> interceptors;
-
-  public GrpcServerBuilderFactory(Tracer tracer) {
-    this(new GrpcTracerFacade((TracerFacade) tracer), Sets.newHashSet());
-  }
-
-  public GrpcServerBuilderFactory(GrpcTracerFacade tracer, Set<ServerInterceptor> interceptors) {
-    this.tracer = tracer;
-    this.interceptors = interceptors;
-  }
+public interface GrpcServerBuilderFactory {
+  /**
+   * Returns a new gRPC ServerBuilder with instrumentation.
+   */
+  ServerBuilder<?> newServerBuilder();
 
   /**
    * Returns a new gRPC ServerBuilder with instrumentation.
    */
-  public ServerBuilder<?> newServerBuilder() {
-    return newServerBuilder(0);
-  }
-
-  /**
-   * Returns a new gRPC ServerBuilder with instrumentation.
-   */
-  public ServerBuilder<?> newServerBuilder(int port) {
-    final ServerBuilder<?> builder = ServerBuilder.forPort(port);
-    addInterceptors(builder);
-    return builder;
-  }
+  ServerBuilder<?> newServerBuilder(int port);
 
   /**
    * Returns a new gRPC InProcessServerBuilder with instrumentation.
    */
-  public ServerBuilder<?> newInProcessServerBuilder(String processName) {
-    final ServerBuilder<?> builder = InProcessServerBuilder.forName(processName);
-    addInterceptors(builder);
-
-    return builder;
-  }
-
-  /* Decorates a ServerBuilder with additional interceptors.*/
-  private void addInterceptors(ServerBuilder<?> builder) {
-    final TracingServerInterceptor interceptor = TracingServerInterceptor
-      .newBuilder()
-      .withTracer(tracer)
-      .build();
-
-    builder.intercept(interceptor);
-
-    for (ServerInterceptor intercept : interceptors) {
-      builder.intercept(intercept);
-    }
-  }
+  ServerBuilder<?> newInProcessServerBuilder(String processName);
 }

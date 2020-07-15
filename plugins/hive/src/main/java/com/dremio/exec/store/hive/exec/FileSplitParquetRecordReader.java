@@ -49,6 +49,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos;
+import com.dremio.common.util.Closeable;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.record.BatchSchema;
@@ -59,9 +60,9 @@ import com.dremio.exec.store.dfs.AsyncStreamConf;
 import com.dremio.exec.store.dfs.EmptySplitReaderCreator;
 import com.dremio.exec.store.dfs.PrefetchingIterator;
 import com.dremio.exec.store.dfs.SplitReaderCreator;
-import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
 import com.dremio.exec.store.hive.BaseHiveStoragePlugin;
 import com.dremio.exec.store.hive.HiveAsyncStreamConf;
+import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.exec.store.hive.exec.dfs.DremioHadoopFileSystemWrapper;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.InputStreamProviderFactory;
@@ -212,7 +213,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
     }
     ParquetMetadata knownFooter =  currentPath.equals(lastPath) ? lastFooter : null;
 
-    try (ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+    try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       org.apache.hadoop.fs.Path finalPath  = new org.apache.hadoop.fs.Path(uri);
 
       final PrivilegedExceptionAction<FileSystem> getFsAction =
@@ -278,7 +279,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
     Preconditions.checkArgument(output instanceof SampleMutator, "Unexpected output mutator");
-    try (ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+    try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
 
       // no-op except for the first split
       this.createInputStreamProvider(null, null);

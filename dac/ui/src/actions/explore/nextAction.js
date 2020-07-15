@@ -32,7 +32,7 @@ export const performNextAction = (dataset, nextAction) => {
   case NEXT_ACTIONS.openQlik:
     return openQlikSense(dataset);
   case NEXT_ACTIONS.openPowerBI:
-    return openPowerBI();
+    return openPowerBI(dataset);
   default:
     console.error('Unknown next action', nextAction);
     return {type: 'NOP'};

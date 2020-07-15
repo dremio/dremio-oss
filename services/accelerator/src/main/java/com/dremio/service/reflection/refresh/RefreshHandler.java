@@ -17,7 +17,6 @@ package com.dremio.service.reflection.refresh;
 
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rel.RelNode;
@@ -35,9 +34,7 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.logical.WriterRel;
-import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.ExtendedToRelContext;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
@@ -48,7 +45,6 @@ import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.exec.planner.sql.parser.SqlRefreshReflection;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
@@ -68,7 +64,6 @@ import com.dremio.service.reflection.store.MaterializationStore;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Optional;
-import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -96,14 +91,9 @@ public class RefreshHandler implements SqlToPlanHandler {
         throw SqlExceptionHelper.parseError("$MATERIALIZE not supported.", sql, materialize.getParserPosition()).build(logger);
       }
 
-      final AttemptObserver observer = config.getObserver();
-
       ReflectionService service = config.getContext().getAccelerationManager().unwrap(ReflectionService.class);
 
       // Let's validate the plan.
-
-      Stopwatch watch = Stopwatch.createStarted();
-
       ReflectionId reflectionId = new ReflectionId(materialize.getReflectionId());
       Optional<ReflectionGoal> goalOpt = service.getGoal(reflectionId);
       if(!goalOpt.isPresent()) {
@@ -135,10 +125,6 @@ public class RefreshHandler implements SqlToPlanHandler {
         .build(logger);
       }
 
-      observer.planValidated(CalciteArrowHelper.wrap(RecordWriter.SCHEMA).toCalciteRecordType(config.getConverter().getCluster().getTypeFactory()), materialize, watch.elapsed(TimeUnit.MILLISECONDS));
-
-      watch.reset();
-
       final RefreshHelper helper = ((ReflectionServiceImpl) service).getRefreshHelper();
       final NamespaceService namespace = helper.getNamespace();
       final ReflectionSettings reflectionSettings = helper.getReflectionSettings();
@@ -155,8 +141,6 @@ public class RefreshHandler implements SqlToPlanHandler {
           config.getContext().getConfig(),
           reflectionSettings,
           materializationStore);
-
-      observer.planConvertedToRel(initial, watch.elapsed(TimeUnit.MILLISECONDS));
 
       final Rel drel = PrelTransformer.convertToDrel(config, initial);
       final Set<String> fields = ImmutableSet.copyOf(drel.getRowType().getFieldNames());

@@ -27,7 +27,6 @@ import java.util.stream.StreamSupport;
 
 import org.junit.Test;
 
-import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyIndexedStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -50,9 +49,7 @@ public class TestUpdatePartitionChunkIdTask extends DremioTest {
 
   @Test
   public void test() throws Exception {
-    try (final LegacyKVStoreProvider kvStoreProvider = new LegacyKVStoreProviderAdapter(
-      new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false),
-      CLASSPATH_SCAN_RESULT)) {
+    try (final LegacyKVStoreProvider kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT)){
       kvStoreProvider.start();
       final LegacyIndexedStore<String, NameSpaceContainer> namespace = kvStoreProvider.getStore(NamespaceServiceImpl.NamespaceStoreCreator.class);
       final LegacyIndexedStore<PartitionChunkId, PartitionChunk> partitionChunksStore = kvStoreProvider.getStore(NamespaceServiceImpl.PartitionChunkCreator.class);

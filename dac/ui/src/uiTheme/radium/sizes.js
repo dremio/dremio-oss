@@ -17,7 +17,7 @@
 export const HISTORY_PANEL_SIZE = 30; // this is enough space so that the scroll bar on Windows will fit
 export const TIME_DOT_DIAMETER = 8;
 export const DEFAULT_HEIGHT_SQL = 171;
-export const MARGIN_PANEL = 38;
+export const MARGIN_PANEL = 42;
 
 export const CURVINESS = 80;
 export const HISTORY_WIDTH = 55;

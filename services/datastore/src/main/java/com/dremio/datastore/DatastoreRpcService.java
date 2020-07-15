@@ -72,11 +72,12 @@ public class DatastoreRpcService {
 
   public DatastoreRpcService(Provider<NodeEndpoint> masterNode,
                              FabricService fabricService, BufferAllocator allocator,
-                             final DefaultDataStoreRpcHandler handler) throws RpcException {
+                             final DefaultDataStoreRpcHandler handler,
+                             final long timeoutInSecs) throws RpcException {
     master = masterNode;
 
     // Register endpoints for communicating with master
-    final ProtocolBuilder builder = ProtocolBuilder.builder().allocator(allocator).name("datastore-rpc").protocolId(4).timeout(10*1000);
+    final ProtocolBuilder builder = ProtocolBuilder.builder().allocator(allocator).name("datastore-rpc").protocolId(4).timeout(timeoutInSecs * 1000);
 
     getEndpointCreator = builder.register(TYPE_GET,
       new AbstractReceiveHandler<GetRequest, GetResponse>(GetRequest.getDefaultInstance(), GetResponse.getDefaultInstance()) {

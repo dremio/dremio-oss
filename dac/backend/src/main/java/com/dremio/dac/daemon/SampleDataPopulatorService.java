@@ -24,7 +24,6 @@ import com.dremio.common.AutoCloseables;
 import com.dremio.dac.model.usergroup.UserName;
 import com.dremio.dac.server.DACSecurityContext;
 import com.dremio.dac.server.test.SampleDataPopulator;
-import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.reflection.ReflectionServiceHelper;
 import com.dremio.dac.service.source.SourceService;
@@ -37,6 +36,7 @@ import com.dremio.service.InitializerRegistry;
 import com.dremio.service.Service;
 import com.dremio.service.jobs.JobsService;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.users.SystemUser;
 import com.dremio.service.users.UserService;
 
@@ -50,9 +50,7 @@ public class SampleDataPopulatorService implements Service {
   private final Provider<InitializerRegistry> init;
   private final Provider<JobsService> jobsService;
   private final Provider<CatalogService> catalogService;
-  private final Provider<ReflectionServiceHelper> reflectionHelper;
   private final Provider<ConnectionReader> connectionReader;
-  private final Provider<CollaborationHelper> collaborationService;
   private final Provider<OptionManager> optionManager;
 
   private SampleDataPopulator sample;
@@ -67,9 +65,7 @@ public class SampleDataPopulatorService implements Service {
     Provider<InitializerRegistry> init,
     Provider<JobsService> jobsService,
     Provider<CatalogService> catalogService,
-    Provider<ReflectionServiceHelper> reflectionHelper,
     Provider<ConnectionReader> connectionReader,
-    Provider<CollaborationHelper> collaborationService,
     Provider<OptionManager> optionManager,
     boolean prepopulate,
     boolean addDefaultUser) {
@@ -79,9 +75,7 @@ public class SampleDataPopulatorService implements Service {
     this.init = init;
     this.jobsService = jobsService;
     this.catalogService = catalogService;
-    this.reflectionHelper = reflectionHelper;
     this.connectionReader = connectionReader;
-    this.collaborationService = collaborationService;
     this.optionManager = optionManager;
     this.prepopulate = prepopulate;
     this.addDefaultUser = addDefaultUser;
@@ -101,10 +95,12 @@ public class SampleDataPopulatorService implements Service {
     }
 
     if (prepopulate) {
+      final ReflectionServiceHelper reflectionServiceHelper = new SampleReflectionServiceHelper(ns, kvStore);
+
       final DatasetVersionMutator data = new DatasetVersionMutator(init.get(), kv, ns, jobsService.get(),
         catalogService.get(), optionManager.get());
       SecurityContext context = new DACSecurityContext(new UserName(SystemUser.SYSTEM_USERNAME), SystemUser.SYSTEM_USER, null);
-      final SourceService ss = new SourceService(ns, data, catalogService.get(), reflectionHelper.get(), collaborationService.get(), connectionReader.get(), context);
+      final SourceService ss = new SourceService(ns, data, catalogService.get(), reflectionServiceHelper, null, connectionReader.get(), context);
       sample = new SampleDataPopulator(
           contextProvider.get(),
           ss,
@@ -121,5 +117,24 @@ public class SampleDataPopulatorService implements Service {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(sample);
+  }
+
+  /**
+   * ReflectionServiceHelper for SampleDataPopulator.  All it needs is retrieving of ReflectionSettings.
+   */
+  class SampleReflectionServiceHelper extends ReflectionServiceHelper {
+    private final NamespaceService namespace;
+    private final Provider<LegacyKVStoreProvider> storeProvider;
+
+    public SampleReflectionServiceHelper(NamespaceService namespace, Provider<LegacyKVStoreProvider> storeProvider) {
+      super(null, null);
+      this.namespace = namespace;
+      this.storeProvider = storeProvider;
+    }
+
+    @Override
+    public ReflectionSettings getReflectionSettings() {
+      return new ReflectionSettings(() -> namespace, storeProvider);
+    }
   }
 }

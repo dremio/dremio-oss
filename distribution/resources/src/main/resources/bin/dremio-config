@@ -262,6 +262,84 @@ if [ "$DREMIO_FORCE_UTC" != "no" ]; then
   export TZ=UTC
 fi
 
+print_warn() {
+  echo "#######################################################################"
+  echo "WARNING:"
+  echo ""
+  echo "$1"
+  echo ""
+  echo "#######################################################################"
+}
+
+print_error() {
+  echo "#######################################################################"
+  echo "ERROR:"
+  echo ""
+  echo "$1"
+  echo ""
+  echo "#######################################################################"
+}
+
+are_gcoptions_conflicting() {
+  if [[ "$DREMIO_JAVA_SERVER_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS" == *"${1}"* ]]; then
+    return 1; # false
+  fi
+  if [[ "$DREMIO_JAVA_SERVER_EXTRA_OPTS $DREMIO_JAVA_EXTRA_OPTS" == *-XX:+Use*GC* ]]; then
+    return 0; # true
+  fi
+  return 1; # false
+}
+
+check_gc_options_before_start() {
+  if [ -z "$DREMIO_GC_OPTS" ]; then
+    # Case: DREMIO_GC_OPTS is not set by user.
+    # Make G1GC as default GC. This can be overridden
+    # by editing DREMIO_GC_OPTS in conf/dremio-env
+    DREMIO_GC_OPTS="-XX:+UseG1GC"
+
+    # check if above DREMIO_GC_OPTS is conflicting with other options
+    if are_gcoptions_conflicting $DREMIO_GC_OPTS; then
+
+      print_warn "\
+The default GC option ($DREMIO_GC_OPTS) is conflicting with existing options \
+DREMIO_JAVA_SERVER_EXTRA_OPTS ($DREMIO_JAVA_SERVER_EXTRA_OPTS) and/or \
+DREMIO_JAVA_EXTRA_OPTS ($DREMIO_JAVA_EXTRA_OPTS). \
+So the default GC option ($DREMIO_GC_OPTS) is not used."
+
+      DREMIO_GC_OPTS=""
+    fi
+
+  else
+    # Case: DREMIO_GC_OPTS is set by user
+    # check if DREMIO_GC_OPTS is conflicting with other options
+    if are_gcoptions_conflicting $DREMIO_GC_OPTS; then
+      print_error "\
+The DREMIO_GC_OPTS ($DREMIO_GC_OPTS) set in dremio-env (or environment variable) \
+is conflicting with existing options DREMIO_JAVA_SERVER_EXTRA_OPTS ($DREMIO_JAVA_SERVER_EXTRA_OPTS) and/or \
+DREMIO_JAVA_EXTRA_OPTS ($DREMIO_JAVA_EXTRA_OPTS). \
+Please fix the options to be consistent."
+
+      exit 1;
+    fi
+
+  fi
+}
+
+startStopStatus=$1
+case $startStopStatus in
+
+(start)
+  check_gc_options_before_start
+  ;;
+
+(start-fg)
+  check_gc_options_before_start
+  ;;
+
+(*)
+  ;;
+esac
+
 # make sure allocator chunks are done as mmap'd memory (and reduce arena overhead)
 # Newer versions of glibc use an arena memory allocator that causes virtual
 # memory usage to explode. Tune the variable down to prevent vmem explosion.
@@ -285,3 +363,4 @@ export DREMIO_MAX_HEAP_MEMORY_SIZE_MB
 export DREMIO_MAX_DIRECT_MEMORY_SIZE_MB
 export DREMIO_ADMIN_LOG_DIR
 export DREMIO_ADMIN_LOG_VERBOSITY
+export DREMIO_GC_OPTS

@@ -33,7 +33,20 @@ public class TestLocalOCCKVStore<K, V> extends AbstractLegacyTestOCCKVStore<K, V
 
   @Override
   public LegacyKVStoreProvider createProvider() {
-    return new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT,
-      tmpFolder.getRoot().toString(), true, true).asLegacy();
+    final LocalKVStoreProvider underlyingProvider = new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT,
+        tmpFolder.getRoot().toString(), true, true);
+      return new LegacyKVStoreProviderAdapter(underlyingProvider) {
+        @Override
+        public void start() throws Exception {
+          underlyingProvider.start();
+          super.start();
+        };
+
+        @Override
+        public void close() throws Exception {
+          super.close();
+          underlyingProvider.close();
+        };
+      };
   }
 }

@@ -15,7 +15,7 @@
  */
 package com.dremio.dac.explore.model;
 
-import static com.dremio.service.jobs.RecordBatchHolder.newRecordBatchHolder;
+import static com.dremio.exec.record.RecordBatchHolder.newRecordBatchHolder;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -57,6 +57,8 @@ import org.apache.arrow.vector.complex.impl.UnionListWriter;
 import org.apache.arrow.vector.complex.impl.UnionWriter;
 import org.apache.arrow.vector.complex.writer.BaseWriter.StructWriter;
 import org.apache.arrow.vector.complex.writer.VarCharWriter;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.DecimalUtility;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.AfterClass;
@@ -74,10 +76,10 @@ import com.dremio.dac.model.job.JobDataFragmentWrapper.JobDataFragmentSerializer
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.RecordBatchData;
+import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobDataFragmentImpl;
-import com.dremio.service.jobs.RecordBatchHolder;
 import com.dremio.service.jobs.RecordBatches;
 import com.dremio.test.AllocatorRule;
 import com.dremio.test.DremioTest;
@@ -789,7 +791,7 @@ public class TestData extends DremioTest {
   }
 
   private static Pair<NonNullableStructVector, ResultVerifier> testMapVector(final int startIndexInCurrentOutput, final int startIndexInJob) {
-    NonNullableStructVector colStructV = new NonNullableStructVector("colMap", allocator, null);
+    NonNullableStructVector colStructV = new NonNullableStructVector("colMap", allocator, new FieldType(false, ArrowType.Struct.INSTANCE, null),null);
 
     ComplexWriterImpl structWriter = new ComplexWriterImpl("colMap", colStructV);
 

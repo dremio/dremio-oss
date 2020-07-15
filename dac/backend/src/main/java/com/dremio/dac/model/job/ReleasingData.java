@@ -24,10 +24,10 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.record.RecordBatchData;
+import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobDataFragmentImpl;
-import com.dremio.service.jobs.RecordBatchHolder;
 import com.dremio.service.jobs.RecordBatches;
 
 /**

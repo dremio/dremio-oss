@@ -69,6 +69,11 @@ public class ZKClusterCoordinator extends ClusterCoordinator {
     return zkClient;
   }
 
+  @VisibleForTesting
+  public void setPortProvider(Provider<Integer> portProvider) {
+    this.zkClient.setPortProvider(portProvider);
+  }
+
   @Override
   public void start() throws Exception {
     zkClient.start();

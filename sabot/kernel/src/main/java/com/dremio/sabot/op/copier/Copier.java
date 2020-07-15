@@ -26,4 +26,13 @@ public interface Copier extends AutoCloseable {
 
   public void setupRemover(FunctionContext context, VectorAccessible incoming, VectorAccessible outgoing) throws SchemaChangeException;
   public abstract int copyRecords(int index, int recordCount);
+
+  default long getOOMCountDuringAllocation() {
+    return 0;
+  }
+
+  default void setAllocationDensity(double density) {}
+  default long getOOMCountDuringCopy() {
+    return 0;
+  }
 }

@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -91,6 +92,7 @@ import org.apache.calcite.util.Pair;
 
 import com.dremio.common.dialect.DremioSqlDialect;
 import com.dremio.common.dialect.arp.transformer.CallTransformer;
+import com.dremio.common.rel2sql.utilities.OrderByAliasProcessor;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.ProjectRel;
@@ -1269,40 +1271,13 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
 
           if (node.getKind() == SqlKind.AS && pushUpOrderList != null) {
             // Update the referenced tables of the ORDER BY list to use the alias of the sub-select.
-            final String selectAlias = SqlValidatorUtil.getAlias(node, -1);
-            SqlNodeList updatedNodeList = new SqlNodeList(pushUpOrderList.getParserPosition());
-            for (SqlNode orderNode : pushUpOrderList.getList()) {
-              SqlBasicCall parent = null;
-              SqlNode child = orderNode;
-              if (child.getKind() == SqlKind.NULLS_FIRST ||
-                child.getKind() == SqlKind.NULLS_LAST) {
-                parent = (SqlBasicCall) child;
-                child = parent.operand(0);
-              }
 
-              if (child.getKind() == SqlKind.DESCENDING) {
-                parent = (SqlBasicCall) child;
-                child = parent.operand(0);
-              }
+            List<SqlNode> selectList = (selectClause.getSelectList() == null)?
+              Collections.emptyList() : selectClause.getSelectList().getList();
 
-              if (child.getKind() == SqlKind.IDENTIFIER) {
-                final SqlIdentifier identifier = (SqlIdentifier) child.clone(child.getParserPosition());
-
-                // Must make a copy.
-                final List<String> names = new ArrayList<>();
-                names.add(selectAlias);
-                names.add(identifier.names.get(identifier.names.size() - 1));
-                identifier.setNames(names, null);
-
-                if (parent != null) {
-                  parent.setOperand(0, identifier);
-                }
-              }
-
-              updatedNodeList.add(orderNode);
-            }
-
-            pushUpOrderList = updatedNodeList;
+            OrderByAliasProcessor processor = new OrderByAliasProcessor(
+              pushUpOrderList, SqlValidatorUtil.getAlias(node, -1), selectList);
+            pushUpOrderList = processor.processOrderBy();
           }
         }
       }

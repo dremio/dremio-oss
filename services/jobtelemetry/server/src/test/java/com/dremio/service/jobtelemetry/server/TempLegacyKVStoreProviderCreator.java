@@ -15,14 +15,10 @@
  */
 package com.dremio.service.jobtelemetry.server;
 
-import java.io.IOException;
-
-import org.junit.rules.TemporaryFolder;
-
 import com.dremio.common.config.SabotConfig;
 import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 
 /**
@@ -32,23 +28,15 @@ public final class TempLegacyKVStoreProviderCreator {
   public static final SabotConfig DEFAULT_SABOT_CONFIG = SabotConfig.forClient();
   public static final ScanResult CLASSPATH_SCAN_RESULT =
     ClassPathScanner.fromPrescan(DEFAULT_SABOT_CONFIG);
-  private final TemporaryFolder kvFolder = new TemporaryFolder();
-  private LegacyKVStoreProvider kvStoreProvider;
 
-  private TempLegacyKVStoreProviderCreator() throws IOException {
-    kvFolder.create();
-    kvStoreProvider = new LocalKVStoreProvider(
-      CLASSPATH_SCAN_RESULT,
-      kvFolder.newFolder().getPath(),
-      true /*inMemory*/,
-      false /*timed*/).asLegacy();
+  private TempLegacyKVStoreProviderCreator() {
   }
 
   public static LegacyKVStoreProvider create() {
     try {
-      TempLegacyKVStoreProviderCreator creator = new TempLegacyKVStoreProviderCreator();
-      creator.kvStoreProvider.start();
-      return creator.kvStoreProvider;
+      LegacyKVStoreProvider kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
+      kvStoreProvider.start();
+      return kvStoreProvider;
     } catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {

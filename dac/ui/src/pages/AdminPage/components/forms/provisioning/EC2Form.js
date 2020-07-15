@@ -30,17 +30,20 @@ import { loadAwsDefaults } from '@app/actions/resources/provisioning';
 import { getAwsDefaults } from '@app/selectors/provision';
 import {
   isEditMode,
-  isRestartRequired,
+  isRestartRequired
+} from '@app/pages/AdminPage/components/forms/provisioning/provisioningFormUtil';
+import {
   getInitValuesFromProvision,
   prepareProvisionValuesForSave
-} from '@app/pages/AdminPage/components/forms/provisioning/provisioningFormUtil';
+} from 'dyn-load/pages/AdminPage/components/forms/provisioning/provisioningFormUtil';
 
 const FUNCTIONAL_ELEMENTS_EMPTY = [];
 
 function getInitialValues(provision, awsDefaults) {
   const initValuesFromVlh = getInitValuesFromVlh();
   if (awsDefaults) {
-    getInitValuesFromProvision(awsDefaults, initValuesFromVlh); //mutates 2nd arg
+    //mutates 2nd arg; last arg isDefault
+    getInitValuesFromProvision(awsDefaults, initValuesFromVlh, true);
   }
   if (provision && provision.size) {
     const initValuesFromProvision = getInitValuesFromProvision(provision);
@@ -52,10 +55,7 @@ function getInitialValues(provision, awsDefaults) {
 function validate(values) {
   let validators = {...applyValidators(values, [
     isRequired('name', la('Name')),
-    isRequired('containerCount', la('Instance Count')),
-    isRequired('sshKeyName', la('SSH Key Name')),
-    isRequired('nodeIamInstanceProfile', la('IAM Role for S3 Access')),
-    isRequired('securityGroupId', la('Security Group ID'))
+    isRequired('sshKeyName', la('SSH Key Name'))
   ])};
   if (values.authMode === 'SECRET') {
     validators = {

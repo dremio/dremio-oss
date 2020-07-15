@@ -32,15 +32,18 @@ export default class CheckboxWrapper extends Component {
 
   render() {
     const {elementConfig, field} = this.props;
-    const isDisabled = (elementConfig.getConfig().disabled || this.props.disabled) ? {disabled: true} : null;
-    const isInverted = (elementConfig.getConfig().inverted) ? {inverted: true} : null;
-    const tooltip = elementConfig.getConfig().tooltip;
+    const config = elementConfig.getConfig();
+    const isDisabled = (config.disabled || this.props.disabled) ? {disabled: true} : null;
+    const isInverted = (config.inverted) ? {inverted: true} : null;
+    const tooltip = config.tooltip;
     return (
       <div className={flexContainer}>
         <Checkbox className={checkboxStandalone}
           {...field}
           {...isDisabled}
           {...isInverted}
+          isOnOffSwitch={config.isOnOffSwitch}
+          labelBefore={config.labelBefore}
           label={elementConfig.getConfig().label}/>
         {tooltip &&
         <HoverHelp content={tooltip} className={tooltipIcon}/>

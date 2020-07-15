@@ -30,6 +30,7 @@ export const NAS = 'NAS';
 export const ORACLE = 'ORACLE';
 export const POSTGRESQL = 'POSTGRES';
 export const ADL = 'ADL';
+export const AWSGLUE = 'AWSGLUE';
 
 // These are not implemented in the backend yet.
 export const CASSANDRA = 'CASSANDRA';
@@ -53,7 +54,8 @@ export const sourceProperties = [
   {label: 'NAS', sourceType: NAS},
   {label: 'Oracle', sourceType: ORACLE},
   {label: 'PostgreSQL', sourceType: POSTGRESQL},
-  {label: 'Azure Data Lake Store', sourceType: ADL, beta: true}
+  {label: 'Azure Data Lake Store', sourceType: ADL, beta: true},
+  {label: 'AWS Glue Catalog', sourceType: AWSGLUE, beta: true}
 ];
 
 export const SHARING_TAB_JSON_TEMPLATE = {};

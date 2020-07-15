@@ -41,9 +41,9 @@ import com.dremio.dac.model.job.JobDataFragmentWrapper.JobDataFragmentSerializer
 import com.dremio.dac.proto.model.dataset.DataType;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchData;
+import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.store.EventBasedRecordWriter;
 import com.dremio.service.job.proto.JobId;
-import com.dremio.service.jobs.RecordBatchHolder;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;

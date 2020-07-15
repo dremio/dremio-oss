@@ -39,6 +39,8 @@ public interface ClusterResponse {
   @NotNull
   ClusterState getCurrentState();
 
+  Long getStateChangeTime();
+
   @NotNull
   ClusterType getClusterType();
 

@@ -20,6 +20,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -50,7 +51,6 @@ import com.dremio.connector.metadata.GetMetadataOption;
 import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
-import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
@@ -101,14 +101,13 @@ public class TestFailedToStartPlugin extends DremioTest {
   private NamespaceService mockNamespaceService;
   private DatasetListingService mockDatasetListingService;
   private SourceConfig mockUpConfig;
+  private final MetadataRefreshInfoBroadcaster broadcaster = mock(MetadataRefreshInfoBroadcaster.class);
 
   private static final String MOCK_UP = "mockup-failed-to-start";
 
   @Before
   public void setup() throws Exception {
-    storeProvider = new LegacyKVStoreProviderAdapter(
-      new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false),
-      CLASSPATH_SCAN_RESULT);
+    storeProvider = LegacyKVStoreProviderAdapter.inMemory(CLASSPATH_SCAN_RESULT);
     storeProvider.start();
     mockNamespaceService = mock(NamespaceService.class);
     mockDatasetListingService = mock(DatasetListingService.class);
@@ -198,6 +197,7 @@ public class TestFailedToStartPlugin extends DremioTest {
 
       }
     };
+    doNothing().when(broadcaster).communicateChange(any());
 
   }
 
@@ -223,7 +223,11 @@ public class TestFailedToStartPlugin extends DremioTest {
    */
   private static void waitForRefresh(InvocationCounter counter) throws Exception {
     long initialCount = counter.getCount();
+    Stopwatch watch = Stopwatch.createStarted();
     while (counter.getCount() <= initialCount + 3) {
+      if (watch.elapsed(TimeUnit.SECONDS) > 5) {
+        throw new Exception("Wait for refresh timed out! Limit is 5 seconds.");
+      }
       Thread.sleep(1);
     }
   }
@@ -232,14 +236,15 @@ public class TestFailedToStartPlugin extends DremioTest {
     long initialCount = counter.getCount();
     Stopwatch watch = Stopwatch.createStarted();
     while (watch.elapsed(TimeUnit.SECONDS) < 3) {
-      assertEquals(initialCount, counter.getCount());
+      assertEquals("Expect no refresh! ", initialCount, counter.getCount());
       Thread.sleep(1);
     }
     watch.stop();
   }
 
   /**
-   * When plugin fails to start, no background refresh.
+   * When a StoragePlugin fails with exception at PluginManager start,
+   * test if wakeup task is running and there is no background refresh.
    */
   @Test
   public void testFailedToStart() throws Exception {
@@ -260,24 +265,17 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
-      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor)) {
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster)) {
 
-      // test if StoragePlugin fails to start
-      // SourceMetadataManager will be closed and wakeup task will be cancelled, so no background refresh
       mockUpPlugin.setThrowAtStart();
       assertEquals(0, mockUpPlugin.getNumFailedStarts());
       plugins.start();
       // mockUpPlugin should be failing over and over right around now
+      waitForRefresh(wakeupCounter);
       confirmNoRefresh(refreshCounter);
-      assertTrue(wakeupCounter.getCount() > 0); // most likely wakeupCounter.getCount() == 1
       long currNumFailedStarts = mockUpPlugin.getNumFailedStarts();
       assertTrue(currNumFailedStarts > 1);
-
-      // test if StoragePlugin successfully starts
       mockUpPlugin.unsetThrowAtStart();
-      final String mockUpName = MOCK_UP + "2";
-      mockUpConfig.setName(mockUpName);
-      plugins.create(mockUpConfig, mockUpName, null);
       waitForRefresh(refreshCounter);
       currNumFailedStarts = mockUpPlugin.getNumFailedStarts();
       waitForRefresh(refreshCounter);
@@ -286,9 +284,9 @@ public class TestFailedToStartPlugin extends DremioTest {
   }
 
   /**
-   * If StoragePlugin starts with bad state, background refresh won't happen.
-   * If StoragePlugin starts with healthy state and later goes down, background refresh should be running and
-   * getting datasets should fail.
+   * If StoragePlugin is in bad state when PluginsManager starts (during dremio
+   * startup), SourceMetadataManager should be performing a wakeup task
+   * periodically to refresh source state. (DX-23880)
    */
   @Test
   public void testBadSourceAtStart() throws Exception {
@@ -310,44 +308,118 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
-      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor)) {
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster)) {
 
-      // Setting bad state at start will close SourceMetadataManager
-      // and wakeup task will be cancelled, no background refresh
+      // Setting bad state (eg. offline) at start, wakeup task should be running and no metadata refresh due to bad state
       mockUpPlugin.setSimulateBadState(true);
       assertFalse(mockUpPlugin.gotDatasets());
       plugins.start();
+      waitForRefresh(wakeupCounter);
       confirmNoRefresh(refreshCounter);
-      assertTrue(wakeupCounter.getCount() > 0); // most likely wakeupCounter.getCount() == 1
       assertFalse(mockUpPlugin.gotDatasets());
 
-      // healthy state at start
+      // the source state becomes good (eg. online)
       mockUpPlugin.setSimulateBadState(false);
-      final String mockUpName = MOCK_UP + "2";
+      // Give metadata refresh a chance to run again
+      waitForRefresh(refreshCounter);
+      assertTrue(mockUpPlugin.gotDatasets());
+      mockUpPlugin.unsetGotDatasets();
+      waitForRefresh(refreshCounter);
+      assertTrue(mockUpPlugin.gotDatasets());
+    }
+  }
+
+  /**
+   * After create a StoragePlugin successfully, if it becomes offline, there
+   * should be a periodic wakeup task to refresh the state.
+   */
+  @Test
+  public void testGoodSourceAtCreateThenBecomesBad() throws Exception {
+    InvocationCounter refreshCounter = new InvocationCounter();
+    InvocationCounter wakeupCounter = new InvocationCounter();
+    CatalogServiceMonitor monitor = new CatalogServiceMonitor() {
+      @Override
+      public void startBackgroundRefresh() {
+        refreshCounter.incrementCount();
+      }
+
+      @Override
+      public void onWakeup() {
+        wakeupCounter.incrementCount();
+      }
+    };
+
+    LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
+
+    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
+      EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster)) {
+
+      // create a source with healthy state
+      mockUpPlugin.setSimulateBadState(false);
+      final String mockUpName = "mockup-source-turns-bad";
       mockUpConfig.setName(mockUpName);
       plugins.create(mockUpConfig, mockUpName, null);
-      // metadata background refresh should be running right now
       waitForRefresh(wakeupCounter);
-      assertTrue(mockUpPlugin.gotDatasets());
-
+      // metadata background refresh should be running right now
       // test metadata background refresh is happening
       mockUpPlugin.unsetGotDatasets();
       waitForRefresh(refreshCounter);
       assertTrue(mockUpPlugin.gotDatasets());
 
-      // test if source does down
+      // if source goes down
       mockUpPlugin.setSimulateBadState(true);
       // skipping metadata background refresh because source is in bad state
+      // SourceMetadataManager should be doing wakeup task now
+      waitForRefresh(wakeupCounter);
       confirmNoRefresh(refreshCounter);
-      assertTrue(mockUpPlugin.gotDatasets()); // because refreshDatasetNames is not run
 
-      // test if source is up again
+      // if source is up again
       mockUpPlugin.unsetGotDatasets(); // reset
       mockUpPlugin.setSimulateBadState(false);
       // Give metadata refresh a chance to run again
-      waitForRefresh(wakeupCounter);
+      waitForRefresh(refreshCounter);
       assertTrue(mockUpPlugin.gotDatasets());
+    }
+  }
 
+  /**
+   * When create a StoragePlugin with bad state, SourceMetadataManager should be closed
+   * so that ManagedStoragePlugin can be cleaned up after creation fails. (DX-22002)
+   * In this case, no more wakeup task and no more background refresh.
+   */
+  @Test
+  public void testBadSourceAtCreate() throws Exception {
+    InvocationCounter refreshCounter = new InvocationCounter();
+    InvocationCounter wakeupCounter = new InvocationCounter();
+    CatalogServiceMonitor monitor = new CatalogServiceMonitor() {
+      @Override
+      public void startBackgroundRefresh() {
+        refreshCounter.incrementCount();
+      }
+
+      @Override
+      public void onWakeup() {
+        wakeupCounter.incrementCount();
+      }
+    };
+
+    LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
+
+    try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
+      EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster)) {
+
+      // add a source with bad state, SourceMetadataManager should be closed and no wakeup task
+      mockUpPlugin.setSimulateBadState(true);
+      final String mockUpName = "mockup-bad-source";
+      mockUpConfig.setName(mockUpName);
+      try {
+        plugins.create(mockUpConfig, mockUpName, null);
+      } catch (UserException expected) {
+        confirmNoRefresh(wakeupCounter);
+        confirmNoRefresh(refreshCounter);
+      }
     }
   }
 

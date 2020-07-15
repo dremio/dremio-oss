@@ -18,6 +18,7 @@ package com.dremio.service.jobs;
 import java.util.List;
 
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.service.job.proto.JobId;
 
 /**

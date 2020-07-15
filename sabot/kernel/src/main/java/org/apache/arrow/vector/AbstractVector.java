@@ -17,8 +17,8 @@
 package org.apache.arrow.vector;
 
 import org.apache.arrow.memory.ArrowBuf;
-import org.apache.arrow.memory.BaseAllocator;
 import org.apache.arrow.memory.BufferAllocator;
+import org.apache.arrow.memory.util.CommonUtil;
 import org.apache.arrow.vector.util.OversizedAllocationException;
 
 import com.google.common.base.Preconditions;
@@ -106,7 +106,7 @@ public abstract class AbstractVector implements AutoCloseable {
     }
 
     long newAllocationSize = baseSize * 2L;
-    newAllocationSize = BaseAllocator.nextPowerOfTwo(newAllocationSize);
+    newAllocationSize = CommonUtil.nextPowerOfTwo(newAllocationSize);
     if(newAllocationSize > (long)MAX_ALLOCATION_SIZE) {
       throw new OversizedAllocationException("Unable to expand the buffer. Max allowed buffer size is reached.");
     } else {

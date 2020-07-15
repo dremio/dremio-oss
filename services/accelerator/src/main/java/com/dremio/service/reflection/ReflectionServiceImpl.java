@@ -489,9 +489,9 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         .setId(id.getId())
         .setName(name)
         .setQueryDatasetId(datasetConfig.getId().getId())
-        .setQueryDatasetHash(computeDatasetHash(datasetConfig, namespaceService.get()))
+        .setQueryDatasetHash(computeDatasetHash(datasetConfig, namespaceService.get(), false))
         .setTargetDatasetId(targetDatasetConfig.getId().getId())
-        .setTargetDatasetHash(computeDatasetHash(targetDatasetConfig, namespaceService.get()));
+        .setTargetDatasetHash(computeDatasetHash(targetDatasetConfig, namespaceService.get(), false));
 
       // check that we are able to get a MaterializationDescriptor before storing it
       MaterializationDescriptor descriptor = ReflectionUtils.getMaterializationDescriptor(externalReflection, namespaceService.get());

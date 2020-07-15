@@ -25,6 +25,7 @@ import org.apache.arrow.vector.FieldVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.writer.BaseWriter.ComplexWriter;
+import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 import org.apache.arrow.vector.util.CallBack;
@@ -108,7 +109,7 @@ public class VectorContainerWriter extends AbstractFieldWriter implements Comple
   private class SpecialStructVector extends NonNullableStructVector {
 
     public SpecialStructVector(BufferAllocator allocator, CallBack callback) {
-      super("", allocator, callback);
+      super("", allocator, new FieldType(false, ArrowType.Struct.INSTANCE, null, null), callback);
     }
 
     @Override

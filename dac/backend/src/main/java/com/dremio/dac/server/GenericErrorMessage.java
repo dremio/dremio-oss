@@ -29,7 +29,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 public class GenericErrorMessage {
 
-  public static final String GENERIC_ERROR_MSG = "Something went wrong";
+  public static final String GENERIC_ERROR_MSG = "Something went wrong. "
+    + "Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html";
   public static final String NO_USER_MSG = "No User Available";
 
   private final String errorMessage;

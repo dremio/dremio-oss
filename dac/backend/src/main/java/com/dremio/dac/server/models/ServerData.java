@@ -41,6 +41,7 @@ public class ServerData {
   private final String clusterId;
   private final VersionInfo versionInfo;
   private final String edition;
+  private final AnalyzeTools analyzeTools;
 
   protected ServerData(Builder builder) {
     this.serverEnvironment = builder.serverEnvironment;
@@ -60,6 +61,7 @@ public class ServerData {
     this.clusterId = builder.clusterId;
     this.versionInfo = builder.versionInfo;
     this.edition = builder.edition;
+    this.analyzeTools = builder.analyzeTools;
   }
 
   public String getServerEnvironment() {
@@ -130,6 +132,10 @@ public class ServerData {
     return edition;
   }
 
+  public AnalyzeTools getAnalyzeTools() {
+    return analyzeTools;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -159,9 +165,9 @@ public class ServerData {
     private String clusterId;
     private VersionInfo versionInfo;
     private String edition;
+    private AnalyzeTools analyzeTools;
 
     protected Builder() {
-
     }
 
     protected Builder(Builder builder) {
@@ -182,6 +188,7 @@ public class ServerData {
       this.clusterId = builder.clusterId;
       this.versionInfo = builder.versionInfo;
       this.edition = builder.edition;
+      this.analyzeTools = builder.analyzeTools;
     }
 
     public Builder setServerEnvironment(String serverEnvironment) {
@@ -266,6 +273,11 @@ public class ServerData {
 
     public Builder setEdition(String edition) {
       this.edition = edition;
+      return this;
+    }
+
+    public Builder setAnalyzeTools(AnalyzeTools analyzeTools) {
+      this.analyzeTools = analyzeTools;
       return this;
     }
 

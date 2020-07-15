@@ -58,4 +58,6 @@ public interface ReflectionOptions {
   PositiveLongValidator COMPACTION_TRIGGER_FILE_SIZE = new PositiveLongValidator("reflection.compaction.trigger.file_size_mb", Long.MAX_VALUE/(1024*1024), 16);
   // Enable caching of reflection whose dist storage is in cloud ( S3, AzureDataLake, AzureFileSystem)
   BooleanValidator CLOUD_CACHING_ENABLED = new BooleanValidator("reflection.cloud.cache.enabled", true);
+  // If disabled, only vds schema and expanded sql definition will be considered when deciding to do an incremental refresh
+  BooleanValidator STRICT_INCREMENTAL_REFRESH = new BooleanValidator("reflection.manager.strict_incremental_refresh.enabled", false);
 }

@@ -86,7 +86,7 @@ class ZKClusterClient implements com.dremio.service.Service {
   private SabotConfig config;
   private final String connect;
   private String connectionString;
-  private final Provider<Integer> localPortProvider;
+  private Provider<Integer> localPortProvider;
   private volatile boolean closed = false;
   private final CoordinatorLostHandle connectionLostHandler;
 
@@ -176,6 +176,11 @@ class ZKClusterClient implements com.dremio.service.Service {
   @VisibleForTesting
   String getConnectionString() {
     return connectionString;
+  }
+
+  @VisibleForTesting
+  public void setPortProvider(Provider<Integer> portProvider) {
+    this.localPortProvider = portProvider;
   }
 
   @Override

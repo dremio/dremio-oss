@@ -30,6 +30,7 @@ import org.apache.arrow.memory.BufferAllocator;
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.VM;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
@@ -232,6 +233,7 @@ public class ContextService implements Service, Provider<SabotContext> {
       .setMaxDirectMemory(VM.getMaxDirectMemory())
       .setAvailableCores(VM.availableProcessors())
       .setRoles(ClusterCoordinator.Role.toEndpointRoles(roles))
+      .setDremioVersion(DremioVersionInfo.getVersion())
       .setNodeTag(bootstrapContext.getDremioConfig().getString(DremioConfig.NODE_TAG));
 
     if (engineIdProvider != null && engineIdProvider.get() != null) {

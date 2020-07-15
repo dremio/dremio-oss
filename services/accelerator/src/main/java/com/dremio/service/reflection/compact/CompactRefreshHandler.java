@@ -19,7 +19,6 @@ import static com.dremio.exec.planner.acceleration.IncrementalUpdateUtils.UPDATE
 
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,10 +40,8 @@ import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.ScreenRel;
 import com.dremio.exec.planner.logical.WriterRel;
-import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.physical.PlannerSettings;
 import com.dremio.exec.planner.physical.Prel;
-import com.dremio.exec.planner.sql.CalciteArrowHelper;
 import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
@@ -55,7 +52,6 @@ import com.dremio.exec.planner.sql.handlers.direct.SqlNodeUtil;
 import com.dremio.exec.planner.sql.handlers.query.SqlToPlanHandler;
 import com.dremio.exec.planner.sql.parser.PartitionDistributionStrategy;
 import com.dremio.exec.planner.sql.parser.SqlCompactMaterialization;
-import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
@@ -72,7 +68,6 @@ import com.dremio.service.reflection.proto.Refresh;
 import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Optional;
-import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -115,12 +110,9 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
           .build(logger);
       }
 
-      final AttemptObserver observer = config.getObserver();
       ReflectionService service = config.getContext().getAccelerationManager().unwrap(ReflectionService.class);
 
       // Let's validate the plan.
-      Stopwatch watch = Stopwatch.createStarted();
-
       final List<String> materializationPath = normalizeComponents(compact.getMaterializationPath());
       if (materializationPath == null) {
         throw SqlExceptionHelper.parseError("Unknown materialization", sql, compact.getParserPosition())
@@ -160,16 +152,10 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
       }
       final Materialization newMaterialization = newMaterializationOpt.get();
 
-      observer.planValidated(CalciteArrowHelper.wrap(RecordWriter.SCHEMA).toCalciteRecordType(config.getConverter().getCluster().getTypeFactory()), compact, watch.elapsed(TimeUnit.MILLISECONDS));
-
-      watch.reset();
-
       final List<String> tableSchemaPath = ReflectionUtils.getMaterializationPath(materialization);
 
       final PlanNormalizer planNormalizer = new PlanNormalizer(config);
       final RelNode initial = getPlan(config, tableSchemaPath, planNormalizer);
-
-      observer.planConvertedToRel(initial, watch.elapsed(TimeUnit.MILLISECONDS));
 
       final Rel drel = PrelTransformer.convertToDrel(config, initial);
       final Set<String> fields = ImmutableSet.copyOf(drel.getRowType().getFieldNames());

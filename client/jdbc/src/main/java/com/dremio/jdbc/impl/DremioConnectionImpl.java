@@ -576,13 +576,7 @@ class DremioConnectionImpl extends AvaticaConnection
 
   @Override
   public boolean isValid(int timeout) throws SQLException {
-    throwIfClosed();
-    try {
-      return super.isValid(timeout);
-    }
-    catch (UnsupportedOperationException e) {
-      throw new SQLFeatureNotSupportedException(e.getMessage(), e);
-    }
+    return super.isValid(timeout) && client.isActive();
   }
 
   @Override

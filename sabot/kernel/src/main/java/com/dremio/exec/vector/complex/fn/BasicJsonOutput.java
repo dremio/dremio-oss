@@ -391,4 +391,14 @@ public class BasicJsonOutput implements JsonOutput {
   public void writeIntervalNull() throws IOException {
     gen.writeNull();
   }
+
+  @Override
+  public void writeLargeVarChar(FieldReader reader) throws IOException {
+    throw new UnsupportedOperationException("LargeVarChar not supported yet");
+  }
+
+  @Override
+  public void writeLargeVarBinary(FieldReader reader) throws IOException {
+    throw new UnsupportedOperationException("LargeVarBinary not supported yet");
+  }
 }

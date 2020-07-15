@@ -40,3 +40,10 @@ export const ENTITY_TYPES = {
   source: 'source',
   folder: 'folder'
 };
+
+export const CLIENT_TOOL_ID = {
+  powerbi: 'client.tools.powerbi',
+  tableau: 'client.tools.tableau',
+  qlik: 'client.tools.qlik',
+  qlikEnabled: 'support.dac.qlik'
+};

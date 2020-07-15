@@ -20,6 +20,7 @@ import static com.dremio.common.util.MajorTypeHelper.getMajorTypeForField;
 import javax.inject.Named;
 
 import org.apache.arrow.memory.OutOfMemoryException;
+import org.apache.arrow.util.Preconditions;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.DensityAwareVector;
 import org.apache.arrow.vector.ValueVector;
@@ -33,11 +34,16 @@ import com.dremio.exec.record.VectorWrapper;
 import com.dremio.exec.record.selection.SelectionVector4;
 import com.dremio.sabot.exec.context.FunctionContext;
 
-public abstract class CopierTemplate4 implements Copier{
+@SuppressWarnings("checkstyle:VisibilityModifier")
+public abstract class CopierTemplate4 implements Copier {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CopierTemplate4.class);
 
-  private SelectionVector4 sv4;
-  private VectorAccessible outgoing;
+  protected SelectionVector4 sv4;
+  protected VectorAccessible outgoing;
+  protected int outgoingPosition;
+  private long oomAllocation;
+  private long oomCopy;
+  private double density = 0.01;
 
   /**
    * Use this flag to control when to set new capacity and density in outgoing vectors. If we are successful in
@@ -45,6 +51,7 @@ public abstract class CopierTemplate4 implements Copier{
    * allocateNew() to allocate memory. If we fail in allocate, we start from initial density and given capacity.
    */
   private boolean lastAllocationSucceeded;
+
 
 
   @Override
@@ -55,10 +62,16 @@ public abstract class CopierTemplate4 implements Copier{
   }
 
   @Override
+  public void setAllocationDensity(double density) {
+    Preconditions.checkArgument(density > 0);
+    this.density = density;
+  }
+
+  @Override
   public int copyRecords(int index, int recordCount){
     logger.debug("Copier4: Position to copy from {} records to copy {}", index, recordCount);
-    int outgoingPosition = 0;
-    double density = 0.01;
+    outgoingPosition = 0;
+    final double density = this.density;
     boolean memoryAllocated = false;
     try {
       while (!memoryAllocated) {
@@ -85,6 +98,7 @@ public abstract class CopierTemplate4 implements Copier{
           lastAllocationSucceeded = true;
           memoryAllocated = true;
         }catch (OutOfMemoryException ex) {
+          oomAllocation++;
           logger.debug("Copier4: Failed to allocate memory for outgoing batch, retrying with reduced capacity");
           recordCount = recordCount/2;
           if (recordCount < 1) {
@@ -98,12 +112,9 @@ public abstract class CopierTemplate4 implements Copier{
       }
 
       logger.debug("Copier4: allocated memory for all vectors in outgoing.");
-
-      for(int svIndex = index; svIndex < index + recordCount; svIndex++, outgoingPosition++){
-        int deRefIndex = sv4.get(svIndex);
-        doEval(deRefIndex, outgoingPosition);
-      }
+      outgoingPosition = evalLoop(index, recordCount);
     }catch(OutOfMemoryException ex){
+      oomCopy++;
       if(outgoingPosition == 0) {
         /* DiskRunManager will collect extensive tracing information upon catching OOM */
         logger.debug("Copier4: Ran out of space in copy without copying a single record");
@@ -113,6 +124,14 @@ public abstract class CopierTemplate4 implements Copier{
       logger.debug("Copier4: Ran out of space in copy, returning early");
     }
 
+    return outgoingPosition;
+  }
+
+  protected int evalLoop(int index, int recordCount) {
+    for(int svIndex = index; svIndex < index + recordCount; svIndex++, outgoingPosition++){
+      int deRefIndex = sv4.get(svIndex);
+      doEval(deRefIndex, outgoingPosition);
+    }
     return outgoingPosition;
   }
 
@@ -131,6 +150,15 @@ public abstract class CopierTemplate4 implements Copier{
   public abstract void doSetup(@Named("context") FunctionContext context, @Named("incoming") VectorAccessible incoming, @Named("outgoing") VectorAccessible outgoing);
   public abstract void doEval(@Named("inIndex") int inIndex, @Named("outIndex") int outIndex);
 
+  @Override
+  public long getOOMCountDuringAllocation() {
+    return oomAllocation;
+  }
+
+  @Override
+  public long getOOMCountDuringCopy() {
+    return oomCopy;
+  }
 
 
 }

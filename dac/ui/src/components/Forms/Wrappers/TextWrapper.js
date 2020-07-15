@@ -20,7 +20,9 @@ import FormUtils from 'utils/FormUtils/FormUtils';
 
 import PropTypes from 'prop-types';
 
-import { flexContainer, fieldWithError, textFieldWrapper, textFieldBody } from './FormWrappers.less';
+import {
+  flexContainer, fieldWithError, textFieldWrapper, textFieldBody, textFieldBodyFixed
+} from './FormWrappers.less';
 
 export default class TextWrapper extends Component {
   static propTypes = {
@@ -45,12 +47,13 @@ export default class TextWrapper extends Component {
     const {elementConfig, field} = this.props;
     const elementConfigJson = elementConfig.getConfig();
     const {
-      type, secure, tooltip, disabled, scale,
+      type, secure, tooltip, disabled, scale, size,
       label, focus, placeholder, errorPlacement
     } = elementConfigJson;
     const numberField = (type === 'number') ? {type: 'number'} : null;
     const passwordField = (secure) ? {type: 'password'} : null;
     const hoverHelpText = (tooltip) ? {hoverHelpText: tooltip} : null;
+    const isFixedSize = typeof size === 'number' && size > 0;
     const isDisabled = (disabled ||
       this.props.disabled ||
       // special case in source forms: source name can not be changed after initial creation
@@ -59,6 +62,8 @@ export default class TextWrapper extends Component {
     const {value, onChange, onBlur, onUpdate, ...fieldProps} = field; // eslint-disable-line @typescript-eslint/no-unused-vars
     const currentValue = (numberField) ? FormUtils.scaleValue(value, scale) : value;
     const onChangeHandler = (numberField) ? this.onChangeHandler : onChange;
+    const fieldClass = isFixedSize ? textFieldBodyFixed : textFieldBody;
+    const style = (isFixedSize) ? {width: size} : {};
 
     return (
       <div className={flexContainer}>
@@ -77,7 +82,8 @@ export default class TextWrapper extends Component {
               value={currentValue}
               onChange={onChangeHandler}
               placeholder={placeholder || ''}
-              className={textFieldBody}/>
+              style={style}
+              className={fieldClass}/>
           </div>
         </FieldWithError>
       </div>

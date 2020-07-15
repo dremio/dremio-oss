@@ -27,7 +27,7 @@ import org.mockito.Mockito;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.physical.base.AbstractSingle;
@@ -50,6 +50,7 @@ import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.TypeValidators;
+import com.dremio.test.DremioTest;
 import com.google.common.collect.ImmutableMap;
 
 public class TestMemoryAllocationUtilities extends ExecTest {
@@ -71,7 +72,7 @@ public class TestMemoryAllocationUtilities extends ExecTest {
    @Before
    public void setup() throws Exception {
      kvstoreprovider =
-       new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, true).asLegacy();
+         LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
      kvstoreprovider.start();
      final OptionValidatorListing optionValidatorListing = new OptionValidatorListingImpl(CLASSPATH_SCAN_RESULT);
      systemOptionManager = new SystemOptionManager(

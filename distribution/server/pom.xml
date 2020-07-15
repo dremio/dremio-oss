@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>4.5.0-202006180205030236-1a5d28da</version>
+    <version>4.6.0-202007150150090029-7f333d10</version>
   </parent>
 
   <artifactId>dremio-distribution</artifactId>
@@ -167,7 +167,6 @@
       <artifactId>dremio-jdbc-driver</artifactId>
       <version>${project.version}</version>
     </dependency>
-
     <dependency>
       <groupId>com.dremio.plugins</groupId>
       <artifactId>dremio-hive-plugin-common</artifactId>
@@ -299,7 +298,7 @@
                     Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
 
                   </message>
-                  <maxsize>600000000</maxsize>
+                  <maxsize>650000000</maxsize>
                   <minsize>500000000</minsize>
                   <files>
                     <file>${project.build.directory}/${dremio.distribution.name}-${project.version}.tar.gz</file>
@@ -542,7 +541,7 @@ exit 0
                         Please check for unnecessary dependencies first before adjusting the limits (which should be as small as possible).
 
                       </message>
-                      <maxsize>600000000</maxsize>
+                      <maxsize>650000000</maxsize>
                       <minsize>500000000</minsize>
                       <files>
                         <file>${project.build.directory}/rpm/${dremio.distribution.name}/RPMS/noarch/${dremio.distribution.name}-${dremio.rpm.version}-${dremio.rpm.release}.noarch.rpm</file>
@@ -610,6 +609,17 @@ exit 0
           <groupId>${dremio.hive.plugin-group-id}</groupId>
           <artifactId>${dremio.hive.plugin-artifact-id-prefix}-hive3-plugin-launcher</artifactId>
           <version>${project.version}</version>
+        </dependency>
+        <dependency>
+          <groupId>com.dremio.plugins</groupId>
+          <artifactId>dremio-awsglue-plugin</artifactId>
+          <version>${project.version}</version>
+          <exclusions>
+            <exclusion>
+              <groupId>*</groupId>
+              <artifactId>*</artifactId>
+            </exclusion>
+          </exclusions>
         </dependency>
       </dependencies>
     </profile>

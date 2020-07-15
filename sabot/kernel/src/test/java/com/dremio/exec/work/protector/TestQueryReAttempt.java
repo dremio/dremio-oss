@@ -30,6 +30,8 @@ import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.complex.NonNullableStructVector;
 import org.apache.arrow.vector.complex.impl.ComplexWriterImpl;
 import org.apache.arrow.vector.complex.writer.BaseWriter;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.FieldType;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.Mockito;
@@ -78,7 +80,7 @@ public class TestQueryReAttempt extends BaseTestQuery {
   }
 
   private NonNullableStructVector structVector(String name) {
-    NonNullableStructVector vector = new NonNullableStructVector(name, allocator, null);
+    NonNullableStructVector vector = new NonNullableStructVector(name, allocator, new FieldType(false, ArrowType.Struct.INSTANCE, null), null);
 
     ComplexWriterImpl structWriter = new ComplexWriterImpl("colMap", vector);
 

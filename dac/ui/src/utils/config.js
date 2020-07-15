@@ -14,11 +14,24 @@
  * limitations under the License.
  */
 import { SERVER_STATUS_OK } from '@app/constants/serverStatus';
+import { CLIENT_TOOL_ID } from '@app/constants/Constants';
 
 const isProductionBuild = process.env.NODE_ENV === 'production';
 
 export const isProduction = () => {
   return isProductionBuild;
+};
+
+export const getAnalyzeToolsConfig = (settings, config) => {
+  if (settings && settings.size) {
+    return {
+      tableau: {enabled: settings.getIn([CLIENT_TOOL_ID.tableau, 'value'])},
+      powerbi: {enabled: settings.getIn([CLIENT_TOOL_ID.powerbi, 'value'])},
+      qlik: {enabled: settings.getIn([CLIENT_TOOL_ID.qlik, 'value'])}
+    };
+  } else {
+    return config.analyzeTools;
+  }
 };
 
 export default { // defaults, and defaults for unit tests
@@ -45,5 +58,10 @@ export default { // defaults, and defaults for unit tests
   logErrorsToSentry: process.env.SKIP_SENTRY_STEP !== 'true',
   ts: new Date(),
   whiteLabelUrl: 'dremio',
+  analyzeTools: {
+    tableau: { enabled: true },
+    powerbi: { enabled: true },
+    qlik: { enabled: false }
+  },
   ...((window && window.dremioConfig) || {})
 };

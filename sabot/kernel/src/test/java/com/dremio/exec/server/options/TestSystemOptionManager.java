@@ -24,7 +24,7 @@ import org.junit.Test;
 
 import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.common.config.SabotConfig;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.serialization.JacksonSerializer;
@@ -45,9 +45,7 @@ public class TestSystemOptionManager extends DremioTest {
 
   @Before
   public void before() throws Exception {
-    kvStoreProvider = new LocalKVStoreProvider(
-      DremioTest.CLASSPATH_SCAN_RESULT, null, true, false
-    ).asLegacy();
+    kvStoreProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     kvStoreProvider.start();
     sabotConfig = SabotConfig.create();
     lpp = new LogicalPlanPersistence(sabotConfig, CLASSPATH_SCAN_RESULT);

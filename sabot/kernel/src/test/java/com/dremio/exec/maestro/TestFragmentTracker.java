@@ -16,6 +16,7 @@
 package com.dremio.exec.maestro;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.when;
 
 import java.util.Collection;
@@ -44,11 +45,13 @@ import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.exec.work.foreman.CompletionListener;
 import com.dremio.exec.work.foreman.ExecutionPlan;
 import com.dremio.options.OptionList;
+import com.dremio.options.OptionManager;
 import com.dremio.resource.ResourceSchedulingDecisionInfo;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.coordinator.ClusterCoordinator;
 import com.dremio.service.coordinator.ClusterCoordinator.Role;
+import com.dremio.service.coordinator.ExecutorSetService;
 import com.dremio.service.coordinator.LocalExecutorSetService;
 import com.dremio.service.coordinator.NodeStatusListener;
 import com.dremio.service.coordinator.RegistrationHandle;
@@ -80,6 +83,9 @@ public class TestFragmentTracker {
   @Mock
   private ClusterCoordinator coordinator;
 
+  @Mock
+  private OptionManager optionManager;
+
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
@@ -90,6 +96,8 @@ public class TestFragmentTracker {
     when(context.getNonDefaultOptions()).thenReturn(new OptionList());
     when(context.getConfig()).thenReturn(SabotConfig.create());
     when(catalog.getMetadataStatsCollector()).thenReturn(new MetadataStatsCollector());
+
+    when(optionManager.getOption(eq(ExecutorSetService.DREMIO_VERSION_CHECK))).thenReturn(true);
 
     when(coordinator.getServiceSet(Role.EXECUTOR)).thenReturn(new ServiceSet() {
       @Override
@@ -124,7 +132,8 @@ public class TestFragmentTracker {
     InOrder inOrder = Mockito.inOrder(completionListener);
     FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener,
       () -> {}, null,
-      new LocalExecutorSetService(DirectProvider.wrap(coordinator)));
+      new LocalExecutorSetService(DirectProvider.wrap(coordinator),
+                                  DirectProvider.wrap(optionManager)));
 
     PlanFragmentFull fragment = new PlanFragmentFull(
       PlanFragmentMajor.newBuilder()
@@ -154,7 +163,8 @@ public class TestFragmentTracker {
     InOrder inOrder = Mockito.inOrder(completionListener);
     FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener,
       () -> {}, null,
-      new LocalExecutorSetService(DirectProvider.wrap(coordinator)));
+      new LocalExecutorSetService(DirectProvider.wrap(coordinator),
+                                  DirectProvider.wrap(optionManager)));
 
     PlanFragmentFull fragment = new PlanFragmentFull(
       PlanFragmentMajor.newBuilder()
@@ -189,7 +199,8 @@ public class TestFragmentTracker {
     InOrder inOrder = Mockito.inOrder(completionListener, queryCloser);
     FragmentTracker fragmentTracker = new FragmentTracker(queryId, completionListener,
       queryCloser, null,
-      new LocalExecutorSetService(DirectProvider.wrap(coordinator)));
+      new LocalExecutorSetService(DirectProvider.wrap(coordinator),
+                                  DirectProvider.wrap(optionManager)));
 
     fragmentTracker.populate(Collections.emptyList(), new ResourceSchedulingDecisionInfo());
 

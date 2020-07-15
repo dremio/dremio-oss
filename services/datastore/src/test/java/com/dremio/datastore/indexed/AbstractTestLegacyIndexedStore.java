@@ -91,6 +91,7 @@ public abstract class AbstractTestLegacyIndexedStore {
   @Before
   public void before() throws Exception {
     provider = createKVStoreProvider();
+    provider.start();
     store = supplyStore();
   }
 

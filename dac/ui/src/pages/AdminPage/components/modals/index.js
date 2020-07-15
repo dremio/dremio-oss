@@ -17,10 +17,12 @@ import EditUserModal from './EditUserModal';
 import AddProvisionModal from './AddProvisionModal';
 import MoreInfoProvisionModal from './MoreInfoProvisionModal';
 import AccelerationModal from './AccelerationModal';
+import AdjustWorkersModal from './AdjustWorkersModal';
 
 export {
   EditUserModal,
   AddProvisionModal,
   MoreInfoProvisionModal,
-  AccelerationModal
+  AccelerationModal,
+  AdjustWorkersModal
 };

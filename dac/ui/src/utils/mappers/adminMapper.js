@@ -31,6 +31,8 @@ class AdminMapper {
         isExecutor: node.isExecutor,
         isMaster: node.isMaster,
         isBlacklisted: node.isBlacklisted,
+        isCompatible: node.isCompatible,
+        version: node.version,
         nodeTag: node.nodeTag
       };
     });

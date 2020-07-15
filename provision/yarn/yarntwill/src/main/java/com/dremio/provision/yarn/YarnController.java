@@ -15,6 +15,7 @@
  */
 package com.dremio.provision.yarn;
 
+import static com.dremio.provision.yarn.DacDaemonYarnApplication.DREMIO_GC_OPTS;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.DREMIO_HOME;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.KEYTAB_FILE_NAME;
 import static com.dremio.provision.yarn.DacDaemonYarnApplication.MAX_APP_RESTART_RETRIES;
@@ -246,7 +247,23 @@ public class YarnController {
     basicJVMOptionsB.append(" ");
     basicJVMOptionsB.append(jvmOptions);
 
+    // If DREMIO_GC_OPTS is provided
+    // and GC option is not provided in properties from Yarn Provisioning UI,
+    // then, pass the DREMIO_GC_OPTS to executor.
+    // DREMIO_GC_OPTS can be overriden in dremio-env
+    final String dremioGCOpts = getDremioGCOpts();
+    if(dremioGCOpts != null && !dremioGCOpts.isEmpty()) {
+      if(!basicJVMOptionsB.toString().matches(".*-XX:\\+Use.*GC.*")) {
+        basicJVMOptionsB.append(" " + dremioGCOpts);
+      }
+    }
+
     return basicJVMOptionsB.toString();
+  }
+
+  @VisibleForTesting
+  protected String getDremioGCOpts() {
+    return System.getenv(DREMIO_GC_OPTS);
   }
 
   static class HadoopClassExcluder extends ClassAcceptor {

@@ -22,7 +22,7 @@ import java.util.Optional;
 
 import org.junit.Test;
 
-import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.services.configuration.ConfigurationStore;
 import com.dremio.services.configuration.proto.ConfigurationEntry;
 
@@ -39,13 +39,13 @@ public class TestResetCatalogSearch extends TestClean {
   public void testResetCatalogSearchCommand() throws Exception {
     getCurrentDremioDaemon().close();
     ResetCatalogSearch.go(new String[] {});
-    final Optional<LegacyKVStoreProvider> providerOptional = CmdUtils.getLegacyKVStoreProvider(getDACConfig().getConfig());
+    final Optional<LocalKVStoreProvider> providerOptional = CmdUtils.getKVStoreProvider(getDACConfig().getConfig());
     if (!providerOptional.isPresent()) {
       throw new Exception("No KVStore detected.");
     }
-    try (LegacyKVStoreProvider provider = providerOptional.get()) {
+    try (LocalKVStoreProvider provider = providerOptional.get()) {
       provider.start();
-      final ConfigurationStore configStore = new ConfigurationStore(provider);
+      final ConfigurationStore configStore = new ConfigurationStore(provider.asLegacy());
       final ConfigurationEntry configurationEntry = configStore.get(CONFIG_KEY);
       assertEquals(configurationEntry, null);
     }

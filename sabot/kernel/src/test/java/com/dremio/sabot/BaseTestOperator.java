@@ -54,7 +54,7 @@ import com.dremio.common.logical.data.Order;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.config.DremioConfig;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecTest;
 import com.dremio.exec.compile.CodeCompiler;
@@ -323,7 +323,7 @@ public class BaseTestOperator extends ExecTest {
     public void setup() {
       try {
         storeProvider =
-          new LocalKVStoreProvider(DremioTest.CLASSPATH_SCAN_RESULT, null, true, false).asLegacy();
+            LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
         storeProvider.start();
 
         final Provider<LegacyKVStoreProvider> storeProviderProvider = new Provider<LegacyKVStoreProvider>() {

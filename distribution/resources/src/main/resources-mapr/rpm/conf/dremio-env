@@ -77,6 +77,12 @@ DREMIO_PID_DIR=/var/run/dremio
 #DREMIO_GC_LOGS_ENABLED="yes"
 
 #
+# By default G1GC is used as java garbage collection.
+# This can be overriden by changing this parameter
+#
+#DREMIO_GC_OPTS="-XX:+UseG1GC"
+
+#
 # The scheduling priority for the server
 #
 # Default to 0

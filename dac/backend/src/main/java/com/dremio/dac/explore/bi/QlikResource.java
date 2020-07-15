@@ -20,17 +20,22 @@ import static com.dremio.dac.server.WebServer.MediaType.TEXT_PLAIN_QLIK_APP;
 import javax.annotation.security.RolesAllowed;
 import javax.inject.Inject;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.Response;
 
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
-import com.dremio.dac.explore.model.DatasetPath;
+import com.dremio.dac.resource.BaseBIToolResource;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
+import com.dremio.exec.server.options.ProjectOptionManager;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceService;
-import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 
 /**
  * Resource to create qlik load script for a given dataset
@@ -39,17 +44,28 @@ import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 @RestResource
 @Secured
 @RolesAllowed({"admin", "user"})
-@Path("/qlik/{datasetPath}")
-public class QlikResource {
+@Path("/qlik/{datasetId}")
+@Options
+public class QlikResource extends BaseBIToolResource {
+  // Special option for enabling the Power BI PBIDS endpoint.
+  public static final TypeValidators.BooleanValidator CLIENT_TOOLS_QLIK
+    = new TypeValidators.BooleanValidator("client.tools.qlik", false);
+  public static final TypeValidators.BooleanValidator ALLOW_QLIK
+    = new TypeValidators.BooleanValidator("support.dac.qlik", false);
+
   private final NamespaceService namespaceService;
-  private final DatasetPath datasetPath;
+  private final ProjectOptionManager optionManager;
+  private final String datasetId;
 
   @Inject
   public QlikResource(
       NamespaceService namespaceService,
-      @PathParam("datasetPath") DatasetPath datasetPath) {
+      ProjectOptionManager optionManager,
+      @PathParam("datasetId") String datasetId) {
+    super(namespaceService, optionManager, datasetId);
     this.namespaceService = namespaceService;
-    this.datasetPath = datasetPath;
+    this.optionManager = optionManager;
+    this.datasetId = datasetId;
   }
 
   /**
@@ -60,7 +76,16 @@ public class QlikResource {
    */
   @GET
   @Produces(TEXT_PLAIN_QLIK_APP)
-  public DatasetConfig get() throws DatasetNotFoundException, NamespaceException {
-    return namespaceService.getDataset(datasetPath.toNamespaceKey());
+  public Response get(@HeaderParam(HttpHeaders.HOST) String host) throws DatasetNotFoundException, NamespaceException {
+    if (!optionManager.getOption(ALLOW_QLIK)) {
+      return Response.status(Response.Status.NOT_FOUND).build();
+    }
+
+    return getWithHostHelper(host);
+  }
+
+  @Override
+  protected TypeValidators.BooleanValidator getClientToolOption() {
+    return CLIENT_TOOLS_QLIK;
   }
 }

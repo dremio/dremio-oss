@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +31,8 @@ import com.amazonaws.SdkBaseException;
 import com.amazonaws.services.s3.internal.Constants;
 import com.dremio.common.concurrent.NamedThreadFactory;
 import com.dremio.common.exceptions.UserException;
+import com.dremio.common.util.Closeable;
+import com.dremio.common.util.concurrent.ContextClassLoaderSwapper;
 import com.dremio.io.AsyncByteReader;
 import com.google.common.base.Stopwatch;
 
@@ -69,12 +72,9 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
 
   @Override
   public CompletableFuture<Void> readFully(long offset, ByteBuf dstBuf, int dstOffset, int len) {
-    CompletableFuture<Void> future = new CompletableFuture<>();
-
-    S3SyncReadObject readRequest = new S3SyncReadObject(offset, len, dstBuf, dstOffset, future);
+    S3SyncReadObject readRequest = new S3SyncReadObject(offset, len, dstBuf, dstOffset);
     logger.debug("[{}] Submitted request to queue for bucket {}, path {} for {}", threadName, bucket, path, S3AsyncByteReader.range(offset, len));
-    threadPool.submit(readRequest);
-    return future;
+    return CompletableFuture.runAsync(readRequest, threadPool);
   }
 
   /**
@@ -108,15 +108,13 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
     private final int dstOffset;
     private final long offset;
     private final int len;
-    private final CompletableFuture<Void> future;
     private final RetryableInvoker invoker;
 
-    S3SyncReadObject(long offset, int len, ByteBuf byteBuf, int dstOffset, CompletableFuture<Void> future) {
+    S3SyncReadObject(long offset, int len, ByteBuf byteBuf, int dstOffset) {
       this.offset = offset;
       this.len = len;
       this.byteBuf = byteBuf;
       this.dstOffset = dstOffset;
-      this.future = future;
 
       // Imitate the S3AFileSystem retry logic. See
       // https://github.com/apache/hadoop/blob/trunk/hadoop-tools/hadoop-aws/src/main/java/org/apache/hadoop/fs/s3a/Invoker.java
@@ -127,45 +125,50 @@ class S3AsyncByteReaderUsingSyncClient implements AsyncByteReader {
 
     @Override
     public void run() {
-      final GetObjectRequest.Builder requestBuilder = GetObjectRequest.builder()
-        .bucket(bucket)
-        .key(path)
-        .range(S3AsyncByteReader.range(offset, len))
-        .ifUnmodifiedSince(instant);
-      if (requesterPays) {
-        requestBuilder.requestPayer(REQUESTER_PAYS);
-      }
-      final GetObjectRequest request = requestBuilder.build();
-      final Stopwatch watch = Stopwatch.createStarted();
-
-      try {
-        final ResponseBytes<GetObjectResponse> responseBytes = invoker.invoke(() -> s3.getObjectAsBytes(request));
-        byteBuf.setBytes(dstOffset, responseBytes.asInputStream(), len);
-        logger.debug("[{}] Completed request for bucket {}, path {} for {}, took {} ms", threadName, bucket, path, request.range(),
-          watch.elapsed(TimeUnit.MILLISECONDS));
-        future.complete(null);
-      } catch (S3Exception s3e) {
-        Exception exception = s3e;
-        if (s3e.statusCode() == Constants.FAILED_PRECONDITION_STATUS_CODE) {
-          logger.info("[{}] Request for bucket {}, path {} failed as requested version of file not present, took {} ms", threadName,
-            bucket, path, watch.elapsed(TimeUnit.MILLISECONDS));
-          exception = new FileNotFoundException("Version of file changed " + path);
-        } else if (s3e.statusCode() == Constants.BUCKET_ACCESS_FORBIDDEN_STATUS_CODE) {
-          logger.info("[{}] Request for bucket {}, path {} failed as access was denied, took {} ms", threadName,
-            bucket, path, watch.elapsed(TimeUnit.MILLISECONDS));
-          exception = UserException.permissionError(s3e)
-            .message(S3FileSystem.S3_PERMISSION_ERROR_MSG)
-            .build(logger);
-        } else {
-          logger.error("[{}] Request for bucket {}, path {} failed with code {}. Failing read, took {} ms", threadName, bucket, path,
-            s3e.statusCode(), watch.elapsed(TimeUnit.MILLISECONDS));
+      // S3 Async reader depends on S3 libraries available from application class loader context
+      // Thread that runs this runnable might be created from Hive readers from a different
+      // class loader context. So, always changing the context to application class loader.
+      try (Closeable swapper =
+             ContextClassLoaderSwapper.swapClassLoader(S3FileSystem.class)) {
+        final GetObjectRequest.Builder requestBuilder = GetObjectRequest.builder()
+          .bucket(bucket)
+          .key(path)
+          .range(S3AsyncByteReader.range(offset, len))
+          .ifUnmodifiedSince(instant);
+        if (requesterPays) {
+          requestBuilder.requestPayer(REQUESTER_PAYS);
         }
+        final GetObjectRequest request = requestBuilder.build();
+        final Stopwatch watch = Stopwatch.createStarted();
 
-        future.completeExceptionally(exception);
-      } catch (Exception e) {
-        logger.error("[{}] Failed request for bucket {}, path {} for {}, took {} ms", threadName, bucket, path, request.range(),
-          watch.elapsed(TimeUnit.MILLISECONDS), e);
-        future.completeExceptionally(e);
+        try {
+          final ResponseBytes<GetObjectResponse> responseBytes = invoker.invoke(() -> s3.getObjectAsBytes(request));
+          byteBuf.setBytes(dstOffset, responseBytes.asInputStream(), len);
+          logger.debug("[{}] Completed request for bucket {}, path {} for {}, took {} ms", threadName, bucket, path, request.range(),
+            watch.elapsed(TimeUnit.MILLISECONDS));
+        } catch (S3Exception s3e) {
+          switch (s3e.statusCode()) {
+            case Constants.FAILED_PRECONDITION_STATUS_CODE:
+              logger.info("[{}] Request for bucket {}, path {} failed as requested version of file not present, took {} ms", threadName,
+                bucket, path, watch.elapsed(TimeUnit.MILLISECONDS));
+              throw new CompletionException(
+                new FileNotFoundException("Version of file changed " + path));
+            case Constants.BUCKET_ACCESS_FORBIDDEN_STATUS_CODE:
+              logger.info("[{}] Request for bucket {}, path {} failed as access was denied, took {} ms", threadName,
+                bucket, path, watch.elapsed(TimeUnit.MILLISECONDS));
+              throw UserException.permissionError(s3e)
+                .message(S3FileSystem.S3_PERMISSION_ERROR_MSG)
+                .build(logger);
+            default:
+              logger.error("[{}] Request for bucket {}, path {} failed with code {}. Failing read, took {} ms", threadName, bucket, path,
+                s3e.statusCode(), watch.elapsed(TimeUnit.MILLISECONDS));
+              throw new CompletionException(s3e);
+          }
+        } catch (Exception e) {
+          logger.error("[{}] Failed request for bucket {}, path {} for {}, took {} ms", threadName, bucket, path, request.range(),
+            watch.elapsed(TimeUnit.MILLISECONDS), e);
+          throw new CompletionException(e);
+        }
       }
     }
   }

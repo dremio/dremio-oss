@@ -105,8 +105,6 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 
-import de.flapdoodle.embed.process.runtime.Network;
-
 /**
  * Test that when two masters are configured, only one is active and the second one is
  * waiting on the first one to terminate (or disconnect from ZooKeeper).
@@ -139,15 +137,14 @@ public class TestMultiMaster extends BaseClientUtils {
   public void init() throws Exception {
     Assume.assumeTrue(BaseTestServer.isMultinode());
     try (Timer.TimedBlock b = Timer.time("BaseTestServer.@BeforeClass")) {
-      final int[] ports = Network.getFreeServerPorts(Network.getLocalHost(), 10);
-      zkServer = new ZkServer(temporaryFolder.newFolder("zk").getAbsolutePath(), ports[9], true);
+      zkServer = new ZkServer(temporaryFolder.newFolder("zk").getAbsolutePath(), 2181, true);
       zkServer.start();
 
       final File masterPath = temporaryFolder.newFolder("master");
       masterDremioDaemon1 = DACDaemon.newDremioDaemon(
           DACConfig
             .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-            .autoPort(false)
+            .autoPort(true)
             .addDefaultUser(true)
             .allowTestApis(true)
             .serveUI(false)
@@ -155,10 +152,7 @@ public class TestMultiMaster extends BaseClientUtils {
             .inMemoryStorage(false)
             .writePath(masterPath.getAbsolutePath())
             .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-            .localPort(ports[0])
-            .httpPort(ports[1])
             .zk("localhost:" + zkServer.getPort())
-            .with(DremioConfig.CLIENT_PORT_INT, ports[2])
             .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL, false)
             .with(DremioConfig.DEBUG_DISABLE_MASTER_ELECTION_SERVICE_BOOL, false),
           DremioTest.CLASSPATH_SCAN_RESULT,
@@ -180,17 +174,14 @@ public class TestMultiMaster extends BaseClientUtils {
         masterDremioDaemon2 = DACDaemon.newDremioDaemon(
           DACConfig
             .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
-            .autoPort(false)
+            .autoPort(true)
             .allowTestApis(true)
             .serveUI(false)
             .jobServerEnabled(false)
             .inMemoryStorage(false)
             .writePath(masterPath.getAbsolutePath())
             .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-            .localPort(ports[3])
-            .httpPort(ports[4])
             .zk("localhost:" + zkServer.getPort())
-            .with(DremioConfig.CLIENT_PORT_INT, ports[5])
             .with(DremioConfig.EMBEDDED_MASTER_ZK_ENABLED_BOOL, false)
             .with(DremioConfig.DEBUG_DISABLE_MASTER_ELECTION_SERVICE_BOOL, false),
           DremioTest.CLASSPATH_SCAN_RESULT,
@@ -214,15 +205,12 @@ public class TestMultiMaster extends BaseClientUtils {
         DACConfig
           .newDebugConfig(DremioTest.DEFAULT_SABOT_CONFIG)
           .isMaster(false)
-          .autoPort(false)
+          .autoPort(true)
           .allowTestApis(true)
           .serveUI(false)
           .inMemoryStorage(true)
           .writePath(temporaryFolder.newFolder("remote").getAbsolutePath())
           .clusterMode(DACDaemon.ClusterMode.DISTRIBUTED)
-          .localPort(ports[6])
-          .httpPort(ports[7])
-          .with(DremioConfig.CLIENT_PORT_INT, ports[8])
           .zk("localhost:" + zkServer.getPort()),
         DremioTest.CLASSPATH_SCAN_RESULT);
 

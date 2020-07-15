@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24px" height="24px" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+  <!-- Generator: Sketch 64 (93537) - https://sketch.com -->
+  <title>Icon/ Engine / Pending@2x</title>
+  <desc>Created with Sketch.</desc>
+  <g id="Icon/-Engine-/-Pending" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+    <g id="Icon/HealthStatus" transform="translate(4.000000, 4.000000)" fill="#8663BC">
+      <circle id="Oval" cx="8" cy="8" r="8"></circle>
+    </g>
+    <path
+      d="M8,10.5 C8.82842712,10.5 9.5,11.1715729 9.5,12 C9.5,12.8284271 8.82842712,13.5 8,13.5 C7.17157288,13.5 6.5,12.8284271 6.5,12 C6.5,11.1715729 7.17157288,10.5 8,10.5 Z M12,10.5 C12.8284271,10.5 13.5,11.1715729 13.5,12 C13.5,12.8284271 12.8284271,13.5 12,13.5 C11.1715729,13.5 10.5,12.8284271 10.5,12 C10.5,11.1715729 11.1715729,10.5 12,10.5 Z M16,10.5 C16.8284271,10.5 17.5,11.1715729 17.5,12 C17.5,12.8284271 16.8284271,13.5 16,13.5 C15.1715729,13.5 14.5,12.8284271 14.5,12 C14.5,11.1715729 15.1715729,10.5 16,10.5 Z"
+      id="Combined-Shape" fill="#FFFFFF"></path>
+  </g>
+</svg>

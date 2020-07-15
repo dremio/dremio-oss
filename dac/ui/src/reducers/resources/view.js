@@ -141,7 +141,7 @@ export const getViewStateFromAction = (action) => {
 };
 
 function updateLoadingViewId(state, action) {
-  const {viewId, invalidateViewIds: viewIds} = action.meta;
+  const {viewId, entityId, invalidateViewIds: viewIds} = action.meta;
   if (!viewId) {
     return state;
   }
@@ -155,7 +155,8 @@ function updateLoadingViewId(state, action) {
   }
   return state.mergeIn([viewId], {
     ...newViewState,
-    viewId
+    viewId,
+    entityId
   });
 }
 

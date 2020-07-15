@@ -23,12 +23,11 @@ import { injectIntl } from 'react-intl';
 import HoverHelp from '@app/components/HoverHelp';
 import DividerHr from '@app/components/Menus/DividerHr';
 import MenuItem from '@app/components/Menus/MenuItem';
-import {getJobProgress} from '@app/selectors/explore';
+import { getJobProgress } from '@app/selectors/explore';
 
 import Menu from './Menu';
 import MenuLabel from './MenuLabel';
 import ExportMenu from './ExportMenu';
-import BiToolsMenu from './BiToolsMenu';
 
 @injectIntl
 export class CombinedActionMenu extends PureComponent {
@@ -38,7 +37,6 @@ export class CombinedActionMenu extends PureComponent {
     action: PropTypes.func,
     closeMenu: PropTypes.func.isRequired,
     isSettingsDisabled: PropTypes.bool,
-    isActionDisabled: PropTypes.bool,
     intl: PropTypes.object.isRequired,
     //connected
     jobProgress: PropTypes.object,
@@ -78,7 +76,7 @@ export class CombinedActionMenu extends PureComponent {
   };
 
   render() {
-    const { isSettingsDisabled, isActionDisabled, action, closeMenu, datasetColumns, dataset } = this.props;
+    const { isSettingsDisabled, action, datasetColumns, dataset } = this.props;
     const datasetSql = dataset.get('sql');
     return (
       <Menu>
@@ -92,8 +90,6 @@ export class CombinedActionMenu extends PureComponent {
         <DividerHr />
         {this.renderDownloadSectionHeader()}
         <ExportMenu action={action} datasetColumns={datasetColumns} datasetSql={datasetSql}/>
-        <DividerHr />
-        <BiToolsMenu action={action} closeMenu={closeMenu} disabled={isActionDisabled}/>
       </Menu>
     );
   }

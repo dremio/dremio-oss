@@ -23,11 +23,12 @@ import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.UserGroupInformation;
 
+import com.dremio.common.util.Closeable;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.dfs.implicit.CompositeReaderConfig;
-import com.dremio.exec.store.hive.ContextClassLoaderSwapper;
 import com.dremio.exec.store.hive.BaseHiveStoragePlugin;
+import com.dremio.exec.store.hive.HivePf4jPlugin;
 import com.dremio.hive.proto.HiveReaderProto.HiveTableXattr;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
@@ -51,7 +52,7 @@ class ScanWithDremioReader {
       final UserGroupInformation readerUGI,
       List<SplitAndPartitionInfo> splits) {
 
-    try (ContextClassLoaderSwapper ccls = ContextClassLoaderSwapper.newInstance()) {
+    try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
 
       if(splits.isEmpty()) {
         return Collections.emptyIterator();

@@ -17,6 +17,7 @@ package com.dremio.exec.store;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -29,6 +30,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.ByteBufferReadable;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -42,10 +44,14 @@ import org.apache.hadoop.fs.Syncable;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
 
+import io.netty.util.internal.PlatformDependent;
+
 /**
  * This class provides a Syncable local extension of the hadoop FileSystem
  */
 public class LocalSyncableFileSystem extends FileSystem {
+
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LocalSyncableFileSystem.class);
 
   @Override
   public URI getUri() {
@@ -141,11 +147,28 @@ public class LocalSyncableFileSystem extends FileSystem {
     throw new FileNotFoundException(localizedPath);
   }
 
-  private static final class LocalSyncableOutputStream extends OutputStream implements Syncable {
+  /**
+   * Ability to write directly from arrow buf.
+   */
+  public static interface WritesArrowBuf {
+    public int write(ArrowBuf buf) throws IOException;
+  }
+
+  /**
+   * Ability to read directly into arrow buf.
+   */
+  public static interface ReadsArrowBuf {
+    public void readFully(ArrowBuf buf, int length) throws IOException;
+  }
+
+  /**
+   * Outputstream used by local filesystem.
+   */
+  public static final class LocalSyncableOutputStream extends OutputStream implements Syncable, WritesArrowBuf {
     private final FileOutputStream fos;
     private final BufferedOutputStream output;
 
-    public LocalSyncableOutputStream(Path path) throws FileNotFoundException {
+    private LocalSyncableOutputStream(Path path) throws FileNotFoundException {
       File dir = new File(path.getParent().toString());
       if (!dir.exists()) {
         boolean success = dir.mkdirs();
@@ -155,6 +178,12 @@ public class LocalSyncableFileSystem extends FileSystem {
       }
       fos = new FileOutputStream(path.toString());
       output = new BufferedOutputStream(fos, 64*1024);
+    }
+
+    @Override
+    public int write(ArrowBuf buf) throws IOException {
+      ByteBuffer nioBuffer = PlatformDependent.directBuffer(buf.memoryAddress(), (int) buf.readableBytes());
+      return fos.getChannel().write(nioBuffer);
     }
 
     // Compatibility with Hadoop 2.x. Was removed with Hadoop 3.0
@@ -170,6 +199,11 @@ public class LocalSyncableFileSystem extends FileSystem {
     }
 
     @Override
+    public void flush() throws IOException {
+      output.flush();
+    }
+
+    @Override
     public void hflush() throws IOException {
       output.flush();
       fos.getFD().sync();
@@ -178,6 +212,11 @@ public class LocalSyncableFileSystem extends FileSystem {
     @Override
     public void write(int b) throws IOException {
       output.write(b);
+    }
+
+    @Override
+    public void write(byte[] b, int off, int len) throws IOException {
+      output.write(b, off, len);
     }
 
     @Override
@@ -190,15 +229,19 @@ public class LocalSyncableFileSystem extends FileSystem {
     }
   }
 
-  private static final class LocalInputStream extends InputStream implements Seekable, PositionedReadable, ByteBufferReadable {
+  private static final class LocalInputStream extends InputStream implements Seekable, PositionedReadable, ByteBufferReadable, ReadsArrowBuf {
+
+    private static final int BUFFER_SIZE = 64*1024;
+    private final RandomAccessFile file;
+    private final String path;
+    private long position = 0;
 
     private BufferedInputStream input;
-    private String path;
-    private long position = 0;
 
     public LocalInputStream(Path path)  throws IOException {
       this.path = path.toString();
-      input = new BufferedInputStream(new FileInputStream(new RandomAccessFile(this.path, "r").getFD()), 1024*1024);
+      this.file = new RandomAccessFile(path.toString(), "r");
+      input = new BufferedInputStream(new FileInputStream(file.getFD()), BUFFER_SIZE);
     }
 
     @Override
@@ -218,10 +261,8 @@ public class LocalSyncableFileSystem extends FileSystem {
 
     @Override
     public void seek(long l) throws IOException {
-      input.close();
-      RandomAccessFile raf = new RandomAccessFile(path, "r");
-      raf.seek(l);
-      input = new BufferedInputStream(new FileInputStream(raf.getFD()), 1024*1024);
+      file.seek(l);
+      input = new BufferedInputStream(new FileInputStream(file.getFD()), 1024*1024);
       position = l;
     }
 
@@ -234,8 +275,6 @@ public class LocalSyncableFileSystem extends FileSystem {
     public boolean seekToNewSource(long l) throws IOException {
       throw new IOException("seekToNewSource not supported");
     }
-
-
 
     @Override
     public int read(ByteBuffer buf) throws IOException {
@@ -284,6 +323,19 @@ public class LocalSyncableFileSystem extends FileSystem {
       } finally {
         super.close();
       }
+    }
+
+    @Override
+    public void readFully(ArrowBuf buf, int length) throws IOException {
+      ByteBuffer nioBuffer = PlatformDependent.directBuffer(buf.memoryAddress(), length);
+      while(length > 0) {
+        int read = file.getChannel().read(nioBuffer);
+        if(read == -1) {
+          throw new EOFException();
+        }
+        length -= read;
+      }
+      buf.writerIndex(length);
     }
   }
 

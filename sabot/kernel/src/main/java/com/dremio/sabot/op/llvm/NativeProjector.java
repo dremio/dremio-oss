@@ -43,13 +43,15 @@ public class NativeProjector implements AutoCloseable {
   private final Schema schema;
   private final FunctionContext functionContext;
   private final Set<Field> referencedFields;
+  private final boolean optimize;
 
-  NativeProjector(VectorAccessible incoming, Schema schema, FunctionContext functionContext) {
+  NativeProjector(VectorAccessible incoming, Schema schema, FunctionContext functionContext, boolean optimize) {
     this.incoming = incoming;
     this.schema = schema;
     this.functionContext = functionContext;
     // preserve order of insertion
     referencedFields = Sets.newLinkedHashSet();
+    this.optimize = optimize;
   }
 
   public void add(LogicalExpression expr, FieldVector outputVector) {
@@ -60,7 +62,7 @@ public class NativeProjector implements AutoCloseable {
 
   public void build() throws GandivaException {
     root = GandivaUtils.getSchemaRoot(incoming, referencedFields);
-    projector = Projector.make(root.getSchema(), columnExprList);
+    projector = Projector.make(root.getSchema(), columnExprList, optimize);
   }
 
   public void execute(int recordCount, List<ValueVector> outVectors) throws Exception {

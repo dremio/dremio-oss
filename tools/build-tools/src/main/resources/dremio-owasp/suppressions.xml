@@ -26,6 +26,24 @@
 </suppress>
 
 <!-- 3rd party dependencies -->
+<!-- Ant -->
+<suppress>
+  <notes><![CDATA[
+ file name: ant-1.9.1.jar
+ not distributed. only used at build time
+ ]]></notes>
+  <sha1>35900c96dbebc85dcfbd71f4661059ebcf93c077</sha1>
+  <cve>CVE-2020-1945</cve>
+</suppress>
+<suppress>
+  <notes><![CDATA[
+ file name: ant-launcher-1.9.1.jar
+ not distributed. only used at build time
+ ]]></notes>
+  <sha1>7c71043ca185eaada9e36391dd022d92859327de</sha1>
+  <cve>CVE-2020-1945</cve>
+</suppress>
+
 <!-- Async HTTP client -->
 <suppress>
   <notes><![CDATA[
@@ -83,6 +101,12 @@
   <cve>CVE-2020-11111</cve>
   <cve>CVE-2020-11112</cve>
   <cve>CVE-2020-11113</cve>
+  <cve>CVE-2020-11619</cve>
+  <cve>CVE-2020-11620</cve>
+  <cve>CVE-2020-14060</cve>
+  <cve>CVE-2020-14061</cve>
+  <cve>CVE-2020-14062</cve>
+  <cve>CVE-2020-14195</cve>
 </suppress>
 <suppress>
   <notes><![CDATA[
@@ -127,7 +151,12 @@
   <cve>CVE-2020-11111</cve>
   <cve>CVE-2020-11112</cve>
   <cve>CVE-2020-11113</cve>
-
+  <cve>CVE-2020-11619</cve>
+  <cve>CVE-2020-11620</cve>
+  <cve>CVE-2020-14060</cve>
+  <cve>CVE-2020-14061</cve>
+  <cve>CVE-2020-14062</cve>
+  <cve>CVE-2020-14195</cve>
 </suppress>
 
 <!-- Avro -->
@@ -331,6 +360,8 @@
   <cve>CVE-2019-20444</cve>
   <cve>CVE-2019-20445</cve>
   <cve>CVE-2020-11612</cve>
+  <vulnerabilityName>CWE-400: Uncontrolled Resource Consumption ('Resource Exhaustion')</vulnerabilityName>
+  <vulnerabilityName>CWE-789: Uncontrolled Memory Allocation</vulnerabilityName>
 </suppress>
 <suppress>
   <notes><![CDATA[
@@ -379,6 +410,12 @@
   <cve>CVE-2020-11111</cve>
   <cve>CVE-2020-11112</cve>
   <cve>CVE-2020-11113</cve>
+  <cve>CVE-2020-11619</cve>
+  <cve>CVE-2020-11620</cve>
+  <cve>CVE-2020-14060</cve>
+  <cve>CVE-2020-14061</cve>
+  <cve>CVE-2020-14062</cve>
+  <cve>CVE-2020-14195</cve>
   <vulnerabilityName>CWE-611: Improper Restriction of XML External Entity Reference ('XXE')</vulnerabilityName>
 </suppress>
 
@@ -516,6 +553,13 @@
 </suppress>
 <suppress>
   <notes><![CDATA[
+ file name: scala-compiler-2.10.1.jar: jquery.js
+ ]]></notes>
+  <packageUrl regex="true">^pkg:javascript/jquery@.*$</packageUrl>
+  <vulnerabilityName>Regex in its jQuery.htmlPrefilter  sometimes may introduce XSS</vulnerabilityName>
+</suppress>
+<suppress>
+  <notes><![CDATA[
   file name: hadoop-yarn-common-2.8.3.jar: jquery-1.8.2.min.js.gz: jquery-1.8.2.min.js
   ]]></notes>
   <sha1>149b5180cb9de3f646fc26802440a6ac6e758d40</sha1>
@@ -544,6 +588,7 @@
   ]]></notes>
   <sha1>1055018c28ab41087ef9ccefe411606893dabea2</sha1>
   <cve>CVE-2019-11358</cve>
+  <vulnerabilityName>Regex in its jQuery.htmlPrefilter  sometimes may introduce XSS</vulnerabilityName>
 </suppress>
 <suppress>
   <notes><![CDATA[
@@ -553,6 +598,7 @@
   <cve>CVE-2012-6708</cve>
   <cve>CVE-2015-9251</cve>
   <cve>CVE-2019-11358</cve>
+  <vulnerabilityName>Regex in its jQuery.htmlPrefilter  sometimes may introduce XSS</vulnerabilityName>
 </suppress>
 
 <!-- Kafka -->
@@ -571,6 +617,16 @@
   ]]></notes>
   <packageUrl regex="true">^pkg:maven/ch\.qos\.logback\.contrib/.*@.*$</packageUrl>
   <cve>CVE-2017-5929</cve>
+</suppress>
+
+<!-- Log4j over Slf4j -->
+<suppress>
+  <notes><![CDATA[
+ file name: log4j-over-slf4j-1.7.28.jar
+ incorrectly identified as log4j
+ ]]></notes>
+  <sha1>2466316c2c59e23c02490e3feec3a68372e45498</sha1>
+  <cve>CVE-2020-9488</cve>
 </suppress>
 
 <!-- Lilith -->
@@ -742,6 +798,22 @@
   <packageUrl regex="true">^pkg:maven/org\.scala\-lang/scala\-.*@.*$</packageUrl>
   <cve>CVE-2017-15288</cve>
 </suppress>
+<suppress>
+  <notes><![CDATA[
+ file name: scala-library-2.12.4.jar
+ not used for web page generation
+ ]]></notes>
+  <packageUrl regex="true">^pkg:maven/org\.scala\-lang/scala\-library@.*$</packageUrl>
+  <vulnerabilityName>CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')</vulnerabilityName>
+</suppress>
+<suppress>
+  <notes><![CDATA[
+ file name: scala-reflect-2.12.2.jar
+ note used for web page generation
+ ]]></notes>
+  <packageUrl regex="true">^pkg:maven/org\.scala\-lang/scala\-reflect@.*$</packageUrl>
+  <vulnerabilityName>CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')</vulnerabilityName>
+</suppress>
 
 <!-- Solr -->
 <suppress>
@@ -881,6 +953,7 @@
   <packageUrl regex="true">^pkg:maven/org\.wildfly\.openssl/wildfly\-openssl.*@.*$</packageUrl>
   <cve>CVE-2018-14627</cve>
   <cve>CVE-2019-3805</cve>
+  <cve>CVE-2020-10740</cve>
 </suppress>
 
 <!-- ZooKeeper -->

@@ -16,6 +16,7 @@
 package com.dremio.dac.service.admin;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -36,12 +37,17 @@ import javax.ws.rs.core.Response.Status;
 
 import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
+import com.dremio.dac.resource.PowerBIResource;
+import com.dremio.dac.resource.TableauResource;
 import com.dremio.exec.server.options.ProjectOptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
+import com.dremio.options.Options;
+import com.dremio.options.TypeValidators;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
 
 /**
  * Resource for changing system settings
@@ -52,14 +58,19 @@ import com.google.common.base.Preconditions;
 @RolesAllowed({"admin"})
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
+@Options
 public class SettingsResource {
-
+  private static final Set<String> CLIENT_TOOL_OPTIONS =
+    ImmutableSet.of(TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(),
+      PowerBIResource.CLIENT_TOOLS_POWERBI.getOptionName());
 
   private final ProjectOptionManager projectOptionManager;
 
   @Inject
   public SettingsResource(ProjectOptionManager projectOptionManager) {
     this.projectOptionManager = projectOptionManager;
+    initializeClientTooloptions(ImmutableSet.of(TableauResource.CLIENT_TOOLS_TABLEAU,
+      PowerBIResource.CLIENT_TOOLS_POWERBI), projectOptionManager);
   }
 
   @POST
@@ -155,6 +166,11 @@ public class SettingsResource {
       return Response.status(Status.NOT_FOUND).build();
     }
 
+    // Client tool options should not be removable.
+    if (CLIENT_TOOL_OPTIONS.contains(id)) {
+      return Response.status(Status.BAD_REQUEST).build();
+    }
+
     OptionValue option = projectOptionManager.getOption(id);
 
     projectOptionManager.deleteOption(id, option.getType());
@@ -190,5 +206,14 @@ public class SettingsResource {
     default:
       throw new IllegalStateException("Unable to handle kind " + option.getKind());
     }
+  }
+
+  private static void initializeClientTooloptions(Collection<TypeValidators.TypeValidator> options,
+                                                  ProjectOptionManager optionManager) {
+    options.forEach(option -> {
+      if (!optionManager.isSet(option.getOptionName())) {
+        optionManager.setOption(option.getDefault());
+      }
+    });
   }
 }

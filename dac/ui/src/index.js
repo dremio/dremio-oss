@@ -19,12 +19,12 @@ import { render } from 'react-dom';
 import $ from 'jquery';
 import Immutable from 'immutable';
 
-import './vendor/chat';
-import './vendor/gtm';
 import sentryUtil from 'utils/sentryUtil';
 import startup from 'dyn-load/startup';
-import metrics from './metrics';
 
+import './vendor/chat';
+import './vendor/gtm';
+import metrics from './metrics';
 import 'imports-loader?this=>window!script-loader!jsplumb/dist/js/jsPlumb-2.1.4-min.js';
 import './main.less';
 // add css here to be sure that its content will appear after compiled main.less content.

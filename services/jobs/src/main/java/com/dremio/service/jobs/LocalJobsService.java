@@ -138,8 +138,10 @@ import com.dremio.exec.record.RecordBatchLoader;
 import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.RpcOutcomeListener;
 import com.dremio.exec.server.JobResultInfoProvider;
+import com.dremio.exec.store.JobResultsStoreConfig;
 import com.dremio.exec.store.easy.arrow.ArrowFileFormat;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
+import com.dremio.exec.store.easy.arrow.ArrowFileReader;
 import com.dremio.exec.store.sys.accel.AccelerationDetailsPopulator;
 import com.dremio.exec.store.sys.accel.AccelerationManager;
 import com.dremio.exec.work.foreman.ExecutionPlan;
@@ -259,6 +261,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
   private final Provider<LocalQueryExecutor> queryExecutor;
   private final Provider<LegacyKVStoreProvider> kvStoreProvider;
   private final Provider<JobResultsStoreConfig> jobResultsStoreConfig;
+  private final Provider<JobResultsStore> jobResultsStoreProvider;
   private final ConcurrentHashMap<JobId, QueryListener> runningJobs;
   private final BufferAllocator allocator;
   private final Provider<ForemenTool> foremenTool;
@@ -296,6 +299,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
       final Provider<LegacyKVStoreProvider> kvStoreProvider,
       final BufferAllocator allocator,
       final Provider<JobResultsStoreConfig> jobResultsStoreConfig,
+      final Provider<JobResultsStore> jobResultsStoreProvider,
       final Provider<LocalQueryExecutor> queryExecutor,
       final Provider<CoordTunnelCreator> coordTunnelCreator,
       final Provider<ForemenTool> foremenTool,
@@ -312,9 +316,10 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
       final Provider<ConduitProvider> conduitProvider
   ) {
     this.kvStoreProvider = kvStoreProvider;
-    this.allocator = checkNotNull(allocator).newChildAllocator("jobs-service", 0, Long.MAX_VALUE);
+    this.allocator = allocator;
     this.queryExecutor = checkNotNull(queryExecutor);
     this.jobResultsStoreConfig = checkNotNull(jobResultsStoreConfig);
+    this.jobResultsStoreProvider = jobResultsStoreProvider;
     this.jobResultToLogEntryConverter = jobResultToLogEntryConverterProvider;
     this.runningJobs = new ConcurrentHashMap<>();
     this.foremenTool = foremenTool;
@@ -345,7 +350,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
 
     final JobResultsStoreConfig resultsStoreConfig = jobResultsStoreConfig.get();
     this.storageName = resultsStoreConfig.getStorageName();
-    this.jobResultsStore = new JobResultsStore(resultsStoreConfig, store, allocator);
+    this.jobResultsStore = jobResultsStoreProvider.get();
     this.jobTelemetryServiceStub = jobTelemetryClientProvider.get().getBlockingStub();
 
     // if Dremio process died, clean up
@@ -423,10 +428,9 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
         .build();
       abandonLocalJobsTask = schedulerService.get()
         .schedule(abandonedJobsSchedule, new AbandonLocalJobsTask());
-
-      MapFilterToJobState.init();
     }
 
+    MapFilterToJobState.init();
     logger.info("JobsService is up");
   }
 
@@ -1936,19 +1940,17 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
     }
 
     final NodeEndpoint endpoint = job.getJobAttempt().getEndpoint();
-    if(endpoint.equals(identity)){
-      final ForemenTool tool = this.foremenTool.get();
-      java.util.Optional<QueryProfile> profile = tool.getProfile(attemptId.getExternalId());
-      return profile.orElse(null);
+    QueryProfile qp = null;
+
+    if (!endpoint.equals(identity)) {
+      final QueryProfileRequest request = QueryProfileRequest.newBuilder()
+        .setJobId(JobsProtoUtil.toBuf(job.getJobId()))
+        .setAttempt(attempt)
+        .setUserName(SYSTEM_USERNAME)
+        .build();
+      qp = forwarder.getProfile(JobsServiceUtil.toPB(endpoint), request);
     }
-    try{
-      CoordTunnel tunnel = coordTunnelCreator.get().getTunnel(JobsServiceUtil.toPB(endpoint));
-      return DremioFutures.getChecked(tunnel.requestQueryProfile(attemptId.getExternalId()), RpcException.class, 15, TimeUnit.SECONDS, RpcException::mapException);
-    }catch(TimeoutException | RpcException | RuntimeException e){
-      logger.info("Unable to retrieve remote query profile for external id: {}",
-        ExternalIdHelper.toString(attemptId.getExternalId()), e);
-      return null;
-    }
+    return qp;
   }
 
   void cancel(CancelJobRequest request) throws JobException {

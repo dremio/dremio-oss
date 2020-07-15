@@ -21,7 +21,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -65,7 +67,7 @@ import com.dremio.connector.metadata.ListPartitionChunkOption;
 import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.ValidateMetadataOption;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.catalog.conf.ConnectionConf;
 import com.dremio.exec.catalog.conf.SourceType;
@@ -163,7 +165,7 @@ public class TestCatalogServiceImpl {
     final SabotContext sabotContext = mock(SabotContext.class);
 
     storeProvider =
-      new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false).asLegacy();
+        LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     storeProvider.start();
 
     namespaceService = new NamespaceServiceImpl(storeProvider);
@@ -247,6 +249,9 @@ public class TestCatalogServiceImpl {
     fabricService = new FabricServiceImpl(HOSTNAME, 45678, true, THREAD_COUNT, allocator, RESERVATION, MAX_ALLOCATION,
         TIMEOUT, pool);
 
+    final MetadataRefreshInfoBroadcaster broadcaster = mock(MetadataRefreshInfoBroadcaster.class);
+    doNothing().when(broadcaster).communicateChange(any());
+
     catalogService = new CatalogServiceImpl(
         () -> sabotContext,
         () -> new LocalSchedulerService(1),
@@ -257,6 +262,7 @@ public class TestCatalogServiceImpl {
         () -> storeProvider,
         () -> datasetListingService,
         () -> optionManager,
+        () -> broadcaster,
         dremioConfig,
         EnumSet.allOf(ClusterCoordinator.Role.class)
     );

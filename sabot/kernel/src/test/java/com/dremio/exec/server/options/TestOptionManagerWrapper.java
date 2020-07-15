@@ -33,7 +33,7 @@ import org.junit.Test;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.LogicalPlanPersistence;
-import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.adapter.LegacyKVStoreProviderAdapter;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
@@ -59,7 +59,7 @@ public class TestOptionManagerWrapper extends DremioTest {
 
   @Before
   public void setup() throws Exception {
-    storeProvider = new LocalKVStoreProvider(CLASSPATH_SCAN_RESULT, null, true, false).asLegacy();
+    storeProvider = LegacyKVStoreProviderAdapter.inMemory(DremioTest.CLASSPATH_SCAN_RESULT);
     defaultOptionManager = new DefaultOptionManager(optionValidatorListing);
     systemOptionManager = new SystemOptionManager(optionValidatorListing, lpp, () -> storeProvider, true);
     sessionOptionManager = new SessionOptionManagerImpl(optionValidatorListing);

@@ -15,16 +15,21 @@
  */
 package com.dremio.dac.api;
 
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import com.dremio.edition.EditionProvider;
+import com.dremio.service.job.JobState;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.QueryType;
 import com.dremio.service.jobs.JobsService;
@@ -63,7 +68,44 @@ public class TestDailyJobStats  {
     }
   }
 
+  @Test
+  public void testWithLargeJobCount() {
+    final long jobCount = 1_000_000L;
+
+    final JobsService service = mock(JobsService.class);
+    when(service.searchJobs(any())).thenReturn(() -> prepareJobSummaryData(jobCount));
+
+    final DailyJobStatsResource dailyJobStatsResource = new DailyJobStatsResource(service, mock(EditionProvider.class));
+    final DailyJobStatsResource.DailyJobStats results = dailyJobStatsResource.getStats();
+
+    final List<Map<String, Object>> stats = results.getJobStats();
+
+    for(Map<String, Object> day : stats) {
+      Assert.assertEquals(jobCount, day.get("total"));
+      Assert.assertEquals(jobCount, day.get("UI_RUN"));
+    }
+  }
+
   private JobSummary newJob(String user, QueryType queryType, long startTime) {
-    return JobSummary.newBuilder().setUser(user).setQueryType(queryType).setStartTime(startTime).build();
+    //populate jobsummary, make it a bit heap expensive
+    return JobSummary.newBuilder()
+      .setUser(user).setQueryType(queryType).setStartTime(startTime)
+      .setDatasetVersion("random_data_path")
+      .setDescription("A random description to consume some heap memory")
+      .setSql("SELECT * FROM SOME_TABLE ORDER BY A, B, C, D , E LIMIT 100 OFFSET 5000")
+      .setNumAttempts(1_000_000)
+      .setOutputRecords(1_000_000)
+      .setFailureInfo("no job failure")
+      .setRecordCount(10_000_000)
+      .setAccelerated(true)
+      .setSpilled(true)
+      .setEndTime(startTime + 100000)
+      .setJobState(JobState.COMPLETED)
+      .build();
+  }
+
+  private Iterator<JobSummary> prepareJobSummaryData(final long n) {
+    final long epoch = System.currentTimeMillis();
+    return Stream.generate(() -> newJob("dremio", QueryType.UI_RUN, epoch)).limit(n).iterator();
   }
 }

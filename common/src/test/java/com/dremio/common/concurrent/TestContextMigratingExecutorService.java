@@ -16,6 +16,7 @@
 package com.dremio.common.concurrent;
 
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -25,6 +26,10 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import com.dremio.context.RequestContext;
+import com.dremio.context.UserContext;
+import com.dremio.service.Pointer;
 
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -138,5 +143,30 @@ public class TestContextMigratingExecutorService {
     }
 
     assertChildSpan(runnableSpan[0]);
+  }
+
+  @Test
+  public void testContextWithCallable() throws Exception {
+    final String testUser = "testUser1";
+
+    Callable<String> callable = () -> RequestContext.current().get(UserContext.CTX_KEY).serialize();
+    Future<String> future = RequestContext.empty()
+      .with(UserContext.CTX_KEY, new UserContext(testUser))
+      .call(() -> pool.submit(callable));
+    Assert.assertEquals(testUser, future.get());
+  }
+
+  @Test
+  public void testContextWithRunnable() throws Exception {
+    final String testUser = "testUser2";
+    final Pointer<String> foundUser = new Pointer<>();
+
+    Runnable runnable = () -> foundUser.value = RequestContext.current().get(UserContext.CTX_KEY).serialize();
+    Future<?> future = RequestContext.empty()
+      .with(UserContext.CTX_KEY, new UserContext(testUser))
+      .call(() -> pool.submit(runnable));
+    future.get();
+
+    Assert.assertEquals(testUser, foundUser.value);
   }
 }

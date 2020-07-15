@@ -202,7 +202,8 @@ public class TestLocalExchange extends PlanTestBase {
         1.2, /*affinityFactor*/
         AbstractMaestroObserver.NOOP,
         true,
-        1.5d);
+        1.5d,
+        false);
   }
 
   public static void setupHelper(boolean isMuxOn, boolean isDeMuxOn) throws Exception {

@@ -31,6 +31,8 @@ import com.dremio.exec.proto.UserBitShared.AttemptEvent.State;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.service.grpc.GrpcServerBuilderFactory;
+import com.dremio.service.grpc.SimpleGrpcChannelBuilderFactory;
+import com.dremio.service.grpc.SimpleGrpcServerBuilderFactory;
 import com.dremio.service.jobtelemetry.DeleteProfileRequest;
 import com.dremio.service.jobtelemetry.GetQueryProfileRequest;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
@@ -43,9 +45,9 @@ import com.dremio.telemetry.utils.TracerFacade;
  */
 public class TestLocalJobTelemetryServer {
   private final GrpcChannelBuilderFactory grpcChannelBuilderFactory =
-    new GrpcChannelBuilderFactory(TracerFacade.INSTANCE);
+    new SimpleGrpcChannelBuilderFactory(TracerFacade.INSTANCE);
   private final GrpcServerBuilderFactory grpcServerBuilderFactory =
-    new GrpcServerBuilderFactory(TracerFacade.INSTANCE);
+    new SimpleGrpcServerBuilderFactory(TracerFacade.INSTANCE);
 
   private LocalJobTelemetryServer server;
   private JobTelemetryClient client;

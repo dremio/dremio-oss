@@ -15,7 +15,7 @@
  */
 package com.dremio.service.jobs;
 
-import static com.dremio.service.jobs.RecordBatchHolder.newRecordBatchHolder;
+import static com.dremio.exec.record.RecordBatchHolder.newRecordBatchHolder;
 import static java.lang.Integer.min;
 
 import java.util.ArrayList;
@@ -31,6 +31,7 @@ import org.apache.arrow.vector.VectorSchemaRoot;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.record.RecordBatchData;
+import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.service.job.JobEvent;
 import com.dremio.service.job.proto.JobId;

@@ -13,5 +13,6 @@
   {"label": "Oracle", "sourceType": "ORACLE"},
   {"label": "PostgreSQL", "sourceType": "POSTGRES"},
   {"label": "Azure Data Lake Store", "sourceType": "ADL"},
-  {"label": "Sample Source", "sourceType": "SampleSource"}
+  {"label": "Sample Source", "sourceType": "SampleSource"},
+  {"label": "AWS Glue Catalog", "sourceType": "AWSGLUE"}
 ]

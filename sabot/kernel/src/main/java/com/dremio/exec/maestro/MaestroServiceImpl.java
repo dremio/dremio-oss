@@ -30,6 +30,7 @@ import com.dremio.exec.ops.QueryContext;
 import com.dremio.exec.physical.PhysicalPlan;
 import com.dremio.exec.planner.PhysicalPlanReader;
 import com.dremio.exec.planner.observer.AttemptObserver;
+import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryCompletion;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryFirstError;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryScreenCompletion;
@@ -43,6 +44,7 @@ import com.dremio.exec.work.foreman.CompletionListener;
 import com.dremio.options.OptionManager;
 import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.ResourceAllocator;
+import com.dremio.resource.ResourceSchedulingProperties;
 import com.dremio.resource.exception.ResourceAllocationException;
 import com.dremio.sabot.rpc.ExecToCoordStatusHandler;
 import com.dremio.service.commandpool.CommandPool;
@@ -50,6 +52,8 @@ import com.dremio.service.coordinator.ExecutorSetService;
 import com.dremio.service.execselector.ExecutorSelectionService;
 import com.dremio.service.executor.ExecutorServiceClientFactory;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
+import com.dremio.service.jobtelemetry.JobTelemetryServiceGrpc;
+import com.dremio.service.jobtelemetry.PutExecutorProfileRequest;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.telemetry.api.metrics.Metrics;
 import com.google.common.annotations.VisibleForTesting;
@@ -112,7 +116,7 @@ public class MaestroServiceImpl implements MaestroService {
   public void start() throws Exception {
     Metrics.newGauge(Metrics.join("maestro", "active"), () -> activeQueryMap.size());
 
-    execToCoordStatusHandlerImpl = new ExecToCoordStatusHandlerImpl();
+    execToCoordStatusHandlerImpl = new ExecToCoordStatusHandlerImpl(jobTelemetryClient);
     reader = sabotContext.get().getPlanReader();
   }
 
@@ -196,8 +200,10 @@ public class MaestroServiceImpl implements MaestroService {
   }
 
   @Override
-  public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager) throws ResourceAllocationException {
-    return resourceAllocator.get().getGroupResourceInformation(optionManager);
+  public GroupResourceInformation getGroupResourceInformation(OptionManager optionManager,
+                                                              ResourceSchedulingProperties resourceSchedulingProperties)
+    throws ResourceAllocationException {
+    return resourceAllocator.get().getGroupResourceInformation(optionManager, resourceSchedulingProperties);
   }
 
   @Override
@@ -219,6 +225,11 @@ public class MaestroServiceImpl implements MaestroService {
    * Handles status messages from executors.
    */
   private class ExecToCoordStatusHandlerImpl implements ExecToCoordStatusHandler {
+    private final Provider<JobTelemetryClient> jobTelemetryClient;
+
+    public ExecToCoordStatusHandlerImpl(Provider<JobTelemetryClient> jobTelemetryClient) {
+      this.jobTelemetryClient = jobTelemetryClient;
+    }
 
     @Override
     public void screenCompleted(NodeQueryScreenCompletion completion) throws RpcException {
@@ -235,12 +246,33 @@ public class MaestroServiceImpl implements MaestroService {
     @Override
     public void nodeQueryCompleted(NodeQueryCompletion completion) throws RpcException {
       logger.debug("Node query complete message came in for id {}", completion.getId());
+      updateFinalExecutorProfile(completion);
       QueryTracker queryTracker = activeQueryMap.get(completion.getId());
       if (queryTracker == null) {
         logger.debug("A node query completion message arrived post query termination, dropping. Query [{}] from node {}.",
           QueryIdHelper.getQueryId(completion.getId()), completion.getEndpoint());
       } else {
         queryTracker.nodeCompleted(completion);
+      }
+    }
+
+    private void updateFinalExecutorProfile(NodeQueryCompletion completion) {
+      // propagate to job-telemetry service (in-process server).
+      JobTelemetryServiceGrpc.JobTelemetryServiceBlockingStub stub = jobTelemetryClient.get().getBlockingStub();
+      CoordExecRPC.ExecutorQueryProfile profile = completion.getFinalNodeQueryProfile();
+      if (stub == null) {
+        // telemetry client/service has not been fully started. a message can still arrive
+        // if coordinator has been restarted while active queries are running in executor.
+        logger.info("Dropping a profile message from end point : " + profile.getEndpoint() +
+          ". This is harmless since the query will be terminated shortly due to coordinator " +
+          "restarting");
+      } else {
+        stub.putExecutorProfile(
+          PutExecutorProfileRequest
+            .newBuilder()
+            .setProfile(profile)
+            .build()
+        );
       }
     }
 

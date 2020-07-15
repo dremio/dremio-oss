@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.plugins</groupId>
     <artifactId>dremio-hive2-plugin-parent</artifactId>
-    <version>4.5.0-202006180205030236-1a5d28da</version>
+    <version>4.6.0-202007150150090029-7f333d10</version>
   </parent>
 
   <artifactId>dremio-hive2-plugin</artifactId>
@@ -972,6 +972,38 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-dac-backend</artifactId>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.glassfish</groupId>
+          <artifactId>javax.el</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-dac-backend</artifactId>
+      <version>${project.version}</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.glassfish</groupId>
+          <artifactId>javax.el</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-jobs</artifactId>
+      <version>${project.version}</version>
+      <classifier>tests</classifier>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -1287,9 +1319,12 @@
       </activation>
       <dependencies>
         <dependency>
-          <groupId>com.amazonaws.glue</groupId>
-          <artifactId>aws-glue-datacatalog-hive2-client</artifactId>
-          <version>1.10.0-201909182150580144-c83f2cb</version>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-glue</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>com.amazonaws</groupId>
+          <artifactId>aws-java-sdk-sts</artifactId>
         </dependency>
         <dependency>
           <groupId>com.amazonaws</groupId>
@@ -1379,6 +1414,20 @@
           <name>mapr</name>
         </property>
       </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <configuration>
+              <excludes>
+                <exclude>com/dremio/exec/store/hive/GlueAWSCredentialsFactory.java</exclude>
+                <exclude>com/dremio/plugins/s3/store/STSCredentialProviderV1.java</exclude>
+              </excludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
       <properties>
         <hadoop.version>${plugin.hive2.mapr.hadoop.version}</hadoop.version>
         <hive.version>${plugin.hive2.mapr.hive.version}</hive.version>

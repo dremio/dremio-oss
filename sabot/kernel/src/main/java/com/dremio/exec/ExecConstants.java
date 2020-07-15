@@ -361,6 +361,11 @@ public interface ExecConstants {
   BooleanValidator OLD_ASSIGNMENT_CREATOR = new BooleanValidator("exec.work.assignment.old", false);
 
   /**
+   * If set to true, soft affinity will be ignored for leaf fragments during parallelization.
+   */
+  BooleanValidator SHOULD_IGNORE_LEAF_AFFINITY = new BooleanValidator("planner.assignment.ignore_leaf_affinity", false);
+
+  /**
    * This factor determines how much larger the load for a given slice can be than the expected size in order to maintain locality
    * A smaller value will favor even distribution of load, while a larger value will favor locality, even if that means uneven load
    */
@@ -399,10 +404,13 @@ public interface ExecConstants {
   PositiveLongValidator PLANNER_IN_SUBQUERY_THRESHOLD = new PositiveLongValidator("planner.in.subquery.threshold", Character.MAX_VALUE, 20);
 
   BooleanValidator EXTERNAL_SORT_COMPRESS_SPILL_FILES = new BooleanValidator("exec.operator.sort.external.compress_spill_files", true);
-
   BooleanValidator EXTERNAL_SORT_ENABLE_SPLAY_SORT = new BooleanValidator("exec.operator.sort.external.enable_splay_sort", false);
-
   BooleanValidator EXTERNAL_SORT_ENABLE_MICRO_SPILL = new BooleanValidator("exec.operator.sort.external.enable_micro_spill", true);
+  PositiveLongValidator SORT_MAX_WRITE_BATCH = new PositiveLongValidator("exec.operator.sort.external.spill_batch_records", Character.MAX_VALUE, Character.MAX_VALUE);
+  BooleanValidator EXTERNAL_SORT_ARROW_ENCODING = new BooleanValidator("exec.operator.sort.external.arrow_encoding", true);
+  BooleanValidator EXTERNAL_SORT_DIRECT_WRITE = new BooleanValidator("exec.operator.sort.external.direct_write", true);
+  BooleanValidator EXTERNAL_SORT_VECTOR_COPIER = new BooleanValidator("exec.operator.sort.external.vector_copier", true);
+  DoubleValidator EXTERNAL_SORT_SPILL_ALLOCATION_DENSITY = new RangeDoubleValidator("exec.operator.sort.external.spill.allocation_density", 0.0, Double.MAX_VALUE, 0.01);
 
   PositiveLongValidator EXTERNAL_SORT_BATCHSIZE_MULTIPLIER = new PositiveLongValidator("exec.operator.sort.external.batchsize_multiplier", Character.MAX_VALUE, 2);
 
@@ -448,4 +456,12 @@ public interface ExecConstants {
   BooleanValidator ENABLE_HIVE_ASYNC = new TypeValidators.BooleanValidator("store.hive.async", true);
 
   BooleanValidator ENABLE_REMOTE_JOB_FETCH = new BooleanValidator("jobs.remote.fetch_enabled", true);
+
+  DoubleValidator EXPR_COMPLEXITY_NO_OPTIMIZE_THRESHOLD = new DoubleValidator("exec.expression.complexity.no_optimize.threshold", 2000.00);
+
+  BooleanValidator PARQUET_SCAN_AS_BOOST = new BooleanValidator("parquet.scan.substitute_with_boost", false);
+
+  // hive parallelism and timeout options for signature validation process
+  LongValidator HIVE_SIGNATURE_VALIDATION_PARALLELISM = new TypeValidators.RangeLongValidator("store.hive.signature_validation.parallelism", 1, 32, 16);
+  LongValidator HIVE_SIGNATURE_VALIDATION_TIMEOUT_MS = new TypeValidators.LongValidator("store.hive.signature_validation.timeout.ms", 2_000);
 }

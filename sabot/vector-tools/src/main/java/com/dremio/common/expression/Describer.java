@@ -31,6 +31,8 @@ import org.apache.arrow.vector.types.pojo.ArrowType.FixedSizeList;
 import org.apache.arrow.vector.types.pojo.ArrowType.FloatingPoint;
 import org.apache.arrow.vector.types.pojo.ArrowType.Int;
 import org.apache.arrow.vector.types.pojo.ArrowType.Interval;
+import org.apache.arrow.vector.types.pojo.ArrowType.LargeBinary;
+import org.apache.arrow.vector.types.pojo.ArrowType.LargeUtf8;
 import org.apache.arrow.vector.types.pojo.ArrowType.List;
 import org.apache.arrow.vector.types.pojo.ArrowType.Null;
 import org.apache.arrow.vector.types.pojo.ArrowType.Struct;
@@ -280,6 +282,16 @@ public class Describer {
     @Override
     public String visit(FixedSizeBinary type) {
       return String.format("binary(%d)", type.getByteWidth());
+    }
+
+    @Override
+    public String visit(LargeBinary paramLargeBinary) {
+      throw new UnsupportedOperationException("Dremio does not support LargeBinary yet");
+    }
+
+    @Override
+    public String visit(LargeUtf8 paramLargeUtf8) {
+      throw new UnsupportedOperationException("Dremio does not support LargeUtf8 yet");
     }
 
     @Override

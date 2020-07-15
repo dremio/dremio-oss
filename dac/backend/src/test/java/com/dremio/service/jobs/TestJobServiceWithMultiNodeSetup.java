@@ -43,10 +43,13 @@ import com.dremio.service.job.JobState;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.JobsServiceGrpc;
+import com.dremio.service.job.QueryProfileRequest;
 import com.dremio.service.job.QueryType;
+import com.dremio.service.job.SearchJobsRequest;
 import com.dremio.service.job.SubmitJobRequest;
 import com.dremio.service.job.VersionedDatasetPath;
 import com.dremio.service.job.proto.JobId;
+import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import com.google.common.io.Resources;
 
@@ -120,6 +123,60 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
     final ManagedChannel channel  = getChannelToCoord(true);
     final ChronicleGrpc.ChronicleBlockingStub stub = ChronicleGrpc.newBlockingStub(channel);
     return stub;
+  }
+
+  //submit the job on slave & pull profile from master
+  @Test
+  public void testGetProfileOnMaster() throws InterruptedException {
+    JobsServiceGrpc.JobsServiceStub stubToSubmit = getSlaveJobsServiceStub();
+    ChronicleGrpc.ChronicleBlockingStub jobDetailsStub = getMasterChronicleStub();
+    testGetProfile(stubToSubmit, jobDetailsStub);
+  }
+
+  //submit the job on master & pull profile from slave
+  @Test
+  public void testGetProfileOnSlave() throws InterruptedException {
+    JobsServiceGrpc.JobsServiceStub stubToSubmit = getMasterJobsServiceStub();
+    ChronicleGrpc.ChronicleBlockingStub jobDetailsStub = getSlaveChronicleStub();
+    testGetProfile(stubToSubmit, jobDetailsStub);
+  }
+
+
+  private void testGetProfile(JobsServiceGrpc.JobsServiceStub stubToSubmit, ChronicleGrpc.ChronicleBlockingStub jobDetailsStub) throws InterruptedException {
+    // issue job submit
+    final JobSubmittedListener submittedListener = new JobSubmittedListener();
+    final CompletionListener listener = new CompletionListener();
+    final JobStatusListenerAdapter adapter = new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
+    stubToSubmit.submitJob(
+      SubmitJobRequest.newBuilder()
+        .setSqlQuery(JobsProtoUtil.toBuf(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" ")))
+        .setQueryType(QueryType.UI_RUN)
+        .setVersionedDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(ds1.toNamespaceKey().getPathComponents())
+          .build())
+        .build(),
+      adapter);
+
+    // wait for it to be submitted
+    submittedListener.await();
+    final JobId id = adapter.getJobId();
+
+    final QueryProfileRequest req = QueryProfileRequest.newBuilder().setAttempt(0).setJobId(JobsProtoUtil.toBuf(id)).build();
+    //poll for the profile while the query is running
+    while(true) {
+      final UserBitShared.QueryProfile qp = jobDetailsStub.getProfile(req);
+      final UserBitShared.QueryResult.QueryState queryState = qp.getState();
+      if (queryState == UserBitShared.QueryResult.QueryState.RUNNING) {
+        Assert.assertTrue(qp.getTotalFragments() > 0);
+        Assert.assertTrue(qp.getDatasetProfileCount() > 0);
+      }
+      if (queryState == UserBitShared.QueryResult.QueryState.COMPLETED) {
+        Assert.assertTrue(qp.getFinishedFragments() > 0);
+        Assert.assertTrue(qp.getFragmentProfileCount() > 0);
+        break;
+      }
+      Thread.sleep(100);
+    }
   }
 
   /**
@@ -327,6 +384,87 @@ public class TestJobServiceWithMultiNodeSetup extends BaseTestServer{
 
     Assert.assertTrue(summary.getJobState() == JobState.COMPLETED);
     Assert.assertEquals(summary.getOutputRecords(), 100);
+  }
+
+
+  /**
+   * @param submitJobToMaster: if true, submission is done on master & search on slave or vice versa.
+   */
+  private void testJobSearchOn(boolean submitJobToMaster) throws InterruptedException {
+    JobsServiceGrpc.JobsServiceStub stubToSubmit = null;
+    ChronicleGrpc.ChronicleBlockingStub jobSummaryStub = null;
+    JobsServiceGrpc.JobsServiceStub jobMonitorStub = null;
+    if (submitJobToMaster) {
+      stubToSubmit = getMasterJobsServiceStub();
+      jobSummaryStub = getSlaveChronicleStub();
+      jobMonitorStub = getSlaveJobsServiceStub();
+    } else {
+      stubToSubmit = getSlaveJobsServiceStub();
+      jobSummaryStub = getMasterChronicleStub();
+      jobMonitorStub = getMasterJobsServiceStub();
+    }
+
+    // submit job
+    final JobSubmittedListener submittedListener = new JobSubmittedListener();
+    final CompletionListener listener = new CompletionListener();
+    final JobStatusListenerAdapter adapter = new JobStatusListenerAdapter(new MultiJobStatusListener(listener, submittedListener));
+    stubToSubmit.submitJob(
+      SubmitJobRequest.newBuilder()
+        .setSqlQuery(JobsProtoUtil.toBuf(getQueryFromSQL("select * from LocalFS1.\"dac-sample1.json\" limit 150")))
+        .setQueryType(QueryType.UI_RUN)
+        .setVersionedDataset(VersionedDatasetPath.newBuilder()
+          .addAllPath(ds1.toNamespaceKey().getPathComponents())
+          .build())
+        .build(),
+      adapter);
+
+    // wait for it to be submitted
+    submittedListener.await();
+    final JobId id = adapter.getJobId();
+
+    final SearchJobsRequest searchJobsRequest = SearchJobsRequest.newBuilder()
+      .setFilterString("(jst==RUNNING,jst==ENGINE_START,jst==QUEUED,jst==SETUP,jst==COMPLETED)")
+      .build();
+
+    final CountDownLatch queryLatch = new CountDownLatch(1);
+    final DummyJobEventListener dummyJobEventListener = new DummyJobEventListener(queryLatch);
+    jobMonitorStub.subscribeToJobEvents(JobsProtoUtil.toBuf(id), dummyJobEventListener);
+
+    boolean found = false;
+    while (queryLatch.getCount() > 0) {
+      // search as the job progresses
+      final List<JobSummary> jobSummaries = ImmutableList.copyOf(jobSummaryStub.searchJobs(searchJobsRequest));
+      if (jobSummaries.size() > 0) {
+        for (JobSummary summary : jobSummaries) {
+          if (JobsProtoUtil.toStuff(summary.getJobId()).equals(id)) {
+            found = true;
+          }
+        }
+      }
+      Thread.sleep(100);
+    }
+
+    if (!found) {
+      // search once more, in case the query finished very quickly
+      final List<JobSummary> jobSummaries = ImmutableList.copyOf(jobSummaryStub.searchJobs(searchJobsRequest));
+      for (JobSummary summary : jobSummaries) {
+        if (JobsProtoUtil.toStuff(summary.getJobId()).equals(id)) {
+          found = true;
+        }
+      }
+    }
+
+    Assert.assertTrue("Job id was not found", found);
+  }
+
+  @Test
+  public void testJobSearchOnSlave() throws Exception {
+    testJobSearchOn(true);
+  }
+
+  @Test
+  public void testJobSearchOnMaster() throws Exception {
+    testJobSearchOn(false);
   }
 
 

@@ -125,6 +125,9 @@ class AndToOrConverter extends StatelessRelShuttleImpl {
           RexNode newOperand = rexBuilder.makeCall(SqlStdOperatorTable.EQUALS, other, literal);
           if (!operandsByExpr.containsKey(stringExpr)) {
             operandsByExpr.put(stringExpr, new ArrayList<>());
+            if (other.getType().isNullable()) {
+              extras.add(rexBuilder.makeCall(SqlStdOperatorTable.IS_NOT_NULL, other));
+            }
           }
           operandsByExpr.get(stringExpr).add(newOperand);
         }

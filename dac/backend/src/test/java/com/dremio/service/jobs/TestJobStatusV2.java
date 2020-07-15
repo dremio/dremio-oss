@@ -193,6 +193,9 @@ public class TestJobStatusV2 extends BaseTestServer {
     }
 
     AttemptEvent.State getLatestState() {
+      if (stateList.size() == 0) {
+        return State.INVALID_STATE;
+      }
       return stateList.get(stateList.size()-1);
     }
   }

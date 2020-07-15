@@ -16,10 +16,12 @@
 package com.dremio.exec.store.hive.metadata;
 
 import com.dremio.connector.metadata.DatasetStats;
+import com.dremio.exec.planner.cost.ScanCostFactor;
 
 public class HiveDatasetStats implements DatasetStats {
   private long recordCount;
   private long scanFactor;
+  private boolean allowParquetNative;
 
   public HiveDatasetStats() {
     this(0, 0);
@@ -30,12 +32,12 @@ public class HiveDatasetStats implements DatasetStats {
     this.scanFactor = scanFactor;
   }
 
-  public void addRecords(long recordCount) {
-    this.recordCount += recordCount;
+  public void setAllowParquetNative(boolean splitFileTypeChanged) {
+    this.allowParquetNative = splitFileTypeChanged;
   }
 
-  public void addBytesToScanFactor(long byteCount) {
-    this.scanFactor += byteCount;
+  public void addRecords(long recordCount) {
+    this.recordCount += recordCount;
   }
 
   @Override
@@ -45,7 +47,10 @@ public class HiveDatasetStats implements DatasetStats {
 
   @Override
   public double getScanFactor() {
-    return scanFactor;
+    if (allowParquetNative) {
+      return ScanCostFactor.PARQUET.getFactor();
+    }
+    return ScanCostFactor.HIVE.getFactor();
   }
 
   public boolean hasContent() {

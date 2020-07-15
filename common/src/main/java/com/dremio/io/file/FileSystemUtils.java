@@ -52,7 +52,7 @@ public class FileSystemUtils {
         for (DeleteEntry entry = TO_DELETE_ON_EXIT.poll(); entry != null; entry = TO_DELETE_ON_EXIT.poll()) {
           try {
             entry.fs.delete(entry.path, true);
-          } catch (IOException e) {
+          } catch (IOException | IllegalStateException e) {
             LOGGER.warn("Could not delete path {}", entry.path, e);
           }
         }

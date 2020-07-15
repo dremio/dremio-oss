@@ -22,7 +22,7 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.dremio.dac.server.DACConfig;
-import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.datastore.LocalKVStoreProvider;
 import com.dremio.service.users.SimpleUserService;
 
 /**
@@ -72,15 +72,15 @@ public class SetPassword {
   }
 
   public static void resetPassword(DACConfig dacConfig, String userName, String password) throws Exception {
-    Optional<LegacyKVStoreProvider> providerOptional = CmdUtils.getLegacyKVStoreProvider(dacConfig.getConfig());
+    Optional<LocalKVStoreProvider> providerOptional = CmdUtils.getKVStoreProvider(dacConfig.getConfig());
     if (!providerOptional.isPresent()) {
       AdminLogger.log("No KVStore detected.");
       return;
     }
 
-    try(LegacyKVStoreProvider kvStoreProvider = providerOptional.get()) {
+    try(LocalKVStoreProvider kvStoreProvider = providerOptional.get()) {
       kvStoreProvider.start();
-      new SimpleUserService(() -> kvStoreProvider).setPassword(userName, password);
+      new SimpleUserService(() -> kvStoreProvider.asLegacy()).setPassword(userName, password);
     }
     AdminLogger.log("Password changed");
   }

@@ -53,13 +53,17 @@ export default class ContainerSelection extends Component {
   };
 
   renderSelectSelector = (elementConfig, selectedValue, radioProps) => {
-    const tooltip = elementConfig.getConfig().tooltip;
-    const label = elementConfig.getConfig().label;
+    const elementConfigJson = elementConfig.getConfig();
+    const tooltip = elementConfigJson.tooltip;
+    const label = elementConfigJson.label;
     const hoverHelpText = (tooltip) ? {hoverHelpText: tooltip} : null;
-    const isDisabled = (elementConfig.getConfig().disabled || this.props.disabled) ?
+    const isDisabled = (elementConfigJson.disabled || this.props.disabled) ?
       {disabled: true} : null;
+    const size = elementConfigJson.size;
+    const isFixedSize = typeof size === 'number' && size > 0;
+    const style = (isFixedSize) ? {width: size} : {};
 
-    return <div style={{marginTop: 6}}>
+    return <div style={{marginTop: 6, marginBottom: 12}}>
       <FieldWithError errorPlacement='top'
         {...hoverHelpText}
         label={label}
@@ -69,6 +73,7 @@ export default class ContainerSelection extends Component {
             {...isDisabled}
             items={elementConfig.getConfig().options}
             className={selectBody}
+            style={style}
             valueField='value'
             value={selectedValue}
             {...radioProps}

@@ -132,7 +132,7 @@ public class VectorizedHashAggPartitionSpillHandler implements AutoCloseable {
     final String id = String.format("aggspill-%s.%s.%s.%s", QueryIdHelper.getQueryId(fragmentHandle.getQueryId()),
       fragmentHandle.getMajorFragmentId(), fragmentHandle.getMinorFragmentId(), operatorId);
 
-    this.spillManager = new SpillManager(sabotConfig, optionManager, id, null, spillService, "agg spilling");
+    this.spillManager = new SpillManager(sabotConfig, optionManager, id, null, spillService, "agg spilling", stats);
 
     Preconditions.checkArgument(loadingPartition != null, "Error: need a valid handle for loading partition");
     this.loadingPartition = loadingPartition;

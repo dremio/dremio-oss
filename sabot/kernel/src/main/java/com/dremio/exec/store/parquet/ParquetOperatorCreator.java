@@ -19,6 +19,7 @@ import static com.dremio.exec.store.parquet.ParquetFormatDatasetAccessor.ACCELER
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,7 @@ import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergDatasetX
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergSchemaField;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetXAttr;
+import com.dremio.sabot.op.boost.BoostOperator;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.dremio.sabot.op.spi.ProducerOperator.Creator;
@@ -86,6 +88,18 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, final OperatorContext context, final ParquetSubScan config) throws ExecutionSetupException {
     final Stopwatch watch = Stopwatch.createStarted();
 
+    if (context.getOptions().getOption(ExecConstants.PARQUET_SCAN_AS_BOOST)) {
+      FileSystemPlugin<?> plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
+      FileSystem fs;
+      try {
+        fs = plugin.createFS(config.getProps().getUserName(), context);
+      } catch (IOException e) {
+        throw new ExecutionSetupException("Cannot access plugin filesystem", e);
+      }
+      return new BoostOperator(config, context, getReaders(fragmentExecContext, context, config),
+        GlobalDictionaries.create(context, fs, config.getGlobalDictionaryEncodedColumns()), plugin);
+    }
+
     Creator creator = new Creator(fragmentExecContext, context, config);
     try {
       final ScanOperator scan = creator.createScan();
@@ -94,6 +108,10 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     } catch (Exception ex) {
       throw new ExecutionSetupException("Failed to create scan operator.", ex);
     }
+  }
+
+  public Iterator<RecordReader> getReaders(FragmentExecutionContext fragmentExecContext, final OperatorContext context, final ParquetSubScan config) throws ExecutionSetupException {
+    return new Creator(fragmentExecContext, context, config).getReaders();
   }
 
   /**
@@ -200,6 +218,20 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
         AutoCloseables.close(iterator);
         throw ex;
       }
+    }
+
+    public Iterator<RecordReader> getReaders() {
+      List<ParquetSplitReaderCreator> splits = config.getSplits().stream().map(ParquetSplitReaderCreator::new).collect(Collectors.toList());
+      ParquetSplitReaderCreator next = null;
+
+      // set forward links
+      for(int i = splits.size() - 1; i > -1; i--) {
+        ParquetSplitReaderCreator cur = splits.get(i);
+        cur.setNext(next);
+        next = cur;
+      }
+
+      return new PrefetchingIterator<>(splits);
     }
 
     /**

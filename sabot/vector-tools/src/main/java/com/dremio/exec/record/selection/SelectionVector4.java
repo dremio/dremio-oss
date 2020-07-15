@@ -46,6 +46,14 @@ public class SelectionVector4 implements AutoCloseable {
     return length;
   }
 
+  /**
+   * Get location of current start point.
+   * @return Memory address where current batch starts.
+   */
+  public long getMemoryAddress() {
+    return data.memoryAddress() + start * 4;
+  }
+
   public void set(int index, int compound) {
     data.setInt(index*4, compound);
   }

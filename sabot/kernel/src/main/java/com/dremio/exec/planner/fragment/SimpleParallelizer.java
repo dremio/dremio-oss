@@ -95,6 +95,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
   private final ResourceSchedulingDecisionInfo resourceSchedulingDecisionInfo;
   private ExecutorSelectionService executorSelectionService;  // NB: re-assigned in unit tests, hence not final
   private final int targetNumFragsPerNode;
+  private final boolean shouldIgnoreLeafAffinity;
 
   public SimpleParallelizer(QueryContext context, MaestroObserver observer, ExecutorSelectionService executorSelectionService) {
     this(context, observer, executorSelectionService, null);
@@ -133,6 +134,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
     this.fragmentCodec = FragmentCodec.valueOf(optionManager.getOption(ExecConstants.FRAGMENT_CODEC).toUpperCase());
     this.executorSelectionService = executorSelectionService;
     this.targetNumFragsPerNode = Ints.saturatedCast(optionManager.getOption(ExecutorSelectionService.TARGET_NUM_FRAGS_PER_NODE));
+    this.shouldIgnoreLeafAffinity = optionManager.getOption(ExecConstants.SHOULD_IGNORE_LEAF_AFFINITY);
   }
 
   @VisibleForTesting
@@ -142,7 +144,8 @@ public class SimpleParallelizer implements ParallelizationParameters {
                             double affinityFactor,
                             MaestroObserver observer,
                             boolean useNewAssignmentCreator,
-                            double assignmentCreatorBalanceFactor) {
+                            double assignmentCreatorBalanceFactor,
+                            boolean shouldIgnoreLeafAffinity) {
     this.executionMap = new ExecutionNodeMap(Collections.<NodeEndpoint>emptyList());
     this.parallelizationThreshold = parallelizationThreshold;
     this.maxWidthPerNode = maxWidthPerNode;
@@ -155,6 +158,7 @@ public class SimpleParallelizer implements ParallelizationParameters {
     this.queryContext = null;
     this.targetNumFragsPerNode = 1;
     this.resourceSchedulingDecisionInfo = null;
+    this.shouldIgnoreLeafAffinity = shouldIgnoreLeafAffinity;
   }
 
   @Override
@@ -185,6 +189,11 @@ public class SimpleParallelizer implements ParallelizationParameters {
   @Override
   public double getAssignmentCreatorBalanceFactor(){
     return assignmentCreatorBalanceFactor;
+  }
+
+  @Override
+  public boolean shouldIgnoreLeafAffinity() {
+    return shouldIgnoreLeafAffinity;
   }
 
   /**

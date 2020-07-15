@@ -17,7 +17,9 @@ package com.dremio.exec.planner.fragment;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -47,7 +49,8 @@ public class TestSoftAffinityFragmentParallelizer {
   }
 
   private static final ParallelizationParameters newParameters(final long threshold, final int maxWidthPerNode,
-                                                               final int maxGlobalWidth, final double affinityFactor) {
+                                                               final int maxGlobalWidth, final double affinityFactor,
+                                                               final boolean shouldIgnoreLeafAffinity) {
     return new ParallelizationParameters() {
       @Override
       public long getSliceTarget() {
@@ -78,6 +81,11 @@ public class TestSoftAffinityFragmentParallelizer {
       public double getAssignmentCreatorBalanceFactor() {
         return 1.5;
       }
+
+      @Override
+      public boolean shouldIgnoreLeafAffinity() {
+        return shouldIgnoreLeafAffinity;
+      }
     };
   }
 
@@ -98,7 +106,7 @@ public class TestSoftAffinityFragmentParallelizer {
       activeEndpoints,
       endpointAffinityMap, 1,
         newParameters(3, 5,
-    10, 0.3D));
+    10, 0.3D, false));
 
     assertNotNull(endpoints);
     assertEquals(1, endpoints.size());
@@ -114,11 +122,66 @@ public class TestSoftAffinityFragmentParallelizer {
         activeEndpoints,
         endpointAffinityMap, 1,
         newParameters(3, 5,
-          10, 0.3D));
+          10, 0.3D, false));
 
     // Regardless of affinity, the result must be one of the endpoints in the activeEndpoints list
     assertNotNull(endpoints);
     assertEquals(1, endpoints.size());
     assertEquals(N2_EP1, endpoints.get(0));
+  }
+
+  @Test
+  public void testNodesIgnoreAffinity() throws Exception {
+
+    List<CoordinationProtos.NodeEndpoint> activeEndpoints = ImmutableList.of(N1_EP1, N1_EP2, N2_EP1);
+
+    EndpointAffinity N1_EP1_A = new EndpointAffinity(N1_EP1, 0.5);
+    EndpointAffinity N1_EP2_A = new EndpointAffinity(N1_EP2, 0.5);
+    EndpointAffinity N2_EP1_A = new EndpointAffinity(N2_EP1, 0.6);
+
+    Map<CoordinationProtos.NodeEndpoint, EndpointAffinity> endpointAffinityMap = ImmutableMap.of(N1_EP1, N1_EP1_A,
+      N1_EP2, N1_EP2_A, N2_EP1, N2_EP1_A);
+
+    ParallelizationParameters params = newParameters(3, 1,
+      1, 0.3D, false);
+    Map<CoordinationProtos.NodeEndpoint, EndpointAffinity> updatedAffinityMap = SoftAffinityFragmentParallelizer.INSTANCE
+      .getEndpointAffinityMap(endpointAffinityMap, true, params);
+    List<CoordinationProtos.NodeEndpoint> endpoints = SoftAffinityFragmentParallelizer.INSTANCE
+      .findEndpoints(
+        activeEndpoints,
+        updatedAffinityMap, 1,
+        params);
+
+    assertNotNull(endpoints);
+    assertEquals(1, endpoints.size());
+    assertEquals(N2_EP1, endpoints.get(0));
+
+    /*
+     * Run 100*numNodes times. Ideally, each node should be selected 100 times. Assert that each node gets selected at
+     * least 25 times.
+     */
+    ParallelizationParameters ignoreAffinityParams = newParameters(3, 1,
+      1, 0.3D, true);
+
+    Map<CoordinationProtos.NodeEndpoint, Integer> nodeEndpointFrequencyMap = new HashMap<>();
+    int numExpected = 100;
+    for (int i = 0; i < numExpected * endpoints.size(); ++i) {
+      Map<CoordinationProtos.NodeEndpoint, EndpointAffinity> updated = SoftAffinityFragmentParallelizer.INSTANCE
+        .getEndpointAffinityMap(endpointAffinityMap, true, ignoreAffinityParams);
+
+      List<CoordinationProtos.NodeEndpoint> selected = SoftAffinityFragmentParallelizer.INSTANCE
+        .findEndpoints(
+          activeEndpoints,
+          updated, 1,
+          ignoreAffinityParams);
+
+      assertEquals(1, selected.size());
+      nodeEndpointFrequencyMap.merge(selected.get(0), 1, Integer::sum);
+    }
+
+    assertEquals(activeEndpoints.size(), nodeEndpointFrequencyMap.size());
+    for (Integer frequency : nodeEndpointFrequencyMap.values()) {
+      assertTrue(frequency >= numExpected / 4);
+    }
   }
 }

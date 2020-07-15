@@ -61,6 +61,7 @@ message ReflectionEntry {
   optional JobId refresh_job_id = 21;
   optional string tag = 22;
   optional string goalVersion = 23;
+  optional int32 shallowDatasetHash = 24;
 }
 
 enum DependencyType {

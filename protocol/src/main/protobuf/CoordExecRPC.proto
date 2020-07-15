@@ -216,6 +216,9 @@ message NodeQueryCompletion {
   optional exec.shared.DremioPBError first_error = 4;
   optional int32 error_major_fragment_id = 5;
   optional int32 error_minor_fragment_id = 6;
+
+  // the final profile from the node for the query
+  optional ExecutorQueryProfile final_node_query_profile = 7;
 }
 
 // executor > coordinator : report first error for a query on an executor

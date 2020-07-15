@@ -161,7 +161,22 @@ public class ExternalSortOperator implements SingleInputOperator {
     OOB_DROP_LOCAL, // Number of times operator dropped self-referencing spilling notification
     OOB_DROP_WRONG_STATE, // Number of times operator dropped spilling notification as it was in wrong state to spill
     OOB_DROP_UNDER_THRESHOLD, // Number of times OOB dropped spilling notification as it was under the threshold.
-    OOB_SPILL; // Spill was done due to oob.
+    OOB_SPILL, // Spill was done due to oob.
+
+    UNCOMPRESSED_BYTES_WRITTEN,
+    IO_BYTES_WRITTEN,
+    UNCOMPRESSED_BYTES_READ,
+    IO_BYTES_READ,
+    COMPRESSION_NANOS,
+    DECOMPRESSION_NANOS,
+    IO_WRITE_WAIT,
+    IO_READ_WAIT,
+
+    SPILL_COPY_NANOS,
+
+    OOM_ALLOCATE_COUNT,
+    OOM_COPY_COUNT,
+    ;
 
     @Override
     public int metricId() {
@@ -246,6 +261,7 @@ public class ExternalSortOperator implements SingleInputOperator {
      * Otherwise 'memoryRun' close would fail reporting memory leak.
      */
     AutoCloseables.close(copier, output, diskRuns, memoryRun, unconsumedRef);
+    updateStats(true);
   }
 
   @Override
@@ -271,7 +287,7 @@ public class ExternalSortOperator implements SingleInputOperator {
         break;
       }
     }
-    updateStats();
+    updateStats(false);
   }
 
   @Override
@@ -307,7 +323,7 @@ public class ExternalSortOperator implements SingleInputOperator {
       // only need to deal with disk runs.
       consolidateIfNecessary();
     }
-    updateStats();
+    updateStats(false);
   }
 
   /**
@@ -344,7 +360,7 @@ public class ExternalSortOperator implements SingleInputOperator {
 
     if (!canCopy()) {
       consolidateIfNecessary();
-      updateStats();
+      updateStats(false);
       return 0;
     }
     int copied = copier.copy(targetBatchSize);
@@ -367,29 +383,46 @@ public class ExternalSortOperator implements SingleInputOperator {
     return copied;
   }
 
-  private void updateStats() {
-    if (memoryRun != null) {
-      maxBatchesInMemory = Math.max(maxBatchesInMemory, memoryRun.getNumberOfBatches());
+  private void updateStats(boolean closed) {
+    OperatorStats stats = context.getStats();
+    if (!closed) {
+      if (memoryRun != null) {
+        maxBatchesInMemory = Math.max(maxBatchesInMemory, memoryRun.getNumberOfBatches());
+      }
+      stats.setLongStat(Metric.PEAK_BATCHES_IN_MEMORY, maxBatchesInMemory);
+
+
+      stats.setLongStat(Metric.OOB_SENDS, oobSends);
+      stats.setLongStat(Metric.OOB_RECEIVES, oobReceives);
+      stats.setLongStat(Metric.OOB_DROP_LOCAL, oobDropLocal);
+      stats.setLongStat(Metric.OOB_DROP_WRONG_STATE, oobDropWrongState);
+      stats.setLongStat(Metric.OOB_DROP_UNDER_THRESHOLD, oobDropUnderThreshold);
+      stats.setLongStat(Metric.OOB_SPILL, oobSpills);
     }
 
-    OperatorStats stats = context.getStats();
+    if (diskRuns != null) {
+      stats.setLongStat(Metric.SPILL_COUNT, diskRuns.spillCount());
+      stats.setLongStat(Metric.MERGE_COUNT, diskRuns.mergeCount());
+      stats.setLongStat(Metric.MAX_BATCH_SIZE, diskRuns.getMaxBatchSize()); //
+      stats.setLongStat(Metric.AVG_BATCH_SIZE, diskRuns.getAvgMaxBatchSize()); //
+      stats.setLongStat(Metric.SPILL_TIME_NANOS, diskRuns.spillTimeNanos());
+      stats.setLongStat(Metric.MERGE_TIME_NANOS, diskRuns.mergeTimeNanos());
+      stats.setLongStat(Metric.BATCHES_SPILLED, diskRuns.getBatchesSpilled());
+      stats.setLongStat(Metric.UNCOMPRESSED_BYTES_READ, diskRuns.getAppReadBytes());
+      stats.setLongStat(Metric.UNCOMPRESSED_BYTES_WRITTEN, diskRuns.getAppWriteBytes());
+      stats.setLongStat(Metric.IO_BYTES_READ, diskRuns.getIOReadBytes());
+      stats.setLongStat(Metric.TOTAL_SPILLED_DATA_SIZE, diskRuns.getIOWriteBytes());
+      // if we use the old encoding path, we don't get the io bytes so we'll behave similar to legacy, reporting pre-compressed size.
+      stats.setLongStat(Metric.IO_BYTES_WRITTEN, diskRuns.getIOWriteBytes() == 0 ? diskRuns.getTotalDataSpilled() : diskRuns.getIOWriteBytes());
+      stats.setLongStat(Metric.COMPRESSION_NANOS, diskRuns.getCompressionNanos());
+      stats.setLongStat(Metric.DECOMPRESSION_NANOS, diskRuns.getDecompressionNanos());
+      stats.setLongStat(Metric.IO_READ_WAIT, diskRuns.getIOReadWait());
+      stats.setLongStat(Metric.IO_WRITE_WAIT, diskRuns.getIOWriteWait());
+      stats.setLongStat(Metric.OOM_ALLOCATE_COUNT, diskRuns.getOOMAllocateCount());
+      stats.setLongStat(Metric.OOM_COPY_COUNT, diskRuns.getOOMCopyCount());
+      stats.setLongStat(Metric.SPILL_COPY_NANOS, diskRuns.getSpillCopyNanos());
+    }
 
-    stats.setLongStat(Metric.PEAK_BATCHES_IN_MEMORY, maxBatchesInMemory);
-    stats.setLongStat(Metric.SPILL_COUNT, diskRuns.spillCount());
-    stats.setLongStat(Metric.MERGE_COUNT, diskRuns.mergeCount());
-    stats.setLongStat(Metric.MAX_BATCH_SIZE, diskRuns.getMaxBatchSize());
-    stats.setLongStat(Metric.AVG_BATCH_SIZE, diskRuns.getAvgMaxBatchSize());
-    stats.setLongStat(Metric.SPILL_TIME_NANOS, diskRuns.spillTimeNanos());
-    stats.setLongStat(Metric.MERGE_TIME_NANOS, diskRuns.mergeTimeNanos());
-    stats.setLongStat(Metric.TOTAL_SPILLED_DATA_SIZE, diskRuns.getTotalDataSpilled());
-    stats.setLongStat(Metric.BATCHES_SPILLED, diskRuns.getBatchesSpilled());
-
-    stats.setLongStat(Metric.OOB_SENDS, oobSends);
-    stats.setLongStat(Metric.OOB_RECEIVES, oobReceives);
-    stats.setLongStat(Metric.OOB_DROP_LOCAL, oobDropLocal);
-    stats.setLongStat(Metric.OOB_DROP_WRONG_STATE, oobDropWrongState);
-    stats.setLongStat(Metric.OOB_DROP_UNDER_THRESHOLD, oobDropUnderThreshold);
-    stats.setLongStat(Metric.OOB_SPILL, oobSpills);
   }
 
   private void rotateRuns() {
@@ -516,7 +549,7 @@ public class ExternalSortOperator implements SingleInputOperator {
         context.getTunnelProvider().getExecTunnel(endpoint).sendOOBMessage(message);
       }
       oobSends++;
-      updateStats();
+      updateStats(false);
       logger.debug("notifyOthersOfSpill allocated memory {}. headroom {} oobsends {} oobreceives {}", allocator.getAllocatedMemory(), allocator.getHeadroom(), oobSends, oobReceives);
     } catch(Exception ex) {
       logger.warn("Failure while attempting to notify others of spilling.", ex);
@@ -557,7 +590,7 @@ public class ExternalSortOperator implements SingleInputOperator {
     }
 
     ++oobSpills;
-    updateStats();
+    updateStats(false);
 
     if (this.enableMicroSpill) {
       startMicroSpilling();

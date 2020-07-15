@@ -395,7 +395,7 @@ export class AccelerationForm extends Component {
         // todo: if a delete succeeds and another call fails then we can end up with no reflections of a type
 
         // start with fallback
-        errors[reflectionId] = error.message || la('Something went wrong.');
+        errors[reflectionId] = error.message || la('Something went wrong. Please check the log file for details, see https://docs.dremio.com/advanced-administration/log-files.html');
 
         const {response} = error;
         if (response) {
@@ -595,7 +595,9 @@ const styles = {
   base: {
     height: '100%',
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
+    maxHeight: 'calc(100vh - 100px)',
+    overflow: 'hidden'
   },
   formBody: {
     height: '100%',

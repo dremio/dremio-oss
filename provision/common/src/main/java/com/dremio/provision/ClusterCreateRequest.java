@@ -39,7 +39,7 @@ public interface ClusterCreateRequest extends ConsistentProps {
   AwsPropsApi getAwsProps();
   boolean isAllowAutoStart();
   boolean isAllowAutoStop();
-  @Default default long getShutdownInterval() { return 900_000; }
+  @Default default long getShutdownInterval() { return 7_200_000; }
 
   public static ImmutableClusterCreateRequest.Builder builder() {
     return new ImmutableClusterCreateRequest.Builder();

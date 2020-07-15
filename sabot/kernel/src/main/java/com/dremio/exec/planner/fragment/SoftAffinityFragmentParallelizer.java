@@ -88,8 +88,10 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
     fragmentWrapper.setWidth(width);
 
     final List<NodeEndpoint> assignedEndpoints = findEndpoints(activeEndpoints,
-        parallelizationInfo.getEndpointAffinityMap(), fragmentWrapper.getWidth(), parameters);
-
+        getEndpointAffinityMap(parallelizationInfo.getEndpointAffinityMap(),
+          fragmentWrapper.getFragmentDependencies().isEmpty(),
+          parameters),
+        fragmentWrapper.getWidth(), parameters);
     fragmentWrapper.assignEndpoints(parameters, assignedEndpoints);
   }
 
@@ -98,6 +100,14 @@ public class SoftAffinityFragmentParallelizer implements FragmentParallelizer {
     // Find the parallelization width of fragment
     final Stats stats = fragment.getStats();
     return getWidth(stats, stats.getMinWidth(), stats.getMaxWidth(), parameters, Integer.MAX_VALUE);
+  }
+
+  @VisibleForTesting
+  Map<NodeEndpoint, EndpointAffinity> getEndpointAffinityMap(final Map<NodeEndpoint, EndpointAffinity> inputAffinityMap,
+                                                             final boolean isLeafFragment,
+                                                             final ParallelizationParameters parameters) {
+
+    return parameters.shouldIgnoreLeafAffinity() && isLeafFragment ? Collections.emptyMap() : inputAffinityMap;
   }
 
   // Assign endpoints based on the given endpoint list, affinity map and width.

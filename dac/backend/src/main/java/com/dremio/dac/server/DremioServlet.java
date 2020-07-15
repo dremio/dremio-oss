@@ -35,6 +35,7 @@ import com.dremio.common.util.DremioEdition;
 import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.ServerHealthMonitor;
+import com.dremio.dac.server.models.AnalyzeTools;
 import com.dremio.dac.server.models.ServerData;
 import com.dremio.dac.service.admin.CommitInfo;
 import com.dremio.dac.service.admin.VersionInfo;
@@ -137,7 +138,8 @@ public class DremioServlet implements Servlet {
       .setWhiteLabelUrl(options.getOption(UIOptions.WHITE_LABEL_URL))
       .setClusterId(supportService.get().getClusterId().getIdentity())
       .setVersionInfo(getVersionInfo())
-      .setEdition(DremioEdition.getAsString());
+      .setEdition(DremioEdition.getAsString())
+      .setAnalyzeTools(AnalyzeTools.from(options));
   }
 
   protected Provider<SupportService> getSupportService() {

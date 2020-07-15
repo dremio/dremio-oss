@@ -654,6 +654,15 @@ public class BaseTestQuery extends ExecTest {
     }
   }
 
+  protected static void resetSystemOption(final String option) {
+    String str = String.format("alter system reset %1$s%2$s%1$s", SqlUtils.QUOTE, option);
+    try {
+      runSQL(str);
+    } catch(final Exception e) {
+      fail(String.format("Failed to run %s, Error: %s", str, e.toString()));
+    }
+  }
+
   protected static AutoCloseable enableHiveAsync() {
     setSystemOption(ExecConstants.ENABLE_HIVE_ASYNC, "true");
     return () ->
@@ -666,6 +675,13 @@ public class BaseTestQuery extends ExecTest {
     return () ->
       setSystemOption(ExecConstants.ENABLE_ICEBERG,
         ExecConstants.ENABLE_ICEBERG.getDefault().getBoolVal().toString());
+  }
+
+  protected static AutoCloseable treatScanAsBoost() {
+    setSystemOption(ExecConstants.PARQUET_SCAN_AS_BOOST, "true");
+    return () ->
+            setSystemOption(ExecConstants.PARQUET_SCAN_AS_BOOST,
+                    ExecConstants.PARQUET_SCAN_AS_BOOST.getDefault().getBoolVal().toString());
   }
 
   private static AutoCloseable setHiveParquetComplexTypes(String value) {

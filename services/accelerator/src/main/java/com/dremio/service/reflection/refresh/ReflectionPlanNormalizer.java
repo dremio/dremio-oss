@@ -40,6 +40,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.dataset.proto.AccelerationSettings;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.RefreshMethod;
+import com.dremio.service.reflection.ReflectionOptions;
 import com.dremio.service.reflection.ReflectionSettings;
 import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.proto.Materialization;
@@ -142,7 +143,8 @@ class ReflectionPlanNormalizer implements RelTransformer {
       plan,
       strippedPlan,
       requestedTables,
-      serializerFactory);
+      serializerFactory,
+      optionManager.getOption(ReflectionOptions.STRICT_INCREMENTAL_REFRESH));
 
     if (isIncremental(refreshDecision)) {
       try {

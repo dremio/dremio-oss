@@ -84,6 +84,7 @@ public class ResourceTracker implements AutoCloseable {
     resourceSchedulingProperties.setRoutingQueue(context.getSession().getRoutingQueue());
     resourceSchedulingProperties.setRoutingTag(context.getSession().getRoutingTag());
     resourceSchedulingProperties.setQueryType(Utilities.getHumanReadableWorkloadType(context.getWorkloadType()));
+    resourceSchedulingProperties.setRoutingEngine(context.getSession().getRoutingEngine());
 
     injector.injectChecked(context.getExecutionControls(), INJECTOR_RESOURCE_ALLOCATE_ERROR,
       IllegalStateException.class);

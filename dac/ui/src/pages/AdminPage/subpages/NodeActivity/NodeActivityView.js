@@ -25,6 +25,7 @@ import NumberFormatUtils from '@app/utils/numberFormatUtils';
 import { getViewState } from '@app/selectors/resources';
 import Header from '@app/pages/AdminPage/components/Header';
 import NodeTableCell from '@app/pages/AdminPage/subpages/NodeActivity/NodeTableCell';
+import { NodeTableCellColors } from '@app/pages/AdminPage/subpages/NodeActivity/NodeTableCell';
 import NodeActivityViewMixin from 'dyn-load/pages/AdminPage/subpages/NodeActivity/NodeActivityViewMixin';
 
 import './NodeActivity.less';
@@ -54,6 +55,10 @@ export const COLUMNS_CONFIG = [ //TODO intl
   {
     label: 'Memory',
     width: 140
+  },
+  {
+    label: 'Version',
+    flexGrow: 1
   }
 ];
 
@@ -76,11 +81,26 @@ class NodeActivityView extends Component {
   }
 
   getNodeCellStatus(node) {
+    if (!node.get('isCompatible')) {
+      return NodeTableCellColors.RED;
+    }
     return node.get('status');
   }
 
   getNodeCellTooltip(node) {
-    return (this.getNodeCellStatus(node) === 'green') ? la('Active') : '';
+    const status = this.getNodeCellStatus(node);
+    switch (la(status)) {
+    case 'green':
+      return la('Active');
+    case 'red':
+      return this.getToolTipForIncompatibleNode();
+    default:
+      return '';
+    }
+  }
+
+  getToolTipForIncompatibleNode() {
+    return la('Please ensure that the version of dremio is the same on all coordinators and executors.');
   }
 
   getNodeCell(node) {
@@ -97,7 +117,7 @@ class NodeActivityView extends Component {
   }
 
   getNodeData(columnNames, node) {
-    const [name, ip, port, cpu, memory] = columnNames;
+    const [name, ip, port, cpu, memory, version] = columnNames;
     return {
       data: {
         [name]: {
@@ -122,6 +142,9 @@ class NodeActivityView extends Component {
         },
         [memory]: {
           node: () => `${NumberFormatUtils.roundNumberField(node.get('memory'))}%` // todo: check comps for digits. and fix so no need for parseFloat
+        },
+        [version]: {
+          node: () => node.get('version') || '-'
         }
       }
     };

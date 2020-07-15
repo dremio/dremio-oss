@@ -145,9 +145,15 @@ public class TestCatalogResource extends BaseTestServer {
 
     assertEquals(space.getId(), spaceConfig.getId().getId());
     assertEquals(space.getName(), spaceConfig.getName());
+    assertNotEquals(newSpace.getCreatedAt(), spaceConfig.getCtime());
 
     // make sure that trying to create the space again fails
     expectStatus(Response.Status.CONFLICT, getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSpace)));
+
+    Space newSpace1 = new Space(space.getId(), space.getName(), space.getTag(), null, null);
+    expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildPut(Entity.json(newSpace1)));
+    Space space1 = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(space.getId())).buildGet(), new GenericType<Space>() {});
+    assertEquals(spaceConfig.getCtime(), space1.getCreatedAt());
 
     // delete the space
     expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(spaceConfig.getId().getId())).buildDelete());

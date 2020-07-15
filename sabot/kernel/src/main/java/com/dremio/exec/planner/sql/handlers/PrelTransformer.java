@@ -236,11 +236,6 @@ public class PrelTransformer {
       final RelTraitSet logicalTraits = preLog.getTraitSet().plus(Rel.LOGICAL);
       final RelNode adjusted = transform(config, PlannerType.VOLCANO, PlannerPhase.LOGICAL, preLog, logicalTraits, true);
 
-      final Catalog catalog = config.getContext().getCatalog();
-      if (catalog instanceof CachingCatalog) {
-        config.getObserver().tablesCollected(catalog.getAllRequestedTables());
-      }
-
       final RelNode intermediateNode;
       if (config.getContext().getPlannerSettings().removeRowCountAdjustment()) {
         intermediateNode = adjusted.accept(new RelShuttleImpl() {
@@ -902,12 +897,23 @@ public class PrelTransformer {
 
   private static RelNode convertToRel(SqlHandlerConfig config, SqlNode node, RelTransformer relTransformer) throws RelConversionException {
     RelNode rel;
-    if(config.getContext().getPlannerSettings().isRelPlanningEnabled()) {
-      rel = convertToRelRoot(config, node, relTransformer);
-    } else {
-      rel = convertToRelRootAndJdbc(config, node, relTransformer);
+    final Catalog catalog = config.getContext().getCatalog();
+    try {
+      if (config.getContext().getPlannerSettings().isRelPlanningEnabled()) {
+        rel = convertToRelRoot(config, node, relTransformer);
+      } else {
+        rel = convertToRelRootAndJdbc(config, node, relTransformer);
+      }
+    } catch (RelConversionException e) {
+      if (catalog instanceof CachingCatalog) {
+        config.getObserver().tablesCollected(catalog.getAllRequestedTables());
+      }
+      throw e;
     }
     log("INITIAL", rel, logger, null);
+    if (catalog instanceof CachingCatalog) {
+      config.getObserver().tablesCollected(catalog.getAllRequestedTables());
+    }
     return transform(config, PlannerType.HEP, PlannerPhase.WINDOW_REWRITE, rel, rel.getTraitSet(), true);
   }
 

@@ -21,8 +21,8 @@ import org.apache.arrow.vector.types.pojo.Field;
 
 import com.dremio.dac.explore.model.Column;
 import com.dremio.dac.proto.model.dataset.DataType;
+import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.service.job.proto.JobId;
-import com.dremio.service.jobs.RecordBatchHolder;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**

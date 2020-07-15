@@ -16,12 +16,14 @@
 package com.dremio.dac.service.admin;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Response;
 
 import org.junit.Test;
 
@@ -29,6 +31,8 @@ import com.dremio.dac.resource.ExportProfilesParams;
 import com.dremio.dac.resource.ExportProfilesParams.ExportFormatType;
 import com.dremio.dac.resource.ExportProfilesParams.WriteFileMode;
 import com.dremio.dac.resource.ExportProfilesStats;
+import com.dremio.dac.resource.PowerBIResource;
+import com.dremio.dac.resource.TableauResource;
 import com.dremio.dac.server.BaseTestServer;
 import com.dremio.dac.service.admin.Setting.TextSetting;
 import com.dremio.dac.service.admin.SettingsResource.SettingsWrapperObject;
@@ -54,7 +58,7 @@ public class TestAdminServices extends BaseTestServer {
     //check that chosen {@code} settingKeyToCheck was not set initially
     TextSetting setting = getSetting(settingKeyToCheck); // save current value
 
-    deleteSetting(settingKeyToCheck);
+    deleteSetting(settingKeyToCheck, Response.Status.OK);
     settings = getSettings(list, true);
     assertEquals("Setting should not be returned after deletion", false, hasSetting(settings, settingKeyToCheck));
 
@@ -80,6 +84,25 @@ public class TestAdminServices extends BaseTestServer {
         .buildPost(Entity.entity(new ExportProfilesParams("/tmp/profiles", WriteFileMode.SKIP, null, null, ExportFormatType.JSON, 1), JSON)), ExportProfilesStats.class);
   }
 
+  @Test
+  public void testBiToolSettingsAreListed() {
+    final SettingsWrapperObject settings = getSettings(
+      new HashSet<>(Arrays.asList(TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(),
+        PowerBIResource.CLIENT_TOOLS_POWERBI.getOptionName())), true);
+
+    assertFalse(settings.getSettings().isEmpty());
+  }
+
+  @Test
+  public void testTableauSettingNonDeletable() {
+    deleteSetting(TableauResource.CLIENT_TOOLS_TABLEAU.getOptionName(), Response.Status.BAD_REQUEST);
+  }
+
+  @Test
+  public void testPowerBiSettingNonDeletable() {
+    deleteSetting(PowerBIResource.CLIENT_TOOLS_POWERBI.getOptionName(), Response.Status.BAD_REQUEST);
+  }
+
   private SettingsWrapperObject getSettings(Set<String> requiredSettings, boolean includeSetSettings) {
     return expectSuccess(getBuilder(getAPIv2().path("settings"))
       .buildPost(Entity.entity(new SettingsResource.SettingsRequest(requiredSettings, includeSetSettings), JSON)),
@@ -99,7 +122,7 @@ public class TestAdminServices extends BaseTestServer {
     return settings.getSettings().stream().anyMatch(s -> s.getId().equals(settingKey));
   }
 
-  private void deleteSetting(String settingKey) {
-    expectSuccess(getBuilder(getAPIv2().path("settings").path(settingKey)).buildDelete());
+  private void deleteSetting(String settingKey, Response.StatusType status) {
+    expectStatus(status, getBuilder(getAPIv2().path("settings").path(settingKey)).buildDelete());
   }
 }

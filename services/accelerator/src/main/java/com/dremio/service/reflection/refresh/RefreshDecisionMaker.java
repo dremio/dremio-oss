@@ -63,7 +63,8 @@ class RefreshDecisionMaker {
       RelNode plan,
       RelNode strippedPlan,
       Iterable<DremioTable> requestedTables,
-      RelSerializerFactory serializerFactory) {
+      RelSerializerFactory serializerFactory,
+      boolean strictRefresh) {
 
     final long newSeriesId = System.currentTimeMillis();
 
@@ -103,9 +104,29 @@ class RefreshDecisionMaker {
           .setSeriesId(newSeriesId);
     }
 
+    // This is an incremental update dataset.
+    // if we already have valid refreshes, we should use the their seriesId
+    final Refresh refresh = materializationStore.getMostRecentRefresh(materialization.getReflectionId());
+
+    final Integer entryDatasetHash;
+    final Integer decisionDatasetHash;
     try {
       final DatasetConfig dataset = namespace.findDatasetByUUID(entry.getDatasetId());
-      decision.setDatasetHash(ReflectionUtils.computeDatasetHash(dataset, namespace));
+      if (!strictRefresh) {
+        if (entry.getShallowDatasetHash() == null && refresh != null) {
+          decisionDatasetHash = ReflectionUtils.computeDatasetHash(dataset, namespace, false);
+          decision.setDatasetHash(ReflectionUtils.computeDatasetHash(dataset, namespace, true));
+          entryDatasetHash = entry.getDatasetHash();
+        } else {
+          decisionDatasetHash = ReflectionUtils.computeDatasetHash(dataset, namespace, true);
+          decision.setDatasetHash(decisionDatasetHash);
+          entryDatasetHash = entry.getShallowDatasetHash();
+        }
+      } else {
+        decisionDatasetHash = ReflectionUtils.computeDatasetHash(dataset, namespace, false);
+        decision.setDatasetHash(decisionDatasetHash);
+        entryDatasetHash = entry.getDatasetHash();
+      }
     } catch (Exception e) {
       throw UserException.validationError()
         .message("Couldn't expand a materialized view on a non existing dataset")
@@ -113,10 +134,6 @@ class RefreshDecisionMaker {
         .addContext("datasetId", entry.getDatasetId())
         .build(logger);
     }
-
-    // This is an incremental update dataset.
-    // if we already have valid refreshes, we should use the their seriesId
-    final Refresh refresh = materializationStore.getMostRecentRefresh(materialization.getReflectionId());
 
     // if this the first refresh of this materialization, let's do a initial refresh.
     if(refresh == null) {
@@ -134,7 +151,7 @@ class RefreshDecisionMaker {
           .setSeriesId(newSeriesId);
     }
 
-    if (!Objects.equal(entry.getDatasetHash(), decision.getDatasetHash())) {
+    if (!Objects.equal(entryDatasetHash, decisionDatasetHash)) {
       logger.trace("Change in dataset hash, doing an initial refresh.");
       return decision.setInitialRefresh(true)
           .setUpdateId(new UpdateId())

@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.dremio.distribution</groupId>
     <artifactId>dremio-distribution-parent</artifactId>
-    <version>4.5.0-202006180205030236-1a5d28da</version>
+    <version>4.6.0-202007150150090029-7f333d10</version>
   </parent>
 
   <artifactId>dremio-jdbc-driver</artifactId>
@@ -108,10 +108,6 @@
       <version>${project.version}</version>
       <scope>test</scope>
       <exclusions>
-        <exclusion>
-          <groupId>com.koloboke</groupId>
-          <artifactId>koloboke-impl-jdk6-7</artifactId>
-        </exclusion>
         <exclusion>
           <groupId>org.codehaus.jackson</groupId>
           <artifactId>*</artifactId>
@@ -627,7 +623,7 @@
               <exclude>org.apache.httpcomponents:*</exclude>
               <exclude>org.apache.lucene:*</exclude>
               <exclude>com.github.slugify:*</exclude>
-              <exclude>com.dremio.contrib:dremio-slim-shade</exclude>
+              <exclude>com.koloboke:*</exclude>
               <exclude>de.vandermeer:*</exclude>
               <exclude>com.dremio.contrib:dremio-maprfs-shaded</exclude>
               <exclude>com.dremio.distribution:dremio-distribution-resources</exclude>

@@ -22,6 +22,7 @@ import org.junit.Test;
 
 import com.dremio.exec.rpc.ConnectionFailedException;
 import com.dremio.exec.rpc.RpcException;
+import com.dremio.exec.rpc.RpcExceptionStatus;
 
 /**
  * Class-level unit test for {@link DremioExceptionMapper}.
@@ -42,6 +43,22 @@ public class DremioExceptionMapperTest {
   }
 
   @Test
+  public void testConnectionInvalidMessageException() {
+    final String message = "Error Status: " + RpcExceptionStatus.CONNECTION_INVALID + ", myMessage";
+    final RpcException rpcEx = new RpcException(message);
+    testException(rpcEx, "01002", message);
+    testExceptionArgs(rpcEx, "01002", "bar: %s", "foo");
+  }
+
+  @Test
+  public void testConnectionInvalidStatusException() {
+    final String message = "myMessage";
+    final RpcException rpcEx = new RpcException(message, RpcExceptionStatus.CONNECTION_INVALID, "errorId");
+    testException(rpcEx, "01002", message);
+    testExceptionArgs(rpcEx, "01002", "bar: %s", "foo");
+  }
+
+  @Test
   public void testConnectionException() {
     final String message = "myMessage";
     final RpcException rpcEx = new RpcException(message);
@@ -53,14 +70,14 @@ public class DremioExceptionMapperTest {
   @Test
   public void testAuthException() {
     final String message = "myMessage";
-    final RpcException rpcEx = new RpcException(message, "AUTH_FAILED", "errorId");
+    final RpcException rpcEx = new RpcException(message, RpcExceptionStatus.AUTH_FAILED, "errorId");
     testException(rpcEx, "28000", message);
     testExceptionArgs(rpcEx, "28000", "bar: %s", "foo");
   }
 
   @Test
   public void testAuthStringException() {
-    final String message = "Error Status: AUTH_FAILED, myMessage";
+    final String message = "Error Status: " + RpcExceptionStatus.AUTH_FAILED + ", myMessage";
     final RpcException rpcEx = new RpcException(message, null, "errorId");
     testException(rpcEx, "28000", message);
     testExceptionArgs(rpcEx, "28000", "bar: %s", "foo");

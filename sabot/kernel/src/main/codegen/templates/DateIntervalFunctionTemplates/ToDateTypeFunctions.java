@@ -47,6 +47,9 @@ public class GTo${type} {
     @Param VarCharHolder left;
     @Param VarCharHolder right;
     @Workspace org.joda.time.format.DateTimeFormatter format;
+    @Workspace boolean replaceWithOffset;
+    @Workspace int prevInputLength;
+    @Workspace String prevTimezoneAbbr;
     @Output ${type}Holder out;
     @Inject FunctionErrorContext errCtx;
 
@@ -55,6 +58,12 @@ public class GTo${type} {
     byte[]buf=new byte[right.end-right.start];
     right.buffer.getBytes(right.start,buf,0,right.end-right.start);
     String formatString=new String(buf,java.nio.charset.StandardCharsets.UTF_8);
+    if (formatString.toUpperCase().endsWith("TZD")) {
+      formatString = formatString.substring(0, formatString.length() - 3) + "TZO";
+      replaceWithOffset = true;
+      prevInputLength = 0;
+      prevTimezoneAbbr = "";
+    }
     format=com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getSQLFormatterForFormatString(formatString, errCtx);
   }
 
@@ -63,6 +72,34 @@ public class GTo${type} {
     byte[]buf1=new byte[left.end-left.start];
     left.buffer.getBytes(left.start,buf1,0,left.end-left.start);
     String input=new String(buf1,java.nio.charset.StandardCharsets.UTF_8);
+    if(replaceWithOffset) {
+      String tzAbbr = "";
+      if(prevInputLength == input.length() && input.endsWith(prevTimezoneAbbr)) {
+        tzAbbr = prevTimezoneAbbr;
+      } else {
+        for(int i = input.length() - 1; i >= 0; i--) {
+          char c = input.charAt(i);
+          if( (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ) {
+            tzAbbr =  String.valueOf(c) + tzAbbr;
+          } else {
+            break;
+          }
+        }
+        prevInputLength = input.length();
+        prevTimezoneAbbr = tzAbbr;
+      }
+
+      java.util.Optional<String> offset =  com.dremio.exec.store.sys.TimezoneAbbreviations.getOffset(tzAbbr);
+      if(!offset.isPresent()) {
+          throw errCtx.error()
+          .message("Input text cannot be formatted to date")
+          .addContext("Invalid timezone abbreviation", tzAbbr)
+          .addContext("Input text", input)
+          .build();
+      }
+
+      input = input.substring(0, input.length() - tzAbbr.length()) + offset.get();
+    }
 
     out.value=com.dremio.exec.expr.fn.impl.DateFunctionsUtils.format${type}(input, format, errCtx);
   }
@@ -135,6 +172,9 @@ public class GTo${type} {
     @Param(constant=true) VarCharHolder patternHolder;
     @Param(constant=true) private NullableIntHolder replaceWithNullHolder;
     @Workspace org.joda.time.format.DateTimeFormatter format;
+    @Workspace boolean replaceWithOffset;
+    @Workspace int prevInputLength;
+    @Workspace String prevTimezoneAbbr;
     @Output Nullable${type}Holder out;
     @Inject FunctionErrorContext errCtx;
 
@@ -145,8 +185,14 @@ public class GTo${type} {
 
       // if the format string is invalid we want to fail, so don't handle the exception
       String formatString = new String(buf, java.nio.charset.StandardCharsets.UTF_8);
-      format = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getSQLFormatterForFormatString(formatString, errCtx);
-    }
+      if (formatString.toUpperCase().endsWith("TZD")) {
+        formatString = formatString.substring(0, formatString.length() - 3) + "TZO";
+        replaceWithOffset = true;
+        prevInputLength = 0;
+        prevTimezoneAbbr = "";
+      }
+      format=com.dremio.exec.expr.fn.impl.DateFunctionsUtils.getSQLFormatterForFormatString(formatString, errCtx);
+  }
 
     public void eval() {
       if (left.isSet == 0) {
@@ -157,6 +203,35 @@ public class GTo${type} {
       byte[] buf = new byte[left.end - left.start];
       left.buffer.getBytes(left.start, buf, 0, left.end - left.start);
       String input = new String(buf, java.nio.charset.StandardCharsets.UTF_8);
+
+      if(replaceWithOffset) {
+        String tzAbbr = "";
+        if(prevInputLength == input.length() && input.endsWith(prevTimezoneAbbr)) {
+          tzAbbr = prevTimezoneAbbr;
+        } else {
+          for(int i = input.length() - 1; i >= 0; i--) {
+            char c = input.charAt(i);
+            if( (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ) {
+              tzAbbr =  String.valueOf(c) + tzAbbr;
+            } else {
+              break;
+            }
+          }
+          prevInputLength = input.length();
+          prevTimezoneAbbr = tzAbbr;
+        }
+
+        java.util.Optional<String> offset =  com.dremio.exec.store.sys.TimezoneAbbreviations.getOffset(tzAbbr);
+        if(!offset.isPresent()) {
+          throw errCtx.error()
+            .message("Input text cannot be formatted to date")
+            .addContext("Invalid timezone abbreviation", tzAbbr)
+            .addContext("Input text", input)
+            .build();
+        }
+
+        input = input.substring(0, input.length() - tzAbbr.length()) + offset.get();
+      }
 
       try {
         out.value = com.dremio.exec.expr.fn.impl.DateFunctionsUtils.format${type}(input, format);

@@ -680,6 +680,15 @@ public class DremioClient implements Closeable, ConnectionThrottle {
   }
 
   /**
+   * Determine if this client is still active and connected to the server.
+   *
+   * @return true if connected to the server; false otherwise.
+   */
+  public boolean isActive() {
+    return client.isActive();
+  }
+
+  /**
    * Execute the given prepared statement.
    *
    * @param preparedStatementHandle Prepared statement handle returned in response to

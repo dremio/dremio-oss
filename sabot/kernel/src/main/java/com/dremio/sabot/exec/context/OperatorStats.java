@@ -264,6 +264,11 @@ public class OperatorStats {
     savedState = State.NONE;
   }
 
+  public void moveProcessingToWait(long nanos) {
+    this.stateNanos[State.WAIT.ordinal()]+=nanos;
+    this.stateNanos[State.PROCESSING.ordinal()]-=nanos;
+  }
+
   /*
    * starts wait only if it's not already in the wait mode.
    *

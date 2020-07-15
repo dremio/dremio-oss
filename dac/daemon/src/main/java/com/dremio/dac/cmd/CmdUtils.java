@@ -23,7 +23,6 @@ import com.dremio.common.scanner.ClassPathScanner;
 import com.dremio.common.scanner.persistence.ScanResult;
 import com.dremio.config.DremioConfig;
 import com.dremio.datastore.LocalKVStoreProvider;
-import com.dremio.datastore.api.LegacyKVStoreProvider;
 
 /**
  * cmd utils.
@@ -41,10 +40,6 @@ public final class CmdUtils {
    */
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan) {
     return getKVStoreProvider(dremioConfig, classPathScan, true);
-  }
-
-  public static Optional<LegacyKVStoreProvider> getLegacyKVStoreProvider(DremioConfig dremioConfig, ScanResult classPathScan, boolean noDBOpenRetry) {
-    return getKVStoreProvider(dremioConfig, classPathScan, noDBOpenRetry).map(LocalKVStoreProvider::asLegacy);
   }
 
   /**
@@ -75,9 +70,5 @@ public final class CmdUtils {
 
   public static Optional<LocalKVStoreProvider> getKVStoreProvider(DremioConfig dremioConfig) {
     return CmdUtils.getKVStoreProvider(dremioConfig, ClassPathScanner.fromPrescan(dremioConfig.getSabotConfig()));
-  }
-
-  public static Optional<LegacyKVStoreProvider> getLegacyKVStoreProvider(DremioConfig dremioConfig) {
-    return getKVStoreProvider(dremioConfig).map(LocalKVStoreProvider::asLegacy);
   }
 }

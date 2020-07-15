@@ -1257,6 +1257,11 @@
         }
       }
     },
+    "@miragejs/pretender-node-polyfill": {
+      "version": "0.1.2",
+      "integrity": "sha512-M/BexG/p05C5lFfMunxo/QcgIJnMT2vDVCd00wNqK2ImZONIlEETZwWJu1QtLxtmYlSHlCFl3JNzp0tLe7OJ5g==",
+      "dev": true
+    },
     "@sentry/browser": {
       "version": "5.13.2",
       "integrity": "sha512-4MeauHs8Rf1c2FF6n84wrvA4LexEL1K/Tg3r+1vigItiqyyyYBx1sPjHGZeKeilgBi+6IEV5O8sy30QIrA/NsQ==",
@@ -4707,6 +4712,11 @@
       "integrity": "sha1-lpGEQOMEGnpBT4xS48V06zw+HgU=",
       "dev": true
     },
+    "fake-xml-http-request": {
+      "version": "2.1.1",
+      "integrity": "sha512-Kn2WYYS6cDBS5jq/voOfSGCA0TafOYAUPbEp8mUVpD/DVV5bQIDjlq+MLLvNUokkbTpjBVlLDaM5PnX+PwZMlw==",
+      "dev": true
+    },
     "fast-json-stable-stringify": {
       "version": "2.0.0",
       "integrity": "sha1-1RQsDK7msRifh9OnYREGT4bIu/I=",
@@ -5757,6 +5767,11 @@
       "integrity": "sha512-IClj+Xz94+d7irH5qRyfJonOdfTzuDaifE6ZPWfx0N0+/ATZCbuTPq2prFl526urkQd90WyUKIh1DfBQ2hMz9A==",
       "dev": true
     },
+    "inflected": {
+      "version": "2.0.4",
+      "integrity": "sha512-HQPzFLTTUvwfeUH6RAGjD8cHS069mBqXG5n4qaxX7sJXBhVQrsGgF+0ZJGkSuN6a8pcUWB/GXStta11kKi/WvA==",
+      "dev": true
+    },
     "inflight": {
       "version": "1.0.6",
       "integrity": "sha1-Sb1jMdfQLQwJvJEKEHW6gWW1bfk=",
@@ -6641,6 +6656,10 @@
         }
       }
     },
+    "linkifyjs": {
+      "version": "2.1.9",
+      "integrity": "sha512-74ivurkK6WHvHFozVaGtQWV38FzBwSTGNmJolEgFp7QgR2bl6ArUWlvT4GcHKbPe1z3nWYi+VUdDZk16zDOVug=="
+    },
     "load-json-file": {
       "version": "2.0.0",
       "integrity": "sha1-eUfkIUmvgNaWy/eXvKq8/h/inKg=",
@@ -6691,9 +6710,24 @@
       "version": "3.9.1",
       "integrity": "sha1-VwvH3t5G1hzc3mh9ZdPuy6o6r/U="
     },
+    "lodash.assign": {
+      "version": "4.2.0",
+      "integrity": "sha1-DZnzzNem0mHRm9rrkkUAXShYCOc=",
+      "dev": true
+    },
+    "lodash.camelcase": {
+      "version": "4.3.0",
+      "integrity": "sha1-soqmKIorn8ZRA1x3EfZathkDMaY=",
+      "dev": true
+    },
     "lodash.clonedeep": {
       "version": "4.5.0",
       "integrity": "sha1-4j8/nE+Pvd6HJSnBBxhXoIblzO8=",
+      "dev": true
+    },
+    "lodash.compact": {
+      "version": "3.0.1",
+      "integrity": "sha1-VAzjg3dFl1gHRx4WtKK6IeclbKU=",
       "dev": true
     },
     "lodash.curry": {
@@ -6712,6 +6746,16 @@
       "integrity": "sha1-yQRGkMIeBClL6qUXcS/e0fqI3pg=",
       "dev": true
     },
+    "lodash.find": {
+      "version": "4.6.0",
+      "integrity": "sha1-ywcE1Hq3F4n/oN6Ll92Sb7iLE7E=",
+      "dev": true
+    },
+    "lodash.flatten": {
+      "version": "4.4.0",
+      "integrity": "sha1-8xwiIlqWMtK7+OSt2+8kCqdlph8=",
+      "dev": true
+    },
     "lodash.flattendeep": {
       "version": "4.4.0",
       "integrity": "sha1-+wMJF/hqMTTlvJvsDWngAT3f7bI=",
@@ -6720,6 +6764,26 @@
     "lodash.flow": {
       "version": "3.5.0",
       "integrity": "sha1-h79AKSuM+D5OjOGjrkIJ4gBxZ1o="
+    },
+    "lodash.forin": {
+      "version": "4.4.0",
+      "integrity": "sha1-XT8grlZAEfvog4H32YlJyclRlzE=",
+      "dev": true
+    },
+    "lodash.get": {
+      "version": "4.4.2",
+      "integrity": "sha1-LRd/ZS+jHpObRDjVNBSZ36OCXpk=",
+      "dev": true
+    },
+    "lodash.has": {
+      "version": "4.5.2",
+      "integrity": "sha1-0Z9NwQlQWMzL4rDN9O4P5Ko3yGI=",
+      "dev": true
+    },
+    "lodash.invokemap": {
+      "version": "4.6.0",
+      "integrity": "sha1-F0jNpdiw74NpxOs+xUwh/rofLWI=",
+      "dev": true
     },
     "lodash.isempty": {
       "version": "4.4.0",
@@ -6730,13 +6794,63 @@
       "integrity": "sha1-QVxEePK8wwEgwizhDtMib30+GOA=",
       "dev": true
     },
+    "lodash.isfunction": {
+      "version": "3.0.9",
+      "integrity": "sha512-AirXNj15uRIMMPihnkInB4i3NHeb4iBtNg9WRWuK2o31S+ePwwNmDPaTL3o7dTJ+VXNZim7rFs4rxN4YU1oUJw==",
+      "dev": true
+    },
+    "lodash.isinteger": {
+      "version": "4.0.4",
+      "integrity": "sha1-YZwK89A/iwTDH1iChAt3sRzWg0M=",
+      "dev": true
+    },
     "lodash.isplainobject": {
       "version": "4.0.6",
       "integrity": "sha1-fFJqUtibRcRcxpC4gWO+BJf1UMs="
     },
+    "lodash.lowerfirst": {
+      "version": "4.3.1",
+      "integrity": "sha1-3jx7EuAsZSSgBZwvbLfFxSZVoT0=",
+      "dev": true
+    },
+    "lodash.map": {
+      "version": "4.6.0",
+      "integrity": "sha1-dx7Hg540c9nEzeKLGTlMNWL09tM=",
+      "dev": true
+    },
+    "lodash.mapvalues": {
+      "version": "4.6.0",
+      "integrity": "sha1-G6+lAF3p3W9PJmaMMMo3IwzJaJw=",
+      "dev": true
+    },
+    "lodash.pick": {
+      "version": "4.4.0",
+      "integrity": "sha1-UvBWEP/53tQiYRRB7R/BI6AwAbM=",
+      "dev": true
+    },
+    "lodash.snakecase": {
+      "version": "4.1.1",
+      "integrity": "sha1-OdcUo1NXFHg3rv1ktdy7Fr7Nj40=",
+      "dev": true
+    },
     "lodash.unescape": {
       "version": "4.0.1",
       "integrity": "sha1-vyJJiGzlFM2hEvrpIYzcBlIR/Jw=",
+      "dev": true
+    },
+    "lodash.uniq": {
+      "version": "4.5.0",
+      "integrity": "sha1-0CJTc662Uq3BvILklFM5qEJ1R3M=",
+      "dev": true
+    },
+    "lodash.uniqby": {
+      "version": "4.7.0",
+      "integrity": "sha1-2ZwHpmnp5tJOE2Lf4mbGdhavEwI=",
+      "dev": true
+    },
+    "lodash.values": {
+      "version": "4.3.0",
+      "integrity": "sha1-o6bCsOvsxcLLocF+bmIP6BtT00c=",
       "dev": true
     },
     "lolex": {
@@ -7001,6 +7115,39 @@
       "dev": true,
       "requires": {
         "brace-expansion": "^1.1.7"
+      }
+    },
+    "miragejs": {
+      "version": "0.1.40",
+      "integrity": "sha512-7zxIcynzdS6425KZ2+TWD6F6DqESorulSDW2QBXf4iKyVn/J5vSielcubAK8sTKUefTPCrSRi7PwgNOb0JlmIg==",
+      "dev": true,
+      "requires": {
+        "@miragejs/pretender-node-polyfill": "^0.1.0",
+        "inflected": "^2.0.4",
+        "lodash.assign": "^4.2.0",
+        "lodash.camelcase": "^4.3.0",
+        "lodash.clonedeep": "^4.5.0",
+        "lodash.compact": "^3.0.1",
+        "lodash.find": "^4.6.0",
+        "lodash.flatten": "^4.4.0",
+        "lodash.forin": "^4.4.0",
+        "lodash.get": "^4.4.2",
+        "lodash.has": "^4.5.2",
+        "lodash.invokemap": "^4.6.0",
+        "lodash.isempty": "^4.4.0",
+        "lodash.isequal": "^4.5.0",
+        "lodash.isfunction": "^3.0.9",
+        "lodash.isinteger": "^4.0.4",
+        "lodash.isplainobject": "^4.0.6",
+        "lodash.lowerfirst": "^4.3.1",
+        "lodash.map": "^4.6.0",
+        "lodash.mapvalues": "^4.6.0",
+        "lodash.pick": "^4.4.0",
+        "lodash.snakecase": "^4.1.1",
+        "lodash.uniq": "^4.5.0",
+        "lodash.uniqby": "^4.7.0",
+        "lodash.values": "^4.3.0",
+        "pretender": "^3.4.3"
       }
     },
     "mississippi": {
@@ -8349,6 +8496,15 @@
       "integrity": "sha1-1PRWKwzjaW5BrFLQ4ALlemNdxtw=",
       "dev": true
     },
+    "pretender": {
+      "version": "3.4.3",
+      "integrity": "sha512-AlbkBly9R8KR+R0sTCJ/ToOeEoUMtt52QVCetui5zoSmeLOU3S8oobFsyPLm1O2txR6t58qDNysqPnA1vVi8Hg==",
+      "dev": true,
+      "requires": {
+        "fake-xml-http-request": "^2.1.1",
+        "route-recognizer": "^0.3.3"
+      }
+    },
     "pretty-error": {
       "version": "2.1.1",
       "integrity": "sha1-X0+HyPkeWuPzuoerTPXgOxoX8aM=",
@@ -9691,6 +9847,11 @@
         "hash-base": "^3.0.0",
         "inherits": "^2.0.1"
       }
+    },
+    "route-recognizer": {
+      "version": "0.3.4",
+      "integrity": "sha512-2+MhsfPhvauN1O8KaXpXAOfR/fwe8dnUXVM+xw7yt40lJRfPVQxV6yryZm0cgRvAj5fMF/mdRZbL2ptwbs5i2g==",
+      "dev": true
     },
     "rst-selector-parser": {
       "version": "2.2.3",

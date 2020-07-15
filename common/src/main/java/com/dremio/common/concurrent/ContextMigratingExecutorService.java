@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
+import com.dremio.context.RequestContext;
 import com.google.common.base.Preconditions;
 
 import io.opentracing.Scope;
@@ -33,8 +34,12 @@ import io.opentracing.Tracer;
 import com.dremio.common.tracing.TracingUtils;
 
 /**
- * Responsible for ensuring the tracer active span is the same active span when the command is being run,
- * even if the command is run in a different thread.
+ * Responsible for ensuring :
+ * - the tracer active span is the same active span when the command is being run,
+ *   even if the command is run in a different thread.
+ * - the request context from the thread submitting the command is used, even if the
+ *   command is run in a different thread. If the submitting thread does not have a
+ *   request context, the default request context is used.
  *
  * We don't implement the invoke methods since we don't use them anywhere within the dremio code base.
  */
@@ -127,12 +132,13 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
   private <T> Callable<T> decorate(Callable<T> inner) {
     final Span parentSpan = tracer.activeSpan();
     final Span waitingSpan = makeWaitingSpan();
+    final RequestContext savedContext = RequestContext.current();
 
     // We only support plain callable types.
     return  () -> {
       final Span workSpan = atTaskStart(waitingSpan, parentSpan, tracer);
       try (Scope s = tracer.activateSpan(workSpan)) {
-        return inner.call();
+        return savedContext.call(inner);
       } finally {
         workSpan.finish();
       }
@@ -186,10 +192,11 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
       factory = (runnable) -> runnable;
     }
 
+    final RequestContext savedContext = RequestContext.current();
     return factory.apply(() -> {
       final Span workSpan = atTaskStart(waitingSpan, parentSpan, tracer);
       try (Scope s = tracer.activateSpan(workSpan)) {
-        inner.run();
+        savedContext.run(inner);
       } finally {
         workSpan.finish();
       }

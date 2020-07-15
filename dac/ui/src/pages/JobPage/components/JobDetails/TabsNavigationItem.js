@@ -25,13 +25,17 @@ export default class TabsNavigationItem extends Component {
     activeTab: PropTypes.string,
     onClick: PropTypes.func,
     item: PropTypes.instanceOf(Immutable.Map).isRequired,
+    style: PropTypes.object,
     children: PropTypes.node
-  }
+  };
   getStylesForTab(tabName) {
-    const { activeTab } = this.props;
+    const { activeTab, style: styleParam } = this.props;
     const style = [styles.tab];
     if (activeTab === tabName) {
       style.push(styles.tabActive);
+    }
+    if (styleParam) {
+      style.push(styleParam);
     }
     return style;
   }

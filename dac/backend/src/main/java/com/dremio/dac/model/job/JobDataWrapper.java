@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.proto.JobId;
 import com.dremio.service.jobs.JobDataClientUtils;
@@ -33,7 +34,6 @@ import com.dremio.service.jobs.JobsFlightTicket;
 import com.dremio.service.jobs.JobsProtoUtil;
 import com.dremio.service.jobs.JobsRpcUtils;
 import com.dremio.service.jobs.JobsService;
-import com.dremio.service.jobs.RecordBatchHolder;
 import com.dremio.service.jobs.RecordBatches;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
