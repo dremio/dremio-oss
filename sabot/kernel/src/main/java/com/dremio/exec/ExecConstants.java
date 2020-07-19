@@ -397,7 +397,7 @@ public interface ExecConstants {
 
   BooleanValidator SORT_FILE_BLOCKS = new BooleanValidator("store.file.sort_blocks", false);
 
-  PositiveLongValidator LIMIT_FIELD_SIZE_BYTES = new PositiveLongValidator("limits.single_field_size_bytes", Integer.MAX_VALUE, 32000);
+  PositiveLongValidator LIMIT_FIELD_SIZE_BYTES = new PositiveLongValidator("limits.single_field_size_bytes", Integer.MAX_VALUE, 64000);
 
   LongValidator FLATTEN_OPERATOR_OUTPUT_MEMORY_LIMIT = new LongValidator("exec.operator.flatten_output_memory_limit", 512*1024*1024);
 
