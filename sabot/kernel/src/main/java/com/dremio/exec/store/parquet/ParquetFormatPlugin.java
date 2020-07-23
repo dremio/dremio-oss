@@ -31,7 +31,6 @@ import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.format.converter.ParquetMetadataConverter;
 import org.apache.parquet.hadoop.CodecFactory;
 import org.apache.parquet.hadoop.ParquetFileWriter;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -164,7 +163,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
     private final CompressionCodecFactory codec;
     private final FileSystem fs;
     private final FileAttributes attributes;
-    private final ParquetMetadata footer;
+    private final MutableParquetMetadata footer;
     private final ParquetReaderUtility.DateCorruptionStatus dateStatus;
     private final SchemaDerivationHelper schemaHelper;
     private final InputStreamProvider streamProvider;
@@ -183,7 +182,7 @@ public class ParquetFormatPlugin extends BaseFormatPlugin {
       this.fs = fs;
       this.attributes = attributes;
       final long maxFooterLen = context.getOptions().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
-      this.streamProvider = new SingleStreamProvider(fs, attributes.getPath(), attributes.size(), maxFooterLen, false, null);
+      this.streamProvider = new SingleStreamProvider(fs, attributes.getPath(), attributes.size(), maxFooterLen, false, null, null);
       this.footer = this.streamProvider.getFooter();
       boolean autoCorrectCorruptDates = context.getOptions().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR) &&
         getConfig().autoCorrectCorruptDates;

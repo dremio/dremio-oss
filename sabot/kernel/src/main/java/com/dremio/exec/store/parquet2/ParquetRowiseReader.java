@@ -42,7 +42,6 @@ import org.apache.parquet.hadoop.ColumnChunkIncReadStore;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnPath;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.io.ColumnIOFactory;
 import org.apache.parquet.io.InvalidRecordException;
 import org.apache.parquet.io.MessageColumnIO;
@@ -59,6 +58,7 @@ import com.dremio.common.expression.PathSegment;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.store.parquet.AbstractParquetReader;
 import com.dremio.exec.store.parquet.InputStreamProvider;
+import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.exec.store.parquet.ParquetColumnResolver;
 import com.dremio.exec.store.parquet.ParquetScanProjectedColumns;
 import com.dremio.exec.store.parquet.SchemaDerivationHelper;
@@ -80,7 +80,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
   // same as the DEFAULT_RECORDS_TO_READ_IF_NOT_FIXED_WIDTH in DeprecatedParquetVectorizedReader
 
   private ParquetScanProjectedColumns projectedColumns;
-  private ParquetMetadata footer;
+  private MutableParquetMetadata footer;
   private MessageType schema;
   private FileSystem fileSystem;
   private VectorContainerWriter writer;
@@ -106,10 +106,10 @@ public class ParquetRowiseReader extends AbstractParquetReader {
   private SchemaDerivationHelper schemaHelper;
   private VectorizedBasedFilter vectorizedBasedFilter;
 
-  public ParquetRowiseReader(OperatorContext context, ParquetMetadata footer, int rowGroupIndex, String path,
-                              ParquetScanProjectedColumns projectedColumns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
-                              SimpleIntVector deltas, InputStreamProvider inputStreamProvider, CompressionCodecFactory codec,
-                              boolean readEvenIfSchemaChanges) {
+  public ParquetRowiseReader(OperatorContext context, MutableParquetMetadata footer, int rowGroupIndex, String path,
+                             ParquetScanProjectedColumns projectedColumns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
+                             SimpleIntVector deltas, InputStreamProvider inputStreamProvider, CompressionCodecFactory codec,
+                             boolean readEvenIfSchemaChanges) {
     super(context, projectedColumns.getBatchSchemaProjectedColumns(), deltas);
     this.footer = footer;
     this.fileSystem = fileSystem;
@@ -122,19 +122,19 @@ public class ParquetRowiseReader extends AbstractParquetReader {
     this.readEvenIfSchemaChanges = readEvenIfSchemaChanges;
   }
 
-  public ParquetRowiseReader(OperatorContext context, ParquetMetadata footer, int rowGroupIndex, String path,
+  public ParquetRowiseReader(OperatorContext context, MutableParquetMetadata footer, int rowGroupIndex, String path,
                              ParquetScanProjectedColumns projectedColumns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
                              SimpleIntVector deltas, InputStreamProvider inputStreamProvider, CompressionCodecFactory codec) {
     this(context, footer, rowGroupIndex, path, projectedColumns, fileSystem, schemaHelper, deltas, inputStreamProvider, codec, false);
   }
 
-  public ParquetRowiseReader(OperatorContext context, ParquetMetadata footer, int rowGroupIndex, String path,
+  public ParquetRowiseReader(OperatorContext context, MutableParquetMetadata footer, int rowGroupIndex, String path,
                              ParquetScanProjectedColumns projectedColumns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
                              InputStreamProvider inputStreamProvider, CompressionCodecFactory codec) {
     this(context, footer, rowGroupIndex, path, projectedColumns, fileSystem, schemaHelper, null, inputStreamProvider, codec);
   }
 
-  public ParquetRowiseReader(OperatorContext context, ParquetMetadata footer, int rowGroupIndex, String path,
+  public ParquetRowiseReader(OperatorContext context, MutableParquetMetadata footer, int rowGroupIndex, String path,
                              ParquetScanProjectedColumns projectedColumns, FileSystem fileSystem, SchemaDerivationHelper schemaHelper,
                              InputStreamProvider inputStreamProvider, CompressionCodecFactory codec, boolean readEvenIfSchemaChanges) {
     this(context, footer, rowGroupIndex, path, projectedColumns, fileSystem, schemaHelper, null, inputStreamProvider, codec, readEvenIfSchemaChanges);
@@ -267,6 +267,7 @@ public class ParquetRowiseReader extends AbstractParquetReader {
         Path filePath = Path.of(path);
 
         BlockMetaData blockMetaData = footer.getBlocks().get(rowGroupIndex);
+        Preconditions.checkArgument(blockMetaData != null, "Parquet footer does not contain information about row group");
 
         recordCount = blockMetaData.getRowCount();
 

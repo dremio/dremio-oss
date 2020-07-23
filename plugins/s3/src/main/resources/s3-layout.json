@@ -119,6 +119,9 @@
 
               },
               {
+                "propName": "config.enableFileStatusCheck"
+              },
+              {
                 "propName": "config.rootPath"
               },
               {

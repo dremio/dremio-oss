@@ -109,7 +109,8 @@ public class ParquetReaderUtility {
     }
   }
 
-  public static Map<String, SchemaElement> getColNameToSchemaElementMapping(ParquetMetadata footer) {
+  public static Map<String, SchemaElement> getColNameToSchemaElementMapping(org.apache.parquet.hadoop.metadata.FileMetaData metaData, BlockMetaData blockMetaData) {
+    ParquetMetadata footer = new ParquetMetadata(metaData, Lists.newArrayList(blockMetaData));
     HashMap<String, SchemaElement> schemaElements = new HashMap<>();
     FileMetaData fileMetaData = new ParquetMetadataConverter().toParquetMetadata(ParquetFileWriter.CURRENT_VERSION, footer);
     for (SchemaElement se : fileMetaData.getSchema()) {
@@ -125,7 +126,7 @@ public class ParquetReaderUtility {
   /**
    * Check for corrupted dates in a parquet file. See DRILL-4203
    */
-  public static DateCorruptionStatus detectCorruptDates(ParquetMetadata footer,
+  public static DateCorruptionStatus detectCorruptDates(MutableParquetMetadata footer,
                                            List<SchemaPath> columns,
                                            boolean autoCorrectCorruptDates) {
     // old drill files have "parquet-mr" as created by string, and no drill version, need to check min/max values to see
@@ -210,7 +211,7 @@ public class ParquetReaderUtility {
    *                                of years into the future, with tools other than Drill writing files)
    *                                that would result in the date values being "corrected" into bad values.
    */
-  public static DateCorruptionStatus checkForCorruptDateValuesInStatistics(ParquetMetadata footer,
+  public static DateCorruptionStatus checkForCorruptDateValuesInStatistics(MutableParquetMetadata footer,
                                                               List<SchemaPath> columns,
                                                               boolean autoCorrectCorruptDates) {
     // Users can turn-off date correction in cases where we are detecting corruption based on the date values
@@ -221,8 +222,12 @@ public class ParquetReaderUtility {
     }
     // Drill produced files have only ever have a single row group, if this changes in the future it won't matter
     // as we will know from the Drill version written in the files that the dates are correct
-    int rowGroupIndex = 0;
-    Map<String, SchemaElement> schemaElements = ParquetReaderUtility.getColNameToSchemaElementMapping(footer);
+
+    BlockMetaData blockMetaData = footer.getBlocks().get(0);
+    if (blockMetaData == null) {
+      return DateCorruptionStatus.META_SHOWS_NO_CORRUPTION;
+    }
+    Map<String, SchemaElement> schemaElements = ParquetReaderUtility.getColNameToSchemaElementMapping(footer.getFileMetaData(), blockMetaData);
     findDateColWithStatsLoop : for (SchemaPath schemaPath : columns) {
       List<ColumnDescriptor> parquetColumns = footer.getFileMetaData().getSchema().getColumns();
       for (int i = 0; i < parquetColumns.size(); ++i) {
@@ -231,22 +236,22 @@ public class ParquetReaderUtility {
         // creating a NameSegment makes sure we are using the standard code for comparing names,
         // currently it is all case-insensitive
         if (ColumnUtils.isStarQuery(columns) || new PathSegment.NameSegment(column.getPath()[0]).equals(schemaPath.getRootSegment())) {
-          int colIndex = -1;
+          ColumnChunkMetaData columnChunkMetaData = null;
           ConvertedType convertedType = schemaElements.get(column.getPath()[0]).getConverted_type();
           if (convertedType != null && convertedType.equals(ConvertedType.DATE)) {
-            List<ColumnChunkMetaData> colChunkList = footer.getBlocks().get(rowGroupIndex).getColumns();
+            List<ColumnChunkMetaData> colChunkList = blockMetaData.getColumns();
             for (int j = 0; j < colChunkList.size(); j++) {
               if (colChunkList.get(j).getPath().equals(ColumnPath.get(column.getPath()))) {
-                colIndex = j;
+                columnChunkMetaData = colChunkList.get(j);
                 break;
               }
             }
           }
-          if (colIndex == -1) {
+          if (columnChunkMetaData == null) {
             // column does not appear in this file, skip it
             continue;
           }
-          Statistics statistics = footer.getBlocks().get(rowGroupIndex).getColumns().get(colIndex).getStatistics();
+          Statistics statistics = columnChunkMetaData.getStatistics();
           Integer max = (Integer) statistics.genericGetMax();
           if (statistics.hasNonNullValue()) {
             if (max > ParquetReaderUtility.DATE_CORRUPTION_THRESHOLD) {
@@ -335,15 +340,17 @@ public class ParquetReaderUtility {
    * format finds the row group numbers for input split.
    */
   public static List<Integer> getRowGroupNumbersFromFileSplit(final long splitStart, final long splitLength,
-                                                               final ParquetMetadata footer) throws IOException {
+                                                               final MutableParquetMetadata footer) throws IOException {
     final List<BlockMetaData> blocks = footer.getBlocks();
     final List<Integer> rowGroupNums = Lists.newArrayList();
 
     int i = 0;
     for (final BlockMetaData block : blocks) {
-      final long firstDataPage = block.getColumns().get(0).getFirstDataPageOffset();
-      if (firstDataPage >= splitStart && firstDataPage < splitStart + splitLength) {
-        rowGroupNums.add(i);
+      if (block != null) {
+        final long firstDataPage = block.getColumns().get(0).getFirstDataPageOffset();
+        if (firstDataPage >= splitStart && firstDataPage < splitStart + splitLength) {
+          rowGroupNums.add(i);
+        }
       }
       i++;
     }

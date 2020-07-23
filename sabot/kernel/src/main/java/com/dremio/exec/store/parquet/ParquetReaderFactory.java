@@ -20,7 +20,6 @@ import java.util.List;
 import org.apache.arrow.vector.SimpleIntVector;
 import org.apache.parquet.compression.CompressionCodecFactory;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.exec.store.RecordReader;
 import com.dremio.sabot.exec.context.OperatorContext;
@@ -41,7 +40,7 @@ public interface ParquetReaderFactory {
       ParquetFilterCreator filterCreator,
       ParquetDictionaryConvertor dictionaryConvertor,
       boolean enableDetailedTracing,
-      ParquetMetadata footer,
+      MutableParquetMetadata footer,
       int rowGroupIndex,
       SimpleIntVector deltas,
       SchemaDerivationHelper schemaHelper,
@@ -67,7 +66,7 @@ public interface ParquetReaderFactory {
                                   ParquetFilterCreator filterCreator,
                                   ParquetDictionaryConvertor dictionaryConvertor,
                                   boolean enableDetailedTracing,
-                                  ParquetMetadata footer,
+                                  MutableParquetMetadata footer,
                                   int rowGroupIndex,
                                   SimpleIntVector deltas,
                                   SchemaDerivationHelper schemaHelper,

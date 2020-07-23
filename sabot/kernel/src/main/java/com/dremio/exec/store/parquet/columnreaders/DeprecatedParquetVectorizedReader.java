@@ -40,7 +40,6 @@ import org.apache.parquet.format.FileMetaData;
 import org.apache.parquet.format.SchemaElement;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.io.SeekableInputStream;
 import org.apache.parquet.schema.PrimitiveType;
 
@@ -57,6 +56,7 @@ import com.dremio.exec.expr.TypeHelper;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.exec.store.parquet.GlobalDictionaries;
+import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.exec.store.parquet.ParquetReaderStats;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
 import com.dremio.exec.store.parquet.ParquetScanProjectedColumns;
@@ -66,6 +66,7 @@ import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
 public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
@@ -80,7 +81,8 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
   private FileSystem fileSystem;
   Path fsPath;
   private VarLenBinaryReader varLengthReader;
-  private ParquetMetadata footer;
+  private MutableParquetMetadata footer;
+  private BlockMetaData rowGroupMetadata;
   // This is a parallel list to the columns list above, it is used to determine the subset of the project
   // pushdown columns that do not appear in this file
   private boolean[] columnsFound;
@@ -94,7 +96,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
   long mockRecordsRead;
 
   private final CompressionCodecFactory codecFactory;
-  int rowGroupIndex;
+  final int rowGroupIndex;
   long totalRecordsRead;
   SeekableInputStream singleInputStream;
 
@@ -110,7 +112,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     int rowGroupIndex,
     FileSystem fs,
     CompressionCodecFactory codecFactory,
-    ParquetMetadata footer,
+    MutableParquetMetadata footer,
     ParquetScanProjectedColumns projectedColumns,
     SchemaDerivationHelper schemHelper,
     Map<String, GlobalDictionaryFieldInfo> globalDictionaryColumns,
@@ -253,12 +255,14 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     ColumnChunkMetaData columnChunkMetaData;
     int columnsToScan = 0;
     mockRecordsRead = 0;
+    rowGroupMetadata = footer.getBlocks().get(rowGroupIndex);
+    Preconditions.checkArgument(rowGroupMetadata != null, "Parquet footer does not contain information about row group");
 
     Field field;
 //    ParquetMetadataConverter metaConverter = new ParquetMetadataConverter();
     FileMetaData fileMetaData;
 
-    logger.debug("Reading row group({}) with {} records in file {}.", rowGroupIndex, footer.getBlocks().get(rowGroupIndex).getRowCount(),
+    logger.debug("Reading row group({}) with {} records in file {}.", rowGroupIndex, rowGroupMetadata.getRowCount(),
         fsPath.toURI().getPath());
     totalRecordsRead = 0;
 
@@ -274,7 +278,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
 
     // TODO - figure out how to deal with this better once we add nested reading, note also look where this map is used below
     // store a map from column name to converted types if they are non-null
-    Map<String, SchemaElement> schemaElements = ParquetReaderUtility.getColNameToSchemaElementMapping(footer);
+    Map<String, SchemaElement> schemaElements = ParquetReaderUtility.getColNameToSchemaElementMapping(footer.getFileMetaData(), rowGroupMetadata);
 
     // loop to add up the length of the fixed width columns and build the schema
     for (int i = 0; i < columns.size(); ++i) {
@@ -315,7 +319,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
     int rowsPerBatch = 0;
     if (columnsToScan != 0 && allFieldsFixedLength) {
       rowsPerBatch = (int) Math.min(Math.min(numBytesPerBatch / bitWidthAllFixedFields,
-          footer.getBlocks().get(0).getColumns().get(0).getValueCount()), 65535);
+          rowGroupMetadata.getColumns().get(0).getValueCount()), 65535);
     }
     else {
       rowsPerBatch = DEFAULT_RECORDS_TO_READ_IF_NOT_FIXED_WIDTH;
@@ -332,7 +336,6 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
       // a map is constructed for fast access to the correct columnChunkMetadata to correspond
       // to an element in the schema
       Map<String, Integer> columnChunkMetadataPositionsInList = new HashMap<>();
-      BlockMetaData rowGroupMetadata = footer.getBlocks().get(rowGroupIndex);
 
       int colChunkIndex = 0;
       for (ColumnChunkMetaData colChunk : rowGroupMetadata.getColumns()) {
@@ -503,10 +506,10 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
       }
       // No columns found in the file were selected, simply return a full batch of null records for each column requested
       if (firstColumnStatus == null) {
-        if (mockRecordsRead == footer.getBlocks().get(rowGroupIndex).getRowCount()) {
+        if (mockRecordsRead == rowGroupMetadata.getRowCount()) {
           return 0;
         }
-        recordsToRead = Math.min(numRowsPerBatch, footer.getBlocks().get(rowGroupIndex).getRowCount() - mockRecordsRead);
+        recordsToRead = Math.min(numRowsPerBatch, rowGroupMetadata.getRowCount() - mockRecordsRead);
         for (final ValueVector vv : nullFilledVectors ) {
           vv.setValueCount( (int) recordsToRead);
         }
@@ -546,7 +549,7 @@ public class DeprecatedParquetVectorizedReader extends AbstractRecordReader {
         "\nMock records read: " + mockRecordsRead +
         "\nRecords to read: " + recordsToRead +
         "\nRow group index: " + rowGroupIndex +
-        "\nRecords in row group: " + footer.getBlocks().get(rowGroupIndex).getRowCount(), e);
+        "\nRecords in row group: " + rowGroupMetadata.getRowCount(), e);
     }
 
     // this is never reached

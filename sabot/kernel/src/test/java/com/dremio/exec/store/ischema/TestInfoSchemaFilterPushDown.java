@@ -81,6 +81,24 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   }
 
   @Test
+  public void testFilterPushdown_OrEqLike() throws Exception {
+    final String query ="SELECT DISTINCT TABLE_SCHEMA,TABLE_NAME FROM INFORMATION_SCHEMA.\"TABLES\" WHERE  "+
+      "TABLE_SCHEMA = 'sys'  "+
+      "OR TABLE_SCHEMA LIKE 'sys.%'ORDER BY 1, 2 ASC";
+    final String scan = "query=[or {   clauses {     equals {       field: \"SEARCH_SCHEMA\"       stringValue: \"sys\"     }   }   clauses {     like {       field: \"SEARCH_SCHEMA\"       pattern: \"sys.%\"     }   } } ]";
+    testHelper(query, scan, false);
+  }
+
+  @Test
+  public void testFilterPushdown_OrIn() throws Exception {
+    final String query ="SELECT DISTINCT TABLE_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE "+
+      "TABLE_NAME IN ('COLUMNS','fragments') order by 1 ASC";
+
+    final String scan = "query=[or {   clauses {     equals {       field: \"SEARCH_NAME\"       stringValue: \"COLUMNS\"     }   }   clauses {     equals {       field: \"SEARCH_NAME\"       stringValue: \"fragments\"     }   } } ]";
+    testHelper(query, scan, false);
+  }
+
+  @Test
   public void testFilterPushDownWithProject_Equal() throws Exception {
     final String query = "SELECT COLUMN_NAME from INFORMATION_SCHEMA.\"COLUMNS\" WHERE TABLE_SCHEMA = 'INFORMATION_SCHEMA'";
     final String scan = "query=[equals {   field: \"SEARCH_SCHEMA\"   stringValue: \"INFORMATION_SCHEMA\" } ]";

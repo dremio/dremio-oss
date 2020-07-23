@@ -257,7 +257,8 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
 
         final boolean autoCorrectCorruptDates = context.getOptionManager().getOption(ExecConstants.PARQUET_AUTO_CORRECT_DATES_VALIDATOR) &&
           ((ParquetFormatPlugin) formatPlugin).getConfig().autoCorrectCorruptDates;
-        final ParquetReaderUtility.DateCorruptionStatus dateStatus = ParquetReaderUtility.detectCorruptDates(footer, GroupScan.ALL_COLUMNS,
+        final MutableParquetMetadata mutableParquetMetadata = new MutableParquetMetadata(footer);
+        final ParquetReaderUtility.DateCorruptionStatus dateStatus = ParquetReaderUtility.detectCorruptDates(mutableParquetMetadata, GroupScan.ALL_COLUMNS,
             autoCorrectCorruptDates);
         final SchemaDerivationHelper schemaHelper = SchemaDerivationHelper.builder()
             .readInt96AsTimeStamp(operatorContext.getOptions().getOption(PARQUET_READER_INT96_AS_TIMESTAMP).getBoolVal())
@@ -269,8 +270,8 @@ public class ParquetFormatDatasetAccessor implements FileDatasetHandle {
         final ImplicitFilesystemColumnFinder finder = new ImplicitFilesystemColumnFinder(context.getOptionManager(), fs, GroupScan.ALL_COLUMNS, isAccelerator);
 
         final long maxFooterLen = context.getOptionManager().getOption(ExecConstants.PARQUET_MAX_FOOTER_LEN_VALIDATOR);
-        try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, firstFile.getPath(), firstFile.size(), maxFooterLen, false, null);
-            RecordReader reader = new AdditionalColumnsRecordReader(new ParquetRowiseReader(operatorContext, footer, 0,
+        try (InputStreamProvider streamProvider = new SingleStreamProvider(fs, firstFile.getPath(), firstFile.size(), maxFooterLen, false, null, null);
+            RecordReader reader = new AdditionalColumnsRecordReader(new ParquetRowiseReader(operatorContext, mutableParquetMetadata, 0,
                  firstFile.getPath().toString(), ParquetScanProjectedColumns.fromSchemaPaths(GroupScan.ALL_COLUMNS),
                  fs, schemaHelper, streamProvider, codec, true), finder.getImplicitFieldsForSample(selection))) {
 

@@ -102,9 +102,13 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
     }
   }
 
+  public FilesystemScanDrel removeRowCountAdjustment() {
+    return new FilesystemScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, getProjectedColumns(), filter, 1.0);
+  }
+
   @Override
   public FilesystemScanDrel cloneWithProject(List<SchemaPath> projection) {
-    return new FilesystemScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, projection, observedRowcountAdjustment);
+    return new FilesystemScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, projection, filter, observedRowcountAdjustment);
   }
 
   @Override

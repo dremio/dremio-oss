@@ -27,4 +27,6 @@ public interface FSConstants {
 
   // AWS Region
   String FS_S3A_REGION = "aws.region";
+
+  String FS_S3A_FILE_STATUS_CHECK = "fs.s3a.create.file-status-check";
 }

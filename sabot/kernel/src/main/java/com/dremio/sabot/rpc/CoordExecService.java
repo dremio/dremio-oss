@@ -22,6 +22,7 @@ import javax.inject.Provider;
 
 import org.apache.arrow.memory.BufferAllocator;
 
+import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.proto.CoordExecRPC.ActivateFragments;
 import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
@@ -37,6 +38,7 @@ import com.dremio.exec.proto.CoordinationProtos;
 import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.rpc.Acks;
+import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.exec.rpc.Response;
 import com.dremio.exec.rpc.ResponseSender;
 import com.dremio.exec.rpc.RpcConfig;
@@ -75,6 +77,7 @@ public class CoordExecService implements Service {
   private final Provider<CoordinationProtos.NodeEndpoint> selfEndpoint;
   private final Provider<JobTelemetryClient> jobTelemetryClient;
   private final RpcConfig config;
+  private CloseableThreadPool rpcOffloadPool;
 
   /**
    * Create a new exec service. Note that at start time, the provider to one of
@@ -113,13 +116,13 @@ public class CoordExecService implements Service {
 
   @Override
   public void close() throws Exception {
-    allocator.close();
+    AutoCloseables.close(allocator, rpcOffloadPool);
   }
 
   @Override
   public void start() throws Exception {
     fabricService.get().registerProtocol(new CoordExecProtocol());
-
+    rpcOffloadPool = new CloseableThreadPool("Fabric-RPC-Offload");
     final String prefix = "rpc";
     Metrics.newGauge(prefix + "bit.control.current", allocator::getAllocatedMemory);
     Metrics.newGauge(prefix + "bit.control.peak", allocator::getPeakMemoryAllocation);
@@ -244,16 +247,39 @@ public class CoordExecService implements Service {
           sender.send(OK);
           break;
 
+        // offload both node query complete and node query error to a different thread. this causes
+        // outbound rpcs to master like
+        // 1. profile update
+        // 2. wlm stats update
+        // the first is likely to cause a deadlock
+        // the second will fail and block the query
         case RpcType.REQ_NODE_QUERY_COMPLETION_VALUE:
           NodeQueryCompletion nodeQueryCompletion = get(pBody, NodeQueryCompletion.PARSER);
-          execStatus.get().nodeQueryCompleted(nodeQueryCompletion);
-          sender.send(OK);
+          rpcOffloadPool.submit( () -> {
+            try {
+              logger.debug("Processing node query complete in a different thread.");
+              execStatus.get().nodeQueryCompleted(nodeQueryCompletion);
+              sender.send(OK);
+            } catch (RpcException e) {
+              sender.sendFailure(new UserRpcException(selfEndpoint.get(), "Failure processing " +
+                "node query complete.", e));
+            }
+
+          });
           break;
 
         case RpcType.REQ_NODE_QUERY_ERROR_VALUE:
           NodeQueryFirstError firstError = get(pBody, NodeQueryFirstError.PARSER);
-          execStatus.get().nodeQueryMarkFirstError(firstError);
-          sender.send(OK);
+          rpcOffloadPool.submit( () -> {
+            try {
+              logger.debug("Processing node first error in a different thread.");
+              execStatus.get().nodeQueryMarkFirstError(firstError);
+              sender.send(OK);
+            } catch (RpcException e) {
+              sender.sendFailure(new UserRpcException(selfEndpoint.get(), "Failure processing " +
+                "node first error.", e));
+            }
+          });
           break;
 
         case RpcType.REQ_NODE_QUERY_PROFILE_VALUE:

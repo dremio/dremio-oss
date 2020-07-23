@@ -18,6 +18,7 @@ package com.dremio.plugins.s3.store;
 import static com.dremio.service.users.SystemUser.SYSTEM_USERNAME;
 import static org.apache.hadoop.fs.s3a.Constants.ACCESS_KEY;
 import static org.apache.hadoop.fs.s3a.Constants.ALLOW_REQUESTER_PAYS;
+import static org.apache.hadoop.fs.s3a.Constants.CREATE_FILE_STATUS_CHECK;
 import static org.apache.hadoop.fs.s3a.Constants.FAST_UPLOAD;
 import static org.apache.hadoop.fs.s3a.Constants.MAXIMUM_CONNECTIONS;
 import static org.apache.hadoop.fs.s3a.Constants.MAX_THREADS;
@@ -164,6 +165,8 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     }
 
     finalProperties.add(new Property(ALLOW_REQUESTER_PAYS, Boolean.toString(config.requesterPays)));
+    finalProperties.add(new Property(CREATE_FILE_STATUS_CHECK, Boolean.toString(config.enableFileStatusCheck)));
+    logger.debug("getProperties: Create file status check: {}", config.enableFileStatusCheck);
 
     return finalProperties;
   }

@@ -144,6 +144,7 @@ public class DremioConfig extends NestedConfig {
   public static final String DEBUG_SCRATCH_ASYNC_ENABLED = "debug.scratch.async.enabled";
   public static final String DEBUG_DOWNLOAD_ASYNC_ENABLED = "debug.download.async.enabled";
   public static final String DEBUG_LOGS_ASYNC_ENABLED = "debug.logs.async.enabled";
+  public static final String DEBUG_DIST_S3_FILE_STATUS_CHECK = "debug.dist.s3_file_status_check.enabled";
 
   public static final String FABRIC_MEMORY_RESERVATION = "services.fabric.memory.reservation";
 

@@ -30,7 +30,6 @@ import java.util.stream.Collectors;
 
 import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.util.Preconditions;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.InvalidMetadataErrorContext;
@@ -73,6 +72,7 @@ import com.dremio.service.namespace.file.proto.ParquetFileConfig;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
@@ -129,6 +129,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     private final boolean readInt96AsTimeStamp;
     private final boolean enableDetailedTracing;
     private final boolean prefetchReader;
+    private final boolean trimRowGroups;
     private final boolean supportsColocatedReads;
     private final Map<String, GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
     private final CompositeReaderConfig readerConfig;
@@ -141,6 +142,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       this.config = config;
       this.factory = context.getConfig().getInstance(InputStreamProviderFactory.KEY, InputStreamProviderFactory.class, InputStreamProviderFactory.DEFAULT);
       this.prefetchReader = context.getOptions().getOption(PREFETCH_READER);
+      this.trimRowGroups = context.getOptions().getOption(ExecConstants.TRIM_ROWGROUPS_FROM_FOOTER);
       this.plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
       try {
         this.fs = plugin.createFS(config.getProps().getUserName(), context);
@@ -240,6 +242,8 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
      */
     private class ParquetSplitReaderCreator extends SplitReaderCreator implements Comparable<ParquetSplitReaderCreator>, AutoCloseable {
       private SplitAndPartitionInfo datasetSplit;
+      // set to true while creating input stream provider. When true, the footer is trimmed and unneeded row groups are removed from the footer
+      private boolean trimFooter = false;
 
       public ParquetSplitReaderCreator(SplitAndPartitionInfo splitInfo) {
         this.datasetSplit = splitInfo;
@@ -269,7 +273,12 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       }
 
       @Override
-      public void createInputStreamProvider(Path lastPath, ParquetMetadata lastFooter) {
+      public void addRowGroupsToRead(Set<Integer> rowGroupsToRead) {
+        rowGroupsToRead.add(splitXAttr.getRowGroupIndex());
+      }
+
+      @Override
+      public void createInputStreamProvider(Path lastPath, MutableParquetMetadata lastFooter) {
         if(inputStreamProvider != null) {
           return;
         }
@@ -286,9 +295,11 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
             mTime = fileAttributes.lastModifiedTime().toMillis();
           }
 
-          final ParquetMetadata validLastFooter = path.equals(lastPath) ? lastFooter : null;
+          final MutableParquetMetadata validLastFooter = path.equals(lastPath) ? lastFooter : null;
+          // if we are not using the last footer, mark the footer for trimming
+          trimFooter = (validLastFooter == null) && trimRowGroups;
 
-          BiConsumer<Path, ParquetMetadata> depletionListener = (path, footer) -> {
+          BiConsumer<Path, MutableParquetMetadata> depletionListener = (path, footer) -> {
             if(!prefetchReader || next == null) {
               return;
             }
@@ -325,7 +336,15 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
         Preconditions.checkNotNull(inputStreamProvider);
         return handleEx(() -> {
           try {
-            final ParquetMetadata footer = inputStreamProvider.getFooter();
+            final MutableParquetMetadata footer = inputStreamProvider.getFooter();
+            if (trimFooter) {
+              // footer needs to be trimmed
+              Set<Integer> rowGroupsToRetain = Sets.newHashSet();
+              this.getRowGroupsFromSameFile(this.path, rowGroupsToRetain);
+              Preconditions.checkArgument(rowGroupsToRetain.size() != 0, "Parquet reader should read at least one row group");
+              long numRowGroupsTrimmed = footer.removeUnusedRowGroups(rowGroupsToRetain);
+              context.getStats().addLongStat(ScanOperator.Metric.NUM_ROW_GROUPS_TRIMMED, numRowGroupsTrimmed);
+            }
 
             SchemaDerivationHelper.Builder schemaHelperBuilder = SchemaDerivationHelper.builder()
                 .readInt96AsTimeStamp(readInt96AsTimeStamp)

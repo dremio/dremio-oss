@@ -243,14 +243,7 @@ public class PrelTransformer {
             public RelNode visit(TableScan scan) {
               if (scan instanceof FilesystemScanDrel) {
                 FilesystemScanDrel scanDrel = (FilesystemScanDrel) scan;
-                return new FilesystemScanDrel(
-                  scanDrel.getCluster(),
-                  scanDrel.getTraitSet(),
-                  scanDrel.getTable(),
-                  scanDrel.getPluginId(),
-                  scanDrel.getTableMetadata(),
-                  scanDrel.getProjectedColumns(),
-                  1.0);
+                return scanDrel.removeRowCountAdjustment();
               }
               return super.visit(scan);
             }

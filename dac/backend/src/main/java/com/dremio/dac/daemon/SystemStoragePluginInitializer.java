@@ -140,12 +140,14 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
     final boolean enableAsyncForAcceleration = enable(config, DremioConfig.DEBUG_DIST_ASYNC_ENABLED);
 
     boolean enableCachingForAcceleration = enable(config, DremioConfig.DEBUG_DIST_CACHING_ENABLED);
+    final boolean enableS3FileStatusCheck = FileSystemConf.CloudFileSystemScheme.S3_FILE_SYSTEM_SCHEME.getScheme().equals(accelerationPath.getScheme()) ?
+      enable(config, DremioConfig.DEBUG_DIST_S3_FILE_STATUS_CHECK) : true;
     if (FileSystemConf.isCloudFileSystemScheme(accelerationPath.getScheme())) {
       enableCachingForAcceleration = sabotContext.getOptionManager().getOption(CLOUD_CACHING_ENABLED) ;
     }
     createSafe(catalogService, ns,
         AccelerationStoragePluginConfig.create(accelerationPath, enableAsyncForAcceleration,
-            enableCachingForAcceleration, maxCacheSpacePercent), deferred);
+            enableCachingForAcceleration, maxCacheSpacePercent, enableS3FileStatusCheck), deferred);
 
     final boolean enableAsyncForJobs = enable(config, DremioConfig.DEBUG_JOBS_ASYNC_ENABLED);
     createSafe(catalogService, ns,

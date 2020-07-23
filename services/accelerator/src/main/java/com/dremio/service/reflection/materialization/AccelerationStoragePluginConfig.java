@@ -62,10 +62,14 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
   @Tag(5)
   public int maxCacheSpacePercent = MAX_CACHE_SPACE_PERCENT;
 
+  @Tag(6)
+  public boolean enableS3FileStatusCheck = true;
+
   public AccelerationStoragePluginConfig() {
   }
 
-  public AccelerationStoragePluginConfig(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent) {
+  public AccelerationStoragePluginConfig(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent,
+                                         boolean enableS3FileStatusCheck) {
     if(path.getAuthority() != null) {
       connection = path.getScheme() + "://" + path.getAuthority() + "/";
     } else {
@@ -78,6 +82,7 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
     this.enableAsync = enableAsync;
     this.enableCaching = enableCaching;
     this.maxCacheSpacePercent = maxCacheSpacePercent;
+    this.enableS3FileStatusCheck = enableS3FileStatusCheck;
   }
 
   @Override
@@ -115,9 +120,11 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
     return SchemaMutability.SYSTEM_TABLE;
   }
 
-  public static SourceConfig create(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent) {
+  public static SourceConfig create(URI path, boolean enableAsync, boolean enableCaching, int maxCacheSpacePercent,
+                                    boolean enableS3FileStatusCheck) {
     SourceConfig conf = new SourceConfig();
-    AccelerationStoragePluginConfig connection = new AccelerationStoragePluginConfig(path, enableAsync, enableCaching, maxCacheSpacePercent);
+    AccelerationStoragePluginConfig connection = new AccelerationStoragePluginConfig(path, enableAsync,
+      enableCaching, maxCacheSpacePercent, enableS3FileStatusCheck);
     conf.setConnectionConf(connection);
     conf.setMetadataPolicy(CatalogService.NEVER_REFRESH_POLICY);
     conf.setName(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
@@ -132,6 +139,10 @@ public class AccelerationStoragePluginConfig extends FileSystemConf<Acceleration
   @Override
   public boolean isAsyncEnabled() {
     return enableAsync;
+  }
+
+  public boolean isS3FileStatusCheckEnabled() {
+    return enableS3FileStatusCheck;
   }
 
   @Override

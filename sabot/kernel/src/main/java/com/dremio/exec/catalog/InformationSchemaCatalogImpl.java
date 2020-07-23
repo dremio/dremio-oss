@@ -108,7 +108,7 @@ class InformationSchemaCatalogImpl implements InformationSchemaCatalog {
         .map(InformationSchemaCatalogImpl::toSearchQuery)
         .collect(Collectors.toList()));
     case OR:
-      return SearchQueryUtils.and(searchQuery.getOr()
+      return SearchQueryUtils.or(searchQuery.getOr()
         .getClausesList()
         .stream()
         .map(InformationSchemaCatalogImpl::toSearchQuery)

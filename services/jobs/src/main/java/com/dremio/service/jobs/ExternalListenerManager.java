@@ -33,12 +33,18 @@ class ExternalListenerManager {
   private final List<StreamObserver<JobEvent>> statusObservers = new CopyOnWriteArrayList<>();
 
   private volatile boolean active = true;
+  private volatile QueryMetadata queryMetadata;
   private volatile JobSummary jobSummary;
 
   public synchronized void register(StreamObserver<JobEvent> observer, JobSummary jobSummary) {
     if (!active) {
       sendQueryCompletedEvent(this.jobSummary, observer);
     } else {
+      if (queryMetadata != null) {
+        observer.onNext(JobEvent.newBuilder()
+          .setQueryMetadata(queryMetadata)
+          .build());
+      }
       statusObservers.add(observer);
       sendQueryProgressedEvent(jobSummary, observer);
     }
@@ -71,7 +77,8 @@ class ExternalListenerManager {
         observer.onNext(JobEvent.newBuilder()
           .setQueryMetadata(metadata)
           .build());
-    }
+      }
+      queryMetadata = metadata;
     }
   }
 

@@ -40,7 +40,6 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.exceptions.ExecutionSetupException;
@@ -67,6 +66,7 @@ import com.dremio.exec.store.hive.exec.dfs.DremioHadoopFileSystemWrapper;
 import com.dremio.exec.store.parquet.InputStreamProvider;
 import com.dremio.exec.store.parquet.InputStreamProviderFactory;
 import com.dremio.exec.store.parquet.ManagedSchema;
+import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetReaderFactory;
 import com.dremio.exec.store.parquet.ParquetReaderUtility;
@@ -111,13 +111,13 @@ public class FileSplitParquetRecordReader implements RecordReader {
   private final InputStreamProviderFactory inputStreamProviderFactory;
   private InputStreamProvider inputStreamProviderOfFirstRowGroup;
   private final List<Integer> rowGroupNums;
-  private ParquetMetadata footer;
+  private MutableParquetMetadata footer;
   private FileSystem fs;
   private long fileLength;
   private boolean readFullFile;
   private org.apache.hadoop.fs.Path filePath;
-  private final Function<ParquetMetadata, Integer> rowGroupIndexProvider;
-  private final Consumer<ParquetMetadata> populateRowGroupNums;
+  private final Function<MutableParquetMetadata, Integer> rowGroupIndexProvider;
+  private final Consumer<MutableParquetMetadata> populateRowGroupNums;
   private FileAttributes fileAttributes;
   private boolean isAsyncEnabled;
 
@@ -192,7 +192,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
     return conditions;
   }
 
-  public void createInputStreamProvider(Path lastPath, ParquetMetadata lastFooter) {
+  public void createInputStreamProvider(Path lastPath, MutableParquetMetadata lastFooter) {
     if(inputStreamProviderOfFirstRowGroup != null) {
       return;
     }
@@ -211,7 +211,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
         throw new RuntimeException(e);
       }
     }
-    ParquetMetadata knownFooter =  currentPath.equals(lastPath) ? lastFooter : null;
+    MutableParquetMetadata knownFooter =  currentPath.equals(lastPath) ? lastFooter : null;
 
     try (Closeable ccls = HivePf4jPlugin.swapClassLoader()) {
       org.apache.hadoop.fs.Path finalPath  = new org.apache.hadoop.fs.Path(uri);
@@ -524,7 +524,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
       private UnifiedParquetReader innerReader; // member variable so it can be closed
 
-      private final BiConsumer<Path, ParquetMetadata> depletionListener = (path, footer) -> {
+      private final BiConsumer<Path, MutableParquetMetadata> depletionListener = (path, footer) -> {
         if (!prefetchReader) {
           return;
         }
@@ -556,6 +556,10 @@ public class FileSplitParquetRecordReader implements RecordReader {
       private HiveParquetRowGroupReaderCreator(ParquetDatasetSplitScanXAttr splitXAttr, InputStreamProvider inputStreamProviderOfFirstRG) {
         this(splitXAttr);
         this.inputStreamProvider = inputStreamProviderOfFirstRG;
+      }
+
+      @Override
+      public void addRowGroupsToRead(Set<Integer> rowGroupsToRead) {
       }
 
       @Override
@@ -602,7 +606,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
       }
 
       @Override
-      public void createInputStreamProvider(Path lastPath, ParquetMetadata lastFooter) {
+      public void createInputStreamProvider(Path lastPath, MutableParquetMetadata lastFooter) {
         if (inputStreamProvider != null) {
           return;
         }

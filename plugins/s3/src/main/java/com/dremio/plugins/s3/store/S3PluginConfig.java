@@ -114,6 +114,11 @@ public class S3PluginConfig extends FileSystemConf<S3PluginConfig, S3StoragePlug
   @DisplayMetadata(label = "Apply requester-pays to S3 requests")
   public boolean requesterPays = false;
 
+  @Tag(18)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Enable file status check")
+  public boolean enableFileStatusCheck = true;
+
   @Override
   public S3StoragePlugin newPlugin(SabotContext context, String name, Provider<StoragePluginId> pluginIdProvider) {
     return new S3StoragePlugin(this, context, name, pluginIdProvider);

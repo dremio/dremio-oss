@@ -119,6 +119,8 @@ public class ScanOperator implements ProducerOperator {
     AVG_IO_READ_TIME,   // Average IO read time
     NUM_IO_READ,        // Total Number of IO reads
     NUM_HIVE_PARQUET_DECIMAL_COERCIONS, // Number of decimal coercions in hive parquet
+    NUM_ROW_GROUPS_TRIMMED, // Number of row groups trimmed from footer in memory
+    NUM_COLUMNS_TRIMMED,    // Number of columns trimmed from footer in memory
     ;
 
     @Override

@@ -19,7 +19,6 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 /**
  * Provides input stream(s) for reading a parquet file
@@ -35,7 +34,7 @@ public interface InputStreamProvider extends AutoCloseable {
   /**
    * Reads the footer -- or returns the cached one
    */
-  ParquetMetadata getFooter() throws IOException;
+  MutableParquetMetadata getFooter() throws IOException;
 
   /**
    * Is this provider reusing the same stream for all columns

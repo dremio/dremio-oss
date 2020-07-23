@@ -15,13 +15,15 @@
  */
 package com.dremio.exec.store.dfs;
 
+import java.util.Set;
+
 import org.apache.parquet.Preconditions;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.exec.store.EmptyRecordReader;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.parquet.InputStreamProvider;
+import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.io.file.Path;
 
 /**
@@ -35,12 +37,16 @@ public class EmptySplitReaderCreator extends SplitReaderCreator {
   }
 
   @Override
-  public void createInputStreamProvider(Path lastPath, ParquetMetadata lastFooter) {
+  public void createInputStreamProvider(Path lastPath, MutableParquetMetadata lastFooter) {
     Preconditions.checkNotNull(inputStreamProvider, "InputStreamProvider is not initialized");
   }
 
   @Override
-  public ParquetMetadata getFooter() {
+  public void addRowGroupsToRead(Set<Integer> rowGroupsToRead) {
+  }
+
+  @Override
+  public MutableParquetMetadata getFooter() {
     return null;
   }
 

@@ -23,11 +23,11 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-jobtelemetry</artifactId>
-    <version>4.6.0-202007150150090029-7f333d10</version>
+    <version>4.6.1-202007220122450047-62e084d0</version>
   </parent>
 
   <artifactId>dremio-services-jobtelemetry-common</artifactId>
-  <version>4.6.0-202007150150090029-7f333d10</version>
+  <version>4.6.1-202007220122450047-62e084d0</version>
   <name>Services - JobTelemetry - Common</name>
 
   <packaging>jar</packaging>

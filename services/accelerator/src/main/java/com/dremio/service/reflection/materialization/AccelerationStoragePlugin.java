@@ -16,11 +16,13 @@
 package com.dremio.service.reflection.materialization;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 import javax.inject.Provider;
 
+import com.dremio.common.FSConstants;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
@@ -38,6 +40,7 @@ import com.dremio.exec.catalog.CurrentSchemaOption;
 import com.dremio.exec.catalog.FileConfigOption;
 import com.dremio.exec.catalog.SortColumnsOption;
 import com.dremio.exec.catalog.StoragePluginId;
+import com.dremio.exec.catalog.conf.Property;
 import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.server.SabotContext;
@@ -84,6 +87,13 @@ public class AccelerationStoragePlugin extends FileSystemPlugin<AccelerationStor
 
   public AccelerationStoragePlugin(AccelerationStoragePluginConfig config, SabotContext context, String name, Provider<StoragePluginId> idProvider) {
     super(config, context, name, idProvider);
+  }
+
+  @Override
+  protected List<Property> getProperties() {
+    List<Property> props = new ArrayList<>();
+    props.add(new Property(FSConstants.FS_S3A_FILE_STATUS_CHECK, Boolean.toString(getConfig().isS3FileStatusCheckEnabled())));
+    return props;
   }
 
   @Override

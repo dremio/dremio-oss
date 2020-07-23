@@ -515,10 +515,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
     final QueryListener queryListener = runningJobs.get(job.getJobId());
     if (queryListener != null) {
       queryListener.listeners.register(observer, JobsServiceUtil.toJobSummary(job));
-      final QueryMetadata metadata = queryListener.attemptObserver.queryMetadata;
-      if (metadata != null) {
-        queryListener.listeners.metadataAvailable(JobsProtoUtil.toBuf(metadata));
-      }
     } else {
       //check if its for remote co-ordinator
       if (mustForwardRequest(job)) {

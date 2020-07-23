@@ -19,9 +19,9 @@ import java.util.List;
 
 import org.apache.arrow.util.AutoCloseables;
 import org.apache.arrow.util.Preconditions;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 
 import com.dremio.exec.store.RecordReader;
+import com.dremio.exec.store.parquet.MutableParquetMetadata;
 import com.dremio.exec.util.CloseableIterator;
 import com.dremio.io.file.Path;
 
@@ -33,7 +33,7 @@ public class PrefetchingIterator<T extends SplitReaderCreator> implements Closea
   private int location = -1;
   private final List<T> creators;
   private Path path;
-  private ParquetMetadata footer;
+  private MutableParquetMetadata footer;
 
   public PrefetchingIterator(List<T> creators) {
     this.creators = creators;

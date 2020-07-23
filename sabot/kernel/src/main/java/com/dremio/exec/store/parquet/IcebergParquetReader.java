@@ -23,7 +23,6 @@ import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.Type;
 
 import com.dremio.common.AutoCloseables;
@@ -57,7 +56,7 @@ public class IcebergParquetReader implements RecordReader {
   private final List<ParquetFilterCondition> filterConditions;
   private final ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry;
   private final FileSystem fs;
-  private final ParquetMetadata footer;
+  private final MutableParquetMetadata footer;
   private final GlobalDictionaries dictionaries;
   private final SchemaDerivationHelper schemaHelper;
   private final boolean vectorize;
@@ -75,7 +74,7 @@ public class IcebergParquetReader implements RecordReader {
     List<ParquetFilterCondition> filterConditions,
     ParquetProtobuf.ParquetDatasetSplitScanXAttr readEntry,
     FileSystem fs,
-    ParquetMetadata footer,
+    MutableParquetMetadata footer,
     GlobalDictionaries dictionaries,
     SchemaDerivationHelper schemaHelper,
     boolean vectorize,
