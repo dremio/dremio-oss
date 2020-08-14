@@ -304,6 +304,15 @@ describe('SourceFormJsonPolicy', () => {
       });
     });
 
+    it('should add always present items', () => {
+      uiConfig = {sourceType: 'S3', metadataRefresh:{a: 'a'}, form: {tabs: [
+          {},
+          {sections: []}
+      ]}};
+
+      const config = SourceFormJsonPolicy.combineFunctionalAndPresentationalSourceTypeConfig(functionalConfig, uiConfig);
+      expect(config.form.getConfig().tabs[1].getSections().length).to.equal(1);
+    });
   });
 
 

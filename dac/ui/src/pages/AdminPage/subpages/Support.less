@@ -15,12 +15,22 @@
  */
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
   .support-settings {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    
+    b {
+      font-weight: 500;
+    }
     table {
+      th {
+        font-weight: 500;
+      }
       td {
         padding-right: 1em;
 
         &:first-child {
-          font-weight: bold;
+          font-weight: 500;
           padding-right: 6em;
         }
       }

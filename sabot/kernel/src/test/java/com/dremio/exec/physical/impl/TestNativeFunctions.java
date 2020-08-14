@@ -129,6 +129,19 @@ public class TestNativeFunctions extends BaseTestFunction {
   }
 
   @Test
+  public void testTimestampDiffMonth() throws Exception {
+    testFunctions(new Object[][] {
+      {"timestampdiffMonth(c0, c1)", date("2019-01-31"), date("2019-02-28"), 1},
+      {"timestampdiffMonth(c0, c1)", date("2020-01-31"), date("2020-02-28"), 0},
+      {"timestampdiffMonth(c0, c1)", date("2020-01-31"), date("2020-02-29"), 1},
+      {"timestampdiffMonth(c0, c1)", date("2019-03-31"), date("2019-04-30"), 1},
+      {"timestampdiffMonth(c0, c1)", date("2020-03-30"), date("2020-02-29"), -1},
+      {"timestampdiffMonth(c0, c1)", date("2020-05-31"), date("2020-09-30"), 4},
+      {"timestampdiffMonth(c0, c1)", date("2019-10-10"), date("2020-11-21"), 13}
+    });
+  }
+
+  @Test
   public void testDx14049() throws Exception {
     try {
       testContext.getOptions().setOption(OptionValue.createString(
@@ -582,12 +595,12 @@ public class TestNativeFunctions extends BaseTestFunction {
           execPreferenceMixed
         ));
       InExpression.COUNT.set(0);
-      // Note: This test casts the string as a BigINT. For now, this is not available in Gandiva
+      // Note: ceil() is not available in Gandiva
       // Hence, this leads to excessive splits and will eventually be implemented in Java using
       // the OrIn optimization.
       testFunctions(new Object[][]{
-        {"booleanOr(c0 = 1l, c0 = 2l, c0 = 3l, c0 != 10l, c0 = 4l, c0 = 5l, c0 = 6l, c0 = 7l, c0 " +
-          "= 8l, c0 = 9l)", "10", false}}
+        {"booleanOr(ceil(c0) = 1l, ceil(c0) = 2l, ceil(c0) = 3l, ceil(c0) != 10l, ceil(c0) = 4l, ceil(c0) = 5l, ceil(c0) = 6l, ceil(c0) = 7l, ceil(c0) " +
+          "= 8l, ceil(c0) = 9l)", 10, false}}
       );
       Assert.assertEquals(1, InExpression.COUNT.get());
     } finally {
@@ -607,8 +620,8 @@ public class TestNativeFunctions extends BaseTestFunction {
       ));
       InExpression.COUNT.set(0);
       testFunctions(new Object[][]{
-        {"booleanOr(c0 = '1', c0 = '2', c0 = '3', c0 != '4', c0 = '5', c0 = " +
-          "'6', c0 = '7', c0 = '8', c0 = '9', c0 = " +
+        {"booleanOr(ceil(c0) = '1', ceil(c0) = '2', ceil(c0) = '3', ceil(c0) != '4', ceil(c0) = '5', ceil(c0) = " +
+          "'6', ceil(c0) = '7', ceil(c0) = '8', ceil(c0) = '9', ceil(c0) = " +
           "'10')", 9l, true}}
       );
       Assert.assertEquals(1, InExpression.COUNT.get());
@@ -843,4 +856,23 @@ public class TestNativeFunctions extends BaseTestFunction {
     });
   }
 
+  @Test
+  public void testCastTimestampToDate() throws Exception {
+    testFunctions(new Object[][]{
+      {"cast(castDATE(c0) as TIMESTAMP)", ts("1970-01-12T10:20:33"), ts("1970-01-12T00:00:00")},
+      {"cast(to_date(c0) as TIMESTAMP)", ts("1970-01-12T10:20:33"), ts("1970-01-12T00:00:00")},
+      {"cast(cast(c0 as DATE) as TIMESTAMP)", ts("1970-01-12T10:20:33"), ts("1970-01-12T00:00:00")},
+      {"extractYear(to_date(c0))", ts("1970-01-12T10:20:33"), 1970L},
+    });
+  }
+
+  @Test
+  public void testCastIntFromString() throws Exception {
+    testFunctions(new Object[][]{
+      {"castINT(c0)", "56", 56},
+      {"cast(c0 as INT)", "-2", -2},
+      {"castBIGINT(c0)", "56", 56l},
+      {"cast(c0 as BIGINT)", "-2", -2l},
+    });
+  }
 }

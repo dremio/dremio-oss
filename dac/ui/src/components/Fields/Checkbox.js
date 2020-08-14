@@ -53,7 +53,8 @@ export const checkboxPropTypes = {
   touched: PropTypes.any,
   visited: PropTypes.any,
   autofilled: PropTypes.any,
-  isOnOffSwitch: PropTypes.bool
+  isOnOffSwitch: PropTypes.bool,
+  toolTip: PropTypes.string
 };
 
 @pureRender
@@ -84,11 +85,14 @@ export default class Checkbox extends Component {
     }
   }
 
+  renderLabel(label) {
+    return <span className={labelContent}>{label}</span>;
+  }
 
   renderDummyCheckbox(isChecked, style) {
     return <div className={classNames(dummy, isChecked && 'checked')} style={style}
       data-qa={this.props.dataQa || 'dummyCheckbox'}>
-      {isChecked ? '✔' : '\u00A0'}
+      {isChecked ? <i className='fa fa-check'/> : '\u00A0'}
     </div>;
   }
 
@@ -106,8 +110,8 @@ export default class Checkbox extends Component {
     // <input .../> should be before dummy input to '~' css selector work
     return (
       <label className={classNames(['field', base, this.props.disabled && disabledCls, className])} key='container' style={style}>
-        {labelBefore && labelSpan}
-        <input type={inputType} style={{position: 'absolute', left: -10000}} {...props}/>
+        {labelBefore && this.renderLabel(label)}
+        <input disabled={this.props.disabled} type={inputType} style={{position: 'absolute', left: -10000}} {...props}/>
         {renderDummyInput && renderDummyInput(props.checked, dummyInputStyle)}
         {isOnOffSwitch && this.renderOnOffSwitch(props.checked, label, labelBefore)}
         {!renderDummyInput && !isOnOffSwitch && this.renderDummyCheckbox(dummyCheckState, dummyInputStyle)}
@@ -120,18 +124,20 @@ export default class Checkbox extends Component {
 const styles = {
   switchOnBtn: {
     color: 'white',
-    backgroundColor: '#43B8C9'
+    backgroundColor: '#43B8C9',
+    paddingLeft: 10
   },
   switchOffBtn: {
-    color: '#333333',
-    backgroundColor: '#F6F6F6'
+    color: '#fff',
+    backgroundColor: '#D0D0D0',
+    flexDirection: 'row-reverse'
   },
   onDot: {
-    backgroundColor: 'white',
-    marginLeft: 8
+    backgroundColor: '#fff',
+    right: '6px'
   },
   offDot: {
-    backgroundColor: '#999999',
-    marginRight: 8
+    backgroundColor: '#fff',
+    left: '6px'
   }
 };

@@ -48,6 +48,7 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.NamespaceService;
+import com.dremio.service.reflection.ReflectionGoalChecker;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionServiceImpl;
 import com.dremio.service.reflection.ReflectionSettings;
@@ -61,7 +62,6 @@ import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.RefreshDecision;
 import com.dremio.service.reflection.store.MaterializationStore;
-import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -106,7 +106,7 @@ public class RefreshHandler implements SqlToPlanHandler {
         throw SqlExceptionHelper.parseError("Unknown reflection id.", sql, materialize.getReflectionIdPos()).build(logger);
       }
       final ReflectionEntry entry = entryOpt.get();
-      if(!ReflectionGoalsStore.checkGoalVersion(goal, entry.getGoalVersion())) {
+      if(!ReflectionGoalChecker.checkGoal(goal, entry)) {
         throw UserException.validationError().message("Reflection has been updated since reflection was scheduled.").build(logger);
       }
 
@@ -115,7 +115,7 @@ public class RefreshHandler implements SqlToPlanHandler {
         throw SqlExceptionHelper.parseError("Unknown materialization id.", sql, materialize.getReflectionIdPos()).build(logger);
       }
       final Materialization materialization = materializationOpt.get();
-      if(!ReflectionGoalsStore.checkGoalVersion(goal, materialization.getReflectionGoalVersion())) {
+      if(!ReflectionGoalChecker.checkGoal(goal, materialization)) {
         throw UserException.validationError().message("Reflection has been updated since reflection was scheduled.").build(logger);
       }
 

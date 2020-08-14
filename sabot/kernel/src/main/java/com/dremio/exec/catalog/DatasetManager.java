@@ -17,7 +17,6 @@ package com.dremio.exec.catalog;
 
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -29,8 +28,6 @@ import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.ConnectorException;
 import com.dremio.connector.metadata.DatasetHandle;
 import com.dremio.connector.metadata.DatasetMetadata;
-import com.dremio.connector.metadata.DatasetSplit;
-import com.dremio.connector.metadata.PartitionChunk;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.SourceMetadata;
 import com.dremio.datastore.SearchQueryUtils;
@@ -562,22 +559,13 @@ class DatasetManager {
     try (DatasetMetadataSaver saver = userNamespace.newDatasetMetadataSaver(key, nsConfig.getId(), splitCompression, optionManager.getOption(CatalogOptions.SINGLE_SPLIT_PARTITION_MAX))) {
       final PartitionChunkListing chunkListing = sourceMetadata.listPartitionChunks(handle,
           options.asListPartitionChunkOptions(nsConfig));
-      final Iterator<? extends PartitionChunk> chunks = chunkListing.iterator();
-      while (chunks.hasNext()) {
-        final PartitionChunk chunk = chunks.next();
 
-        final Iterator<? extends DatasetSplit> splits = chunk.getSplits().iterator();
-        while (splits.hasNext()) {
-          final DatasetSplit split = splits.next();
-          saver.saveDatasetSplit(split);
-        }
-        saver.savePartitionChunk(chunk);
-      }
-
+      final long recordCountFromSplits = saver == null || chunkListing == null ? 0 :
+        saver.savePartitionChunks(chunkListing);
       final DatasetMetadata datasetMetadata = sourceMetadata.getDatasetMetadata(handle, chunkListing,
           options.asGetMetadataOptions(nsConfig));
       MetadataObjectsUtils.overrideExtended(nsConfig, datasetMetadata, Optional.empty(),
-          options.maxMetadataLeafColumns());
+        recordCountFromSplits, options.maxMetadataLeafColumns());
       saver.saveDataset(nsConfig, false);
     } catch (DatasetMetadataTooLargeException e) {
       nsConfig.setRecordSchema(null);

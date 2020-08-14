@@ -200,6 +200,7 @@ public class YarnController {
     basicJVMOptions.put(MapRYarnDefaults.MAPR_MAX_RA_STREAMS, yarnConfiguration
       .get(MapRYarnDefaults.MAPR_MAX_RA_STREAMS, "400"));
     basicJVMOptions.put(VM.DREMIO_CPU_AVAILABLE_PROPERTY, yarnConfiguration.get(YARN_CPU));
+    basicJVMOptions.put(DremioConfig.NETTY_REFLECTIONS_ACCESSIBLE, "true");
 
     final String kerberosPrincipal = dremioConfig.getString(DremioConfig.KERBEROS_PRINCIPAL);
     if (!Strings.isNullOrEmpty(kerberosPrincipal)) {

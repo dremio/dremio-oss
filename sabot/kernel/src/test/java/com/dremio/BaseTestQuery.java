@@ -678,10 +678,10 @@ public class BaseTestQuery extends ExecTest {
   }
 
   protected static AutoCloseable treatScanAsBoost() {
-    setSystemOption(ExecConstants.PARQUET_SCAN_AS_BOOST, "true");
+    setSystemOption(ExecConstants.ENABLE_BOOSTING, "true");
     return () ->
-            setSystemOption(ExecConstants.PARQUET_SCAN_AS_BOOST,
-                    ExecConstants.PARQUET_SCAN_AS_BOOST.getDefault().getBoolVal().toString());
+            setSystemOption(ExecConstants.ENABLE_BOOSTING,
+                    ExecConstants.ENABLE_BOOSTING.getDefault().getBoolVal().toString());
   }
 
   private static AutoCloseable setHiveParquetComplexTypes(String value) {

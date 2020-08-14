@@ -25,14 +25,47 @@
       cursor: pointer;
     }
 
+    .finder-nav__collapse-control {
+      display: none;
+      width: 12px;
+      font-size: 10px;
+      transform: translate(0, -1px);
+      color: #77818F;
+      cursor: pointer;
+    }
+
+    &.finder-nav--collapsible {
+      // Show collapse control only if the finder nav is collapsible
+      .finder-nav__collapse-control {
+        display: inline-block;
+      }
+    }
+
+    
+    &.finder-nav--collapsible.finder-nav--collapsed {
+      // Hide the finder content when it is collapsed
+      .nav-list {
+        display: none;
+      }
+    }
+
     .finder-nav-title {
       flex: 0 0 auto;
-      padding: 10px 5px 6px 10px;
+      padding: 8px 5px 5px 10px;
       border: 1px solid rgba(0,0,0,.1);
       border-width: 1px 0;
+      font-weight: 400;
+
+      .finder-nav-title__add {
+        font-size: 18px;
+        color: #DDE0E3;
+
+        &:hover {
+          color: @blue;
+        }
+      }
 
       .pull-right{
-        margin: -2px 0 0;
         cursor: pointer;
       }
     }
@@ -84,7 +117,7 @@
         border: 1px solid @blue;
         border-radius: 5px;
         font-size: 13px;
-        font-weight: bold;
+        font-weight: 500;
         width: 140px;
         height: 35px;
         &:hover{

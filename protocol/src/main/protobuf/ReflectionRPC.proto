@@ -53,6 +53,7 @@ message ReflectionInfo {
  optional string external_reflection = 12;
  optional int32 num_failures = 13 [default = 0];
  repeated exec.shared.MeasureColumn measure_columns = 14;
+ optional bool arrowCachingEnabled = 15 [default = false];
 }
 
 message ReflectionInfoResp {

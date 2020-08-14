@@ -136,7 +136,7 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
 
     final UserGroupInformation proxyUgi = getUGI(storagePlugin, config);
 
-    final CompositeReaderConfig compositeConfig = CompositeReaderConfig.getCompound(config.getFullSchema(), config.getColumns(), config.getPartitionColumns());
+    final CompositeReaderConfig compositeConfig = CompositeReaderConfig.getCompound(context, config.getFullSchema(), config.getColumns(), config.getPartitionColumns());
 
     List<SplitAndPartitionInfo> parquetSplits = new ArrayList<>();
     List<SplitAndPartitionInfo> nonParquetSplits = new ArrayList<>();

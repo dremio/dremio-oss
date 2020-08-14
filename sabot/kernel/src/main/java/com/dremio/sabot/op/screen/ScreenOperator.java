@@ -132,6 +132,9 @@ public class ScreenOperator implements TerminalOperator {
   public static class Creator implements TerminalOperator.Creator<Screen>{
     @Override
     public TerminalOperator create(TunnelProvider tunnelProvider, OperatorContext context, Screen operator) throws ExecutionSetupException {
+      if (operator.getSilent()) {
+        return new SilentScreenOperator();
+      }
       return new ScreenOperator(tunnelProvider, context, operator);
     }
   }

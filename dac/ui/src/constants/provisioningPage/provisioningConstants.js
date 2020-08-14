@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import SourceProperties from '@app/components/Forms/SourceProperties';
+
 export const CLUSTER_STATE = {
   running: 'RUNNING',
   stopped: 'STOPPED',
@@ -53,6 +55,7 @@ export const EC2_AWS_PROPS = [
   'vpc', 'nodeIamInstanceProfile', 'amiId', 'sshKeyName', 'securityGroupId', 'subnetId', 'instanceType',
   'extraConfProps', 'useClusterPlacementGroup'
 ];
+export const EC2_AWS_PROPLIST_FIELDS = ['awsTags'];
 export const EC2_AWS_CONNECTION_PROPS = [
   'authMode', 'accessKey', 'secretKey', 'endpoint', 'assumeRole'
 ];
@@ -61,6 +64,7 @@ export const EC2_FIELDS = [
   ...EC2_UI_FIELDS,
   ...EC2_DYNAMIC_CONFIG_FIELDS,
   ...EC2_AWS_PROPS,
+  ...SourceProperties.getFields({propName: EC2_AWS_PROPLIST_FIELDS[0]}),
   ...EC2_AWS_CONNECTION_PROPS];
 export const EC2_FIELDS_MAP = EC2_FIELDS.reduce((a, field) => {
   a[field] = field;
@@ -119,8 +123,8 @@ export const ENGINE_COLUMNS_CONFIG = [
   {key: 'status', label: '', width: 25, flexGrow: 0, style: {marginRight: 3}},
   {key: 'engine', label: 'Engine', flexGrow: 1, headerStyle: {marginLeft: -6}},
   {key: 'size', label: 'Size', width: 90, headerStyle: {marginLeft: -6}}, //# of workers
-  {key: 'cores', label: 'Cores per Executor', width: 80, headerStyle: {marginLeft: -6}},
-  {key: 'memory', label: 'Memory per Executor', width: 90, headerStyle: {marginLeft: -6}},
+  {key: 'cores', label: 'Cores per Executor', width: 130, headerStyle: {marginLeft: -6}},
+  {key: 'memory', label: 'Memory per Executor', width: 130, headerStyle: {marginLeft: -6}},
   {key: 'ip', label: 'IP address', width: 120, headerStyle: {marginLeft: -6}},
   {key: 'nodes', label: 'Online Nodes', width: 100},
   {key: 'action', label: 'Action', width: 100, disableSort: true}
@@ -237,6 +241,14 @@ export const EC2_FORM_TAB_VLH = {
           propertyName: 'extraConfProps',
           tooltip: 'Additional Dremio configuration options (optional)',
           label: 'Extra Dremio Configuration Properties'
+        },
+        {
+          type: 'property_list',
+          propName: 'awsTags',
+          propertyName: 'awsTags',
+          addLabel: 'Add tag',
+          emptyLabel: '(No tags added)',
+          label: 'Engine Tags'
         }
       ]
     }

@@ -66,7 +66,9 @@ public class RefreshStartHandler {
         .setState(MaterializationState.RUNNING)
         .setLastRefreshFromPds(0L)
         .setReflectionGoalVersion(entry.getGoalVersion())
-        .setReflectionId(reflectionId);
+        .setReflectionGoalHash(entry.getReflectionGoalHash())
+        .setReflectionId(reflectionId)
+        .setArrowCachingEnabled(entry.getArrowCachingEnabled());
     // this is getting convoluted, but we need to make sure we save the materialization before we run the CTAS
     // as the MaterializedView will need it to extract the logicalPlan
     materializationStore.save(materialization);

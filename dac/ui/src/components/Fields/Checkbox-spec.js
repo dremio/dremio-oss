@@ -65,8 +65,8 @@ describe('Checkbox', () => {
 
   describe('#renderDummyCheckbox', () => {
     it('should render ✔ only if isChecked', () => {
-      expect(shallow(instance.renderDummyCheckbox(false)).text()).to.not.contain('✔');
-      expect(shallow(instance.renderDummyCheckbox(true)).text()).to.contain('✔');
+      expect(shallow(instance.renderDummyCheckbox(false)).html()).to.not.contain('fa-check');
+      expect(shallow(instance.renderDummyCheckbox(true)).html()).to.contain('fa-check');
     });
   });
 

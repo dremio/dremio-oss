@@ -81,8 +81,10 @@ import com.dremio.exec.catalog.MetadataRefreshInfoBroadcaster;
 import com.dremio.exec.catalog.ViewCreatorFactory;
 import com.dremio.exec.enginemanagement.proto.EngineManagementProtos.EngineId;
 import com.dremio.exec.enginemanagement.proto.EngineManagementProtos.SubEngineId;
+import com.dremio.exec.maestro.MaestroForwarder;
 import com.dremio.exec.maestro.MaestroService;
 import com.dremio.exec.maestro.MaestroServiceImpl;
+import com.dremio.exec.maestro.NoOpMaestroForwarder;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcConstants;
@@ -727,6 +729,9 @@ public class DACDaemonModule implements DACModule {
       registry.bind(ExecutorServiceClientFactory.class, new ExecutorServiceProductClientFactory
               (tunnelCreator));
 
+
+      registry.bind(MaestroForwarder.class, new NoOpMaestroForwarder());
+
       final MaestroService maestroServiceImpl = new MaestroServiceImpl(
         registry.provider(ExecutorSetService.class),
         registry.provider(FabricService.class),
@@ -735,7 +740,8 @@ public class DACDaemonModule implements DACModule {
         registry.provider(CommandPool.class),
         registry.provider(ExecutorSelectionService.class),
         registry.provider(ExecutorServiceClientFactory.class),
-        registry.provider(JobTelemetryClient.class)
+        registry.provider(JobTelemetryClient.class),
+        registry.provider(MaestroForwarder.class)
       );
       registry.bind(MaestroService.class, maestroServiceImpl);
       registry.bindProvider(ExecToCoordStatusHandler.class, maestroServiceImpl::getExecStatusHandler);
@@ -746,6 +752,7 @@ public class DACDaemonModule implements DACModule {
         registry.provider(CommandPool.class),
         registry.provider(MaestroService.class),
         registry.provider(JobTelemetryClient.class),
+        registry.provider(MaestroForwarder.class),
         bootstrapRegistry.lookup(Tracer.class));
 
       registry.bindSelf(foremenWorkManager);
@@ -988,6 +995,10 @@ public class DACDaemonModule implements DACModule {
       );
 
       registerJobsServices(conduitServiceRegistry, registry, bootstrap);
+    }
+
+    if (isExecutor) {
+      registry.bindSelf(new ExprCachePrewarmService(sabotContextProvider, optionsProvider, bootstrap.getAllocator()));
     }
   }
 

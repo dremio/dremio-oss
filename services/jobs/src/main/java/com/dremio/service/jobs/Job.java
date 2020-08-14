@@ -108,8 +108,7 @@ public class Job {
     if (data != null) {
       return data;
     }
-
-    return resultsStore.get(jobId);
+    return resultsStore.get(getJobId());
   }
 
   void setData(JobData data){

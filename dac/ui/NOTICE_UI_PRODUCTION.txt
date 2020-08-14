@@ -4634,7 +4634,7 @@ terms above.
 --------------------------------------------------------------------------------
 
 lodash
-4.17.14
+4.17.19
 https://github.com/lodash/lodash
 
 Copyright OpenJS Foundation and other contributors <https://openjsf.org/>

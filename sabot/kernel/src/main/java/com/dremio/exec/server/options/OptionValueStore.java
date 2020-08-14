@@ -17,7 +17,6 @@ package com.dremio.exec.server.options;
 
 import java.io.IOException;
 import java.util.AbstractMap;
-import java.util.Iterator;
 import java.util.Map;
 
 import javax.annotation.Nullable;
@@ -89,12 +88,12 @@ class OptionValueStore {
     store.delete(key);
   }
 
-  public Iterator<Map.Entry<String, OptionValue>> getAll() {
+  public Iterable<Map.Entry<String, OptionValue>> getAll() {
     return Iterables.transform(store.find(), new Function<Map.Entry<String, byte[]>, Map.Entry<String, OptionValue>>() {
       @Override
       public Map.Entry<String, OptionValue> apply(@Nullable Map.Entry<String, byte[]> input) {
         return new AbstractMap.SimpleEntry<>(input.getKey(), deserialize(input.getValue()));
       }
-    }).iterator();
+    });
   }
 }

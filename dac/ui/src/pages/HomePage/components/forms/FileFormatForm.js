@@ -31,7 +31,6 @@ import prefixSection from 'components/Forms/prefixSection';
 import { connectComplexForm } from 'components/Forms/connectComplexForm';
 
 import { label, divider } from 'uiTheme/radium/forms';
-import { PALE_GREY } from 'uiTheme/radium/colors';
 import { ExcelFormatForm, TextFormatForm, XLSFormatForm } from './FormatForms';
 
 function validate(values, props) {
@@ -266,8 +265,7 @@ const styles = {
   },
   formBody: {
     flexShrink: 0,
-    paddingBottom: 20,
-    background: PALE_GREY
+    paddingBottom: 20
   },
   formBodyStyle: {
     height: 'calc(100% - 48px)',

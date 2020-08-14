@@ -13,7 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.exec.physical.base;
+package com.dremio.common.nodes;
+
+import java.util.Collection;
+import java.util.stream.Collectors;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 
@@ -35,5 +38,15 @@ public class EndpointHelper {
       builder.setEngineId(endpoint.getEngineId());
     }
     return builder.build();
+  }
+
+  public static String getMinimalString(NodeEndpoint endpoint) {
+    return endpoint.getAddress() + ":" + endpoint.getFabricPort();
+  }
+
+  public static String getMinimalString(Collection<NodeEndpoint> endpoints) {
+    return endpoints.stream()
+      .map(EndpointHelper::getMinimalString)
+      .collect(Collectors.joining(","));
   }
 }

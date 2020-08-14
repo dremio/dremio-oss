@@ -19,6 +19,9 @@ import java.util.Optional;
 import java.util.function.Consumer;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.nodes.EndpointHelper;
+import com.dremio.common.util.Retryer;
+import com.dremio.datastore.DatastoreException;
 import com.dremio.exec.proto.CoordExecRPC;
 import com.dremio.exec.proto.CoordExecRPC.ExecutorQueryProfile;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -55,6 +58,7 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
   private final ProgressMetricsPublisher progressMetricsPublisher;
   private final BackgroundProfileWriter bgProfileWriter;
   private final boolean saveFullProfileOnQueryTermination;
+  private Retryer retryer;
 
   @Inject
   JobTelemetryServiceImpl(MetricsStore metricsStore, ProfileStore profileStore) {
@@ -77,6 +81,10 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
       metricsPublishFrequencyMillis);
     this.bgProfileWriter = new BackgroundProfileWriter(profileStore);
     this.saveFullProfileOnQueryTermination = saveFullProfileOnQueryTermination;
+    this.retryer = new Retryer.Builder()
+      .retryIfExceptionOfType(DatastoreException.class)
+      .setMaxRetries(Integer.MAX_VALUE)
+      .build();
   }
 
   @Override
@@ -157,9 +165,8 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
   }
 
   private void putProgressMetrics(ExecutorQueryProfile profile) {
-    String nodeAddress = profile.getEndpoint().getAddress();
     logger.debug("Updating progress metrics for query {}", profile.getQueryId());
-    metricsStore.put(profile.getQueryId(), nodeAddress, profile.getProgress());
+    metricsStore.put(profile.getQueryId(), EndpointHelper.getMinimalString(profile.getEndpoint()), profile.getProgress());
   }
 
   @Override
@@ -271,9 +278,13 @@ public class JobTelemetryServiceImpl extends JobTelemetryServiceGrpc.JobTelemetr
   private void saveFullProfileAndDeletePartial(QueryId queryId) {
     QueryProfile fullProfile = buildFullProfile(queryId);
 
-    profileStore.putFullProfile(queryId, fullProfile);
-    profileStore.deleteSubProfiles(queryId);
-    metricsStore.delete(queryId);
+    this.retryer.call(() -> {
+      profileStore.putFullProfile(queryId, fullProfile);
+      profileStore.deleteSubProfiles(queryId);
+      metricsStore.delete(queryId);
+      return null;
+    });
+
   }
 
   private QueryProfile buildFullProfile(QueryId queryId) {

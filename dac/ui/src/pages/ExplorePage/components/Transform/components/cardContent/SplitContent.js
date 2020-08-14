@@ -91,7 +91,6 @@ const styles = {
   },
   textField: {
     width: 230,
-    height: 28,
     marginLeft: 10
   },
   check: {

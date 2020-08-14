@@ -111,7 +111,7 @@ const styles = {
   },
 
   dtStyle: {
-    fontWeight: 'bold',
+    fontWeight: '500',
     marginTop: 15,
     fontSize: '14px'
   }

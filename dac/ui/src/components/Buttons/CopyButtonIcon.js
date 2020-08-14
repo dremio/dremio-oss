@@ -54,7 +54,7 @@ const styles = {
   },
   wrap: {
     display: 'inline-block',
-    transform: 'translateY(2px)'
+    transform: 'translateY(4px)'
   },
   disabled: {
     opacity: 0.7,

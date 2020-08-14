@@ -152,7 +152,6 @@ const styles = {
   },
   removeButton: {
     ...RemoveButtonStyles.inline,
-    marginTop: '14px',
-    marginBottom: '12px'
+    marginTop: '24px'
   }
 };

@@ -87,6 +87,8 @@ public class MaestroServiceImpl implements MaestroService {
   // single map of currently running queries
   private final ConcurrentMap<QueryId, QueryTracker> activeQueryMap = Maps.newConcurrentMap();
 
+  private final Provider<MaestroForwarder> forwarder;
+
   private PhysicalPlanReader reader;
   private ExecToCoordStatusHandler execToCoordStatusHandlerImpl;
   private final Provider<ExecutorServiceClientFactory> executorServiceClientFactory;
@@ -100,7 +102,8 @@ public class MaestroServiceImpl implements MaestroService {
     final Provider<CommandPool> commandPool,
     final Provider<ExecutorSelectionService> executorSelectionService,
     final Provider<ExecutorServiceClientFactory> executorServiceClientFactory,
-    final Provider<JobTelemetryClient> jobTelemetryClient) {
+    final Provider<JobTelemetryClient> jobTelemetryClient,
+    final Provider<MaestroForwarder> forwarder) {
 
     this.executorSetService = executorSetService;
     this.fabric = fabric;
@@ -110,6 +113,7 @@ public class MaestroServiceImpl implements MaestroService {
     this.resourceAllocator = resourceAllocator;
     this.executorServiceClientFactory = executorServiceClientFactory;
     this.jobTelemetryClient = jobTelemetryClient;
+    this.forwarder = forwarder;
   }
 
   @Override
@@ -233,26 +237,32 @@ public class MaestroServiceImpl implements MaestroService {
 
     @Override
     public void screenCompleted(NodeQueryScreenCompletion completion) throws RpcException {
-      logger.debug("Screen complete message came in for id {}", completion.getId());
+      logger.debug("Screen complete message came in for id {}", QueryIdHelper.getQueryId(completion.getId()));
       QueryTracker queryTracker = activeQueryMap.get(completion.getId());
-      if (queryTracker == null) {
-        logger.debug("screen completion message arrived post query termination, dropping. Query [{}] from node {}.",
-          QueryIdHelper.getQueryId(completion.getId()), completion.getEndpoint());
-      } else {
+
+      if (queryTracker != null) {
+        logger.debug("Received NodeQueryScreenCompletion request for Query {} from {} in {}",
+          QueryIdHelper.getQueryId(completion.getId()), completion.getEndpoint().getAddress(), completion.getForeman().getAddress());
         queryTracker.screenCompleted(completion);
+
+      } else {
+        forwarder.get().screenCompleted(completion);
       }
     }
 
     @Override
     public void nodeQueryCompleted(NodeQueryCompletion completion) throws RpcException {
-      logger.debug("Node query complete message came in for id {}", completion.getId());
+      logger.debug("Node query complete message came in for id {}", QueryIdHelper.getQueryId(completion.getId()));
       updateFinalExecutorProfile(completion);
       QueryTracker queryTracker = activeQueryMap.get(completion.getId());
-      if (queryTracker == null) {
-        logger.debug("A node query completion message arrived post query termination, dropping. Query [{}] from node {}.",
-          QueryIdHelper.getQueryId(completion.getId()), completion.getEndpoint());
-      } else {
+
+      if (queryTracker != null) {
+        logger.debug("Received NodeQueryCompletion request for Query {} from {} in {}",
+          QueryIdHelper.getQueryId(completion.getId()), completion.getEndpoint().getAddress(), completion.getForeman().getAddress());
         queryTracker.nodeCompleted(completion);
+
+      } else {
+        forwarder.get().nodeQueryCompleted(completion);
       }
     }
 
@@ -278,13 +288,16 @@ public class MaestroServiceImpl implements MaestroService {
 
     @Override
     public void nodeQueryMarkFirstError(NodeQueryFirstError error) throws RpcException {
-      logger.debug("Node Query error came in for id {} ", error.getHandle().getQueryId());
+      logger.debug("Node Query error came in for id {} ", QueryIdHelper.getQueryId(error.getHandle().getQueryId()));
       QueryTracker queryTracker = activeQueryMap.get(error.getHandle().getQueryId());
-      if (queryTracker == null) {
-        logger.debug("A node query error message arrived post query termination, dropping. Query [{}] from node {}.",
-          QueryIdHelper.getQueryId(error.getHandle().getQueryId()), error.getEndpoint());
-      } else {
+
+      if (queryTracker != null) {
+        logger.debug("Received NodeQueryFirstError request for Query {} from {} in {}",
+          QueryIdHelper.getQueryId(error.getHandle().getQueryId()), error.getEndpoint().getAddress(), error.getForeman().getAddress());
         queryTracker.nodeMarkFirstError(error);
+
+      } else {
+        forwarder.get().nodeQueryMarkFirstError(error);
       }
     }
   }
@@ -321,6 +334,4 @@ public class MaestroServiceImpl implements MaestroService {
       }
     }
   }
-
-
 }

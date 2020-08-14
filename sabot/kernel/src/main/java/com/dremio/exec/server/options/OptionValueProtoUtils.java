@@ -17,8 +17,11 @@ package com.dremio.exec.server.options;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Collection;
+
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValueProto;
+import com.dremio.options.OptionValueProtoList;
 
 /**
  * Utility class for {@link OptionValue}.
@@ -84,5 +87,11 @@ final class OptionValueProtoUtils {
      default:
        throw new IllegalArgumentException("Invalid OptionValue kind");
    }
+  }
+
+  public static OptionValueProtoList toOptionValueProtoList(Collection<OptionValueProto> optionValueProtos) {
+    return OptionValueProtoList.newBuilder()
+      .addAllOptions(optionValueProtos)
+      .build();
   }
 }

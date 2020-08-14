@@ -52,6 +52,9 @@ import com.google.common.collect.ImmutableList;
 public class SampleSourceMetadata implements SourceMetadata, SupportsListingDatasets {
   private final List<DatasetHandle> allDatasetHandles;
 
+  // Same as ScanCostFactor.OTHER.getFactor()
+  private static final double SCAN_COST_FACTOR = 20;
+
   public SampleSourceMetadata(List<DatasetHandle> datasetHandles) {
     this.allDatasetHandles = datasetHandles;
   }
@@ -167,7 +170,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
       throw new UnsupportedOperationException();
     }
 
-    DatasetStats datasetStats = DatasetStats.of(0, 0);
+    DatasetStats datasetStats = DatasetStats.of(0, SCAN_COST_FACTOR);
     Schema schema = new Schema(new ArrayList<>());
 
     for (int i = 0; i < numDatasets; i++) {
@@ -187,7 +190,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
    * @param numSplitsPerPartitionChunk number of splits per partition chunk
    */
   public void addNDatasets(int numDatasets, int numPartitionChunks, int numSplitsPerPartitionChunk) {
-    DatasetStats datasetStats = DatasetStats.of(0, 0);
+    DatasetStats datasetStats = DatasetStats.of(0, SCAN_COST_FACTOR);
     Schema schema = new Schema(new ArrayList<>());
 
     for (int datasetI = 0 ; datasetI < numDatasets; datasetI++) {
@@ -221,7 +224,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
    * @param pathNames a list of pathnames
    */
   public void addManyDatasets(List<List<String>> pathNames) {
-    DatasetStats datasetStats = DatasetStats.of(0, 0);
+    DatasetStats datasetStats = DatasetStats.of(0, SCAN_COST_FACTOR);
     Schema schema = new Schema(new ArrayList<>());
 
     for (int i = 0; i < pathNames.size(); i++) {
@@ -239,7 +242,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
    * @param numPartitionColumns number of partition columns for each dataset
    */
   public void addManyDatasets(List<EntityPath> entityPaths, int numPartitionColumns) {
-    DatasetStats datasetStats = DatasetStats.of(0, 0);
+    DatasetStats datasetStats = DatasetStats.of(0, SCAN_COST_FACTOR);
     Schema schema = new Schema(new ArrayList<>());
 
     for (EntityPath entityPath : entityPaths) {
@@ -259,7 +262,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
    * @param pathName a path name in the form of a list
    */
   public void addSingleDataset(List<String> pathName) {
-    DatasetStats datasetStats = DatasetStats.of(0, 0);
+    DatasetStats datasetStats = DatasetStats.of(0, SCAN_COST_FACTOR);
     Schema schema = new Schema(new ArrayList<>());
 
     addDatasetHandle(
@@ -274,7 +277,7 @@ public class SampleSourceMetadata implements SourceMetadata, SupportsListingData
    * @param entityPath an entity path
    */
   public void addSingleDataset(EntityPath entityPath) {
-    DatasetStats datasetStats = DatasetStats.of(0, 0);
+    DatasetStats datasetStats = DatasetStats.of(0, SCAN_COST_FACTOR);
     Schema schema = new Schema(new ArrayList<>());
 
     addDatasetHandle(

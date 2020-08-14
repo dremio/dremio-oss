@@ -80,7 +80,7 @@ export default class SelectConnectionButton extends Component {
 
 const styles = {
   iconStyle: {
-    width: 60,
-    height: 60
+    width: 40,
+    height: 40
   }
 };

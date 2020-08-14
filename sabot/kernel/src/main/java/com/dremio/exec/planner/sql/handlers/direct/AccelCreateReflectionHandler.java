@@ -85,6 +85,7 @@ public class AccelCreateReflectionHandler extends SimpleDirectHandler {
         table.qualifyColumns(addLayout.getSortList()),
         table.qualifyColumns(addLayout.getDistributionList()),
         table.qualifyColumns(addLayout.getPartitionList()),
+        addLayout.getArrowCachingEnabled(),
         addLayout.getPartitionDistributionStrategy()
     );
     accel.addLayout(table.getPath(), layout, reflectionContext);

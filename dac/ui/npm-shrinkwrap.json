@@ -6703,8 +6703,8 @@
       }
     },
     "lodash": {
-      "version": "4.17.14",
-      "integrity": "sha512-mmKYbW3GLuJeX+iGP+Y7Gp1AiGHGbXHCOh/jZmrawMmsE7MS4znI3RL2FsjbqOyMayHInjOeykW7PEajUk1/xw=="
+      "version": "4.17.19",
+      "integrity": "sha512-JNvd8XER9GQX0v2qJgsaN/mzFCNA5BRe/j8JN9d+tWyGLSodKQHKFicdwNYzWwI3wjRnaKPsGj1XkBjx/F96DQ=="
     },
     "lodash._getnative": {
       "version": "3.9.1",

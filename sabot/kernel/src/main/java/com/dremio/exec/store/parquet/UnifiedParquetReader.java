@@ -137,7 +137,7 @@ public class UnifiedParquetReader implements RecordReader {
 
   @Override
   public void setup(OutputMutator output) throws ExecutionSetupException {
-    if (supportsColocatedReads) {
+    if (supportsColocatedReads && context.getOptions().getOption(ExecConstants.SCAN_COMPUTE_LOCALITY)) {
       computeLocality(footer);
     }
 
@@ -254,14 +254,27 @@ public class UnifiedParquetReader implements RecordReader {
   }
 
   @Override
+  public List<SchemaPath> getColumnsToBoost() {
+    List<SchemaPath> columnsToBoost = Lists.newArrayList();
+    for(RecordReader recordReader : delegates) {
+      List<SchemaPath> tmp = recordReader.getColumnsToBoost();
+      if (tmp != null) {
+        columnsToBoost.addAll(tmp);
+      }
+    }
+
+    return columnsToBoost;
+  }
+
+  @Override
   public void close() throws Exception {
     if (context.getOptions().getOption(ExecConstants.TRIM_ROWGROUPS_FROM_FOOTER)) {
       footer.removeRowGroupInformation(readEntry.getRowGroupIndex());
       context.getStats().addLongStat(Metric.NUM_ROW_GROUPS_TRIMMED, 1);
     }
     List<AutoCloseable> closeables = new ArrayList<>();
-    closeables.add(inputStreamProvider);
     closeables.addAll(delegates);
+    closeables.add(inputStreamProvider);
     AutoCloseables.close(closeables);
   }
 

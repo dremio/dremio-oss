@@ -85,7 +85,6 @@ public class Pipeline implements AutoCloseable {
     case DONE:
     case NEEDS_SETUP:
     default:
-      // noop since the operator can't do anything with the message.
     }
   }
 

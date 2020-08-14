@@ -244,6 +244,11 @@ public class HiveParquetCoercionReader extends AbstractRecordReader {
     }
   }
 
+  @Override
+  public void addRuntimeFilter(RuntimeFilter runtimeFilter) {
+    inner.addRuntimeFilter(runtimeFilter);
+  }
+
   private enum NextMethodState {
     NOT_CALLED_BY_FILTERING_READER,
     FIRST_CALL_BY_FILTERING_READER,

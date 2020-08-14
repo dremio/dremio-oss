@@ -47,7 +47,6 @@ import com.dremio.exec.planner.physical.Prel;
 import com.dremio.exec.planner.physical.ScreenPrel;
 import com.dremio.exec.planner.types.JavaTypeFactoryImpl;
 import com.dremio.exec.proto.UserBitShared;
-import com.dremio.exec.server.options.TestingOptionManager;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.store.sys.SystemPluginConf;
 import com.dremio.exec.store.sys.SystemScanPrel;
@@ -84,7 +83,9 @@ public class TestSplitCountChecker {
     optionList.add(ExecConstants.SLICE_TARGET_OPTION.getDefault());
     optionList.add(PlannerSettings.ENABLE_LEAF_LIMITS.getDefault());
     optionList.add(PlannerSettings.ENABLE_TRIVIAL_SINGULAR.getDefault());
-    final OptionManager optionManager = new TestingOptionManager(mock(OptionValidatorListing.class), optionList);
+    final OptionManager optionManager = mock(OptionManager.class);
+    when(optionManager.getOptionValidatorListing()).thenReturn(mock(OptionValidatorListing.class));
+    when(optionManager.getNonDefaultOptions()).thenReturn(optionList);
 
     ClusterResourceInformation info = mock(ClusterResourceInformation.class);
     when(info.getExecutorNodeCount()).thenReturn(1);

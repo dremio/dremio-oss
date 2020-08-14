@@ -58,6 +58,8 @@ public final class CatalogOptions {
   // How should (multi-)splits be compressed in the K/V store
   public static final TypeValidators.EnumValidator<NamespaceService.SplitCompression> SPLIT_COMPRESSION_TYPE = new TypeValidators.EnumValidator<>(
     "store.plugin.split_compression", NamespaceService.SplitCompression.class, NamespaceService.SplitCompression.SNAPPY);
+  // Disable cross source select
+  public static final BooleanValidator DISABLE_CROSS_SOURCE_SELECT = new BooleanValidator("planner.cross_source_select.disable", false);
 
   // Do not instantiate
   private CatalogOptions() {

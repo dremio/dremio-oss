@@ -25,6 +25,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dremio.common.nodes.EndpointHelper;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.AttemptIdUtils;
 import com.dremio.datastore.api.LegacyKVStore;
@@ -121,7 +122,7 @@ public class LocalProfileStore implements ProfileStore {
         if (value == null)  {
           value = new HashMap<>();
         }
-        value.put(endpoint.getAddress(), profile);
+        value.put(EndpointHelper.getMinimalString(endpoint), profile);
         return value;
       });
   }

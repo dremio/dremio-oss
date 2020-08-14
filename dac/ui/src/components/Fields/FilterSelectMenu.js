@@ -206,7 +206,7 @@ export default class FilterSelectMenu extends PureComponent {
       <SelectView
         content={
           <Fragment>
-            <span>{this.props.preventSelectedLabel || !this.props.selectedValues.size ? label : ''}</span>
+            {(this.props.preventSelectedLabel || !this.props.selectedValues.size) && <span>{label}</span>}
             {this.renderSelectedLabel()}
           </Fragment>
         }

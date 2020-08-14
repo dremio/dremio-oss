@@ -40,6 +40,7 @@ import com.dremio.dac.server.models.ServerData;
 import com.dremio.dac.service.admin.CommitInfo;
 import com.dremio.dac.service.admin.VersionInfo;
 import com.dremio.dac.support.SupportService;
+import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.options.OptionManager;
 import com.dremio.service.reflection.ReflectionOptions;
 import com.google.common.io.Resources;
@@ -139,7 +140,8 @@ public class DremioServlet implements Servlet {
       .setClusterId(supportService.get().getClusterId().getIdentity())
       .setVersionInfo(getVersionInfo())
       .setEdition(DremioEdition.getAsString())
-      .setAnalyzeTools(AnalyzeTools.from(options));
+      .setAnalyzeTools(AnalyzeTools.from(options))
+      .setCrossSourceDisabled(options.getOption(CatalogOptions.DISABLE_CROSS_SOURCE_SELECT));
   }
 
   protected Provider<SupportService> getSupportService() {

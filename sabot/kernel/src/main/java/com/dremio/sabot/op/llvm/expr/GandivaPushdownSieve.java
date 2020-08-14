@@ -312,7 +312,7 @@ public class GandivaPushdownSieve extends AbstractExprVisitor<CodeGenContext, Co
    */
   private boolean isSpecificFuntionSupported(FunctionHolderExpression holder) {
     // gandiva cannot yet process date patterns with timezones in it.
-    if (holder.getName().equalsIgnoreCase("to_date")) {
+    if (holder.getName().equalsIgnoreCase("to_date") && holder.args.size() > 1) {
       CodeGenContext context = (CodeGenContext)holder.args.get(1);
       ValueExpressions.QuotedString pattern = (ValueExpressions.QuotedString)context.getChild();
       return !pattern.getString().contains("tz");

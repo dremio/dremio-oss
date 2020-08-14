@@ -20,7 +20,12 @@
 :global { // DX-11429 TODO reafactor component to use css modules instead fo global classes
 
   #admin-page {
+    // DX-23750. Instead of having the scroll bar on the page-level, move it down to the left-nav and main-content level.
+    .page-content {
+      overflow: hidden;
+    }
     .left-menu {
+      overflow: auto;
       .left-item {
         &:hover{
           outline: 1px solid rgba(0,0,0,.05);
@@ -41,6 +46,8 @@
 
     .fixedDataTableLayout_header {
       .formLabel();
+      // DX-23708. Fixed the table header/body overlapping issue
+      background-color: #fff;
     }
 
     .public_fixedDataTableCell_cellContent {

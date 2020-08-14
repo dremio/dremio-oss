@@ -34,10 +34,13 @@ import org.apache.arrow.vector.ipc.message.ArrowFieldNode;
 import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
 
 import com.dremio.exec.record.ArrowRecordBatchLoader;
+import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.LocalSyncableFileSystem.WritesArrowBuf;
+import com.dremio.io.FSInputStream;
 import com.google.flatbuffers.FlatBufferBuilder;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.util.internal.PlatformDependent;
 
 /*
@@ -53,31 +56,26 @@ import io.netty.util.internal.PlatformDependent;
  */
 public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializable {
 
-  private VectorContainer va;
+  private VectorAccessible va;
   private BufferAllocator allocator;
 
   private boolean writeDirect;
-  private boolean skipSchema;
 
   private long bytesWritten;
 
   private final byte[] heapMoveBuffer = new byte[64*1024];
 
-  public VectorAccessibleFlatBufSerializable(VectorContainer va, BufferAllocator allocator) {
+  public VectorAccessibleFlatBufSerializable(VectorAccessible va, BufferAllocator allocator) {
     this.va = va;
     this.allocator = allocator;
   }
 
-  public VectorContainer get() {
+  public VectorAccessible get() {
     return va;
   }
 
   public void setWriteDirect(boolean writeDirect) {
     this.writeDirect = writeDirect;
-  }
-
-  public void setSkipSchema(boolean skipSchema) {
-    this.skipSchema = skipSchema;
   }
 
   @Override
@@ -105,7 +103,7 @@ public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializa
         ArrowRecordBatchLoader.load(recordBatch, va, body);
       }
       int recordCount = (int) recordBatch.length();
-      va.setAllCount(recordCount);
+      ((VectorContainer) va).setAllCount(recordCount);
     } catch (Exception ex) {
       throw new IOException("Failed to load data into vector container", ex);
     }
@@ -126,7 +124,7 @@ public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializa
     }
   }
 
-  private void read(ArrowBuf outputBuffer, long numBytesToRead, InputStream input) throws IOException {
+  private void readUsingHeapBuffer(ArrowBuf outputBuffer, long numBytesToRead, InputStream input) throws IOException {
     final byte[] heapMoveBuffer = this.heapMoveBuffer;
     while(numBytesToRead > 0) {
       int len = (int) Math.min(heapMoveBuffer.length, numBytesToRead);
@@ -139,6 +137,27 @@ public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializa
       /* NOTE: when read into outputBuffer, writerIndex in ArrowBuf is incremented automatically */
       outputBuffer.writeBytes(heapMoveBuffer, 0, numBytesRead);
       numBytesToRead -= numBytesRead;
+    }
+  }
+
+  private void read(ArrowBuf outputBuffer, long numBytesToRead, InputStream input) throws IOException {
+    if (input instanceof FSInputStream) {
+      FSInputStream fsInputStream = (FSInputStream)input;
+      ByteBuf readByteBuf = outputBuffer.asNettyBuffer();
+      ByteBuffer readBuffer = readByteBuf.nioBuffer(0, (int) numBytesToRead);
+      int totalRead = 0;
+      readBuffer.clear();
+      readBuffer.limit((int)numBytesToRead);
+
+      while (totalRead < numBytesToRead) {
+        final int nRead = fsInputStream.read(readBuffer);
+        if (nRead < 0) {
+          break;
+        }
+        totalRead += nRead;
+      }
+    } else {
+      readUsingHeapBuffer(outputBuffer, numBytesToRead, input);
     }
   }
 
@@ -200,7 +219,7 @@ public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializa
     return bufLength;
   }
 
-  private ArrowRecordBatch getRecordBatch(VectorContainer va) {
+  private ArrowRecordBatch getRecordBatch(VectorAccessible va) {
     List<ArrowFieldNode> nodes = new ArrayList<>();
     List<ArrowBuf> buffers = new ArrayList<>();
     List<FieldVector> vectors = StreamSupport.stream(va.spliterator(), false).map(vw -> ((FieldVector)vw.getValueVector())).collect(Collectors.toList());

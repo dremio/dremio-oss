@@ -54,6 +54,8 @@ message Materialization {
   optional int32 seriesOrdinal = 22 [default = 0];
   optional string tag = 24;
   optional string reflectionGoalVersion = 25;
+  optional bool arrowCachingEnabled = 27 [default = false]; // true if boost columns are enabled for caching
+  optional ReflectionGoalHash reflection_goal_hash = 28;
 }
 
 message RefreshId {

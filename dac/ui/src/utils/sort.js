@@ -25,3 +25,25 @@ export const humanSorter = (a, b) => {
   if (a > b) return 1;
   return 0;
 };
+
+/**
+ * get virtualized table element value used for sorting
+ * @param item
+ * @param sortBy
+ * @param sortDirection
+ * @return {*}
+ */
+export const getSortValue = (item, sortBy, sortDirection) => {
+  if (!item || !item.data || !item.data[sortBy]) return undefined;
+
+  const itemElement = item.data[sortBy];
+  const value = (
+    typeof itemElement.value === 'undefined'
+    && typeof itemElement.node === 'function'
+  ) ? itemElement.node()
+    : itemElement.value;
+  if (typeof value === 'function') {
+    return value.call(item.data[sortBy], sortDirection, sortBy);
+  }
+  return value;
+};

@@ -17,7 +17,6 @@
 @import '~@app/uiTheme/less/color-schema.less';
 @import '~@app/uiTheme/less/variables.less';
 
-@_color: #f2f2f2;
 //#region drop down list styles (see SelectItem) ------------------------------------
 
 .selected {
@@ -41,15 +40,14 @@
 
 .button {
   display: flex; // or inline-flex?
-  text-align: center;
+  text-align: left;
   width: @_WIDTH;
-  height: 28px;
-  border-radius: 2px;
-  padding: 0 0 0 10px;
-  border: 0 solid @SECONDARY_BORDER;
-  border-bottom-width: 1px;
+  height: 32px;
+  border-radius: 4px;
+  padding: 8px;
+  border: 1px solid #e5e5e5;
   outline: none;
-  background-color: @_color;
+  background-color: #f2f2f2;
 }
 
 
@@ -61,7 +59,6 @@
 }
 
 .list {
-  width: @_WIDTH;
   max-height: 250px;
   // padding-top: 0 !important; //to override Menu inline styles
   // padding-bottom: 0 !important; //to override Menu inline styles

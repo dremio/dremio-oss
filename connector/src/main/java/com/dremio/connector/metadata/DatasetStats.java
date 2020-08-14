@@ -47,11 +47,27 @@ public interface DatasetStats {
   double getScanFactor();
 
   /**
-   * Create {@code DatasetStats}.
+   * Create {@code DatasetStats} that does not provide a row count.
    *
-   * @param recordCount record count
    * @param scanFactor scan factor
    * @return dataset stats
+   * @throws IllegalArgumentException if the scan factor is less than or equal to zero.
+   */
+  static DatasetStats of(double scanFactor) {
+    if (scanFactor <= 0.0d) {
+      throw new IllegalArgumentException("Scan factor must be greater than zero.");
+    }
+    return of(-1L, false, scanFactor);
+  }
+
+  /**
+   * Create {@code DatasetStats}.
+   *
+   * @param recordCount record count. A negative value indicates that the record count on the DatasetStats is not valid
+   *                    and should be calculated by other means.
+   * @param scanFactor scan factor. Must be greater than zero.
+   * @return dataset stats
+   * @throws IllegalArgumentException if the record count is negative or the scan factor is less than or equal to zero.
    */
   static DatasetStats of(long recordCount, double scanFactor) {
     return of(recordCount, false, scanFactor);
@@ -60,12 +76,21 @@ public interface DatasetStats {
   /**
    * Create {@code DatasetStats}.
    *
-   * @param recordCount record count
-   * @param exact if record count is exact
-   * @param scanFactor scan factor
+   * @param recordCount record count. A negative value indicates that the record count on the DatasetStats is not valid
+   *                    and should be calculated by other means.
+   * @param exact if record count is exact. Ignored if recordCount < 0.
+   * @param scanFactor scan factor. Must be greater than zero.
    * @return datasets stats
+   * @throws IllegalArgumentException if the record count is negative or the scan factor is less than or equal to zero.
    */
   static DatasetStats of(long recordCount, boolean exact, double scanFactor) {
-    return  new DatasetStatsImpl(recordCount, exact, scanFactor);
+    if (scanFactor <= 0.0d) {
+      throw new IllegalArgumentException("Scan factor must be greater than zero.");
+    }
+
+    if (recordCount >= 0) {
+      return new DatasetStatsImpl(recordCount, exact, scanFactor);
+    }
+    return new DatasetStatsImpl(recordCount, false, scanFactor);
   }
 }

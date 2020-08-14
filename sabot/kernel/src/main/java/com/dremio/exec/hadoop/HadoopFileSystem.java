@@ -572,11 +572,19 @@ public class HadoopFileSystem
       return ((MayProvideAsyncStream) underlyingFs).getAsyncByteReader(path, fileKey.getVersion());
     } else {
       long modificationTime = Long.parseLong(fileKey.getVersion());
-      if (underlyingFs.getFileStatus(path).getModificationTime() > modificationTime) {
+      long actualModificationTime;
+      try (WaitRecorder waitRecorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        actualModificationTime = underlyingFs.getFileStatus(path).getModificationTime();
+      }
+      if (actualModificationTime > modificationTime) {
         throw new FileNotFoundException("mtime of file has changed " + path);
       }
 
-      FSInputStream inputStream = newFSDataInputStreamWrapper(fileKey.getPath(), underlyingFs.open(path), operatorStats, false);
+      FSDataInputStream is;
+      try (WaitRecorder waitRecorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        is = underlyingFs.open(path);
+      }
+      FSInputStream inputStream = newFSDataInputStreamWrapper(fileKey.getPath(), is, operatorStats, false);
       return new HadoopAsyncByteReader(fileKey.getPath(), inputStream);
     }
   }

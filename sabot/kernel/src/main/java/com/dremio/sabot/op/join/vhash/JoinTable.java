@@ -15,7 +15,11 @@
  */
 package com.dremio.sabot.op.join.vhash;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+
+import com.dremio.exec.util.BloomFilter;
 
 public interface JoinTable extends AutoCloseable {
   public void insert(final long outputAddr, final int records);
@@ -44,4 +48,15 @@ public interface JoinTable extends AutoCloseable {
   public String traceReport();
   public long getBuildHashComputationTime(TimeUnit unit);
   public long getProbeHashComputationTime(TimeUnit unit);
+
+  /**
+   * Prepares a bloomfilter from the selective field keys. Since this is an optimisation, errors are not propagated to
+   * the consumer. Instead, they get an empty optional.
+   * @param fieldNames
+   * @param sizeDynamically Size the filter according to the number of entries in table.
+   * @return
+   */
+  default Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically) {
+    return Optional.empty();
+  }
 }

@@ -59,7 +59,7 @@
     "jquery-param": "^0.2.0",
     "jsplumb": "2.1.4",
     "linkifyjs": "^2.1.9",
-    "lodash": "^4.17.14",
+    "lodash": "4.17.19",
     "marked": "^0.7.0",
     "moment": "^2.24.0",
     "mousetrap": "^1.6.1",

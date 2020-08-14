@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+
+    Copyright (C) 2017-2019 Dremio Corporation
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+-->
+<svg width="24" height="24" xmlns="http://www.w3.org/2000/svg"><g fill-rule="nonzero" fill="none"><path d="M21.75-.004A2.25 2.25 0 0124 2.246v16.5a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18.746v-16.5a2.25 2.25 0 012.25-2.25zm0 1.5H5.25a.75.75 0 00-.75.75v16.5c0 .414.336.75.75.75h16.5a.75.75 0 00.75-.75v-16.5a.75.75 0 00-.75-.75zm-6 10.5a.75.75 0 01.102 1.493l-.102.007h-7.5a.75.75 0 01-.102-1.493l.102-.007h7.5zm3-3a.75.75 0 01.102 1.493l-.102.007H8.25a.75.75 0 01-.102-1.493l.102-.007h10.5zm0-3a.75.75 0 01.102 1.493l-.102.007H8.25a.75.75 0 01-.102-1.493l.102-.007h10.5z" fill="#39AAFF"/><path d="M.75 2.996a.75.75 0 01.743.648l.007.102v18c0 .38.282.693.648.743l.102.007h18a.75.75 0 01.102 1.493l-.102.007h-18A2.25 2.25 0 01.005 21.9L0 21.746v-18a.75.75 0 01.75-.75z" fill="#97D2FF"/></g></svg>

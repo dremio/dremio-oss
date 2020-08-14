@@ -33,6 +33,8 @@
     "DATABASES",
     "SCHEMAS",
     "LOCALSORT",
+    "ARROW",
+    "CACHE",
     "TABLES",
     "USE",
     "FILES",
@@ -83,6 +85,8 @@
     "SINGLE",
     "WRITER",
     "LOCALSORT",
+    "ARROW",
+    "CACHE",
     "HASH",
     "ROUNDROBIN"
     "DISTRIBUTE",

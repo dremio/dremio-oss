@@ -29,6 +29,7 @@ import { addNotification } from '@app/actions/notification';
 import { getViewState } from '@app/selectors/resources';
 import { getAllProvisions } from '@app/selectors/provision';
 import { PROVISION_MANAGERS } from 'dyn-load/constants/provisioningPage/provisionManagers';
+import { MSG_CLEAR_DELAY_SEC } from '@app/constants/Constants';
 import Header from '@app/pages/AdminPage/components/Header';
 import ViewStateWrapper from '@app/components/ViewStateWrapper';
 import Button from '@app/components/Buttons/Button';
@@ -85,7 +86,7 @@ export class ProvisioningPage extends Component {
     }).catch(e => {
       const message = e &&  e._error && e._error.message;
       const errorMessage = message && message.get('errorMessage') || la('Failed to remove provision');
-      this.props.addNotification(<span>{errorMessage}</span>, 'error');
+      this.props.addNotification(<span>{errorMessage}</span>, 'error', MSG_CLEAR_DELAY_SEC);
     });
   };
 

@@ -253,7 +253,6 @@ public class SpillManager implements AutoCloseable {
     public long writeBatch(VectorContainer outgoing) throws IOException {
       VectorAccessibleFlatBufSerializable serializable = new VectorAccessibleFlatBufSerializable(outgoing, null);
       serializable.setWriteDirect(writeDirect);
-      serializable.setSkipSchema(true);
       serializable.writeToStream(top);
       return serializable.getBytesWritten();
     }

@@ -98,14 +98,22 @@ public abstract class AbstractVector implements AutoCloseable {
     clear();
   }
 
+  /**
+   * Allocs max(currentCapacity * 2, prevAllocSize, defaultAllocSize)
+   * If this is called after clear(), allocs allocationSizeInBytes which is the size of previous allocation
+   */
   public void reAlloc() {
-    long baseSize = (long)allocationSizeInBytes;
     long currentBufferCapacity = dataBuffer.capacity();
-    if(baseSize < currentBufferCapacity) {
-      baseSize = currentBufferCapacity;
+    long newAllocationSize = currentBufferCapacity * 2L;
+
+    if (newAllocationSize == 0) {
+      if (allocationSizeInBytes > 0) {
+        newAllocationSize = allocationSizeInBytes;
+      } else {
+        newAllocationSize = INITIAL_VALUE_ALLOCATION * typeWidth;
+      }
     }
 
-    long newAllocationSize = baseSize * 2L;
     newAllocationSize = CommonUtil.nextPowerOfTwo(newAllocationSize);
     if(newAllocationSize > (long)MAX_ALLOCATION_SIZE) {
       throw new OversizedAllocationException("Unable to expand the buffer. Max allowed buffer size is reached.");

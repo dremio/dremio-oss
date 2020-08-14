@@ -16,7 +16,7 @@
 
 package com.dremio.plugins.azure;
 
-import static com.dremio.plugins.azure.utils.AzureAsyncHttpClientUtils.DEFAULT_REQUEST_TIMEOUT;
+import static com.dremio.plugins.azure.utils.AsyncHttpClientProvider.DEFAULT_REQUEST_TIMEOUT;
 import static com.dremio.plugins.azure.utils.AzureAsyncHttpClientUtils.XMS_VERSION;
 import static com.dremio.plugins.azure.utils.AzureAsyncHttpClientUtils.toHttpDateFormat;
 

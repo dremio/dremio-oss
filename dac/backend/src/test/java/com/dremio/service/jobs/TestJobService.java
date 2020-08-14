@@ -17,17 +17,20 @@ package com.dremio.service.jobs;
 
 import static com.dremio.dac.server.JobsServiceTestUtils.toSubmitJobRequest;
 import static java.util.Arrays.asList;
+import static java.util.UUID.randomUUID;
 import static javax.ws.rs.client.Entity.entity;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
 
 import java.io.File;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.junit.Before;
@@ -38,14 +41,12 @@ import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import com.dremio.common.exceptions.UserException;
-import com.dremio.common.exceptions.UserRemoteException;
 import com.dremio.common.utils.protos.AttemptId;
 import com.dremio.common.utils.protos.AttemptIdUtils;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.dac.explore.model.DatasetPath;
 import com.dremio.dac.model.job.AttemptDetailsUI;
 import com.dremio.dac.model.job.AttemptsUIHelper;
-import com.dremio.dac.model.job.JobDataWrapper;
 import com.dremio.dac.model.job.JobDetailsUI;
 import com.dremio.dac.model.job.JobFailureInfo;
 import com.dremio.dac.model.job.JobFailureType;
@@ -84,15 +85,12 @@ import com.dremio.service.namespace.dataset.DatasetVersion;
 import com.dremio.service.namespace.dataset.proto.FieldOrigin;
 import com.dremio.service.namespace.dataset.proto.Origin;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
-import com.dremio.service.users.SystemUser;
 import com.google.common.collect.ImmutableList;
 
 /**
  * Tests for job service.
  */
 public class TestJobService extends BaseTestServer {
-  private static CountDownLatch testCancelLatch;
-
   @Rule
   public ExpectedException thrown = ExpectedException.none();
 
@@ -104,7 +102,6 @@ public class TestJobService extends BaseTestServer {
   public void setup() throws Exception {
     clearAllDataExceptUser();
     jobsService = (HybridJobsService) l(JobsService.class);
-    testCancelLatch = new CountDownLatch(1);
     localJobsService = l(LocalJobsService.class);
   }
 
@@ -119,16 +116,18 @@ public class TestJobService extends BaseTestServer {
     }
   }
 
-  public static CountDownLatch getTestCancelLatch() {
-    return testCancelLatch;
+  public static void failFunction() {
+    throw UserException.dataReadError().message("expected failure").buildSilently();
   }
 
   @Test
   public void testCancel() throws Exception {
     final JobSubmittedListener jobSubmittedListener = new JobSubmittedListener();
     final CompletionListener completionListener = new CompletionListener();
-    JobRequest request = JobRequest.newBuilder()
-      .setSqlQuery(new SqlQuery("select wait()", null, DEFAULT_USERNAME))
+    final String testKey = TestingFunctionHelper.newKey(() -> {});
+
+    final JobRequest request = JobRequest.newBuilder()
+      .setSqlQuery(new SqlQuery(String.format("SELECT WAIT(key, 5) FROM (VALUES('%s')) tbl(key)", testKey), null, DEFAULT_USERNAME))
       .build();
     final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(completionListener, jobSubmittedListener));
     jobSubmittedListener.await();
@@ -141,7 +140,7 @@ public class TestJobService extends BaseTestServer {
           .path("cancel")
       ).buildPost(entity(null, JSON)), NotificationResponse.class);
     completionListener.await();
-    testCancelLatch.countDown();
+    TestingFunctionHelper.trigger(testKey);
 
     assertEquals("Job cancellation requested", response.getMessage());
     assertEquals(NotificationResponse.ResponseType.OK, response.getType());
@@ -1174,59 +1173,97 @@ public class TestJobService extends BaseTestServer {
 
   @Test
   public void testExceptionPropagation() throws Exception {
-    final String attemptId = AttemptIdUtils.toString(new AttemptId());
+    final JobSubmittedListener jobSubmittedListener = new JobSubmittedListener();
+    final CompletionListener completionListener = new CompletionListener();
+    final String testKey = TestingFunctionHelper.newKey(TestJobService::failFunction);
 
-    Job job = createJob("A1", Arrays.asList("space1", "ds1"), "v1", "A", "space1", JobState.FAILED, "select * from LocalFS1.\"dac-sample1.json\"", 100L, 110L, QueryType.UI_RUN);
-    job.getJobAttempt().setDetails(new JobDetails());
-    job.getJobAttempt().setAttemptId(attemptId);
+    final JobRequest request = JobRequest.newBuilder()
+      .setSqlQuery(new SqlQuery(String.format("SELECT WAIT(key, 5) FROM (VALUES('%s')) tbl(key)", testKey), null, DEFAULT_USERNAME))
+      .build();
+    final JobId jobId = jobsService.submitJob(toSubmitJobRequest(request), new MultiJobStatusListener(completionListener, jobSubmittedListener));
+    jobSubmittedListener.await();
 
-    CountDownLatch latch = new CountDownLatch(0);
-    JobLoader jobLoader = new FailedJobLoader();
-    job.setData(new JobDataImpl(jobLoader, job.getJobId(), latch));
+    // Try to get job data while job is still running. The getJobData call implicitly waits for the Job to complete.
+    // We expect the exception to be propagated through Arrow Flight and automatically converted to UserException
+    final Throwable[] throwable = new Throwable[1];
+    Thread t1 = new Thread(new Runnable() {
+      @Override
+      public void run() {
+        try (JobDataFragment jobDataFragment = JobDataClientUtils.getJobData(
+          jobsService, l(BufferAllocator.class), jobId, 0, 1)) {
+          throwable[0] = new AssertionError("Job data call should not have succeeded");
+        } catch (Exception e) {
+          throwable[0] = e;
+        }
+      }
+    });
+    t1.start();
 
-    localJobsService.storeJob(job);
-    localJobsService.getJobResultsStore().cacheNewJob(job.getJobId(), job.getData());
+    // release testLatch so the job can fail
+    TestingFunctionHelper.trigger(testKey);
+    t1.join();
 
-    // Access JobData as Rest Resources would via the DAC version of JobDataWrapper
-    JobDataWrapper jobDataWrapper = new JobDataWrapper(
-      jobsService, job.getJobId(), SystemUser.SYSTEM_USERNAME);
+    // check that the exception is from the failed job
     try {
-      jobDataWrapper.range(mock(BufferAllocator.class), 0, 1);
-      throw new AssertionError("No exception was propagated");
-    } catch (UserRemoteException ure) {
-      assertEquals(FailedJobLoader.EXPECTED_MESSAGE, ure.getOriginalMessage());
-    } catch (Exception e) {
+      throw throwable[0];
+    } catch (UserException uex) {
+      assertEquals("expected failure", uex.getOriginalMessage());
+    } catch (Throwable t) {
       throw new AssertionError(String.format(
-        "Got exception of type %s instead of UserRemoteException", e.getClass().getName()));
+        "Got exception of type %s instead of UserRemoteException", t.getClass().getName()));
     }
-
   }
 
   /**
-   * Test Class for JobLoader that always throws exception. This is equivalent to a Job failure
-   * that stores its exception as a Deferred Exception.
+   * Factory for providing latches and runnables to Functions
    */
-  private static class FailedJobLoader implements JobLoader {
-    public static final String EXPECTED_MESSAGE = "This is the expected message for FailedJobLoader!";
-    @Override
-    public RecordBatches load(int offset, int limit) {
-      throw UserException.dataReadError()
-        .message(EXPECTED_MESSAGE)
-        .build();
+  public static class TestingFunctionHelper {
+    private static final Map<String, CountDownLatch> latches = new ConcurrentHashMap<>();
+    private static final Map<String, Runnable> runnables = new ConcurrentHashMap<>();
+
+    /**
+     * Get a new key and register a new latch and provided runnable to it
+     */
+    public static String newKey(Runnable runnable) {
+      final String key = randomUUID().toString();
+      final CountDownLatch latch = new CountDownLatch(1);
+      latches.put(key, latch);
+      runnables.put(key, runnable);
+      return key;
     }
 
-    @Override
-    public void waitForCompletion() {
-      throw UserException.dataReadError()
-        .message(EXPECTED_MESSAGE)
-        .build();
+    /**
+     * For a given key, wait on its latch, then run its runnable
+     */
+    public static void tryRun(String key, long timeout, TimeUnit unit) {
+      final CountDownLatch latch = latches.get(key);
+      final Runnable runnable = runnables.get(key);
+      if (latch == null) {
+        throw new AssertionError("Latch not registered or already used");
+      }
+      if (runnable == null) {
+        throw new AssertionError("Runnable not registered or already used");
+      }
+
+      try {
+        latch.await(timeout, unit);
+      } catch (InterruptedException e) {
+        throw new AssertionError("latch timed out");
+      }
+      runnable.run();
+      latches.remove(key);
+      runnables.remove(key);
     }
 
-    @Override
-    public String getJobResultsTable() {
-      throw UserException.dataReadError()
-        .message(EXPECTED_MESSAGE)
-        .build();
+    /**
+     * For a given key, count down its latch
+     */
+    public static void trigger(String key) {
+      final CountDownLatch latch = latches.get(key);
+      if (latch == null) {
+        throw new AssertionError("Latch not registered or already used");
+      }
+      latch.countDown();
     }
   }
 }

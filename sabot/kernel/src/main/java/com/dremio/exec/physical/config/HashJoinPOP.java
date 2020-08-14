@@ -16,8 +16,12 @@
 
 package com.dremio.exec.physical.config;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.calcite.rel.core.JoinRelType;
 
@@ -26,6 +30,8 @@ import com.dremio.exec.physical.base.AbstractBase;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.base.PhysicalVisitor;
+import com.dremio.exec.planner.physical.filter.RuntimeFilterEntry;
+import com.dremio.exec.planner.physical.filter.RuntimeFilterInfo;
 import com.dremio.exec.proto.UserBitShared.CoreOperatorType;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -41,6 +47,7 @@ public class HashJoinPOP extends AbstractBase {
   private final List<JoinCondition> conditions;
   private final JoinRelType joinType;
   private final boolean vectorize;
+  private RuntimeFilterInfo runtimeFilterInfo;
 
   @JsonCreator
   public HashJoinPOP(
@@ -49,7 +56,8 @@ public class HashJoinPOP extends AbstractBase {
       @JsonProperty("right") PhysicalOperator right,
       @JsonProperty("conditions") List<JoinCondition> conditions,
       @JsonProperty("joinType") JoinRelType joinType,
-      @JsonProperty("vectorize") boolean vectorize
+      @JsonProperty("vectorize") boolean vectorize,
+      @JsonProperty("runtimeFilterInfo") RuntimeFilterInfo runtimeFilterInfo
       ) {
     super(props);
     this.left = left;
@@ -57,6 +65,7 @@ public class HashJoinPOP extends AbstractBase {
     this.conditions = conditions;
     this.joinType = joinType;
     this.vectorize = vectorize;
+    this.runtimeFilterInfo = runtimeFilterInfo;
   }
 
   @Override
@@ -67,7 +76,7 @@ public class HashJoinPOP extends AbstractBase {
   @Override
   public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) {
       Preconditions.checkArgument(children.size() == 2);
-      return new HashJoinPOP(props, children.get(0), children.get(1), conditions, joinType, vectorize);
+      return new HashJoinPOP(props, children.get(0), children.get(1), conditions, joinType, vectorize, runtimeFilterInfo);
   }
 
   @Override
@@ -100,4 +109,21 @@ public class HashJoinPOP extends AbstractBase {
     return CoreOperatorType.HASH_JOIN_VALUE;
   }
 
+  public RuntimeFilterInfo getRuntimeFilterInfo() {
+    return runtimeFilterInfo;
+  }
+
+  public void setRuntimeFilterInfo(RuntimeFilterInfo runtimeFilterInfo) {
+    this.runtimeFilterInfo = runtimeFilterInfo;
+  }
+
+  @Override
+  public Set<Integer> getExtCommunicableMajorFragments() {
+    if (getRuntimeFilterInfo() == null) {
+      return Collections.emptySet();
+    }
+    // Collect all probe scan side major fragments on runtime filter join columns.
+    return Stream.concat(getRuntimeFilterInfo().getPartitionJoinColumns().stream(), getRuntimeFilterInfo().getNonPartitionJoinColumns().stream())
+            .map(RuntimeFilterEntry::getProbeScanMajorFragmentId).collect(Collectors.toSet());
+  }
 }

@@ -67,6 +67,7 @@ import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.exec.server.options.SessionOptionManagerImpl;
 import com.dremio.exec.store.CatalogService;
+import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.exec.store.sys.accel.AccelerationListManager;
 import com.dremio.exec.store.sys.accel.AccelerationManager.ExcludedReflectionsProvider;
 import com.dremio.options.OptionManager;
@@ -344,6 +345,9 @@ public class ReflectionServiceImpl extends BaseReflectionService {
     dependencyManager = new DependencyManager(reflectionSettings, materializationStore, internalStore, requestsStore, dependenciesStore);
     dependencyManager.start();
 
+    final FileSystemPlugin accelerationPlugin = sabotContext.get().getCatalogService()
+      .getSource(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
+
     final ReflectionManager manager = new ReflectionManager(
       sabotContext.get(),
       jobsService.get(),
@@ -363,7 +367,10 @@ public class ReflectionServiceImpl extends BaseReflectionService {
         }
       },
       expansionHelper,
-      allocator);
+      allocator,
+      accelerationPlugin.getConfig().getPath(),
+      ReflectionGoalChecker.Instance
+      );
     wakeupHandler = new WakeupHandler(executorService, manager);
   }
 
@@ -823,7 +830,7 @@ public class ReflectionServiceImpl extends BaseReflectionService {
 
   private MaterializationDescriptor getDescriptor(Materialization materialization) throws CacheException {
     final ReflectionGoal goal = userStore.get(materialization.getReflectionId());
-    if (!ReflectionGoalsStore.checkGoalVersion(goal, materialization.getReflectionGoalVersion())) {
+    if (!ReflectionGoalChecker.checkGoal(goal, materialization)) {
       // reflection goal changed and corresponding materialization is no longer valid
       throw new CacheException("Unable to expand materialization " + materialization.getId().getId() +
         " as it no longer matches its reflection goal");

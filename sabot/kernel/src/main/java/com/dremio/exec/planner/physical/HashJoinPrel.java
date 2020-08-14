@@ -39,6 +39,7 @@ import com.dremio.exec.expr.ExpressionTreeMaterializer;
 import com.dremio.exec.expr.fn.FunctionLookupContext;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.physical.config.HashJoinPOP;
+import com.dremio.exec.planner.physical.filter.RuntimeFilterInfo;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.dremio.exec.record.SchemaBuilder;
@@ -62,6 +63,7 @@ public class HashJoinPrel extends JoinPrel {
   public static final BooleanValidator BOUNDED = new BooleanValidator("planner.op.hashjoin.bounded", false);
 
   private final boolean swapped;
+  private RuntimeFilterInfo runtimeFilterInfo;
 
   private HashJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
                        JoinRelType joinType, boolean swapped) {
@@ -75,20 +77,26 @@ public class HashJoinPrel extends JoinPrel {
     this.swapped = swapped;
   }
 
+  private HashJoinPrel(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
+                       JoinRelType joinType, boolean swapped, ImmutableBitSet projectedFields, RuntimeFilterInfo runtimeFilterInfo) {
+    this(cluster, traits, left, right, condition, joinType, swapped, projectedFields);
+    this.runtimeFilterInfo = runtimeFilterInfo;
+  }
+
   public static HashJoinPrel create(RelOptCluster cluster, RelTraitSet traits, RelNode left, RelNode right, RexNode condition,
                                     JoinRelType joinType, ImmutableBitSet projectedFields) {
     final RelTraitSet adjustedTraits = JoinPrel.adjustTraits(traits);
-    return new HashJoinPrel(cluster, adjustedTraits, left, right, condition, joinType, false, projectedFields);
+    return new HashJoinPrel(cluster, adjustedTraits, left, right, condition, joinType, false, projectedFields, null);
   }
 
   @Override
   public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone) {
-    return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, this.swapped, getProjectedFields());
+    return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, this.swapped, getProjectedFields(), this.runtimeFilterInfo);
   }
 
   @Override
   public Join copy(RelTraitSet traitSet, RexNode conditionExpr, RelNode left, RelNode right, JoinRelType joinType, boolean semiJoinDone, ImmutableBitSet projectedFields) {
-    return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, this.swapped, projectedFields);
+    return new HashJoinPrel(this.getCluster(), traitSet, left, right, conditionExpr, joinType, this.swapped, projectedFields, this.runtimeFilterInfo);
   }
 
   @Override
@@ -177,7 +185,9 @@ public class HashJoinPrel extends JoinPrel {
         rightPop,
         conditions,
         joinType,
-        vectorize);
+        vectorize,
+        runtimeFilterInfo
+    );
   }
 
   private boolean canVectorize(FunctionLookupContext functionLookup, PhysicalOperator leftPop, PhysicalOperator rightPop, List<JoinCondition> conditions){
@@ -204,7 +214,8 @@ public class HashJoinPrel extends JoinPrel {
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     return super.explainTerms(pw)
-      .itemIf("swapped", swapped, swapped);
+      .itemIf("swapped", swapped, swapped)
+      .itemIf("runtimeFilter", runtimeFilterInfo, runtimeFilterInfo != null);
   }
 
   private boolean isJoinable(CompleteType ct){
@@ -233,5 +244,14 @@ public class HashJoinPrel extends JoinPrel {
   public boolean isSwapped() {
     return this.swapped;
   }
+
+  public RuntimeFilterInfo getRuntimeFilterInfo() {
+    return runtimeFilterInfo;
+  }
+
+  public void setRuntimeFilterInfo(RuntimeFilterInfo runtimeFilterInfo) {
+    this.runtimeFilterInfo = runtimeFilterInfo;
+  }
+
 
 }

@@ -15,12 +15,13 @@
  */
 package com.dremio.exec.physical.base;
 
+import java.util.Collections;
+import java.util.Set;
+
 import com.dremio.common.graph.GraphVisitor;
 import com.google.common.base.Preconditions;
 
 public abstract class AbstractBase implements PhysicalOperator {
-  static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(AbstractBase.class);
-
   protected final OpProps props;
 
   public AbstractBase(OpProps props) {
@@ -51,4 +52,8 @@ public abstract class AbstractBase implements PhysicalOperator {
     visitor.leave(this);
   }
 
+  @Override
+  public Set<Integer> getExtCommunicableMajorFragments() {
+    return Collections.emptySet();
+  }
 }

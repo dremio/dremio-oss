@@ -46,18 +46,21 @@ public class ParquetGroupScan extends AbstractGroupScan {
   private final ParquetScanFilter filter;
   private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final RelDataType cachedRelDataType;
+  private final boolean arrowCachingEnabled;
 
   public ParquetGroupScan(
-      OpProps props,
-      TableMetadata dataset,
-      List<SchemaPath> columns,
-      ParquetScanFilter filter,
-      List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-      RelDataType cachedRelDataType) {
+    OpProps props,
+    TableMetadata dataset,
+    List<SchemaPath> columns,
+    ParquetScanFilter filter,
+    List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
+    RelDataType cachedRelDataType,
+    boolean arrowCachingEnabled) {
     super(props, dataset, columns);
     this.filter = filter;
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
     this.cachedRelDataType = cachedRelDataType;
+    this.arrowCachingEnabled = arrowCachingEnabled;
   }
 
   @Override
@@ -91,7 +94,8 @@ public class ParquetGroupScan extends AbstractGroupScan {
         ImmutableList.of(getDataset().getName().getPathComponents()),
         filter == null ? null : filter.getConditions(),
         dataset.getStoragePluginId(), columns, dataset.getReadDefinition().getPartitionColumnsList(),
-        globalDictionaryEncodedColumns, dataset.getReadDefinition().getExtendedProperty());
+        globalDictionaryEncodedColumns, dataset.getReadDefinition().getExtendedProperty(),
+      arrowCachingEnabled);
   }
 
   /*
@@ -110,6 +114,10 @@ public class ParquetGroupScan extends AbstractGroupScan {
 
   public ParquetScanFilter getFilter() {
     return filter;
+  }
+
+  public boolean isArrowCachingEnabled() {
+    return arrowCachingEnabled;
   }
 
   @Override

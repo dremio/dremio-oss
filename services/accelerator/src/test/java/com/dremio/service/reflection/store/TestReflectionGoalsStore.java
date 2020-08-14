@@ -16,9 +16,7 @@
 package com.dremio.service.reflection.store;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
@@ -29,41 +27,6 @@ import com.dremio.service.reflection.proto.ReflectionGoal;
  * Test functionality on the ReflectionGoalsStore.
  */
 public class TestReflectionGoalsStore {
-
-  @Test
-  public void testMatchesTag() {
-    final String testTag = "testTag";
-    final ReflectionGoal goal = ReflectionGoal.getDefaultInstance().newMessage()
-      .setTag(testTag);
-    assertTrue(ReflectionGoalsStore.checkGoalVersion(goal, testTag));
-  }
-
-  @Test
-  public void testMatchesVersion() {
-    final String testTag = "1";
-    final ReflectionGoal goal = ReflectionGoal.getDefaultInstance().newMessage()
-      .setTag("wrongTag")
-      .setVersion(Long.valueOf(testTag));
-    assertTrue(ReflectionGoalsStore.checkGoalVersion(goal, testTag));
-  }
-
-  @Test
-  public void testMismatchNonNullVersion() {
-    final String testTag = "1";
-    final ReflectionGoal goal = ReflectionGoal.getDefaultInstance().newMessage()
-      .setTag("wrongTag")
-      .setVersion(0L);
-    assertFalse(ReflectionGoalsStore.checkGoalVersion(goal, testTag));
-  }
-
-  @Test
-  public void testMismatchNullVersion() {
-    final String testTag = "1";
-    final ReflectionGoal goal = ReflectionGoal.getDefaultInstance().newMessage()
-      .setTag("wrongTag")
-      .setVersion(null);
-    assertFalse(ReflectionGoalsStore.checkGoalVersion(goal, testTag));
-  }
 
   @Test
   public void testVersionExtractorWithNumericTag() {

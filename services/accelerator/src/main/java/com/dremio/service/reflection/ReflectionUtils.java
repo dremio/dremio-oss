@@ -308,6 +308,7 @@ public class ReflectionUtils {
         externalReflection.getId(),
         ReflectionType.EXTERNAL,
         externalReflection.getName(),
+        false,
         null,
         null,
         null,
@@ -335,7 +336,7 @@ public class ReflectionUtils {
     final ReflectionDetails details = reflectionGoal.getDetails();
     return new MaterializationDescriptor.ReflectionInfo(id,
         reflectionGoal.getType() == com.dremio.service.reflection.proto.ReflectionType.RAW ? ReflectionType.RAW : ReflectionType.AGG,
-        reflectionGoal.getName(),
+        reflectionGoal.getName(), reflectionGoal.getArrowCachingEnabled(),
         s(details.getSortFieldList()).map(t -> t.getName()).collect(Collectors.toList()),
         s(details.getPartitionFieldList()).map(t -> t.getName()).collect(Collectors.toList()),
         s(details.getDistributionFieldList()).map(t -> t.getName()).collect(Collectors.toList()),

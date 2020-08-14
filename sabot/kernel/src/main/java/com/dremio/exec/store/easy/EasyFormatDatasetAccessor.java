@@ -206,8 +206,8 @@ public class EasyFormatDatasetAccessor implements FileDatasetHandle {
           .setLength(Long.MAX_VALUE)
           .setPath(file.getPath().toString())
           .build();
-      try (RecordReader reader = new AdditionalColumnsRecordReader(((EasyFormatPlugin) formatPlugin)
-          .getRecordReader(operatorContext, dfs, dataset, GroupScan.ALL_COLUMNS), explorer.getImplicitFieldsForSample(selection))) {
+      try (RecordReader reader = new AdditionalColumnsRecordReader(operatorContext, ((EasyFormatPlugin) formatPlugin)
+          .getRecordReader(operatorContext, dfs, dataset, GroupScan.ALL_COLUMNS), explorer.getImplicitFieldsForSample(selection), sampleAllocator)) {
         reader.setup(mutator);
         Map<String, ValueVector> fieldVectorMap = new HashMap<>();
         int i = 0;

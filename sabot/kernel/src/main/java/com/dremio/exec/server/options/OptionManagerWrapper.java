@@ -22,11 +22,13 @@ import java.util.Map;
 import java.util.function.Function;
 
 import com.dremio.common.map.CaseInsensitiveMap;
+import com.dremio.options.OptionChangeListener;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidator;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
@@ -48,7 +50,8 @@ public final class OptionManagerWrapper extends BaseOptionManager {
     return optionValidatorListing;
   }
 
-  protected List<OptionManager> getOptionManagers() {
+  @VisibleForTesting
+  public List<OptionManager> getOptionManagers() {
     return optionManagers;
   }
 
@@ -196,5 +199,31 @@ public final class OptionManagerWrapper extends BaseOptionManager {
   @Override
   protected boolean supportsOptionType(OptionValue.OptionType type) {
     return true;
+  }
+
+  /**
+   * If atleast one of underlying optionManagers has accepted to add listener, then its a success.
+   * Otherwise an exception is thrown.
+   *
+   * @param optionChangeListener
+   * @throws UnsupportedOperationException
+   */
+  @Override
+  public void addOptionChangeListener(OptionChangeListener optionChangeListener) throws UnsupportedOperationException {
+    boolean atleastOneSuccess = false;
+    UnsupportedOperationException exception = null;
+
+    for(OptionManager om: optionManagers) {
+      try {
+         om.addOptionChangeListener(optionChangeListener);
+         atleastOneSuccess = true;
+      } catch(UnsupportedOperationException e) {
+        exception = e;
+      }
+    }
+
+    if (!atleastOneSuccess && exception != null) {
+      throw exception;
+    }
   }
 }

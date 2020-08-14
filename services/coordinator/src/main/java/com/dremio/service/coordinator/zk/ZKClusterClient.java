@@ -136,7 +136,7 @@ class ZKClusterClient implements com.dremio.service.Service {
       }
     }
 
-    logger.debug("Connect: {}, zkRoot: {}, clusterId: {}", connectionString, zkRoot, clusterId);
+    logger.info("Connect: {}, zkRoot: {}, clusterId: {}", connectionString, zkRoot, clusterId);
 
     RetryPolicy rp = new BoundedExponentialDelay(
       config.getMilliseconds(ZK_RETRY_BASE_DELAY).intValue(),

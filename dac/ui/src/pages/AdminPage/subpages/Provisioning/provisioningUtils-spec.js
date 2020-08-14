@@ -14,8 +14,22 @@
  * limitations under the License.
  */
 import Immutable from 'immutable';
-import { getEngineSizeLabel, getNodeCount } from './provisioningUtils';
+import { getEngineSizeLabel, getNodeCount, getIsInReadOnlyState } from './provisioningUtils';
 
+describe('getIsInReadOnlyState', () => {
+  it('should default to false', () => {
+    expect(getIsInReadOnlyState()).to.equal(false);
+    expect(getIsInReadOnlyState({})).to.equal(false);
+    expect(getIsInReadOnlyState(Immutable.fromJS({currentState: 'RUNNING'}))).to.equal(false);
+  });
+  it('should return true for STARTING/STOPPING', () => {
+    expect(getIsInReadOnlyState(Immutable.fromJS({currentState: 'STARTING'}))).to.equal(true);
+    expect(getIsInReadOnlyState(Immutable.fromJS({currentState: 'STOPPING'}))).to.equal(true);
+  });
+  it('should return true for DELETING', () => {
+    expect(getIsInReadOnlyState(Immutable.fromJS({desiredState: 'DELETED'}))).to.equal(true);
+  });
+});
 
 describe('getEngineSizeLabel', () => {
   it('should find standard size label', () => {

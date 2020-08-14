@@ -37,7 +37,7 @@ public interface InputStreamProviderFactory {
                              Path path, long fileLength, long splitSize, ParquetScanProjectedColumns projectedColumns,
                              MutableParquetMetadata footerIfKnown, Function<MutableParquetMetadata, Integer> rowGroupIndexProvider,
                              BiConsumer<Path, MutableParquetMetadata> depletionListener, boolean readFullFile,
-                             List<String> dataset, long mTime) throws IOException;
+                             List<String> dataset, long mTime, boolean enableBoosting) throws IOException;
 
   InputStreamProviderFactory DEFAULT = new InputStreamProviderFactory() {
     @Override
@@ -45,7 +45,7 @@ public interface InputStreamProviderFactory {
                                       Path path, long fileLength, long splitSize, ParquetScanProjectedColumns projectedColumns,
                                       MutableParquetMetadata footerIfKnown, Function<MutableParquetMetadata, Integer> rowGroupIndexProvider,
                                       BiConsumer<Path, MutableParquetMetadata> depletionListener, boolean readFullFile,
-                                      List<String> dataset, long mTime) throws IOException {
+                                      List<String> dataset, long mTime, boolean enableBoosting) throws IOException {
       OptionManager options = context.getOptions();
       boolean useSingleStream =
         // option is set for single stream

@@ -53,10 +53,20 @@ import com.dremio.dac.service.catalog.CatalogServiceHelper;
 import com.dremio.dac.util.DatasetsUtil;
 import com.dremio.exec.catalog.CatalogServiceImpl;
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.proto.UserBitShared;
+import com.dremio.exec.server.ContextService;
 import com.dremio.exec.store.CatalogService;
 import com.dremio.exec.store.dfs.NASConf;
+import com.dremio.options.OptionValue;
+import com.dremio.options.OptionValue.OptionType;
+import com.dremio.service.job.JobSummary;
+import com.dremio.service.job.JobSummaryRequest;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
 import com.dremio.service.jobs.JobRequest;
+import com.dremio.service.jobs.JobsProtoUtil;
+import com.dremio.service.jobs.JobsService;
 import com.dremio.service.jobs.SqlQuery;
 import com.dremio.service.namespace.NamespaceException;
 import com.dremio.service.namespace.NamespaceKey;
@@ -70,6 +80,7 @@ import com.dremio.service.namespace.file.proto.FileType;
 import com.dremio.service.namespace.file.proto.JsonFileConfig;
 import com.dremio.service.namespace.file.proto.TextFileConfig;
 import com.dremio.service.namespace.space.proto.SpaceConfig;
+import com.dremio.test.UserExceptionMatcher;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -77,6 +88,9 @@ import com.google.common.collect.ImmutableList;
  */
 public class TestCatalogResource extends BaseTestServer {
   private static final String CATALOG_PATH = "/catalog/";
+  private static final int SRC_INFORMATION_SCHEMA = 1;
+  private static final int SRC_SYS = 2;
+  private static final int SRC_EXTERNAL = 3;
 
   @BeforeClass
   public static void init() throws Exception {
@@ -369,6 +383,297 @@ public class TestCatalogResource extends BaseTestServer {
         .setQueryType(QueryType.UI_INTERNAL_RUN)
         .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
         .build());
+  }
+
+  @Test
+  public void testCrossSourceSelectVDSDefault() throws Exception {
+
+    final String sourceName1 = "src_" + System.currentTimeMillis();
+    final String vdsName1 = sourceName1 + "VDS";
+    Source newSource1 = createDatasetFromSource(sourceName1, "myFile.json", SRC_EXTERNAL, vdsName1);
+    final String sourceName2 = "src_" + System.currentTimeMillis();
+    final String vdsName2 = sourceName2 + "VDS";
+    Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, vdsName2);
+
+    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", false));
+
+    final String query = String.format("select * from \"@dremio\".\"%s\" as d join \"@dremio\".\"%s\" as e on d.name = e.name ", vdsName1, vdsName2);
+
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+  }
+
+  @Test
+  public void testCrossSourceSelectVDSOptionEnabled() throws Exception {
+
+    final String sourceName1 = "src_" + System.currentTimeMillis();
+    final String vdsName1 = sourceName1 + "VDS";
+    Source newSource1 = createDatasetFromSource(sourceName1, "myFile.json", SRC_EXTERNAL, vdsName1);
+    final String sourceName2 = "src_" + System.currentTimeMillis();
+    final String vdsName2 = sourceName2 + "VDS";
+    Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, vdsName2);
+
+    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+
+    final String query = String.format("select * from \"@dremio\".\"%s\" as d join \"@dremio\".\"%s\" as e on d.name = e.name ", vdsName1, vdsName2);
+
+    final String msg = String.format("Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName2);
+    thrown.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION, msg));
+
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+  }
+
+  @Test
+  public void testCrossSourceSelectVDSAllowSource() throws Exception {
+
+    final String sourceName1 = "src_" + System.currentTimeMillis();
+    final String vdsName1 = sourceName1 + "VDS";
+    Source newSource1 = createDatasetFromSource(sourceName1, "myFile.json", SRC_EXTERNAL, vdsName1);
+    final String sourceName2 = "src_" + System.currentTimeMillis();
+    final String vdsName2 = sourceName2 + "VDS";
+    Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, vdsName2);
+
+    newSource2.setAllowCrossSourceSelection(true);
+    newSource2 = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId())).buildPut(Entity.json(newSource2)), new GenericType<Source>() {});
+
+    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+
+    final String query = String.format("select * from \"@dremio\".\"%s\" as d join \"@dremio\".\"%s\" as e on d.name = e.name ", vdsName1, vdsName2);
+
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+
+  }
+
+  @Test
+  public void testCrossSourceSelectMixVDS() throws Exception {
+
+    final String sourceName1 = "src_" + System.currentTimeMillis();
+    final String vdsName1 = sourceName1 + "VDS";
+    Source newSource1 = createDatasetFromSource(sourceName1, "myFile.json", SRC_EXTERNAL, vdsName1);
+    final String sourceName2 = "src_" + System.currentTimeMillis();
+    final String vdsName2 = sourceName2 + "VDS";
+    Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, vdsName2);
+    final String sourceName3 = "src_" + System.currentTimeMillis();
+    final String vdsName3 = sourceName3 + "VDS";
+    Source newSource3 = createDatasetFromSource(sourceName3, "myFile3.json", SRC_EXTERNAL, vdsName3);
+
+    newSource2.setAllowCrossSourceSelection(true);
+    newSource2 = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId())).buildPut(Entity.json(newSource2)), new GenericType<Source>() {});
+
+    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+
+    final String query = String.format("select * from \"@dremio\".\"%s\" as d join \"@dremio\".\"%s\" as e on d.name = e.name ", vdsName1, vdsName2);
+    final String query2 = query + String.format("join \"@dremio\".\"%s\" as f on d.name = f.name", vdsName3);
+
+    final String msg = String.format("Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName3);
+    thrown.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION, msg));
+
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query2, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+
+  }
+
+  @Test
+  public void testCrossSourceSelectDefault() throws Exception {
+
+    final String sourceName1 = "src_" + System.currentTimeMillis();
+    Source newSource1 = createDatasetFromSource(sourceName1, "myFile.json", SRC_EXTERNAL, null);
+    final String sourceName2 = "src_" + System.currentTimeMillis();
+    Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, null);
+
+    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", false));
+
+    final String query = String.format("select * from %s.\"myFile.json\" as d join %s.\"myFile2.json\" as e on d.name = e.name", sourceName1, sourceName2);
+
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+  }
+
+  @Test
+  public void testCrossSourceSelectOptionEnabled() throws Exception {
+
+    final String sourceName1 = "src_" + System.currentTimeMillis();
+    Source newSource1 = createDatasetFromSource(sourceName1, "myFile.json", SRC_EXTERNAL, null);
+    final String sourceName2 = "src_" + System.currentTimeMillis();
+    Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, null);
+
+    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+
+    final String query = String.format("select * from %s.\"myFile.json\" as d join %s.\"myFile2.json\" as e on d.name = e.name", sourceName1, sourceName2);
+
+    final String msg = String.format("Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName2);
+    thrown.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION, msg));
+
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+  }
+
+  @Test
+  public void testCrossSourceSelectAllowSource() throws Exception {
+
+    final String sourceName1 = "src_" + System.currentTimeMillis();
+    Source newSource1 = createDatasetFromSource(sourceName1, "myFile.json", SRC_EXTERNAL, null);
+    final String sourceName2 = "src_" + System.currentTimeMillis();
+    Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, null);
+
+    newSource2.setAllowCrossSourceSelection(true);
+    newSource2 = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId())).buildPut(Entity.json(newSource2)), new GenericType<Source>() {});
+
+    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+
+    final String query = String.format("select * from %s.\"myFile.json\" as d join %s.\"myFile2.json\" as e on d.name = e.name", sourceName1, sourceName2);
+
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+
+  }
+
+  @Test
+  public void testCrossSourceSelectMixed() throws Exception {
+
+    final String sourceName1 = "src_" + System.currentTimeMillis();
+    Source newSource1 = createDatasetFromSource(sourceName1, "myFile.json", SRC_EXTERNAL, null);
+    final String sourceName2 = "src_" + System.currentTimeMillis();
+    Source newSource2 = createDatasetFromSource(sourceName2, "myFile2.json", SRC_EXTERNAL, null);
+    final String sourceName3 = "src_" + System.currentTimeMillis();
+    Source newSource3 = createDatasetFromSource(sourceName3, "myFile3.json", SRC_EXTERNAL, null);
+
+    newSource2.setAllowCrossSourceSelection(true);
+    newSource2 = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(newSource2.getId())).buildPut(Entity.json(newSource2)), new GenericType<Source>() {});
+
+    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+
+    final String query = String.format("select * from %s.\"myFile.json\" as d join %s.\"myFile2.json\" as e on d.name = e.name ", sourceName1, sourceName2);
+    final String query2 = query + String.format("join %s.\"myFile3.json\" as f on d.name = f.name", sourceName3);
+
+    final String msg = String.format("Cross select is disabled between sources '%s', '%s'.", sourceName1, sourceName3);
+    thrown.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.VALIDATION, msg));
+
+    submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query2, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+
+  }
+
+  @Test
+  public void testCrossSourceSelectInformationSchema() throws Exception {
+
+    final String sourceName = "src_" + System.currentTimeMillis();
+    final Source newSource = createDatasetFromSource(sourceName, "myFile.json", SRC_INFORMATION_SCHEMA, null);
+    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+
+    final String query = String.format("select * from %s.\"myFile.json\" as d join INFORMATION_SCHEMA.catalogs as e on d.catalog = e.catalog_name", sourceName);
+
+    final JobId jobId = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+
+    final JobSummary job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+  }
+
+  @Test
+  public void testCrossSourceSelectSys() throws Exception {
+
+    final String sourceName = "src_" + System.currentTimeMillis();
+    final Source newSource = createDatasetFromSource(sourceName, "myFile.json", SRC_SYS, null);
+    l(ContextService.class).get().getOptionManager().setOption(OptionValue.createBoolean(OptionType.SYSTEM, "planner.cross_source_select.disable", true));
+
+    final String query = String.format("select * from %s.\"myFile.json\" as d join sys.options as e on d.type = e.type", sourceName);
+
+    final JobId jobId = submitJobAndWaitUntilCompletion(
+      JobRequest.newBuilder()
+        .setSqlQuery(new SqlQuery(query, ImmutableList.of("@dremio"), DEFAULT_USERNAME))
+        .setQueryType(QueryType.UI_INTERNAL_RUN)
+        .setDatasetPath(DatasetPath.NONE.toNamespaceKey())
+        .build());
+    final JobSummary job = l(JobsService.class).getJobSummary(JobSummaryRequest.newBuilder().setJobId(JobsProtoUtil.toBuf(jobId)).build());
+    assertTrue(JobsProtoUtil.toStuff(job.getJobState()) == JobState.COMPLETED);
+  }
+
+  private Source createDatasetFromSource(String sourceName, String fileName, int sourceType, String vdsName) throws Exception {
+    TemporaryFolder folder = new TemporaryFolder();
+    folder.create();
+
+    final NASConf config = new NASConf();
+    config.path = folder.getRoot().getAbsolutePath();
+
+    java.io.File srcFolder = folder.getRoot();
+    try (PrintStream file = new PrintStream(new java.io.File(srcFolder.getAbsolutePath(), fileName))) {
+      if (sourceType == SRC_INFORMATION_SCHEMA) {
+        file.println("{\"catalog\":\"DREMIO\",\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449}");
+      } else if (sourceType == SRC_SYS) {
+        file.println("{\"type\":\"SYSTEM\",\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449}");
+      } else {
+        file.println("{\"rownum\":1,\"name\":\"fred ovid\",\"age\":76,\"gpa\":1.55,\"studentnum\":692315658449,\"create_time\":\"2014-05-27 00:26:07\", \"interests\": [ \"Reading\", \"Mountain Biking\", \"Hacking\" ], \"favorites\": {\"color\": \"Blue\", \"sport\": \"Soccer\", \"food\": \"Spaghetti\"}}");
+      }
+    }
+
+    Source newSource = new Source();
+    newSource.setName(sourceName);
+    newSource.setType("NAS");
+    newSource.setConfig(config);
+    newSource.setCreatedAt(1000L);
+    newSource.setAllowCrossSourceSelection(false);
+
+    Source source = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH)).buildPost(Entity.json(newSource)),  new GenericType<Source>() {});
+    newSource = expectSuccess(getBuilder(getPublicAPI(3).path(CATALOG_PATH).path(source.getId())).buildGet(), new GenericType<Source>() {});
+
+    final DatasetPath path = new DatasetPath(ImmutableList.of(sourceName, fileName));
+    final DatasetConfig dataset = new DatasetConfig()
+      .setType(DatasetType.PHYSICAL_DATASET_SOURCE_FOLDER)
+      .setFullPathList(path.toPathList())
+      .setName(path.getLeaf().getName())
+      .setCreatedAt(System.currentTimeMillis())
+      .setTag(null)
+      .setOwner(DEFAULT_USERNAME)
+      .setPhysicalDataset(new PhysicalDataset()
+        .setFormatSettings(new FileConfig().setType(FileType.JSON)));
+    p(NamespaceService.class).get().addOrUpdateDataset(path.toNamespaceKey(), dataset);
+
+    if (vdsName != null) {
+      DatasetPath vdsPath = new DatasetPath(ImmutableList.of("@dremio", vdsName));
+      final String query = String.format("SELECT * FROM %s.\"%s\"", sourceName, fileName);
+      createDatasetFromSQLAndSave(vdsPath, query, asList(sourceName));
+    }
+
+    return newSource;
   }
 
   @Test

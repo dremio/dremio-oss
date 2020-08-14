@@ -59,6 +59,11 @@ public class DelegatingCatalog implements Catalog {
   }
 
   @Override
+  public void validateSelection() {
+    delegate.validateSelection();
+  }
+
+  @Override
   public DremioTable getTableNoResolve(NamespaceKey key) {
     return delegate.getTableNoResolve(key);
   }

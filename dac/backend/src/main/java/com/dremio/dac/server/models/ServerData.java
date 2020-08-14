@@ -42,6 +42,7 @@ public class ServerData {
   private final VersionInfo versionInfo;
   private final String edition;
   private final AnalyzeTools analyzeTools;
+  private final boolean crossSourceDisabled;
 
   protected ServerData(Builder builder) {
     this.serverEnvironment = builder.serverEnvironment;
@@ -62,6 +63,7 @@ public class ServerData {
     this.versionInfo = builder.versionInfo;
     this.edition = builder.edition;
     this.analyzeTools = builder.analyzeTools;
+    this.crossSourceDisabled = builder.crossSourceDisabled;
   }
 
   public String getServerEnvironment() {
@@ -144,6 +146,10 @@ public class ServerData {
     return new Builder(builder);
   }
 
+  public boolean isCrossSourceDisabled() {
+    return crossSourceDisabled;
+  }
+
   /**
    * A builder for server data
    */
@@ -166,6 +172,7 @@ public class ServerData {
     private VersionInfo versionInfo;
     private String edition;
     private AnalyzeTools analyzeTools;
+    private boolean crossSourceDisabled;
 
     protected Builder() {
     }
@@ -189,6 +196,7 @@ public class ServerData {
       this.versionInfo = builder.versionInfo;
       this.edition = builder.edition;
       this.analyzeTools = builder.analyzeTools;
+      this.crossSourceDisabled = builder.crossSourceDisabled;
     }
 
     public Builder setServerEnvironment(String serverEnvironment) {
@@ -278,6 +286,11 @@ public class ServerData {
 
     public Builder setAnalyzeTools(AnalyzeTools analyzeTools) {
       this.analyzeTools = analyzeTools;
+      return this;
+    }
+
+    public Builder setCrossSourceDisabled(boolean crossSourceDisabled) {
+      this.crossSourceDisabled = crossSourceDisabled;
       return this;
     }
 

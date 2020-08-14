@@ -17,19 +17,29 @@ package com.dremio.service.jobtelemetry.server;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Stream;
 
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.datastore.DatastoreException;
 import com.dremio.exec.proto.CoordExecRPC.ExecutorQueryProfile;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordExecRPC.NodePhaseStatus;
@@ -169,6 +179,32 @@ public class TestProfiles {
         .build()
     ).getProfile();
     assertEquals(queryProfile, queryProfileRepeat);
+  }
+
+  // multiple executors
+  @Test
+  public void testProfileWithMultiExecutors() throws Exception {
+    int numExecutors = 6;
+    ProfileSet profileSet = new ProfileSet(numExecutors);
+
+    // publish all three profiles.
+    final QueryId queryId = profileSet.queryId;
+    server.putQueryPlanningProfile(profileSet.planningProfileRequest);
+    for (int i = 0; i < numExecutors; ++i) {
+      server.putExecutorProfile(profileSet.executorQueryProfileRequests.get(i));
+    }
+    server.putQueryTailProfile(profileSet.tailProfileRequest);
+
+    // query the profile.
+    final QueryProfile queryProfile = server.getQueryProfile(
+      GetQueryProfileRequest.newBuilder()
+        .setQueryId(queryId)
+        .build()
+    ).getProfile();
+
+    assertEquals(numExecutors, queryProfile.getNodeProfileCount());
+    assertEquals(numExecutors, queryProfile.getFragmentProfile(0).getNodePhaseProfileCount());
+    assertEquals(numExecutors, queryProfile.getFragmentProfile(0).getMinorFragmentProfileCount());
   }
 
   // expect failure if profile doesn't exist.
@@ -370,6 +406,47 @@ public class TestProfiles {
     );
   }
 
+  @Test
+  public void testPutQueryTailProfileWithRetry() throws Exception {
+    final ProfileSet profileSet = new ProfileSet();
+
+    ProfileStore mockedProfileStore = mock(ProfileStore.class);
+    MetricsStore mockedMetricsStore = mock(MetricsStore.class);
+
+    final JobTelemetryServiceImpl tmpService =
+      new JobTelemetryServiceImpl(mockedMetricsStore, mockedProfileStore,
+        true, 100);
+
+    when(mockedProfileStore.getPlanningProfile(any(QueryId.class)))
+      .thenReturn(Optional.of(profileSet.planningProfileRequest.getProfile()));
+
+    when(mockedProfileStore.getTailProfile(any(QueryId.class)))
+      .thenReturn(Optional.of(profileSet.tailProfileRequest.getProfile()));
+
+    when(mockedProfileStore.getAllExecutorProfiles((any(QueryId.class))))
+      .thenReturn(Stream.of(profileSet.executorQueryProfileRequests.get(0).getProfile()));
+
+    // fail putFullProfile some number of times
+    final int attempts = 10;
+    final int[] count = {0};
+    Mockito.doAnswer(new Answer() {
+      @Override
+      public Object answer(InvocationOnMock invocation) throws Throwable {
+        ++count[0];
+        if (count[0] >= attempts) {
+          return null;
+        } else {
+          throw new DatastoreException("remote put failed");
+        }
+      }
+    }).when(mockedProfileStore).putFullProfile(any(UserBitShared.QueryId.class), any(QueryProfile.class));
+
+    tmpService.putQueryTailProfile(profileSet.tailProfileRequest, mock(StreamObserver.class));
+    // call should succeeded after attempts
+    Assert.assertTrue(attempts == count[0]);
+    tmpService.close();
+  }
+
   /**
    * Helper class to generate profile requests.
    */
@@ -395,7 +472,8 @@ public class TestProfiles {
 
       for (int i = 0; i < numExecutors; ++i) {
         final NodeEndpoint nodeEndPoint = NodeEndpoint.newBuilder()
-          .setAddress(endpointAddr + i)
+          .setAddress(endpointAddr + (i / 2))
+          .setFabricPort(i % 2)
           .build();
 
         final QueryProgressMetrics queryProgressMetrics =

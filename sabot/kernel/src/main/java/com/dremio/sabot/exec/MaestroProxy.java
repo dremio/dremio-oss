@@ -16,6 +16,8 @@
 package com.dremio.sabot.exec;
 
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import javax.inject.Provider;
@@ -26,6 +28,7 @@ import com.dremio.common.util.LoadingCacheWithExpiry;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordExecRPC.FragmentStatus;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.proto.ExecProtos;
 import com.dremio.exec.proto.UserBitShared.QueryId;
 import com.dremio.options.OptionManager;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -43,10 +46,11 @@ public class MaestroProxy implements AutoCloseable {
   private final Provider<MaestroClientFactory> maestroServiceClientFactoryProvider;
   private final Provider<JobTelemetryExecutorClientFactory> jobTelemetryClientFactoryProvider;
   private final ClusterCoordinator clusterCoordinator;
-  private final LoadingCacheWithExpiry<QueryId, MaestroProxyQueryTracker> trackers;
+  private final LoadingCacheWithExpiry<QueryId, QueryTracker> trackers;
   private final CloseableSchedulerThreadPool retryPool =
     new CloseableSchedulerThreadPool("maestro-proxy-retry", 1);
   private final long evictionDelayMillis;
+  private final Set<QueryId> doNotTrackQueries;
 
   public MaestroProxy(
     Provider<MaestroClientFactory> maestroServiceClientFactoryProvider,
@@ -61,18 +65,28 @@ public class MaestroProxy implements AutoCloseable {
     this.evictionDelayMillis = TimeUnit.SECONDS.toMillis(
       options.getOption(ExecConstants.FRAGMENT_CACHE_EVICTION_DELAY_S));
 
+    this.doNotTrackQueries = ConcurrentHashMap.newKeySet();
+
     // Create a cache that evicts expired entries after a delay. This allows for handling
     // duplicate ops and out-of-order ops (eg. cancel arrives before start).
     this.trackers = new LoadingCacheWithExpiry<>("foreman-node-proxy",
-      new CacheLoader<QueryId, MaestroProxyQueryTracker>() {
+      new CacheLoader<QueryId, QueryTracker>() {
         @Override
-        public MaestroProxyQueryTracker load(QueryId queryId) throws Exception {
+        public QueryTracker load(QueryId queryId) {
+          if (doNotTrackQueries.contains(queryId)) {
+            return new NoOpQueryTracker();
+          }
           return new MaestroProxyQueryTracker(queryId, selfEndpoint,
             evictionDelayMillis, retryPool, clusterCoordinator);
         }
       },
     null, evictionDelayMillis);
   }
+
+  public void doNotTrack(QueryId queryId) {
+    doNotTrackQueries.add(queryId);
+  }
+
 
   /**
    * Try and start a query.
@@ -83,9 +97,9 @@ public class MaestroProxy implements AutoCloseable {
    */
   boolean tryStartQuery(QueryId queryId, QueryTicket ticket) {
     return trackers.getUnchecked(queryId).tryStart(ticket,
-      ticket.getForeman(),
-      maestroServiceClientFactoryProvider.get().getMaestroClient(ticket.getForeman()),
-      jobTelemetryClientFactoryProvider.get().getClient(ticket.getForeman()));
+            ticket.getForeman(),
+            maestroServiceClientFactoryProvider.get().getMaestroClient(ticket.getForeman()),
+            jobTelemetryClientFactoryProvider.get().getClient(ticket.getForeman()));
   }
 
   boolean isQueryStarted(QueryId queryId) {
@@ -103,6 +117,17 @@ public class MaestroProxy implements AutoCloseable {
 
   boolean isQueryCancelled(QueryId queryId) {
     return trackers.getUnchecked(queryId).isCancelled();
+  }
+
+  /**
+   * Initialize the query tracker with the set of fragment handles. This should be done prior to
+   * starting the fragments.
+   * @param queryId
+   * @param pendingFragments
+   */
+  void initFragmentHandlesForQuery(QueryId queryId,
+                                   Set<ExecProtos.FragmentHandle> pendingFragments) {
+     trackers.getUnchecked(queryId).initFragmentsForQuery(pendingFragments);
   }
 
   /**
@@ -136,5 +161,9 @@ public class MaestroProxy implements AutoCloseable {
   @Override
   public void close() throws Exception {
     AutoCloseables.close(trackers, retryPool);
+  }
+
+  public void markQueryAsDone(QueryId queryId) {
+    doNotTrackQueries.remove(queryId);
   }
 }

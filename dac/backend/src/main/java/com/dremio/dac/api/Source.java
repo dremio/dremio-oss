@@ -55,6 +55,7 @@ public class Source implements CatalogEntity {
   private Boolean accelerationNeverExpire;
   private Boolean accelerationNeverRefresh;
   private List<CatalogItem> children;
+  private Boolean allowCrossSourceSelection;
 
   private static final InputValidation validator = new InputValidation();
 
@@ -71,6 +72,7 @@ public class Source implements CatalogEntity {
     this.type = config.getType() == null ? config.getLegacySourceTypeEnum().name() : config.getType();
     this.name = config.getName();
     this.description = config.getDescription();
+    this.allowCrossSourceSelection = config.getAllowCrossSourceSelection();
 
     if (config.getCtime() != null) {
       this.createdAt = config.getCtime();
@@ -218,6 +220,17 @@ public class Source implements CatalogEntity {
     this.accelerationNeverRefresh = accelerationNeverRefresh;
   }
 
+  public Boolean isAllowCrossSourceSelection() {
+    // Ensure that we always return true/false in case the setting is not passed in via the API (and thus null).
+    // SourceConfig defaults to false and we want to match that behavior and not return null when the user doesn't pass
+    // in the value.
+    return Boolean.TRUE.equals(allowCrossSourceSelection);
+  }
+
+  public void setAllowCrossSourceSelection(Boolean allowCrossSourceSelection) {
+    this.allowCrossSourceSelection = allowCrossSourceSelection;
+  }
+
   public SourceState getState() {
     // TODO: use our own SourceState
     return this.state;
@@ -246,6 +259,7 @@ public class Source implements CatalogEntity {
     sourceConfig.setAccelerationRefreshPeriod(getAccelerationRefreshPeriodMs());
     sourceConfig.setAccelerationNeverExpire(isAccelerationNeverExpire());
     sourceConfig.setAccelerationNeverRefresh(isAccelerationNeverRefresh());
+    sourceConfig.setAllowCrossSourceSelection(isAllowCrossSourceSelection());
     return sourceConfig;
   }
 

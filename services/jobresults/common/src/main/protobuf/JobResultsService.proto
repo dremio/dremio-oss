@@ -24,6 +24,7 @@ option java_outer_classname = "JobResultsServiceRPC";
 package dremio.jobresults;
 
 import "UserBitShared.proto";
+import "Coordination.proto";
 import "GeneralRPC.proto";
 import "google/protobuf/empty.proto";
 
@@ -35,6 +36,7 @@ message JobResultsRequest {
   exec.shared.QueryData header = 1;
   int64 sequenceId = 2;
   bytes data = 3;
+  exec.NodeEndpoint foreman = 4;
 }
 
 message JobResultsResponse {

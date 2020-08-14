@@ -33,7 +33,6 @@ import com.dremio.service.jobresults.JobResultsServiceGrpc;
 import io.grpc.stub.StreamObserver;
 import io.netty.buffer.ByteBuf;
 
-
 /**
  * Job Results gRPC service.
  */
@@ -56,8 +55,9 @@ public class JobResultsGrpcServerFacade extends JobResultsServiceGrpc.JobResults
         try {
           ByteBuf dBody = allocator.buffer(request.getData().size()).asNettyBuffer();
           dBody.writeBytes(request.getData().toByteArray());
-          execToCoordResultsHandlerProvider.get().dataArrived(request.getHeader(),
-            dBody, new JobResultsGrpcLocalResponseSender(responseObserver, request.getSequenceId()));
+
+          execToCoordResultsHandlerProvider.get().dataArrived(request.getHeader(), dBody, request,
+                  new JobResultsGrpcLocalResponseSender(responseObserver, request.getSequenceId()));
         } catch (Exception ex) {
           responseObserver.onError(ex);
         }

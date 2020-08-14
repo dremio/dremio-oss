@@ -48,6 +48,7 @@ message ReflectionGoal {
   optional ReflectionDetails details = 8; // user defined
   optional ReflectionGoalState state = 9 [default = ENABLED];
   optional string tag = 10;
+  optional bool arrowCachingEnabled = 11 [default = false]; // true if boost columns are enabled for caching
 }
 
 message ReflectionDetails {

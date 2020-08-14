@@ -481,13 +481,15 @@ public class ArrowFileReader implements AutoCloseable {
   }
 
   public static CoordinationProtos.NodeEndpoint fromBean(com.dremio.exec.proto.beans.NodeEndpoint nodeEndpoint) {
-    EngineManagementProtos.EngineId engineId = EngineManagementProtos.EngineId.newBuilder()
-                                                                              .setId(nodeEndpoint.getEngineId().getId())
-                                                                              .build();
+    if (nodeEndpoint == null) { return null; }
 
+    EngineManagementProtos.EngineId.Builder engineIdBuilder = EngineManagementProtos.EngineId.newBuilder();
+    if (nodeEndpoint.getEngineId() != null && nodeEndpoint.getEngineId().getId() != null) {
+      engineIdBuilder.setId(nodeEndpoint.getEngineId().getId());
+    }
     CoordinationProtos.NodeEndpoint ret = CoordinationProtos.NodeEndpoint.newBuilder()
                                                                          .setAddress(nodeEndpoint.getAddress())
-                                                                         .setEngineId(engineId)
+                                                                         .setEngineId(engineIdBuilder.build())
                                                                          .build();
     return ret;
   }

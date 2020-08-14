@@ -115,8 +115,8 @@ public class TestJobResultsStore extends BaseTestServer {
 
     for(int i=0;i<offsets.length; i++) {
 
-     JobDataFragment storedResult = l(LocalJobsService.class).getJobData(jobId, offsets[i], limits[i]);
      try (
+        final JobDataFragment storedResult = l(LocalJobsService.class).getJobData(jobId, offsets[i], limits[i]);
         final JobDataFragment result = JobDataClientUtils.getJobData(jobsService,
                                                                      allocator,
                                                                      jobId,
@@ -143,10 +143,10 @@ public class TestJobResultsStore extends BaseTestServer {
         .setDatasetVersion(new DatasetVersion("1"))
         .build()
     );
-    JobDataFragment storedResult = l(LocalJobsService.class).getJobData(jobId, 0, 10);
-    try (final JobDataFragment result = JobDataClientUtils.getJobData(jobsService, allocator, jobId, 0, 10)) {
-      validateResults(storedResult,
-                      result);
+    try (
+      final JobDataFragment storedResult = l(LocalJobsService.class).getJobData(jobId, 0, 10);
+      final JobDataFragment result = JobDataClientUtils.getJobData(jobsService, allocator, jobId, 0, 10)) {
+      validateResults(storedResult, result);
     }
   }
 

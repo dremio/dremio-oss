@@ -59,7 +59,6 @@ import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergDatasetX
 import com.dremio.sabot.exec.store.iceberg.proto.IcebergProtobuf.IcebergSchemaField;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetSplitScanXAttr;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf.ParquetDatasetXAttr;
-import com.dremio.sabot.op.boost.BoostOperator;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.dremio.sabot.op.spi.ProducerOperator.Creator;
@@ -87,18 +86,6 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
   @Override
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, final OperatorContext context, final ParquetSubScan config) throws ExecutionSetupException {
     final Stopwatch watch = Stopwatch.createStarted();
-
-    if (context.getOptions().getOption(ExecConstants.PARQUET_SCAN_AS_BOOST)) {
-      FileSystemPlugin<?> plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
-      FileSystem fs;
-      try {
-        fs = plugin.createFS(config.getProps().getUserName(), context);
-      } catch (IOException e) {
-        throw new ExecutionSetupException("Cannot access plugin filesystem", e);
-      }
-      return new BoostOperator(config, context, getReaders(fragmentExecContext, context, config),
-        GlobalDictionaries.create(context, fs, config.getGlobalDictionaryEncodedColumns()), plugin);
-    }
 
     Creator creator = new Creator(fragmentExecContext, context, config);
     try {
@@ -136,6 +123,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
     private final ParquetSubScan config;
     private final OperatorContext context;
     private final InputStreamProviderFactory factory;
+    private final FragmentExecutionContext fragmentExecutionContext;
 
     public Creator(FragmentExecutionContext fragmentExecContext, final OperatorContext context, final ParquetSubScan config) throws ExecutionSetupException {
       this.context = context;
@@ -170,7 +158,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
       this.readInt96AsTimeStamp = context.getOptions().getOption(ExecConstants.PARQUET_READER_INT96_AS_TIMESTAMP_VALIDATOR);
       this.enableDetailedTracing = context.getOptions().getOption(ExecConstants.ENABLED_PARQUET_TRACING);
       this.supportsColocatedReads = plugin.supportsColocatedReads();
-      this.readerConfig = CompositeReaderConfig.getCompound(config.getFullSchema(), config.getColumns(), config.getPartitionColumns());
+      this.readerConfig = CompositeReaderConfig.getCompound(context, config.getFullSchema(), config.getColumns(), config.getPartitionColumns());
 
       this.globalDictionaryEncodedColumns = Maps.newHashMap();
 
@@ -179,6 +167,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
           globalDictionaryEncodedColumns.put(fieldInfo.getFieldName(), fieldInfo);
         }
       }
+      this.fragmentExecutionContext = fragmentExecContext;
     }
 
     private boolean autoCorrectCorruptDatesFromFileFormat(FileConfig fileConfig) {
@@ -215,7 +204,7 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
 
       PrefetchingIterator<ParquetSplitReaderCreator> iterator = new PrefetchingIterator<>(splits);
       try {
-        return new ScanOperator(config, context, iterator, globalDictionaries);
+        return new ScanOperator(config, context, iterator, globalDictionaries, fragmentExecutionContext.getForemanEndpoint(), fragmentExecutionContext.getQueryContextInformation());
       } catch (Exception ex) {
         AutoCloseables.close(iterator);
         throw ex;
@@ -326,7 +315,8 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
               depletionListener,
               readFullFile,
               dataset,
-              mTime);
+              mTime,
+              config.isArrowCachingEnabled());
           return null;
         });
       }
@@ -379,8 +369,8 @@ public class ParquetOperatorCreator implements Creator<ParquetSubScan> {
                 supportsColocatedReads,
                 inputStreamProvider
               );
-              RecordReader wrappedRecordReader = readerConfig.wrapIfNecessary(context.getAllocator(), innerIcebergParquetReader, datasetSplit);
-              inner = new FilteringCoercionReader(context, projectedColumns.getBatchSchemaProjectedColumns(), wrappedRecordReader, config.getFullSchema(), config.getConditions());
+              RecordReader wrappedRecordReader = new FilteringCoercionReader(context, projectedColumns.getBatchSchemaProjectedColumns(), innerIcebergParquetReader, config.getFullSchema(), config.getConditions());
+              inner = readerConfig.wrapIfNecessary(context.getAllocator(), wrappedRecordReader, datasetSplit);
             } else {
               final UnifiedParquetReader innerParquetReader = new UnifiedParquetReader(
                 context,

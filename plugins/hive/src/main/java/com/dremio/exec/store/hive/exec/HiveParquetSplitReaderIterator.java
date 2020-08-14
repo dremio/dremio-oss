@@ -67,6 +67,7 @@ public class HiveParquetSplitReaderIterator implements CloseableIterator<RecordR
     private final List<ParquetFilterCondition> conditions;
     private final List<HiveParquetSplit> hiveParquetSplits;
     private final HiveReaderProto.HiveTableXattr tableXattr;
+    private final HiveSplitsPathRowGroupsMap pathRowGroupsMap;
 
     HiveParquetSplitReaderIterator(
             final JobConf jobConf,
@@ -107,6 +108,7 @@ public class HiveParquetSplitReaderIterator implements CloseableIterator<RecordR
         vectorize = context.getOptions().getOption(ExecConstants.PARQUET_READER_VECTORIZE);
         enableDetailedTracing = context.getOptions().getOption(ExecConstants.ENABLED_PARQUET_TRACING);
 
+        pathRowGroupsMap = new HiveSplitsPathRowGroupsMap(sortedSplits);
     }
 
     @Override
@@ -122,7 +124,6 @@ public class HiveParquetSplitReaderIterator implements CloseableIterator<RecordR
             next = currentUGI.doAs((PrivilegedAction<FileSplitParquetRecordReader>) () ->
                     createFileSplitReaderFromSplit(hiveParquetSplits.get(location + 1)));
         }
-
         location++;
         FileSplitParquetRecordReader curr = next;
 
@@ -181,7 +182,8 @@ public class HiveParquetSplitReaderIterator implements CloseableIterator<RecordR
                 config.getFullSchema(),
                 enableDetailedTracing,
                 readerUGI,
-                hiveSchema);
+                hiveSchema,
+                pathRowGroupsMap);
     }
 
     @Override

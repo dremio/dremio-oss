@@ -48,6 +48,7 @@ public class Reflection {
   private Long currentSizeBytes;
   private Long totalSizeBytes;
   private Boolean enabled;
+  private boolean arrowCachingEnabled;
 
   private ReflectionStatusUI status;
 
@@ -69,6 +70,7 @@ public class Reflection {
     measureFields = goal.getDetails().getMeasureFieldList();
     displayFields = goal.getDetails().getDisplayFieldList();
     enabled = goal.getState() == ReflectionGoalState.ENABLED;
+    arrowCachingEnabled = goal.getArrowCachingEnabled();
   }
 
   public Reflection(ReflectionGoal goal, ReflectionStatusUI status, long currentSize, long totalSize) {
@@ -80,6 +82,7 @@ public class Reflection {
     updatedAt = goal.getModifiedAt();
     datasetId = goal.getDatasetId();
     enabled = goal.getState().equals(ReflectionGoalState.ENABLED);
+    arrowCachingEnabled = goal.getArrowCachingEnabled();
     partitionDistributionStrategy = goal.getDetails().getPartitionDistributionStrategy();
 
     this.status = status;
@@ -95,7 +98,7 @@ public class Reflection {
     sortFields = goal.getDetails().getSortFieldList();
   }
 
-  public Reflection(String id, ReflectionType type, String name, String tag, Long createdAt, Long updatedAt, String datasetId, Long currentSizeBytes, Long totalSizeBytes, boolean enabled, ReflectionStatusUI status, List<ReflectionDimensionField> dimensionFields, List<ReflectionMeasureField> measureFields, List<ReflectionField> displayFields, List<ReflectionField> distributionFields, List<ReflectionField> partitionFields, List<ReflectionField> sortFields, PartitionDistributionStrategy partitionDistributionStrategy) {
+  public Reflection(String id, ReflectionType type, String name, String tag, Long createdAt, Long updatedAt, String datasetId, Long currentSizeBytes, Long totalSizeBytes, boolean enabled, boolean arrowCachingEnabled, ReflectionStatusUI status, List<ReflectionDimensionField> dimensionFields, List<ReflectionMeasureField> measureFields, List<ReflectionField> displayFields, List<ReflectionField> distributionFields, List<ReflectionField> partitionFields, List<ReflectionField> sortFields, PartitionDistributionStrategy partitionDistributionStrategy) {
     this.id = id;
     this.type = type;
     this.name = name;
@@ -106,6 +109,7 @@ public class Reflection {
     this.currentSizeBytes = currentSizeBytes;
     this.totalSizeBytes = totalSizeBytes;
     this.enabled = enabled;
+    this.arrowCachingEnabled = arrowCachingEnabled;
     this.status = status;
 
     this.dimensionFields = dimensionFields;
@@ -121,12 +125,12 @@ public class Reflection {
     return "reflection";
   }
 
-  public static Reflection newRawReflection(String id, String name, String tag, Long createdAt, Long updatedAt, String datasetId, Long currentSizeBytes, Long totalSizeBytes, boolean enabled, ReflectionStatusUI status, List<ReflectionField> displayFields, List<ReflectionField> distributionFields, List<ReflectionField> partitionFields, List<ReflectionField> sortFields, PartitionDistributionStrategy partitionDistributionStrategy) {
-    return new Reflection(id, ReflectionType.RAW, name, tag, createdAt, updatedAt, datasetId, currentSizeBytes, totalSizeBytes, enabled, status, null, null, displayFields == null ? Collections.EMPTY_LIST : displayFields, distributionFields == null ? Collections.EMPTY_LIST : distributionFields, partitionFields == null ? Collections.EMPTY_LIST : partitionFields, sortFields == null ? Collections.EMPTY_LIST : sortFields, partitionDistributionStrategy);
+  public static Reflection newRawReflection(String id, String name, String tag, Long createdAt, Long updatedAt, String datasetId, Long currentSizeBytes, Long totalSizeBytes, boolean enabled, boolean arrowCachingEnabled, ReflectionStatusUI status, List<ReflectionField> displayFields, List<ReflectionField> distributionFields, List<ReflectionField> partitionFields, List<ReflectionField> sortFields, PartitionDistributionStrategy partitionDistributionStrategy) {
+    return new Reflection(id, ReflectionType.RAW, name, tag, createdAt, updatedAt, datasetId, currentSizeBytes, totalSizeBytes, enabled, arrowCachingEnabled, status, null, null, displayFields == null ? Collections.EMPTY_LIST : displayFields, distributionFields == null ? Collections.EMPTY_LIST : distributionFields, partitionFields == null ? Collections.EMPTY_LIST : partitionFields, sortFields == null ? Collections.EMPTY_LIST : sortFields, partitionDistributionStrategy);
   }
 
-  public static Reflection newAggReflection(String id, String name, String tag, Long createdAt, Long updatedAt, String datasetId, Long currentSizeBytes, Long totalSizeBytes, boolean enabled, ReflectionStatusUI status, List<ReflectionDimensionField> dimensionFields, List<ReflectionMeasureField> measureFields, List<ReflectionField> distributionFields, List<ReflectionField> partitionFields, List<ReflectionField> sortFields, PartitionDistributionStrategy partitionDistributionStrategy) {
-    return new Reflection(id, ReflectionType.AGGREGATION, name, tag, createdAt, updatedAt, datasetId, currentSizeBytes, totalSizeBytes, enabled, status, dimensionFields == null ? Collections.EMPTY_LIST : dimensionFields, measureFields == null ? Collections.EMPTY_LIST : measureFields, null, distributionFields == null ? Collections.EMPTY_LIST : distributionFields, partitionFields == null ? Collections.EMPTY_LIST : partitionFields, sortFields == null ? Collections.EMPTY_LIST : sortFields, partitionDistributionStrategy);
+  public static Reflection newAggReflection(String id, String name, String tag, Long createdAt, Long updatedAt, String datasetId, Long currentSizeBytes, Long totalSizeBytes, boolean enabled, boolean arrowCachingEnabled, ReflectionStatusUI status, List<ReflectionDimensionField> dimensionFields, List<ReflectionMeasureField> measureFields, List<ReflectionField> distributionFields, List<ReflectionField> partitionFields, List<ReflectionField> sortFields, PartitionDistributionStrategy partitionDistributionStrategy) {
+    return new Reflection(id, ReflectionType.AGGREGATION, name, tag, createdAt, updatedAt, datasetId, currentSizeBytes, totalSizeBytes, enabled, arrowCachingEnabled, status, dimensionFields == null ? Collections.EMPTY_LIST : dimensionFields, measureFields == null ? Collections.EMPTY_LIST : measureFields, null, distributionFields == null ? Collections.EMPTY_LIST : distributionFields, partitionFields == null ? Collections.EMPTY_LIST : partitionFields, sortFields == null ? Collections.EMPTY_LIST : sortFields, partitionDistributionStrategy);
   }
 
   public String getId() {
@@ -207,6 +211,14 @@ public class Reflection {
 
   public void setEnabled(boolean enabled) {
     this.enabled = enabled;
+  }
+
+  public boolean isArrowCachingEnabled() {
+    return arrowCachingEnabled;
+  }
+
+  public void setArrowCachingEnabled(boolean arrowCachingEnabled) {
+    this.arrowCachingEnabled = arrowCachingEnabled;
   }
 
   public ReflectionStatusUI getStatus() {
@@ -297,6 +309,7 @@ public class Reflection {
     details.setSortFieldList(sortFields);
     details.setPartitionDistributionStrategy(partitionDistributionStrategy);
     goal.setDetails(details);
+    goal.setArrowCachingEnabled(arrowCachingEnabled);
 
     if (enabled == null) {
       throw new ClientErrorException("Reflections must have the enabled field set");

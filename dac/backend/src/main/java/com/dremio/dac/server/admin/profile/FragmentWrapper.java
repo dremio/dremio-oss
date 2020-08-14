@@ -21,7 +21,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import com.dremio.exec.proto.UserBitShared.BlockedResourceDuration;
 import com.dremio.exec.proto.UserBitShared.MajorFragmentProfile;
@@ -74,14 +77,17 @@ public class FragmentWrapper {
   private final MajorFragmentProfile major;
   private final long start;
   private final boolean includeDebugColumns;
+  private Set<HostProcessingRate> hostProcessingRateSet;
 
   public FragmentWrapper(
     final MajorFragmentProfile major,
     final long start,
-    boolean includeDebugColumns) {
+    boolean includeDebugColumns,
+    Set<HostProcessingRate> hostProcessingRateSet) {
     this.major = Preconditions.checkNotNull(major);
     this.start = start;
     this.includeDebugColumns = includeDebugColumns;
+    this.hostProcessingRateSet = hostProcessingRateSet;
   }
 
   public String getDisplayName() {
@@ -190,7 +196,8 @@ public class FragmentWrapper {
     "Blocked On Downstream", "Blocked On Upstream", "Blocked On other",
     "Diff w OPs", "Num-runs", "Max Records", "Max Batches", "Last Update", "Last Progress", "Peak Memory", "State"};
 
-  public static final String[] PHASE_METRICS_COLUMNS = {"Host Name", "Peak Memory"};
+  public static final String[] PHASE_METRICS_COLUMNS = {"Host Name", "Peak Memory", "Num Threads", "Total Max Records",
+    "Total Process Time", "Record Processing Rate"};
 
   public void addFragment(JsonGenerator generator) throws IOException {
     generator.writeFieldName(getId());
@@ -348,15 +355,32 @@ public class FragmentWrapper {
 
     final JsonBuilder builder = new JsonBuilder(generator, PHASE_METRICS_COLUMNS);
 
-    for (NodePhaseProfile nodePhaseProfile : nodePhaseProfiles) {
-      builder.startEntry();
+    Map<String, NodePhaseProfile> map = getHostToNodePhaseProfileMap(nodePhaseProfiles);
+    // Display in ascending order of record processing rate.
+    for (HostProcessingRate hpr: hostProcessingRateSet) {
+      String hostname = hpr.getHostname();
+      NodePhaseProfile nodePhaseProfile = map.get(hostname);
 
-      builder.appendString(nodePhaseProfile.getEndpoint().getAddress()); // Host name
+      builder.startEntry();
+      builder.appendString(hostname); // Host name
       builder.appendBytes(nodePhaseProfile.getMaxMemoryUsed()); // Peak Memory
+
+      builder.appendFormattedInteger(hpr.getNumThreads().longValue());
+      builder.appendFormattedInteger(hpr.getNumRecords().longValue());
+      builder.appendNanos(hpr.getProcessNanos().longValue());
+      builder.appendFormattedInteger(hpr.computeProcessingRate().longValue());
 
       builder.endEntry();
     }
 
     builder.end();
+  }
+
+  public Map<String, NodePhaseProfile> getHostToNodePhaseProfileMap(List<NodePhaseProfile> nodePhaseProfiles) {
+    Map<String, NodePhaseProfile> map = new HashMap<>();
+    for(NodePhaseProfile npp: nodePhaseProfiles) {
+      map.put(npp.getEndpoint().getAddress(), npp);
+    }
+    return map;
   }
 }

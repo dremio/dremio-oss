@@ -38,6 +38,7 @@ public class ReflectionSummary {
   private final long currentSizeBytes;
   private final long totalSizeBytes;
   private final boolean enabled;
+  private final boolean arrowCachingEnabled;
 
   private final String datasetId;
   private final Dataset.DatasetType datasetType;
@@ -53,6 +54,7 @@ public class ReflectionSummary {
     updatedAt = goal.getModifiedAt();
     datasetId = goal.getDatasetId();
     enabled = goal.getState().equals(ReflectionGoalState.ENABLED);
+    this.arrowCachingEnabled = goal.getArrowCachingEnabled();
 
     this.status = status;
 
@@ -64,7 +66,7 @@ public class ReflectionSummary {
   }
 
   public ReflectionSummary(String id, ReflectionType type, String name, long createdAt, long updatedAt,
-     long currentSizeBytes, long totalSizeBytes, boolean enabled, ReflectionStatusUI status, String datasetId,
+     long currentSizeBytes, long totalSizeBytes, boolean enabled, boolean arrowCachingEnabled, ReflectionStatusUI status, String datasetId,
      Dataset.DatasetType datasetType, List<String> datasetPath) {
     this.id = id;
     this.type = type;
@@ -75,6 +77,7 @@ public class ReflectionSummary {
     this.currentSizeBytes = currentSizeBytes;
     this.totalSizeBytes = totalSizeBytes;
     this.enabled = enabled;
+    this.arrowCachingEnabled = arrowCachingEnabled;
     this.datasetType = datasetType;
     this.datasetPath = datasetPath;
     this.status = status;
@@ -82,5 +85,9 @@ public class ReflectionSummary {
 
   public String getEntityType() {
     return "reflection-summary";
+  }
+
+  public boolean isArrowCachingEnabled() {
+    return arrowCachingEnabled;
   }
 }

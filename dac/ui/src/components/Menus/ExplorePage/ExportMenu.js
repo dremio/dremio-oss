@@ -23,6 +23,7 @@ import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 import { getExploreJobId, getExploreState } from '@app/selectors/explore';
 import { isSqlChanged } from '@app/sagas/utils';
 import { addNotification } from 'actions/notification';
+import { MSG_CLEAR_DELAY_SEC } from '@app/constants/Constants';
 import { APIV2Call } from '@app/core/APICall';
 import MenuItem from './MenuItem';
 import Menu from './Menu';
@@ -86,7 +87,7 @@ export class ExportMenu extends PureComponent {
     const { intl } = this.props;
     const notificationMessage = intl.formatMessage({ id: 'Download.Notification' }, {type});
     const message = <span>{notificationMessage}</span>;
-    this.props.addNotification(message, 'success', 10);
+    this.props.addNotification(message, 'success', MSG_CLEAR_DELAY_SEC);
   }
 
   render() {

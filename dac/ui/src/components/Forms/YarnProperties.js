@@ -103,8 +103,6 @@ const styles = {
     marginRight: -14
   },
   removeButton: {
-    marginLeft: 10,
-    marginTop: 16,
-    marginRight: -35
+    marginTop: '35px'
   }
 };

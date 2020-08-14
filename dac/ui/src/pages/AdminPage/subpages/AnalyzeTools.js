@@ -71,7 +71,7 @@ const styles = {
   },
   tableRightHeader: {
     fontSize: '12px',
-    fontWeight: 'bold',
+    fontWeight: '500',
     textAlign: 'right',
     paddingRight: 80
   },
@@ -84,7 +84,7 @@ const styles = {
   },
   toolName: {
     fontSize: '12px',
-    fontWeight: 'bold',
+    fontWeight: '500',
     padding: '10px 0'
   },
   actionCell: {

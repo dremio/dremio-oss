@@ -180,13 +180,6 @@ public class ReflectionGoalsStore {
     }
   }
 
-  // Verify the given ReflectionGoal matches the given goal version from a separate KV Store.
-  // The goal version might have a copy of the tag from a pre-4.2.0 build of Dremio (prior to the
-  // KVStore interface changes that separated out the tag from the value).
-  public static boolean checkGoalVersion(ReflectionGoal goal, String expectedGoalVersion) {
-    Preconditions.checkNotNull(expectedGoalVersion);
-    return expectedGoalVersion.equals(goal.getTag()) || expectedGoalVersion.equals(String.valueOf(goal.getVersion()));
-  }
 
   private static final class StoreConverter implements DocumentConverter<ReflectionId, ReflectionGoal> {
     @Override

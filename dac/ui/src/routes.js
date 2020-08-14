@@ -172,6 +172,8 @@ export default dispatch => (
           </Route>
           <Route path='/spaces/list' component={AllSpaces} />
           <Route path='/sources/list' component={AllSources} />
+          <Route path='/sources/datalake/list' component={AllSources} />
+          <Route path='/sources/external/list' component={AllSources} />
         </Route>
       </Route>
       <Route component={MainMasterPage}>

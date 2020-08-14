@@ -38,6 +38,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.protos.ExternalIdHelper;
 import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.maestro.MaestroForwarder;
 import com.dremio.exec.maestro.MaestroService;
 import com.dremio.exec.planner.observer.OutOfBandQueryObserver;
 import com.dremio.exec.planner.observer.QueryObserver;
@@ -69,6 +70,7 @@ import com.dremio.sabot.rpc.user.UserRpcUtils;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.dremio.service.Service;
 import com.dremio.service.commandpool.CommandPool;
+import com.dremio.service.jobresults.JobResultsRequest;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.services.fabric.api.FabricRunnerFactory;
 import com.dremio.services.fabric.api.FabricService;
@@ -118,6 +120,7 @@ public class ForemenWorkManager implements Service, SafeExit {
   private final Provider<CommandPool> commandPool;
   protected final Provider<MaestroService> maestroService;
   protected final Provider<JobTelemetryClient> jobTelemetryClient;
+  private final Provider<MaestroForwarder> forwarder;
   private final ForemenTool foremenTool;
   private final QueryCancelTool queryCancelTool;
 
@@ -135,12 +138,14 @@ public class ForemenWorkManager implements Service, SafeExit {
           final Provider<CommandPool> commandPool,
           final Provider<MaestroService> maestroService,
           final Provider<JobTelemetryClient> jobTelemetryClient,
+          final Provider<MaestroForwarder> forwarder,
           final Tracer tracer) {
     this.dbContext = dbContext;
     this.fabric = fabric;
     this.commandPool = commandPool;
     this.maestroService = maestroService;
     this.jobTelemetryClient = jobTelemetryClient;
+    this.forwarder = forwarder;
 
     this.pool = new ContextMigratingCloseableExecutorService<>(new CloseableThreadPool("foreman"), tracer);
     this.execToCoordResultsHandler = new NoExecToCoordResultsHandler();
@@ -342,13 +347,18 @@ public class ForemenWorkManager implements Service, SafeExit {
 
   private class ExecToCoordResultsHandlerImpl implements ExecToCoordResultsHandler {
     @Override
-    public void dataArrived(QueryData header, ByteBuf data, ResponseSender sender) throws RpcException {
+    public void dataArrived(QueryData header, ByteBuf data, JobResultsRequest request, ResponseSender sender) throws RpcException {
       ExternalId id = ExternalIdHelper.toExternal(header.getQueryId());
       ManagedForeman managed = externalIdToForeman.get(id);
-      if (managed == null) {
-        logger.debug("User data arrived post query termination, dropping. Data was from QueryId: {}.", QueryIdHelper.getQueryId(header.getQueryId()));
-      } else {
+      if (managed != null) {
+        logger.debug("User Data arrived for QueryId: {}.", QueryIdHelper.getQueryId(header.getQueryId()));
         managed.foreman.dataFromScreenArrived(header, data, sender);
+
+      } else if (request != null) {
+        forwarder.get().dataArrived(request, sender);
+
+      } else {
+        logger.debug("User data arrived post query termination, dropping. Data was from QueryId: {}.", QueryIdHelper.getQueryId(header.getQueryId()));
       }
     }
   }

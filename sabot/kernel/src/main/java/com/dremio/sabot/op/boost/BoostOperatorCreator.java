@@ -16,7 +16,10 @@
 package com.dremio.sabot.op.boost;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.config.BoostPOP;
@@ -30,10 +33,18 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.spi.ProducerOperator;
 
 public class BoostOperatorCreator implements ProducerOperator.Creator<BoostPOP> {
+
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(BoostOperatorCreator.class);
+
   @Override
   public ProducerOperator create(FragmentExecutionContext fragmentExecContext, OperatorContext context, BoostPOP config) throws ExecutionSetupException {
-    /* below readers and splits in config are in same order i.e., first reader is to read first split,...*/
-    Iterator<RecordReader> readers = new ParquetOperatorCreator().getReaders(fragmentExecContext, context, config);
+    final Collection<List<String>> referencedTables = config.getReferencedTables();
+    List<String> dataset = referencedTables == null || referencedTables.isEmpty() ? null : referencedTables.iterator().next();
+
+    if (dataset == null) {
+      throw new ExecutionSetupException("ReferencedTables property missing in Boost config");
+    }
+
     FileSystemPlugin<?> plugin = fragmentExecContext.getStoragePlugin(config.getPluginId());
     FileSystem fs;
     try {
@@ -41,6 +52,17 @@ public class BoostOperatorCreator implements ProducerOperator.Creator<BoostPOP> 
     } catch (IOException e) {
       throw new ExecutionSetupException("Cannot access plugin filesystem", e);
     }
-    return new BoostOperator(config, context, readers, GlobalDictionaries.create(context, fs, config.getGlobalDictionaryEncodedColumns()), plugin);
+
+    final Iterator<RecordReader> readers;
+    if (!fs.supportsBoosting()) {
+      logger.error("Provided Filesystem does not support boosting, creating empty boost operator");
+      config = config.withEmptyColumnsToBoost();
+      readers = Collections.emptyIterator(); // avoid footer read
+    } else {
+      /* below readers and splits in config are in same order i.e., first reader is to read first split,...*/
+      readers = new ParquetOperatorCreator().getReaders(fragmentExecContext, context, config.asParquetSubScan());
+    }
+
+    return new BoostOperator(config, context, readers, GlobalDictionaries.create(context, fs, config.getGlobalDictionaryEncodedColumns()), fs);
   }
 }

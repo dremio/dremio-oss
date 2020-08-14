@@ -49,6 +49,26 @@ public class TwosComplementValuePair extends NameValuePair<byte[]>{
     }
   }
 
+  public ArrowBuf getBuf() {
+    return buf;
+  }
+
+  @Override
+  public int getValueTypeSize() {
+    return 16;
+  }
+
+  @Override
+  public byte[] getValueBytes() {
+    if (value != null) {
+      byte[] arr = new byte[16];
+      buf.getBytes(0, arr);
+      return arr;
+    } else {
+      return null;
+    }
+  }
+
   @Override
   public Populator createPopulator() {
     return new BigDecimalPopulator();

@@ -2685,6 +2685,7 @@
   accelerationNeverExpire: true | false,
   accelerationNeverRefresh: true | false,
   accelerationRefreshPeriod: 1,
+  allowCrossSourceSelection: true | false,
   config: {
   },
   contents: { /** NamespaceTree **/
@@ -3032,6 +3033,7 @@
       accelerationNeverExpire: true | false,
       accelerationNeverRefresh: true | false,
       accelerationRefreshPeriod: 1,
+      allowCrossSourceSelection: true | false,
       config: {
       },
       contents: { /** NamespaceTree **/
@@ -4734,6 +4736,13 @@ any
   allowAutoStop: true | false,
   awsProps: {
     amiId: "abc",
+    awsTags: [
+      {
+        key: "abc",
+        value: "abc",
+      },
+      ...
+    ],
     connectionProps: {
       accessKey: "abc",
       assumeRole: "abc",
@@ -4784,6 +4793,13 @@ any
   allowAutoStop: true | false,
   awsProps: {
     amiId: "abc",
+    awsTags: [
+      {
+        key: "abc",
+        value: "abc",
+      },
+      ...
+    ],
     connectionProps: {
       accessKey: "abc",
       assumeRole: "abc",
@@ -4837,6 +4853,13 @@ any
   allowAutoStop: true | false,
   awsProps: {
     amiId: "abc",
+    awsTags: [
+      {
+        key: "abc",
+        value: "abc",
+      },
+      ...
+    ],
     connectionProps: {
       accessKey: "abc",
       assumeRole: "abc",
@@ -4957,6 +4980,13 @@ any
       allowAutoStop: true | false,
       awsProps: {
         amiId: "abc",
+        awsTags: [
+          {
+            key: "abc",
+            value: "abc",
+          },
+          ...
+        ],
         connectionProps: {
           accessKey: "abc",
           assumeRole: "abc",

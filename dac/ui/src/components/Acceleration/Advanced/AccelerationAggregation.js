@@ -39,6 +39,7 @@ export default class AccelerationAggregation extends Component {
       'aggregationReflections[].name',
       'aggregationReflections[].enabled',
       'aggregationReflections[].partitionDistributionStrategy',
+      'aggregationReflections[].arrowCachingEnabled',
       'aggregationReflections[].partitionFields[].name',
       'aggregationReflections[].sortFields[].name',
       'aggregationReflections[].dimensionFields[].name',

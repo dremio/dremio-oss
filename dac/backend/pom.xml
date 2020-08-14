@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio</groupId>
     <artifactId>dremio-dac-parent</artifactId>
-    <version>4.6.1-202007220122450047-62e084d0</version>
+    <version>4.7.0-202008140043000133-4b5158db</version>
   </parent>
 
   <artifactId>dremio-dac-backend</artifactId>
@@ -438,6 +438,7 @@
                   <directory>${project.basedir}/src/test/java</directory>
                   <includes>
                     <include>com/dremio/service/jobs/WaitFunction.java</include>
+                    <include>com/dremio/service/jobs/FailFunction.java</include>
                   </includes>
                 </resource>
               </resources>

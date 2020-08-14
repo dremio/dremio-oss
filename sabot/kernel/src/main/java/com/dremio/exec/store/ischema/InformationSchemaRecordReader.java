@@ -55,7 +55,7 @@ import com.google.common.collect.Iterators;
  * Record reader for tables in information_schema source.
  */
 public class InformationSchemaRecordReader extends AbstractRecordReader {
-
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(InformationSchemaRecordReader.class);
   private final InformationSchemaServiceBlockingStub catalogStub;
   private final InformationSchemaTable table;
   private final String catalogName;
@@ -167,7 +167,6 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
         if (searchQuery != null) {
           columnsRequest.setQuery(searchQuery);
         }
-
         // start TableSchema stream from catalog service
         final Iterator<TableSchema> tableSchemata = catalogStub.listTableSchemata(columnsRequest.build());
 
@@ -190,8 +189,15 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
               // Gets next TableSchema from the catalog service only after exhausting the current one. See comment in
               // TableWriter#write.
               final TableSchema currentSchema = tableSchemata.next();
+              BatchSchema bs = BatchSchema.deserialize(currentSchema.getBatchSchema().toByteArray());
+              //If an inconsistency is detected don't attempt converting to Arrow format since it will cause an assertion failure.  Put out a warning and move on to next row.
+              if (bs.getFieldCount() == 0) {
+                // Add a warning message to indicate this table has missing fields
+                logger.warn(" {}.{}.{} has missing fields or incorrect format. ", currentSchema.getCatalogName(), currentSchema.getSchemaName(), currentSchema.getTableName());
+                continue;
+              }
               final RelDataType rowType =
-                CalciteArrowHelper.wrap(BatchSchema.deserialize(currentSchema.getBatchSchema().toByteArray()))
+                CalciteArrowHelper.wrap(bs)
                   .toCalciteRecordType(JavaTypeFactoryImpl.INSTANCE);
               //noinspection ConstantConditions
               currentIterator = Iterators.transform(rowType.getFieldList().iterator(),
@@ -204,7 +210,6 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
         };
         return new ColumnsTableWriter(columnIterator, selectedFields, catalogName);
       }
-
       default:
         throw UserException.unsupportedError()
           .message("InformationSchemaRecordReader does not support table of '%s' type", table)

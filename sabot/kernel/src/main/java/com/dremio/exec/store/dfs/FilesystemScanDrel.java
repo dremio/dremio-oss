@@ -40,18 +40,19 @@ import com.google.common.base.Preconditions;
  */
 public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableScan, PruneableScan {
   private final ParquetScanFilter filter;
+  private final boolean arrowCachingEnabled;
 
   public FilesystemScanDrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                            TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment) {
-    this(cluster, traitSet, table, pluginId, dataset, projectedColumns, null, observedRowcountAdjustment);
+                            TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment, boolean arrowCachingEnabled) {
+    this(cluster, traitSet, table, pluginId, dataset, projectedColumns, null, observedRowcountAdjustment, arrowCachingEnabled);
   }
 
-
   private FilesystemScanDrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
-                            TableMetadata dataset, List<SchemaPath> projectedColumns, ParquetScanFilter filter, double observedRowcountAdjustment) {
+                             TableMetadata dataset, List<SchemaPath> projectedColumns, ParquetScanFilter filter, double observedRowcountAdjustment, boolean arrowCachingEnabled) {
     super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = filter;
+    this.arrowCachingEnabled = arrowCachingEnabled;
   }
 
   // Clone with new conditions
@@ -59,6 +60,7 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
     super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(), that.getTableMetadata(), that.getProjectedColumns(), that.getObservedRowcountAdjustment());
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = filter;
+    this.arrowCachingEnabled = that.isArrowCachingEnabled();
   }
 
   // Clone with new dataset pointer
@@ -66,11 +68,20 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
     super(that.getCluster(), that.getTraitSet(), new RelOptNamespaceTable(newDatasetPointer, that.getCluster()), that.getPluginId(), newDatasetPointer, that.getProjectedColumns(), that.getObservedRowcountAdjustment());
     assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
     this.filter = that.getFilter();
+    this.arrowCachingEnabled = that.isArrowCachingEnabled();
+  }
+
+  // Clone with new arrowCachingEnabled
+  private FilesystemScanDrel(FilesystemScanDrel that, boolean arrowCachingEnabled) {
+    super(that.getCluster(), that.getTraitSet(), that.getTable(), that.getPluginId(), that.getTableMetadata(), that.getProjectedColumns(), that.getObservedRowcountAdjustment());
+    assert traitSet.getTrait(ConventionTraitDef.INSTANCE) == Rel.LOGICAL;
+    this.filter = that.getFilter();
+    this.arrowCachingEnabled = arrowCachingEnabled;
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
-    return new FilesystemScanDrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(), filter, observedRowcountAdjustment);
+    return new FilesystemScanDrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(), filter, observedRowcountAdjustment, false);
   }
 
   @Override
@@ -82,6 +93,10 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
   @Override
   public FilesystemScanDrel applyDatasetPointer(TableMetadata newDatasetPointer) {
     return new FilesystemScanDrel(this, newDatasetPointer);
+  }
+
+  public FilesystemScanDrel applyArrowCachingEnabled(boolean arrowCachingEnabled) {
+    return new FilesystemScanDrel(this, arrowCachingEnabled);
   }
 
   public ParquetScanFilter getFilter() {
@@ -103,12 +118,12 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
   }
 
   public FilesystemScanDrel removeRowCountAdjustment() {
-    return new FilesystemScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, getProjectedColumns(), filter, 1.0);
+    return new FilesystemScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, getProjectedColumns(), filter, 1.0, arrowCachingEnabled);
   }
 
   @Override
   public FilesystemScanDrel cloneWithProject(List<SchemaPath> projection) {
-    return new FilesystemScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, projection, filter, observedRowcountAdjustment);
+    return new FilesystemScanDrel(getCluster(), getTraitSet(), getTable(), pluginId, tableMetadata, projection, filter, observedRowcountAdjustment, arrowCachingEnabled);
   }
 
   @Override
@@ -116,6 +131,9 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
     pw = super.explainTerms(pw);
     if(filter != null){
       return pw.item("filters", filter);
+    }
+    if (arrowCachingEnabled) {
+      pw.item("arrowCachingEnabled", true);
     }
     return pw;
   }
@@ -134,4 +152,7 @@ public class FilesystemScanDrel extends ScanRelBase implements Rel, FilterableSc
     return Objects.hashCode(super.hashCode(), filter);
   }
 
+  public boolean isArrowCachingEnabled() {
+    return arrowCachingEnabled;
+  }
 }

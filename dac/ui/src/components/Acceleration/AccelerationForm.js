@@ -443,14 +443,14 @@ export class AccelerationForm extends Component {
 
     return (
       <div>
-        <div style={{float: 'right'}}>
+        <div style={{float: 'right', display: 'flex', marginTop: '5px'}}>
           {mode === 'ADVANCED' && <Button disableSubmit onClick={this.clearReflections} type='CUSTOM' text={la('Remove All Reflections')} />}
           <Button
             disable={mode === 'ADVANCED' && this.getMustBeInAdvancedMode()}
             disableSubmit
             onClick={this.toggleMode}
             type='CUSTOM'
-            style={{ marginLeft: 10, width: 120 }} // lock width the prevent wiggle on toggle
+            style={{ marginLeft: 10, width: 140 }} // lock width the prevent wiggle on toggle
             text={mode === 'BASIC' ? la('Switch to Advanced') : la('Revert to Basic')}
           />
         </div>

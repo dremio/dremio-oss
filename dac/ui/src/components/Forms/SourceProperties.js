@@ -149,8 +149,8 @@ export default class SourceProperties extends Component {
 
 const styles = {
   listTitle: {
-    fontWeight: 500,
-    marginBottom: 3
+    marginBottom: 8,
+    marginTop: 16
   },
   item: {
     display: 'block',

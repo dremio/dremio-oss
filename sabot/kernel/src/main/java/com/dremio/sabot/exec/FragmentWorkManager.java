@@ -81,7 +81,6 @@ public class FragmentWorkManager implements Service, SafeExit {
 
   private FragmentStatusThread statusThread;
   private ThreadsStatsCollector statsCollectorThread;
-  private HeapMonitorThread heapMonitorThread;
 
   private final Provider<TaskPool> pool;
   private FragmentExecutors fragmentExecutors;
@@ -98,6 +97,7 @@ public class FragmentWorkManager implements Service, SafeExit {
 
   private ExtendedLatch exitLatch = null; // This is used to wait to exit when things are still running
   private com.dremio.exec.service.executor.ExecutorService executorService;
+  private HeapMonitorManager heapMonitorManager = null;
 
   public FragmentWorkManager(
     final BootStrapContext context,
@@ -295,6 +295,8 @@ public class FragmentWorkManager implements Service, SafeExit {
 
     final FragmentExecutorBuilder builder = new FragmentExecutorBuilder(
         clerk,
+        fragmentExecutors,
+        bitContext.getEndpoint(),
         maestroProxy,
         bitContext.getConfig(),
         bitContext.getClusterCoordinator(),
@@ -327,15 +329,9 @@ public class FragmentWorkManager implements Service, SafeExit {
     statsCollectorThread = new ThreadsStatsCollector(slicingThreadIds);
     statsCollectorThread.start();
 
-    // This makes sense only on executor nodes.
-    if (bitContext.isExecutor() &&
-        bitContext.getOptionManager().getOption(ExecConstants.ENABLE_HEAP_MONITORING)) {
-
-      HeapClawBackStrategy strategy = new FailGreediestQueriesStrategy(fragmentExecutors, clerk);
-      long thresholdPercentage =
-          bitContext.getOptionManager().getOption(ExecConstants.HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE);
-      heapMonitorThread = new HeapMonitorThread(strategy, thresholdPercentage);
-      heapMonitorThread.start();
+    if (bitContext.isExecutor()) {
+      // This makes sense only on executor nodes.
+      heapMonitorManager = new HeapMonitorManager(bitContext.getOptionManager(), fragmentExecutors, clerk);
     }
 
     final String prefix = "rpc";
@@ -358,7 +354,7 @@ public class FragmentWorkManager implements Service, SafeExit {
 
   @Override
   public void close() throws Exception {
-    AutoCloseables.close(statusThread, statsCollectorThread, heapMonitorThread,
+    AutoCloseables.close(statusThread, statsCollectorThread, heapMonitorManager,
       closeableExecutor, fragmentExecutors, maestroProxy, allocator);
   }
 

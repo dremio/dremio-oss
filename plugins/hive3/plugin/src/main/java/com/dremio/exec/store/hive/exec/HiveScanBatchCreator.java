@@ -111,7 +111,7 @@ public class HiveScanBatchCreator implements HiveProxiedScanBatchCreator {
 
     final UserGroupInformation proxyUgi = getUGI(storagePlugin, config);
 
-    final CompositeReaderConfig compositeConfig = CompositeReaderConfig.getCompound(config.getFullSchema(), config.getColumns(), config.getPartitionColumns());
+    final CompositeReaderConfig compositeConfig = CompositeReaderConfig.getCompound(context, config.getFullSchema(), config.getColumns(), config.getPartitionColumns());
 
     final boolean isPartitioned = config.getPartitionColumns() != null && config.getPartitionColumns().size() > 0;
     List<SplitAndPartitionInfo> parquetSplits = new ArrayList<>();

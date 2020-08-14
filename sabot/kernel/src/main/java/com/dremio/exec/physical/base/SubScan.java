@@ -18,6 +18,8 @@ package com.dremio.exec.physical.base;
 import java.util.Collection;
 import java.util.List;
 
+import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.physical.config.BoostPOP;
 import com.dremio.exec.record.BatchSchema;
 
 /**
@@ -48,5 +50,9 @@ public interface SubScan extends Scan {
    * @return The full schema of the table.
    */
   BatchSchema getFullSchema();
+
+  default BoostPOP getBoostConfig(List<SchemaPath> columnsToBoost) {
+    throw new UnsupportedOperationException("Cannot create BoostPOP from SubScan");
+  }
 
 }

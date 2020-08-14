@@ -102,11 +102,11 @@ export class AddSourceModal extends Component {
     this.props.hide(...args);
   };
 
-  getTitle() {
+  getTitle(isExternalSource) {
     const { intl } = this.props;
     return this.state.isTypeSelected
       ? intl.formatMessage({ id: 'Source.NewSourceStep2'}, {sourceLabel: this.state.selectedFormType.label})
-      : intl.formatMessage({ id: 'Source.NewSourceStep1' });
+      : intl.formatMessage({ id: isExternalSource ? 'Source.AddExternalSource' : 'Source.AddDataLake' });
   }
 
   handleSelectSource = (source) => {
@@ -175,7 +175,8 @@ export class AddSourceModal extends Component {
   };
 
   render() {
-    const { isOpen, updateFormDirtyState } = this.props;
+    const { isOpen, updateFormDirtyState, location } = this.props;
+    const { state: {isExternalSource} = {} } = location;
 
     const viewState = this.state.didSourceTypeLoadFail ?
       new Immutable.fromJS({isFailed: true, error: {message: la('Failed to load source list.')}}) :
@@ -184,13 +185,13 @@ export class AddSourceModal extends Component {
     return (
       <Modal
         size='medium'
-        title={this.getTitle()}
+        title={this.getTitle(isExternalSource)}
         isOpen={isOpen}
         confirm={this.state.isTypeSelected && this.confirm}
         hide={this.hide}>
         <ViewStateWrapper viewState={viewState}>
           {!this.state.isTypeSelected
-            ? <SelectSourceType sourceTypes={this.state.sourceTypes}
+            ? <SelectSourceType isExternalSource={isExternalSource} sourceTypes={this.state.sourceTypes}
               onSelectSource={this.handleSelectSource}/>
             : <ConfigurableSourceForm sourceFormConfig={this.state.selectedFormType}
               ref='form'

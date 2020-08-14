@@ -15,13 +15,8 @@
  */
 package com.dremio.service.jobs;
 
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
-
-import com.dremio.common.AutoCloseables;
 import com.dremio.service.job.proto.JobId;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 
 /**
  * Implements {@link JobData} that holds complete job results
@@ -31,8 +26,6 @@ public class JobDataImpl implements JobData {
 
   private final JobLoader dataLoader;
   private final JobId jobId;
-  private final CountDownLatch metadataCompletionLatch;
-  private final List<JobDataFragmentImpl> dataObjectsToRelease = Lists.newArrayList();
 
   private boolean closed;
 
@@ -41,32 +34,23 @@ public class JobDataImpl implements JobData {
    * @param dataLoader
    * @param jobId
    */
-  public JobDataImpl(JobLoader dataLoader, JobId jobId, CountDownLatch metadataCompletionLatch) {
+  public JobDataImpl(JobLoader dataLoader, JobId jobId) {
     this.dataLoader = Preconditions.checkNotNull(dataLoader);
     this.jobId = Preconditions.checkNotNull(jobId);
-    this.metadataCompletionLatch = metadataCompletionLatch;
   }
 
   @Override
   public JobDataFragment range(int offset, int limit) {
     loadIfNecessary();
-    synchronized (dataObjectsToRelease) {
-      checkNotClosed();
-      final JobDataFragmentImpl dataFragment = new JobDataFragmentImpl(dataLoader.load(offset, limit), offset, jobId);
-      dataObjectsToRelease.add(dataFragment);
-      return dataFragment;
-    }
+    checkNotClosed();
+    return new JobDataFragmentImpl(dataLoader.load(offset, limit), offset, jobId);
   }
 
   @Override
   public JobDataFragment truncate(int maxRows) {
     loadIfNecessary();
-    synchronized (dataObjectsToRelease) {
-      checkNotClosed();
-      final JobDataFragmentImpl dataFragment = new JobDataFragmentImpl(dataLoader.load(0, maxRows), 0, jobId);
-      dataObjectsToRelease.add(dataFragment);
-      return dataFragment;
-    }
+    checkNotClosed();
+    return new JobDataFragmentImpl(dataLoader.load(0, maxRows), 0, jobId);
   }
 
   private void checkNotClosed() {
@@ -78,15 +62,6 @@ public class JobDataImpl implements JobData {
   @Override
   public void loadIfNecessary() {
     dataLoader.waitForCompletion();
-  }
-
-  @Override
-  public void waitForMetadata() {
-    try {
-      metadataCompletionLatch.await();
-    } catch(InterruptedException e) {
-      throw new RuntimeException(e);
-    }
   }
 
   @Override
@@ -102,10 +77,6 @@ public class JobDataImpl implements JobData {
 
   @Override
   public void close() throws Exception {
-    synchronized (dataObjectsToRelease) {
-      logger.debug("Releasing loaded results for job {}", jobId.getId());
-      closed = true;
-      AutoCloseables.close(dataObjectsToRelease);
-    }
+    closed = true;
   }
 }

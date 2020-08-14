@@ -195,7 +195,7 @@ export class SqlEditorController extends Component {
         <SimpleButton
           type='button'
           buttonStyle='secondary'
-          style={{...sqlEditorButton, lineHeight: '24px'}}
+          style={{...sqlEditorButton, lineHeight: '24px', marginTop: '5px', marginLeft: '10px'}}
           onClick={this.handleEditOriginal}
         >
           <FormattedMessage id='SQL.EditOriginal'/>

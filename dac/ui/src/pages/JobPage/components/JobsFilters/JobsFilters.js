@@ -331,11 +331,7 @@ const styles = {
     paddingLeft: 0
   },
   divider: {
-    background: 'rgba(0,0,0,0.10)',
-    height: 16,
-    width: 1,
-    marginLeft: 10,
-    marginRight: 10
+    width: '25px'
   },
   sortDivider: {
     background: 'rgba(0,0,0,0.10)',

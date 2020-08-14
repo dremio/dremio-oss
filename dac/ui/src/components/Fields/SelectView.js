@@ -19,7 +19,6 @@ import classNames from 'classnames';
 
 import PropTypes from 'prop-types';
 
-import FontIcon from 'components/Icon/FontIcon';
 import { select as selectCls, disabled as disabledCls } from './SelectView.less';
 
 /**
@@ -132,7 +131,7 @@ export class SelectView extends PureComponent {
           {...rootAttrs}
         >
           {this.renderNodeOrProps(content)}
-          {!hideExpandIcon && <FontIcon type='ArrowDownSmall' theme={styles.arrow}/>}
+          {!hideExpandIcon && <i className='fa fa-chevron-down' style={styles.arrow}/>}
         </div>
         <Popover
           anchorEl={open ? anchorEl : null}
@@ -154,10 +153,9 @@ export class SelectView extends PureComponent {
 
 const styles = {
   arrow: {
-    Container: {
-      // reset line height for icon
-      lineHeight: 1
-    }
+    color: '#77818F',
+    fontSize: '10px',
+    paddingLeft: '7px'
   }
 };
 

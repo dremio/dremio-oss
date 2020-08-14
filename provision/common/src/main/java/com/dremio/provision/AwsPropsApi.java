@@ -15,6 +15,8 @@
  */
 package com.dremio.provision;
 
+import java.util.List;
+
 import javax.validation.constraints.NotNull;
 
 import org.hibernate.validator.constraints.URL;
@@ -48,6 +50,7 @@ public interface AwsPropsApi {
   @NotNull String getInstanceType();
   @NotNull AwsConnectionPropsApi getConnectionProps();
   String getExtraConfProps();
+  List<AwsTagApi> getAwsTags();
 
   /**
    * Type of AWS auth
@@ -98,4 +101,17 @@ public interface AwsPropsApi {
     }
   }
 
+  /**
+   * Tag
+   */
+  @JsonDeserialize(builder = ImmutableAwsTagApi.Builder.class)
+  @Immutable
+  public interface AwsTagApi {
+    @NotNull String getKey();
+    @NotNull String getValue();
+
+    public static ImmutableAwsTagApi.Builder builder() {
+      return new ImmutableAwsTagApi.Builder();
+    }
+  }
 }

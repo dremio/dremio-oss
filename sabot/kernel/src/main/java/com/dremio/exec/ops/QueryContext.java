@@ -173,7 +173,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
     this.optionManager = OptionManagerWrapper.Builder.newBuilder()
       .withOptionManager(new DefaultOptionManager(sabotContext.getOptionValidatorListing()))
       .withOptionManager(new EagerCachingOptionManager(sabotContext.getSystemOptionManager()))
-      .withOptionManager(session.getOptions())
+      .withOptionManager(session.getSessionOptionManager())
       .withOptionManager(queryOptionManager)
       .build();
     this.executionControls = new ExecutionControls(optionManager, sabotContext.getEndpoint());

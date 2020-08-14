@@ -200,8 +200,7 @@ const styles = {
   },
   options: {
     display: 'flex',
-    alignItems: 'center',
-    height: 28
+    alignItems: 'center'
   },
   checkbox: {
     marginRight: 10

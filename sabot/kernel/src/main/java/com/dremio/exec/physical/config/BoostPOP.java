@@ -15,56 +15,57 @@
  */
 package com.dremio.exec.physical.config;
 
+import java.util.Collections;
 import java.util.List;
 
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.OpProps;
+import com.dremio.exec.physical.base.SubScanWithProjection;
 import com.dremio.exec.planner.physical.visitor.GlobalDictionaryFieldInfo;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.exec.store.parquet.ParquetFilterCondition;
 import com.dremio.exec.store.parquet.ParquetSubScan;
 import com.dremio.service.namespace.file.proto.FileConfig;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 import io.protostuff.ByteString;
 
 @JsonTypeName("boost-parquet")
-public class BoostPOP extends ParquetSubScan {
-  public BoostPOP(OpProps props,
-                  FileConfig formatSettings,
-                  List<SplitAndPartitionInfo> splits,
-                  BatchSchema fullSchema,
-                  List<List<String>> tablePath,
-                  List<ParquetFilterCondition> conditions,
-                  StoragePluginId pluginId,
-                  List<SchemaPath> columns,
-                  List<String> partitionColumns,
-                  List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-                  ByteString extendedProperty) {
-    super(props, formatSettings, splits, fullSchema, tablePath, conditions, pluginId, columns,
-        partitionColumns, globalDictionaryEncodedColumns, extendedProperty);
-  }
+public class BoostPOP extends SubScanWithProjection {
+
+  private final StoragePluginId pluginId;
+  private final FileConfig formatSettings;
+  private final List<String> partitionColumns;
+  private final List<List<String>> tablePath;
+  private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
+  private final ByteString extendedProperty;
+  private final List<SplitAndPartitionInfo> splits;
 
   @JsonCreator
   public BoostPOP(
       @JsonProperty("props") OpProps props,
       @JsonProperty("formatSettings") FileConfig formatSettings,
+      @JsonProperty("splits") List<SplitAndPartitionInfo> splits,
       @JsonProperty("schema") BatchSchema fullSchema,
       @JsonProperty("referencedTables") List<List<String>> tablePath,
-      @JsonProperty("conditions") List<ParquetFilterCondition> conditions,
       @JsonProperty("pluginId") StoragePluginId pluginId,
       @JsonProperty("columns") List<SchemaPath> columns,
       @JsonProperty("partitionColumns") List<String> partitionColumns,
       @JsonProperty("globalDictionaryEncodedColumns") List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
       @JsonProperty("extendedProperty") ByteString extendedProperty) {
-
-    this(props, formatSettings, null, fullSchema, tablePath, conditions, pluginId, columns, partitionColumns,
-        globalDictionaryEncodedColumns, extendedProperty);
+    super(props, fullSchema, tablePath, columns);
+    this.formatSettings = formatSettings;
+    this.splits = splits;
+    this.tablePath = tablePath;
+    this.pluginId = pluginId;
+    this.partitionColumns = partitionColumns;
+    this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
+    this.extendedProperty = extendedProperty;
   }
 
   @Override
@@ -72,8 +73,70 @@ public class BoostPOP extends ParquetSubScan {
     return false;
   }
 
+  public FileConfig getFormatSettings(){
+    return formatSettings;
+  }
+
+  public List<String> getPartitionColumns() {
+    return partitionColumns;
+  }
+
+  public List<SplitAndPartitionInfo> getSplits() {
+    return splits;
+  }
+
+  public List<List<String>> getTablePath() {
+    return tablePath;
+  }
+
+  public ByteString getExtendedProperty() {
+    return extendedProperty;
+  }
+
+
+  public StoragePluginId getPluginId() {
+    return pluginId;
+  }
+
+  public List<GlobalDictionaryFieldInfo> getGlobalDictionaryEncodedColumns() {
+    return globalDictionaryEncodedColumns;
+  }
+
+  @JsonIgnore
   @Override
   public int getOperatorType() {
     return UserBitShared.CoreOperatorType.BOOST_PARQUET_VALUE;
   }
+
+  public ParquetSubScan asParquetSubScan() {
+    return new ParquetSubScan(
+      props,
+      formatSettings,
+      splits,
+      getFullSchema(),
+      tablePath,
+      null,
+      pluginId,
+      getColumns(),
+      partitionColumns,
+      globalDictionaryEncodedColumns,
+      extendedProperty,
+      true);
+  }
+
+  public BoostPOP withEmptyColumnsToBoost() {
+    return new BoostPOP(
+      this.props,
+      this.formatSettings,
+      this.splits,
+      getFullSchema(),
+      tablePath,
+      pluginId,
+      Collections.emptyList(),
+      partitionColumns,
+      globalDictionaryEncodedColumns,
+      extendedProperty
+    );
+  }
+
 }

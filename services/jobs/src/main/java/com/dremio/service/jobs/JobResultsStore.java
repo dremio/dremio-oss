@@ -16,16 +16,13 @@
 package com.dremio.service.jobs;
 
 import static com.dremio.common.perf.Timer.time;
+import static com.dremio.exec.store.easy.arrow.ArrowFileReader.fromBean;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.BufferAllocator;
 
@@ -33,6 +30,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.common.perf.Timer.TimedBlock;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.store.JobResultsStoreConfig;
 import com.dremio.exec.store.easy.arrow.ArrowFileMetadata;
@@ -46,13 +44,6 @@ import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.FinalizablePhantomReference;
-import com.google.common.base.FinalizableReference;
-import com.google.common.base.FinalizableReferenceQueue;
-import com.google.common.base.Throwables;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -64,14 +55,10 @@ import com.google.common.collect.Sets;
 public class JobResultsStore implements Service {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(JobResultsStore.class);
 
-  private static final FinalizableReferenceQueue FINALIZABLE_REFERENCE_QUEUE = new FinalizableReferenceQueue();
-
   private final String storageName;
   private final Path jobStoreLocation;
   private final FileSystem dfs;
   private final BufferAllocator allocator;
-  private final Set<FinalizableReference> jobResultReferences = Sets.newConcurrentHashSet();
-  private final LoadingCache<JobId, JobData> jobResults;
   private final LegacyIndexedStore<JobId, JobResult> store;
 
   public JobResultsStore(
@@ -86,21 +73,7 @@ public class JobResultsStore implements Service {
 
     this.store = store;
     this.allocator = allocator;
-
-    this.jobResults = CacheBuilder.newBuilder()
-        .maximumSize(100)
-        .expireAfterAccess(15, TimeUnit.MINUTES)
-        .build(
-            new CacheLoader<JobId, JobData>() {
-              @Override
-              public JobData load(JobId key) throws Exception {
-                // CountDownLatch(0) as jobs are completed and metadata should be already collected
-                final JobDataImpl jobDataImpl = new JobDataImpl(new LateJobLoader(key), key, new CountDownLatch(0));
-                return newJobDataReference(jobDataImpl);
-              }
-            });
   }
-
 
   /**
    * Get the output table path for the given id
@@ -123,7 +96,7 @@ public class JobResultsStore implements Service {
   public boolean cleanup(JobId jobId) {
     final Path jobOutputDir = getJobOutputDir(jobId);
     try {
-      if (existsQueryResults(jobOutputDir, jobId)) {
+      if (doesQueryResultsDirExists(jobOutputDir, jobId)) {
         deleteQueryResults(jobOutputDir, true, jobId);
         logger.debug("Deleted job output directory : {}", jobOutputDir);
       }
@@ -138,37 +111,10 @@ public class JobResultsStore implements Service {
   public boolean jobOutputDirectoryExists(JobId jobId) {
     final Path jobOutputDir = getJobOutputDir(jobId);
     try {
-      return existsQueryResults(jobOutputDir, jobId);
+      return doesQueryResultsDirExists(jobOutputDir, jobId);
     } catch (IOException e) {
       return false;
     }
-  }
-
-  private JobData newJobDataReference(final JobData delegate) {
-    final JobData result = new JobDataWrapper(delegate);
-    FinalizableReference ref = new FinalizablePhantomReference<JobData>(result, FINALIZABLE_REFERENCE_QUEUE) {
-      @Override
-      public void finalizeReferent() {
-        jobResultReferences.remove(this);
-        try {
-          delegate.close();
-        } catch (Exception e) {
-          logger.warn(String.format("Failed to close the data object for job %s", delegate.getJobId()), e);
-        }
-      }
-    };
-
-    jobResultReferences.add(ref);
-
-    return result;
-  }
-
-  JobData cacheNewJob(JobId jobId, JobData data){
-    // put this in cache so that others who want it, won't try to read it before it is done running.
-    final JobData jobDataRef = newJobDataReference(data);
-    jobResults.put(jobId, jobDataRef);
-
-    return jobDataRef;
   }
 
   protected static JobInfo getLastAttempt(JobResult jobResult) {
@@ -195,7 +141,7 @@ public class JobResultsStore implements Service {
       }
 
       final Path jobOutputDir = getJobOutputDir(jobId);
-      if (!isDirectory(jobOutputDir, jobId)) {
+      if (!doesQueryResultsDirExists(jobOutputDir, jobId)) {
         throw UserException.dataReadError()
             .message("Job '%s' output doesn't exist", jobId.getId())
             .build(logger);
@@ -274,14 +220,20 @@ public class JobResultsStore implements Service {
   }
 
   /**
-   * Check if path exists optionally using jobId
+   * Check if query results directory exists, optionally using jobId
    *
-   * @param jobOutputDir
+   * @param jobOutputDir query results directory
    * @param jobId might be used in derived class.
    * @return
    * @throws IOException
    */
-  protected boolean existsQueryResults(Path jobOutputDir, JobId jobId) throws IOException {
+  protected boolean doesQueryResultsDirExists(Path jobOutputDir, JobId jobId) throws IOException {
+    Set<NodeEndpoint> nodeEndpoints = getNodeEndpoints(jobId);
+    if (nodeEndpoints == null || nodeEndpoints.isEmpty()) {
+      logger.debug("There are no nodeEndpoints where query results dir existence need to be checked." +
+                   "For eg: in non-UI queries, results are not stored on executors.");
+      return false;
+    }
     return dfs.exists(jobOutputDir);
   }
 
@@ -298,24 +250,8 @@ public class JobResultsStore implements Service {
     return dfs.delete(jobOutputDir, recursive);
   }
 
-  /**
-   * Check if directory is present optionally using jobId
-   *
-   * @param jobOutputDir
-   * @param jobId might be used in derived class.
-   * @return
-   * @throws IOException
-   */
-  protected boolean isDirectory(Path jobOutputDir, JobId jobId) throws IOException {
-    return dfs.isDirectory(jobOutputDir);
-  }
-
   public JobData get(JobId jobId) {
-    try{
-      return jobResults.get(jobId);
-    }catch(ExecutionException ex){
-      throw Throwables.propagate(ex.getCause());
-    }
+    return new JobDataImpl(new LateJobLoader(jobId), jobId);
   }
 
   private final class LateJobLoader implements JobLoader {
@@ -350,20 +286,24 @@ public class JobResultsStore implements Service {
 
   @Override
   public void close() throws Exception {
-    // TODO
-    // wait for current operations
-    // reclaim space
+  }
 
+  protected Set<NodeEndpoint> getNodeEndpoints(JobId jobId) {
+    JobResult jobResult = store.get(jobId);
+    List<ArrowFileMetadata> arrowFileMetadataList = getLastAttempt(jobResult).getResultMetadataList();
 
-    jobResults.invalidateAll();
-    jobResults.cleanUp();
+    Set<NodeEndpoint> nodeEndpoints = Sets.newHashSet();
 
-    // Closing open references
-    Iterator<FinalizableReference> iterator = jobResultReferences.iterator();
-    while(iterator.hasNext()) {
-      FinalizableReference ref = iterator.next();
-
-      ref.finalizeReferent();
+    if (arrowFileMetadataList == null || arrowFileMetadataList.isEmpty()) {
+      return nodeEndpoints;
     }
+
+    for(ArrowFileMetadata afm: arrowFileMetadataList) {
+      com.dremio.exec.proto.beans.NodeEndpoint screenNodeEndpoint = afm.getScreenNodeEndpoint();
+      if (screenNodeEndpoint != null) {
+        nodeEndpoints.add(fromBean(screenNodeEndpoint));
+      }
+    }
+    return nodeEndpoints;
   }
 }

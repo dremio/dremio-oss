@@ -211,6 +211,11 @@ public class CoercionReader extends AbstractRecordReader {
     return recordCount;
   }
 
+  @Override
+  public List<SchemaPath> getColumnsToBoost() {
+    return inner.getColumnsToBoost();
+  }
+
   protected void runProjector(int recordCount) {
     if (projector != null) {
       try {

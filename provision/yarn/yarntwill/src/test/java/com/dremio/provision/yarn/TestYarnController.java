@@ -125,6 +125,7 @@ public class TestYarnController {
     assertFalse(jvmOptions.contains("JAVA_HOME"));
     assertTrue(jvmOptions.contains(" -DMAPR_IMPALA_RA_THROTTLE"));
     assertTrue(jvmOptions.contains(" -DMAPR_MAX_RA_STREAMS"));
+    assertTrue(jvmOptions.contains(" -D" + DremioConfig.NETTY_REFLECTIONS_ACCESSIBLE + "=true"));
     assertTrue(jvmOptions.contains(" -D"+VM.DREMIO_CPU_AVAILABLE_PROPERTY + "=2"));
 
     DacDaemonYarnApplication.Environment myEnv = new DacDaemonYarnApplication.Environment() {

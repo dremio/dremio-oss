@@ -20,10 +20,10 @@ import { AutoSizer, Column, Table } from 'react-virtualized';
 import classNames from 'classnames';
 import Immutable from 'immutable';
 
-import { humanSorter } from 'utils/sort';
+import { humanSorter, getSortValue } from '@app/utils/sort';
 
 const ROW_HEIGHT = 30;
-const HEADER_HEIGHT = 39;
+const HEADER_HEIGHT = 30;
 
 export const SortDirection = {
   ASC: 'ASC',
@@ -114,17 +114,9 @@ export default class VirtualizedTableViewer extends Component {
     const { tableData, columns, style, resetScrollTop, ...tableProps } = this.props;
     const { sortBy, sortDirection } = this.state;
 
-    const getSortValue = (item) => {
-      const value = item.data[sortBy].value;
-      if (typeof value === 'function') {
-        return value.call(item.data[sortBy], sortDirection, sortBy);
-      }
-      return value;
-    };
-
     const sortedTableData = sortBy
       ? tableData
-        .sortBy(item => getSortValue(item), humanSorter)
+        .sortBy(item => getSortValue(item, sortBy, sortDirection), humanSorter)
         .update(table =>
           sortDirection === SortDirection.DESC
             ? table.reverse()

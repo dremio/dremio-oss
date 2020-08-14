@@ -390,6 +390,7 @@ public class BaseTestOperator extends ExecTest {
           compiler,
           stats,
           ec,
+          null,
           inner,
           getFunctionLookupContext(),
           contextInformation,
@@ -399,7 +400,9 @@ public class BaseTestOperator extends ExecTest {
           targetBatchSize,
           Mockito.mock(TunnelProvider.class),
           ImmutableList.of(),
-          null, endpointsIndex);
+          ImmutableList.of(),
+          null,
+          endpointsIndex);
     }
 
     public OperatorContextImpl getNewOperatorContext(BufferAllocator child, PhysicalOperator pop, int targetBatchSize) throws Exception {

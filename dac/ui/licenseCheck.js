@@ -92,7 +92,7 @@ const KNOWN = {
     noFile: true
   },
   'mumath@3.3.4': {
-    licenseURL: 'https://raw.githubusercontent.com/dfcreative/mumath/master/UNLICENSE'
+    licenseURL: 'https://raw.githubusercontent.com/dy/mumath/master/UNLICENSE'
   },
   'jsplumb@2.1.4': {
     // custom name, and doesn't use `v#` tagging scheme

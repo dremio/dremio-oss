@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { WARNING, GREY } from 'uiTheme/radium/colors';
+import { GREY } from 'uiTheme/radium/colors';
 import typography from './typography';
 
 export const form = {
@@ -54,39 +54,31 @@ export const subSectionTitle = {
 };
 
 export const formRow = {
-  marginBottom: 10
+  marginBottom: 16
 };
 
 export const label = {
-  marginBottom: 0,
-  display: 'block',
-  ...typography.formLabel
+  ...typography.formLabel,
+  color: '#7F8B95',
+  fontWeight: 400
 };
 
 export const textInput = {
   ...typography.formDefault,
-  paddingLeft: '5px',
-  border: '1px solid rgba(0,0,0,0.1)',
-  borderRadius: '2px',
-  height: '28px',
-  width: '310px',
-  ':focus': {
-    border: '1px solid #C0E9F5',
-    boxShadow: '0 0 4px 0 rgba(129,209,235,0.20)'
-  }
+  borderRadius: '4px',
+  padding: '8px',
+  width: '310px'
 };
 
 export const textInputError = {
-  background: 'rgba(253, 186, 186, 0.15)',
-  border: `1px solid ${WARNING}`
+  border: '1px solid #DA3030'
 };
 
 export const textInputDisabled = {
   ...typography.formDescription,
-  background: '#E8E8E8',
-  border: '1px solid #E9E9E9',
-  color: textInput.color,
-  opacity: 0.67
+  background: '#E5E5E5',
+  border: '1px solid #E5E5E5',
+  color: '#7f8b95'
 };
 
 export const textInputSmall = {

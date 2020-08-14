@@ -56,6 +56,8 @@ public abstract class AbstractTestMetricsStore {
     Assert.assertEquals(1, metricsStore.get(queryId1).get().getMetricsMapCount());
     Assert.assertEquals(10,
       metricsStore.get(queryId1).get().getMetricsMapMap().get(node).getRowsProcessed());
+
+    metricsStore.delete(queryId1);
   }
 
   @Test
@@ -70,6 +72,8 @@ public abstract class AbstractTestMetricsStore {
     Assert.assertEquals(1, metricsStore.get(queryId1).get().getMetricsMapCount());
     Assert.assertEquals(30,
       metricsStore.get(queryId1).get().getMetricsMapMap().get(node).getRowsProcessed());
+
+    metricsStore.delete(queryId1);
   }
 
   @Test
@@ -89,6 +93,8 @@ public abstract class AbstractTestMetricsStore {
       metricsStore.get(queryId1).get().getMetricsMapMap().get(node1).getRowsProcessed());
     Assert.assertEquals(40,
       metricsStore.get(queryId1).get().getMetricsMapMap().get(node2).getRowsProcessed());
+
+    metricsStore.delete(queryId1);
   }
 
   @Test
@@ -104,6 +110,9 @@ public abstract class AbstractTestMetricsStore {
       metricsStore.get(queryId1).get().getMetricsMapMap().get(node1).getRowsProcessed());
     Assert.assertEquals(30,
       metricsStore.get(queryId2).get().getMetricsMapMap().get(node1).getRowsProcessed());
+
+    metricsStore.delete(queryId1);
+    metricsStore.delete(queryId2);
   }
 
   @Test

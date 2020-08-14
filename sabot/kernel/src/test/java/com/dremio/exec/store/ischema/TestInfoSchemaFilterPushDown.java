@@ -81,6 +81,16 @@ public class TestInfoSchemaFilterPushDown extends PlanTestBase {
   }
 
   @Test
+  public void testFilterPushdown_Having() throws Exception {
+    final String query = "SELECT TABLE_SCHEMA,TABLE_NAME FROM INFORMATION_SCHEMA.\"TABLES\" WHERE (TABLE_SCHEMA = 'sys') group by TABLE_SCHEMA,TABLE_NAME"+
+  " HAVING TABLE_NAME LIKE 'ref%'"+
+  " ORDER BY 1, 2 ASC";
+    final String scan = "query=[and {   clauses {     equals {       field: \"SEARCH_SCHEMA\"       stringValue: \"sys\"     }   }   clauses {     like {       field: \"SEARCH_NAME\"       pattern: \"ref%\"     }   } } ]";
+    testHelper(query, scan, false);
+  }
+
+
+  @Test
   public void testFilterPushdown_OrEqLike() throws Exception {
     final String query ="SELECT DISTINCT TABLE_SCHEMA,TABLE_NAME FROM INFORMATION_SCHEMA.\"TABLES\" WHERE  "+
       "TABLE_SCHEMA = 'sys'  "+

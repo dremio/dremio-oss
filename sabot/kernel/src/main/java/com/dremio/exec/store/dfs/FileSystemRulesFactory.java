@@ -53,7 +53,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
 
     @Override
     public Rel convertScan(ScanCrel scan) {
-      return new FilesystemScanDrel(scan.getCluster(), scan.getTraitSet().plus(Rel.LOGICAL), scan.getTable(), scan.getPluginId(), scan.getTableMetadata(), scan.getProjectedColumns(), scan.getObservedRowcountAdjustment());
+      return new FilesystemScanDrel(scan.getCluster(), scan.getTraitSet().plus(Rel.LOGICAL), scan.getTable(), scan.getPluginId(), scan.getTableMetadata(), scan.getProjectedColumns(), scan.getObservedRowcountAdjustment(), false);
     }
   }
 
@@ -69,7 +69,7 @@ public class FileSystemRulesFactory extends StoragePluginTypeRulesFactory {
     public RelNode convert(RelNode rel) {
       FilesystemScanDrel drel = (FilesystemScanDrel) rel;
       return new ParquetScanPrel(drel.getCluster(), drel.getTraitSet().plus(Prel.PHYSICAL), drel.getTable(), drel.getPluginId(), drel.getTableMetadata(), drel.getProjectedColumns(),
-        drel.getObservedRowcountAdjustment(), drel.getFilter());
+        drel.getObservedRowcountAdjustment(), drel.getFilter(), drel.isArrowCachingEnabled());
     }
 
     @Override

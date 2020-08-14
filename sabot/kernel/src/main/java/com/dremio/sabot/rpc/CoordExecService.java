@@ -47,6 +47,7 @@ import com.dremio.exec.rpc.RpcException;
 import com.dremio.exec.rpc.UserRpcException;
 import com.dremio.exec.service.executor.ExecutorService;
 import com.dremio.service.Service;
+import com.dremio.service.jobresults.JobResultsRequest;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.jobtelemetry.JobTelemetryServiceGrpc;
 import com.dremio.service.jobtelemetry.PutExecutorProfileRequest;
@@ -238,7 +239,7 @@ public class CoordExecService implements Service {
         // executor > coordinator
         case RpcType.REQ_QUERY_DATA_VALUE:
           QueryData header = get(pBody, QueryData.PARSER);
-          execResults.get().dataArrived(header, dBody, sender);
+          execResults.get().dataArrived(header, dBody, null, sender);
           break;
 
         case RpcType.REQ_NODE_QUERY_SCREEN_COMPLETION_VALUE:
@@ -340,7 +341,7 @@ public class CoordExecService implements Service {
     public NoExecToCoordResultsHandler(){}
 
     @Override
-    public void dataArrived(QueryData header, ByteBuf data, ResponseSender sender) throws RpcException {
+    public void dataArrived(QueryData header, ByteBuf data, JobResultsRequest request, ResponseSender sender) throws RpcException {
       throw new RpcException("This daemon doesn't support coordination operations.");
     }
   }

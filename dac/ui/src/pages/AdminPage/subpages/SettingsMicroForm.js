@@ -86,10 +86,10 @@ export class SettingsMicroForm extends PureComponent {
       </div>;
     case 'INTEGER':
     case 'FLOAT': // todo: create dedicated int and number inputs
-      return <TextField {...this.props.fields.value} type='number' />;
+      return <TextField style={{marginRight:'6px'}} {...this.props.fields.value} type='number' />;
     case 'TEXT':
     default:
-      return <TextField {...this.props.fields.value} />;
+      return <TextField style={{marginRight:'6px'}} {...this.props.fields.value} />;
     }
   }
 
@@ -102,7 +102,8 @@ export class SettingsMicroForm extends PureComponent {
 
     const buttonStyle = {
       verticalAlign: 0,
-      minWidth: 50
+      minWidth: 50,
+      display: 'inline-block'
     };
 
     const saveButtonStyle = {

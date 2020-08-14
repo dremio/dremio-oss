@@ -71,6 +71,11 @@ message AwsProps {
     SECRET = 2;
   }
 
+  message AwsTag {
+    required string key = 1;
+    required string value = 2;
+  }
+
   message AwsConnectionProps {
     optional AuthMode authMode = 1;
     optional string assumeRole = 2; // optional, role for the ec2 commands
@@ -80,7 +85,7 @@ message AwsProps {
     optional string endpoint = 6;
     optional string sts_endpoint = 7;
   }
-  
+
   optional string vpc = 1;
   optional string subnetId = 2;
   optional string nodeIamInstanceProfile = 3; // role for the started ec2 instances, required
@@ -91,5 +96,6 @@ message AwsProps {
   optional string instanceType = 8;
   optional AwsConnectionProps connectionProps = 9;
   optional string extraConfProps = 10;
+  repeated AwsTag awsTags = 11;
 
 }

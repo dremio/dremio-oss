@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ENGINE_SIZE } from '@app/constants/provisioningPage/provisioningConstants';
+import { ENGINE_SIZE, CLUSTER_STATE } from '@app/constants/provisioningPage/provisioningConstants';
 
 export function isYarn(entity) {
   return entity.get('clusterType') === 'YARN';
@@ -82,6 +82,14 @@ export function getEngineSizeLabel(nodeCount) {
   }
   // custom size
   return `${ENGINE_SIZE[ENGINE_SIZE.length - 1].label} - ${nodeCount}`;
+}
+
+export function getIsInReadOnlyState(engine) {
+  if (!engine || !engine.get) return false;
+  const currentState = engine.get('currentState');
+  return (currentState === CLUSTER_STATE.starting
+    || currentState === CLUSTER_STATE.stopping
+    || engine.get('desiredState') === CLUSTER_STATE.deleted);
 }
 
 export function getNodeCount(engine) {

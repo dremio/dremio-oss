@@ -17,45 +17,47 @@ package com.dremio.sabot.op.boost;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.expression.SchemaPath;
 import com.dremio.common.types.TypeProtos;
 import com.dremio.common.types.Types;
 import com.dremio.common.util.MajorTypeHelper;
 import com.dremio.datastore.LegacyProtobufSerializer;
-import com.dremio.exec.ExecConstants;
-import com.dremio.exec.physical.base.WriterOptions;
+import com.dremio.exec.physical.config.BoostPOP;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.exec.store.RecordWriter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
-import com.dremio.exec.store.dfs.easy.EasyWriter;
-import com.dremio.exec.store.easy.arrow.ArrowFormatPlugin;
-import com.dremio.exec.store.easy.arrow.ArrowFormatPluginConfig;
+import com.dremio.exec.store.easy.arrow.ArrowFlatBufRecordWriter;
 import com.dremio.exec.store.parquet.GlobalDictionaries;
-import com.dremio.exec.store.parquet.ParquetSubScan;
+import com.dremio.io.AsyncByteReader;
+import com.dremio.io.file.BoostedFileSystem;
+import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.Path;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.store.parquet.proto.ParquetProtobuf;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.google.common.base.Charsets;
+import com.google.common.base.Preconditions;
 import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Writes columns of splits in arrow format
  */
 public class BoostOperator extends ScanOperator {
+
+  private static final Logger logger = LoggerFactory.getLogger(BoostOperator.class);
 
   // specifies schema of BoostOperator output
   String SPLIT_COLUMN = "Split";
@@ -74,49 +76,56 @@ public class BoostOperator extends ScanOperator {
   Field BOOSTED = SCHEMA.getColumn(2);
 
   private final Iterator<SplitAndPartitionInfo> splits;
-  private final FileSystemPlugin<?> fsPlugin;
+  private final FileSystem fs;
+  private BoostedFileSystem boostedFS;
   private SplitAndPartitionInfo currentSplit;
   private final List<ArrowColumnWriter> currentWriters;
-  private final ArrowFormatPlugin arrowFormatPlugin;
-  private final String tableName;
+  private final List<String> dataset;
+  private final List<String> columnsToBoost;
 
   private final VectorContainer boostOutputContainer;
   private VarCharVector splitVector;
   private VarCharVector columnVector;
   private BitVector boostedFlagVector;
 
-  public BoostOperator(ParquetSubScan config,
+  public BoostOperator(BoostPOP boostConfig,
                        OperatorContext context,
                        Iterator<RecordReader> readers,
                        GlobalDictionaries globalDictionaries,
-                       FileSystemPlugin<?> fsPlugin) {
-    super(config, context, readers, globalDictionaries);
-    splits = config.getSplits().iterator();
-    this.fsPlugin = fsPlugin;
+                       FileSystem fileSystem) {
+    super(boostConfig.asParquetSubScan(), context, readers, globalDictionaries, null, null);
+    splits = boostConfig.getSplits().iterator();
+
+    columnsToBoost = new ArrayList<>();
+    for (SchemaPath column : boostConfig.getColumns()) {
+      if (column.isSimplePath()) {
+        columnsToBoost.add(column.getRootSegment().getPath());
+      } else {
+        logger.error("Skipping complex column {}", column);
+      }
+    }
+    fs = fileSystem;
     currentSplit = splits.next();
-    arrowFormatPlugin = (ArrowFormatPlugin) fsPlugin.getFormatPlugin(new ArrowFormatPluginConfig());
-    tableName = config.getReferencedTables().stream().flatMap(Collection::stream).collect(Collectors.joining("."));
     currentWriters = new ArrayList<>();
     boostOutputContainer = context.createOutputVectorContainer();
+    dataset = boostConfig.getReferencedTables().iterator().next();
   }
 
   @Override
   public VectorAccessible setup() throws Exception {
-    super.setup();
-    // setup writers
-    setUpNewWriters();
-
     splitVector = boostOutputContainer.addOrGet(SPLIT);
     columnVector = boostOutputContainer.addOrGet(COLUMN);
     boostedFlagVector = boostOutputContainer.addOrGet(BOOSTED);
     boostOutputContainer.buildSchema();
 
-    state = State.CAN_PRODUCE;
-
-    if (context.getOptions().getOption(ExecConstants.PARQUET_SCAN_AS_BOOST)) {
-      return outgoing;
+    if (columnsToBoost.isEmpty()) {
+      state = State.DONE;
+      return boostOutputContainer;
     }
-
+    super.setup();
+    state = State.CAN_PRODUCE;
+    boostedFS = fs.getBoostedFilesystem();
+    setUpNewWriters();
     return boostOutputContainer;
   }
 
@@ -126,7 +135,7 @@ public class BoostOperator extends ScanOperator {
     currentReader.allocate(fieldVectorMap);
 
     int recordCount;
-    while ((recordCount = currentReader.next()) == 0) {
+    if ((recordCount = currentReader.next()) == 0) {
       if (!readers.hasNext()) {
         // We're on the last reader, and it has no (more) rows.
         // no need to close the reader (will be done when closing the operator)
@@ -134,11 +143,6 @@ public class BoostOperator extends ScanOperator {
         outgoing.zeroVectors();
         state = State.DONE;
         outgoing.setRecordCount(0);
-
-        if (context.getOptions().getOption(ExecConstants.PARQUET_SCAN_AS_BOOST)) {
-          return 0;
-        }
-
         return closeCurrentWritersAndProduceOutputBatch();
       }
 
@@ -152,38 +156,45 @@ public class BoostOperator extends ScanOperator {
       currentReader.allocate(fieldVectorMap);
       setUpNewWriters();
 
-      if (context.getOptions().getOption(ExecConstants.PARQUET_SCAN_AS_BOOST)) {
-        return 0;
-      }
-
       return boostOutputRecordCount; // done with a split; return num of columns boosted
     }
     outgoing.setAllCount(recordCount);
+
+    List<ArrowColumnWriter> failedWriters = new ArrayList<>();
     for (ArrowColumnWriter writer : currentWriters) {
-      writer.write(recordCount); // TODO: writes protobufs
+      try {
+        writer.write(recordCount);
+      } catch (IOException ex) {
+        logger.error("Failed to write record batch of column [{}] to boost file, skipping column", writer.column, ex);
+        writer.abort();
+        failedWriters.add(writer);
+      }
     }
+    currentWriters.removeAll(failedWriters);
+
     return 0;
   }
 
   /**
    * creates a writer per column for the new split
    *
-   * @throws Exception
    */
-  private void setUpNewWriters() throws Exception {
+  private void setUpNewWriters() {
     ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr;
     try {
       splitXAttr = LegacyProtobufSerializer.parseFrom(ParquetProtobuf.ParquetDatasetSplitScanXAttr.PARSER, currentSplit.getDatasetSplitInfo().getExtendedProperty());
     } catch (InvalidProtocolBufferException e) {
       throw new RuntimeException("Could not deserialize parquet dataset split scan attributes", e);
     }
-    String split = Path.of(splitXAttr.getPath()).getName();
-    String splitStoreLocation = "/tmp/" + tableName + "/" + split + "/";
-
-    for (Field column : outgoing.getSchema()) {
-      String columnName = column.getName();
-      String columnStoreLocation = splitStoreLocation + columnName;
-      currentWriters.add(new ArrowColumnWriter(splitXAttr.getPath(), columnName, columnStoreLocation));
+    for (String columnName : columnsToBoost) {
+      ArrowColumnWriter arrowColumnWriter;
+      try {
+        arrowColumnWriter = new ArrowColumnWriter(splitXAttr, columnName);
+      } catch (IOException ex) {
+        logger.debug("Failed to initialize column writer to boost column [{}] of split [{}] due to {}. Skipping column.", columnName, splitXAttr.getPath(), ex.getMessage());
+        continue;
+      }
+      currentWriters.add(arrowColumnWriter);
     }
   }
 
@@ -194,8 +205,21 @@ public class BoostOperator extends ScanOperator {
    * @return
    * @throws Exception
    */
-  private int closeCurrentWritersAndProduceOutputBatch() throws Exception {
-    AutoCloseables.close(currentWriters);
+  private int closeCurrentWritersAndProduceOutputBatch() {
+    List<ArrowColumnWriter> failedWriters = new ArrayList<>();
+    for (ArrowColumnWriter currentWriter : currentWriters) {
+      try {
+        currentWriter.close();
+        currentWriter.commit();
+        logger.debug("Boosted column [{}] of split [{}]", currentWriter.column, currentWriter.splitPath);
+      } catch (Exception ex) {
+        logger.error("Failure while committing boost file of column [{}] of split [{}]", currentWriter.column, currentWriter.splitPath);
+        failedWriters.add(currentWriter);
+      }
+    }
+
+    currentWriters.removeAll(failedWriters);
+    failedWriters.clear();
 
     boostOutputContainer.allocateNew();
 
@@ -211,33 +235,29 @@ public class BoostOperator extends ScanOperator {
   }
 
   private class ArrowColumnWriter implements AutoCloseable {
+    private final int rowGroupIndex;
     private final String column;
     private final String splitPath;
     private final RecordWriter recordWriter;
+    private final AsyncByteReader.FileKey fileKey;
     private final VectorContainer outputVectorContainer;
+    private boolean isClosed = false;
 
-    ArrowColumnWriter(String splitPath, String column, String columnStoreLocation) throws IOException {
+    public ArrowColumnWriter(ParquetProtobuf.ParquetDatasetSplitScanXAttr splitXAttr, String column) throws IOException {
       this.column = column;
-      EasyWriter writerConfig = new EasyWriter(
-          config.getProps(),
-          null,
-          null,
-          columnStoreLocation,
-          WriterOptions.DEFAULT,
-          fsPlugin,
-          arrowFormatPlugin);
-      recordWriter = arrowFormatPlugin.getRecordWriter(context, writerConfig);
+      this.splitPath = splitXAttr.getPath();
+      this.rowGroupIndex = splitXAttr.getRowGroupIndex();
+      this.fileKey = AsyncByteReader.FileKey.of(Path.of(splitPath), Long.toString(splitXAttr.getLastModificationTime()), AsyncByteReader.FileKey.FileType.OTHER, dataset);
 
+      recordWriter = new ArrowFlatBufRecordWriter(context, boostedFS.createBoostFile(fileKey, rowGroupIndex, column));
       // container with just one column
       outputVectorContainer = context.createOutputVectorContainer();
       outputVectorContainer.add(fieldVectorMap.get(column.toLowerCase()));
       outputVectorContainer.buildSchema();
 
       RecordWriter.WriteStatsListener byteCountListener = (b) -> {};
-      RecordWriter.OutputEntryListener fileWriteListener = (recordCount, fileSize, path, metadata, partitionNumber, icebergMetadata) -> {};
+      RecordWriter.OutputEntryListener fileWriteListener = (a, b, c, d, e, f) -> {};
       recordWriter.setup(outputVectorContainer, fileWriteListener, byteCountListener);
-
-      this.splitPath = splitPath;
     }
 
     void write(int records) throws IOException {
@@ -247,8 +267,26 @@ public class BoostOperator extends ScanOperator {
 
     @Override
     public void close() throws Exception {
-      AutoCloseables.close(recordWriter); // file will be written on closing ArrowRecordWriter
+      if(!isClosed) {
+        AutoCloseables.close(recordWriter); // file write is done on closing RecordWriter
+        isClosed = true;
+      }
     }
+
+    public void commit() throws IOException {
+      Preconditions.checkArgument(isClosed, "Attempted to commit boost file before finishing writing");
+      boostedFS.commitBoostFile(fileKey, rowGroupIndex, column);
+    }
+
+    public void abort() {
+      try {
+        AutoCloseables.close(recordWriter);
+        boostedFS.abortBoostFile(fileKey, rowGroupIndex, column);
+      } catch (Exception ex) {
+        logger.error("Failure while cancelling boosting of column [{}] of split [{}]", column, splitPath, ex);
+      }
+    }
+
   }
 
   @Override
@@ -256,4 +294,10 @@ public class BoostOperator extends ScanOperator {
     super.close();
     AutoCloseables.close(boostOutputContainer, currentWriters);
   }
+
+  /**
+   * This gets called when ScanOperator.close() is invoked from this.close()
+   */
+  @Override
+  protected void onScanDone() {}
 }

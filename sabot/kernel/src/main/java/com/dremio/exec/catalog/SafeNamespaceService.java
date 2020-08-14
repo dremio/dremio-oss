@@ -20,7 +20,7 @@ import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.Map.Entry;
 
-import com.dremio.connector.metadata.DatasetSplit;
+import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.datastore.api.LegacyKVStore.LegacyFindByRange;
@@ -290,18 +290,13 @@ class SafeNamespaceService implements NamespaceService {
       }
 
       @Override
+      public long savePartitionChunks(PartitionChunkListing chunkListing) throws IOException {
+        return runner.doSafe(() -> delegate.savePartitionChunks(chunkListing));
+      }
+
+      @Override
       public void saveDataset(DatasetConfig arg0, boolean arg1, NamespaceAttribute... arg2) throws NamespaceException {
         runner.doSafe(() -> delegate.saveDataset(arg0, arg1, arg2));
-      }
-
-      @Override
-      public void saveDatasetSplit(DatasetSplit arg0) {
-        runner.doSafe(() -> delegate.saveDatasetSplit(arg0));
-      }
-
-      @Override
-      public void savePartitionChunk(com.dremio.connector.metadata.PartitionChunk arg0) throws IOException {
-        runner.doSafe(() -> delegate.savePartitionChunk(arg0));
       }
 
     };

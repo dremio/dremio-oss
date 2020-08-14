@@ -67,7 +67,7 @@ export class LoginForm extends PureComponent {
           style={{marginBottom: 10}}
           subTitle={la('Welcome to Dremio, please log in.')}/>
         <ViewStateWrapper
-          style={{paddingTop: 45}}
+          style={{paddingTop: 30}}
           hideChildrenWhenFailed={false}
           viewState={viewState}
           hideSpinner
@@ -181,14 +181,15 @@ const styles = {
     justifyContent: 'space-between'
   },
   field: {
-    flexBasis: 'calc(50% - 5px)'
+    flexBasis: 'calc(50% - 5px)',
+    display: 'block'
   },
   input: {
     width: '100%',
     marginRight: 0
   },
   submitWrapper: {
-    margin: '20px 0 0 0',
+    margin: '55px 0 0 0',
     display: 'flex',
     flexDirection: 'row'
   },

@@ -17,22 +17,27 @@ package com.dremio.exec.server.options;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.inject.Provider;
 
 import com.dremio.common.config.LogicalPlanPersistence;
-import com.dremio.common.exceptions.UserException;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreCreationFunction;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.datastore.api.LegacyStoreBuildingFactory;
 import com.dremio.datastore.format.Format;
-import com.dremio.exec.exception.StoreException;
 import com.dremio.exec.serialization.JacksonSerializer;
+import com.dremio.options.OptionChangeListener;
 import com.dremio.options.OptionList;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidator;
@@ -40,6 +45,8 @@ import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.options.OptionValueProto;
+import com.dremio.options.OptionValueProtoList;
+import com.dremio.service.Pointer;
 import com.dremio.service.Service;
 import com.google.common.collect.Sets;
 
@@ -51,19 +58,22 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(SystemOptionManager.class);
 
   private static final String SYSTEM_OPTION_PREFIX = "dremio.debug.sysopt.";
-  public static final String STORE_NAME = "options";
-  public static final String LEGACY_STORE_NAME = "sys.options";
+  private static final String STORE_NAME = "project_options";
+  private static final String LEGACY_JACKSON_STORE_NAME = "sys.options";
+  private static final String LEGACY_PROTO_STORE_NAME = "options";
+  static final String OPTIONS_KEY = "options";
 
   private final OptionValidatorListing optionValidatorListing;
   private final LogicalPlanPersistence lpPersistance;
   private final Provider<LegacyKVStoreProvider> storeProvider;
   private final boolean inMemory;
+  private final Set<OptionChangeListener> listeners = Sets.newConcurrentHashSet();
 
   /**
    * Persistent store for options that have been changed from default.
    * NOTE: CRUD operations must use lowercase keys.
    */
-  private LegacyKVStore<String, OptionValueProto> options;
+  private LegacyKVStore<String, OptionValueProtoList> options;
 
   public SystemOptionManager(OptionValidatorListing optionValidatorListing,
                              LogicalPlanPersistence lpPersistence,
@@ -76,7 +86,7 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     this.inMemory = inMemory;
   }
 
-  /**
+    /**
    * Initializes this option manager.
    *
    * @return this option manager
@@ -84,72 +94,111 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
    */
   @Override
   public void start() throws Exception {
-    options = inMemory ? new InMemoryLocalStore<>() : storeProvider.get().getStore(OptionProtoStoreCreator.class);
+    options = inMemory ? new InMemoryLocalStore<>() : storeProvider.get().getStore(OptionStoreCreator.class);
     migrateLegacyOptions();
     updateBasedOnSystemProperties();
   }
 
-  private void migrateLegacyOptions() throws StoreException {
+
+  private void migrateLegacyOptions() {
     if (inMemory) {
       return; // In-memory store does not start with any options
     }
-    final OptionValueStore legacyOptions = getLegacyStore();
-    legacyOptions.getAll().forEachRemaining(
-      entry -> {
-        final String name = entry.getKey();
-        final OptionValue value = entry.getValue();
+    migrateLegacyJacksonOptions();
+    migrateLegacyProtoOptions();
+  }
 
-        try {
-          final OptionValidator validator = optionValidatorListing.getValidator(name);
-          final String canonicalName = validator.getOptionName().toLowerCase(Locale.ROOT);
-          if (!name.equals(canonicalName)) {
-            // for backwards compatibility <= 1.1, rename to lower case.
-            logger.warn("Changing option name to lower case `{}`", name);
-          }
-          legacyOptions.delete(name);
-          options.put(canonicalName, OptionValueProtoUtils.toOptionValueProto(value));
-        } catch (UserException e) {
-          legacyOptions.delete(name);
-          logger.warn("Deleting deprecated option `{}`", name);
-        }
+  private void migrateLegacyJacksonOptions() {
+    final OptionValueStore legacyStore = new OptionValueStore(
+      storeProvider,
+      LegacyJacksonOptionStoreCreator.class,
+      new JacksonSerializer<>(lpPersistance.getMapper(), OptionValue.class)
+    );
+    legacyStore.start();
+
+    final List<OptionValueProto> optionList = new ArrayList<>();
+    final Iterable<Entry<String, OptionValue>> legacyOptionValues = legacyStore.getAll();
+    legacyOptionValues.forEach(
+      entry -> {
+        optionList.add(OptionValueProtoUtils.toOptionValueProto(entry.getValue()));
+      }
+    );
+    if (!optionList.isEmpty()) {
+      options.put(OPTIONS_KEY, OptionValueProtoUtils.toOptionValueProtoList(optionList));
+    }
+    // Remove after the fact in case migration fails
+    legacyOptionValues.forEach(
+      entry -> {
+        legacyStore.delete(entry.getKey());
       }
     );
   }
 
-  private OptionValueStore getLegacyStore() throws StoreException {
-    final OptionValueStore store = new OptionValueStore(
-      storeProvider,
-      OptionStoreCreator.class,
-      new JacksonSerializer<>(lpPersistance.getMapper(), OptionValue.class)
+  private void migrateLegacyProtoOptions() {
+    final LegacyKVStore<String, OptionValueProto> legacyStore = storeProvider.get().getStore(LegacyProtoOptionStoreCreator.class);
+    List<OptionValueProto> optionList = new ArrayList<>();
+    final Iterable<Entry<String, OptionValueProto>> legacyOptionValues = legacyStore.find();
+    legacyOptionValues.forEach(
+      entry -> {
+        optionList.add(entry.getValue());
+      }
     );
-    try {
-      store.start();
-    } catch (Exception e) {
-      throw new StoreException(String.format("Unable to get persistent store %s", OptionStoreCreator.class.getName()), e);
+    if (!optionList.isEmpty()) {
+      options.put(OPTIONS_KEY, OptionValueProtoUtils.toOptionValueProtoList(optionList));
     }
-    return store;
+    // Remove after the fact in case migration fails
+    legacyOptionValues.forEach(
+      entry -> {
+        legacyStore.delete(entry.getKey());
+      }
+    );
   }
 
-  public static class OptionStoreCreator implements OptionValueStore.OptionValueStoreCreator {
+  public static class OptionStoreCreator implements LegacyKVStoreCreationFunction<String, OptionValueProtoList> {
+    @Override
+    public LegacyKVStore<String, OptionValueProtoList> build(LegacyStoreBuildingFactory factory) {
+      return factory.<String, OptionValueProtoList>newStore()
+        .name(STORE_NAME)
+        .keyFormat(Format.ofString())
+        .valueFormat(Format.ofProtobuf(OptionValueProtoList.class))
+        .build();
+    }
+  }
+
+  public static class LegacyJacksonOptionStoreCreator implements OptionValueStore.OptionValueStoreCreator {
     @Override
     public LegacyKVStore<String, byte[]> build(LegacyStoreBuildingFactory factory) {
       return factory.<String, byte[]>newStore()
-        .name(LEGACY_STORE_NAME)
+        .name(LEGACY_JACKSON_STORE_NAME)
         .keyFormat(Format.ofString())
         .valueFormat(Format.ofBytes())
         .build();
     }
   }
 
-  public static class OptionProtoStoreCreator implements LegacyKVStoreCreationFunction<String, OptionValueProto> {
+  public static class LegacyProtoOptionStoreCreator implements LegacyKVStoreCreationFunction<String, OptionValueProto> {
     @Override
     public LegacyKVStore<String, OptionValueProto> build(LegacyStoreBuildingFactory factory) {
       return factory.<String, OptionValueProto>newStore()
-        .name(STORE_NAME)
+        .name(LEGACY_PROTO_STORE_NAME)
         .keyFormat(Format.ofString())
         .valueFormat(Format.ofProtobuf(OptionValueProto.class))
         .build();
     }
+  }
+
+  private List<OptionValueProto> getOptionProtoList() {
+    final OptionValueProtoList optionValueProtoList = options.get(OPTIONS_KEY);
+    return optionValueProtoList == null ? Collections.emptyList() : optionValueProtoList.getOptionsList();
+  }
+
+  private OptionValueProto getOptionProto(String name) {
+    for (OptionValueProto optionValueProto : getOptionProtoList()) {
+      if (name.toLowerCase(Locale.ROOT).equals(optionValueProto.getName())) {
+        return optionValueProto;
+      }
+    }
+    return null;
   }
 
   @Override
@@ -159,26 +208,20 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
 
   @Override
   public boolean isSet(String name){
-    return options.get(name.toLowerCase(Locale.ROOT)) != null;
+    return getOptionProto(name) != null;
   }
 
   @Override
   public Iterator<OptionValue> iterator() {
-    OptionList optionList = new OptionList();
-    options.find().forEach(
-      entry -> optionList.add(OptionValueProtoUtils.toOptionValue(entry.getValue()))
-    );
-    return optionList.iterator();
+    return getOptionProtoList().stream()
+      .map(OptionValueProtoUtils::toOptionValue)
+      .iterator();
   }
 
   @Override
   public OptionValue getOption(final String name) {
-    // check local space (persistent store)
-    final OptionValueProto value = options.get(name.toLowerCase(Locale.ROOT));
-    if (value != null) {
-      return OptionValueProtoUtils.toOptionValue(value);
-    }
-    return null;
+    final OptionValueProto value = getOptionProto(name);
+    return value == null ? null : OptionValueProtoUtils.toOptionValue(value);
   }
 
   @Override
@@ -186,36 +229,71 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     checkArgument(value.getType() == OptionType.SYSTEM, "OptionType must be SYSTEM.");
     final String name = value.getName().toLowerCase(Locale.ROOT);
     final OptionValidator validator = optionValidatorListing.getValidator(name);
-
     validator.validate(value); // validate the option
 
-    if (options.get(name) == null && value.equals(validator.getDefault())) {
-      return true; // no need to set option if value is the default value
+    final Map<String, OptionValueProto> optionMap = new HashMap<>(); // temp map for convenient lookups
+    getOptionProtoList().forEach(optionProto -> optionMap.put(optionProto.getName(), optionProto));
+
+    // no need to set option if value is the same
+    if (optionMap.containsKey(name) && optionMap.get(name).equals(OptionValueProtoUtils.toOptionValueProto(value))) {
+      return true;
     }
-    options.put(name, OptionValueProtoUtils.toOptionValueProto(value));
+
+    // Handle setting option to the default value
+    if (value.equals(validator.getDefault())) {
+      if (optionMap.containsKey(value.getName())) {
+        // If option was previously set, remove it
+        optionMap.remove(value.getName());
+      } else {
+        // If option was not set, skip the set completely
+        return true;
+      }
+    }
+    optionMap.put(name, OptionValueProtoUtils.toOptionValueProto(value));
+    options.put(OPTIONS_KEY, OptionValueProtoUtils.toOptionValueProtoList(optionMap.values()));
+    notifyListeners();
     return true;
   }
 
   @Override
-  public boolean deleteOption(final String name, OptionType type) {
+  public boolean deleteOption(final String rawName, OptionType type) {
     checkArgument(type == OptionType.SYSTEM, "OptionType must be SYSTEM.");
-
+    final String name = rawName.toLowerCase(Locale.ROOT);
     optionValidatorListing.getValidator(name); // ensure option exists
-    options.delete(name.toLowerCase(Locale.ROOT));
+
+    final Pointer<Boolean> needUpdate = new Pointer<>(false);
+    final List<OptionValueProto> newOptionValueProtoList = getOptionProtoList().stream()
+      .filter(optionValueProto -> {
+        if (name.equals(optionValueProto.getName())) {
+          needUpdate.value = true;
+          return false;
+        }
+        return true;
+      })
+      .collect(Collectors.toList());
+
+    if (needUpdate.value) {
+      options.put(OPTIONS_KEY, OptionValueProtoUtils.toOptionValueProtoList(newOptionValueProtoList));
+    }
+    notifyListeners();
     return true;
   }
 
   @Override
   public boolean deleteAllOptions(OptionType type) {
     checkArgument(type == OptionType.SYSTEM, "OptionType must be SYSTEM.");
-    final Set<String> names = Sets.newHashSet();
-    options.find().forEach(
-      entry -> names.add(entry.getKey())
-    );
-    for (final String name : names) {
-      options.delete(name.toLowerCase(Locale.ROOT)); // should be lowercase
-    }
+    options.put(OPTIONS_KEY, OptionValueProtoList.newBuilder().build());
+    notifyListeners();
     return true;
+  }
+
+  private void notifyListeners() {
+    listeners.forEach(l -> l.onChange());
+  }
+
+  @Override
+  public void addOptionChangeListener(OptionChangeListener optionChangeListener) throws UnsupportedOperationException {
+    listeners.add(optionChangeListener);
   }
 
   /**
@@ -223,9 +301,9 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
    */
   @Override
   public OptionList getNonDefaultOptions() {
-    OptionList nonDefaultOptions = new OptionList();
-    options.find().forEach(
-      entry -> nonDefaultOptions.add(OptionValueProtoUtils.toOptionValue(entry.getValue()))
+    final OptionList nonDefaultOptions = new OptionList();
+    getOptionProtoList().forEach(
+      entry -> nonDefaultOptions.add(OptionValueProtoUtils.toOptionValue(entry))
     );
     return nonDefaultOptions;
   }

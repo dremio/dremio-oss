@@ -41,7 +41,7 @@
 }
 
 .tab-sections {
-  width: 600px
+  width: 585px
 }
 
 .tab-tall-sections {
@@ -50,10 +50,11 @@
 
 .section-label {
   composes: common-title;
-  font-size: 14px;
-  font-weight: 500;
-  color: @MID_GREY;
-  margin: 0 0 10px 0;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 19px;
+  color: #333;
+  margin-bottom: 13px;
 }
 
 .section-body {
@@ -71,7 +72,7 @@
 }
 
 .row-margin {
-  margin-top: @row-content-margin;
+  margin-top: 0;
 }
 
 .stacked-container {
@@ -81,23 +82,27 @@
 }
 
 .radio-stacked {
-  composes: row-margin;
+  margin-top: 8px !important;
   display: flex !important; //todo remove important, when all components would be switched to css modules
 }
 
 .text-input {
   composes: form-default form-placeholder from '~@app/uiTheme/less/typography.less';
-  padding-left: 5px;
-  border: 1px solid rgba(0,0,0,0.1);
-  border-radius: 2px;
-  height: 28px;
+  padding: 8px;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
   width: 310px;
+  height: 32px;
   &::placeholder {
     opacity: 0.7;
   }
-  &:focus {
-    border: 1px solid #C0E9F5;
-    box-shadow: 0 0 4px 0 rgba(129,209,235,0.20)
+  &:focus:hover, &:focus {
+    border: 1px solid #A1DBE4;
+    background-color: #F5FCFF;
+    outline: none;
+  }
+  &:hover {
+    border: 1px solid #A1DBE4;
   }
 }
 
@@ -119,7 +124,7 @@
 }
 
 .fields-horizontal-spacing {
-  margin-right: @input-spacing;
+  margin-right: 16px;
 }
 
 .row-of-inputs-spacing {

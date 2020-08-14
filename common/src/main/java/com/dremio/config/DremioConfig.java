@@ -117,6 +117,9 @@ public class DremioConfig extends NestedConfig {
   public static final String EC2_EFS_MOUNT_TARGET_IP_ADDRESS = "provisioning.ec2.efs.mountTargetIpAddress";
   public static final String MIGRATION_ENABLED = "provisioning.migration.enabled";
 
+  // netty options
+  public static final String NETTY_REFLECTIONS_ACCESSIBLE = "io.netty.tryReflectionSetAccessible";
+
   /**
    * Path where debug options are located
    */

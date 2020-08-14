@@ -203,6 +203,7 @@ public class SystemStoragePluginInitializer implements Initializer<Void> {
   void createOrUpdateSystemSource(final CatalogService catalogService, final NamespaceService ns, final
   SourceConfig config) throws Exception {
     try {
+      config.setAllowCrossSourceSelection(true);
       final boolean isCreated = catalogService.createSourceIfMissingWithThrow(config);
       if (isCreated) {
         return;

@@ -308,6 +308,10 @@ public class AttemptManager implements Runnable {
       injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_TRY_BEGINNING_ERROR,
         ForemanException.class);
 
+      observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.PENDING));
+
+      observer.queryStarted(queryRequest, queryContext.getSession().getCredentials().getUserName());
+
       ResourceSchedulingProperties resourceSchedulingProperties = new ResourceSchedulingProperties();
       resourceSchedulingProperties.setRoutingEngine(queryContext.getSession().getRoutingEngine());
       // Get the resource information of the cluster/engine before planning begins.
@@ -315,13 +319,10 @@ public class AttemptManager implements Runnable {
         maestroService.getGroupResourceInformation(queryContext.getOptions(), resourceSchedulingProperties);
       queryContext.setGroupResourceInformation(groupResourceInformation);
 
-      observer.beginState(AttemptObserver.toEvent(AttemptEvent.State.PENDING));
-
       // planning is done in the command pool
       commandPool.submit(CommandPool.Priority.LOW, attemptId.toString() + ":foreman-planning",
         (waitInMillis) -> {
           observer.commandPoolWait(waitInMillis);
-          observer.queryStarted(queryRequest, queryContext.getSession().getCredentials().getUserName());
 
           injector.injectPause(queryContext.getExecutionControls(), INJECTOR_PENDING_PAUSE, logger);
           injector.injectChecked(queryContext.getExecutionControls(), INJECTOR_PENDING_ERROR,

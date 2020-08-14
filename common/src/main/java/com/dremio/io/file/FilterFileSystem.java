@@ -199,4 +199,14 @@ public class FilterFileSystem implements FileSystem {
   public boolean preserveBlockLocationsOrder() {
     return fs.preserveBlockLocationsOrder();
   }
+
+  @Override
+  public boolean supportsBoosting() {
+    return fs.supportsBoosting();
+  }
+
+  @Override
+  public BoostedFileSystem getBoostedFilesystem() {
+    return fs.getBoostedFilesystem();
+  }
 }

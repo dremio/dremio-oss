@@ -30,13 +30,8 @@ import org.apache.calcite.util.NlsString;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ops.QueryContext;
-import com.dremio.exec.server.options.DefaultOptionManager;
-import com.dremio.exec.server.options.EagerCachingOptionManager;
-import com.dremio.exec.server.options.OptionManagerWrapper;
-import com.dremio.exec.server.options.QueryOptionManager;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionManager;
-import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValue.OptionType;
 import com.dremio.sabot.rpc.user.UserSession;
@@ -62,14 +57,7 @@ public class SetOptionHandler extends SimpleDirectHandler {
   @Override
   public List<SimpleCommandResult> toResult(String sql, SqlNode sqlNode) throws ValidationException, RelConversionException, IOException,
       ForemanSetupException {
-    final OptionValidatorListing optionValidatorProvider = session.getOptions().getOptionValidatorListing();
-    final QueryOptionManager queryOptionManager = new QueryOptionManager(optionValidatorProvider);
-    final OptionManager options = OptionManagerWrapper.Builder.newBuilder()
-      .withOptionManager(new DefaultOptionManager(optionValidatorProvider))
-      .withOptionManager(new EagerCachingOptionManager(context.getSystemOptionManager()))
-      .withOptionManager(session.getSessionOptionManager())
-      .withOptionManager(queryOptionManager)
-      .build();
+    final OptionManager options = context.getOptions();
     final SqlSetOption option = SqlNodeUtil.unwrap(sqlNode, SqlSetOption.class);
     final String name = option.getName().toString();
 

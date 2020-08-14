@@ -84,6 +84,7 @@ public class ReflectionServiceHelper {
     // check if anything has changed - if not, don't bother updating
     if (
       !reflection.getName().equals(goal.getName()) ||
+      !reflection.getArrowCachingEnabled().equals(goal.getArrowCachingEnabled()) ||
       reflection.getState() != goal.getState() ||
       !areReflectionDetailsEqual(reflection.getDetails(), goal.getDetails())
     ) {

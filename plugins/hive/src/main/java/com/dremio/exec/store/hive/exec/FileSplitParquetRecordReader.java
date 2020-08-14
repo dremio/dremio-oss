@@ -123,6 +123,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
 
   private RecordReader currentReader;
   private final ManagedSchema managedSchema;
+  private final HiveSplitsPathRowGroupsMap pathRowGroupsMap;
   private Iterator<RecordReader> innerReadersIter;
 
   private FileSplitParquetRecordReader nextFileSplitReader;
@@ -141,7 +142,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
     final BatchSchema outputSchema,
     final boolean enableDetailedTracing,
     final UserGroupInformation readerUgi,
-    final ManagedSchema managedSchema
+    final ManagedSchema managedSchema,
+    final HiveSplitsPathRowGroupsMap pathRowGroupsMap
   ) {
     this.hiveStoragePlugin = hiveStoragePlugin;
     this.oContext = oContext;
@@ -158,6 +160,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
     this.outputSchema = outputSchema;
     this.readerUgi = readerUgi;
     this.managedSchema = managedSchema;
+    this.pathRowGroupsMap = pathRowGroupsMap;
     this.inputStreamProviderFactory = oContext.getConfig()
       .getInstance(InputStreamProviderFactory.KEY, InputStreamProviderFactory.class, InputStreamProviderFactory.DEFAULT);
     rowGroupNums = new ArrayList<>();
@@ -167,6 +170,10 @@ public class FileSplitParquetRecordReader implements RecordReader {
       try {
         if (rowGroupNums.isEmpty()) { // make sure rowGroupNums is populated only once
           rowGroupNums.addAll(ParquetReaderUtility.getRowGroupNumbersFromFileSplit(fileSplit.getStart(), fileSplit.getLength(), f));
+          final Set<Integer> usedRowGroups = pathRowGroupsMap.getPathRowGroups(fileSplit.getPath(), f);
+          if ((usedRowGroups != null) && oContext.getOptions().getOption(ExecConstants.TRIM_ROWGROUPS_FROM_FOOTER)) {
+            f.removeUnusedRowGroups(usedRowGroups);
+          }
         }
       } catch (IOException e) {
         throw UserException.ioExceptionError(e)
@@ -253,7 +260,8 @@ public class FileSplitParquetRecordReader implements RecordReader {
         (a, b) -> {},
         readFullFile,
         dataset,
-        fileAttributes.lastModifiedTime().toMillis()
+        fileAttributes.lastModifiedTime().toMillis(),
+        false
       );
     } catch (Exception e) {
       // Close input stream provider in case of errors
@@ -615,7 +623,7 @@ public class FileSplitParquetRecordReader implements RecordReader {
           inputStreamProvider = inputStreamProviderFactory.create(fs, oContext, path, fileLength, splitXAttr.getLength(),
             ParquetScanProjectedColumns.fromSchemaPaths(columnsToRead), footer, (f) -> splitXAttr.getRowGroupIndex(),
             (a, b) -> {}, // prefetching happens in this.createRecordReader()
-            readFullFile, dataset, splitXAttr.getLastModificationTime());
+            readFullFile, dataset, splitXAttr.getLastModificationTime(), false);
           return null;
         });
       }

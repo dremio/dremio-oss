@@ -39,6 +39,7 @@ import java.util.Collection;
 import org.apache.arrow.vector.AllocationHelper;
 import org.apache.arrow.vector.ValueVector;
 import com.dremio.common.expression.SchemaPath;
+import com.dremio.exec.ExecConstants;
 import com.dremio.exec.store.ScanFilter;
 import com.dremio.exec.store.SplitAndPartitionInfo;
 import com.dremio.exec.store.hive.HiveSettings;
@@ -184,7 +185,7 @@ public class Hive${entry.hiveReader}Reader extends HiveAbstractReader {
         .withPath(path)
         .withTypeCount(types.size())
         .withZeroCopy(zeroCopy)
-        .build(), useDirectMemory);
+        .build(), useDirectMemory, context.getOptions().getOption(ExecConstants.SCAN_COMPUTE_LOCALITY));
       options.dataReader(dataReader);
     }
     try (OperatorStats.WaitRecorder recorder = OperatorStats.getWaitRecorder(this.context.getStats())) {

@@ -158,12 +158,13 @@ public class Clean {
     try (LocalKVStoreProvider provider = providerOptional.get()) {
       provider.start();
 
-
+      if (provider.getStores().size() == 0) {
+        AdminLogger.log("No store stats available");
+      }
       if(options.hasActiveOperation()) {
         AdminLogger.log("Initial Store Status.");
-
       } else {
-        AdminLogger.log("No operation requested, printing store Stats.");
+        AdminLogger.log("No operation requested. ");
       }
 
       for(StoreWithId<?, ?> id : provider) {

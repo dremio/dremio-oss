@@ -23,6 +23,7 @@ import java.util.ListIterator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.dremio.exec.ExecConstants;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -325,7 +326,7 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
       .withPath(path)
       .withTypeCount(types.size())
       .withZeroCopy(zeroCopy)
-      .build(), useDirectMemory);
+      .build(), useDirectMemory, context.getOptions().getOption(ExecConstants.SCAN_COMPUTE_LOCALITY));
     options.dataReader(dataReader);
 
     String[] selectedColNames = getColumns().stream().map(x -> x.getAsUnescapedPath().toLowerCase()).toArray(String[]::new);

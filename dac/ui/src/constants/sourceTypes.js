@@ -31,6 +31,8 @@ export const ORACLE = 'ORACLE';
 export const POSTGRESQL = 'POSTGRES';
 export const ADL = 'ADL';
 export const AWSGLUE = 'AWSGLUE';
+export const AMAZONELASTIC = 'AMAZONELASTIC';
+export const AZURE_STORAGE = 'AZURE_STORAGE';
 
 // These are not implemented in the backend yet.
 export const CASSANDRA = 'CASSANDRA';
@@ -57,5 +59,42 @@ export const sourceProperties = [
   {label: 'Azure Data Lake Store', sourceType: ADL, beta: true},
   {label: 'AWS Glue Catalog', sourceType: AWSGLUE, beta: true}
 ];
+
+export const externalSourceType = {
+  [AMAZONELASTIC]: true,
+  [REDSHIFT]: true,
+  [ELASTIC]: true,
+  [MONGODB]: true,
+  [MYSQL]: true,
+  [SQLSERVER]: true,
+  [ORACLE]: true,
+  [POSTGRESQL]: true
+};
+
+export const dataLakeSoureType = {
+  [S3]: true,
+  [ADL]: true,
+  [AZURE_STORAGE]: true,
+  [HDFS]: true,
+  [MAPRFS]: true,
+  [NAS]: true,
+  [HIVE]: true,
+  [HIVE3]: true,
+  [AWSGLUE]: true
+};
+
+export const isExternalSourceType = (sourceType) => {
+  return !dataLakeSoureType[sourceType];
+};
+
+export const isDatalakeTableSourceType = (sourceType) => {
+  return dataLakeTableType[sourceType];
+};
+
+export const dataLakeTableType = {
+  [HIVE]: true,
+  [HIVE3]: true,
+  [AWSGLUE]: true
+};
 
 export const SHARING_TAB_JSON_TEMPLATE = {};

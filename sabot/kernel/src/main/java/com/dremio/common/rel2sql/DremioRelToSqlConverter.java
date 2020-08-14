@@ -58,7 +58,6 @@ import org.apache.calcite.rex.RexOver;
 import org.apache.calcite.rex.RexProgram;
 import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexWindow;
-import org.apache.calcite.rex.WindowUtil;
 import org.apache.calcite.sql.JoinConditionType;
 import org.apache.calcite.sql.JoinType;
 import org.apache.calcite.sql.SqlAggFunction;
@@ -143,6 +142,10 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
   };
 
   protected final Deque<DremioContext> outerQueryAliasContextStack = new ArrayDeque<>();
+
+  // A stack to keep track of window operators in the tree.
+  // This is used in builder as context information to figure out whether it needs a new subquery.
+  protected final Deque<RelNode> windowStack = new ArrayDeque<>();
 
   public DremioRelToSqlConverter(DremioSqlDialect dremioDialect) {
     super(dremioDialect);
@@ -346,28 +349,6 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
         condType,
         sqlCondition);
     return result(join, leftResult, rightResult);
-  }
-
-  @Override
-  public SqlImplementor.Result visit(Window e) {
-    SqlImplementor.Result x = visitChild(0, e.getInput());
-    SqlImplementor.Builder builder = x.builder(e);
-    RelNode input = e.getInput();
-    List<RexOver> rexOvers = WindowUtil.getOver(e);
-
-    final List<SqlNode> selectList = new ArrayList<>();
-    final Set<String> fields = ImmutableSet.copyOf(e.getRowType().getFieldNames());
-    for (RelDataTypeField field : input.getRowType().getFieldList()) {
-      if (fields.contains(field.getName())) {
-        addSelect(selectList, builder.context.field(field.getIndex()), e.getRowType());
-      }
-    }
-
-    for (RexOver rexOver : rexOvers) {
-      addSelect(selectList, builder.context.toSql(null, rexOver), e.getRowType());
-    }
-    builder.setSelect(new SqlNodeList(selectList, POS));
-    return builder.result();
   }
 
   /**
@@ -1197,6 +1178,12 @@ public class DremioRelToSqlConverter extends RelToSqlConverter {
             needNew = true;
           }
         }
+      }
+
+      if (rel instanceof Project
+        && ((Project) rel).getInput() instanceof Window
+        && !windowStack.isEmpty()) {
+        needNew = true;
       }
 
       if (rel instanceof LogicalAggregate

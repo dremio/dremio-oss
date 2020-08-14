@@ -59,6 +59,7 @@ import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValue;
 import com.dremio.sabot.driver.OperatorCreatorRegistry;
 import com.dremio.sabot.exec.EventProvider;
+import com.dremio.sabot.exec.FragmentExecutors;
 import com.dremio.sabot.exec.FragmentTicket;
 import com.dremio.sabot.exec.FragmentWorkManager.ExecConnectionCreator;
 import com.dremio.sabot.exec.MaestroProxy;
@@ -97,6 +98,8 @@ public class FragmentExecutorBuilder {
   public static final String INJECTOR_DO_WORK = "injectOOMOnBuild";
 
   private final QueriesClerk clerk;
+  private final FragmentExecutors fragmentExecutors;
+  private final CoordinationProtos.NodeEndpoint nodeEndpoint;
   private final MaestroProxy maestroProxy;
   private final SabotConfig config;
   private final ClusterCoordinator coord;
@@ -120,6 +123,8 @@ public class FragmentExecutorBuilder {
 
   public FragmentExecutorBuilder(
     QueriesClerk clerk,
+    FragmentExecutors fragmentExecutors,
+    CoordinationProtos.NodeEndpoint nodeEndpoint,
     MaestroProxy maestroProxy,
     SabotConfig config,
     ClusterCoordinator coord,
@@ -139,6 +144,8 @@ public class FragmentExecutorBuilder {
     Provider<JobResultsClientFactory> jobResultsClientFactoryProvider,
     Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider) {
     this.clerk = clerk;
+    this.fragmentExecutors = fragmentExecutors;
+    this.nodeEndpoint = nodeEndpoint;
     this.maestroProxy = maestroProxy;
     this.config = config;
     this.coord = coord;
@@ -158,6 +165,12 @@ public class FragmentExecutorBuilder {
     this.nodeDebugContextProvider = nodeDebugContextProvider;
     this.spillService = spillService;
     this.jobResultsClientFactoryProvider = jobResultsClientFactoryProvider;
+  }
+
+  public FragmentExecutors getFragmentExecutors() { return fragmentExecutors; }
+
+  public CoordinationProtos.NodeEndpoint getNodeEndpoint() {
+    return nodeEndpoint;
   }
 
   public PhysicalPlanReader getPlanReader() {
@@ -216,8 +229,29 @@ public class FragmentExecutorBuilder {
 
         if (!roles.contains(ClusterCoordinator.Role.COORDINATOR)) {
           // set the SYSTEM options in the system option manager, but only do it on non-coordinator nodes
+          boolean enableHeapMonitoringOptionPresent = false;
+          boolean thresholdOptionPresent = false;
+
           for (OptionValue option : list.getSystemOptions()) {
+            if(ExecConstants.ENABLE_HEAP_MONITORING.getOptionName().equals(option.getName())) {
+              enableHeapMonitoringOptionPresent = true;
+            } else if(ExecConstants.HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE.getOptionName().equals(option.getName())) {
+              thresholdOptionPresent = true;
+            }
             optionManager.setOption(option);
+          }
+
+          // Deleting heap monitor related options if not present in system options.
+          // This will ensure that heap monitor system options which were reset
+          // (to default) on coordinator will be also reset on non-coordinator nodes.
+          if (!enableHeapMonitoringOptionPresent) {
+            optionManager.deleteOption(ExecConstants.ENABLE_HEAP_MONITORING.getOptionName(),
+                                       OptionValue.OptionType.SYSTEM);
+          }
+
+          if (!thresholdOptionPresent) {
+            optionManager.deleteOption(ExecConstants.HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE.getOptionName(),
+                                       OptionValue.OptionType.SYSTEM);
           }
         }
         // add the remaining options (QUERY, SESSION) to the fragment option manager
@@ -252,6 +286,7 @@ public class FragmentExecutorBuilder {
             decimalFuncRegistry,
             namespace,
             fragmentOptions,
+            this,
             executorService,
             spillService,
             contextInfo,
@@ -259,7 +294,8 @@ public class FragmentExecutorBuilder {
             tunnelProvider,
             major.getAllAssignmentList(),
             cachedReader.getPlanFragmentsIndex().getEndpointsIndex(),
-            nodeEndpointProvider
+            nodeEndpointProvider,
+            major.getExtFragmentAssignmentsList()
           );
 
         final FragmentStatusReporter statusReporter = new FragmentStatusReporter(fragment.getHandle(), stats,

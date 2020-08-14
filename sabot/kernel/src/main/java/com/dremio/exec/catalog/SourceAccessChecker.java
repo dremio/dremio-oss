@@ -92,6 +92,11 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
+  public void validateSelection() {
+    delegate.validateSelection();
+  }
+
+  @Override
   public DremioTable getTableNoResolve(NamespaceKey key) {
     return getIfVisible(key, () -> delegate.getTableNoResolve(key));
   }

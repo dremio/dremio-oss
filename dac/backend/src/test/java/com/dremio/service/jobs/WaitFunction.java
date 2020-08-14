@@ -15,23 +15,29 @@
  */
 package com.dremio.service.jobs;
 
+import org.apache.arrow.vector.holders.IntHolder;
 import org.apache.arrow.vector.holders.NullableBigIntHolder;
+import org.apache.arrow.vector.holders.VarCharHolder;
 
 import com.dremio.exec.expr.SimpleFunction;
 import com.dremio.exec.expr.annotations.FunctionTemplate;
 import com.dremio.exec.expr.annotations.FunctionTemplate.NullHandling;
 import com.dremio.exec.expr.annotations.Output;
+import com.dremio.exec.expr.annotations.Param;
 
 /**
- * Function for testCancel. Allows running a job that waits for latch countdown.
+ * Function that waits for a latch.
  */
 public class WaitFunction {
 
   /**
    * Wait Function
    */
-  @FunctionTemplate(name = "wait", isDeterministic = false, nulls = NullHandling.NULL_IF_NULL)
+  @FunctionTemplate(name = "wait", scope = FunctionTemplate.FunctionScope.SIMPLE, isDeterministic = false, nulls = NullHandling.INTERNAL)
   public static class Wait implements SimpleFunction {
+
+    @Param private VarCharHolder key;
+    @Param private IntHolder timeout;
     @Output private NullableBigIntHolder out;
 
     @Override
@@ -40,12 +46,9 @@ public class WaitFunction {
 
     @Override
     public void eval() {
-      try {
-        com.dremio.service.jobs.TestJobService.getTestCancelLatch().await();
-        out.value = 0;
-      } catch (InterruptedException e) {
-        throw new RuntimeException(e);
-      }
+      final String stringKey = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(key.start, key.end, key.buffer);
+      com.dremio.service.jobs.TestJobService.TestingFunctionHelper.tryRun(stringKey, timeout.value, java.util.concurrent.TimeUnit.SECONDS);
+      out.value = 0;
     }
   }
 }

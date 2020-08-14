@@ -143,7 +143,11 @@ public final class WithOptionsTableMacro implements TableMacro {
 
       final Supplier<DatasetConfig> datasetConfig = Suppliers.memoize(
           () -> {
-            partitionChunks.get(); // to ensure partition chunks are populated
+            // Ensure partition chunks are populated by calling partitionChunks.get()
+            // and also calculate the record count from split information.
+            final long recordCountFromSplits = partitionChunks.get().stream()
+              .mapToLong(PartitionProtobuf.PartitionChunk::getRowCount)
+              .sum();
 
             DatasetConfig toReturn = MetadataObjectsUtils.newShallowConfig(handle);
             final DatasetMetadata datasetMetadata;
@@ -156,7 +160,7 @@ public final class WithOptionsTableMacro implements TableMacro {
             }
 
             MetadataObjectsUtils.overrideExtended(toReturn, datasetMetadata, Optional.empty(),
-                options.maxMetadataLeafColumns());
+                    recordCountFromSplits, options.maxMetadataLeafColumns());
             return toReturn;
           });
 

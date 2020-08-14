@@ -84,10 +84,8 @@ export class SpacesSection extends PureComponent {
 
     return (
       <div className='left-tree-wrap' style={{
-        ...FLEX_COL_START,
-        flex: '0 0 auto',
-        overflow: 'hidden', // for FF (no worries, subsection will scroll)
-        maxHeight: 'calc(61.8% - 50px)' // ~61.8% (golden ratio :P) of non-headers (doesn't need to be perfectly accurate)
+        minHeight: '160px',
+        maxHeight: 'calc(100vh - 605px)'
       }}>
         <SpacesLoader />
         <ViewStateWrapper viewState={spacesViewState} style={FLEX_COL_START}>

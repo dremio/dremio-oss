@@ -18,6 +18,7 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import Menu from '@app/components/Menus/Menu';
 import MenuItem from '@app/components/Menus/MenuItem';
+import { getIsInReadOnlyState } from '@app/pages/AdminPage/subpages/Provisioning/provisioningUtils';
 
 export class EngineActionMenu extends PureComponent {
   static propTypes = {
@@ -28,14 +29,6 @@ export class EngineActionMenu extends PureComponent {
     addRemoveHandler: PropTypes.func,
     showConfirmationDialog: PropTypes.func,
     closeMenu: PropTypes.func
-  };
-
-  getIsInReadOnlyState = () => {
-    const {engine} = this.props;
-    const currentState = engine.get('currentState');
-    return (currentState === 'STARTING'
-      || currentState === 'STOPPING'
-      || engine.get('desiredState') === 'DELETED');
   };
 
   handleEdit = () => {
@@ -56,7 +49,7 @@ export class EngineActionMenu extends PureComponent {
 
   render() {
     const { engine } = this.props;
-    const isReadOnly = this.getIsInReadOnlyState();
+    const isReadOnly = getIsInReadOnlyState(engine);
     const canEdit = !isReadOnly;
     const canDelete = true;
     const canAddRemove =  engine.get('clusterType') === 'YARN' && !isReadOnly;

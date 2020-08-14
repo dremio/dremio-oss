@@ -16,9 +16,6 @@
 
 package com.dremio.plugins.azure.utils;
 
-import static org.asynchttpclient.Dsl.asyncHttpClient;
-import static org.asynchttpclient.Dsl.config;
-
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.time.Instant;
@@ -26,33 +23,21 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.UUID;
 
-import javax.net.ssl.SSLException;
-
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.AsyncHttpClientConfig;
-import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.RequestBuilder;
-import org.asynchttpclient.netty.channel.DefaultChannelPool;
 import org.asynchttpclient.util.HttpConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.azure.core.util.DateTimeRfc1123;
 
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.util.HashedWheelTimer;
-
 /**
  * Prepares new instances of AsyncHttpClient
  */
 public final class AzureAsyncHttpClientUtils {
-  public static final int DEFAULT_REQUEST_TIMEOUT = 10_000;
   public static final String XMS_VERSION = "2019-07-07"; // represents version compatibility of the client.
 
   private static final Logger logger = LoggerFactory.getLogger(AzureAsyncHttpClientUtils.class);
-  private static final int DEFAULT_IDLE_TIME = 60_000;
-  private static final int DEFAULT_CLEANER_PERIOD = 1_000;
-  private static final int MAX_RETRIES = 4;
+
   private static final String AZURE_ENDPOINT = "dfs.core.windows.net";
   private static final String USER_AGENT_VAL = String.format("azsdk-java-azure-storage-blob/12.4.0 (%s; %s %s)",
     System.getProperty("java.version"),
@@ -61,29 +46,6 @@ public final class AzureAsyncHttpClientUtils {
 
   private AzureAsyncHttpClientUtils() {
     // Not to be instantiated.
-  }
-
-  public static AsyncHttpClient newClient(final String accountName,
-                                          final boolean isSecure,
-                                          final HashedWheelTimer poolTimer) {
-    final DefaultAsyncHttpClientConfig.Builder configBuilder = config()
-      // TODO: Confirm a new thread pool is not getting created everytime
-      .setThreadPoolName(accountName + "-azurestorage-async-client")
-      .setChannelPool(new DefaultChannelPool(DEFAULT_IDLE_TIME, -1, poolTimer, DEFAULT_CLEANER_PERIOD))
-      .setRequestTimeout(DEFAULT_REQUEST_TIMEOUT)
-      .setResponseBodyPartFactory(AsyncHttpClientConfig.ResponseBodyPartFactory.LAZY)
-      .setMaxRequestRetry(MAX_RETRIES);
-
-    try {
-      if (isSecure) {
-        configBuilder.setSslContext(SslContextBuilder.forClient().build());
-      }
-    } catch (SSLException e) {
-      logger.error("Error while setting ssl context in Async Client", e);
-    }
-
-    poolTimer.start();
-    return asyncHttpClient(configBuilder.build());
   }
 
   public static String getBaseEndpointURL(final String accountName, final boolean isSecure) {

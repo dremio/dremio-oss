@@ -17,7 +17,8 @@ import Immutable from 'immutable';
 
 import {
   getImmutableTable,
-  getNewDatasetFromState
+  getNewDatasetFromState,
+  getIntialDatasetFromState
 } from './explore';
 
 const emptyTable = Immutable.fromJS({
@@ -100,6 +101,29 @@ describe('explore selectors', () => {
         expect(contextResult).to.deep.eql([space, folder]);
       });
 
+    });
+
+    describe('getIntialDatasetFromState', () => {
+      it('Should parse resouce and table id properly.', () => {
+        // test data is taken from the bug // DX-12354
+        const space = '@dremio.test';
+        const folder = '"systr.dataset"';
+        const pathname = `/home/${space}/${folder}`;
+        const query = {
+          mode: 'edit',
+          version: '1'
+        };
+        const location = {
+          pathname,
+          query
+        };
+        const state = {routing: {locationBeforeTransitions: location}};
+
+        const dataset = getIntialDatasetFromState(state);
+        const apiLinks = dataset.get('apiLinks').toJS();
+        const resourceURL = [space, folder].map((a) => encodeURIComponent(`"${a.replace(/"/g, '')}"`));
+        expect(apiLinks.self).to.deep.eql(`/dataset/${resourceURL.join('.')}/version/${query.version}`);
+      });
     });
   });
 });

@@ -29,12 +29,10 @@ import com.dremio.service.Service;
 import com.dremio.service.conduit.client.ConduitProvider;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.service.job.ChronicleGrpc;
-import com.dremio.service.job.ChronicleGrpc.ChronicleBlockingStub;
 import com.dremio.service.job.JobsServiceGrpc;
-import com.dremio.service.job.JobsServiceGrpc.JobsServiceBlockingStub;
-import com.dremio.service.job.JobsServiceGrpc.JobsServiceStub;
 
 import io.grpc.ManagedChannel;
+
 
 /**
  * Client that maintains the lifecycle of a channel over which job RPC requests are made to the jobs service. After the
@@ -49,12 +47,8 @@ public class JobsClient implements Service {
   private final Provider<Integer> portProvider;
   private final ConduitProvider conduitProvider;
   private final Provider<CoordinationProtos.NodeEndpoint> selfEndpoint;
-
-  private ManagedChannel channel;
-  private JobsServiceBlockingStub blockingStub;
-  private JobsServiceStub asyncStub;
-  private ChronicleBlockingStub chronicleBlockingStub;
   private FlightClient flightClient;
+  private volatile ManagedChannel prevChannel;
 
   JobsClient(GrpcChannelBuilderFactory grpcFactory, Provider<BufferAllocator> allocator,
              Provider<Integer> portProvider, final Provider<CoordinationProtos.NodeEndpoint> selfEndpoint,
@@ -64,25 +58,19 @@ public class JobsClient implements Service {
     this.portProvider = portProvider;
     this.selfEndpoint = selfEndpoint;
     this.conduitProvider = conduitProvider;
+    this.flightClient = null;
+    this.prevChannel = null;
   }
 
   @Override
-  public void start() {
-    channel = this.conduitProvider.getOrCreateChannel(selfEndpoint.get());
-    blockingStub = JobsServiceGrpc.newBlockingStub(channel);
-    asyncStub = JobsServiceGrpc.newStub(channel);
-    flightClient = FlightGrpcUtils.createFlightClient(allocator, channel);
-    chronicleBlockingStub = ChronicleGrpc.newBlockingStub(channel);
-
-    logger.info("Job channel created to authority '{}'", channel.authority());
-  }
+  public void start() { }
 
 
   @Override
   public void close() throws Exception {
     AutoCloseables.close(flightClient, allocator);
-    if (channel != null) {
-      channel.shutdown();
+    if (prevChannel != null) {
+      prevChannel.shutdown();
     }
   }
 
@@ -92,7 +80,7 @@ public class JobsClient implements Service {
    * @return blocking stub
    */
   public JobsServiceGrpc.JobsServiceBlockingStub getBlockingStub() {
-    return blockingStub;
+    return JobsServiceGrpc.newBlockingStub(conduitProvider.getOrCreateChannel(selfEndpoint.get()));
   }
 
   /**
@@ -101,7 +89,7 @@ public class JobsClient implements Service {
    * @return async stub
    */
   public JobsServiceGrpc.JobsServiceStub getAsyncStub() {
-    return asyncStub;
+    return JobsServiceGrpc.newStub(conduitProvider.getOrCreateChannel(selfEndpoint.get()));
   }
 
   /**
@@ -109,7 +97,13 @@ public class JobsClient implements Service {
    *
    * @return Flight Client
    */
-  public FlightClient getFlightClient() {
+  public synchronized FlightClient getFlightClient() {
+    final ManagedChannel curChannel = conduitProvider.getOrCreateChannel(selfEndpoint.get());
+    if (prevChannel != curChannel) { // channel has since changed
+      AutoCloseables.closeNoChecked(flightClient);
+      prevChannel = curChannel;
+      flightClient = FlightGrpcUtils.createFlightClient(allocator, prevChannel);
+    }
     return flightClient;
   }
 
@@ -118,6 +112,6 @@ public class JobsClient implements Service {
    * @return blocking stub
    */
   public ChronicleGrpc.ChronicleBlockingStub getChronicleBlockingStub() {
-    return chronicleBlockingStub;
+    return ChronicleGrpc.newBlockingStub(conduitProvider.getOrCreateChannel(selfEndpoint.get()));
   }
 }

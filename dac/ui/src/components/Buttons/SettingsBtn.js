@@ -94,7 +94,7 @@ export default class SettingsBtn extends Component {
           {children}
           {hasDropdown && !hideArrowIcon && <FontIcon
             type='Arrow-Down-Small'
-            theme={{Icon: {width: 12, backgroundPosition: '-7px 50%'}}}
+            theme={{Icon: {width: 12, backgroundPosition: '-7px 2px'}}}
           />}
         </button>
         {hasDropdown && <Popover

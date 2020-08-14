@@ -58,6 +58,8 @@ public class CatalogItem {
   private final ContainerSubType containerType;
   private final CollaborationTag tags;
   private final CatalogItemStats stats;
+  @JsonISODateTime
+  private final Long createdAt;
 
   @JsonCreator
   protected CatalogItem(
@@ -68,7 +70,8 @@ public class CatalogItem {
     @JsonProperty("datasetType") DatasetSubType datasetType,
     @JsonProperty("containerType") ContainerSubType containerType,
     @JsonProperty("tags") CollaborationTag tags,
-    @JsonProperty("stats") CatalogItemStats stats) {
+    @JsonProperty("stats") CatalogItemStats stats,
+    @JsonProperty("createdAt") Long createdAt) {
     this.id = id;
     this.path = path;
     this.type = type;
@@ -77,6 +80,7 @@ public class CatalogItem {
     this.containerType = containerType;
     this.tags = tags;
     this.stats = stats;
+    this.createdAt = createdAt;
   }
 
   private static CatalogItem fromSourceConfig(SourceConfig sourceConfig, CollaborationTag tags) {
@@ -87,6 +91,7 @@ public class CatalogItem {
       .setType(CatalogItemType.CONTAINER)
       .setContainerType(ContainerSubType.SOURCE)
       .setTags(tags)
+      .setCreatedAt(sourceConfig.getCtime())
       .build();
   }
 
@@ -101,6 +106,7 @@ public class CatalogItem {
       .setTag(String.valueOf(homeConfig.getTag()))
       .setType(CatalogItemType.CONTAINER)
       .setContainerType(ContainerSubType.HOME)
+      .setCreatedAt(homeConfig.getCtime())
       .build();
   }
 
@@ -112,6 +118,7 @@ public class CatalogItem {
       .setType(CatalogItemType.CONTAINER)
       .setContainerType(ContainerSubType.SPACE)
       .setTags(tags)
+      .setCreatedAt(spaceConfig.getCtime())
       .build();
   }
 
@@ -135,6 +142,7 @@ public class CatalogItem {
       .setType(CatalogItemType.DATASET)
       .setDatasetType(datasetType)
       .setTags(tags)
+      .setCreatedAt(datasetConfig.getCreatedAt())
       .build();
   }
 
@@ -179,6 +187,8 @@ public class CatalogItem {
   public CatalogItemStats getStats() {
     return stats;
   }
+
+  public Long getCreatedAt() { return createdAt; }
 
   public static Optional<CatalogItem> fromNamespaceContainer(NameSpaceContainer container) {
     return fromNamespaceContainer(container, null);
@@ -229,6 +239,7 @@ public class CatalogItem {
       ", tag='" + tag + '\'' +
       ", datasetType=" + datasetType +
       ", containerType=" + containerType +
+      ", createdAt=" + createdAt +
       '}';
   }
 
@@ -245,6 +256,7 @@ public class CatalogItem {
     private CollaborationTag tags;
     private Integer datasetCount;
     private boolean datasetCountBounded;
+    private Long createdAt;
 
     public Builder() {
 
@@ -259,7 +271,8 @@ public class CatalogItem {
         .setType(item.getType())
         .setDatasetType(item.getDatasetType())
         .setContainerType(item.getContainerType())
-        .setTags(item.getTags());
+        .setTags(item.getTags())
+        .setCreatedAt(item.getCreatedAt());
 
       if (stats != null) {
         this
@@ -313,9 +326,15 @@ public class CatalogItem {
       return this;
     }
 
+    public Builder setCreatedAt(Long time) {
+      this.createdAt = time;
+      return this;
+    }
+
+
     public CatalogItem build() {
       return new CatalogItem(id, path, tag, type, datasetType, containerType, tags,
-        getStats());
+        getStats(), createdAt);
     }
 
     public String getId() {
@@ -352,5 +371,6 @@ public class CatalogItem {
       }
       return new CatalogItemStats(datasetCount, datasetCountBounded);
     }
+    public Long getCreatedAt() { return createdAt; }
   }
 }

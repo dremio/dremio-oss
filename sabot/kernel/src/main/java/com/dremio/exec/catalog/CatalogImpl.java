@@ -23,6 +23,9 @@ import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
@@ -42,8 +45,10 @@ import com.dremio.datastore.api.LegacyIndexedStore.LegacyFindByCondition;
 import com.dremio.exec.dotfile.View;
 import com.dremio.exec.physical.base.WriterOptions;
 import com.dremio.exec.planner.logical.CreateTableEntry;
+import com.dremio.exec.planner.logical.ViewTable;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.DatasetRetrievalOptions;
+import com.dremio.exec.store.NamespaceTable;
 import com.dremio.exec.store.PartitionNotFoundException;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.dfs.FileSystemPlugin;
@@ -65,6 +70,7 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetField;
+import com.dremio.service.namespace.dataset.proto.ParentDataset;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -100,6 +106,9 @@ public class CatalogImpl implements Catalog {
   private final DatasetManager datasets;
   private final InformationSchemaCatalog iscDelegate;
 
+  private final Set<String> selectedSources;
+  private final boolean crossSourceSelectDisable;
+
   CatalogImpl(
       MetadataRequestOptions options,
       PluginRetriever pluginRetriever,
@@ -125,6 +134,9 @@ public class CatalogImpl implements Catalog {
 
     this.datasets = new DatasetManager(pluginRetriever, userNamespaceService, optionManager);
     this.iscDelegate = new InformationSchemaCatalogImpl(userNamespaceService);
+
+    this.selectedSources = ConcurrentHashMap.newKeySet();
+    this.crossSourceSelectDisable = optionManager.getOption(CatalogOptions.DISABLE_CROSS_SOURCE_SELECT);
   }
 
   @Override
@@ -138,13 +150,22 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
-  public DremioTable getTableNoResolve(NamespaceKey key) {
-    return datasets.getTable(key, options, false);
+  public DremioTable getTableNoResolve(NamespaceKey key)
+  {
+    final DremioTable t = datasets.getTable(key, options, false);
+    if (t != null) {
+      addUniqueSource(t);
+    }
+    return t;
   }
 
   @Override
   public DremioTable getTableNoColumnCount(NamespaceKey key) {
-    return datasets.getTable(key, options, true);
+    final DremioTable t = datasets.getTable(key, options, true);
+    if (t != null) {
+      addUniqueSource(t);
+    }
+    return t;
   }
 
   @Override
@@ -153,16 +174,76 @@ public class CatalogImpl implements Catalog {
     if (resolved != null) {
       final DremioTable t = datasets.getTable(resolved, options, false);
       if (t != null) {
+        addUniqueSource(t);
         return t;
       }
     }
-
-    return datasets.getTable(key, options, false);
+    final DremioTable t = datasets.getTable(key, options, false);
+    if (t != null) {
+      addUniqueSource(t);
+    }
+    return t;
   }
 
   @Override
   public DremioTable getTable(String datasetId) {
-    return datasets.getTable(datasetId, options);
+    final DremioTable t = datasets.getTable(datasetId, options);
+    if (t != null) {
+      addUniqueSource(t);
+    }
+    return t;
+  }
+
+  private void addUniqueSource(DremioTable t) {
+    if (!crossSourceSelectDisable) {
+      return;
+    }
+    if (t instanceof NamespaceTable) {
+      selectedSources.add(((NamespaceTable) t).getDatasetConfig().getFullPathList().get(0));
+    }
+    else if (t instanceof ViewTable) {
+      DatasetConfig ds = ((ViewTable) t).getDatasetConfig();
+      if (ds != null) {
+        expandSourceCheckParent(ds.getVirtualDataset().getParentsList());
+        expandSourceCheckParent(ds.getVirtualDataset().getGrandParentsList());
+      }
+    }
+  }
+
+  private void expandSourceCheckParent(List<ParentDataset> ps) {
+    if (ps != null) {
+      for (ParentDataset pd : ps) {
+        final String srcName = pd.getDatasetPathList().get(0);
+        final ManagedStoragePlugin plugin = pluginRetriever.getPlugin(srcName, false);
+        if (plugin != null) {
+          selectedSources.add(srcName);
+        }
+      }
+    }
+  }
+
+  @Override
+  public void validateSelection() {
+    if ((this.crossSourceSelectDisable) && (selectedSources.size() > 1)) {
+      final List<String> disallowedSources = new ArrayList<>();
+      for (String s : selectedSources) {
+        if (("sys".equalsIgnoreCase(s)) || ("INFORMATION_SCHEMA".equalsIgnoreCase(s))) {
+          continue;
+        }
+        final ManagedStoragePlugin plugin = pluginRetriever.getPlugin(s, false);
+        if (!plugin.getConfig().getAllowCrossSourceSelection()) {
+          disallowedSources.add(s);
+        }
+      }
+      if (disallowedSources.size() > 1) {
+        Collections.sort(disallowedSources);
+        final String str = disallowedSources.stream()
+          .collect(Collectors.joining("', '", "Cross select is disabled between sources '", "'."));
+        throw UserException.validationError()
+          .message(str)
+          .buildSilently();
+      }
+    }
   }
 
   @Override

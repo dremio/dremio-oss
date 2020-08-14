@@ -51,7 +51,9 @@ import com.dremio.dac.annotations.RestResource;
 import com.dremio.dac.annotations.Secured;
 import com.dremio.provision.AwsProps;
 import com.dremio.provision.AwsProps.AwsConnectionProps;
+import com.dremio.provision.AwsProps.AwsTag;
 import com.dremio.provision.AwsPropsApi.AwsConnectionPropsApi;
+import com.dremio.provision.AwsPropsApi.AwsTagApi;
 import com.dremio.provision.Cluster;
 import com.dremio.provision.ClusterConfig;
 import com.dremio.provision.ClusterCreateRequest;
@@ -67,6 +69,7 @@ import com.dremio.provision.ClusterType;
 import com.dremio.provision.DynamicConfig;
 import com.dremio.provision.ImmutableAwsConnectionPropsApi;
 import com.dremio.provision.ImmutableAwsPropsApi;
+import com.dremio.provision.ImmutableAwsTagApi;
 import com.dremio.provision.ImmutableClusterResponse;
 import com.dremio.provision.ImmutableYarnPropsApi;
 import com.dremio.provision.Property;
@@ -98,6 +101,11 @@ public class ProvisioningResource {
       @Override
       protected AwsConnectionPropsApi convert(AwsConnectionProps source) {
         return MODEL_MAPPER.map(source, ImmutableAwsConnectionPropsApi.Builder.class).build();
+      }});
+    MODEL_MAPPER.addConverter(new AbstractConverter<AwsTag, AwsTagApi>(){
+      @Override
+      protected AwsTagApi convert(AwsTag source) {
+        return MODEL_MAPPER.map(source, ImmutableAwsTagApi.Builder.class).build();
       }});
     MODEL_MAPPER.getConfiguration().setMatchingStrategy(MatchingStrategies.LOOSE).setSkipNullEnabled(true);
   }

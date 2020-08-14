@@ -63,5 +63,6 @@ export default { // defaults, and defaults for unit tests
     powerbi: { enabled: true },
     qlik: { enabled: false }
   },
+  crossSourceDisabled: false,
   ...((window && window.dremioConfig) || {})
 };

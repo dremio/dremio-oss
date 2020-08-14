@@ -18,13 +18,13 @@
 .button-base {
   position: relative;
   display: flex;
-  margin: 10px 10px 10px 0;
+  margin: 0 10px 10px 0;
   border: 1px solid @COLLABORATION_BORDER;
   border-radius: 2px;
-  width: 230px;
+  width: 100%;
   background-color: white;
   align-content: center;
-  padding: 4px 10px;
+  padding: 8px 10px;
 }
 .button-disabled {
   opacity: 0.5;
@@ -37,7 +37,7 @@
 }
 .connection-label {
   font-size: 14px;
-  height: 60px;
+  line-height: 40px;
   display: flex;
   flex: 1;
   align-items: center;
@@ -50,12 +50,12 @@
   font-weight: 500;
   height: 16px;
   position: absolute;
-  left: 50%;
-  bottom: 0;
-  transform: translate(-50%, 50%);
+  right: 10px;
+  bottom: 20px;
   padding: 3px 5px;
   border-radius: 8px;
   text-transform: uppercase;
+  line-height: 11px;
 }
 .pill-beta {
   background: @font-color2;

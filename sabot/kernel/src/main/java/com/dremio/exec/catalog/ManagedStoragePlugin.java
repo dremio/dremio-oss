@@ -179,7 +179,8 @@ public class ManagedStoragePlugin implements AutoCloseable {
     return AutoCloseableLock.lockAndWrap(readLock, true);
   }
 
-  private AutoCloseableLock writeLock() {
+  @VisibleForTesting
+  protected AutoCloseableLock writeLock() {
     return AutoCloseableLock.lockAndWrap(writeLock, true);
   }
 
@@ -614,7 +615,10 @@ public class ManagedStoragePlugin implements AutoCloseable {
       if (oldDatasetMetadata == newDatasetMetadata) {
         changed = false;
       } else {
-        MetadataObjectsUtils.overrideExtended(datasetConfig, newDatasetMetadata, Optional.empty(), getMaxMetadataColumns());
+        Preconditions.checkState(newDatasetMetadata.getDatasetStats().getRecordCount() >= 0,
+          "Record count should already be filled in when altering dataset metadata.");
+        MetadataObjectsUtils.overrideExtended(datasetConfig, newDatasetMetadata, Optional.empty(),
+                newDatasetMetadata.getDatasetStats().getRecordCount(), getMaxMetadataColumns());
         systemUserNamespaceService.addOrUpdateDataset(key, datasetConfig);
         refreshDataset(key, getDefaultRetrievalOptions());
         changed = true;

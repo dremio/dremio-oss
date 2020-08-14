@@ -42,7 +42,9 @@ import { tableStyles } from '../../tableStyles';
 export default class AllSourcesView extends Component {
   static propTypes = {
     sources: PropTypes.object,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
+    title: PropTypes.string.isRequired,
+    isExternalSource: PropTypes.bool
   }
 
   static contextTypes = {
@@ -51,7 +53,7 @@ export default class AllSourcesView extends Component {
   }
 
   getTableData() {
-    const [ name, created, action ] = this.getTableColumns();
+    const [ name, datasets, created, action ] = this.getTableColumns();
     return this.props.sources.toList().sort((a, b) => b.get('isActivePin') - a.get('isActivePin')).map((item) => {
       const icon = <FontIcon type={getIconStatusDatabase(item.getIn(['state', 'status']))}/>;
       return { // todo: loc
@@ -73,6 +75,9 @@ export default class AllSourcesView extends Component {
               const inactivePrefix = sortDirection === SortDirection.ASC ? 'z' : 'a';
               return (item.get('isActivePin') ? activePrefix : inactivePrefix) + item.get('name');
             }
+          },
+          [datasets.key]: {
+            node: () => item.get('numberOfDatasets')
           },
           [created.key]: {
             node: () => moment(item.get('ctime')).format('MM/DD/YYYY'),
@@ -98,6 +103,7 @@ export default class AllSourcesView extends Component {
     const { intl } = this.props;
     return [
       { key: 'name', label: intl.formatMessage({ id: 'Common.Name' }), flexGrow: 1 },
+      { key: 'datasets', label: intl.formatMessage({ id: 'Common.Datasets' }) },
       { key: 'created', label: intl.formatMessage({ id: 'Common.Created' }) },
       {
         key: 'action',
@@ -110,23 +116,24 @@ export default class AllSourcesView extends Component {
   }
 
   renderAddButton() {
+    const { isExternalSource } = this.props;
     return (
       this.context.loggedInUser.admin && <LinkButton
         buttonStyle='primary'
-        to={{ ...this.context.location, state: { modal: 'AddSourceModal' }}}
+        to={{ ...this.context.location, state: { modal: 'AddSourceModal', isExternalSource }}}
         style={allSpacesAndAllSources.addButton}>
-        {this.props.intl.formatMessage({ id: 'Source.AddSource' })}
+        {this.props.intl.formatMessage({ id: isExternalSource ? 'Source.AddExternalSource' : 'Source.AddDataLake' })}
       </LinkButton>
     );
   }
 
 
   render() {
-    const { intl, sources } = this.props;
+    const { sources, title } = this.props;
     const totalItems = sources.size;
     return (
       <BrowseTable
-        title={`${intl.formatMessage({ id: 'Source.AllSources' })} (${totalItems})`}
+        title={`${title} (${totalItems})`}
         tableData={this.getTableData()}
         columns={this.getTableColumns()}
         buttons={this.renderAddButton()}

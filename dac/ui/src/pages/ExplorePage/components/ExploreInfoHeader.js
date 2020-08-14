@@ -61,7 +61,6 @@ import Art from '@app/components/Art';
 import { getIconDataTypeFromDatasetType } from 'utils/iconUtils';
 
 import { PALE_NAVY } from 'uiTheme/radium/colors';
-import { formLabel } from 'uiTheme/radium/typography';
 import { getHistory, getTableColumns, getExploreState } from 'selectors/explore';
 
 import './ExploreInfoHeader.less';
@@ -311,7 +310,7 @@ export class ExploreInfoHeader extends PureComponent {
       <DatasetItemLabel
         customNode={ // todo: string replace loc
           <div className='flexbox-truncate-text-fix'>
-            <div style={{...style.dbName, ...formLabel}} data-qa={nameForDisplay}>
+            <div style={{...style.dbName}} data-qa={nameForDisplay}>
               <EllipsedText style={nameStyle} text={`${nameForDisplay}${isEditedDataset ? edited : ''}`}>
                 <span>{nameForDisplay}</span>
                 <span data-qa='dataset-edited'>{isEditedDataset ? edited : ''}</span>
@@ -408,7 +407,7 @@ export class ExploreInfoHeader extends PureComponent {
     return (
       <Fragment>
         {showPowerBI && this.renderAnalyzeButton(la('Power BI'), 'PowerBi.svg', this.openPowerBi, 24)}
-        {showTableau && this.renderAnalyzeButton(la('Tableau'), 'Tableau.svg', this.openTableau, 20)}
+        {showTableau && this.renderAnalyzeButton(la('Tableau'), 'Tableau.svg', this.openTableau, 19)}
       </Fragment>
     );
   };
@@ -583,7 +582,9 @@ const style = {
   dbName: {
     maxWidth: 300,
     display: 'flex',
-    alignItems: 'center'
+    alignItems: 'center',
+    color: '#333',
+    fontWeight: 500
   },
   pullout: {
     backgroundColor: 'transparent',
@@ -638,6 +639,7 @@ const style = {
   icon: {
     width: 20,
     height: 20,
-    marginTop: 3
+    display: 'flex',
+    margin: '0 auto'
   }
 };

@@ -54,4 +54,9 @@ public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplore
    * @return A new schema with the same user but with the newly provided default schema.
    */
   T resolveCatalog(NamespaceKey newDefaultSchema);
+
+  /**
+   * Validate if there is a violation of cross source selection
+   */
+  void validateSelection();
 }

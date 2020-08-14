@@ -58,5 +58,4 @@ public interface JobData extends AutoCloseable {
    * @return
    */
   String getJobResultsTable();
-
 }

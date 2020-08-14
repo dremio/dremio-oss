@@ -113,4 +113,8 @@ public interface OptionManager extends Iterable<OptionValue> {
    * @return the OptionValidatorProvider
    */
   OptionValidatorListing getOptionValidatorListing();
+
+  default void addOptionChangeListener(OptionChangeListener optionChangeListener) throws UnsupportedOperationException {
+    throw new UnsupportedOperationException("Adding option change listener not supported");
+  }
 }

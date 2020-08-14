@@ -53,14 +53,16 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
   private final ParquetScanFilter filter;
   private final List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns;
   private final RelDataType cachedRelDataType;
+  private final boolean arrowCachingEnabled;
 
   public ParquetScanPrel(RelOptCluster cluster, RelTraitSet traitSet, RelOptTable table, StoragePluginId pluginId,
                          TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
-                         ParquetScanFilter filter) {
+                         ParquetScanFilter filter, boolean arrowCachingEnabled) {
     super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
     this.filter = filter;
     this.globalDictionaryEncodedColumns = null;
     this.cachedRelDataType = null;
+    this.arrowCachingEnabled = arrowCachingEnabled;
   }
 
   // Clone used for copy
@@ -68,7 +70,7 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
                           TableMetadata dataset, List<SchemaPath> projectedColumns, double observedRowcountAdjustment,
                           ParquetScanFilter filter,
                           List<GlobalDictionaryFieldInfo> globalDictionaryEncodedColumns,
-                          RelDataType relDataType) {
+                          RelDataType relDataType, boolean arrowCachingEnabled) {
     super(cluster, traitSet, table, pluginId, dataset, projectedColumns, observedRowcountAdjustment);
     this.filter = filter;
     this.globalDictionaryEncodedColumns = globalDictionaryEncodedColumns;
@@ -76,6 +78,7 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
     if (relDataType != null) {
       rowType = relDataType;
     }
+    this.arrowCachingEnabled = arrowCachingEnabled;
   }
 
   // Clone used for global dictionary and new row type
@@ -90,6 +93,7 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
     if (relDataType != null) {
       rowType = relDataType;
     }
+    this.arrowCachingEnabled = that.isArrowCachingEnabled();
   }
 
   @Override
@@ -118,18 +122,19 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
         getProjectedColumns(),
         filter,
         globalDictionaryEncodedColumns,
-        cachedRelDataType);
+        cachedRelDataType,
+      arrowCachingEnabled);
   }
 
   @Override
   public ParquetScanPrel cloneWithProject(List<SchemaPath> projection) {
-    return new ParquetScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection, observedRowcountAdjustment, filter);
+    return new ParquetScanPrel(getCluster(), getTraitSet(), table, pluginId, tableMetadata, projection, observedRowcountAdjustment, filter, arrowCachingEnabled);
   }
 
   @Override
   public ParquetScanPrel applyDatasetPointer(TableMetadata newDatasetPointer) {
     return new ParquetScanPrel(getCluster(), traitSet, getTable(), pluginId, newDatasetPointer, getProjectedColumns(),
-        observedRowcountAdjustment, filter, globalDictionaryEncodedColumns, cachedRelDataType);
+        observedRowcountAdjustment, filter, globalDictionaryEncodedColumns, cachedRelDataType, arrowCachingEnabled);
   }
 
   @Override
@@ -170,7 +175,7 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new ParquetScanPrel(getCluster(), traitSet, getTable(), pluginId, tableMetadata, getProjectedColumns(),
-        observedRowcountAdjustment, filter, globalDictionaryEncodedColumns, cachedRelDataType);
+        observedRowcountAdjustment, filter, globalDictionaryEncodedColumns, cachedRelDataType, arrowCachingEnabled);
   }
 
   @Override
@@ -194,4 +199,7 @@ public class ParquetScanPrel extends ScanPrelBase implements PruneableScan {
     return new ParquetScanPrel(this, observedRowcountAdjustment, globalDictionaryEncodedColumns, relDataType);
   }
 
+  public boolean isArrowCachingEnabled() {
+    return arrowCachingEnabled;
+  }
 }

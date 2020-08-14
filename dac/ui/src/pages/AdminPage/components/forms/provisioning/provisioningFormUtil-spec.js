@@ -17,7 +17,13 @@ import Immutable from 'immutable';
 
 // import {AWS_INSTANCE_TYPE_OPTIONS} from '@app/constants/provisioningPage/ec2FormConstants';
 // import { isEditMode, isRestartRequired, addPropsForSave, getInstanceTypeValue } from './provisioningFormUtil';
-import { isRestartRequired, addPropsForSave, getInstanceTypeValue } from './provisioningFormUtil';
+import {
+  isRestartRequired,
+  addPropsForSave,
+  getInstanceTypeValue,
+  preparePropertyListFieldForSave,
+  getInitPropListValue
+} from './provisioningFormUtil';
 
 
 describe('#isRestartRequired', () => {
@@ -56,6 +62,44 @@ describe('#getInstanceTypeValue', () => {
   it('returns value for valid label', () => {
     expect(getInstanceTypeValue('Standard m5d.8xlarge (32c/128gb)')).to.equal('m5d.8xlarge');
     expect(getInstanceTypeValue('High Memory r5d.4xlarge (16c/128gb)')).to.equal('r5d.4xlarge');
+  });
+});
+
+describe('#preparePropertyListFieldForSave', () => {
+  it('returns empty array by default', () => {
+    expect(preparePropertyListFieldForSave({})).to.eql({ awsTags: [] });
+  });
+  it('returns key-value pairs for tags', () => {
+    const values = {
+      awsTags: [
+        {id: 1, name: 'a', value: 'A'},
+        {id: 2, name: 'b', value: 'B'}
+      ]
+    };
+    const expected = {
+      awsTags: [
+        { key: 'a', value: 'A' },
+        { key: 'b', value: 'B' }
+      ]
+    };
+    expect(preparePropertyListFieldForSave(values)).to.eql(expected);
+  });
+});
+
+describe('#getInitPropListValue', () => {
+  it('returns empty array by default', () => {
+    expect(getInitPropListValue(Immutable.fromJS({}), 'awsTags')).to.eql([]);
+  });
+  it('prepares init value for property list', () => {
+    const provision = Immutable.fromJS({awsProps: {awsTags: [
+      {key: 'a', value: 'A'},
+      {key: 'b', value: 'B'}
+    ]}});
+    const expected = [
+      {id: 0, name: 'a', value: 'A'},
+      {id: 1, name: 'b', value: 'B'}
+    ];
+    expect(getInitPropListValue(provision, 'awsTags')).to.eql(expected);
   });
 });
 

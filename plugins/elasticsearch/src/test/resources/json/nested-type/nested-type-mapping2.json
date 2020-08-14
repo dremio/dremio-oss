@@ -3,6 +3,10 @@
         "properties" : {
             "id" : { "type" : "integer" },
             "username" : { "type" : "text" },
+            "creationDate" : {
+                "type" : "date",
+                "format" : "yyyyMMdd'T'HHmmss.SSSZ"
+            },
             "address" : {
                 "type" : "nested",
                 "properties" : {
@@ -10,6 +14,10 @@
                     "state"  : { "type" : "text" },
                     "zip"    : { "type" : "integer" },
                     "street" : { "type" : "keyword" },
+                    "creationDate" : {
+                        "type" : "date",
+                        "format" : "yyyyMMdd'T'HHmmss.SSSZ"
+                    },
                     "phones" : {
                         "type" : "nested",
                         "properties" : {

@@ -23,6 +23,7 @@ import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionValidator;
 import com.dremio.options.Options;
 import com.dremio.options.TypeValidators;
+import com.dremio.options.TypeValidators.AdminBooleanValidator;
 import com.dremio.options.TypeValidators.BooleanValidator;
 import com.dremio.options.TypeValidators.DoubleValidator;
 import com.dremio.options.TypeValidators.EnumValidator;
@@ -355,6 +356,7 @@ public interface ExecConstants {
       new StringValidator(NEW_VIEW_DEFAULT_PERMS_KEY, "700");
 
   BooleanValidator DEBUG_QUERY_PROFILE = new BooleanValidator("dremio.profile.debug_columns", false);
+  BooleanValidator SCAN_COMPUTE_LOCALITY = new BooleanValidator("exec.operator.scan.compute_locality", true);
 
   PositiveLongValidator LAYOUT_REFRESH_MAX_ATTEMPTS = new PositiveLongValidator("layout.refresh.max.attempts", Integer.MAX_VALUE, 3);
 
@@ -418,6 +420,13 @@ public interface ExecConstants {
   PositiveLongValidator LAST_SEARCH_REINDEX  = new PositiveLongValidator("dac.search.last_reindex",  Long.MAX_VALUE, 0);
   PositiveLongValidator SEARCH_MANAGER_REFRESH_MILLIS  = new PositiveLongValidator("dac.search.refresh",  Long.MAX_VALUE, TimeUnit.MINUTES.toMillis(1));
 
+  // this option sets the frequency of task leader refresh for the executor selectors
+  PositiveLongValidator EXEC_SELECTOR_TASK_LEADER_REFRESH_MILLIS  = new PositiveLongValidator("exec.selection.refresh",  Long.MAX_VALUE, TimeUnit.MINUTES.toMillis(1));
+
+  TypeValidators.PositiveLongValidator EXEC_SELECTOR_RELEASE_LEADERSHIP_MS =
+    new TypeValidators.PositiveLongValidator("exec.selection.leadership.ms", Long.MAX_VALUE, TimeUnit.HOURS
+      .toMillis(12));
+
   //this option sets the capacity of an ArrowBuf in SlicedBufferManager from which various buffers may be sliced.
   PowerOfTwoLongValidator BUF_MANAGER_CAPACITY = new PowerOfTwoLongValidator("exec.sliced_bufmgr.capacity", 1 << 24, 1 << 16);
 
@@ -441,7 +450,7 @@ public interface ExecConstants {
   BooleanValidator TRIM_ROWGROUPS_FROM_FOOTER = new BooleanValidator("exec.parquet.memory.trim_rowgroups", true);
   BooleanValidator TRIM_COLUMNS_FROM_ROW_GROUP = new BooleanValidator("exec.parquet.memory.trim_columns", true);
 
-  BooleanValidator ENABLE_HEAP_MONITORING = new BooleanValidator("exec.heap.monitoring.enable", true);
+  AdminBooleanValidator ENABLE_HEAP_MONITORING = new AdminBooleanValidator("exec.heap.monitoring.enable", true);
   RangeLongValidator HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE = new RangeLongValidator("exec.heap.monitoring.thresh.percentage", 50, 100, 85);
 
   BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", false);
@@ -462,9 +471,16 @@ public interface ExecConstants {
 
   DoubleValidator EXPR_COMPLEXITY_NO_OPTIMIZE_THRESHOLD = new DoubleValidator("exec.expression.complexity.no_optimize.threshold", 2000.00);
 
-  BooleanValidator PARQUET_SCAN_AS_BOOST = new BooleanValidator("parquet.scan.substitute_with_boost", false);
+  BooleanValidator ENABLE_BOOSTING = new BooleanValidator("exec.storage.enable_arrow_caching", true);
+  BooleanValidator ENABLE_BOOST_FILTERING_READER = new BooleanValidator("exec.storage.enable_arrow_filtering_reader", true);
+  BooleanValidator ENABLE_BOOST_DELTA_READER = new BooleanValidator("exec.storage.enable_arrow_delta_reader", true);
 
   // hive parallelism and timeout options for signature validation process
   LongValidator HIVE_SIGNATURE_VALIDATION_PARALLELISM = new TypeValidators.RangeLongValidator("store.hive.signature_validation.parallelism", 1, 32, 16);
   LongValidator HIVE_SIGNATURE_VALIDATION_TIMEOUT_MS = new TypeValidators.LongValidator("store.hive.signature_validation.timeout.ms", 2_000);
+
+  // prewarm the code cache
+  String CODE_CACHE_PREWARM_PROP = "CODE_CACHE_PREWARM";
+  String CODE_CACHE_LOCATION_PROP = "CODE_CACHE_LOCATION";
+  BooleanValidator EXEC_CODE_CACHE_SAVE_EXPR = new BooleanValidator("exec.code_cache.save_expr", false);
 }

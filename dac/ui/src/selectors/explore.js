@@ -172,7 +172,7 @@ const getInitialDataset = (location, viewState) => {
   const routeParams = getRouteParamsFromLocation(location);
   const version = location.query.version;
   const displayFullPath = viewState.getIn(['error', 'details', 'displayFullPath']) ||
-    [...splitFullPath(routeParams.resourceId), ...splitFullPath(routeParams.tableId)];
+    [routeParams.resourceId, ...splitFullPath(routeParams.tableId)];
   const fullPath = location.query.mode === 'edit' ? displayFullPath : ['tmp', 'UNTITLED'];
 
   return Immutable.fromJS({

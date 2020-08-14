@@ -38,7 +38,7 @@ public class SqlCreateReflection extends SqlSystemCall {
   public static final SqlSpecialOperator OPERATOR = new SqlSpecialOperator("ADD_LAYOUT", SqlKind.OTHER_DDL) {
     @Override
     public SqlCall createCall(SqlLiteral functionQualifier, SqlParserPos pos, SqlNode... operands) {
-      Preconditions.checkArgument(operands.length == 10, "SqlCreateReflection.createCall() has to get 10 operands!");
+      Preconditions.checkArgument(operands.length == 11, "SqlCreateReflection.createCall() has to get 11 operands!");
       return new SqlCreateReflection(
           pos,
           (SqlIdentifier) operands[0],
@@ -49,8 +49,9 @@ public class SqlCreateReflection extends SqlSystemCall {
           (SqlNodeList) operands[5],
           (SqlNodeList) operands[6],
           (SqlNodeList) operands[7],
-          ((SqlLiteral) operands[8]).symbolValue(PartitionDistributionStrategy.class),
-          (SqlIdentifier) operands[9]
+          (SqlLiteral) operands[8],
+          ((SqlLiteral) operands[9]).symbolValue(PartitionDistributionStrategy.class),
+          (SqlIdentifier) operands[10]
           );
     }
   };
@@ -63,12 +64,13 @@ public class SqlCreateReflection extends SqlSystemCall {
   private final SqlNodeList distributionList;
   private final SqlNodeList partitionList;
   private final SqlNodeList sortList;
+  private final SqlLiteral arrowCachingEnabled;
   private final PartitionDistributionStrategy partitionDistributionStrategy;
   private final SqlIdentifier name;
 
   private SqlCreateReflection(SqlParserPos pos, SqlIdentifier tblName, SqlNode isRaw, SqlNodeList displayList,
                               SqlNodeList dimensionList, SqlNodeList measureList, SqlNodeList distributionList, SqlNodeList partitionList,
-                              SqlNodeList sortList, PartitionDistributionStrategy partitionDistributionStrategy, SqlIdentifier name) {
+                              SqlNodeList sortList, SqlLiteral arrowCachingEnabled, PartitionDistributionStrategy partitionDistributionStrategy, SqlIdentifier name) {
     super(pos);
     this.tblName = tblName;
     this.isRaw = isRaw;
@@ -78,6 +80,7 @@ public class SqlCreateReflection extends SqlSystemCall {
     this.distributionList = distributionList;
     this.partitionList = partitionList;
     this.sortList = sortList;
+    this.arrowCachingEnabled = arrowCachingEnabled;
     this.partitionDistributionStrategy = partitionDistributionStrategy;
     this.name = name;
   }
@@ -92,7 +95,7 @@ public class SqlCreateReflection extends SqlSystemCall {
     List<SqlNode> operands = new ArrayList<>();
 
     operands.addAll(ImmutableList.of(tblName, isRaw, displayList, dimensionList, measureList, distributionList, partitionList,
-        sortList, SqlLiteral.createSymbol(partitionDistributionStrategy, SqlParserPos.ZERO)));
+        sortList, arrowCachingEnabled, SqlLiteral.createSymbol(partitionDistributionStrategy, SqlParserPos.ZERO)));
 
     operands.add(name);
     return operands;
@@ -133,6 +136,8 @@ public class SqlCreateReflection extends SqlSystemCall {
   public List<String> getSortList() {
     return toStrings(sortList);
   }
+
+  public Boolean getArrowCachingEnabled() { return this.arrowCachingEnabled.booleanValue(); }
 
   public PartitionDistributionStrategy getPartitionDistributionStrategy() {
     return partitionDistributionStrategy;
@@ -178,19 +183,19 @@ public class SqlCreateReflection extends SqlSystemCall {
 
   public static SqlCreateReflection createAggregation(SqlParserPos pos, SqlIdentifier tblName, SqlNodeList dimensionList,
                                                       SqlNodeList measureList, SqlNodeList distributionList,
-                                                      SqlNodeList partitionList, SqlNodeList sortList,
+                                                      SqlNodeList partitionList, SqlNodeList sortList, SqlLiteral arrowCachingEnabled,
                                                       PartitionDistributionStrategy partitionDistributionStrategy, SqlIdentifier name) {
     return new SqlCreateReflection(pos, tblName, SqlLiteral.createBoolean(false, SqlParserPos.ZERO), null, dimensionList,
-        measureList, distributionList, partitionList, sortList, partitionDistributionStrategy, name);
+        measureList, distributionList, partitionList, sortList, arrowCachingEnabled, partitionDistributionStrategy, name);
   }
 
   public static SqlCreateReflection createRaw(SqlParserPos pos, SqlIdentifier tblName, SqlNodeList displayList,
                                               SqlNodeList distributionList, SqlNodeList partitionList,
-                                              SqlNodeList sortList,
+                                              SqlNodeList sortList, SqlLiteral arrowCachingEnabled,
                                               PartitionDistributionStrategy partitionDistributionStrategy,
                                               SqlIdentifier name) {
     return new SqlCreateReflection(pos, tblName, SqlLiteral.createBoolean(true, SqlParserPos.ZERO), displayList, null, null,
-        distributionList, partitionList, sortList, partitionDistributionStrategy, name);
+        distributionList, partitionList, sortList, arrowCachingEnabled, partitionDistributionStrategy, name);
   }
 
   public static class NameAndGranularity {

@@ -15,6 +15,9 @@
  */
 package com.dremio.dac.server.admin.profile;
 
+import static com.dremio.dac.server.admin.profile.HostProcessingRateUtil.computeRecordProcRateAtPhaseHostLevel;
+import static com.dremio.dac.server.admin.profile.HostProcessingRateUtil.computeRecordProcRateAtPhaseOperatorHostLevel;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -22,9 +25,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.commons.lang3.time.DurationFormatUtils;
@@ -46,7 +51,9 @@ import com.dremio.service.accelerator.proto.AccelerationDetails;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.base.Strings;
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Table;
 
 /**
  * Wrapper class for a {@link #profile query profile}, so it to be presented through web UI.
@@ -63,20 +70,14 @@ public class ProfileWrapper {
   private final List<OperatorWrapper> operatorProfiles;
   private final AccelerationWrapper accelerationDetails;
   private final Map<AttemptEvent.State, Long> stateDurations;
+  private final Table<Integer, Integer, String> majorMinorHostTable = HashBasedTable.create();
 
   public ProfileWrapper(final QueryProfile profile, boolean debug) {
     this.profile = profile;
     this.id = QueryIdHelper.getQueryId(profile.getId());
 
-    final List<FragmentWrapper> fragmentProfiles = new ArrayList<>();
-
     final List<MajorFragmentProfile> majors = new ArrayList<>(profile.getFragmentProfileList());
     Collections.sort(majors, Comparators.majorId);
-
-    for (final MajorFragmentProfile major : majors) {
-      fragmentProfiles.add(new FragmentWrapper(major, profile.getStart(), debug));
-    }
-    this.fragmentProfiles = fragmentProfiles;
 
     final List<NodeWrapper> nodeProfiles = new ArrayList<>();
 
@@ -98,6 +99,9 @@ public class ProfileWrapper {
       final List<MinorFragmentProfile> minors = new ArrayList<>(major.getMinorFragmentProfileList());
       Collections.sort(minors, Comparators.minorId);
       for (final MinorFragmentProfile minor : minors) {
+        majorMinorHostTable.put(major.getMajorFragmentId(),
+                                minor.getMinorFragmentId(),
+                                minor.getEndpoint().getAddress());
 
         final List<OperatorProfile> ops = new ArrayList<>(minor.getOperatorProfileList());
         Collections.sort(ops, Comparators.operatorId);
@@ -117,10 +121,39 @@ public class ProfileWrapper {
     final List<ImmutablePair<Integer, Integer>> keys = new ArrayList<>(opmap.keySet());
     Collections.sort(keys);
 
+    Map<Integer, Set<HostProcessingRate>> majorHostProcRateSetMap = new HashMap<>();
+
     for (final ImmutablePair<Integer, Integer> ip : keys) {
-      ows.add(new OperatorWrapper(ip.getLeft(), opmap.get(ip), profile.hasOperatorTypeMetricsMap() ? profile.getOperatorTypeMetricsMap(): null));
+      int majorId = ip.getLeft();
+      Set<HostProcessingRate> hostProcessingRateSet = computeRecordProcRateAtPhaseOperatorHostLevel(majorId,
+                                                                                                    opmap.get(ip),
+                                                                                                    majorMinorHostTable);
+
+      Set<HostProcessingRate> phaseLevelSet = new HashSet<>();
+      if (majorHostProcRateSetMap.containsKey(majorId)) {
+        phaseLevelSet = majorHostProcRateSetMap.get(majorId);
+      }
+      phaseLevelSet.addAll(hostProcessingRateSet);
+      majorHostProcRateSetMap.put(majorId, phaseLevelSet);
+
+      ows.add(new OperatorWrapper(majorId,
+                                  opmap.get(ip),
+                                  profile.hasOperatorTypeMetricsMap() ? profile.getOperatorTypeMetricsMap(): null,
+                                  majorMinorHostTable,
+                                  hostProcessingRateSet
+                                 ));
     }
     this.operatorProfiles = ows;
+
+    final List<FragmentWrapper> fragmentProfiles = new ArrayList<>();
+    for (final MajorFragmentProfile major : majors) {
+      Set<HostProcessingRate> unAggregatedSetForMajor = majorHostProcRateSetMap.get(major.getMajorFragmentId());
+      Set<HostProcessingRate> hostProcessingRateSet =
+                              computeRecordProcRateAtPhaseHostLevel(major.getMajorFragmentId(),
+                                                                    unAggregatedSetForMajor);
+      fragmentProfiles.add(new FragmentWrapper(major, profile.getStart(), debug, hostProcessingRateSet));
+    }
+    this.fragmentProfiles = fragmentProfiles;
 
     AccelerationWrapper wrapper = null;
     try {

@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import com.dremio.exec.physical.base.EndpointHelper;
+import com.dremio.common.nodes.EndpointHelper;
 import com.dremio.exec.physical.config.MinorFragmentEndpoint;
 import com.dremio.exec.proto.CoordExecRPC.MinorFragmentIndexEndpoint;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;

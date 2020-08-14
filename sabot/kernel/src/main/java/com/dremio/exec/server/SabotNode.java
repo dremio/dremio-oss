@@ -49,8 +49,10 @@ import com.dremio.exec.catalog.ConnectionReader;
 import com.dremio.exec.catalog.InformationSchemaServiceImpl;
 import com.dremio.exec.catalog.MetadataRefreshInfoBroadcaster;
 import com.dremio.exec.exception.NodeStartupException;
+import com.dremio.exec.maestro.MaestroForwarder;
 import com.dremio.exec.maestro.MaestroService;
 import com.dremio.exec.maestro.MaestroServiceImpl;
+import com.dremio.exec.maestro.NoOpMaestroForwarder;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.exec.rpc.RpcConstants;
@@ -558,6 +560,8 @@ public class SabotNode implements AutoCloseable {
         bind(LocalJobTelemetryServer.class).toInstance(new LocalJobTelemetryServer(
           gRpcServerBuilderFactory, getProvider(LegacyKVStoreProvider.class),
           getProvider(NodeEndpoint.class)));
+
+        bind(MaestroForwarder.class).toInstance(new NoOpMaestroForwarder());
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
@@ -714,7 +718,8 @@ public class SabotNode implements AutoCloseable {
             Provider<SabotContext> sabotContext,
             Provider<CommandPool> commandPool,
             Provider<MaestroService> maestroService,
-            Provider<JobTelemetryClient> jobTelemetryClient
+            Provider<JobTelemetryClient> jobTelemetryClient,
+            Provider<MaestroForwarder> forwarderProvider
     ) {
       return new ForemenWorkManager(
               fabricService,
@@ -722,6 +727,7 @@ public class SabotNode implements AutoCloseable {
               commandPool,
               maestroService,
               jobTelemetryClient,
+              forwarderProvider,
               TracerFacade.INSTANCE
       );
     }
@@ -750,7 +756,8 @@ public class SabotNode implements AutoCloseable {
             Provider<CommandPool> commandPool,
             Provider<ExecutorSelectionService> executorSelectionService,
             Provider<ExecutorServiceClientFactory> executorServiceClientFactory,
-            Provider<JobTelemetryClient> jobTelemetryClient
+            Provider<JobTelemetryClient> jobTelemetryClient,
+            Provider<MaestroForwarder> forwarderProvider
     ) {
       return new MaestroServiceImpl(
               executorSetService,
@@ -760,7 +767,9 @@ public class SabotNode implements AutoCloseable {
               commandPool,
               executorSelectionService,
               executorServiceClientFactory,
-              jobTelemetryClient);
+              jobTelemetryClient,
+              forwarderProvider
+              );
     }
 
     @Provides

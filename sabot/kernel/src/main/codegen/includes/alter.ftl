@@ -141,6 +141,7 @@ SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     SqlNodeList partitionList;
     SqlNodeList distributionList;
     SqlNodeList sortList;
+    SqlLiteral arrowCachingEnabled;
     PartitionDistributionStrategy partitionDistributionStrategy;
 }
 {
@@ -150,6 +151,7 @@ SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
         distributionList = SqlNodeList.EMPTY;
         partitionList =  SqlNodeList.EMPTY;
         sortList = SqlNodeList.EMPTY;
+        arrowCachingEnabled = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
         partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
     }
     <USING>
@@ -177,10 +179,13 @@ SqlNode SqlCreateAggReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     )?
     (   <LOCALSORT> <BY>
         sortList = ParseRequiredFieldList("Sort")
-    )?  
+    )?
+    (   <ARROW> <CACHE>
+        { arrowCachingEnabled = SqlLiteral.createBoolean(true, pos); }
+    )?
     {
         return SqlCreateReflection.createAggregation(pos, tblName, dimensionList, measureList, distributionList,
-           partitionList, sortList, partitionDistributionStrategy, name);
+           partitionList, sortList, arrowCachingEnabled, partitionDistributionStrategy, name);
     }
 }
 
@@ -294,6 +299,7 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     SqlNodeList partitionList;
     SqlNodeList distributionList;
     SqlNodeList sortList;
+    SqlLiteral arrowCachingEnabled;
     PartitionDistributionStrategy partitionDistributionStrategy;
 }
 {
@@ -302,6 +308,7 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
         distributionList = SqlNodeList.EMPTY;
         partitionList =  SqlNodeList.EMPTY;
         sortList = SqlNodeList.EMPTY;
+        arrowCachingEnabled = SqlLiteral.createBoolean(false, SqlParserPos.ZERO);
         partitionDistributionStrategy = PartitionDistributionStrategy.UNSPECIFIED;
     }
     <USING>
@@ -328,9 +335,12 @@ SqlNode SqlCreateRawReflection(SqlParserPos pos, SqlIdentifier tblName, SqlIdent
     (   <LOCALSORT> <BY>
         sortList = ParseRequiredFieldList("Sort")
     )?
+    (   <ARROW> <CACHE>
+        { arrowCachingEnabled = SqlLiteral.createBoolean(true, pos); }
+    )?
     {
         return SqlCreateReflection.createRaw(pos, tblName, displayList, distributionList, partitionList, sortList,
-          partitionDistributionStrategy, name);
+          arrowCachingEnabled, partitionDistributionStrategy, name);
     }
 }
 

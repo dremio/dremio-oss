@@ -54,7 +54,7 @@ public class PrelSequencer extends BasePrelVisitor<Void, PrelSequencer.Frag, Run
 
     final String textPlan = sw.toString();
     observer.planText(sw.toString(), millisTaken);
-    final RelJsonWriter jsonPlanWriter = new RelJsonWriter(getIdMap(rel), explainlevel);
+    final RelJsonWriter jsonPlanWriter = new RelJsonWriter(relIdMap, explainlevel);
     rel.explain(jsonPlanWriter);
     observer.planJsonPlan(jsonPlanWriter.asString());
     return textPlan;

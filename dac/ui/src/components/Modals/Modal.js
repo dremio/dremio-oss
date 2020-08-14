@@ -68,6 +68,7 @@ export default class Modal extends Component {
       ...style
     };
     const smallModalUpdated = { ...smallModal, content };
+    const smallestModalUpdated = { ...smallestModal, content: { ...smallestModal.content, ...style}};
     const mediumModalUpdated = { ...mediumModal, content: { ...mediumModal.content, ...style}};
     const largeModalUpdated = { ...largeModal, content: { ...largeModal.content, ...style}};
     const tallModalUpdated = { ...tallModal, content: { ...tallModal.content, ...style}};
@@ -76,7 +77,7 @@ export default class Modal extends Component {
       [ModalSize.medium]: mediumModalUpdated,
       [ModalSize.large]: largeModalUpdated,
       [ModalSize.tall]: tallModalUpdated,
-      [ModalSize.smallest]: smallestModal
+      [ModalSize.smallest]: smallestModalUpdated
     };
 
     let stringTitle = title;

@@ -95,7 +95,7 @@ export class EngineActionCell extends PureComponent {
 const styles = {
   settingsButton: {
     display: 'flex',
-    padding: '0px 5px 4px 3px',
+    padding: '0px 5px 0 3px',
     marginBottom: 1,
     border: 0,
     boxShadow: '0 1px 1px #c2c2c2',
@@ -104,18 +104,11 @@ const styles = {
     color: '#333',
     height: 23,
     fontSize: 11,
-    ':hover': {
-      background: '#fafafa'
-    }
+    alignItems: 'center'
   },
   buttonWithTextIcon: {
     height: 20,
-    width: 20,
-    paddingTop: 3
-  },
-  textByIcon: {
-    marginTop: 5,
-    marginLeft: -2
+    width: 20
   },
   buttonIcon: {
     height: 24,

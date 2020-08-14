@@ -65,8 +65,13 @@ public class ValueExpressions {
     return new DateExpression(localDate.atTime(LocalTime.MIDNIGHT).toInstant(ZoneOffset.UTC).toEpochMilli());
   }
 
+  /**
+   * we internally store date, time, timestamp as primitive types hence returns LongExpression instead of DateExpression
+   * @param epoch
+   * @return
+   */
   public static LogicalExpression getDateMilli(long epoch) {
-    return new DateExpression(epoch);
+    return getBigInt(epoch);
   }
 
   /**
@@ -82,8 +87,13 @@ public class ValueExpressions {
     return new TimeExpression(Math.toIntExact(NANOSECONDS.toMillis(localTime.toNanoOfDay())));
   }
 
+  /**
+   * we internally store date, time, timestamp as primitive types hence returns IntExpression instead of TimeExpression
+   * @param millis
+   * @return
+   */
   public static LogicalExpression getTimeMilli(int millis) {
-    return new TimeExpression(millis);
+    return getInt(millis);
   }
 
   /**
@@ -99,8 +109,13 @@ public class ValueExpressions {
     return new TimeStampExpression(localDateTime.toInstant(ZoneOffset.UTC).toEpochMilli());
   }
 
+  /**
+   * we internally store date, time, timestamp as primitive types hence returns LongExpression instead of TimestampExpression
+   * @param millis
+   * @return
+   */
   public static LogicalExpression getTimeStampMilli(long millis) {
-    return new TimeStampExpression(millis);
+    return getBigInt(millis);
   }
 
   /**

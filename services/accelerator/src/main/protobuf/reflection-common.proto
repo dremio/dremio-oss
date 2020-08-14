@@ -39,6 +39,11 @@ message ReflectionId {
   required string id = 1;
 }
 
+// A repeatable hash of all fields, including nested fields, used to create reflections and materializations
+message ReflectionGoalHash {
+  required string hash = 1;
+}
+
 // defines type of layout. ROLLUP for aggregation layouts, RAW otherwise
 enum ReflectionType {
   RAW = 1;

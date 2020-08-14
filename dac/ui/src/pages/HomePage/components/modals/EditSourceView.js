@@ -31,6 +31,7 @@ import Message from 'components/Message';
 import ConfigurableSourceForm from 'pages/HomePage/components/modals/ConfigurableSourceForm';
 
 import EditSourceViewMixin, { mapStateToProps } from 'dyn-load/pages/HomePage/components/modals/EditSourceViewMixin';
+import { isExternalSourceType } from '@app/constants/sourceTypes';
 
 import { viewStateWrapper } from 'uiTheme/less/forms.less';
 
@@ -100,10 +101,11 @@ export class EditSourceView extends Component {
   }
 
   reallySubmitEdit = (form, sourceType) => {
+    const url = isExternalSourceType(sourceType) ? '/sources/external/list' : '/sources/datalake/list';
     return ApiUtils.attachFormSubmitHandlers(
       this.props.createSource(form, sourceType)
     ).then(() => {
-      this.context.router.replace('/sources/list');
+      this.context.router.replace(url);
     });
   };
 

@@ -31,6 +31,7 @@ import com.dremio.io.AsyncByteReader;
 import com.dremio.io.AsyncByteReader.FileKey;
 import com.dremio.io.FSInputStream;
 import com.dremio.io.FSOutputStream;
+import com.google.common.base.Preconditions;
 
 /**
  * FileSystem interface used by storage plugins.
@@ -326,4 +327,12 @@ public interface FileSystem extends Closeable {
    */
   default boolean preserveBlockLocationsOrder() { return false; }
 
+  default boolean supportsBoosting() {
+    return false;
+  }
+
+  default BoostedFileSystem getBoostedFilesystem() {
+    Preconditions.checkArgument(this.supportsBoosting(), "FileSystem does not support boosting.");
+    return null;
+  }
 }

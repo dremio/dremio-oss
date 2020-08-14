@@ -47,6 +47,7 @@ import com.dremio.connector.metadata.EntityPath;
 import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.connector.metadata.extensions.SupportsReadSignature;
 import com.dremio.datastore.api.LegacyKVStore;
+import com.dremio.exec.planner.cost.ScanCostFactor;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.store.DatasetRetrievalOptions;
 import com.dremio.options.OptionManager;
@@ -287,7 +288,7 @@ public class TestSourceMetadataManager {
     final boolean[] forced = new boolean[]{false};
     doAnswer(invocation -> {
       forced[0] = true;
-      return DatasetMetadata.of(DatasetStats.of(0, 0), new Schema(new ArrayList<>()));
+      return DatasetMetadata.of(DatasetStats.of(0, ScanCostFactor.OTHER.getFactor()), new Schema(new ArrayList<>()));
     }).when(sp).getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class), any(), any());
     when(sp.listPartitionChunks(any(), any(), any()))
         .thenReturn(Collections::emptyIterator);
@@ -354,7 +355,7 @@ public class TestSourceMetadataManager {
       final boolean[] forced = new boolean[]{false};
       doAnswer(invocation -> {
         forced[0] = true;
-        return DatasetMetadata.of(DatasetStats.of(0, 0), new Schema(new ArrayList<>()));
+        return DatasetMetadata.of(DatasetStats.of(0, ScanCostFactor.OTHER.getFactor()), new Schema(new ArrayList<>()));
       }).when(mockStoragePlugin).getDatasetMetadata(any(DatasetHandle.class), any(PartitionChunkListing.class), any(), any());
 
     NamespaceService ns = mock(NamespaceService.class);

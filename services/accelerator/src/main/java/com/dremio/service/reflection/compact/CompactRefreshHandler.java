@@ -55,6 +55,7 @@ import com.dremio.exec.planner.sql.parser.SqlCompactMaterialization;
 import com.dremio.exec.work.foreman.ForemanSetupException;
 import com.dremio.options.OptionManager;
 import com.dremio.service.namespace.NamespaceKey;
+import com.dremio.service.reflection.ReflectionGoalChecker;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.ReflectionUtils;
 import com.dremio.service.reflection.proto.Materialization;
@@ -65,7 +66,6 @@ import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
 import com.dremio.service.reflection.proto.Refresh;
-import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
@@ -131,7 +131,7 @@ public class CompactRefreshHandler implements SqlToPlanHandler {
         throw SqlExceptionHelper.parseError("Unknown reflection id.", sql, compact.getParserPosition()).build(logger);
       }
       final ReflectionEntry entry = entryOpt.get();
-      if(!ReflectionGoalsStore.checkGoalVersion(goal, entry.getGoalVersion())) {
+      if(!ReflectionGoalChecker.checkGoal(goal, entry)) {
         throw UserException.validationError().message("Reflection has been updated since reflection was scheduled.").build(logger);
       }
 

@@ -26,8 +26,8 @@ import java.util.stream.Collectors;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserRemoteException;
+import com.dremio.common.nodes.EndpointHelper;
 import com.dremio.common.utils.protos.QueryIdHelper;
-import com.dremio.exec.physical.base.EndpointHelper;
 import com.dremio.exec.planner.fragment.PlanFragmentFull;
 import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
 import com.dremio.exec.proto.CoordExecRPC.NodeQueryCompletion;

@@ -22,6 +22,7 @@ import {
   EC2_AWS_CONNECTION_PROPS,
   EC2_AWS_PROPS,
   EC2_DYNAMIC_CONFIG_FIELDS,
+  EC2_AWS_PROPLIST_FIELDS,
   EC2_UI_FIELDS,
   EC2_FIELDS_MAP
 } from '@app/constants/provisioningPage/provisioningConstants';
@@ -56,6 +57,15 @@ export function engineSizeValue(containerCount) {
   return matchingOption ? containerCount : -1;
 }
 
+export function getInitPropListValue(provision, prop) {
+  const listProp = provision.getIn(['awsProps', prop]);
+  if (!listProp) return [];
+
+  return listProp.toJS().map((listEntry, idx) => {
+    return {id: idx, name: listEntry.key, value: listEntry.value};
+  });
+}
+
 export function getInitValuesFromProvision(provision, initValues = {}) {
   EC2_CLUSTER_FIELDS.forEach(prop => {
     FormUtils.addInitValue(initValues, prop, provision.get(prop));
@@ -72,6 +82,10 @@ export function getInitValuesFromProvision(provision, initValues = {}) {
   EC2_AWS_CONNECTION_PROPS.forEach(prop => {
     FormUtils.addInitValue(initValues, prop, provision.getIn(['awsProps', 'connectionProps', prop]));
   });
+  EC2_AWS_PROPLIST_FIELDS.forEach(prop => {
+    FormUtils.addInitValue(initValues, prop, getInitPropListValue(provision, prop));
+  });
+
   return initValues;
 }
 
@@ -95,6 +109,13 @@ const prepareInstanceTypeForSave = (values) => {
   }
 };
 
+export const preparePropertyListFieldForSave = (values) => {
+  const awsTags = values.awsTags
+    ? values.awsTags.map(tag => ({key: tag.name, value: tag.value}))
+    : [];
+  return { awsTags };
+};
+
 export function prepareProvisionValuesForSave(values) {
   const payload = {
     clusterType: 'EC2',
@@ -106,6 +127,7 @@ export function prepareProvisionValuesForSave(values) {
     awsProps: {
       ...addPropsForSave({}, EC2_AWS_PROPS, values),
       ...prepareInstanceTypeForSave(values),
+      ...preparePropertyListFieldForSave(values),
       connectionProps: {
         ...addPropsForSave({}, EC2_AWS_CONNECTION_PROPS, values)
       }

@@ -31,7 +31,7 @@ public class TestHashJoin extends BaseTestJoin {
 
   @Override
   protected JoinInfo getJoinInfo(List<JoinCondition> conditions, JoinRelType type, Set<Integer> buildProjected, Set<Integer> probeProjected) {
-    return new JoinInfo(HashJoinOperator.class, new HashJoinPOP(PROPS, null, null, conditions, type, false));
+    return new JoinInfo(HashJoinOperator.class, new HashJoinPOP(PROPS, null, null, conditions, type, false, null));
   }
 
   @Ignore("DX-5845")

@@ -20,9 +20,12 @@ import static com.dremio.exec.planner.sql.handlers.RelTransformer.NO_OP_TRANSFOR
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nullable;
 
@@ -77,6 +80,7 @@ import com.dremio.exec.planner.DremioVolcanoPlanner;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.PlannerType;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
 import com.dremio.exec.planner.acceleration.MaterializationList;
@@ -109,6 +113,7 @@ import com.dremio.exec.planner.physical.visitor.InsertHashProjectVisitor;
 import com.dremio.exec.planner.physical.visitor.InsertLocalExchangeVisitor;
 import com.dremio.exec.planner.physical.visitor.JoinPrelRenameVisitor;
 import com.dremio.exec.planner.physical.visitor.RelUniqifier;
+import com.dremio.exec.planner.physical.visitor.RuntimeFilterVisitor;
 import com.dremio.exec.planner.physical.visitor.SelectionVectorPrelVisitor;
 import com.dremio.exec.planner.physical.visitor.SimpleLimitExchangeRemover;
 import com.dremio.exec.planner.physical.visitor.SplitCountChecker;
@@ -503,7 +508,13 @@ public class PrelTransformer {
     final Stopwatch watch = Stopwatch.createStarted();
 
     try {
-      final RelNode output = toPlan.get();
+      final RelNode intermediateNode = toPlan.get();
+      final RelNode output;
+      if (phase == PlannerPhase.LOGICAL) {
+        output = processBoostedMaterializations(config, intermediateNode);
+      } else {
+        output = intermediateNode;
+      }
 
       if (log) {
         log(plannerType, phase, output, logger, watch);
@@ -522,6 +533,52 @@ public class PrelTransformer {
         t.addSuppressed(unexpected);
       }
       throw t;
+    }
+  }
+
+  private static RelNode processBoostedMaterializations(SqlHandlerConfig config, RelNode relNode) {
+    final Set<List<String>> qualifiedNames = config.getMaterializations().isPresent() ?
+      config.getMaterializations().get().getMaterializations()
+        .stream()
+        .filter(m -> m.getLayoutInfo().isArrowCachingEnabled())
+        .map(DremioMaterialization::getTableRel)
+        .map(rel -> {
+          BoostMaterializationVisitor visitor = new BoostMaterializationVisitor();
+          rel.accept(visitor);
+          return visitor.getQualifiedName();
+        })
+        .collect(Collectors.toSet()) :
+      new HashSet<>();
+    if (qualifiedNames.isEmpty()) {
+      return relNode;
+    } else {
+      // Only update the scans if there is any acceleration which is boosted
+      return relNode.accept(new StatelessRelShuttleImpl() {
+        @Override
+        public RelNode visit(TableScan scan) {
+          if (scan instanceof FilesystemScanDrel) {
+            FilesystemScanDrel scanDrel = (FilesystemScanDrel) scan;
+            if (qualifiedNames.contains(scanDrel.getTable().getQualifiedName())) {
+              return scanDrel.applyArrowCachingEnabled(true);
+            }
+          }
+          return super.visit(scan);
+        }
+      });
+    }
+  }
+
+  private static class BoostMaterializationVisitor extends StatelessRelShuttleImpl {
+    private List<String> qualifiedName = new ArrayList<>();
+
+    @Override
+    public RelNode visit(TableScan scan) {
+      qualifiedName = scan.getTable().getQualifiedName();
+      return super.visit(scan);
+    }
+
+    public List<String> getQualifiedName() {
+      return qualifiedName;
     }
   }
 
@@ -723,6 +780,14 @@ public class PrelTransformer {
      * This could happen in the case of querying the same table twice as Optiq may canonicalize these.
      */
     phyRelNode = RelUniqifier.uniqifyGraph(phyRelNode);
+
+    /*
+     * 9.1)
+     * add runtime filter information if applicable
+     */
+    if (plannerSettings.isRuntimeFilterEnabled()) {
+      phyRelNode = RuntimeFilterVisitor.addRuntimeFilterToHashJoin(phyRelNode);
+    }
 
     final String textPlan;
     if (logger.isDebugEnabled() || config.getObserver() != null) {

@@ -40,6 +40,7 @@ import java.util.Collections;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -49,7 +50,6 @@ import org.apache.arrow.memory.BufferAllocator;
 import com.dremio.common.util.DremioEdition;
 import com.dremio.datastore.WarningTimer;
 import com.dremio.exec.server.SabotContext;
-import com.dremio.exec.store.dfs.FileSystemPlugin;
 import com.dremio.io.file.Path;
 import com.dremio.options.OptionManager;
 import com.dremio.proto.model.UpdateId;
@@ -141,6 +141,7 @@ public class ReflectionManager implements Runnable {
   private final Supplier<ExpansionHelper> expansionHelper;
   private final Path accelerationBasePath;
   private final BufferAllocator allocator;
+  private final ReflectionGoalChecker reflectionGoalChecker;
 
   private volatile EntryCounts lastStats = new EntryCounts();
   private long lastWakeupTime;
@@ -150,7 +151,8 @@ public class ReflectionManager implements Runnable {
                     ExternalReflectionStore externalReflectionStore, MaterializationStore materializationStore,
                     DependencyManager dependencyManager,
                     DescriptorCache descriptorCache, Set<ReflectionId> reflectionsToUpdate,
-                    WakeUpCallback wakeUpCallback, Supplier<ExpansionHelper> expansionHelper, BufferAllocator allocator) {
+                    WakeUpCallback wakeUpCallback, Supplier<ExpansionHelper> expansionHelper, BufferAllocator allocator,
+                    Path accelerationBasePath, ReflectionGoalChecker reflectionGoalChecker) {
     this.sabotContext = Preconditions.checkNotNull(sabotContext, "sabotContext required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobsService required");
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespaceService required");
@@ -165,14 +167,12 @@ public class ReflectionManager implements Runnable {
     this.wakeUpCallback = Preconditions.checkNotNull(wakeUpCallback, "wakeup callback required");
     this.expansionHelper = Preconditions.checkNotNull(expansionHelper, "sqlConvertSupplier required");
     this.allocator = Preconditions.checkNotNull(allocator, "allocator required");
+    this.accelerationBasePath = Preconditions.checkNotNull(accelerationBasePath);
+    this.reflectionGoalChecker = Preconditions.checkNotNull(reflectionGoalChecker);
     Metrics.newGauge(Metrics.join("reflections", "unknown"), () -> ReflectionManager.this.lastStats.unknown);
     Metrics.newGauge(Metrics.join("reflections", "failed"), () -> ReflectionManager.this.lastStats.failed);
     Metrics.newGauge(Metrics.join("reflections", "active"), () -> ReflectionManager.this.lastStats.active);
     Metrics.newGauge(Metrics.join("reflections", "refreshing"), () -> ReflectionManager.this.lastStats.refreshing);
-
-    final FileSystemPlugin accelerationPlugin = sabotContext.getCatalogService()
-      .getSource(ReflectionServiceImpl.ACCELERATOR_STORAGEPLUGIN_NAME);
-    accelerationBasePath = accelerationPlugin.getConfig().getPath();
   }
 
   @Override
@@ -488,21 +488,44 @@ public class ReflectionManager implements Runnable {
     }
   }
 
-  private void handleGoal(ReflectionGoal goal) {
+  @VisibleForTesting
+  void handleGoal(ReflectionGoal goal) {
     final ReflectionEntry entry = reflectionStore.get(goal.getId());
     if (entry == null) {
       // no corresponding reflection, goal has been created or enabled
       if (goal.getState() == ReflectionGoalState.ENABLED) { // we still need to make sure user didn't create a disabled goal
         reflectionStore.save(create(goal));
       }
-    } else if (!ReflectionGoalsStore.checkGoalVersion(goal, entry.getGoalVersion())) {
+    } else if (reflectionGoalChecker.isEqual(goal, entry)) {
+      return; //no changes, do nothing
+    } else if(reflectionGoalChecker.checkHash(goal, entry)){
+      // Check if entries need to update meta data that is not used in the materialization
+
+      reflectionStore.save(
+        entry
+          .setArrowCachingEnabled(goal.getArrowCachingEnabled())
+          .setGoalVersion(goal.getTag())
+      );
+
+      for (Materialization materialization : materializationStore.find(entry.getId())) {
+        if (!Objects.equals(materialization.getArrowCachingEnabled(), goal.getArrowCachingEnabled())) {
+          materializationStore.save(
+            materialization
+              .setArrowCachingEnabled(goal.getArrowCachingEnabled())
+              .setReflectionGoalVersion(goal.getTag())
+          );
+        }
+      }
+    } else {
       // descriptor changed
       logger.debug("reflection goal {} updated. state {} -> {}", getId(goal), entry.getState(), goal.getState());
       cancelRefreshJobIfAny(entry);
       final boolean enabled = goal.getState() == ReflectionGoalState.ENABLED;
       entry.setState(enabled ? UPDATE : DEPRECATE)
+        .setArrowCachingEnabled(goal.getArrowCachingEnabled())
+        .setGoalVersion(goal.getTag())
         .setName(goal.getName())
-        .setGoalVersion(goal.getTag());
+        .setReflectionGoalHash(reflectionGoalChecker.calculateReflectionGoalVersion(goal));
       reflectionStore.save(entry);
     }
   }
@@ -915,14 +938,16 @@ public class ReflectionManager implements Runnable {
 
   private ReflectionEntry create(ReflectionGoal goal) {
     logger.debug("creating new reflection {}", goal.getId().getId());
-
+    //We currently store meta data in the Reflection Entry that possibly should not be there such as boost
     return new ReflectionEntry()
       .setId(goal.getId())
       .setGoalVersion(goal.getTag())
+      .setReflectionGoalHash(reflectionGoalChecker.calculateReflectionGoalVersion(goal))
       .setDatasetId(goal.getDatasetId())
       .setState(REFRESH)
       .setType(goal.getType())
-      .setName(goal.getName());
+      .setName(goal.getName())
+      .setArrowCachingEnabled(goal.getArrowCachingEnabled());
   }
 
 }

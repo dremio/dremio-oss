@@ -62,6 +62,7 @@ import org.xerial.snappy.SnappyOutputStream;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.utils.PathUtils;
 import com.dremio.connector.metadata.DatasetSplit;
+import com.dremio.connector.metadata.PartitionChunkListing;
 import com.dremio.datastore.SearchQueryUtils;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 import com.dremio.datastore.api.LegacyIndexedStore;
@@ -511,8 +512,7 @@ public class NamespaceServiceImpl implements NamespaceService {
       accumulatedSplits = new ArrayList<>();
     }
 
-    @Override
-    public void saveDatasetSplit(DatasetSplit split) {
+    private void saveDatasetSplit(DatasetSplit split) {
       if (isClosed) {
         throw new IllegalStateException("Attempting to save a dataset split after the saver was closed");
       }
@@ -521,8 +521,7 @@ public class NamespaceServiceImpl implements NamespaceService {
       accumulatedSplits.add(split);
     }
 
-    @Override
-    public void savePartitionChunk(com.dremio.connector.metadata.PartitionChunk partitionChunk) throws IOException {
+    private void savePartitionChunk(com.dremio.connector.metadata.PartitionChunk partitionChunk) throws IOException {
       Preconditions.checkState(!isClosed, "Attempting to save a partition chunk after the saver was closed");
       if (accumulatedSplits.isEmpty()) {
         // Must have at least one split for the partition chunk
@@ -599,6 +598,24 @@ public class NamespaceServiceImpl implements NamespaceService {
         .setSplitCount(accumulatedSplits.size())
         .setSplitData(splitData)
         .build();
+    }
+
+    @Override
+    public long savePartitionChunks(PartitionChunkListing chunkListing) throws IOException {
+      final Iterator<? extends com.dremio.connector.metadata.PartitionChunk> chunks = chunkListing.iterator();
+      long recordCountFromSplits = 0;
+      while (chunks.hasNext()) {
+        final com.dremio.connector.metadata.PartitionChunk chunk = chunks.next();
+
+        final Iterator<? extends DatasetSplit> splits = chunk.getSplits().iterator();
+        while (splits.hasNext()) {
+          final DatasetSplit split = splits.next();
+          saveDatasetSplit(split);
+          recordCountFromSplits += split.getRecordCount();
+        }
+        savePartitionChunk(chunk);
+      }
+      return recordCountFromSplits;
     }
 
     @Override

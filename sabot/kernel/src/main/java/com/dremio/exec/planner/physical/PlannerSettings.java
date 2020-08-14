@@ -106,6 +106,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator STREAM_AGG_WITH_GROUPS = new BooleanValidator("planner.streamagg.allow_grouping", false);
   public static final String ENABLE_DECIMAL_DATA_TYPE_KEY = "planner.enable_decimal_data_type";
   public static final BooleanValidator TRANSITIVE_FILTER_JOIN_PUSHDOWN = new BooleanValidator("planner.filter.transitive_pushdown", true);
+  public static final BooleanValidator ENABLE_RUNTIME_FILTER = new BooleanValidator("planner.filter.runtime_filter", false); // In Beta right now
   public static final BooleanValidator ENABLE_TRANSPOSE_PROJECT_FILTER_LOGICAL = new BooleanValidator("planner.experimental.tpf_logical", false);
   public static final BooleanValidator ENABLE_PROJECT_CLEANUP_LOGICAL = new BooleanValidator("planner.experimental.pclean_logical", false);
   public static final BooleanValidator ENABLE_CROSS_JOIN = new BooleanValidator("planner.enable_cross_join", true);
@@ -328,6 +329,10 @@ public class PlannerSettings implements Context{
 
   public boolean isTransitiveFilterPushdownEnabled() {
     return options.getOption(TRANSITIVE_FILTER_JOIN_PUSHDOWN);
+  }
+
+  public boolean isRuntimeFilterEnabled() {
+    return options.getOption(ENABLE_RUNTIME_FILTER);
   }
 
   public boolean isTransposeProjectFilterLogicalEnabled() {

@@ -181,6 +181,8 @@ public class S3StoragePlugin extends FileSystemPlugin<S3PluginConfig> {
     try {
       ensureDefaultName();
       S3FileSystem fs = getSystemUserFS().unwrap(S3FileSystem.class);
+      //This next call is just to validate that the path specified is valid
+      getSystemUserFS().list(getConfig().getPath());
       fs.refreshFileSystems();
       List<ContainerFailure> failures = fs.getSubFailures();
       if(failures.isEmpty()) {

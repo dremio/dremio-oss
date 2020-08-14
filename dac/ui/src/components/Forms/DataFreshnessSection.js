@@ -199,7 +199,6 @@ const styles = {
   inputLabel: {
     ...formDefault,
     marginRight: 10,
-    fontWeight: 500,
     marginBottom: 4
   },
   durationField: {

@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>4.6.1-202007220122450047-62e084d0</version>
+  <version>4.7.0-202008140043000133-4b5158db</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,9 +38,10 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>1.0.0-20200623121802-2d5074a27a-dremio</arrow.version>
+    <arrow.version>1.0.0-20200807090640-53d3935ff3-dremio
+</arrow.version>
     <avatica.version>1.12.0</avatica.version>
-    <calcite.version>1.16.0-202005121834460402-d60e02b</calcite.version>
+    <calcite.version>1.16.0-202007102336500716-f2a2361</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
@@ -61,7 +62,7 @@
     <plugin.hive2.hadoop-azure-datalake.version>2.8.5</plugin.hive2.hadoop-azure-datalake.version>
     <plugin.hive2.aws-sdk.version>1.11.761</plugin.hive2.aws-sdk.version>
     <plugin.hive2.hadoop.version>2.8.5</plugin.hive2.hadoop.version>
-    <plugin.hive2.hive.version>2.1.1-dremio-202004220420450487-2c6606c</plugin.hive2.hive.version>
+    <plugin.hive2.hive.version>2.1.1-dremio-202007281636460620-4925919</plugin.hive2.hive.version>
     <plugin.hive2.datanucleus-api-jdo.version>4.2.1</plugin.hive2.datanucleus-api-jdo.version>
     <plugin.hive2.datanucleus-core.version>4.1.6</plugin.hive2.datanucleus-core.version>
     <plugin.hive2.datanucleus-rdbms.version>4.1.7</plugin.hive2.datanucleus-rdbms.version>
@@ -85,9 +86,9 @@
     <plugin.hive3.hadoop-azure-datalake.version>${plugin.hive3.hadoop.version}</plugin.hive3.hadoop-azure-datalake.version>
     <plugin.hive3.aws-hadoop.version>${plugin.hive3.hadoop.version}</plugin.hive3.aws-hadoop.version>
     <plugin.hive3.aws-sdk.version>1.11.761</plugin.hive3.aws-sdk.version>
-    <plugin.hive3.hive.version>3.1.1-dremio-201909111144580113-04156e1</plugin.hive3.hive.version>
+    <plugin.hive3.hive.version>3.1.1-dremio-202007281635210499-9dff598</plugin.hive3.hive.version>
     <plugin.hive3.hbase.version>2.2.0</plugin.hive3.hbase.version>
-    <plugin.hive3.orc.version>1.5.1-dremio-201909110637480131-cacdb01</plugin.hive3.orc.version>
+    <plugin.hive3.orc.version>1.5.1-dremio-202007271350010286-8131f30</plugin.hive3.orc.version>
     <plugin.hive3.datanucleus-api-jdo.version>4.2.4</plugin.hive3.datanucleus-api-jdo.version>
     <plugin.hive3.datanucleus-core.version>4.1.17</plugin.hive3.datanucleus-core.version>
     <plugin.hive3.datanucleus-rdbms.version>4.1.19</plugin.hive3.datanucleus-rdbms.version>

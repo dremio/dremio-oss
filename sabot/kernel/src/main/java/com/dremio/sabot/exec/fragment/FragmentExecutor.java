@@ -77,6 +77,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.SettableFuture;
 
+import io.netty.buffer.NettyArrowBuf;
 import io.netty.util.internal.OutOfDirectMemoryError;
 
 /**
@@ -113,7 +114,6 @@ public class FragmentExecutor {
   private final SharedResourceManager sharedResources;
   private final OperatorCreatorRegistry opCreator;
   private final BufferAllocator allocator;
-  private final ContextInformation contextInfo;
   private final OperatorContextCreator contextCreator;
   private final FunctionLookupContext functionLookupContext;
   private final FunctionLookupContext decimalFunctionLookupContext;
@@ -186,7 +186,6 @@ public class FragmentExecutor {
     this.functionLookupContext = functionLookupContext;
     this.decimalFunctionLookupContext = decimalFunctionLookupContext;
     this.allocator = allocator;
-    this.contextInfo = contextInfo;
     this.contextCreator = contextCreator;
     this.tunnelProvider = tunnelProvider;
     this.flushable = flushable;
@@ -375,7 +374,7 @@ public class FragmentExecutor {
       functionLookupContextToUse = decimalFunctionLookupContext;
     }
     pipeline = PipelineCreator.get(
-        new FragmentExecutionContext(major.getForeman(), sources, cancelled),
+        new FragmentExecutionContext(major.getForeman(), sources, cancelled, major.getContext()),
         buffers,
         opCreator,
         contextCreator,
@@ -435,7 +434,7 @@ public class FragmentExecutor {
   }
 
   private void retire() {
-    Preconditions.checkArgument(!retired, "Fragment executor already required.");
+    Preconditions.checkArgument(!retired, "Fragment executor already retired.");
 
     if(!flushable.flushMessages()) {
       // rerun retire if we have messages still pending send completion.
@@ -458,6 +457,7 @@ public class FragmentExecutor {
       taskState = State.DONE;
     }
 
+    workQueue.retire();
     clusterCoordinator.getServiceSet(ClusterCoordinator.Role.COORDINATOR).removeNodeStatusListener(crashListener);
 
     deferredException.suppressingClose(contextCreator);
@@ -631,6 +631,8 @@ public class FragmentExecutor {
 
     public void handle(OutOfBandMessage message) {
       requestActivate("out of band message");
+      message.retainBufferIfPresent();
+      final AutoCloseable closeable = message.getBuffer() != null ? (NettyArrowBuf) message.getBuffer() : () -> {};
       workQueue.put(() -> {
           try {
             if (!isSetup) {
@@ -645,13 +647,21 @@ public class FragmentExecutor {
             } else {
               pipeline.workOnOOB(message);
             }
-          } catch(Exception e) {
+          } catch(IllegalStateException e) {
             logger.warn("Failure while handling OOB message. {}", message, e);
-
-            //propagate the exception
             throw e;
+          } catch (Exception e) {
+            //propagate the exception
+            logger.warn("Failure while handling OOB message. {}", message, e);
+            throw new IllegalStateException(e);
+          } finally {
+            try {
+              closeable.close();
+            } catch (Exception e) {
+              logger.error("Error while closing OOBMessage ref", e);
+            }
           }
-      });
+      }, closeable);
     }
 
     public void activate() {

@@ -32,13 +32,13 @@ import com.dremio.exec.planner.sql.parser.SqlLoadMaterialization;
 import com.dremio.exec.store.SchemaConfig;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.reflection.ReflectionGoalChecker;
 import com.dremio.service.reflection.ReflectionService;
 import com.dremio.service.reflection.proto.Materialization;
 import com.dremio.service.reflection.proto.MaterializationId;
 import com.dremio.service.reflection.proto.ReflectionField;
 import com.dremio.service.reflection.proto.ReflectionGoal;
 import com.dremio.service.reflection.proto.ReflectionId;
-import com.dremio.service.reflection.store.ReflectionGoalsStore;
 import com.dremio.service.users.SystemUser;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
@@ -108,7 +108,7 @@ public class LoadMaterializationHandler extends SimpleDirectHandler {
     final Materialization materialization = materializationOpt.get();
 
     // if the user already made changes to the reflection goal, let's stop right here
-    Preconditions.checkState(ReflectionGoalsStore.checkGoalVersion(goal, materialization.getReflectionGoalVersion()),
+    Preconditions.checkState(ReflectionGoalChecker.checkGoal(goal, materialization),
       "materialization no longer matches its goal");
 
     refreshMetadata(goal, materialization);

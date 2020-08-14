@@ -132,6 +132,12 @@ message PlanFragmentMajor {
   optional FragmentPriority priority = 13;
   optional FragmentCodec fragment_codec = 14;
   repeated FragmentAssignment all_assignment = 15;
+  repeated MajorFragmentAssignment ext_fragment_assignments = 16;
+}
+
+message MajorFragmentAssignment {
+  required int32 major_fragment_id = 1;
+  repeated FragmentAssignment all_assignment = 2;
 }
 
 // Information that is specific for the minor.
@@ -204,6 +210,7 @@ message MinorFragmentIndexEndpointList {
 message NodeQueryScreenCompletion {
   optional exec.shared.QueryId id = 1;
   optional NodeEndpoint endpoint = 2;
+  optional NodeEndpoint foreman = 3;
 }
 
 // executor > coordinator : completion of all fragments on an executor for a query
@@ -219,6 +226,8 @@ message NodeQueryCompletion {
 
   // the final profile from the node for the query
   optional ExecutorQueryProfile final_node_query_profile = 7;
+
+  optional NodeEndpoint foreman = 8;
 }
 
 // executor > coordinator : report first error for a query on an executor
@@ -226,6 +235,7 @@ message NodeQueryFirstError {
   optional FragmentHandle handle = 1;
   optional NodeEndpoint endpoint = 2;
   optional exec.shared.DremioPBError error = 3;
+  optional NodeEndpoint foreman = 4;
 }
 
 // progress metrics

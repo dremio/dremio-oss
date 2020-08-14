@@ -62,6 +62,9 @@ message ReflectionEntry {
   optional string tag = 22;
   optional string goalVersion = 23;
   optional int32 shallowDatasetHash = 24;
+  optional bool arrowCachingEnabled = 25 [default = false]; // true if boost columns are enabled for caching
+  optional ReflectionGoalHash reflection_goal_hash = 26;
+
 }
 
 enum DependencyType {

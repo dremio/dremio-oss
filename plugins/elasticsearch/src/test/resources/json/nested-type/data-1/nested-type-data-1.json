@@ -1,11 +1,13 @@
 {
     "id" : 1,
     "username" : "andrew",
+    "creationDate" : "20100111T072408.399+0000",
     "address" : {
         "city"   : "menlo park",
         "state"  : "ca",
         "zip"    : 94026,
         "street" : "1 santa cruz",
+        "creationDate" : "20180112T072408.617+0000",
         "phones" : {
             "mobile" : 4152568900,
             "office" : 4156263434

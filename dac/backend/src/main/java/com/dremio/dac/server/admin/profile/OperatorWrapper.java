@@ -15,12 +15,17 @@
  */
 package com.dremio.dac.server.admin.profile;
 
+import static com.dremio.dac.server.admin.profile.HostProcessingRateUtil.computeRecordProcessingRate;
+
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 
@@ -36,6 +41,7 @@ import com.dremio.exec.proto.UserBitShared.StreamProfile;
 import com.dremio.sabot.op.aggregate.vectorized.HashAggStats;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Table;
 
 /**
  * Wrapper class for profiles of ALL operator instances of the same operator type within a major fragment.
@@ -50,10 +56,18 @@ public class OperatorWrapper {
   private final String operatorName;
   private final int size;
   private final CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap;
+  private final Table<Integer, Integer, String> majorMinorHostTable;
+  private final Set<HostProcessingRate> hostProcessingRateSet;
 
-  public OperatorWrapper(int major, List<ImmutablePair<OperatorProfile, Integer>> ops, CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap) {
+  public OperatorWrapper(int major,
+                         List<ImmutablePair<OperatorProfile, Integer>> ops,
+                         CoreOperatorTypeMetricsMap coreOperatorTypeMetricsMap,
+                         Table<Integer, Integer, String> majorMinorHostTable,
+                         Set<HostProcessingRate> hostProcessingRateSet) {
     Preconditions.checkArgument(ops.size() > 0);
     this.major = major;
+    this.majorMinorHostTable = majorMinorHostTable;
+    this.hostProcessingRateSet = hostProcessingRateSet;
     firstProfile = ops.get(0).getLeft();
     operatorType = CoreOperatorType.valueOf(firstProfile.getOperatorType());
     operatorName = operatorType == null ? "UNKNOWN_OPERATOR" : operatorType.toString();
@@ -72,7 +86,7 @@ public class OperatorWrapper {
   }
 
   public static final String[] OPERATOR_COLUMNS = {"Thread", "Setup Time", "Process Time", "Wait Time",
-    "Max Batches", "Max Records", "Peak Memory"};
+    "Max Batches", "Max Records", "Peak Memory", "Hostname", "Record Processing Rate"};
 
   public static final String[] OPERATORS_OVERVIEW_COLUMNS = {"SqlOperatorImpl ID", "Type", "Min Setup Time", "Avg Setup Time",
     "Max Setup Time", "Min Process Time", "Avg Process Time", "Max Process Time", "Min Wait Time", "Avg Wait Time",
@@ -80,6 +94,9 @@ public class OperatorWrapper {
 
   public static final String[] SPLIT_INFO_COLUMNS = { "Split Output Name", "Split Evaluated in Gandiva",
     "Split Depends On", "Split Expression", "LLVM Optimized" };
+
+  public static final String[] HOST_METRICS_COLUMNS = { "Hostname", "Num Threads", "Total Max Records",
+    "Total Process Time", "Record Processing Rate" };
 
   public static final String[] SLOW_IO_INFO_COLUMNS = { "FilePath" , "IO Time (ns)", "IO Size", "Offset"};
 
@@ -149,6 +166,7 @@ public class OperatorWrapper {
     addInfo(generator);
     addMetrics(generator);
     addDetails(generator);
+    addHostMetrics(generator);
 
     generator.writeEndObject();
   }
@@ -181,9 +199,33 @@ public class OperatorWrapper {
       builder.appendFormattedInteger(maxRecords);
       builder.appendBytes(op.getPeakLocalMemoryAllocated());
 
+      String hostname = majorMinorHostTable.get(major, minor);
+      builder.appendString(hostname);
+      BigDecimal recordProcessingRate = computeRecordProcessingRate(BigInteger.valueOf(maxRecords),
+                                                                    BigInteger.valueOf(op.getProcessNanos()));
+      builder.appendFormattedInteger(recordProcessingRate.longValue());
       builder.endEntry();
     }
 
+    builder.end();
+  }
+
+  private void addHostMetrics(JsonGenerator generator) throws IOException {
+    if (hostProcessingRateSet == null || hostProcessingRateSet.isEmpty()) {
+      return;
+    }
+    generator.writeFieldName("hostMetrics");
+    JsonBuilder builder = new JsonBuilder(generator, HOST_METRICS_COLUMNS);
+
+    for(HostProcessingRate hpr: hostProcessingRateSet) {
+      builder.startEntry();
+      builder.appendString(hpr.getHostname());
+      builder.appendFormattedInteger(hpr.getNumThreads().longValue());
+      builder.appendFormattedInteger(hpr.getNumRecords().longValue());
+      builder.appendNanos(hpr.getProcessNanos().longValue());
+      builder.appendFormattedInteger(hpr.computeProcessingRate().longValue());
+      builder.endEntry();
+    }
     builder.end();
   }
 

@@ -28,8 +28,6 @@ import { PALE_NAVY } from 'uiTheme/radium/colors';
  */
 import * as ButtonTypes from './ButtonTypes';
 
-const PRIMARY_CLR = '#43B8C9';
-const SECONDARY_CLR = 'rgba(0,0,0,0.04)';
 /**
  * @const - this constant define default value for text variable for different button types.
  */
@@ -137,8 +135,8 @@ class Button extends Component {
       ? [styles.primary, customStyle]
       : [styles.secondary, customStyle];
     const standartBtn = type === ButtonTypes.NEXT || type === ButtonTypes.PRIMARY
-      ? [commonStyle, {':hover': {backgroundColor: '#68C6D3'}}, customStyle]
-      : [commonStyle, {':hover': {backgroundColor: 'rgba(0,0,0,0.02)'}}, customStyle];
+      ? [commonStyle, {':hover': {backgroundColor: '#5EC6D5'}}, customStyle]
+      : [commonStyle, {':hover': {backgroundColor: '#F9F9F9'}}, customStyle];
     const iconBtn = icon
       ? (
         <FontIcon
@@ -237,13 +235,16 @@ const styles = {
     borderTop: 'none',
     position: 'relative',
     minWidth: 100,
-    height: 28,
-    borderRadius: 2,
+    height: 32,
+    borderRadius: 4,
     marginBottom: 5,
-    fontSize: 11,
+    fontSize: 13,
     outline: 0,
     cursor: 'pointer',
-    lineHeight: '38px'
+    border: '1px solid #D9D9D9',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center'
   },
 
   wrapRight: {
@@ -265,20 +266,17 @@ const styles = {
   },
 
   innerText: {
-    width: '100%',
-    top: -6,
-    position: 'relative'
+    position: 'relative',
+    lineHeight: '28px'
   },
 
   secondary: {
-    color: '#505050',
-    backgroundColor: SECONDARY_CLR,
-    borderBottom: '1px solid rgba(0,0,0,0.05)'
+    color: '#333',
+    backgroundColor: '#F2F2F2'
   },
 
   primary: {
-    backgroundColor: PRIMARY_CLR,
-    borderBottom: '1px solid #3399A8',
+    backgroundColor: '#43B8C9',
     color: '#FFFFFF'
   },
 
@@ -290,7 +288,7 @@ const styles = {
       marginTop: 3
     },
     'Container': {
-      height: 28,
+      height: 32,
       width: 24,
       marginLeft: 3,
       marginRight: 10

@@ -22,18 +22,19 @@ import FormElement from 'components/Forms/FormElement';
 import HoverHelp from 'components/HoverHelp';
 import Art from '@app/components/Art';
 import SourceIcon from 'components/Icon/SourceIcon';
+import config from 'dyn-load/utils/config';
 
-import { sectionLabel, sectionBody, inlineHelp } from 'uiTheme/less/forms.less';
+import { inlineHelp, sectionBody, sectionLabel } from 'uiTheme/less/forms.less';
 import { flexColumnContainer } from 'uiTheme/less/layout.less';
 import {
-  sectionWithIcon,
-  elementsWithIcon,
-  linkContainer,
-  groupLayoutRow,
+  elementLayoutFull,
+  elementLayoutHalf,
   elementLayoutRow,
   elementLayoutRowFixed,
-  elementLayoutHalf,
-  elementLayoutFull
+  elementsWithIcon,
+  groupLayoutRow,
+  linkContainer,
+  sectionWithIcon
 } from './FormSection.less';
 
 export default class FormSection extends Component {
@@ -77,7 +78,12 @@ export default class FormSection extends Component {
         <div className={groupStyleClass}>
           {
             sectionConfig.getDirectElements().map((elementConfig, index) => {
-              const { size } = elementConfig.getConfig();
+              const { size, visibilityControl} = elementConfig.getConfig();
+
+              if (visibilityControl && config[visibilityControl.config] !== visibilityControl.showCondition) {
+                return;
+              }
+
               const isFixedSize = typeof size === 'number' && size > 0;
               const isHalfWidth = size === 'half';
               let style = null;

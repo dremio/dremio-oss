@@ -48,3 +48,30 @@ message HashAggSpill {
 message ExtSortSpillNotificationMessage {
   optional int64 memory_use = 1;
 }
+
+/**
+ * Describes the type of filter sent as part of runtime filtering.
+ */
+enum RuntimeFilterType {
+  BLOOM_FILTER = 1;
+  VALUE_LIST = 2;
+}
+
+/**
+ * List of column names and the type of filter that applies to these columns
+ */
+message CompositeColumnFilter {
+  optional RuntimeFilterType filterType = 1;
+  repeated string columns = 2; // the order in which the columns are encoded in the serializedFilter
+  optional int64 sizeBytes = 3;
+}
+
+/**
+ * Filtering information for partition columns and non-partition columns
+ */
+message RuntimeFilter {
+  optional int32 probeScanMajorFragmentId = 1;
+  optional int32 probeScanOperatorId = 2;
+  optional CompositeColumnFilter partitionColumnFilter = 3;
+  repeated CompositeColumnFilter nonPartitionColumnFilter = 4;
+}

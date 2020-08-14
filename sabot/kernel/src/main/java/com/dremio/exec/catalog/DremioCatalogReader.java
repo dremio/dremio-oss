@@ -98,6 +98,10 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
     return new DremioPrepareTable(this, typeFactory, table);
   }
 
+  public void validateSelection() {
+    catalog.validateSelection();
+  }
+
   @Override
   public RelDataType getNamedType(SqlIdentifier paramSqlIdentifier) {
     return null;

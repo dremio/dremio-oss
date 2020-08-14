@@ -204,7 +204,7 @@ export class Support extends PureComponent {
     const advancedForm = <form style={{flex: '0 0 auto'}} onSubmit={this.addAdvanced}>
       <TextField placeholder={la('Support Key')} data-qa='support-key-search'/>
       <SimpleButton buttonStyle='secondary' data-qa='support-key-search-btn' submitting={this.state.getSettingInProgress}
-        style={{verticalAlign: 'bottom', width: 'auto'}}>
+        style={{display: 'inline-block', marginLeft: '6px'}}>
         {la('Show')}
       </SimpleButton>
     </form>;
@@ -212,7 +212,11 @@ export class Support extends PureComponent {
     return <div className='support-settings'>
       <Header>{la('Support Settings')}</Header>
 
-      <ViewStateWrapper viewState={viewStateWithoutError} hideChildrenWhenFailed={false}>
+      <ViewStateWrapper
+        viewState={viewStateWithoutError}
+        hideChildrenWhenFailed={false}
+        style={{overflow: 'auto', height: '100%', flex: '1 1 auto'}}
+      >
         {!this.props.settings.size ? null : <div>
           {SupportAccess && <SupportAccess
             renderSettings={this.renderSettingsMicroForm}

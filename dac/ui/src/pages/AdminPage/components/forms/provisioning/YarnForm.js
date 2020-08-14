@@ -307,7 +307,7 @@ export class YarnForm extends Component {
               </div>
             </div>
             <Checkbox
-              style={{paddingTop: label.fontSize}}
+              style={{paddingTop: 26}}
               label={la('This is a secure engine')}
               disabled={isEditMode(provision)}
               {...fields.isSecure}

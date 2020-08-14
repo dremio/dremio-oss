@@ -15,8 +15,10 @@
  */
 package com.dremio.exec.planner.fragment;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.physical.base.AbstractPhysicalVisitor;
@@ -30,10 +32,15 @@ import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
 
 public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Materializer.IndexedFragmentNode, ExecutionSetupException>{
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(Materializer.class);
 
   private final Map<GroupScan, ListMultimap<Integer, CompleteWork>> splitSets;
   private EndpointsIndex.Builder indexBuilder;
+
+  public Set<Integer> getExtCommunicableMajorFragments() {
+    return extCommunicableMajorFragments;
+  }
+
+  private Set<Integer> extCommunicableMajorFragments = new HashSet<>();
 
   Materializer(Map<GroupScan, ListMultimap<Integer, CompleteWork>> splitSets, EndpointsIndex.Builder indexBuilder) {
     this.splitSets = splitSets;
@@ -43,9 +50,11 @@ public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Mate
   @Override
   public PhysicalOperator visitExchange(Exchange exchange, IndexedFragmentNode iNode) throws ExecutionSetupException {
     iNode.addAllocation(exchange);
-    if(exchange == iNode.getNode().getSendingExchange()){
+    extCommunicableMajorFragments.addAll(exchange.getExtCommunicableMajorFragments());
 
+    if(exchange == iNode.getNode().getSendingExchange()){
       // this is a sending exchange.
+
       PhysicalOperator child = exchange.getChild().accept(this, iNode);
       PhysicalOperator materializedSender = exchange.getSender(iNode.getMinorFragmentId(), child, indexBuilder);
       return materializedSender;
@@ -66,12 +75,15 @@ public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Mate
     Preconditions.checkNotNull(work);
     PhysicalOperator child = groupScan.getSpecificScan(work);
     iNode.addAllocation(groupScan);
+    extCommunicableMajorFragments.addAll(groupScan.getExtCommunicableMajorFragments());
+
     return child;
   }
 
   @Override
   public PhysicalOperator visitSubScan(SubScan subScan, IndexedFragmentNode value) throws ExecutionSetupException {
     value.addAllocation(subScan);
+    extCommunicableMajorFragments.addAll(subScan.getExtCommunicableMajorFragments());
     // TODO - implement this
     return super.visitOp(subScan, value);
   }
@@ -80,6 +92,7 @@ public class Materializer extends AbstractPhysicalVisitor<PhysicalOperator, Mate
   public PhysicalOperator visitOp(PhysicalOperator op, IndexedFragmentNode iNode) throws ExecutionSetupException {
     iNode.addAllocation(op);
 //    logger.debug("Visiting catch all: {}", op);
+    extCommunicableMajorFragments.addAll(op.getExtCommunicableMajorFragments());
     List<PhysicalOperator> children = Lists.newArrayList();
     for(PhysicalOperator child : op){
       children.add(child.accept(this, iNode));

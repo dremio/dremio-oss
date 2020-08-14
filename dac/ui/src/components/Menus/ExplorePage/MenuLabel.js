@@ -46,6 +46,6 @@ const styles = {
     paddingLeft: 8,
     height: 24,
     ...formDefault,
-    fontWeight: 'bold'
+    fontWeight: '500'
   }
 };

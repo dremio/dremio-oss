@@ -69,6 +69,6 @@ export default class Property extends Component {
 const styles = {
   removeButton: {
     ...RemoveButtonStyles.inline,
-    marginTop: 17
+    marginTop: 36
   }
 };

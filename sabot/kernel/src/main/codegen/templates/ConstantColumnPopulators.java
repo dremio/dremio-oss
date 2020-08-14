@@ -20,9 +20,11 @@
 
 package com.dremio.exec.store.dfs.implicit;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.apache.arrow.memory.ArrowBuf;
+import org.apache.arrow.memory.util.MemoryUtil;
 import org.apache.arrow.vector.types.pojo.ArrowType.Decimal;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.*;
@@ -263,6 +265,78 @@ public class ConstantColumnPopulators {
 
     public Populator createPopulator(){
       return new ${minor.class}Populator(this);
+    }
+
+    public int getValueTypeSize() {
+      <#switch minor.class>
+      <#case "Bit">
+      return -1;
+      <#break>
+      <#case "Int">
+      <#case "Float4">
+      <#case "TimeMilli">
+      return 4;
+      <#break>
+      <#case "BigInt">
+      <#case "Float8">
+      <#case "DateMilli">
+      <#case "TimeStampMilli">
+      return 8;
+      <#break>
+      <#case "Decimal">
+      return 16;
+      <#break>
+      <#case "VarBinary">
+      <#case "VarChar">
+      return Integer.MAX_VALUE;
+      </#switch>
+    }
+
+    public byte[] getValueBytes() {
+      if (value != null) {
+    <#switch minor.class >
+    <#case "Bit" >
+          byte[] arr = new byte[1];
+          arr[0] = (byte) (value ? 1 : 0);
+          return arr;
+    <#break>
+    <#case "Int" >
+    <#case "TimeMilli" >
+          byte[] arr = new byte[Integer.BYTES];
+          MemoryUtil.UNSAFE.putInt(arr, MemoryUtil.BYTE_ARRAY_BASE_OFFSET, value);
+          return arr;
+    <#break>
+    <#case "BigInt" >
+    <#case "DateMilli" >
+    <#case "TimeStampMilli" >
+          byte[] arr = new byte[Long.BYTES];
+          MemoryUtil.UNSAFE.putLong(arr, MemoryUtil.BYTE_ARRAY_BASE_OFFSET, value);
+          return arr;
+    <#break>
+    <#case "Float4" >
+          byte[] arr = new byte[Float.BYTES];
+          MemoryUtil.UNSAFE.putFloat(arr, MemoryUtil.BYTE_ARRAY_BASE_OFFSET, value);
+          return arr;
+    <#break>
+    <#case "Float8" >
+          byte[] arr = new byte[Double.BYTES];
+          MemoryUtil.UNSAFE.putDouble(arr, MemoryUtil.BYTE_ARRAY_BASE_OFFSET, value);
+          return arr;
+    <#break>
+    <#case "Decimal" >
+          byte[] arr = new byte[16];
+          value.buffer.getBytes(0, arr);
+          return arr;
+    <#break>
+    <#case "VarBinary" >
+          return value;
+    <#break>
+    <#case "VarChar" >
+          return value.getBytes(StandardCharsets.UTF_8);
+    </#switch>
+      } else {
+        return null;
+      }
     }
   }
 </#if>

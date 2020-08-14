@@ -98,7 +98,7 @@ export default class ConfigurableSourceFormWrapper extends Component {
     this.wrappedComponent = connectComplexForm({
       form: 'source',
       onSubmitFail: this.handleSyncValidationFailure,
-      fields: ['id', 'name', 'description']
+      fields: ['id', 'name', 'description', 'allowCrossSourceSelection']
     }, [], mapStateToProps, null)(ConfigurableSourceForm);
   }
 

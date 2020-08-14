@@ -34,3 +34,8 @@ message OptionValueProto {
     double float_val = 5;
   }
 }
+
+// A List of OptionValues
+message OptionValueProtoList {
+  repeated OptionValueProto options = 1;
+}

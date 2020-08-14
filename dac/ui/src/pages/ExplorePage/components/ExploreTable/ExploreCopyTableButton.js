@@ -23,9 +23,9 @@ import { getPaginationJobId } from '@app/selectors/explore';
 import { escapeDblQuotes } from '@app/utils/regExpUtils';
 import ApiUtils from '@app/utils/apiUtils/apiUtils';
 import { copyTextToClipboard } from '@app/utils/clipboard/clipboardUtils';
+import { MSG_CLEAR_DELAY_SEC } from '@app/constants/Constants';
 
 const MAX_ROWS_TO_CLIPBOARD = 5000;
-const MSG_CLEAR_DELAY_SEC = 3;
 const isFirefox = platform.name === 'Firefox';
 const isSafari = platform.name === 'Safari';
 const isEdge = platform.name === 'Microsoft Edge';

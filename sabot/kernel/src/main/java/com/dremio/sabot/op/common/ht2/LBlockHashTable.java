@@ -22,15 +22,19 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Formatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.util.LargeMemoryUtil;
+import org.apache.commons.collections.CollectionUtils;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.AutoCloseables.RollbackCloseable;
 import com.dremio.common.util.Numbers;
+import com.dremio.exec.util.BloomFilter;
+import com.dremio.exec.util.LBlockHashTableKeyReader;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -54,6 +58,7 @@ import io.netty.util.internal.PlatformDependent;
  */
 public final class LBlockHashTable implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(LBlockHashTable.class);
+  private static final long BLOOMFILTER_MAX_SIZE = 2 * 1024 * 1024;
   public static final int CONTROL_WIDTH = 8;
   public static final int VAR_OFFSET_SIZE = 4;
   public static final int VAR_LENGTH_SIZE = 4;
@@ -1247,5 +1252,46 @@ public final class LBlockHashTable implements AutoCloseable {
 
   public static long mix(long hash) {
     return (hash & 0x7FFFFFFFFFFFFFFFL);
+  }
+
+  /**
+   * Prepares a bloomfilter from the selective field keys. Since this is an optimisation, errors are not propagated to
+   * the consumer. Instead, they get an empty optional.
+   * @param fieldNames
+   * @param sizeDynamically Size the filter according to the number of entries in table.
+   * @return
+   */
+  public Optional<BloomFilter> prepareBloomFilter(List<String> fieldNames, boolean sizeDynamically) {
+    if (CollectionUtils.isEmpty(fieldNames)) {
+      return Optional.empty();
+    }
+
+    // Not dropping the filter even if expected size is more than max possible size since there could be repeated keys.
+    long bloomFilterSize = sizeDynamically ? Math.min(BloomFilter.getOptimalSize(size()),
+            BLOOMFILTER_MAX_SIZE) : BLOOMFILTER_MAX_SIZE;
+
+    LBlockHashTableKeyReader.Builder keyReaderBuilder = new LBlockHashTableKeyReader.Builder()
+            .setBufferAllocator(this.allocator)
+            .setFieldsToRead(fieldNames)
+            .setPivot(pivot)
+            .setMaxValuesPerBatch(MAX_VALUES_PER_BATCH)
+            .setTableFixedAddresses(tableFixedAddresses)
+            .setTableVarAddresses(initVariableAddresses)
+            .setTotalNumOfRecords(size());
+    final BloomFilter bloomFilter = new BloomFilter(allocator, Thread.currentThread().getName(), bloomFilterSize);
+    try (RollbackCloseable closeOnError = new RollbackCloseable();
+         LBlockHashTableKeyReader keyReader = keyReaderBuilder.build()) {
+      closeOnError.add(bloomFilter);
+      bloomFilter.setup();
+      final ArrowBuf keyHolder = keyReader.getKeyHolder();
+      while(keyReader.loadNextKey()) {
+        bloomFilter.put(keyHolder, keyReader.getKeyBufSize());
+      }
+      closeOnError.commit();
+      return Optional.of(bloomFilter);
+    } catch (Exception e) {
+      logger.warn("Unable to prepare bloomfilter for " + fieldNames, e);
+      return Optional.empty();
+    }
   }
 }

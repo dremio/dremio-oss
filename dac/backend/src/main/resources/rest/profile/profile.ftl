@@ -105,6 +105,20 @@
       renderTable(details, data.fields, data.data);
     }
 
+    function toggleHostMetrics(id) {
+      // check if we have to build anything
+      const container = document.getElementById(id);
+      const metrics = container.querySelector(".hostMetrics-table");
+
+      if (metrics.hasChildNodes()) {
+        // has data so no need to do anything
+        return;
+      }
+
+      const data = globalconfig.operatorProfiles[id].hostMetrics;
+      renderTable(metrics, data.fields, data.data);
+    }
+
     function renderTable(container, fields, data) {
       // build the fragment table
       const table = document.createElement("table");
@@ -587,6 +601,22 @@
               </div>
             </div>
            </div>
+
+          <div class="panel panel-default">
+            <div class="panel-heading" onclick="toggleHostMetrics('${op.getId()}')">
+              <h4 class="panel-title">
+                <a data-toggle="collapse" href="#${op.getId()}-hostMetrics" class="collapsed">
+                  Host Metrics
+                </a>
+              </h4>
+            </div>
+            <div id="${op.getId()}-hostMetrics" class="panel-collapse collapse">
+              <div class="panel-body">
+                <div class="hostMetrics-table"></div>
+              </div>
+            </div>
+           </div>
+
         </div>
       </div>
     </div>

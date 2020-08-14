@@ -31,8 +31,12 @@ import FieldWithError from 'components/Fields/FieldWithError';
 import Modal from 'components/Modals/Modal';
 import ModalForm from 'components/Forms/ModalForm';
 import FormBody from 'components/Forms/FormBody';
+import { tooltipIcon } from '@app/components/Forms/Wrappers/FormWrappers.less';
+
 import Message from 'components/Message';
 import EllipsedText from '@app/components/EllipsedText';
+import Checkbox from '@app/components/Fields/Checkbox';
+import HoverHelp from '@app/components/HoverHelp';
 
 import { formDescription, formLabel } from 'uiTheme/radium/typography';
 import { typeToIconType } from '@app/constants/DataTypes';
@@ -238,13 +242,14 @@ export class AccelerationGrid extends Component {
     };
     return <Modal
       size='smallest'
+      style={{width: 500, height: 250}}
       title={la('Settings: ') + name} //todo: text sub loc
       isOpen={this.state.visibleLayoutExtraSettingsIndex === columnIndex}
       hide={hide}
     >
       <ModalForm onSubmit={hide} confirmText={la('Close')} isNestedForm>
         <FormBody>
-          <FieldWithError label={la('Reflection execution strategy:')}>
+          <FieldWithError label={la('Reflection execution strategy')}>
             <Select
               {...fields.partitionDistributionStrategy}
               style={{width: 250}}
@@ -254,6 +259,17 @@ export class AccelerationGrid extends Component {
               ]}
             />
           </FieldWithError>
+          <div style={styles.checkRow}>
+            <Checkbox
+              {...fields.arrowCachingEnabled}
+              isOnOffSwitch
+              label={la('Arrow caching')}
+            />
+            <HoverHelp
+              content={la('Increase query performance by locally caching in a performance optimized format.')}
+              className={tooltipIcon}
+            />
+          </div>
         </FormBody>
       </ModalForm>
     </Modal>;
@@ -312,7 +328,7 @@ export class AccelerationGrid extends Component {
     return (
       <div
         className='grid-acceleration'
-        style={{width: '100%', height: '100%', maxHeight: 'calc(100vh - 330px)', overflow: 'hidden'}}
+        style={{width: '100%', height: '100vh', maxHeight: 'calc(100vh - 330px)', overflow: 'hidden'}}
         ref={(wrap) => this.gridWrapper = wrap}
       >
         <AutoSizer>
@@ -451,6 +467,10 @@ const styles = {
     flexShrink: 0,
     cursor: 'pointer',
     height: 24
+  },
+  checkRow: {
+    display: 'flex',
+    marginTop: 10
   }
 };
 styles.status = {

@@ -109,6 +109,7 @@ public class AccelerationManagerImpl implements AccelerationManager {
         PartitionDistributionStrategy.STRIPED : PartitionDistributionStrategy.CONSOLIDATED);
 
     goal.setName(definition.getName());
+    goal.setArrowCachingEnabled(definition.getArrowCachingEnabled());
     goal.setState(ReflectionGoalState.ENABLED);
     goal.setType(definition.getType() == Type.AGGREGATE ? ReflectionType.AGGREGATION : ReflectionType.RAW);
     goal.setDatasetId(dataset.getId().getId());

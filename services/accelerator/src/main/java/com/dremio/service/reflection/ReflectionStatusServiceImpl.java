@@ -313,7 +313,8 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
         JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDimensionFieldList()).stream().map(ReflectionDimensionField::getName).collect(Collectors.toList())),
         JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getMeasureFieldList()).stream().map(ReflectionMeasureField::getName).collect(Collectors.toList())),
         JOINER.join(AccelerationUtils.selfOrEmpty(goal.getDetails().getDisplayFieldList()).stream().map(ReflectionField::getName).collect(Collectors.toList())),
-        null
+        null,
+        goal.getArrowCachingEnabled()
       );
     });
 
@@ -345,7 +346,8 @@ public class ReflectionStatusServiceImpl implements ReflectionStatusService {
             null,
             null,
             null,
-            targetDatasetPath
+            targetDatasetPath,
+            false
           );
       }).filter(Objects::nonNull);
     return Stream.concat(reflections, externalReflectionsInfo).collect(Collectors.toList());

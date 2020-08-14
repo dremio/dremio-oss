@@ -258,6 +258,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
 
   private static final String LOCAL_ONE_TIME_TASK_LEADER_NAME = "localjobsabandon";
 
+  private static final int SEARCH_JOBS_PAGE_SIZE = 100;
+
   private final Provider<LocalQueryExecutor> queryExecutor;
   private final Provider<LegacyKVStoreProvider> kvStoreProvider;
   private final Provider<JobResultsStoreConfig> jobResultsStoreConfig;
@@ -995,6 +997,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
       condition.setLimit(limit);
     }
 
+    condition.setPageSize(SEARCH_JOBS_PAGE_SIZE);
+
     final String sortColumn = searchJobsRequest.getSortColumn();
     if (!Strings.isNullOrEmpty(sortColumn)) {
       condition.addSortings(buildSorter(sortColumn, JobsProtoUtil.toStoreSortOrder(searchJobsRequest.getSortOrder())));
@@ -1180,7 +1184,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
     private final boolean isInternal;
     private final ExternalListenerManager listeners = new ExternalListenerManager();
     private final CountDownLatch completionLatch = new CountDownLatch(1);
-    private final CountDownLatch metadataCompletionLatch = new CountDownLatch(1);
     private final DeferredException exception = new DeferredException();
 
     private JobResultListener attemptObserver;
@@ -1219,8 +1222,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
       final JobLoader jobLoader = isInternal ?
           new InternalJobLoader(exception, completionLatch, job.getJobId(), jobResultsStore, store) :
           new ExternalJobLoader(completionLatch, exception);
-      final JobData result = jobResultsStore.cacheNewJob(job.getJobId(), new JobDataImpl(jobLoader, job.getJobId(), metadataCompletionLatch));
-      job.setData(result);
+      JobData jobData = new JobDataImpl(jobLoader, job.getJobId());
+      job.setData(jobData);
     }
 
     @Override
@@ -1247,9 +1250,9 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
       job.getJobAttempt().setAttemptId(AttemptIdUtils.toString(attemptId));
 
       if (isInternal) {
-        attemptObserver = new JobResultListener(attemptId, job, allocator, eventObserver, planTransformationListener, listeners, metadataCompletionLatch);
+        attemptObserver = new JobResultListener(attemptId, job, allocator, eventObserver, planTransformationListener, listeners);
       } else {
-        attemptObserver = new ExternalJobResultListener(attemptId, responseHandler, job, allocator, metadataCompletionLatch, listeners);
+        attemptObserver = new ExternalJobResultListener(attemptId, responseHandler, job, allocator, listeners);
       }
 
       storeJob(job);
@@ -1301,8 +1304,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
       }
 
       this.completionLatch.countDown();
-      //make sure that latch is released in case of failures
-      this.metadataCompletionLatch.countDown();
 
       if (isInternal) {
         try {
@@ -1440,11 +1441,10 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
         UserResponseHandler connection,
         Job job,
         BufferAllocator allocator,
-        CountDownLatch metadataCompletionLatch,
         ExternalListenerManager externalListenerManager
     ) {
       super(attemptId, job, allocator, new JobEventCollatingObserver(job.getJobId(), NoopStreamObserver.instance()),
-          PlanTransformationListener.NO_OP, externalListenerManager, metadataCompletionLatch);
+          PlanTransformationListener.NO_OP, externalListenerManager);
       this.connection = connection;
       this.externalId = JobsServiceUtil.getJobIdAsExternalId(job.getJobId());
     }
@@ -1490,13 +1490,12 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
     private QueryMetadata.Builder builder;
     private final AccelerationDetailsPopulator detailsPopulator;
     private final ExternalListenerManager externalListenerManager;
-    private final CountDownLatch metadataCompletionLatch;
     private JoinPreAnalyzer joinPreAnalyzer;
     private volatile QueryMetadata queryMetadata = null;
 
     JobResultListener(AttemptId attemptId, Job job, BufferAllocator allocator,
                       JobEventCollatingObserver eventObserver, PlanTransformationListener planTransformationListener,
-        ExternalListenerManager externalListenerManager, CountDownLatch metadataCompletionLatch) {
+        ExternalListenerManager externalListenerManager) {
       Preconditions.checkNotNull(jobResultsStore);
       this.attemptId = attemptId;
       this.job = job;
@@ -1509,7 +1508,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
       this.planTransformationListener = planTransformationListener;
       this.detailsPopulator = accelerationManagerProvider.get().newPopulator();
       this.externalListenerManager = externalListenerManager;
-      this.metadataCompletionLatch = metadataCompletionLatch;
     }
 
     Exception getException() {
@@ -1714,7 +1712,6 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
             .build());
         queryMetadata = metadata;
         externalListenerManager.metadataAvailable(JobsProtoUtil.toBuf(metadata));
-        metadataCompletionLatch.countDown();
       }catch(Exception ex){
         exception.addException(ex);
       }

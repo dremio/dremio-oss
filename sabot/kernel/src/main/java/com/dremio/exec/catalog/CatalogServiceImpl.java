@@ -384,6 +384,10 @@ public class CatalogServiceImpl implements CatalogService {
       if(plugin == null) {
         throw UserException.concurrentModificationError().message("Source not found.").buildSilently();
       }
+      final String srcType = plugin.getConfig().getType();
+      if (("HOME".equalsIgnoreCase(srcType)) || ("INTERNAL".equalsIgnoreCase(srcType)) || ("ACCELERATION".equalsIgnoreCase(srcType))) {
+        config.setAllowCrossSourceSelection(true);
+      }
       plugin.updateSource(config, userName, attributes);
       communicateChange(config, RpcType.REQ_SOURCE_CONFIG);
     } catch (ConcurrentModificationException ex) {
@@ -513,12 +517,16 @@ public class CatalogServiceImpl implements CatalogService {
   @Override
   public Catalog getCatalog(MetadataRequestOptions requestOptions) {
     Preconditions.checkNotNull(requestOptions,  "request options are required");
+    OptionManager optionManager = requestOptions.getSchemaConfig().getOptions();
+    if (optionManager == null) {
+      optionManager = context.get().getOptionManager();
+    }
 
     final Catalog catalog = new CatalogImpl(
       requestOptions,
       new Retriever(),
       new SourceModifier(requestOptions.getSchemaConfig().getUserName()),
-      context.get().getOptionManager(),
+      optionManager,
       context.get().getNamespaceService(SystemUser.SYSTEM_USERNAME),
       context.get().getNamespaceServiceFactory(),
       context.get().getDatasetListing(),

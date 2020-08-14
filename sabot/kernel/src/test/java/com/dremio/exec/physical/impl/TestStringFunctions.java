@@ -88,10 +88,20 @@ public class TestStringFunctions extends BaseTestFunction {
   @Test
   public void ltrim(){
     testFunctions(new Object[][]{
+      { "ltrim('   abcdef  ')", "abcdef  "},
+      { "ltrim('abcdef ')", "abcdef "},
+      { "ltrim('    ')", ""},
+      { "ltrim('abcd')", "abcd"},
+      { "ltrim('  çåå†b')", "çåå†b"},
+      { "ltrim('')", ""},
       { "ltrim('abcdef', 'abc')", "def"},
       { "ltrim('abcdef', '')", "abcdef"},
       { "ltrim('abcdabc', 'abc')", "dabc"},
       { "ltrim('abc', 'abc')", ""},
+      { "ltrim('abcd', 'efg')", "abcd"},
+      { "ltrim('ååçåå†eç†Dd', 'çåå†')", "eç†Dd"},
+      { "ltrim('ç†ååçåå†', 'çå†')", ""},
+      { "ltrim('åéçå', 'åé')", "çå"},
       { "ltrim('', 'abc')", ""},
       { "ltrim('', '')", ""}
     });
@@ -100,9 +110,20 @@ public class TestStringFunctions extends BaseTestFunction {
   @Test
   public void trim(){
     testFunctions(new Object[][]{
+      { "btrim('   abcdef  ')", "abcdef"},
+      { "btrim('abcdef ')", "abcdef"},
+      { "btrim('  abcdef ')", "abcdef"},
+      { "btrim('    ')", ""},
+      { "btrim('abcd')", "abcd"},
+      { "btrim('  çåå†b  ')", "çåå†b"},
+      { "btrim('')", ""},
       { "btrim('     efghI e', 'e ')", "fghI"},
       { "btrim('a', 'a')", ""},
       { "btrim('', '')", ""},
+      { "btrim('abcd', 'efg')", "abcd"},
+      { "btrim('ååçåå†Ddeç†', 'çåå†')", "Dde"},
+      { "btrim('ç†ååçåå†', 'çå†')", ""},
+      { "btrim('åe†çå', 'çå')", "e†"},
       { "btrim('aAa!aAa', 'aA')", "!"},
       { "btrim(' aaa ', '')", " aaa "}
     });
@@ -125,10 +146,20 @@ public class TestStringFunctions extends BaseTestFunction {
   @Test
   public void rtrim(){
     testFunctions(new Object[][]{
+      {"rtrim('   abcdef  ')", "   abcdef"},
+      {"rtrim('  abcdef')", "  abcdef"},
+      {"rtrim('    ')", ""},
+      {"rtrim('abcd')", "abcd"},
+      {"rtrim('  ')", ""},
+      {"rtrim('çåå†b  ')", "çåå†b"},
       {"rtrim('abcdef', 'def')", "abc"},
       {"rtrim('abcdef', '')", "abcdef"},
       {"rtrim('ABdabc', 'abc')", "ABd"},
       {"rtrim('abc', 'abc')", ""},
+      {"rtrim('abcd', 'efg')", "abcd"},
+      {"rtrim('eDdç†ååçåå†', 'çåå†')", "eDd"},
+      {"rtrim('ç†ååçåå†', 'çå†')", ""},
+      {"rtrim('åéçå', 'çå')", "åé"},
       {"rtrim('', 'abc')", ""},
       {"rtrim('', '')", ""}
     });

@@ -293,7 +293,7 @@
 </suppress>
 <suppress>
   <notes><![CDATA[
-  file name: hive-exec-2.1.1-dremio-202004220420450487-2c6606c.jar (shaded: com.google.guava:guava:14.0.1)
+  file name: hive-exec-2.1.1-dremio-202007281636460620-4925919.jar (shaded: com.google.guava:guava:14.0.1)
   used by hive but not applicable (no serialization)
   ]]></notes>
   <sha1>7b4c8f117c11a8f1fcaf4f1b0fd07cbe756a1430</sha1>
@@ -301,7 +301,7 @@
 </suppress>
 <suppress>
   <notes><![CDATA[
-  file name: hive-exec-3.1.1-dremio-201909111144580113-04156e1.jar (shaded: com.google.guava:guava:19.0)
+  file name: hive-exec-3.1.1-dremio-202007281635210499-9dff598.jar (shaded: com.google.guava:guava:19.0)
   ]]></notes>
   <sha1>65a43a21dbddcc19aa3ca50a63a4b33166bfbc77</sha1>
   <cve>CVE-2018-10237</cve>

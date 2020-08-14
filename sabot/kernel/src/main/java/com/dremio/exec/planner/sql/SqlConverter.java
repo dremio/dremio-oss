@@ -226,7 +226,9 @@ public class SqlConverter {
   }
 
   public SqlNode validate(final SqlNode parsedNode) {
-    return validator.validate(parsedNode);
+    SqlNode node = validator.validate(parsedNode);
+    catalogReader.validateSelection();
+    return node;
   }
 
   public RelDataType getValidatedRowType(String sql) {

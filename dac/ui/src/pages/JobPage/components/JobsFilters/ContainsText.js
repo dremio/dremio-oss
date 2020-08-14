@@ -74,7 +74,7 @@ const styles = {
     display: 'block',
     border: '1px solid rgba(0,0,0, .1)',
     padding: '5px 10px',
-    margin: '0 10px 0 0',
+    margin: '0',
     outline: 0,
     borderRadius: 2,
     height: 24,

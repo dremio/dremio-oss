@@ -18,7 +18,7 @@ import PropTypes from 'prop-types';
 import Immutable from 'immutable';
 import Header from '@app/pages/AdminPage/components/Header';
 import { YARN_NODE_TAG_PROPERTY } from '@app/pages/AdminPage/subpages/Provisioning/ClusterListView';
-import { isYarn, getEntityName } from '@app/pages/AdminPage/subpages/Provisioning/provisioningUtils';
+import { isYarn, getEntityName, getIsInReadOnlyState } from '@app/pages/AdminPage/subpages/Provisioning/provisioningUtils';
 import EngineStatus from '@app/pages/AdminPage/subpages/Provisioning/components/EngineStatus';
 import { StartStopButton } from '@app/pages/AdminPage/subpages/Provisioning/components/EngineActionCell';
 import {CLUSTER_STATE} from '@app/constants/provisioningPage/provisioningConstants';
@@ -53,6 +53,8 @@ export class SingleEngineHeader extends PureComponent {
     const statusIcon = <EngineStatus engine={engine} style={styles.statusIcon} />;
     const engineName = engine && getEntityName(engine, YARN_NODE_TAG_PROPERTY);
     const region = engine && !isYarn(engine) && engine.getIn(['awsProps', 'connectionProps', 'region']);
+    const isReadOnly = getIsInReadOnlyState(engine);
+
     //TODO enhancement: show spinner while start/stop inProgress
     const startStopButton = <StartStopButton
       engine={engine}
@@ -63,6 +65,7 @@ export class SingleEngineHeader extends PureComponent {
     const editButton = <Button
       style={styles.edit}
       onClick={this.onEdit}
+      disable={isReadOnly}
       type={ButtonTypes.NEXT}
       text={la('Edit Settings')}
     />;
@@ -96,9 +99,14 @@ const styles = {
   startStop: {
     marginRight: 10,
     marginTop: 5,
-    height: 28,
-    width: 100,
-    paddingTop: 3
+    height: 32,
+    fontSize: 13,
+    boxShadow: 'none',
+    border: '1px solid #D9D9D9',
+    outline: 'none',
+    backgroundColor: '#F2F2F2',
+    borderRadius: 4,
+    width: 100
   },
   edit: {
     width: 100,

@@ -20,7 +20,7 @@ import PropTypes from 'prop-types';
 import { FormattedMessage, injectIntl } from 'react-intl';
 
 import { formDescription } from 'uiTheme/radium/typography';
-import { BLUE, PALE_GREY, PALE_BLUE } from 'uiTheme/radium/colors';
+import { PALE_GREY, PALE_BLUE } from 'uiTheme/radium/colors';
 import { FLEX_NOWRAP_ROW_SPACE_BETWEEN_START, FLEX_NOWRAP_CENTER_START } from 'uiTheme/radium/flexStyle';
 import fileUtils, { BYTES_IN_MB } from 'utils/fileUtils/fileUtils';
 
@@ -190,8 +190,8 @@ const styles = {
     flexDirection: 'column',
     width: '100%',
     paddingTop: 85,
-    border: `1px dashed ${BLUE}`,
-    marginBottom: 40,
+    border: '1px dashed #A1DBE4',
+    marginBottom: 16,
     cursor: 'pointer',
     ...formDescription
   },

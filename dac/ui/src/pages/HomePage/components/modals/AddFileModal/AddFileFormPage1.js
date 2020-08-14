@@ -79,7 +79,7 @@ export class AddFileFormPage1 extends Component {
           <FieldWithError
             label={intl.formatMessage({ id: 'Common.Name' })}
             {...fields.name} style={[formRow]}
-            errorPlacement='top'
+            errorPlacement='right'
           >
             <TextField accept='multipart/form-data' {...fields.name}/>
           </FieldWithError>

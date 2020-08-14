@@ -103,7 +103,7 @@ const styles = {
     },
     Container: {
       position: 'absolute',
-      margin: 'auto',
+      marginLeft: '2px',
       width: 24,
       height: 24
     }
