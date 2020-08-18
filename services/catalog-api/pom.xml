@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.dremio.services</groupId>
     <artifactId>dremio-services-parent</artifactId>
-    <version>4.7.0-202008140043000133-4b5158db</version>
+    <version>4.7.2-202008180758160892-1a34c463</version>
   </parent>
   <artifactId>dremio-services-catalog-api</artifactId>
   <name>Services - Catalog API</name>

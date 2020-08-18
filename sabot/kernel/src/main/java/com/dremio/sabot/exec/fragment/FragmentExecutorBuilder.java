@@ -140,6 +140,7 @@ public class FragmentExecutorBuilder {
     DecimalFunctionImplementationRegistry decimalFunctions,
     NodeDebugContextProvider nodeDebugContextProvider,
     SpillService spillService,
+    CodeCompiler codeCompiler,
     Set<ClusterCoordinator.Role> roles,
     Provider<JobResultsClientFactory> jobResultsClientFactoryProvider,
     Provider<CoordinationProtos.NodeEndpoint> nodeEndpointProvider) {
@@ -158,7 +159,7 @@ public class FragmentExecutorBuilder {
     this.funcRegistry = functions;
     this.decimalFuncRegistry = decimalFunctions;
     this.nodeEndpointProvider = nodeEndpointProvider;
-    this.compiler = new CodeCompiler(config, optionManager);
+    this.compiler = codeCompiler;
     this.roles = roles;
     this.sources = sources;
     this.contextInformationFactory = contextInformationFactory;

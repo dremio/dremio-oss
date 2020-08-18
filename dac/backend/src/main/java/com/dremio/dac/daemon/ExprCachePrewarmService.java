@@ -21,9 +21,11 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -52,7 +54,6 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.server.SabotContext;
 import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.OpProfileDef;
-import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.context.OperatorContextImpl;
 import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.project.ProjectOperator;
@@ -61,6 +62,7 @@ import com.dremio.service.Service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
@@ -76,6 +78,9 @@ public class ExprCachePrewarmService implements Service {
   private final BufferAllocator allocator;
   private final Provider<OptionManager> optionManagerProvider;
   private final Provider<SabotContext> sabotContextProvider;
+
+  private AtomicInteger numCached = new AtomicInteger(0);
+  private List<Future<?>> projectSetupFutures = new ArrayList<>();
 
   public ExprCachePrewarmService(Provider<SabotContext> sabotContextProvider, Provider<OptionManager> optionManagerProvider, BufferAllocator allocator) {
     this.sabotContextProvider = sabotContextProvider;
@@ -94,17 +99,32 @@ public class ExprCachePrewarmService implements Service {
       logger.warn("Location for cached expressions for prewarming is not set");
       return;
     }
+    Path loc = Paths.get(location);
+    if (!Files.exists(loc) || !Files.isDirectory(loc)) {
+      logger.warn("Location for cached expressions is not a valid directory");
+      return;
+    }
     executorService = Executors.newFixedThreadPool(VM.availableProcessors());
     AtomicInteger numProjects = new AtomicInteger(0);
     try (Stream<Path> paths = Files.walk(Paths.get(location))) {
       paths
         .filter(Files::isRegularFile)
         .forEach(f -> {
-          executorService.submit(() -> buildProjector(f));
+          projectSetupFutures.add(executorService.submit(() -> buildProjector(f)));
           numProjects.addAndGet(1);
         });
     }
     logger.info("Trying to build project expressions from {} files to prewarm the cache", numProjects.get());
+  }
+
+  @VisibleForTesting
+  protected List<Future<?>> getProjectSetupFutures() {
+    return projectSetupFutures;
+  }
+
+  @VisibleForTesting
+  protected int numCached() {
+    return numCached.get();
   }
 
   private void buildProjector(Path path) {
@@ -127,7 +147,7 @@ public class ExprCachePrewarmService implements Service {
        *  {ExprsLem} bytes : Serialized list of NamedExpressions
        */
       if (size < Integer.BYTES) {
-        logger.warn("Invalid file {}. Falied to read the schema length", path.toString());
+        logger.warn("Invalid file {}. Failed to read the schema length", path.toString());
         return;
       }
       int schemaLen = byteBuffer.getInt();
@@ -135,7 +155,7 @@ public class ExprCachePrewarmService implements Service {
 
 
       if (size < schemaLen) {
-        logger.warn("Invalid file {}. Falied to read the schema bytes", path.toString());
+        logger.warn("Invalid file {}. Failed to read the schema bytes", path.toString());
         return;
       }
       byte[] schemaBytes = new byte[schemaLen];
@@ -143,14 +163,14 @@ public class ExprCachePrewarmService implements Service {
       size -= schemaLen;
 
       if (size < Integer.BYTES) {
-        logger.warn("Invalid file {}. Falied to read the exprs length", path.toString());
+        logger.warn("Invalid file {}. Failed to read the exprs length", path.toString());
         return;
       }
       int exprsLen = byteBuffer.getInt();
       size -= Integer.BYTES;
 
       if (size != exprsLen) {
-        logger.warn("Invalid file {}. Falied to read the exprs", path.toString());
+        logger.warn("Invalid file {}. Failed to read the exprs", path.toString());
         return;
       }
       byte[] exprsBytes = new byte[exprsLen];
@@ -164,22 +184,21 @@ public class ExprCachePrewarmService implements Service {
       Preconditions.checkArgument(exprs != null);
       Preconditions.checkArgument(schema != null);
 
-      try (BufferAllocator childAllocator = allocator.newChildAllocator("prewarm-cache-" + path.toString(), 0, Long.MAX_VALUE)) {
-        VectorContainer incoming = new VectorContainer(childAllocator);
+      try (BufferAllocator childAllocator = allocator.newChildAllocator("prewarm-cache-" + path.toString(), 0, Long.MAX_VALUE);
+           VectorContainer incoming = new VectorContainer(childAllocator);
+           VectorContainer output = new VectorContainer(childAllocator);
+           OperatorContextImpl context = getContext(childAllocator)) {
         incoming.addSchema(schema);
         incoming.buildSchema();
-        OperatorContext context = getContext(childAllocator);
         //  build the projector
         final ClassGenerator<Projector> cg = context.getClassProducer().createGenerator(Projector.TEMPLATE_DEFINITION).getRoot();
         final IntHashSet transferFieldIds = new IntHashSet();
         final List<TransferPair> transfers = Lists.newArrayList();
-        VectorContainer output = new VectorContainer(childAllocator);
 
         Stopwatch javaCodeGenWatch = Stopwatch.createUnstarted();
         Stopwatch gandivaCodeGenWatch = Stopwatch.createUnstarted();
-        try {
-          ExpressionSplitter splitter = ProjectOperator.createSplitterWithExpressions(incoming, exprs, transfers, cg,
-            transferFieldIds, context, new ExpressionEvaluationOptions(context.getOptions()), output, null);
+        try (ExpressionSplitter splitter = ProjectOperator.createSplitterWithExpressions(incoming, exprs, transfers, cg,
+          transferFieldIds, context, new ExpressionEvaluationOptions(context.getOptions()), output, null)){
           splitter.setupProjector(output, javaCodeGenWatch, gandivaCodeGenWatch);
         } catch (Exception e) {
           throw Throwables.propagate(e);
@@ -195,13 +214,14 @@ public class ExprCachePrewarmService implements Service {
         javaCodeGenWatch.stop();
 
         logger.info("Successfully built the project expressions from file {}", path.toString());
+        numCached.addAndGet(1);
       }
     } catch (Exception ex) {
       logger.warn("Failed to read the file {} to prewarm the cache", path.toString(), ex);
     }
   }
 
-  private OperatorContext getContext(BufferAllocator allocator) {
+  private OperatorContextImpl getContext(BufferAllocator allocator) {
     // creating a dummy operatorcontext with only members required in building projector
     OptionManager optionManager = optionManagerProvider.get();
     SabotContext sabotContext = sabotContextProvider.get();

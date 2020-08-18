@@ -312,6 +312,7 @@ public class FragmentWorkManager implements Service, SafeExit {
         bitContext.getDecimalFunctionImplementationRegistry(),
         context.getNodeDebugContextProvider(),
         bitContext.getSpillService(),
+        bitContext.getCompiler(),
         ClusterCoordinator.Role.fromEndpointRoles(identity.get().getRoles()),
         jobResultsClientFactoryProvider,
         identity);

@@ -40,6 +40,7 @@ import org.joda.time.LocalDate;
 import org.joda.time.LocalDateTime;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dremio.common.expression.SupportedEngines;
@@ -866,6 +867,7 @@ public class TestNativeFunctions extends BaseTestFunction {
     });
   }
 
+  @Ignore("DX-24609")
   @Test
   public void testCastIntFromString() throws Exception {
     testFunctions(new Object[][]{

@@ -85,7 +85,9 @@ export class SpacesSection extends PureComponent {
     return (
       <div className='left-tree-wrap' style={{
         minHeight: '160px',
-        maxHeight: 'calc(100vh - 605px)'
+        maxHeight: 'calc(100vh - 605px)',
+        overflow: 'hidden',
+        height: spaces && spaces.size ? '100%' : 'auto'
       }}>
         <SpacesLoader />
         <ViewStateWrapper viewState={spacesViewState} style={FLEX_COL_START}>

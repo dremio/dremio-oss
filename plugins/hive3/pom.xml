@@ -24,7 +24,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>4.7.0-202008140043000133-4b5158db</version>
+    <version>4.7.2-202008180758160892-1a34c463</version>
   </parent>
 
   <groupId>com.dremio.plugins</groupId>

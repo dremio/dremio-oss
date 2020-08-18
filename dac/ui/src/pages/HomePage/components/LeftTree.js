@@ -151,7 +151,9 @@ export class LeftTree extends PureComponent {
         <SpacesSection />
         <div className='left-tree-wrap' style={{
           minHeight: '175px',
-          maxHeight: 'calc(100vh - 430px)'
+          maxHeight: 'calc(100vh - 430px)',
+          overflow: 'hidden',
+          height: dataLakeSources && dataLakeSources.size ? '100%' : 'auto'
         }}>
           <ViewStateWrapper viewState={sourcesViewState}>
             <FinderNav
@@ -167,7 +169,9 @@ export class LeftTree extends PureComponent {
         </div>
         <div className='left-tree-wrap' style={{
           minHeight: '150px',
-          maxHeight: 'calc(100vh - 455px)'
+          maxHeight: 'calc(100vh - 455px)',
+          overflow: 'hidden',
+          height: externalSources && externalSources.size ? '100%' : 'auto'
         }}>
           <ViewStateWrapper viewState={sourcesViewState}>
             <FinderNav
@@ -201,7 +205,7 @@ const styles = {
   leftTreeHolder: {
     width: '250px',
     flexShrink: '0',
-    overflow: 'auto',
+    overflow: 'hidden',
     borderRight: '1px solid rgba(0,0,0,.1)',
     display: 'flex',
     flexDirection: 'column',

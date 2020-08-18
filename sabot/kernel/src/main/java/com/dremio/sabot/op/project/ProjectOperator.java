@@ -22,8 +22,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.arrow.memory.OutOfMemoryException;
@@ -36,7 +37,6 @@ import org.apache.arrow.vector.util.TransferPair;
 
 import com.carrotsearch.hppc.IntHashSet;
 import com.dremio.common.AutoCloseables;
-import com.dremio.common.collections.Tuple;
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.common.expression.CompleteType;
@@ -78,6 +78,10 @@ import com.dremio.sabot.op.spi.SingleInputOperator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 
 public class ProjectOperator implements SingleInputOperator {
   static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ProjectOperator.class);
@@ -100,7 +104,7 @@ public class ProjectOperator implements SingleInputOperator {
 
   public static enum EvalMode {DIRECT, COMPLEX, EVAL};
 
-  private static HashSet<Tuple<List<NamedExpression>, BatchSchema>> exprHashSet = new HashSet<>();
+  private static Set<ExpressionHashKey> exprHashSet = ConcurrentHashMap.newKeySet();
 
   public ProjectOperator(final OperatorContext context, final Project config) throws OutOfMemoryException {
     this.config = config;
@@ -188,11 +192,12 @@ public class ProjectOperator implements SingleInputOperator {
       && (context.getFragmentHandle().getMinorFragmentId() == 0)) { // only save in one minor fragment to avoid duplicate files
       String loc = System.getProperty(ExecConstants.CODE_CACHE_LOCATION_PROP);
       if (loc != null && !loc.isEmpty()) {
-        if (!exprHashSet.contains(Tuple.of(nonDirectExprs, incoming.getSchema()))) {
+        ExpressionHashKey expressionHashKey = new ExpressionHashKey(nonDirectExprs, incoming.getSchema());
+        if (exprHashSet.add(expressionHashKey)) {
           Path directory = Paths.get(loc);
           if (Files.isDirectory(directory)) {
             try {
-              String fileName = QueryIdHelper.getQueryIdentifier(context.getFragmentHandle()) + ":" + this.config.getChild().getId();
+              String fileName = QueryIdHelper.getQueryIdentifier(context.getFragmentHandle()) + ":" + this.config.getId();
               Path file = Paths.get(directory.toString(), fileName);
               ObjectMapper objectMapper = new ObjectMapper();
               byte[] schemaBytes = objectMapper.writeValueAsBytes(incoming.getSchema());
@@ -208,7 +213,6 @@ public class ProjectOperator implements SingleInputOperator {
               channel.write(byteBuffer);
               channel.close();
               stream.close();
-              exprHashSet.add(Tuple.of(nonDirectExprs, incoming.getSchema()));
             } catch (Exception ex) {
               logger.error("Failed to save the expression", ex);
             }
@@ -449,5 +453,34 @@ public class ProjectOperator implements SingleInputOperator {
 
     }
     return splitter;
+  }
+
+  class ExpressionHashKey {
+    HashCode hash;
+    int javaHashCode;
+
+    ExpressionHashKey(List<NamedExpression> namedExpressionList, BatchSchema schema) {
+      HashFunction hf = Hashing.murmur3_128();
+      Hasher hasher = hf.newHasher();
+      namedExpressionList.forEach(e -> {
+        hasher.putUnencodedChars(e.toString());
+      });
+      hasher.putUnencodedChars(schema.toString());
+      hash = hasher.hash();
+      javaHashCode = hash.hashCode();
+    }
+
+    @Override
+    public int hashCode() {
+      return javaHashCode;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof ExpressionHashKey)) {
+        return false;
+      }
+      return hash.equals(((ExpressionHashKey) obj).hash);
+    }
   }
 }
