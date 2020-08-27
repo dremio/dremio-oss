@@ -15,6 +15,7 @@
  */
 package com.dremio.exec.catalog;
 
+import java.sql.Timestamp;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.Optional;
@@ -149,8 +150,8 @@ class SourceMetadataManager implements AutoCloseable {
   public void setMetadataSyncInfo(UpdateLastRefreshDateRequest request) {
     fullRefresh.set(request.getLastFullRefreshDateMs());
     namesRefresh.set(request.getLastNamesRefreshDateMs());
-    logger.debug("Source '{}' saved last refresh; full refresh: {}; names refresh: {}.",
-      request.getPluginName(), fullRefresh.getLastStart(), namesRefresh.getLastStart());
+    logger.info("Source '{}' saved last refresh datetime; full refresh: {}; names refresh: {}.",
+      request.getPluginName(), new Timestamp(fullRefresh.getLastStart()), new Timestamp(namesRefresh.getLastStart()));
   }
 
   boolean refresh(UpdateType updateType, MetadataPolicy policy, boolean throwOnFailure) throws NamespaceException {
@@ -313,6 +314,11 @@ class SourceMetadataManager implements AutoCloseable {
         // request marks this dataset as invalid
         !options.getSchemaConfig().getDatasetValidityChecker().apply(config)
         ) {
+      if (logger.isDebugEnabled()) {
+        logger.debug("Dataset {} metadata is not valid. Request marks this expired: {}. Local update time: {}. Global update time: {}. Expiry time: {} min",
+          key, options.newerThan() < currentTime,
+          updateTime != null ? new Timestamp(updateTime) : null, new Timestamp(fullRefresh.getLastStart()), expiryTime/60000);
+      }
       return false;
     }
 

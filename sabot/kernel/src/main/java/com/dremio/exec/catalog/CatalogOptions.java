@@ -30,9 +30,6 @@ import com.dremio.service.namespace.NamespaceService;
 @Options
 public final class CatalogOptions {
 
-  // Check for storage plugin status at time of creation of the plugin
-  public static final BooleanValidator STORAGE_PLUGIN_CHECK_STATE = new BooleanValidator("store.plugin.check_state", true);
-
   // Maximum time to wait when creating a storage plugin before failing.
   public static final LongValidator STORAGE_PLUGIN_CREATE_MAX = new PositiveLongValidator("store.plugin.wait_millis", TimeUnit.HOURS.toMillis(4), TimeUnit.SECONDS.toMillis(120));
 

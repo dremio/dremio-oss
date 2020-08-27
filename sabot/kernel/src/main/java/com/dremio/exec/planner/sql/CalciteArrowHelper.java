@@ -17,7 +17,7 @@ package com.dremio.exec.planner.sql;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
+import java.util.function.Function;
 
 import org.apache.arrow.vector.types.pojo.ArrowType.ArrowTypeID;
 import org.apache.arrow.vector.types.pojo.Field;
@@ -38,7 +38,6 @@ import com.dremio.exec.record.SchemaBuilder;
 import com.dremio.service.namespace.DatasetHelper;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableSet;
 
 import io.protostuff.ByteString;
 /**
@@ -56,14 +55,29 @@ public class CalciteArrowHelper {
       this.bs = bs;
     }
 
-    public RelDataType toCalciteRecordType(RelDataTypeFactory factory, Set<String> fieldBlacklist){
+    /**
+     * Converts a Schema as RelDataType. The method maps ArrowType fields to Calcite type fields.
+     * If a filtering predicate is provided, the method would only add fields that are permitted into RelDataType.
+     *
+     * @param factory the RelDataTypeFactory to convert ArrowTypes to Calcite data types.
+     * @param inclusionPredicate the inclusion predicate that filters the BatchSchema. Can be {@code null} if no filtering is required.
+     * @return a RelDataType containing all fields permitted by the inclusionPredicate.
+     */
+    public RelDataType toCalciteRecordType(RelDataTypeFactory factory, Function<Field, Boolean> inclusionPredicate) {
       FieldInfoBuilder builder = new FieldInfoBuilder(factory);
-      for(Field f : bs) {
-        if(!fieldBlacklist.contains(f.getName())){
-          builder.add(f.getName(), toCalciteType(f, factory));
-        }
+
+
+
+      if (inclusionPredicate == null) {
+        bs.forEach(f -> builder.add(f.getName(), toCalciteType(f, factory)));
+      } else {
+        bs.forEach(f -> {
+          if (inclusionPredicate.apply(f)) {
+            builder.add(f.getName(), toCalciteType(f, factory));}});
       }
+
       RelDataType rowType = builder.build();
+
       if(rowType.getFieldCount() == 0){
         throw UserException.dataReadError().message("Selected table has no columns.").build(logger);
       }
@@ -72,7 +86,7 @@ public class CalciteArrowHelper {
     }
 
     public RelDataType toCalciteRecordType(RelDataTypeFactory factory){
-      return toCalciteRecordType(factory, ImmutableSet.<String>of());
+      return toCalciteRecordType(factory, null);
     }
   }
 

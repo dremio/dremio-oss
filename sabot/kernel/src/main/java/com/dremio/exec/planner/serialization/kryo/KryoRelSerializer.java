@@ -28,6 +28,7 @@ import org.objenesis.strategy.StdInstantiatorStrategy;
 import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.catalog.conf.ConnectionConf;
+import com.dremio.exec.planner.serialization.kryo.serializers.BatchSchemaSerializer;
 import com.dremio.exec.planner.serialization.kryo.serializers.ImmutableCollectionSerializers;
 import com.dremio.exec.planner.serialization.kryo.serializers.JavaSerializers;
 import com.dremio.exec.planner.serialization.kryo.serializers.RelDataTypeSerializer;
@@ -38,6 +39,7 @@ import com.dremio.exec.planner.serialization.kryo.serializers.RelTraitSerializer
 import com.dremio.exec.planner.serialization.kryo.serializers.SqlOperatorSerializer;
 import com.dremio.exec.planner.serialization.kryo.serializers.TableMetadataSerializer;
 import com.dremio.exec.planner.serialization.kryo.serializers.WritableSerializer;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.RelOptNamespaceTable;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -110,6 +112,7 @@ public class KryoRelSerializer {
     kryo.addDefaultSerializer(TableMetadata.class, new TableMetadataSerializer(catalog));
     kryo.addDefaultSerializer(SourceConfig.class, new ExternalizableSerializer());
     kryo.addDefaultSerializer(ConnectionConf.class, new ExternalizableSerializer());
+    kryo.addDefaultSerializer(BatchSchema.class, new BatchSchemaSerializer());
 
     if (pluginIdSerializerFactory != null) {
       kryo.addDefaultSerializer(StoragePluginId.class, pluginIdSerializerFactory.newStoragePluginIdSerializer(kryo, mapping));

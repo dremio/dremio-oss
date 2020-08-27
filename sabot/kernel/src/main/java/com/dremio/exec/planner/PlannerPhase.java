@@ -134,6 +134,8 @@ import com.dremio.exec.planner.physical.UnionAllPrule;
 import com.dremio.exec.planner.physical.ValuesPrule;
 import com.dremio.exec.planner.physical.WindowPrule;
 import com.dremio.exec.planner.physical.WriterPrule;
+import com.dremio.exec.planner.tablefunctions.ExternalQueryScanPrule;
+import com.dremio.exec.planner.tablefunctions.ExternalQueryScanRule;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 
@@ -323,11 +325,9 @@ public enum PlannerPhase {
       if(context.getPlannerSettings().isProjectLogicalCleanupEnabled()) {
         moreRules.add(MergeProjectRule.CALCITE_INSTANCE);
         moreRules.add(ProjectRemoveRule.INSTANCE);
+      }
 
-      }
-      if(moreRules.isEmpty()) {
-        return LOGICAL_RULE_SET;
-      }
+      moreRules.add(ExternalQueryScanRule.INSTANCE);
 
       return PlannerPhase.mergedRuleSets(LOGICAL_RULE_SET, RuleSets.ofList(moreRules));
     }
@@ -710,6 +710,7 @@ public enum PlannerPhase {
     ruleList.add(ValuesPrule.INSTANCE);
     ruleList.add(EmptyPrule.INSTANCE);
     ruleList.add(PushLimitToPruneableScan.INSTANCE);
+    ruleList.add(ExternalQueryScanPrule.INSTANCE);
 
     if (ps.isHashAggEnabled()) {
       ruleList.add(HashAggPrule.INSTANCE);

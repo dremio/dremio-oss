@@ -449,7 +449,7 @@ public final class LBlockHashTableEight implements AutoCloseable {
             continue;
           }
           keyHolder.writerIndex(0);
-          final byte validityByte = (key == NULL_KEY_VALUE) ? (byte)0x00 : (byte)0x80; // validity bit set for first key - [1]000 0000
+          final byte validityByte = (key == NULL_KEY_VALUE) ? (byte)0x00 : (byte)0x01; // validity bit set for first key - 0000 000[1]
           keyHolder.writeByte(validityByte);
           keyHolder.writeLong(key);
           bloomFilter.put(keyHolder, 9);

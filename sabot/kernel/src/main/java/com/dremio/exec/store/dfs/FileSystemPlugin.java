@@ -973,6 +973,7 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     return optionExtractor;
   }
 
+  @Override
   public List<Function> getFunctions(List<String> tableSchemaPath, SchemaConfig schemaConfig) {
     return optionExtractor.getFunctions(tableSchemaPath, this, schemaConfig);
   }

@@ -674,10 +674,6 @@ public class ManagedStoragePlugin implements AutoCloseable {
    * Before doing any operation associated with plugin, we should check the state of the plugin.
    */
   private void checkState() {
-    if(!options.getOption(CatalogOptions.STORAGE_PLUGIN_CHECK_STATE)) {
-      return;
-    }
-
     try(AutoCloseableLock l = readLock()) {
       SourceState state = this.state;
       if(state.getStatus() == SourceState.SourceStatus.bad) {

@@ -70,12 +70,15 @@ message ReflectionEntry {
 enum DependencyType {
   DATASET = 1;
   REFLECTION = 2;
+  TABLEFUNCTION = 3;
 }
 
 message ReflectionDependencyEntry {
   optional DependencyType type = 1;
   repeated string path = 2;
   optional string id = 3;
+  optional string sourceName = 4;
+  optional string query = 5;
 }
 
 message ReflectionDependencies {

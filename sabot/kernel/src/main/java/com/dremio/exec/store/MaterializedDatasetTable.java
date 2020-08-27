@@ -18,6 +18,7 @@ package com.dremio.exec.store;
 import java.util.List;
 import java.util.Optional;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rel.RelNode;
@@ -79,7 +80,7 @@ public class MaterializedDatasetTable implements TranslatableTable {
   @Override
   public RelDataType getRowType(RelDataTypeFactory typeFactory) {
     return CalciteArrowHelper.wrap(CalciteArrowHelper.fromDataset(datasetConfig.get()))
-        .toCalciteRecordType(typeFactory, NamespaceTable.SYSTEM_COLUMNS);
+        .toCalciteRecordType(typeFactory, (Field f) -> !NamespaceTable.SYSTEM_COLUMNS.contains(f.getName()));
   }
 
   @Override

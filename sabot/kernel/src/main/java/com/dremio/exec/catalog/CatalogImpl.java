@@ -370,14 +370,9 @@ public class CatalogImpl implements Catalog {
 
     switch (getType(path, true)) {
       case SOURCE:
-        FileSystemPlugin plugin = asFSn(path);
-        if(plugin == null) {
-          return ImmutableList.of();
-        }
-        return plugin.getFunctions(path.getPathComponents(), options.getSchemaConfig());
+        return sourceModifier.getSource(path.getRoot()).getFunctions(path.getPathComponents(), options.getSchemaConfig());
 
       case HOME:
-
         try {
           return getHomeFilesPlugin().getFunctions(path.getPathComponents(), options.getSchemaConfig());
         } catch (ExecutionSetupException e) {
@@ -567,15 +562,6 @@ public class CatalogImpl implements Catalog {
       }
     } catch (NamespaceException e) {
       throw Throwables.propagate(e);
-    }
-  }
-
-  private FileSystemPlugin asFSn(NamespaceKey key) {
-    final StoragePlugin plugin = sourceModifier.getSource(key.getRoot());
-    if (plugin instanceof FileSystemPlugin) {
-      return (FileSystemPlugin) plugin;
-    } else {
-      return null;
     }
   }
 

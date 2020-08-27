@@ -96,7 +96,7 @@ public class LBlockHashTableEightTest {
 
     private static ArrowBuf writeKey(ArrowBuf keyBuf, long val) {
         keyBuf.writerIndex(0);
-        keyBuf.writeByte(0x80);
+        keyBuf.writeByte(0x01);
         keyBuf.writeLong(val);
         return keyBuf;
     }

@@ -39,6 +39,7 @@ import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.tablefunctions.ExternalQueryScanDrel;
 import com.dremio.service.job.proto.JoinInfo;
 import com.dremio.service.job.proto.ParentDatasetInfo;
 import com.dremio.service.job.proto.ScanPath;
@@ -89,13 +90,14 @@ public class QueryMetadata {
   private final List<ScanPath> scanPaths;
   private final String querySql;
   private final List<String> queryContext;
+  private final List<String> sourceNames;
 
   QueryMetadata(List<SqlIdentifier> ancestors,
                        List<FieldOrigin> fieldOrigins, List<JoinInfo> joins, List<ParentDatasetInfo> parents,
                        SqlNode sqlNode, RelDataType rowType,
                        List<ParentDataset> grandParents, final RelOptCost cost, final PlanningSet planningSet,
                        BatchSchema batchSchema,
-                       List<ScanPath> scanPaths, String querySql, List<String> queryContext) {
+                       List<ScanPath> scanPaths, String querySql, List<String> queryContext, List<String> sourceNames) {
     this.rowType = rowType;
 
     this.ancestors = Optional.fromNullable(ancestors);
@@ -110,6 +112,7 @@ public class QueryMetadata {
     this.scanPaths = scanPaths;
     this.querySql = querySql;
     this.queryContext = queryContext;
+    this.sourceNames = sourceNames;
   }
 
   @VisibleForTesting
@@ -183,6 +186,8 @@ public class QueryMetadata {
     return queryContext;
   }
 
+  public List<String> getSourceNames() { return sourceNames; }
+
   /**
    * Create a builder for QueryMetadata.
    * @param namespace A namespace service. If provided, ParentDatasetInfo will be extracted, otherwise it won't.
@@ -210,6 +215,7 @@ public class QueryMetadata {
     private BatchSchema batchSchema;
     private String querySql;
     private List<String> queryContext;
+    private List<String> externalQuerySourceInfo;
 
     Builder(NamespaceService namespace){
       this.namespace = namespace;
@@ -256,6 +262,11 @@ public class QueryMetadata {
       return this;
     }
 
+    public Builder addSourceNames(final List<String> sourceNames) {
+      this.externalQuerySourceInfo = sourceNames;
+      return this;
+    }
+
     /**
      * Sets parallelized query plan.
      */
@@ -296,6 +307,7 @@ public class QueryMetadata {
       SqlHandlerUtil.validateRowType(true, Lists.<String>newArrayList(), rowType);
 
       List<ScanPath> scanPaths = null;
+      //List<String> sourceNames = null;
       if (logicalAfter != null) {
         scanPaths = FluentIterable.from(getScans(logicalAfter))
           .transform(new Function<List<String>, ScanPath>() {
@@ -305,6 +317,8 @@ public class QueryMetadata {
             }
           })
           .toList();
+
+        externalQuerySourceInfo = getExternalQuerySources(logicalAfter);
       }
 
       return new QueryMetadata(
@@ -320,7 +334,8 @@ public class QueryMetadata {
         batchSchema,
         scanPaths,
         querySql,
-        queryContext
+        queryContext,
+        externalQuerySourceInfo
       );
     }
 
@@ -451,20 +466,87 @@ public class QueryMetadata {
     }
   }
 
+  /**
+   * Retrieves a list of source names referenced in the DatasetConfig.
+   *
+   * @param datasetConfig the DatasetConfig to inspect.
+   * @return a list of source names found referenced in the DatasetConfig.
+   */
   public static List<String> getSources(DatasetConfig datasetConfig) {
     final Set<String> sources = Sets.newHashSet();
     if (datasetConfig.getType() == DatasetType.VIRTUAL_DATASET) {
-      if (datasetConfig.getVirtualDataset().getFieldOriginsList() != null) {
-        for (FieldOrigin fieldOrigin : datasetConfig.getVirtualDataset().getFieldOriginsList()) {
-          for (Origin origin : listNotNull(fieldOrigin.getOriginsList())) {
-            sources.add(origin.getTableList().get(0));
-          }
-        }
-      }
+      getSourcesForVds(datasetConfig.getVirtualDataset(), sources);
     } else {
       sources.add(datasetConfig.getFullPathList().get(0));
     }
     return new ArrayList<>(sources);
+  }
+
+  /**
+   * Checks vds for source references. It first checks for source references in the list of FieldOrigin.
+   * Then it checks for source references with external query usage in the parents and grandparents.
+   *
+   * @param vds the Virtual Dataset to inspect.
+   * @param sources the set of source names to add found source names to.
+   */
+  private static void getSourcesForVds(VirtualDataset vds, Set<String> sources) {
+    getSourcesForVdsWithFieldOriginList(vds, sources);
+    getSourcesForVdsWithExternalQuery(vds, sources);
+  }
+
+  /**
+   * Checks the vds for source references in the FieldOrigin list.
+   *
+   * @param vds the Virtual Dataset to inspect.
+   * @param sources the set of source names to add found source names to.
+   */
+  private static void getSourcesForVdsWithFieldOriginList(VirtualDataset vds, Set<String> sources) {
+    if (vds.getFieldOriginsList() != null ) {
+      for (FieldOrigin fieldOrigin : vds.getFieldOriginsList()) {
+        for (Origin origin : listNotNull(fieldOrigin.getOriginsList())) {
+          sources.add(origin.getTableList().get(0));
+        }
+      }
+    }
+  }
+
+  /**
+   * Checks the vds for references of external query. It checks for references of external query
+   * in the parents list and grandparents list. It adds the source name referenced to the given set
+   * of sources if a reference to an external query dataset is found.
+   *
+   * @param vds the Virtual Dataset to inspect.
+   * @param sources the set of source names to add found source names to.
+   */
+  private static void getSourcesForVdsWithExternalQuery(VirtualDataset vds, Set<String> sources) {
+    // Find sources of ParentDataset(s) that are external queries.
+    final List<ParentDataset> parentDatasets = vds.getParentsList();
+    final List<ParentDataset> grandParentDatasets = vds.getGrandParentsList();
+
+    if (parentDatasets != null) {
+      getSourcesFromParentDatasetForExternalQuery(parentDatasets, sources);
+    }
+
+    if (grandParentDatasets != null) {
+      getSourcesFromParentDatasetForExternalQuery(grandParentDatasets, sources);
+    }
+  }
+
+  /**
+   * Iterates through the given list of ParentDataset. It adds the source name referenced to the
+   * given set of sources if a reference to an external query dataset is found.
+   *
+   * @param parentDatasets a list of parent dataset to inspect.
+   * @param sources the set of source names to add found source names to.
+   */
+  private static void getSourcesFromParentDatasetForExternalQuery(List<ParentDataset> parentDatasets,
+                                                                  Set<String> sources) {
+    for (ParentDataset parentDataset : parentDatasets) {
+      final List<String> pathList = parentDataset.getDatasetPathList();
+      if (pathList.get(1).equalsIgnoreCase("external_query")) {
+        sources.add(pathList.get(0));
+      }
+    }
   }
 
   public static List<List<String>> getScans(RelNode logicalPlan) {
@@ -481,6 +563,26 @@ public class QueryMetadata {
         if (other instanceof ContainerRel) {
           ContainerRel containerRel = (ContainerRel)other;
           containerRel.getSubTree().accept(this);
+        }
+        return super.visit(other);
+      }
+    });
+    return builder.build();
+  }
+
+  /*
+   * extracting external query source name, plus the sql string for
+   * reflection dependency
+   */
+  public static List<String> getExternalQuerySources(RelNode logicalAfter) {
+    final ImmutableList.Builder<String> builder = ImmutableList.builder();
+    logicalAfter.accept(new StatelessRelShuttleImpl(){
+      @Override
+      public RelNode visit(RelNode other) {
+        if (other instanceof ExternalQueryScanDrel) {
+          ExternalQueryScanDrel drel = (ExternalQueryScanDrel) other;
+          builder.add(drel.getPluginId().getConfig().getName());
+          builder.add(drel.getSql());
         }
         return super.visit(other);
       }

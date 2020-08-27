@@ -17,6 +17,7 @@ package com.dremio.exec.store;
 
 import java.util.List;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.Convention;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
@@ -64,7 +65,8 @@ public class NamespaceTable implements DremioTable {
 
   @Override
   public RelDataType getRowType(RelDataTypeFactory relDataTypeFactory) {
-    return CalciteArrowHelper.wrap(dataset.getSchema()).toCalciteRecordType(relDataTypeFactory, SYSTEM_COLUMNS);
+    return CalciteArrowHelper.wrap(dataset.getSchema())
+      .toCalciteRecordType(relDataTypeFactory, (Field f) -> !SYSTEM_COLUMNS.contains(f.getName()));
   }
 
   public TableMetadata getDataset() {

@@ -147,7 +147,10 @@ public class ReflectionUtils {
         }
         hash = 31 * hash + dataset.getVirtualDataset().getSql().hashCode() + schemaHash;
           for (ParentDataset parent : dataset.getVirtualDataset().getParentsList()) {
-            q.add(namespaceService.getDataset(new NamespaceKey(parent.getDatasetPathList())));
+            int size = parent.getDatasetPathList().size();
+            if( !(size > 1 && parent.getDatasetPathList().get(size-1).equalsIgnoreCase("external_query"))) {
+              q.add(namespaceService.getDataset(new NamespaceKey(parent.getDatasetPathList())));
+            }
           }
       }
       isFirst = false;

@@ -1705,6 +1705,9 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
           // There is DX-14280. We will be able to remove clone call, when it would be resolved.
           jobInfo.setBatchSchema(schema.get().clone(BatchSchema.SelectionVectorMode.NONE).toByteString());
         }
+        if(metadata.getSourceNames() != null) {
+          jobInfo.setSourceNamesList(metadata.getSourceNames());
+        }
 
         storeJob(job);
         eventObserver.onQueryMetadata(JobEvent.newBuilder()

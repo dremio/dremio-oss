@@ -390,8 +390,6 @@ public class BatchSchema extends org.apache.arrow.vector.types.pojo.Schema imple
     return new BatchSchema(SelectionVectorMode.NONE, s.getFields());
   }
 
-
-
   public int serialize(FlatBufferBuilder builder) {
     Preconditions.checkArgument(selectionVectorMode == SelectionVectorMode.NONE,
         "Serialization is only allowed for SelectionVectorMode.NONE. This was in SelectionVectorMode.%s", selectionVectorMode.name());
