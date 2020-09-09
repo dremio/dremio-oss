@@ -24,7 +24,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Pattern;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -84,7 +83,6 @@ public class SimpleUserService implements UserService {
     }
   }
 
-  private static final Pattern PASSWORD_MATCHER = Pattern.compile("(?=.*[0-9])(?=.*[a-zA-Z]).{8,}");
   private static final SearchFieldSorting DEFAULT_SORTER = UserIndexKeys.NAME.toSortField(SortOrder.ASCENDING);
 
   private LegacyIndexedStore<UID, UserInfo> userStore;
@@ -394,9 +392,9 @@ public class SimpleUserService implements UserService {
   }
 
   public static void validatePassword(String input) throws IllegalArgumentException {
-    if (input == null || input.isEmpty() || !PASSWORD_MATCHER.matcher(input).matches()) {
+    if (input == null || input.length() < 8) {
       throw UserException.validationError()
-        .message("Invalid password: must be at least 8 letters long, must contain at least one number and one letter")
+        .message("Invalid password: must be at least 8 characters long")
         .build(logger);
     }
   }
