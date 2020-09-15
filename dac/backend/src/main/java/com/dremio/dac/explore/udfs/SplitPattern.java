@@ -59,7 +59,7 @@ public class SplitPattern {
     matcher.reset(matchee);
     List<Match> matches = new ArrayList<Match>();
     while (matcher.find()) {
-      matches.add(PatternMatchUtils.match(matcher));
+      matches.add(PatternMatchUtils.match(matcher, matchee));
     }
     return matches;
   }
@@ -95,11 +95,11 @@ public class SplitPattern {
           }
       }
       if (m != null) {
-        if (com.dremio.dac.explore.udfs.SplitPattern.range(0, m.start(), length)) {
-          writer.varChar().writeVarChar(start, start + m.start(), in);
+        if (com.dremio.dac.explore.udfs.SplitPattern.range(0, m.bytesStart(), length)) {
+          writer.varChar().writeVarChar(start, start + m.bytesStart(), in);
         }
-        if (com.dremio.dac.explore.udfs.SplitPattern.range(m.end(), length, length)) {
-          writer.varChar().writeVarChar(start + m.end(), start + length, in);
+        if (com.dremio.dac.explore.udfs.SplitPattern.range(m.bytesEnd(), length, length)) {
+          writer.varChar().writeVarChar(start + m.bytesEnd(), start + length, in);
         }
       } else {
         writer.varChar().writeVarChar(start, start + length, in);
@@ -107,11 +107,11 @@ public class SplitPattern {
     } else {
       int p = 0;
       for (Match m : matches) {
-        if (com.dremio.dac.explore.udfs.SplitPattern.range(p, m.start(), length)) {
-          writer.varChar().writeVarChar(start + p, start + m.start(), in);
+        if (com.dremio.dac.explore.udfs.SplitPattern.range(p, m.bytesStart(), length)) {
+          writer.varChar().writeVarChar(start + p, start + m.bytesStart(), in);
           param--;
         }
-        p = m.end();
+        p = m.bytesEnd();
         if (param <= 0) {
           break;
         }
@@ -171,7 +171,7 @@ public class SplitPattern {
         return;
       }
 
-      final int length = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8CharLength(in
+      final int length = com.dremio.exec.expr.fn.impl.StringFunctionUtil.getUTF8BytesLength(in
         .buffer.asNettyBuffer(), in.start, in.end, errCtx);
       final String v = com.dremio.exec.expr.fn.impl.StringFunctionHelpers.toStringFromUTF8(in.start, in.end, in.buffer);
 

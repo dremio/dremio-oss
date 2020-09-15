@@ -42,6 +42,17 @@ public class StringFunctionUtil {
     return charCount;
   }
 
+  public static int getUTF8BytesLength(ByteBuf buffer, int start, int end, final FunctionErrorContext
+    errCtx) {
+    int bytesCount = 0;
+
+    for (int idx = start, charLen = 0; idx < end; idx += charLen) {
+      charLen = utf8CharLen(buffer, idx, errCtx);
+      bytesCount += charLen;
+    }
+    return bytesCount;
+  }
+
   /* Decode the input bytebuf using UTF-8. Search in the range of [start, end], find
    * the position of the first byte of next char after we see "charLength" chars.
    *
