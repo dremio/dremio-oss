@@ -736,6 +736,37 @@ public class TestNativeFunctions extends BaseTestFunction {
     }
   }
 
+  @Test
+  public void testBitwiseFunctions() throws Exception {
+    // bitwise AND
+    testFunctions(new Object[][]{
+      {"bitwise_and(c0, c1)", 0x0147D, 0x17159, 0x01059},
+      {"bitwise_and(c0, c1)", 0xFFFFFFCC, 0x00000297, 0x00000284},
+      {"bitwise_and(c0, c1)", 0x000, 0x285, 0x000},
+      {"bitwise_and(c0, c1)", 0x563672F83L, 0x0D9FCF85BL, 0x041642803L},
+      {"bitwise_and(c0, c1)", 0xFFFFFFFFFFDA8F6AL, 0xFFFFFFFFFFFF791CL, 0xFFFFFFFFFFDA0908L},
+      {"bitwise_and(c0, c1)", 0x6A5B1L, 0x00000L, 0x00000L},
+    });
+
+    // bitwise OR
+    testFunctions(new Object[][]{
+      {"bitwise_or(c0, c1)", 0x0147D, 0x17159, 0x1757D},
+      {"bitwise_or(c0, c1)", 0xFFFFFFCC, 0x00000297, 0xFFFFFFDF},
+      {"bitwise_or(c0, c1)", 0x000, 0x285, 0x285},
+      {"bitwise_or(c0, c1)", 0x563672F83L, 0x0D9FCF85BL, 0x5FBFFFFDBL},
+      {"bitwise_or(c0, c1)", 0xFFFFFFFFFFDA8F6AL, 0xFFFFFFFFFFFF791CL, 0xFFFFFFFFFFFFFF7EL},
+      {"bitwise_or(c0, c1)", 0x6A5B1L, 0x00000L, 0x6A5B1L},
+    });
+
+    // bitwise NOT
+    testFunctions(new Object[][]{
+      {"bitwise_not(c0)", 0x00017159, 0xFFFE8EA6},
+      {"bitwise_not(c0)", 0xFFFFF226, 0x00000DD9},
+      {"bitwise_not(c0)", 0x000000008BCAE9B4L, 0xFFFFFFFF7435164BL},
+      {"bitwise_not(c0)", 0xFFFFFF966C8D7997L, 0x0000006993728668L},
+      {"bitwise_not(c0)", 0x0000000000000000L, 0xFFFFFFFFFFFFFFFFL},
+    });
+  }
 
   @Test
   public void testFlippedCodeGenerator() throws Exception {
@@ -810,6 +841,16 @@ public class TestNativeFunctions extends BaseTestFunction {
         {"cast(c0 as BIGINT)", interval_day(1, 1), 86400001L},
         {"cast(c0 as BIGINT)", interval_day(-1, 0), -86400000L},
         {"cast(c0 as BIGINT)", interval_day(-1, -1), -86400001L}
+    });
+  }
+
+  @Test
+  public void testCastBigIntToTimestamp() throws Exception {
+    testFunctions(new Object[][]{
+      {"castTIMESTAMP(c0)", 15020L, ts("1970-01-01T00:00:15.020")},
+      {"castTIMESTAMP(c0)", 5*86400000L, ts("1970-01-06T00:00:00")},
+      {"castTIMESTAMP(c0)", -20800L, ts("1969-12-31T23:59:39.200")},
+      {"castTIMESTAMP(c0)", -12*86400000L, ts("1969-12-20T00:00:00")}
     });
   }
 

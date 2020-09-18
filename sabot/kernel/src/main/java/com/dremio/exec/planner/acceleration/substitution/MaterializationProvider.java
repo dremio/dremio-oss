@@ -16,8 +16,10 @@
 package com.dremio.exec.planner.acceleration.substitution;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
+import com.dremio.service.namespace.NamespaceKey;
 
 /**
  * Provides a list of materializations for {@link SubstitutionProvider}
@@ -29,5 +31,12 @@ public interface MaterializationProvider {
    *
    */
   List<DremioMaterialization> getMaterializations();
+
+  /**
+   * Returns the default raw materialization that provider considers for substitution
+   * for the VDS with the given path
+   * @return The default reflection for the VDS
+   */
+  Optional<DremioMaterialization> getDefaultRawMaterialization(NamespaceKey path, List<String> displayFields);
 
 }

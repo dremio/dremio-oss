@@ -15,6 +15,8 @@
  */
 package com.dremio.service.grpc;
 
+import java.util.Map;
+
 import io.grpc.ManagedChannelBuilder;
 
 /**
@@ -31,10 +33,21 @@ public interface GrpcChannelBuilderFactory {
   /**
    * Returns a new gRPC ManagedChannelBuilder with instrumentation.
    */
+  ManagedChannelBuilder<?> newManagedChannelBuilder(String host, int port, Map<String, Object> defaultServiceConfigProvider);
+
+  /**
+   * Returns a new gRPC ManagedChannelBuilder with instrumentation.
+   */
   ManagedChannelBuilder<?> newManagedChannelBuilder(String target);
+
+  ManagedChannelBuilder<?> newManagedChannelBuilder(String target, Map<String, Object> defaultServiceConfigProvider);
+
 
   /**
    * Returns a new gRPC InProcessChannelBuilder with instrumentation.
    */
   ManagedChannelBuilder<?> newInProcessChannelBuilder(String processName);
+
+  ManagedChannelBuilder<?> newInProcessChannelBuilder(String processName,
+                                                      Map<String, Object> defaultServiceConfigProvider);
 }

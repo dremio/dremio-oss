@@ -31,12 +31,10 @@ import FieldWithError from 'components/Fields/FieldWithError';
 import Modal from 'components/Modals/Modal';
 import ModalForm from 'components/Forms/ModalForm';
 import FormBody from 'components/Forms/FormBody';
-import { tooltipIcon } from '@app/components/Forms/Wrappers/FormWrappers.less';
 
 import Message from 'components/Message';
 import EllipsedText from '@app/components/EllipsedText';
 import Checkbox from '@app/components/Fields/Checkbox';
-import HoverHelp from '@app/components/HoverHelp';
 
 import { formDescription, formLabel } from 'uiTheme/radium/typography';
 import { typeToIconType } from '@app/constants/DataTypes';
@@ -264,10 +262,8 @@ export class AccelerationGrid extends Component {
               {...fields.arrowCachingEnabled}
               isOnOffSwitch
               label={la('Arrow caching')}
-            />
-            <HoverHelp
-              content={la('Increase query performance by locally caching in a performance optimized format.')}
-              className={tooltipIcon}
+              toolTip={la('Increase query performance by locally caching in a performance optimized format.')}
+              toolTipPosition='top-start'
             />
           </div>
         </FormBody>

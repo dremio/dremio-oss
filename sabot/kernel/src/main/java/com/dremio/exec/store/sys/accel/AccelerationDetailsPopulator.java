@@ -35,7 +35,7 @@ public interface AccelerationDetailsPopulator {
    * @param target
    * @param millisTaken
    */
-  void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken);
+  void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken, boolean defaultReflection);
 
   /**
    * report failures during substitution
@@ -56,7 +56,7 @@ public interface AccelerationDetailsPopulator {
 
   AccelerationDetailsPopulator NO_OP = new AccelerationDetailsPopulator() {
     @Override
-    public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken) {
+    public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken, boolean defaultReflection) {
     }
 
     @Override

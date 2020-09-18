@@ -24,6 +24,7 @@ import org.apache.arrow.memory.BufferAllocator;
 
 import com.dremio.common.AutoCloseables;
 import com.dremio.common.config.SabotConfig;
+import com.dremio.common.utils.protos.QueryIdHelper;
 import com.dremio.exec.proto.CoordExecRPC.ActivateFragments;
 import com.dremio.exec.proto.CoordExecRPC.CancelFragments;
 import com.dremio.exec.proto.CoordExecRPC.ExecutorQueryProfile;
@@ -242,23 +243,33 @@ public class CoordExecService implements Service {
           execResults.get().dataArrived(header, dBody, null, sender);
           break;
 
-        case RpcType.REQ_NODE_QUERY_SCREEN_COMPLETION_VALUE:
-          NodeQueryScreenCompletion completion = get(pBody, NodeQueryScreenCompletion.PARSER);
-          execStatus.get().screenCompleted(completion);
-          sender.send(OK);
-          break;
-
-        // offload both node query complete and node query error to a different thread. this causes
-        // outbound rpcs to master like
+        // offload screen complete, node query complete and node query error to a different thread.
+        // this causes outbound rpcs to master like
         // 1. profile update
         // 2. wlm stats update
         // the first is likely to cause a deadlock
         // the second will fail and block the query
+        case RpcType.REQ_NODE_QUERY_SCREEN_COMPLETION_VALUE:
+          NodeQueryScreenCompletion completion = get(pBody, NodeQueryScreenCompletion.PARSER);
+          rpcOffloadPool.submit( () -> {
+            try {
+              logger.debug("Processing screen complete for query {} in a different thread.",
+                QueryIdHelper.getQueryId(completion.getId()));
+              execStatus.get().screenCompleted(completion);
+              sender.send(OK);
+            } catch (RpcException e) {
+              sender.sendFailure(new UserRpcException(selfEndpoint.get(), "Failure processing " +
+                "screen complete.", e));
+            }
+            });
+          break;
+
         case RpcType.REQ_NODE_QUERY_COMPLETION_VALUE:
           NodeQueryCompletion nodeQueryCompletion = get(pBody, NodeQueryCompletion.PARSER);
           rpcOffloadPool.submit( () -> {
             try {
-              logger.debug("Processing node query complete in a different thread.");
+              logger.debug("Processing node query complete for query {} and endpoint {} in a " +
+                  "different thread.", QueryIdHelper.getQueryId(nodeQueryCompletion.getId()), nodeQueryCompletion.getEndpoint());
               execStatus.get().nodeQueryCompleted(nodeQueryCompletion);
               sender.send(OK);
             } catch (RpcException e) {
@@ -273,7 +284,8 @@ public class CoordExecService implements Service {
           NodeQueryFirstError firstError = get(pBody, NodeQueryFirstError.PARSER);
           rpcOffloadPool.submit( () -> {
             try {
-              logger.debug("Processing node first error in a different thread.");
+              logger.debug("Processing node first error for query {} and endpoint {} in a " +
+                "different thread.", QueryIdHelper.getQueryId(firstError.getHandle().getQueryId()), firstError.getEndpoint());
               execStatus.get().nodeQueryMarkFirstError(firstError);
               sender.send(OK);
             } catch (RpcException e) {

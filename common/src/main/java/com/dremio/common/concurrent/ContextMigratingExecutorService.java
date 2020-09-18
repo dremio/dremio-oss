@@ -129,7 +129,7 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
     return TracingUtils.buildChildSpan(tracer, WAITING_OPERATION_NAME);
   }
 
-  private <T> Callable<T> decorate(Callable<T> inner) {
+  <T> Callable<T> decorate(Callable<T> inner) {
     final Span parentSpan = tracer.activeSpan();
     final Span waitingSpan = makeWaitingSpan();
     final RequestContext savedContext = RequestContext.current();
@@ -181,7 +181,7 @@ public class ContextMigratingExecutorService<E extends ExecutorService> implemen
     }
   }
 
-  private Runnable decorate(Runnable inner) {
+  Runnable decorate(Runnable inner) {
     final Span parentSpan = tracer.activeSpan();
     final Span waitingSpan = makeWaitingSpan();
     final Function<Runnable, Runnable> factory;

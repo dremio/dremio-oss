@@ -38,6 +38,7 @@ import com.dremio.service.jobtelemetry.GetQueryProfileRequest;
 import com.dremio.service.jobtelemetry.JobTelemetryClient;
 import com.dremio.service.jobtelemetry.PutPlanningProfileRequest;
 import com.dremio.service.jobtelemetry.PutTailProfileRequest;
+import com.dremio.telemetry.utils.GrpcTracerFacade;
 import com.dremio.telemetry.utils.TracerFacade;
 
 /**
@@ -48,6 +49,8 @@ public class TestLocalJobTelemetryServer {
     new SimpleGrpcChannelBuilderFactory(TracerFacade.INSTANCE);
   private final GrpcServerBuilderFactory grpcServerBuilderFactory =
     new SimpleGrpcServerBuilderFactory(TracerFacade.INSTANCE);
+  private final GrpcTracerFacade tracer =
+    new GrpcTracerFacade(TracerFacade.INSTANCE);
 
   private LocalJobTelemetryServer server;
   private JobTelemetryClient client;
@@ -64,7 +67,8 @@ public class TestLocalJobTelemetryServer {
 
     server = new LocalJobTelemetryServer(grpcServerBuilderFactory,
       DirectProvider.wrap(TempLegacyKVStoreProviderCreator.create()),
-      DirectProvider.wrap(node));
+      DirectProvider.wrap(node),
+      tracer);
     server.start();
 
     client = new JobTelemetryClient(grpcChannelBuilderFactory, DirectProvider.wrap(node));

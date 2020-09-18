@@ -18,13 +18,11 @@ package com.dremio.service.users;
 import static java.lang.String.format;
 
 import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Pattern;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -74,19 +72,7 @@ public class SimpleUserService implements UserService {
   @VisibleForTesting
   public static final String USER_STORE = "userGroup";
 
-  private static final SecretKeyFactory secretKey = buildSecretKey();
-
-  public static  SecretKeyFactory buildSecretKey() {
-    try {
-      return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
-    } catch (NoSuchAlgorithmException nsae) {
-      throw new RuntimeException("Failed to initialize usergroup service", nsae);
-    }
-  }
-
-  private static final Pattern PASSWORD_MATCHER = Pattern.compile("(?=.*[0-9])(?=.*[a-zA-Z]).{8,}");
-  private static final SearchFieldSorting DEFAULT_SORTER = UserIndexKeys.NAME.toSortField(SortOrder.ASCENDING);
-
+  private static final SecretKeyFactory secretKey = UserServiceUtils.buildSecretKey();
   private LegacyIndexedStore<UID, UserInfo> userStore;
 
   // when we call hasAnyUser() we cache the result in here so we never hit the kvStore once the value is true
@@ -250,7 +236,7 @@ public class SimpleUserService implements UserService {
     try {
       UserAuth userAuth = userInfo.getAuth();
       final byte[] authKey = buildUserAuthKey(password, userAuth.getPrefix().toByteArray());
-      if (!slowEquals(authKey, userAuth.getAuthKey().toByteArray())) {
+      if (!UserServiceUtils.slowEquals(authKey, userAuth.getAuthKey().toByteArray())) {
         throw new UserLoginException(userName, "Invalid user credentials");
       }
     } catch (InvalidKeySpecException ikse) {
@@ -317,7 +303,7 @@ public class SimpleUserService implements UserService {
   private static SearchFieldSorting buildSorter(final String sortColumn, final SortOrder order) {
 
     if(sortColumn == null){
-      return DEFAULT_SORTER;
+      return UserServiceUtils.DEFAULT_SORTER;
     }
 
     final IndexKey key = UserIndexKeys.MAPPING.getKey(sortColumn);
@@ -367,14 +353,6 @@ public class SimpleUserService implements UserService {
     return secretKey.generateSecret(spec).getEncoded();
   }
 
-  private  boolean slowEquals(byte[] a, byte[] b) {
-    int diff = a.length ^ b.length;
-    for(int i = 0; i < a.length && i < b.length; i++) {
-      diff |= a[i] ^ b[i];
-    }
-    return diff == 0;
-  }
-
   /**
    * Used only by command line for set-password
    * @param userName username of user whose password is being reset
@@ -393,8 +371,9 @@ public class SimpleUserService implements UserService {
     userStore.put(info.getConfig().getUid(), info);
   }
 
+  @VisibleForTesting
   public static void validatePassword(String input) throws IllegalArgumentException {
-    if (input == null || input.isEmpty() || !PASSWORD_MATCHER.matcher(input).matches()) {
+    if (!UserServiceUtils.validatePassword(input)) {
       throw UserException.validationError()
         .message("Invalid password: must be at least 8 letters long, must contain at least one number and one letter")
         .build(logger);

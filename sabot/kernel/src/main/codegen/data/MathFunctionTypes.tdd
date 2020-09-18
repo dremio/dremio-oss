@@ -43,6 +43,16 @@
           {input1: "Float4", input2: "Float4", outputType: "Float4", castType: "float"},
           {input1: "Float8", input2: "Float8", outputType: "Float8", castType: "double"},
         ]
+     },
+      {className: "BitwiseAnd", funcName: "bitwise_and", op: "&", types: [
+          {input1: "Int", input2: "Int", outputType: "Int", castType: "int"},
+          {input1: "BigInt", input2: "BigInt", outputType: "BigInt", castType: "long"},
+        ]
+     },
+      {className: "BitwiseOr", funcName: "bitwise_or", op: "|", types: [
+          {input1: "Int", input2: "Int", outputType: "Int", castType: "int"},
+          {input1: "BigInt", input2: "BigInt", outputType: "BigInt", castType: "long"},
+        ]
      }
   ]
 }

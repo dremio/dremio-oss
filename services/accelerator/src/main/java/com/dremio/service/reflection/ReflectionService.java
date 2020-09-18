@@ -76,6 +76,8 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
 
   Provider<CacheViewer> getCacheViewerProvider();
 
+  ReflectionManager getReflectionManager();
+
   /**
    * mainly useful to reduce conflicts on the implementation when we update this interface
    */
@@ -249,6 +251,11 @@ public interface ReflectionService extends Service, ReflectionAdministrationServ
         public List<String> getExcludedReflections(String rId) {
           return ImmutableList.of();
         }};
+    }
+
+    @Override
+    public ReflectionManager getReflectionManager() {
+      return null;
     }
   }
 

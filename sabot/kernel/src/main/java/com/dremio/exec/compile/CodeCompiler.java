@@ -41,6 +41,7 @@ public class CodeCompiler {
     selector = new ClassCompilerSelector(config, optionManager);
     final int cacheMaxSize = config.getInt(ExecConstants.MAX_LOADING_CACHE_SIZE_CONFIG);
     cache = CacheBuilder.newBuilder()
+        .softValues()
         .maximumSize(cacheMaxSize)
         .build(new Loader());
   }

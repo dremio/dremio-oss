@@ -25,6 +25,8 @@ import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.BiConsumer;
 
 import javax.inject.Provider;
 
@@ -87,6 +89,7 @@ import com.dremio.exec.maestro.MaestroServiceImpl;
 import com.dremio.exec.maestro.NoOpMaestroForwarder;
 import com.dremio.exec.planner.observer.QueryObserverFactory;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.rpc.RpcConstants;
 import com.dremio.exec.rpc.ssl.SSLConfigurator;
 import com.dremio.exec.server.BootStrapContext;
@@ -130,8 +133,10 @@ import com.dremio.resource.GroupResourceInformation;
 import com.dremio.resource.QueryCancelTool;
 import com.dremio.resource.ResourceAllocator;
 import com.dremio.resource.basic.BasicResourceAllocator;
+import com.dremio.sabot.exec.CoordinatorHeapClawBackStrategy;
 import com.dremio.sabot.exec.ExecToCoordTunnelCreator;
 import com.dremio.sabot.exec.FragmentWorkManager;
+import com.dremio.sabot.exec.HeapMonitorManager;
 import com.dremio.sabot.exec.TaskPoolInitializer;
 import com.dremio.sabot.exec.WorkloadTicketDepot;
 import com.dremio.sabot.exec.WorkloadTicketDepotService;
@@ -147,6 +152,8 @@ import com.dremio.service.InitializerRegistry;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.service.accelerator.AccelerationListManagerImpl;
 import com.dremio.service.accelerator.ReflectionTunnelCreator;
+import com.dremio.service.catalog.InformationSchemaServiceGrpc;
+import com.dremio.service.catalog.InformationSchemaServiceGrpc.InformationSchemaServiceBlockingStub;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.commandpool.CommandPoolFactory;
 import com.dremio.service.conduit.ConduitUtils;
@@ -211,8 +218,10 @@ import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
 import com.dremio.ssl.SSLEngineFactory;
 import com.dremio.ssl.SSLEngineFactoryImpl;
+import com.dremio.telemetry.utils.GrpcTracerFacade;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Maps;
 import com.google.inject.util.Providers;
 
 import io.opentracing.Tracer;
@@ -226,8 +235,8 @@ public class DACDaemonModule implements DACModule {
   public static final String JOBS_STORAGEPLUGIN_NAME = "__jobResultsStore";
   public static final String SCRATCH_STORAGEPLUGIN_NAME = "$scratch";
 
-  public DACDaemonModule() {
-  }
+  public DACDaemonModule() {}
+
 
   @Override
   public void bootstrap(final Runnable shutdownHook, final SingletonRegistry bootstrapRegistry, ScanResult scanResult, DACConfig dacConfig, boolean isMaster) {
@@ -295,7 +304,7 @@ public class DACDaemonModule implements DACModule {
     // Default request Context
     bootstrapRegistry.bind(RequestContext.class,
       RequestContext.empty()
-        .with(TenantContext.CTX_KEY, new TenantContext(TenantContext.DEFAULT_PRODUCT_TENANT_ID))
+        .with(TenantContext.CTX_KEY, TenantContext.DEFAULT_SERVICE_CONTEXT)
         .with(UserContext.CTX_KEY, new UserContext(SYSTEM_USERNAME))
     );
   }
@@ -357,7 +366,8 @@ public class DACDaemonModule implements DACModule {
     registry.bind(GrpcChannelBuilderFactory.class,
       new SingleTenantGrpcChannelBuilderFactory(
         registry.lookup(Tracer.class),
-        registry.lookup(RequestContext.class)
+        registry.lookup(RequestContext.class),
+        () -> { return Maps.newHashMap();}
       )
     );
     registry.bind(GrpcServerBuilderFactory.class, new MultiTenantGrpcServerBuilderFactory(registry.lookup(Tracer.class)));
@@ -406,12 +416,23 @@ public class DACDaemonModule implements DACModule {
       )
     );
 
+    // for masterless case, this defaults to the local conduit server.
+    final Provider<NodeEndpoint> conduitEndpoint;
+    if (!isMasterless) {
+      conduitEndpoint = masterEndpoint;
+    } else {
+      conduitEndpoint = selfEndpoint;
+    }
+
     final ConduitProviderImpl conduitProvider = new ConduitProviderImpl(
-      masterEndpoint,
+      conduitEndpoint,
       conduitSslEngineFactory
     );
     registry.bind(ConduitProvider.class, conduitProvider);
     registry.bind(ConduitProviderImpl.class, conduitProvider); // this bind manages lifecycle
+
+    registry.bindProvider(InformationSchemaServiceBlockingStub.class,
+      () -> InformationSchemaServiceGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster()));
 
     registry.bind(
       KVStoreProvider.class,
@@ -520,6 +541,7 @@ public class DACDaemonModule implements DACModule {
       registry.provider(UserService.class),
       registry.provider(CatalogService.class),
       registry.provider(ConduitProvider.class),
+      registry.provider(InformationSchemaServiceBlockingStub.class),
       registry.provider(ViewCreatorFactory.class),
       registry.provider(SpillService.class),
       registry.provider(ConnectionReader.class),
@@ -602,6 +624,8 @@ public class DACDaemonModule implements DACModule {
           .getServiceSet(ClusterCoordinator.Role.COORDINATOR)
           .getAvailableEndpoints(),
         () -> registry.provider(SabotContext.class).get().getEndpoint());
+
+    registry.bindSelf(metadataRefreshInfoBroadcaster);
 
     registry.bind(CatalogService.class, new CatalogServiceImpl(
         registry.provider(SabotContext.class),
@@ -991,7 +1015,8 @@ public class DACDaemonModule implements DACModule {
       registry.bindSelf(new LocalJobTelemetryServer(
         registry.lookup(GrpcServerBuilderFactory.class),
         registry.provider(LegacyKVStoreProvider.class),
-        currentEndPoint)
+        currentEndPoint,
+        bootstrapRegistry.lookup(GrpcTracerFacade.class))
       );
 
       registerJobsServices(conduitServiceRegistry, registry, bootstrap);
@@ -999,6 +1024,23 @@ public class DACDaemonModule implements DACModule {
 
     if (isExecutor) {
       registry.bindSelf(new ExprCachePrewarmService(sabotContextProvider, optionsProvider, bootstrap.getAllocator()));
+    }
+
+    registerHeapMonitorManager(registry, isCoordinator);
+  }
+
+  // Registering heap monitor manager as a service,
+  // so that it can be closed cleanly when shutdown
+  private void registerHeapMonitorManager(SingletonRegistry registry, boolean isCoordinator){
+    if (isCoordinator) {
+      BiConsumer<Set<QueryState>, String> cancelConsumer =
+        (queryStates, cancelReason) -> registry.provider(ForemenWorkManager.class)
+                                               .get().cancel(queryStates, cancelReason);
+
+      logger.info("Registering heap monitor manager in coordinator as a service.");
+      registry.bindSelf(new HeapMonitorManager(() -> registry.provider(SabotContext.class).get().getOptionManager(),
+                                               new CoordinatorHeapClawBackStrategy(cancelConsumer),
+                                               ClusterCoordinator.Role.COORDINATOR));
     }
   }
 

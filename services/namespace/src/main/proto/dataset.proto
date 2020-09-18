@@ -73,6 +73,7 @@ message VirtualDataset {
 
   // The fields of the dataset from a View perspective. This is generated from the view's rowType
   repeated ViewFieldType calcite_fields = 9;
+  optional bool default_reflection_enabled = 10;
 }
 
 enum SortOrder {
@@ -148,3 +149,4 @@ enum RefreshMethod {
   FULL = 1;
   INCREMENTAL = 2;
 }
+

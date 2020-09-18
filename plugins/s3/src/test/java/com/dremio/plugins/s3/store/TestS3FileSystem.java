@@ -17,7 +17,6 @@ package com.dremio.plugins.s3.store;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -32,6 +31,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
@@ -40,8 +40,11 @@ import com.amazonaws.services.s3.model.AccessControlList;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.CanonicalGrantee;
 import com.amazonaws.services.s3.model.Grant;
-import com.amazonaws.services.s3.model.Owner;
+import com.amazonaws.services.s3.model.ListObjectsV2Request;
+import com.amazonaws.services.s3.model.ListObjectsV2Result;
 import com.amazonaws.services.s3.model.Permission;
+import com.dremio.plugins.util.ContainerAccessDeniedException;
+import com.dremio.plugins.util.ContainerNotFoundException;
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.core.exception.SdkClientException;
@@ -56,6 +59,7 @@ import software.amazon.awssdk.services.sts.model.StsException;
  */
 @RunWith(PowerMockRunner.class)
 @PrepareForTest(StsClient.class)
+@PowerMockIgnore(value = {"org.apache.commons.logging.*", "org.slf4j.*", "org.apache.xerces.*", "javax.xml.parsers.SAXParserFactory"})
 public class TestS3FileSystem {
   @Test
   public void testValidRegionFromEndpoint() {
@@ -112,12 +116,10 @@ public class TestS3FileSystem {
   public void testUnknownContainerExists() {
     TestExtendedS3FileSystem fs = new TestExtendedS3FileSystem();
     AmazonS3 mockedS3Client = mock(AmazonS3.class);
-    Owner owner = new Owner();
-    owner.setId("2350f639447f872b12d9e2298200704aa3b70cea0e127d544748da0351f79118");
     when(mockedS3Client.doesBucketExistV2(any(String.class))).thenReturn(true);
-    when(mockedS3Client.getS3AccountOwner()).thenReturn(owner);
-    AccessControlList acl = getAcl(mockedS3Client);
-    when(mockedS3Client.getBucketAcl(any(String.class))).thenReturn(acl);
+    ListObjectsV2Result result = new ListObjectsV2Result();
+    result.setBucketName("testunknown");
+    when(mockedS3Client.listObjectsV2(any(ListObjectsV2Request.class))).thenReturn(result);
 
     fs.setCustomClient(mockedS3Client);
     try {
@@ -127,31 +129,23 @@ public class TestS3FileSystem {
     }
   }
 
-  @Test
-  public void testUnknownContainerNotExists() {
+  @Test (expected = ContainerNotFoundException.class)
+  public void testUnknownContainerNotExists() throws IOException {
     TestExtendedS3FileSystem fs = new TestExtendedS3FileSystem();
     AmazonS3 mockedS3Client = mock(AmazonS3.class);
     when(mockedS3Client.doesBucketExistV2(any(String.class))).thenReturn(false);
     fs.setCustomClient(mockedS3Client);
-    try {
-      assertNull(fs.getUnknownContainer("testunknown"));
-    } catch (IOException e) {
-      fail(e.getMessage());
-    }
+    fs.getUnknownContainer("testunknown");
   }
 
-  @Test
-  public void testUnknownContainerExistsButNoPermissions() {
+  @Test (expected = ContainerAccessDeniedException.class)
+  public void testUnknownContainerExistsButNoPermissions() throws IOException {
     TestExtendedS3FileSystem fs = new TestExtendedS3FileSystem();
     AmazonS3 mockedS3Client = mock(AmazonS3.class);
     when(mockedS3Client.doesBucketExistV2(any(String.class))).thenReturn(true);
-    when(mockedS3Client.getBucketAcl(any(String.class))).thenThrow(new AmazonS3Exception("Access Denied (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: FF025EBC3B2BF017; S3 Extended Request ID: 9cbmmg2cbPG7+3mXBizXNJ1haZ/0FUhztplqsm/dJPJB32okQRAhRWVWyqakJrKjCNVqzT57IZU=), S3 Extended Request ID: 9cbmmg2cbPG7+3mXBizXNJ1haZ/0FUhztplqsm/dJPJB32okQRAhRWVWyqakJrKjCNVqzT57IZU="));
+    when(mockedS3Client.listObjectsV2(any(ListObjectsV2Request.class))).thenThrow(new AmazonS3Exception("Access Denied (Service: Amazon S3; Status Code: 403; Error Code: AccessDenied; Request ID: FF025EBC3B2BF017; S3 Extended Request ID: 9cbmmg2cbPG7+3mXBizXNJ1haZ/0FUhztplqsm/dJPJB32okQRAhRWVWyqakJrKjCNVqzT57IZU=), S3 Extended Request ID: 9cbmmg2cbPG7+3mXBizXNJ1haZ/0FUhztplqsm/dJPJB32okQRAhRWVWyqakJrKjCNVqzT57IZU="));
     fs.setCustomClient(mockedS3Client);
-    try {
-      assertNull(fs.getUnknownContainer("testunknown"));
-    } catch (IOException e) {
-      fail(e.getMessage());
-    }
+    fs.getUnknownContainer("testunknown");
   }
 
   @Test
@@ -219,6 +213,11 @@ public class TestS3FileSystem {
     public AwsCredentialsProvider getAsync2Provider(Configuration conf) {
       AwsCredentialsProvider mockProvider = mock(AwsCredentialsProvider.class);
       return mockProvider;
+    }
+
+    @Override
+    protected boolean isRequesterPays() {
+      return false;
     }
   }
 }

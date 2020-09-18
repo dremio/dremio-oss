@@ -137,8 +137,13 @@ public class CompliantTextRecordReader extends AbstractRecordReader {
       reader = new TextReader(settings, input, output, whitespaceBuffer);
       reader.start();
     } catch (IOException e) {
-      if (e.getCause() instanceof StreamFinishedPseudoException) {
+      Throwable t = e.getCause();
+      if (t instanceof StreamFinishedPseudoException) {
         return;
+      }
+      String bestEffortMessage = bestEffortMessageForUnknownException(t);
+      if (bestEffortMessage != null) {
+        throw new ExecutionSetupException(bestEffortMessage);
       }
       throw new ExecutionSetupException(String.format("Failure while setting up text reader for file %s", split.getPath()), e);
     } catch (SchemaChangeException e) {

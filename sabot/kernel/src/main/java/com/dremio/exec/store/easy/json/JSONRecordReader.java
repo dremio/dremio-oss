@@ -155,7 +155,11 @@ public class JSONRecordReader extends AbstractRecordReader {
           context.getManagedBuffer(), ImmutableList.copyOf(getColumns()), sizeLimit, maxLeafLimit, enableAllTextMode, true, readNumbersAsDouble);
       }
       setupParser();
-    }catch(final Exception e){
+    } catch(final Exception e) {
+      String bestEffortMessage = bestEffortMessageForUnknownException(e.getCause());
+      if (bestEffortMessage != null) {
+        throw new ExecutionSetupException(bestEffortMessage);
+      }
       handleAndRaise("Failure reading JSON file", e);
     }
   }

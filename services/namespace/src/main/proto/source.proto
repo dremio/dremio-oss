@@ -47,6 +47,7 @@ message SourceConfig {
   optional string tag = 17;
   optional int64 configOrdinal = 18;
   optional bool allowCrossSourceSelection = 19 [default = false];
+  optional bool checkTableAuthorizer = 20 [default = true];
 }
 
 // Version notes:

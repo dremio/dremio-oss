@@ -85,10 +85,10 @@ public class TestFlatten extends PlanTestBase {
   @Test
   public void testFlatten() throws Exception {
     String query = "select flatten(complex), rownum from cp.\"/store/json/test_flatten_mappify2.json\"";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`complex`, `rownum`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`rownum`, `complex`]"}, null);
     test(query);
     query = "select complex, rownum from cp.\"/store/json/test_flatten_mappify2.json\"";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`complex`, `rownum`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`rownum`, `complex`]"}, null);
     test(query);
   }
 
@@ -129,7 +129,7 @@ public class TestFlatten extends PlanTestBase {
     List<JsonStringHashMap<String, Object>> result = flatten(flatten(flatten(data, "lst_lst_1"), "lst_lst_0"), "lst_lst");
 
     String query = "select uid, flatten(d.lst_lst[1]) lst1, flatten(d.lst_lst[0]) lst0, flatten(d.lst_lst) lst from dfs.\"" + path + "/bigfile/bigfile.json\" d";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`uid`, `lst_lst`[1], `lst_lst`[0], `lst_lst`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`uid`, `lst_lst`, `lst_lst`[0], `lst_lst`[1]]"}, null);
     TestBuilder builder = testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -242,7 +242,7 @@ public class TestFlatten extends PlanTestBase {
   @Test
   public void drill1671() throws Exception{
     String query = "select * from (select count(*) as cnt from (select id, flatten(evnts1), flatten(evnts2), flatten(evnts3), flatten(evnts4), flatten(evnts5), flatten(evnts6), flatten(evnts7), flatten(evnts8), flatten(evnts9), flatten(evnts10), flatten(evnts11) from cp.\"/flatten/many-arrays-50.json\")x )y where cnt = 2048";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`evnts1`, `evnts2`, `evnts3`, `evnts4`, `evnts5`, `evnts6`, `evnts7`, `evnts8`, `evnts9`, `evnts10`, `evnts11`, `id`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`id`, `evnts1`, `evnts2`, `evnts3`, `evnts4`, `evnts5`, `evnts6`, `evnts7`, `evnts8`, `evnts9`, `evnts10`, `evnts11`]"}, null);
     int rowCount = testSql(query);
     assertEquals(1, rowCount);
   }
@@ -279,7 +279,7 @@ public class TestFlatten extends PlanTestBase {
     String query = "select t.fixed_column as fixed_column, flatten(t.list_column) as list_col from dfs.\"" + path + "/bigfile/bigfile.json\" as t";
     String plan = getPlanInString("explain plan for " + query, OPTIQ_FORMAT);
     // There are only two columns fixed_column and list_column, so * is also possible
-    assertTrue(plan, plan.contains("columns=[`list_column`, `fixed_column`]") || plan.contains("columns=[`*`]"));
+    assertTrue(plan, plan.contains("columns=[`fixed_column`, `list_column`]") || plan.contains("columns=[`*`]"));
     TestBuilder builder = testBuilder()
         .sqlQuery(query)
         .baselineColumns("fixed_column", "list_col")
@@ -348,14 +348,14 @@ public class TestFlatten extends PlanTestBase {
   public void testTwoFlattens() throws Exception {
     // second re-write rule has been added to test the fixes together, this now runs
     String query = "select \"integer\", \"float\", x, flatten(z), flatten(l) from cp.\"/jsoninput/input2_modified.json\"";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`z`, `l`, `integer`, `float`, `x`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `float`, `x`, `z`, `l`]"}, null);
     test(query);
   }
 
   @Test
   public void testFlattenRepeatedMap() throws Exception {
     String query = "select \"integer\", \"float\", x, flatten(z) from cp.\"/jsoninput/input2.json\"";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`z`, `integer`, `float`, `x`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `float`, `x`, `z`]"}, null);
     test(query);
   }
 
@@ -367,7 +367,7 @@ public class TestFlatten extends PlanTestBase {
   @Test
   public void testFlattenKVGenFlatten() throws Exception {
     String query = "select \"integer\", \"float\", x, flatten(kvgen(flatten(z))) from cp.\"/jsoninput/input2.json\"";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`z`, `integer`, `float`, `x`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `float`, `x`, `z`]"}, null);
     // currently does not fail, but produces incorrect results, requires second re-write rule to split up expressions
     // with complex outputs
     test(query);
@@ -476,7 +476,7 @@ public class TestFlatten extends PlanTestBase {
   @Test //DRILL-2254
   public void testSingleFlattenFromNestedRepeatedList() throws Exception {
     final String query = "select t.uid, flatten(t.odd) odd from cp.\"project/complex/a.json\" t";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`odd`, `uid`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`uid`, `odd`]"}, null);
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -488,7 +488,7 @@ public class TestFlatten extends PlanTestBase {
   @Test //DRILL-2254 supplementary
   public void testMultiFlattenFromNestedRepeatedList() throws Exception {
     final String query = "select t.uid, flatten(flatten(t.odd)) odd from cp.\"project/complex/a.json\" t";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`odd`, `uid`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`uid`, `odd`]"}, null);
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -502,7 +502,7 @@ public class TestFlatten extends PlanTestBase {
   @Test //DRILL-2254 supplementary
   public void testSingleMultiFlattenFromNestedRepeatedList() throws Exception {
     final String query = "select t.uid, flatten(t.odd) once, flatten(flatten(t.odd)) twice from cp.\"project/complex/a.json\" t";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`odd`, `uid`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`uid`, `odd`]"}, null);
     testBuilder()
         .sqlQuery(query)
         .unOrdered()
@@ -605,7 +605,7 @@ public class TestFlatten extends PlanTestBase {
     String query = "select flatten(sub1.events) flat_events  from "+
       "(select t1.events events from cp.\"complex/json/flatten_join.json\" t1 "+
       "inner join cp.\"complex/json/flatten_join.json\" t2 on t1.id=t2.id) sub1";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`events`, `id`]", "columns=[`id`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`id`, `events`]", "columns=[`id`]"}, null);
     testBuilder()
       .sqlQuery(query)
       .unOrdered()
@@ -617,7 +617,7 @@ public class TestFlatten extends PlanTestBase {
   public void testFlattenAfterJoin2() throws Exception {
     String query = "select flatten(t1.events) flat_events from cp.\"complex/json/flatten_join.json\" t1 " +
       "inner join cp.\"complex/json/flatten_join.json\" t2 on t1.id=t2.id";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`events`, `id`]", "columns=[`id`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`id`, `events`]", "columns=[`id`]"}, null);
     testBuilder()
       .sqlQuery(query)
       .unOrdered()
@@ -631,7 +631,7 @@ public class TestFlatten extends PlanTestBase {
       "(select t1.lst_lst lst_lst from cp.\"complex/json/flatten_join.json\" t1 "+
       "inner join cp.\"complex/json/flatten_join.json\" t2 on t1.id=t2.id) sub1";
 
-    testPlanSubstrPatterns(query, new String[] {"columns=[`lst_lst`, `id`]", "columns=[`id`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`id`, `lst_lst`]", "columns=[`id`]"}, null);
     testBuilder()
       .sqlQuery(query)
       .unOrdered()
@@ -659,7 +659,7 @@ public class TestFlatten extends PlanTestBase {
   @Test
   public void testFlattenWithProjIntoScan_0() throws Exception {
     String query = "select sub.myinteger, sub.zflat.orange from (select flatten(t.z) as zflat, t.\"integer\" as myinteger from cp.\"/jsoninput/input2.json\" t) sub where sub.zflat.orange is not null";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`z`.`orange`, `integer`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`.`orange`]"}, null);
     testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", "EXPR$1")
             .baselineValues(2010L, "yellow")
             .baselineValues(6005L, "stucco")
@@ -669,7 +669,7 @@ public class TestFlatten extends PlanTestBase {
   @Test
   public void testFlattenWithProjIntoScan_1() throws Exception {
     String query = "select sub.myinteger, sub.zflat.orange, sub.zflat.pink, sub.lflat from (select flatten(t.z) as zflat, flatten(t.l) as lflat, t.\"integer\" as myinteger from cp.\"/jsoninput/input6.json\" t) sub where sub.zflat.orange is not null";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`z`.`orange`, `z`.`pink`, `l`, `integer`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`.`orange`, `z`.`pink`, `l`]"}, null);
     testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", "EXPR$1", "EXPR$2", "lflat")
             .baselineValues(2010L, "yellow", "red", 4L)
             .baselineValues(2010L, "yellow", "red", 2L)
@@ -681,7 +681,7 @@ public class TestFlatten extends PlanTestBase {
   @Test
   public void testFlattenWithProjIntoScan_2() throws Exception {
     String query = "select flatten(t.z) as zflat, flatten(t.l) as lflat, t.\"integer\" as myinteger from cp.\"/jsoninput/input2.json\" t";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`z`, `l`, `integer`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`, `l`]"}, null);
     testBuilder().sqlQuery(query).unOrdered().baselineColumns("zflat", "lflat", "myinteger")
             .baselineValues(mapOf("orange", "yellow", "pink", "red"), 4L, 2010L)
             .baselineValues(mapOf("orange", "yellow", "pink", "red"), 2L, 2010L)
@@ -697,7 +697,7 @@ public class TestFlatten extends PlanTestBase {
   @Test
   public void testFlattenWithProjIntoScan_3() throws Exception {
     String query = "select sub.myinteger, sub.zflat.orange, sub.zflat.pink, sub.lflat from (select flatten(t.z) as zflat, flatten(t.l) as lflat, t.\"integer\" as myinteger from cp.\"/jsoninput/input6.json\" t) sub";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`z`.`orange`, `z`.`pink`, `l`, `integer`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`.`orange`, `z`.`pink`, `l`]"}, null);
     testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", "EXPR$1", "EXPR$2", "lflat")
             .baselineValues(2010L, "yellow", "red", 4L)
             .baselineValues(2010L, "yellow", "red", 2L)
@@ -785,7 +785,7 @@ public class TestFlatten extends PlanTestBase {
   @Test
   public void testFlattenWithParquet_1() throws Exception {
     String query = "select sub.myinteger, sub.zflat.orange, sub.zflat.pink, sub.lflat from (select flatten(t.z) as zflat, flatten(t.l) as lflat, t.\"integer\" as myinteger from dfs_test.parquetTable t) sub";
-    testPlanSubstrPatterns(query, new String[] {"columns=[`z`.`orange`, `z`.`pink`, `l`, `integer`]"}, null);
+    testPlanSubstrPatterns(query, new String[] {"columns=[`integer`, `z`.`orange`, `z`.`pink`, `l`]"}, null);
     testBuilder().sqlQuery(query).unOrdered().baselineColumns("myinteger", "EXPR$1", "EXPR$2", "lflat")
             .baselineValues(2010L, "yellow", "red", 4L)
             .baselineValues(2010L, "yellow", "red", 2L)

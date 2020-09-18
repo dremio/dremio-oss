@@ -42,6 +42,7 @@ import com.dremio.common.exceptions.ErrorHelper;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.dac.model.common.DACUnauthorizedException;
 import com.dremio.dac.service.errors.ClientErrorException;
+import com.dremio.dac.service.errors.ConflictException;
 import com.dremio.dac.service.errors.InvalidQueryException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
 import com.dremio.service.users.UserNotFoundException;
@@ -88,11 +89,20 @@ class GenericExceptionMapper implements ExceptionMapper<Throwable> {
       } else {
         errorMessage = wae.getMessage();
       }
+
       logger.debug("Status {} for {} {} : {}", wae.getResponse().getStatus(), request.getMethod(), uriInfo.getRequestUri(), errorMessage, wae);
-      return Response.fromResponse(wae.getResponse())
+
+      if (wae instanceof ConflictException && errorMessage != null) {
+        return Response.fromResponse(wae.getResponse())
+          .entity(new GenericErrorMessage(errorMessage, null, stackTrace))
+          .type(APPLICATION_JSON_TYPE)
+          .build();
+      } else {
+        return Response.fromResponse(wae.getResponse())
           .entity(new GenericErrorMessage(errorMessage, stackTrace))
           .type(APPLICATION_JSON_TYPE)
           .build();
+      }
     }
 
     if (throwable instanceof InvalidQueryException) {

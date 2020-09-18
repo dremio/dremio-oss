@@ -51,7 +51,9 @@ import com.dremio.service.job.JobDetailsRequest;
 import com.dremio.service.job.JobSummary;
 import com.dremio.service.job.JobSummaryRequest;
 import com.dremio.service.job.proto.JobAttempt;
+import com.dremio.service.job.proto.JobFailureInfo;
 import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobInfo;
 import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.job.proto.JobState;
 import com.dremio.service.job.proto.QueryType;
@@ -191,6 +193,39 @@ public class TestJobResultsStore extends BaseTestServer {
     jobResult.setAttemptsList(attempts);
     when(jobResultsStore.loadJobData(new JobId("Canceled Job"),jobResult,0,0)).thenCallRealMethod();
     jobResultsStore.loadJobData(new JobId("Canceled Job"),jobResult,0,0);
+  }
+
+  /**
+   * Test fetching of job data (JobResultsStore#loadJobData()) in case of query failure during execution.
+   */
+  @Test
+  public void testLoadJobDataOfFailedQuery() {
+    String failureMessage = "job failed";
+    exception.expect(new UserExceptionMatcher(UserBitShared.DremioPBError.ErrorType.DATA_READ,
+                     failureMessage));
+
+    final JobResultsStore jobResultsStore = mock(JobResultsStore.class);
+    JobFailureInfo.Error error = new JobFailureInfo.Error();
+    error.setMessage(failureMessage);
+
+    JobFailureInfo detailedFailureInfo = new JobFailureInfo();
+    detailedFailureInfo.setErrorsList(Arrays.asList(error));
+
+    JobInfo jobInfo = new JobInfo();
+    jobInfo.setDetailedFailureInfo(detailedFailureInfo);
+
+    JobAttempt jobAttempt = new JobAttempt();
+    jobAttempt.setState(JobState.FAILED);
+    jobAttempt.setInfo(jobInfo);
+
+    List<JobAttempt> attempts = new ArrayList<>();
+    attempts.add(jobAttempt);
+
+    JobResult jobResult = new JobResult();
+    jobResult.setAttemptsList(attempts);
+
+    when(jobResultsStore.loadJobData(new JobId("Failed JobID"),jobResult,0,0)).thenCallRealMethod();
+    jobResultsStore.loadJobData(new JobId("Failed JobID"),jobResult,0,0);
   }
 
   @Test

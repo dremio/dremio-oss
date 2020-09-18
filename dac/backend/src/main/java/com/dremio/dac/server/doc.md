@@ -3018,6 +3018,7 @@
       ...
     ],
     status: "good" | "bad" | "warn",
+    suggestedUserAction: "abc",
   },
   tag: "abc",
 }
@@ -3366,6 +3367,7 @@
           ...
         ],
         status: "good" | "bad" | "warn",
+        suggestedUserAction: "abc",
       },
       tag: "abc",
     },

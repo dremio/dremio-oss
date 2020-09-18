@@ -43,8 +43,11 @@ public class TestTextReader extends BaseTestQuery {
   private static String TMP_CSV_FILE_COUNT_STAR = "my_count_star.csv";
   // two rows file
   private static String TMP_CSV_FILE_TWO_ROWS = "my_two_rows.csv";
+  // Multiple 8K chunks ending at newline
+  private static String TMP_CSV_MULTIPLE_8K_CHUNKS = "multiple_8k_chunks.csv";
   // row count in count star file
   private static long ROW_COUNT = 1023;
+  private static long ROW_COUNT_8K_CHUNKS = 1442;
 
   // normal query
   private static String QUERY = "select * from table(" + TEMP_SCHEMA + ".\"" + TMP_CSV_FILE_SMALL + "\"" +
@@ -115,10 +118,26 @@ public class TestTextReader extends BaseTestQuery {
     "lineDelimiter => '\r\n'" +
     ", extractHeader => false, skipFirstLine => false, autoGenerateColumnNames => true))";
 
+  private static String QUERY_MULTIPLE_8K_CHUNKS_FILTER = "select fcode from table(" +
+    TEMP_SCHEMA + ".\"" + TMP_CSV_MULTIPLE_8K_CHUNKS + "\"" +
+    " (type => 'text', fieldDelimiter => ',', " +
+    "comment => '#', quote => '\"', " +
+    "lineDelimiter => '\r\n'" +
+    ", extractHeader => true, skipFirstLine => false, autoGenerateColumnNames => false))" +
+    " where dtchex='123456'";
+
+  private static String QUERY_MULTIPLE_8K_CHUNKS_COUNT_STAR = "select count(*) from table(" +
+    TEMP_SCHEMA + ".\"" + TMP_CSV_MULTIPLE_8K_CHUNKS + "\"" +
+    " (type => 'text', fieldDelimiter => ',', " +
+    "comment => '#', quote => '\"', " +
+    "lineDelimiter => '\r\n'" +
+    ", extractHeader => true, skipFirstLine => false, autoGenerateColumnNames => false))";
+
   private static File tblPathSmall = null;
   private static File tblPathLarge = null;
   private static File tblPathCountStar = null;
   private static File tblPathTwoRows = null;
+  private static File tblPathMultiple8kChunks = null;
 
   @BeforeClass
   public static void beforeClass() throws Exception {
@@ -127,11 +146,13 @@ public class TestTextReader extends BaseTestQuery {
     tblPathLarge = new File(getDfsTestTmpSchemaLocation(), TMP_CSV_FILE_LARGE);
     tblPathCountStar = new File(getDfsTestTmpSchemaLocation(), TMP_CSV_FILE_COUNT_STAR);
     tblPathTwoRows = new File(getDfsTestTmpSchemaLocation(), TMP_CSV_FILE_TWO_ROWS);
+    tblPathMultiple8kChunks = new File(getDfsTestTmpSchemaLocation(), TMP_CSV_MULTIPLE_8K_CHUNKS);
 
     FileUtils.deleteQuietly(tblPathSmall);
     FileUtils.deleteQuietly(tblPathLarge);
     FileUtils.deleteQuietly(tblPathCountStar);
     FileUtils.deleteQuietly(tblPathTwoRows);
+    FileUtils.deleteQuietly(tblPathMultiple8kChunks);
     startTest();
   }
 
@@ -141,6 +162,7 @@ public class TestTextReader extends BaseTestQuery {
     FileUtils.deleteQuietly(tblPathLarge);
     FileUtils.deleteQuietly(tblPathCountStar);
     FileUtils.deleteQuietly(tblPathTwoRows);
+    FileUtils.deleteQuietly(tblPathMultiple8kChunks);
   }
 
   private static void startTest() throws Exception {
@@ -192,6 +214,9 @@ public class TestTextReader extends BaseTestQuery {
         fwriter.append('\n');
       }
     }
+
+    FileUtils.copyFile(com.dremio.common.util.FileUtils.getResourceAsFile("/store/text/data/multiple_8k_chunks.csv"),
+      tblPathMultiple8kChunks);
   }
 
   @Test
@@ -280,5 +305,26 @@ public class TestTextReader extends BaseTestQuery {
   @Test
   public void testIncorrectLineDelimiterSkipLine() throws Exception {
     runSQL(QUERY_TWO_ROWS_SKIP_LINE);
+  }
+
+  @Test
+  public void testMultiple8kChunkFileFilter() throws Exception {
+    testBuilder()
+      .sqlQuery(QUERY_MULTIPLE_8K_CHUNKS_FILTER)
+      .unOrdered()
+      .baselineColumns("fcode")
+      .baselineValues("12345")
+      .baselineValues("12345")
+      .go();
+  }
+
+  @Test
+  public void testMultiple8kChunkFileCountStar() throws Exception {
+    testBuilder()
+      .sqlQuery(QUERY_MULTIPLE_8K_CHUNKS_COUNT_STAR)
+      .unOrdered()
+      .baselineColumns("EXPR$0")
+      .baselineValues(ROW_COUNT_8K_CHUNKS)
+      .go();
   }
 }

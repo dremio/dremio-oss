@@ -38,6 +38,7 @@ import com.dremio.exec.record.VectorAccessible;
 import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.LocalSyncableFileSystem.WritesArrowBuf;
 import com.dremio.io.FSInputStream;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.google.flatbuffers.FlatBufferBuilder;
 
 import io.netty.buffer.ByteBuf;
@@ -58,6 +59,7 @@ public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializa
 
   private VectorAccessible va;
   private BufferAllocator allocator;
+  private final OperatorStats operatorStats;
 
   private boolean writeDirect;
 
@@ -66,8 +68,13 @@ public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializa
   private final byte[] heapMoveBuffer = new byte[64*1024];
 
   public VectorAccessibleFlatBufSerializable(VectorAccessible va, BufferAllocator allocator) {
+    this(va, allocator, null);
+  }
+
+  public VectorAccessibleFlatBufSerializable(VectorAccessible va, BufferAllocator allocator, OperatorStats operatorStats) {
     this.va = va;
     this.allocator = allocator;
+    this.operatorStats = operatorStats;
   }
 
   public VectorAccessible get() {
@@ -110,7 +117,9 @@ public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializa
   }
 
   private void readFully(byte[] target, InputStream input) throws IOException {
-    readFully(target, 0, target.length, input);
+    try(OperatorStats.WaitRecorder waitRecorder = OperatorStats.getWaitRecorder(operatorStats)) {
+      readFully(target, 0, target.length, input);
+    }
   }
 
   private void readFully(byte[] target, int offset, int len, InputStream input) throws IOException {
@@ -129,7 +138,10 @@ public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializa
     while(numBytesToRead > 0) {
       int len = (int) Math.min(heapMoveBuffer.length, numBytesToRead);
 
-      final int numBytesRead = input.read(heapMoveBuffer, 0, len);
+      int numBytesRead = -1;
+      try(OperatorStats.WaitRecorder waitRecorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        numBytesRead = input.read(heapMoveBuffer, 0, len);
+      }
       if (numBytesRead == -1) {
         throw new EOFException("Unexpected end of stream while reading.");
       }
@@ -149,12 +161,14 @@ public class VectorAccessibleFlatBufSerializable extends AbstractStreamSerializa
       readBuffer.clear();
       readBuffer.limit((int)numBytesToRead);
 
-      while (totalRead < numBytesToRead) {
-        final int nRead = fsInputStream.read(readBuffer);
-        if (nRead < 0) {
-          break;
+      try (OperatorStats.WaitRecorder waitRecorder = OperatorStats.getWaitRecorder(operatorStats)) {
+        while (totalRead < numBytesToRead) {
+          final int nRead = fsInputStream.read(readBuffer);
+          if (nRead < 0) {
+            break;
+          }
+          totalRead += nRead;
         }
-        totalRead += nRead;
       }
     } else {
       readUsingHeapBuffer(outputBuffer, numBytesToRead, input);

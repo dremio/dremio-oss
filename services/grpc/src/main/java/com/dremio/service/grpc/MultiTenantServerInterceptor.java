@@ -36,7 +36,9 @@ public class MultiTenantServerInterceptor implements ServerInterceptor {
     ServerCallHandler<ReqT, RespT> next) {
     try {
       RequestContext context = RequestContext.empty()
-        .with(TenantContext.CTX_KEY, new TenantContext(requestHeaders.get(HeaderKeys.TENANT_ID_HEADER_KEY)))
+        .with(TenantContext.CTX_KEY,
+          new TenantContext(requestHeaders.get(HeaderKeys.PROJECT_ID_HEADER_KEY),
+            requestHeaders.get(HeaderKeys.ORG_ID_HEADER_KEY)))
         .with(UserContext.CTX_KEY, new UserContext(requestHeaders.get(HeaderKeys.USER_HEADER_KEY)));
 
       return new ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT>(context.call(() -> next.startCall(call, requestHeaders))) {

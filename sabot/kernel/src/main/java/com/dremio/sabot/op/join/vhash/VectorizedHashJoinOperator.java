@@ -70,8 +70,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.NettyArrowBuf;
 import io.netty.util.internal.PlatformDependent;
 
 public class VectorizedHashJoinOperator implements DualInputOperator {
@@ -713,7 +711,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
   @VisibleForTesting
   void sendRuntimeFilterAtMergePoints(RuntimeFilter filter, Optional<BloomFilter> bloomFilter) throws Exception {
-    try(NettyArrowBuf bloomFilterBuf = bloomFilter.map(bf -> bf.getDataBuffer().asNettyBuffer()).orElse(null)) {
+    try(ArrowBuf bloomFilterBuf = bloomFilter.map(bf -> bf.getDataBuffer()).orElse(null)) {
       // Sends the filters to node endpoints running minor fragments 0,1,2.
       for (FragmentAssignment a : context.getAssignments()) {
         try (RollbackCloseable closeOnErrSend = new RollbackCloseable()) {
@@ -750,7 +748,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
 
   @Override
   public void workOnOOB(OutOfBandMessage message) {
-    final ByteBuf msgBuf = message.getBuffer();
+    final ArrowBuf msgBuf = message.getBuffer();
     if (msgBuf==null || msgBuf.capacity()==0) {
       logger.warn("Empty runtime filter received from minor fragment: " + message.getSendingMinorFragmentId());
       return;
@@ -758,9 +756,9 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     msgBuf.retain();
 
     try(RollbackCloseable closeOnErr = new RollbackCloseable()) {
-      closeOnErr.add((NettyArrowBuf) msgBuf);
+      closeOnErr.add(msgBuf);
       final RuntimeFilter runtimeFilter = message.getPayload(RuntimeFilter.parser());
-      final BloomFilter bloomFilterPiece = BloomFilter.prepareFrom(((NettyArrowBuf) msgBuf).arrowBuf());
+      final BloomFilter bloomFilterPiece = BloomFilter.prepareFrom(msgBuf);
       logger.debug("Received runtime filter piece {}, attempting merge.", bloomFilterPiece.getName());
       final RuntimeFilterManager.RuntimeFilterManagerEntry filterManagerEntry;
       filterManagerEntry = filterManager.coalesce(runtimeFilter, bloomFilterPiece, message.getSendingMinorFragmentId());
@@ -791,7 +789,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
     logger.debug("Sending join runtime filter to probe scan {}:{}, Filter {}", filter.getProbeScanOperatorId(), filter.getProbeScanMajorFragmentId(), partitionColFilter);
     logger.debug("Partition col filter fpp {}", partitionColFilter.map(BloomFilter::getExpectedFPP).orElse(-1D));
     final MajorFragmentAssignment majorFragmentAssignment = context.getExtMajorFragmentAssignments(filter.getProbeScanMajorFragmentId());
-    try(NettyArrowBuf bloomFilterBuf = partitionColFilter.map(bf -> bf.getDataBuffer().asNettyBuffer()).orElse(null)) {
+    try(ArrowBuf bloomFilterBuf = partitionColFilter.map(bf -> bf.getDataBuffer()).orElse(null)) {
       if (majorFragmentAssignment==null) {
         logger.warn("Major fragment assignment for probe scan id {} is null. Dropping the runtime filter.", filter.getProbeScanOperatorId());
         return;
@@ -799,7 +797,7 @@ public class VectorizedHashJoinOperator implements DualInputOperator {
       // Sends the filters to node endpoints running minor fragments 0,1,2.
       for (FragmentAssignment assignment : majorFragmentAssignment.getAllAssignmentList()) {
         try (RollbackCloseable closeOnErrSend = new RollbackCloseable()) {
-          logger.info("Sending filter to probe scan {}:{}:{}", filter.getProbeScanOperatorId(),
+          logger.info("Sending filter to OpId {}, Frag {}:{}", filter.getProbeScanOperatorId(),
                   filter.getProbeScanMajorFragmentId(), assignment.getMinorFragmentIdList());
           final OutOfBandMessage message = new OutOfBandMessage(
                   context.getFragmentHandle().getQueryId(),

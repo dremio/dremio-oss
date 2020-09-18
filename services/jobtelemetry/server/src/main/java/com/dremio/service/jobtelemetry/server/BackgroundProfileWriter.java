@@ -21,9 +21,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.concurrent.CloseableExecutorService;
+import com.dremio.common.concurrent.ContextMigratingExecutorService.ContextMigratingCloseableExecutorService;
 import com.dremio.exec.proto.UserBitShared;
 import com.dremio.exec.rpc.CloseableThreadPool;
 import com.dremio.service.jobtelemetry.server.store.ProfileStore;
+
+import io.opentracing.Tracer;
 
 /**
  * Background writer for merged profiles.
@@ -34,12 +38,14 @@ import com.dremio.service.jobtelemetry.server.store.ProfileStore;
 public class BackgroundProfileWriter implements AutoCloseable {
   static final int MAX_BACKGROUND_WRITES = 100;
 
-  private final CloseableThreadPool executor = new CloseableThreadPool("bg-profile-writer");
+  private final CloseableExecutorService executor;
   private final Set<UserBitShared.QueryId> inProgressWrites = ConcurrentHashMap.newKeySet();
   private final ProfileStore profileStore;
 
-  BackgroundProfileWriter(ProfileStore profileStore) {
+  BackgroundProfileWriter(ProfileStore profileStore, Tracer tracer) {
     this.profileStore = profileStore;
+    this.executor = new ContextMigratingCloseableExecutorService<>(
+      new CloseableThreadPool("bg-profile-writer"), tracer);
   }
 
   Optional<CompletableFuture<Void>> tryWriteAsync(UserBitShared.QueryId queryId,

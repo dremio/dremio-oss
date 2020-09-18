@@ -136,7 +136,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   public void planText(String text, long millisTaken) {
     this.text = text;
     planPhases.add(PlanPhaseProfile.newBuilder()
-      .setPhaseName("Final Physical Transformation")
+      .setPhaseName(PlannerPhase.PLAN_FINAL_PHYSICAL)
       .setDurationMillis(millisTaken)
       .setPlan(text)
       .build());
@@ -166,7 +166,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   public void planFindMaterializations(long millisTaken) {
     findMaterializationMillis = millisTaken;
     planPhases.add(PlanPhaseProfile.newBuilder()
-      .setPhaseName("Find Materializations")
+      .setPhaseName(PlannerPhase.PLAN_FIND_MATERIALIZATIONS)
       .setDurationMillis(millisTaken)
       .setPlan("")
       .build());
@@ -176,7 +176,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   public void planNormalized(long millisTaken, List<RelNode> normalizedQueryPlans) {
     normalizationMillis = millisTaken;
     planPhases.add(PlanPhaseProfile.newBuilder()
-      .setPhaseName("Normalization")
+      .setPhaseName(PlannerPhase.PLAN_NORMALIZED)
       .setDurationMillis(normalizationMillis)
       .setPlan("")
       .build());
@@ -194,7 +194,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   @Override
   public void planSubstituted(DremioMaterialization materialization,
                               List<RelNode> substitutions,
-                              RelNode target, long millisTaken) {
+                              RelNode target, long millisTaken, boolean defaultReflection) {
     final String key = materialization.getReflectionId();
     final LayoutMaterializedViewProfile oldProfile = mapIdToAccelerationProfile.get(key);
 
@@ -216,7 +216,8 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
         .setMillisTakenSubstituting(millisTaken)
         .setPlan(toStringOrEmpty(materialization.getQueryRel(), false))
         .addNormalizedPlans(toStringOrEmpty(target, false))
-        .setSnowflake(materialization.isSnowflake());
+        .setSnowflake(materialization.isSnowflake())
+        .setDefaultReflection(defaultReflection);
     } else {
       layoutBuilder = LayoutMaterializedViewProfile.newBuilder(oldProfile)
         .setNumSubstitutions(oldProfile.getNumSubstitutions() + substitutions.size())
@@ -236,7 +237,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     substitutionMillis += millisTaken;
     numSubstitutions += substitutions.size();
 
-    detailsPopulator.planSubstituted(materialization, substitutions, target, millisTaken);
+    detailsPopulator.planSubstituted(materialization, substitutions, target, millisTaken, defaultReflection);
   }
 
   @Override
@@ -261,7 +262,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   @Override
   public void planValidated(RelDataType rowType, SqlNode node, long millisTaken) {
     planPhases.add(PlanPhaseProfile.newBuilder()
-      .setPhaseName("Validation")
+      .setPhaseName(PlannerPhase.PLAN_VALIDATED)
       .setDurationMillis(millisTaken)
       .setPlan("")
       .build());
@@ -285,7 +286,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     }
 
     planPhases.add(PlanPhaseProfile.newBuilder()
-      .setPhaseName("Convert To Rel")
+      .setPhaseName(PlannerPhase.PLAN_CONVERTED_TO_REL)
       .setDurationMillis(millisTaken)
       .setPlan(convertedRelTree)
       .build());
@@ -295,7 +296,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
   public void planConvertedScan(RelNode converted, long millisTaken) {
     final String convertedRelTree = toStringOrEmpty(converted, false);
     planPhases.add(PlanPhaseProfile.newBuilder()
-      .setPhaseName("Convert Scan")
+      .setPhaseName(PlannerPhase.PLAN_CONVERTED_SCAN)
       .setDurationMillis(millisTaken)
       .setPlan(convertedRelTree)
       .build());
@@ -308,7 +309,7 @@ public class PlanCaptureAttemptObserver extends AbstractAttemptObserver {
     final long millisTakenFinalize = (phase.useMaterializations) ? millisTaken - (findMaterializationMillis + normalizationMillis + substitutionMillis) : millisTaken;
     if (phase.useMaterializations) {
       planPhases.add(PlanPhaseProfile.newBuilder()
-        .setPhaseName("Substitution")
+        .setPhaseName(PlannerPhase.PLAN_REL_TRANSFORM)
         .setDurationMillis(substitutionMillis)
         .setPlan("")
         .build());

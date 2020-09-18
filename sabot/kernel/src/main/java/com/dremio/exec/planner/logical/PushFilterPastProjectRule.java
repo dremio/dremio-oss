@@ -81,7 +81,7 @@ public class PushFilterPastProjectRule extends RelOptRule {
             @Override
             public Void visitCall(RexCall call) {
               if (SqlStdOperatorTable.ITEM.equals(call.getOperator()) ||
-                  SqlFlattenOperator.INSTANCE.equals(call.getOperator())) {
+                  SqlFlattenOperator.INSTANCE.getName().toLowerCase().equals(call.getOperator().getName().toLowerCase())) {
                 throw new Util.FoundOne(call);
               }
               return super.visitCall(call);
@@ -212,7 +212,7 @@ public class PushFilterPastProjectRule extends RelOptRule {
     @Override
     public Void visitCall(RexCall call) {
       if (SqlStdOperatorTable.ITEM.equals(call.getOperator()) ||
-          SqlFlattenOperator.INSTANCE.equals(call.getOperator())) {
+          SqlFlattenOperator.INSTANCE.getName().toLowerCase().equals(call.getOperator().getName().toLowerCase())) {
         throw new Util.FoundOne(call);
       }
       return super.visitCall(call);

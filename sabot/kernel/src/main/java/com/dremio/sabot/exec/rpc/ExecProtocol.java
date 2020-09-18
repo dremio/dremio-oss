@@ -16,6 +16,7 @@
 package com.dremio.sabot.exec.rpc;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -103,7 +104,8 @@ public class ExecProtocol implements FabricProtocol {
   }
 
   private void handleOobMessage(final OOBMessage message, final ByteBuf body) {
-    fragmentsManager.handle(new OutOfBandMessage(message, body));
+    final ArrowBuf buf = Optional.ofNullable(body).map(b -> ((NettyArrowBuf) b).arrowBuf()).orElse(null);
+    fragmentsManager.handle(new OutOfBandMessage(message, buf));
   }
 
   private void handleReceiverFinished(final FinishedReceiver finishedReceiver) throws RpcException {

@@ -134,6 +134,10 @@
      .left-tree .left-tree-wrap {
        min-height: 25vh !important;
      }
+    // No need to set a min-height for the external list 
+     .left-tree .left-tree-wrap:last-child {
+       min-height: auto !important;
+     }
    }
    @media all and (-ms-high-contrast:none) {
      *::-ms-backdrop, .left-tree { min-height: 560px } /* Min-height for IE11 only */

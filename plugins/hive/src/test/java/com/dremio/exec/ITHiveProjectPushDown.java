@@ -74,7 +74,7 @@ public class ITHiveProjectPushDown extends HiveTestBase {
   @Test
   public void testMultiplePartitionColumnsProject() throws Exception {
     String query = "SELECT double_part as dbl_p, decimal0_part as dec_p FROM hive.\"default\".readtest";
-    testHelper(query, 2, expectedColumnsString("double_part", "decimal0_part"));
+    testHelper(query, 2, expectedColumnsString("decimal0_part", "double_part"));
   }
 
   @Test
@@ -93,6 +93,6 @@ public class ITHiveProjectPushDown extends HiveTestBase {
   @Test
   public void projectPushDownOnHiveParquetTable() throws Exception {
     String query = "SELECT boolean_field, boolean_part, int_field, int_part FROM hive.readtest_parquet";
-    testHelper(query, 2, expectedColumnsString("boolean_field", "boolean_part", "int_field", "int_part"), "NATIVE_PARQUET");
+    testHelper(query, 2, expectedColumnsString("boolean_field", "int_field", "boolean_part", "int_part"), "NATIVE_PARQUET");
   }
 }

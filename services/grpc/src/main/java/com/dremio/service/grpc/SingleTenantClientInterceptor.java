@@ -48,7 +48,8 @@ public class SingleTenantClientInterceptor implements ClientInterceptor {
         if (tenantContext == null) {
           tenantContext = defaultRequestContext.get(TenantContext.CTX_KEY);
         }
-        headers.put(HeaderKeys.TENANT_ID_HEADER_KEY, tenantContext.serialize());
+        headers.put(HeaderKeys.PROJECT_ID_HEADER_KEY, tenantContext.getProjectId().toString());
+        headers.put(HeaderKeys.ORG_ID_HEADER_KEY, tenantContext.getOrgId().toString());
 
         UserContext userContext = RequestContext.current().get(UserContext.CTX_KEY);
         if (userContext == null) {

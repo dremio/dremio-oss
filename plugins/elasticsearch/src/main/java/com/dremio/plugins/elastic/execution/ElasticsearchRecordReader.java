@@ -218,6 +218,11 @@ public class ElasticsearchRecordReader extends AbstractRecordReader {
       scrollId = scrollIdAndTotalSize.getKey();
       totalSize = scrollIdAndTotalSize.getValue();
     } catch (IOException e) {
+      String bestEffortMessage = bestEffortMessageForUnknownException(e.getCause());
+      if (bestEffortMessage != null) {
+        throw UserException.ioExceptionError().message(bestEffortMessage).buildSilently();
+      }
+
       throw UserException.dataReadError(e)
         .message("Failure when initiating Elastic query.")
         .addContext("Resource", resource)

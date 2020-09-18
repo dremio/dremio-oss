@@ -16,6 +16,7 @@
 package com.dremio.exec.planner.acceleration.substitution;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.MaterializedViewSubstitutionVisitor;
 import org.apache.calcite.plan.hep.HepPlanner;
@@ -30,7 +31,6 @@ import org.slf4j.LoggerFactory;
 import com.dremio.exec.planner.acceleration.DremioMaterialization;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.logical.PushFilterPastProjectRule;
-import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 
 /**
@@ -110,12 +110,7 @@ public class UnifyingSubstitutionProvider extends AbstractSubstitutionProvider {
    */
   protected List<Substitution> substitute(
     final RelNode query, final RelNode target, final RelNode replacement) {
-    return Lists.transform(new MaterializedViewSubstitutionVisitor(ExpansionNode.removeFromTree(target), ExpansionNode.removeFromTree(query)).go(replacement), new Function<RelNode, Substitution>() {
-      @Override
-      public Substitution apply(RelNode input) {
-        return Substitution.createRootEquivalent(input);
-      }
-    });
+    return new MaterializedViewSubstitutionVisitor(ExpansionNode.removeFromTree(target), ExpansionNode.removeFromTree(query)).go(replacement).stream().map(Substitution::createRootEquivalent).collect(Collectors.toList());
   }
 
   public static UnifyingSubstitutionProvider of(

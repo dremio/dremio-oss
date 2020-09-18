@@ -20,7 +20,6 @@ import { withRouter } from 'react-router';
 import { injectIntl } from 'react-intl';
 
 import DropdownMenu from '@app/components/Menus/DropdownMenu';
-import HoverHelp from '@app/components/HoverHelp';
 import RealTimeTimer from '@app/components/RealTimeTimer';
 import { JobStatusMenu } from '@app/components/Menus/ExplorePage/JobStatusMenu';
 import SampleDataMessage from '@app/pages/ExplorePage/components/SampleDataMessage';
@@ -28,8 +27,7 @@ import ExploreTableJobStatusSpinner from '@app/pages/ExplorePage/components/Expl
 import jobsUtils from '@app/utils/jobsUtils';
 import {getJobProgress, getImmutableTable, getExploreJobId, getJobOutputRecords} from '@app/selectors/explore';
 import { cancelJobAndShowNotification } from '@app/actions/jobs/jobs';
-
-
+import TooltipEnabledLabel from '@app/components/TooltipEnabledLabel';
 
 export const JOB_STATUS = {
   notSubmitted: 'NOT_SUBMITTED',
@@ -46,7 +44,6 @@ export const JOB_STATUS = {
   engineStart: 'ENGINE_START',
   queued: 'QUEUED',
   executionPlanning: 'EXECUTION_PLANNING'
-
 };
 
 export const isWorking = (status) => {
@@ -95,6 +92,14 @@ export class ExploreTableJobStatus extends Component {
     [JOB_STATUS.executionPlanning]: la('Execution Planning')
   };
 
+  constructor(props) {
+    super(props);
+
+    this.state = {
+      displayJobTooltip: false
+    };
+  }
+
   doButtonAction = (actionType) => {
     const {cancelJob, jobProgress: {jobId}} = this.props;
     if (!jobId) return;
@@ -129,19 +134,6 @@ export class ExploreTableJobStatus extends Component {
     return null;
   };
 
-  renderHoverHelp = (isRun) => {
-    const {intl} = this.props;
-    const helpContent = isRun ?
-      intl.formatMessage({ id: 'Explore.run.warning' }) :
-      intl.formatMessage({ id: 'Explore.preview.warning' });
-    return <HoverHelp
-      content={helpContent}
-      placement='bottom-start'
-      tooltipStyle={styles.helpTooltip}
-      tooltipInnerStyle={styles.helpInnerTooltip}
-    />;
-  };
-
   getCancellable = jobStatus => {
     return jobStatus === JOB_STATUS.running
       || jobStatus === JOB_STATUS.starting
@@ -155,7 +147,7 @@ export class ExploreTableJobStatus extends Component {
   };
 
   render() {
-    const { jobProgress, jobId, outputRecords } = this.props;
+    const { jobProgress, jobId, outputRecords, intl } = this.props;
     if (!jobProgress) {
       return this.renderPreviewWarning();
     }
@@ -166,10 +158,24 @@ export class ExploreTableJobStatus extends Component {
     const jobStatusName = (isCompleteWithRecords) ? outputRecords.toLocaleString() : this.jobStatusNames[jobProgress.status];
     const isJobCancellable = this.getCancellable(jobProgress.status);
 
+    const helpContent = jobProgress.isRun ? intl.formatMessage({ id: 'Explore.run.warning' }) : intl.formatMessage({ id: 'Explore.preview.warning' });
+    const jobLabel = (
+      <span>
+        <span style={styles.label}>{la('Job: ')}</span>
+        <span style={styles.value}>{jobTypeLabel}</span>
+      </span>
+    );
+
     return (
       <div style={styles.wrapper}>
-        <span style={styles.label}>{la('Job: ')}</span>
-        <span style={styles.value}>{jobTypeLabel}{this.renderHoverHelp(jobProgress.isRun)}</span>
+        <TooltipEnabledLabel
+          tooltip={helpContent}
+          toolTipPosition={'bottom-start'}
+          tooltipStyle={styles.helpTooltip}
+          tooltipInnerStyle={styles.helpInnerTooltip}
+          labelBefore
+          label={jobLabel}
+        />
         <span style={styles.divider}> | </span>
         <span style={styles.label}>{jobStatusLabel}</span>
         <span style={styles.value}>
@@ -198,15 +204,15 @@ export class ExploreTableJobStatus extends Component {
 }
 
 function mapStateToProps(state, props) {
-  const jobProgress = getJobProgress(state);
-  const jobId = getExploreJobId(state);
-  const outputRecords = getJobOutputRecords(state);
   const {approximate, location = {}} = props;
+  const version = location.query && location.query.version;
+  const jobProgress = getJobProgress(state, version);
+  const jobId = getExploreJobId(state);
+  const outputRecords = getJobOutputRecords(state, version);
 
   let haveRows = false;
   // get preview tableData for preview w/o jobProgress
   if (!jobProgress && approximate) {
-    const version = location.query && location.query.version;
     const tableData = getImmutableTable(state, version);
     const rows = tableData.get('rows');
     haveRows = rows && !!rows.size;
@@ -261,5 +267,10 @@ const styles = {
   },
   menuText: {
     marginRight: 0
+  },
+  defaultInnerStyle: {
+    borderRadius: 5,
+    padding: 10,
+    width: 300
   }
 };

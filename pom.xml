@@ -22,7 +22,7 @@
 
   <groupId>com.dremio</groupId>
   <artifactId>dremio-parent</artifactId>
-  <version>4.7.3-202008270723550726-918276ee</version>
+  <version>4.8.0-202009180238090394-b0a98b73</version>
   <packaging>pom</packaging>
 
   <name>Dremio - Parent</name>
@@ -38,10 +38,9 @@
         Dependencies version for this module
         Submodules should rely on dependenciesManagement as much as possible
     -->
-    <arrow.version>1.0.0-20200807090640-53d3935ff3-dremio
-</arrow.version>
+    <arrow.version>1.0.0-20200901214046-ee3a072f13-dremio</arrow.version>
     <avatica.version>1.12.0</avatica.version>
-    <calcite.version>1.16.0-202007102336500716-f2a2361</calcite.version>
+    <calcite.version>1.16.0-202008202058330769-66e82b2</calcite.version>
     <derby.version>10.14.2.0</derby.version>
     <jcommander.version>1.71-1499290832-ab3e8cf</jcommander.version>
     <javax.servlet.version>3.1.0</javax.servlet.version>
@@ -754,6 +753,7 @@ limitations under the License.
             <exclude>**/*.csv</exclude>
             <exclude>**/*.tsv</exclude>
             <exclude>**/*.parquet</exclude>
+            <exclude>**/*.orc</exclude>
             <exclude>**/*.jks</exclude>
             <exclude>**/*.nonformat</exclude>
             <exclude>**/*.gzip</exclude>

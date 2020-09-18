@@ -35,6 +35,7 @@ import com.dremio.exec.record.VectorContainer;
 import com.dremio.exec.store.RecordReader;
 import com.dremio.io.FSInputStream;
 import com.dremio.sabot.exec.context.OperatorContext;
+import com.dremio.sabot.exec.context.OperatorStats;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.common.base.Preconditions;
 
@@ -81,12 +82,12 @@ public class ArrowFlatBufRecordReader implements RecordReader {
 
       final long TAIL_SIZE_GUESS = 16 * 1024;
       final int tailSize = (int)Math.min(size, TAIL_SIZE_GUESS);
-
-      inputStream.setPosition(size - tailSize);
-
       final byte[] tailBytes = new byte[tailSize];
 
-      IOUtils.readFully(inputStream, tailBytes);
+      try (OperatorStats.WaitRecorder waitRecorder = OperatorStats.getWaitRecorder(context.getStats())) {
+        inputStream.setPosition(size - tailSize);
+        IOUtils.readFully(inputStream, tailBytes);
+      }
 
       // read magic word
       byte[] magic = Arrays.copyOfRange(tailBytes, tailSize - MAGIC_STRING_LENGTH, tailSize);
@@ -115,8 +116,10 @@ public class ArrowFlatBufRecordReader implements RecordReader {
       byte[] footer;
       if (footerSize >  tailSize - MAGIC_STRING_LENGTH - FOOTER_OFFSET_SIZE) {
         footer  = new byte[footerSize];
-        inputStream.setPosition(footerOffset);
-        IOUtils.readFully(inputStream, footer);
+        try (OperatorStats.WaitRecorder waitRecorder = OperatorStats.getWaitRecorder(context.getStats())) {
+          inputStream.setPosition(footerOffset);
+          IOUtils.readFully(inputStream, footer);
+        }
       } else {
         footer = Arrays.copyOfRange(tailBytes, tailSize - footerSize - MAGIC_STRING_LENGTH - FOOTER_OFFSET_SIZE,
           tailSize - MAGIC_STRING_LENGTH - FOOTER_OFFSET_SIZE);
@@ -178,7 +181,7 @@ public class ArrowFlatBufRecordReader implements RecordReader {
       container.addCollection(vectors);
       container.buildSchema();
 
-      VectorAccessibleFlatBufSerializable serializable = new VectorAccessibleFlatBufSerializable(container, allocator);
+      VectorAccessibleFlatBufSerializable serializable = new VectorAccessibleFlatBufSerializable(container, allocator, context.getStats());
       serializable.readFromStream(inputStream);
 
       nextBatchIndex++;

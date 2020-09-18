@@ -442,6 +442,7 @@ message LayoutMaterializedViewProfile {
   optional ReflectionType type = 21;
   optional bool snowflake = 22;
   repeated MeasureColumn measure_columns = 23;
+  optional bool default_reflection = 24;
 }
 
 message SubstitutionProfile {

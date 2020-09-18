@@ -66,7 +66,7 @@ public class TestClean extends BaseTestServer {
   public void runWithOptions() throws Exception {
     getCurrentDremioDaemon().close();
     Clean.go(new String[] {});
-    Clean.go(new String[] {"-o", "-i", "-c", "-j=30"});
+    Clean.go(new String[] {"-o", "-i", "-c", "-j=30", "-p"});
     Clean.go(new String[] {"-h"});
   }
 

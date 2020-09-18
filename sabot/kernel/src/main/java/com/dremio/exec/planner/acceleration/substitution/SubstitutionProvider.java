@@ -15,13 +15,17 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
 
+import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 
 /**
@@ -71,6 +75,29 @@ public interface SubstitutionProvider {
       return new SubstitutionStream(Stream.empty(), () -> { }, t -> { });
     }
   }
+
+  /**
+   * Wraps the given RelNode within an ExpansionNode. If any default raw reflection is available for the given RelNode,
+   * replace the view with the reflection before wrapping.
+   *
+   * @param path             Path of the view
+   * @param query            RelNode to wrap
+   * @param vdsFields        List of all the fields in the VDS
+   * @param rowType          Row data type
+   * @param contextSensitive If the expansion node is context sensitive
+   * @return Wrapped RelNode
+   */
+  default RelNode wrapExpansionNode(NamespaceKey path, final RelNode query, List<String> vdsFields, RelDataType rowType, boolean contextSensitive) {
+    return ExpansionNode.wrap(path, query, rowType, contextSensitive, false);
+  }
+
+  default boolean isDefaultRawReflectionEnabled() {
+    return false;
+  }
+
+  default void disableDefaultRawReflection() {}
+
+  default void resetDefaultRawReflection() {}
 
   void setPostSubstitutionTransformer(RelTransformer transformer);
 

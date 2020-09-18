@@ -172,7 +172,7 @@ public interface AttemptObserver {
    */
   void planSubstituted(DremioMaterialization materialization,
                        List<RelNode> substitutions,
-                       RelNode target, long millisTaken);
+                       RelNode target, long millisTaken, boolean defaultReflection);
 
   /**
    * Report errors occurred during substitution.

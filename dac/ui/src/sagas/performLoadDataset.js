@@ -70,7 +70,7 @@ export function* handlePerformLoadDataset({ meta }) {
         }));
       } else {
         const version = nextFullDataset.get('version');
-        yield put(initializeExploreJobProgress());
+        yield put(initializeExploreJobProgress(true, version));
         yield call(loadTableData, version);
       }
     }

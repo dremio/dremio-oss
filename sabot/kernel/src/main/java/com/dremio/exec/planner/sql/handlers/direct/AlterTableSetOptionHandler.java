@@ -19,7 +19,6 @@ import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 
-import org.apache.calcite.schema.Schema;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
@@ -75,12 +74,6 @@ public class AlterTableSetOptionHandler extends SimpleDirectHandler {
                          .buildSilently();
     }
 
-    if (table.getJdbcTableType() != Schema.TableType.TABLE) {
-      throw UserException.validationError()
-                         .message("[%s] is not a TABLE", path)
-                         .buildSilently();
-    }
-
     final ImmutableMap.Builder<String, AttributeValue> tableOptionsMapBuilder = new ImmutableMap.Builder<>();
     if (value != null) { // SET option
       final AttributeValue optionValue;
@@ -113,6 +106,7 @@ public class AlterTableSetOptionHandler extends SimpleDirectHandler {
     switch (typeName) {
       case DOUBLE:
       case FLOAT:
+      case DECIMAL:
         return AttributeValue.of(((BigDecimal) object).doubleValue());
 
       case SMALLINT:

@@ -114,6 +114,14 @@ describe('AccelerationGrid', () => {
     expect(result.find('Modal').props().isOpen).to.equal(false);
   });
 
+  it('#renderExtraLayoutSettingsModal Checkbox tooltip', () => {
+    let result = shallow(instance.renderExtraLayoutSettingsModal(0, 'name'));
+    instance.setState({visibleLayoutExtraSettingsIndex: 0});
+    result = shallow(instance.renderExtraLayoutSettingsModal(0, 'name'));
+    expect(result.find('Checkbox').props().toolTip).to.equal('Increase query performance by locally caching in a performance optimized format.');
+    expect(result.find('Checkbox').props().toolTipPosition).to.equal('top-start');
+  });
+
   describe('#componentWillReceiveProps()', () => {
     it('resets focusedColumn if activeTab changes', () => {
       instance.focusedColumn = 1;

@@ -36,6 +36,7 @@ import com.dremio.exec.store.sys.MemoryIterator;
 import com.dremio.service.SingletonRegistry;
 import com.dremio.telemetry.api.Telemetry;
 import com.dremio.telemetry.api.metrics.Metrics;
+import com.dremio.telemetry.utils.GrpcTracerFacade;
 import com.dremio.telemetry.utils.TracerFacade;
 
 import io.opentracing.Tracer;
@@ -57,6 +58,7 @@ public class BootStrapContext implements AutoCloseable {
 
   public BootStrapContext(DremioConfig config, ScanResult classpathScan, SingletonRegistry registry) {
     registry.bind(Tracer.class, TracerFacade.INSTANCE);
+    registry.bind(GrpcTracerFacade.class, new GrpcTracerFacade(TracerFacade.INSTANCE));
     Telemetry.startTelemetry();
 
     this.config = config.getSabotConfig();

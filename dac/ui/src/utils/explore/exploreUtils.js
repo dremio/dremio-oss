@@ -434,7 +434,7 @@ class ExploreUtils {
   getHrefForTransform({ resourceId, tableId }, location) {
     // TODO this should be moved into dataset decorator
     const { version } = location.query;
-    const fullPath = location.query.mode === 'edit' ? `${encodeURIComponent(resourceId)}.${encodeURIComponent(tableId)}` : 'tmp.UNTITLED';
+    const fullPath = location.query.mode === 'edit' ? `${encodeURIComponent(`"${resourceId}"`)}.${encodeURIComponent(tableId)}` : 'tmp.UNTITLED';
     const resourcePath = `dataset/${fullPath}`;
 
     const apiCall = new APIV2Call().paths(`${resourcePath}/version/${version}`);

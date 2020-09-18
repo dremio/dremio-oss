@@ -19,6 +19,7 @@ import java.util.Collection;
 import java.util.stream.Collectors;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
+import com.google.common.base.Preconditions;
 
 /**
  * Helper class to build minimal endpoints. Used in rpcs sent to executor nodes, and to track
@@ -48,5 +49,15 @@ public class EndpointHelper {
     return endpoints.stream()
       .map(EndpointHelper::getMinimalString)
       .collect(Collectors.joining(","));
+  }
+
+  public static NodeEndpoint hostPortStrToConduitEndpoint(String hostPortString) {
+    String[] parts = hostPortString.split(":");
+    Preconditions.checkArgument(parts.length == 2);
+
+    NodeEndpoint.Builder builder = NodeEndpoint.newBuilder();
+    builder.setAddress(parts[0]);
+    builder.setConduitPort(Integer.valueOf(parts[1]));
+    return builder.build();
   }
 }

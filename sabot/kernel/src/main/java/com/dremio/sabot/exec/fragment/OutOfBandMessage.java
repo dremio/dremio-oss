@@ -17,6 +17,8 @@ package com.dremio.sabot.exec.fragment;
 
 import java.util.List;
 
+import org.apache.arrow.memory.ArrowBuf;
+
 import com.dremio.exec.proto.CatalogRPC.RpcType;
 import com.dremio.exec.proto.ExecRPC.OOBMessage;
 import com.dremio.exec.proto.UserBitShared.QueryId;
@@ -26,8 +28,6 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 import com.google.protobuf.Parser;
-
-import io.netty.buffer.ByteBuf;
 
 public class OutOfBandMessage {
   private static final Response OK = new Response(RpcType.ACK, Acks.OK);
@@ -41,7 +41,7 @@ public class OutOfBandMessage {
   private final int sendingOperatorId;
   private final Payload payload;
   private final boolean isOptional;
-  private volatile ByteBuf buffer;
+  private volatile ArrowBuf buffer;
 
   public QueryId getQueryId() {
     return queryId;
@@ -71,7 +71,7 @@ public class OutOfBandMessage {
     return sendingOperatorId;
   }
 
-  public ByteBuf getBuffer() {
+  public ArrowBuf getBuffer() {
     return buffer;
   }
 
@@ -99,7 +99,7 @@ public class OutOfBandMessage {
 
   public boolean getIsOptional() { return isOptional; }
 
-  public OutOfBandMessage(final OOBMessage message, final ByteBuf body) {
+  public OutOfBandMessage(final OOBMessage message, final ArrowBuf body) {
     queryId = message.getQueryId();
     operatorId = message.getReceivingOperatorId();
     majorFragmentId = message.getReceivingMajorFragmentId();
@@ -141,7 +141,7 @@ public class OutOfBandMessage {
   }
 
   public OutOfBandMessage(QueryId queryId, int majorFragmentId, List<Integer> targetMinorFragmentIds, int operatorId,
-      int sendingMajorFragmentId, int sendingMinorFragmentId, int sendingOperatorId, Payload payload, ByteBuf buffer, boolean isOptional) {
+      int sendingMajorFragmentId, int sendingMinorFragmentId, int sendingOperatorId, Payload payload, ArrowBuf buffer, boolean isOptional) {
     super();
     this.queryId = queryId;
     this.majorFragmentId = majorFragmentId;

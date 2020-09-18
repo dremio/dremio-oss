@@ -112,6 +112,17 @@ public class TestProjectPushDown extends PlanTestBase {
     }
   }
 
+  @Test
+  public void testProjectPushDownPreserveColumnOrdering() throws Exception {
+    final String pushDownSqlPattern = "select %s from cp.\"%s\" t";
+    final String projection = "t.user_info.cust_id, t.trans_id, t.marketing_info.keywords[0]";
+    final String expected = "columns=[`trans_id`, `user_info`.`cust_id`, `marketing_info`.`keywords`[0]]";
+
+    for (String table: MORE_TABLES) {
+      testPushDown(new PushDownTestInstance(pushDownSqlPattern, expected, projection, table));
+    }
+  }
+
   @Ignore("DX-11163")
   @Test
   public void testProjectPastFilterPushDown() throws Exception {
@@ -119,6 +130,18 @@ public class TestProjectPushDown extends PlanTestBase {
     final String projection = "t.trans_id, t.user_info.cust_id, t.marketing_info.keywords[0]";
     final String filter = "t.another_field = 10 and t.columns[0] = 100 and t.columns[1] = t.other.columns[2]";
     final String expected = "columns=[`trans_id`, `another_field`, `user_info`.`cust_id`, `marketing_info`.`keywords`[0], `columns`[0], `columns`[1], `other`.`columns`[2]]";
+
+    for (String table: MORE_TABLES) {
+      testPushDown(new PushDownTestInstance(pushDownSqlPattern, expected, projection, table, filter));
+    }
+  }
+
+  @Test
+  public void testProjectPastFilterPushDown2() throws Exception {
+    final String pushDownSqlPattern = "select * from (select %s from cp.\"%s\" t) where %s";
+    final String projection = "t.trans_id trans_id, t.user_info.cust_id cust_id, t.another_field another_field";
+    final String filter = "another_field = 10";
+    final String expected = "columns=[`trans_id`, `user_info`.`cust_id`, `another_field`]";
 
     for (String table: MORE_TABLES) {
       testPushDown(new PushDownTestInstance(pushDownSqlPattern, expected, projection, table, filter));

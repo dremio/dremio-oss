@@ -167,4 +167,8 @@ public class DremioPrepareTable implements RelOptTable, PreparingTable, SqlValid
     return false;
   }
 
+  public DremioTable getTable() {
+    return table;
+  }
+
 }

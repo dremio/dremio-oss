@@ -215,8 +215,6 @@ public class FragmentHandler implements EventProvider, MayExpire {
   }
 
   void invalidate() {
-    expirationTime = System.currentTimeMillis() + evictionDelayMillis;
-
     if (execReference.getReference() != null) {
       Preconditions.checkState(execReference.getStamp() == validExecStamp);
     }

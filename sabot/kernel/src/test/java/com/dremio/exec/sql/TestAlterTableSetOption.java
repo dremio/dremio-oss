@@ -52,12 +52,7 @@ public class TestAlterTableSetOption extends BaseTestQuery {
   public void testOnNonTable() throws Exception {
     // sys table
     errorMsgTestHelper("ALTER TABLE sys.version set sys.version_id = 34",
-        "[sys.version] is not a TABLE");
-
-    // view
-    test("CREATE VDS dfs_test.SYS_OP_VDS AS SELECT * FROM SYS.OPTIONS");
-    errorMsgTestHelper("ALTER TABLE dfs_test.SYS_OP_VDS SET hive.parquet.enforce_varchar_width = true",
-        "[dfs_test.SYS_OP_VDS] is not a TABLE");
+        "Source [sys] doesn't support modifying options");
   }
 
 }

@@ -360,21 +360,6 @@ public class ITTestAllDataTypes extends ElasticBaseTestQuery {
   public void testOddColumnNames() throws Exception {
     String columns = Joiner.on(",").join(SPECIAL_COLUMNS_FOR_SQL);
     final String sqlQuery = "select " + columns + " from elasticsearch." + schema + "." + table;
-    // Not using the json based matching here so we can also check for proper serialization of the weird column names
-    // in the list of columns that should be included for the elastic scan operator, that is outside of the JSON pushdown
-    // portion of the plan
-    testPlanSubstrPatterns(sqlQuery, new String[] {
-      "columns=[[`@column_name_with_symbols`, `column name with spaces`, `column_with_special_characters''\"#\\``, `_name`]], pushdown\n" +
-      " =[{\n" +
-      "  \"from\" : 0,\n" +
-      "  \"size\" : 4000,\n" +
-      "  \"query\" : {\n" +
-      "    \"match_all\" : {\n" +
-      "      \"boost\" : 1.0\n" +
-      "    }\n" +
-      "  }\n" +
-      "}]"
-    }, null);
     testBuilder()
       .sqlQuery(sqlQuery)
       .unOrdered()

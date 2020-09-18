@@ -115,7 +115,7 @@ const styles = {
     minWidth: 'auto',
     height: CLEAR_ALL_HEIGHT,
     lineHeight: `${CLEAR_ALL_HEIGHT}px`,
-    marginRight: 10
+    marginRight: 5
   }
 };
 

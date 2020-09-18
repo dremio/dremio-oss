@@ -19,6 +19,7 @@ import static com.dremio.exec.ExecConstants.MAX_FOREMEN_PER_COORDINATOR;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -47,6 +48,7 @@ import com.dremio.exec.proto.GeneralRPCProtos.Ack;
 import com.dremio.exec.proto.UserBitShared.ExternalId;
 import com.dremio.exec.proto.UserBitShared.QueryData;
 import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.proto.UserBitShared.UserCredentials;
 import com.dremio.exec.proto.UserProtos.RpcType;
 import com.dremio.exec.rpc.Acks;
@@ -312,6 +314,19 @@ public class ForemenWorkManager implements Service, SafeExit {
     }
 
     return false;
+  }
+
+  /**
+   * Cancel queries in given list of queryStates
+   *
+   * @param queryStates
+   * @param cancelReason
+   */
+  public void cancel(Set<QueryState> queryStates, String cancelReason) {
+    externalIdToForeman.values()
+                       .stream()
+                       .filter(mf->queryStates.contains(mf.foreman.getState()))
+                       .forEach(mf->mf.foreman.cancel(cancelReason, false));
   }
 
   public boolean resume(ExternalId externalId) {

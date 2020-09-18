@@ -15,7 +15,10 @@
  */
 import moment from 'moment';
 
+const INVALID_DATE_MSG = 'Invalid date';
+
 class TimeUtils {
+
   covertHoursFrom12To24(hours, part) {
     return part.toLowerCase() === 'pm'
       ? +hours + 12
@@ -66,13 +69,13 @@ class TimeUtils {
     return moment(timestamp).fromNow();
   }
 
-  formatTime(time, invalidDateString = la('Invalid date'), locale = window.navigator.language) {
+  formatTime(time, invalidDateString = la(INVALID_DATE_MSG), locale = window.navigator.language, format = 'x') {
     moment.locale(locale);
-    const t = moment(time, 'x');
+    const t = moment(time, format);
     return t.isValid() ? t.format('L HH:mm:ss') : invalidDateString;
   }
 
-  formatTimeWithTZ(time, invalidDateString = la('Invalid date'), locale = window.navigator.language) {
+  formatTimeWithTZ(time, invalidDateString = la(INVALID_DATE_MSG), locale = window.navigator.language) {
     moment.locale(locale);
     const t = moment(time, 'x');
     return t.isValid() ? t.format('L HH:mm:ss Z') : invalidDateString;
@@ -87,6 +90,13 @@ class TimeUtils {
     return moment(time).isAfter(last);
   }
 }
+
+TimeUtils.prototype.INVALID_DATE_MSG = INVALID_DATE_MSG;
+
+TimeUtils.prototype.formats = {
+  UNIX_TIMESTAMP: 'x',
+  ISO: moment.ISO_8601
+};
 
 const timeUtils = new TimeUtils();
 

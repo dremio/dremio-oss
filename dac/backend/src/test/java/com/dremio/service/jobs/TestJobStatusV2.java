@@ -136,7 +136,9 @@ public class TestJobStatusV2 extends BaseTestServer {
         Preconditions.checkArgument(!isTerminal(prevState), "The state is terminal already.");
 
         if (isTerminal(newState)) {
-          if (!isFailed(newState) && prevState != State.RUNNING) {
+          // Terminal state can be reached from previous running state or newState is failed or cancelled.
+          // Otherwise throw exception.
+          if (!isFailed(newState) && !isCancelled(newState) && prevState != State.RUNNING) {
             throw new RuntimeException("Wrong query progression order.");
           }
         } else if (progressionOrder.get(newState) < progressionOrder.get(prevState)) {
@@ -179,6 +181,10 @@ public class TestJobStatusV2 extends BaseTestServer {
 
     boolean isFailed(AttemptEvent.State state) {
       return state == State.FAILED;
+    }
+
+    boolean isCancelled(AttemptEvent.State state) {
+      return state == State.CANCELED;
     }
 
     public List<State> getStateList() {
@@ -348,7 +354,7 @@ public class TestJobStatusV2 extends BaseTestServer {
     registerJobStatusListener(jobId, stateListener);
 
     // wait for the pause to be hit
-    Thread.sleep(1000);
+    Thread.sleep(3000);
 
     // cancel query
     getRpcClient().cancelQuery(queryId);

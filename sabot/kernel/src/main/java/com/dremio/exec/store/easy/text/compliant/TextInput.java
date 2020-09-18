@@ -84,12 +84,14 @@ final class TextInput {
   private int remByte = -1;
 
   /**
-   * The current position in the buffer.
+   * The current position in the buffer. (bufferPtr - 1) indicates the number of bytes
+   * that have been consumed so far.
    */
   public int bufferPtr;
 
   /**
-   * The quantity of valid data in the buffer.
+   * The quantity of valid data in the buffer. Another way to look at that would be
+   * the number of bytes loaded in the most recent chunk read.
    */
   public int length = -1;
 
@@ -261,7 +263,7 @@ final class TextInput {
       // we don't need to update buffer position if line separator is one byte long
       if (lineSeparator.length > 1) {
         bufferPtr += (lineSeparator.length - 1);
-        if (bufferPtr >= length) {
+        if (bufferPtr > length) {
           if (length != -1) {
             updateBuffer();
           } else {
@@ -299,7 +301,7 @@ final class TextInput {
       // we don't need to update buffer position if line separator is one byte long
       if (lineSeparator.length > 1) {
         bufferPtr += (lineSeparator.length - 1);
-        if (bufferPtr >= length) {
+        if (bufferPtr > length) {
           if (length != -1) {
             updateBuffer();
           } else {

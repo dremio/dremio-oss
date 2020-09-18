@@ -19,12 +19,13 @@ import { get } from 'lodash';
 import { FormattedMessage, injectIntl } from 'react-intl';
 
 import { formDescription } from 'uiTheme/radium/typography';
+import ApiUtils from '@app/utils/apiUtils/apiUtils';
 
 import Modal from 'components/Modals/Modal';
 import Art from 'components/Art';
+import Spinner from 'components/Spinner';
 
 import { getEdition } from '@inject/utils/versionUtils';
-import config from 'dyn-load/utils/config';
 import timeUtils from 'utils/timeUtils';
 
 @injectIntl
@@ -36,13 +37,51 @@ export default class AboutModal extends Component {
     intl: PropTypes.object.isRequired
   };
 
+  constructor(props) {
+    super(props);
+    this.state = {
+      inProgress: false,
+      versionInfo: {}
+    };
+  }
+
+  componentDidMount() {
+    this.fetchInfo();
+  }
+
+  fetchInfo = () => {
+    this.setState({
+      inProgress: true
+    });
+    return ApiUtils.fetchJson('info', versionInfo => {
+      this.setState({
+        inProgress: false,
+        versionInfo
+      });
+    }, () => this.setState({ inProgress: false }));
+  };
+
   renderVersion() {
-    const buildTime = timeUtils.formatTime(config.versionInfo.buildTime);
-    const commitTime = timeUtils.formatTime(get(config, 'versionInfo.commit.time'));
+    const {
+      versionInfo
+    } = this.state;
+
+    const buildTime = timeUtils.formatTime(
+      versionInfo.buildTime,
+      la(timeUtils.INVALID_DATE_MSG),
+      window.navigator.locale,
+      timeUtils.formats.ISO
+    );
+    const commitTime = timeUtils.formatTime(
+      get(versionInfo, 'commit.time'),
+      la(timeUtils.INVALID_DATE_MSG),
+      window.navigator.locale,
+      timeUtils.formats.ISO
+    );
 
     return <dl className='largerFontSize'>
       <dt style={styles.dtStyle}><FormattedMessage id='App.Build'/></dt>
-      <dd>{config.versionInfo.version}</dd>
+      <dd>{versionInfo.version}</dd>
 
       <dt style={styles.dtStyle}><FormattedMessage id='App.Edition'/></dt>
       <dd>{getEdition()}</dd>
@@ -51,7 +90,7 @@ export default class AboutModal extends Component {
       <dd>{buildTime}</dd>
 
       <dt style={styles.dtStyle}><FormattedMessage id='App.ChangeHash'/></dt>
-      <dd>{get(config, 'versionInfo.commit.hash')}</dd>
+      <dd>{get(versionInfo, 'commit.hash')}</dd>
 
       <dt style={styles.dtStyle}><FormattedMessage id='App.ChangeTime'/></dt>
       <dd>{commitTime}</dd>
@@ -60,29 +99,32 @@ export default class AboutModal extends Component {
 
   render() {
     const { isOpen, hide } = this.props;
-
+    const { inProgress } = this.state;
     return (
       <Modal
         size='small'
         title={this.props.intl.formatMessage({id: 'App.AboutHeading'})}
         isOpen={isOpen}
         hide={hide}>
-        <div style={styles.container}>
-          <div style={styles.logoPane}>
-            <Art className='dremioLogo' src='NarwhalLogo.svg' style={{width: 150}} alt={la('Dremio Narwhal')} />
-          </div>
-          <div style={styles.pane}>
-            <div style={{flex: 1}}>
-              <div style={{fontSize: '2em', marginBottom: 10}}><FormattedMessage id='App.Dremio' /></div>
-              <div>
-                {this.renderVersion()}
+        { inProgress ?
+          <Spinner />  :
+          <div style={styles.container}>
+            <div style={styles.logoPane}>
+              <Art className='dremioLogo' src='NarwhalLogo.svg' style={{width: 150}} alt={la('Dremio Narwhal')} />
+            </div>
+            <div style={styles.pane}>
+              <div style={{flex: 1}}>
+                <div style={{fontSize: '2em', marginBottom: 10}}><FormattedMessage id='App.Dremio' /></div>
+                <div>
+                  {this.renderVersion()}
+                </div>
+              </div>
+              <div style={formDescription}>
+                {<FormattedMessage id='App.Copyright' />}
               </div>
             </div>
-            <div style={formDescription}>
-              {<FormattedMessage id='App.Copyright' />}
-            </div>
           </div>
-        </div>
+        }
       </Modal>
     );
   }

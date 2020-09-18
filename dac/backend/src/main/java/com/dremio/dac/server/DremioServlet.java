@@ -16,8 +16,6 @@
 package com.dremio.dac.server;
 
 import java.io.IOException;
-import java.net.URL;
-import java.util.Properties;
 
 import javax.inject.Provider;
 import javax.servlet.Servlet;
@@ -28,22 +26,16 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 
 import org.eclipse.jetty.servlet.DefaultServlet;
-import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
 
 import com.dremio.common.util.DremioEdition;
-import com.dremio.common.util.DremioVersionInfo;
 import com.dremio.config.DremioConfig;
 import com.dremio.dac.daemon.ServerHealthMonitor;
 import com.dremio.dac.server.models.AnalyzeTools;
 import com.dremio.dac.server.models.ServerData;
-import com.dremio.dac.service.admin.CommitInfo;
-import com.dremio.dac.service.admin.VersionInfo;
 import com.dremio.dac.support.SupportService;
 import com.dremio.exec.catalog.CatalogOptions;
 import com.dremio.options.OptionManager;
 import com.dremio.service.reflection.ReflectionOptions;
-import com.google.common.io.Resources;
 
 /**
  * Servlet that hosts static assets but mapped to specific extensions. If the static assets are not available, falls
@@ -138,7 +130,6 @@ public class DremioServlet implements Servlet {
       .setTdsMimeType(options.getOption(UIOptions.TABLEAU_TDS_MIMETYPE))
       .setWhiteLabelUrl(options.getOption(UIOptions.WHITE_LABEL_URL))
       .setClusterId(supportService.get().getClusterId().getIdentity())
-      .setVersionInfo(getVersionInfo())
       .setEdition(DremioEdition.getAsString())
       .setAnalyzeTools(AnalyzeTools.from(options))
       .setCrossSourceDisabled(options.getOption(CatalogOptions.DISABLE_CROSS_SOURCE_SELECT));
@@ -146,29 +137,6 @@ public class DremioServlet implements Servlet {
 
   protected Provider<SupportService> getSupportService() {
     return supportService;
-  }
-
-  private VersionInfo getVersionInfo() {
-    String version = DremioVersionInfo.getVersion(); // get dremio version (x.y.z)
-    long buildTime = 0;
-    CommitInfo commitInfo = null;
-
-    try {
-      URL u = Resources.getResource("git.properties");
-
-      if (u != null) {
-        Properties p = new Properties();
-        p.load(Resources.asByteSource(u).openStream());
-        buildTime = DateTime.parse(p.getProperty("git.build.time"), DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZ")).getMillis();
-        commitInfo = new CommitInfo(
-          p.getProperty("git.commit.id"),
-          p.getProperty("git.build.user.email"),
-          DateTime.parse(p.getProperty("git.commit.time"), DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZ")).getMillis());
-      }
-    } catch (Exception e) {
-      logger.warn("Failure when trying to access and parse git.properties.", e);
-    }
-    return new VersionInfo(version, buildTime, commitInfo);
   }
 
   protected DremioConfig getConfig() {

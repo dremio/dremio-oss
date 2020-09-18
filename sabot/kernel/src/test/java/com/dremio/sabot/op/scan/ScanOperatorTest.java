@@ -142,7 +142,7 @@ public class ScanOperatorTest {
                 buildMinorFragment,
                 buildOpId,
                 new OutOfBandMessage.Payload(filter),
-                oobMessageBuf.asNettyBuffer(),
+                oobMessageBuf,
                 false);
     }
 

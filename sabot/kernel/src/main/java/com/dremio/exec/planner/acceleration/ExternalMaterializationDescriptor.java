@@ -47,9 +47,9 @@ public class ExternalMaterializationDescriptor extends MaterializationDescriptor
     String targetPath = PathUtils.constructFullPath(getPath());
 
     final RelNode queryRel = DremioSqlToRelConverter.expandView(null, SystemUser.SYSTEM_USERNAME,
-        String.format("select * from %s", queryPath), null, converter).rel;
+        String.format("select * from %s", queryPath), null, converter, null).rel;
     RelNode tableRel = DremioSqlToRelConverter.expandView(null, SystemUser.SYSTEM_USERNAME,
-        String.format("select * from %s", targetPath), null, converter).rel;
+        String.format("select * from %s", targetPath), null, converter, null).rel;
 
     if (!MoreRelOptUtil.areRowTypesEqual(queryRel.getRowType(), tableRel.getRowType(), true, false)) {
       throw UserException.validationError()

@@ -137,6 +137,11 @@ public class JobResultsStore implements Service {
           throw UserException.dataReadError()
             .message("Could not load results as the query was canceled")
             .build(logger);
+        } else if (mostRecentJob.getState() == JobState.FAILED) {
+          String failureMessage = mostRecentJob.getInfo().getDetailedFailureInfo().getErrorsList().get(0).getMessage();
+          throw UserException.dataReadError()
+            .message(failureMessage)
+            .build(logger);
         }
       }
 

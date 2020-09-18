@@ -130,6 +130,8 @@ public class RefreshHandler implements SqlToPlanHandler {
       final ReflectionSettings reflectionSettings = helper.getReflectionSettings();
       final MaterializationStore materializationStore = helper.getMaterializationStore();
 
+      // Disable default raw reflections during plan generation for a refresh
+      config.getConverter().getSubstitutionProvider().disableDefaultRawReflection();
       final RelNode initial = determineMaterializationPlan(
           config,
           goal,
@@ -141,6 +143,7 @@ public class RefreshHandler implements SqlToPlanHandler {
           config.getContext().getConfig(),
           reflectionSettings,
           materializationStore);
+      config.getConverter().getSubstitutionProvider().resetDefaultRawReflection();
 
       final Rel drel = PrelTransformer.convertToDrel(config, initial);
       final Set<String> fields = ImmutableSet.copyOf(drel.getRowType().getFieldNames());

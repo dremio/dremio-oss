@@ -16,8 +16,6 @@
 package com.dremio.dac.server.models;
 
 
-import com.dremio.dac.service.admin.VersionInfo;
-
 /**
  * A POJO which represents a server configuration that is injected in a html page and used by UI code
  *
@@ -39,7 +37,6 @@ public class ServerData {
   private final String tdsMimeType;
   private final String whiteLabelUrl;
   private final String clusterId;
-  private final VersionInfo versionInfo;
   private final String edition;
   private final AnalyzeTools analyzeTools;
   private final boolean crossSourceDisabled;
@@ -60,7 +57,6 @@ public class ServerData {
     this.tdsMimeType = builder.tdsMimeType;
     this.whiteLabelUrl = builder.whiteLabelUrl;
     this.clusterId = builder.clusterId;
-    this.versionInfo = builder.versionInfo;
     this.edition = builder.edition;
     this.analyzeTools = builder.analyzeTools;
     this.crossSourceDisabled = builder.crossSourceDisabled;
@@ -126,10 +122,6 @@ public class ServerData {
     return clusterId;
   }
 
-  public VersionInfo getVersionInfo() {
-    return versionInfo;
-  }
-
   public String getEdition() {
     return edition;
   }
@@ -169,7 +161,6 @@ public class ServerData {
     private String tdsMimeType;
     private String whiteLabelUrl;
     private String clusterId;
-    private VersionInfo versionInfo;
     private String edition;
     private AnalyzeTools analyzeTools;
     private boolean crossSourceDisabled;
@@ -193,7 +184,6 @@ public class ServerData {
       this.tdsMimeType = builder.tdsMimeType;
       this.whiteLabelUrl = builder.whiteLabelUrl;
       this.clusterId = builder.clusterId;
-      this.versionInfo = builder.versionInfo;
       this.edition = builder.edition;
       this.analyzeTools = builder.analyzeTools;
       this.crossSourceDisabled = builder.crossSourceDisabled;
@@ -271,11 +261,6 @@ public class ServerData {
 
     public Builder setClusterId(String clusterId) {
       this.clusterId = clusterId;
-      return this;
-    }
-
-    public Builder setVersionInfo(VersionInfo versionInfo) {
-      this.versionInfo = versionInfo;
       return this;
     }
 

@@ -15,6 +15,9 @@
  */
 package com.dremio.exec.server.options;
 
+import static org.hamcrest.CoreMatchers.hasItem;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
@@ -29,9 +32,11 @@ import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.serialization.JacksonSerializer;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValueProto;
+import com.dremio.options.OptionValueProtoList;
 import com.dremio.test.DremioTest;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
+import com.sun.tools.javac.util.List;
 
 /**
  * Tests for legacy store migration in {@link SystemOptionManager}
@@ -112,6 +117,51 @@ public class TestSystemOptionManagerMigration extends DremioTest {
     // check options match
     assertEquals(som.getOption(option1.getName()), option1);
     assertEquals(som.getOption(option2.getName()), option2);
+  }
+
+  @Test
+  public void testIgnoreInvalidOption() throws Exception {
+    final LegacyKVStore<String, OptionValueProto> legacyStore = kvStoreProvider.getStore(
+      SystemOptionManager.LegacyProtoOptionStoreCreator.class);
+
+    final OptionValue option1 = OptionValue.createBoolean(
+      OptionValue.OptionType.SYSTEM, "invalid", true);
+    legacyStore.put("invalid", OptionValueProtoUtils.toOptionValueProto(option1));
+
+    // migrate
+    som.start();
+
+    assertNull(som.getOption("invalid"));
+    assertThat(som.getNonDefaultOptions(), not(hasItem(option1)));
+  }
+
+  /**
+   * Ensure that we do not store invalid options (i.e. options that were removed) in
+   * the general case.
+   */
+  @Test
+  public void testIgnoreInvalidOptionOutsideOfMigration() throws Exception {
+    final LegacyKVStore<String, OptionValueProtoList> store = kvStoreProvider.getStore(
+      SystemOptionManager.OptionStoreCreator.class);
+
+    // A Valid option
+    final OptionValue validOption = OptionValue.createBoolean(
+      OptionValue.OptionType.SYSTEM, "planner.disable_exchanges", true);
+
+    // An invalid option
+    final OptionValue invalidOption = OptionValue.createBoolean(
+      OptionValue.OptionType.SYSTEM, "invalid", true);
+
+    store.put(SystemOptionManager.OPTIONS_KEY, OptionValueProtoUtils.toOptionValueProtoList(
+      List.of(
+        OptionValueProtoUtils.toOptionValueProto(validOption),
+        OptionValueProtoUtils.toOptionValueProto(invalidOption)
+      )));
+
+    som.start();
+
+    assertThat(som.getNonDefaultOptions(), hasItem(validOption));
+    assertThat(som.getNonDefaultOptions(), not(hasItem(invalidOption)));
   }
 
   private int getNumOptions(OptionValueStore persistentStore) {

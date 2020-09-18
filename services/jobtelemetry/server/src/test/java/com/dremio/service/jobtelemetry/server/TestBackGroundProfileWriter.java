@@ -37,6 +37,8 @@ import com.dremio.exec.proto.UserBitShared;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.jobtelemetry.server.store.ProfileStore;
 
+import io.opentracing.noop.NoopTracerFactory;
+
 /**
  * Tests background profile writer.
  */
@@ -59,7 +61,7 @@ public class TestBackGroundProfileWriter {
     profileStore.start();
 
     final BackgroundProfileWriter backgroundProfileWriter =
-      new BackgroundProfileWriter(profileStore);
+      new BackgroundProfileWriter(profileStore, NoopTracerFactory.create());
 
     UserBitShared.QueryProfile profile =
       UserBitShared.QueryProfile.newBuilder()
@@ -98,7 +100,7 @@ public class TestBackGroundProfileWriter {
     profileStore.start();
 
     final BackgroundProfileWriter backgroundProfileWriter =
-      new BackgroundProfileWriter(profileStore);
+      new BackgroundProfileWriter(profileStore, NoopTracerFactory.create());
 
     UserBitShared.QueryProfile profile =
       UserBitShared.QueryProfile.newBuilder()
@@ -129,7 +131,7 @@ public class TestBackGroundProfileWriter {
     final ProfileStore profileStore = new ProfileStoreWithLatch(
       new LocalProfileStore(kvStoreProvider), latch);
     final BackgroundProfileWriter backgroundProfileWriter =
-      new BackgroundProfileWriter(profileStore);
+      new BackgroundProfileWriter(profileStore, NoopTracerFactory.create());
 
     profileStore.start();
     UserBitShared.QueryProfile profile =

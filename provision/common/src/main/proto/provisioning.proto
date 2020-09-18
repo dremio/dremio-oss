@@ -88,7 +88,7 @@ message AwsProps {
 
   optional string vpc = 1;
   optional string subnetId = 2;
-  optional string nodeIamInstanceProfile = 3; // role for the started ec2 instances, required
+  optional string nodeIamInstanceProfile = 3 [deprecated = true]; // Deprecated, we will use the coordinator's IAM role
   optional string amiId = 4; // optional, used to override the default ami
   optional bool useClusterPlacementGroup = 5 [default = true];
   optional string securityGroupId = 6;
@@ -97,5 +97,6 @@ message AwsProps {
   optional AwsConnectionProps connectionProps = 9;
   optional string extraConfProps = 10;
   repeated AwsTag awsTags = 11;
+  optional bool disablePublicIp = 12 [default = false];
 
 }

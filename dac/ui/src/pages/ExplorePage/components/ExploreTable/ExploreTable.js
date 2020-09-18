@@ -42,6 +42,7 @@ import './ExploreTable.less';
 const TIME_BEFORE_SPINNER = 1500;
 export const RIGHT_TREE_OFFSET = 251;
 const SCROLL_BAR_WIDTH = 16;
+const DISABLE_BACK_ON_SCROLL_CLASSNAME = 'disable-back-on-scroll';
 
 const mapStateToProps = (state) => ({
   isPreviewMode: getIsExplorePreviewMode(state),
@@ -101,7 +102,7 @@ export class ExploreTableView extends PureComponent {
   };
 
   static getCellStyle(column) {
-    return {width: '100%', display: 'inline-block', backgroundColor: column.color};
+    return { width: '100%', display: 'inline-block', backgroundColor: column.color };
   }
 
   static getCellWidth(column, defaultWidth) {
@@ -125,7 +126,7 @@ export class ExploreTableView extends PureComponent {
     return defaultColumnWidth > MIN_COLUMN_WIDTH ? defaultColumnWidth : MIN_COLUMN_WIDTH;
   }
 
-  static getTableSize({widthScale = 1, width, height, maxHeight, rightTreeVisible}, wrappers, columns, nodeOffsetTop) {
+  static getTableSize({ widthScale = 1, width, height, maxHeight, rightTreeVisible }, wrappers, columns, nodeOffsetTop) {
     if (!wrappers[0] && !wrappers[1] && !width && !height) {
       console.error('Can\'t find wrapper element, size maybe wrong');
     }
@@ -183,6 +184,7 @@ export class ExploreTableView extends PureComponent {
 
   componentWillUnmount() {
     $('.fixedDataTableCellLayout_columnResizerContainer').off('mousedown', this.removeResizerHiddenElem);
+    this.removeNoBackBtnOnScroll();
   }
 
   loadNextRows(offset) {
@@ -251,7 +253,7 @@ export class ExploreTableView extends PureComponent {
     const nodeOffsetTop = $(node).offset().top;
     const wrapperForWidth = $(node).parents('.table-parent')[0];
     const wrapperForHeight = document.querySelector('#grid-page');
-    const wrappers = [ wrapperForWidth, wrapperForHeight ];
+    const wrappers = [wrapperForWidth, wrapperForHeight];
     //this need to fix DX-8244 due to re-render of table because of horizontal scroll clipping
     let height = this.props.height;
 
@@ -259,10 +261,10 @@ export class ExploreTableView extends PureComponent {
       height = this.props.getTableHeight(node);
     }
 
-    const size = ExploreTableView.getTableSize({...this.props, height}, wrappers, columns, nodeOffsetTop);
+    const size = ExploreTableView.getTableSize({ ...this.props, height }, wrappers, columns, nodeOffsetTop);
     this.setState(state => {
       if (!state.size.equals(size)) {
-        return {size};
+        return { size };
       }
     });
   };
@@ -283,6 +285,14 @@ export class ExploreTableView extends PureComponent {
   removeResizerHiddenElem = () => {
     $('.fixedDataTableColumnResizerLineLayout_main').removeClass('fixedDataTableColumnResizerLineLayout_hiddenElem');
   };
+
+  addNoBackBtnOnScroll = () => {
+    $('html').addClass(DISABLE_BACK_ON_SCROLL_CLASSNAME);
+  }
+
+  removeNoBackBtnOnScroll = () => {
+    $('html').removeClass(DISABLE_BACK_ON_SCROLL_CLASSNAME);
+  }
 
   renderColumnHeader(column, width) {
     return (
@@ -345,7 +355,7 @@ export class ExploreTableView extends PureComponent {
       const isTransformMode = toType || transformType;
 
       const renderInvisible = shouldRenderInvisibles
-       || (isTransformMode && isTransformMode && columnName === column.name);
+        || (isTransformMode && isTransformMode && columnName === column.name);
       return (
         <Column
           key={column.name}
@@ -366,28 +376,35 @@ export class ExploreTableView extends PureComponent {
       const scrollToColumn = this.getScrollToColumn();
       return (
         <AutoSizer>
-          { ({height, width}) => (
-            <Table
-              rowHeight={DEFAULT_ROW_HEIGHT}
-              ref='table'
-              rowsCount={rows.size}
-              width={width}
-              height={height}
-              overflowX='auto'
-              overflowY='auto'
-              scrollToColumn={scrollToColumn}
-              onColumnResizeEndCallback={this.handleColumnResizeEnd}
-              isColumnResizing={false}
-              headerHeight={DEFAULT_ROW_HEIGHT}>
-              {this.renderColumns()}
-            </Table>) }
+          {({ height, width }) => (
+            <div
+              onWheel={this.addNoBackBtnOnScroll}
+              onMouseEnter={this.addNoBackBtnOnScroll}
+              onMouseLeave={this.removeNoBackBtnOnScroll}
+            >
+              <Table
+                rowHeight={DEFAULT_ROW_HEIGHT}
+                ref='table'
+                rowsCount={rows.size}
+                width={width}
+                height={height}
+                overflowX='auto'
+                overflowY='auto'
+                scrollToColumn={scrollToColumn}
+                onColumnResizeEndCallback={this.handleColumnResizeEnd}
+                isColumnResizing={false}
+                headerHeight={DEFAULT_ROW_HEIGHT}>
+                {this.renderColumns()}
+              </Table>
+            </div>
+          )}
         </AutoSizer>
       );
     }
   }
 
   getViewState() {
-    const { exploreViewState, cardsViewState, pageType, tableViewState} = this.props;
+    const { exploreViewState, cardsViewState, pageType, tableViewState } = this.props;
 
     if (tableViewState && (tableViewState.get('isInProgress') || tableViewState.get('error'))) {
       return tableViewState;
@@ -412,14 +429,14 @@ export class ExploreTableView extends PureComponent {
     return (
       <div className='fixed-data-table' style={{ width: '100%' }}>
         <ViewStateWrapper
-          style={{overflow: 'hidden'}}
+          style={{ overflow: 'hidden' }}
           spinnerDelay={columns.size ? TIME_BEFORE_SPINNER : 0}
           viewState={viewState}
           showMessage={showMessage}
           hideChildrenWhenFailed={false}
           overlayStyle={maskStyle}
         >
-          {this.props.isGrayed && <div data-qa='table-grayed-out' style={{...styles.grayed, ...maskStyle}}/>}
+          {this.props.isGrayed && <div data-qa='table-grayed-out' style={{ ...styles.grayed, ...maskStyle }} />}
           {this.renderTable()}
           <ViewCheckContent
             message={intl.formatMessage({ id: messageId })}

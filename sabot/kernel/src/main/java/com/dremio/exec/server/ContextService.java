@@ -51,6 +51,7 @@ import com.dremio.resource.GroupResourceInformation;
 import com.dremio.sabot.rpc.user.UserServer;
 import com.dremio.security.CredentialsService;
 import com.dremio.service.Service;
+import com.dremio.service.catalog.InformationSchemaServiceGrpc.InformationSchemaServiceBlockingStub;
 import com.dremio.service.conduit.client.ConduitProvider;
 import com.dremio.service.conduit.server.ConduitServer;
 import com.dremio.service.coordinator.ClusterCoordinator;
@@ -85,6 +86,7 @@ public class ContextService implements Service, Provider<SabotContext> {
   private final Provider<UserService> userService;
   private final Provider<CatalogService> catalogService;
   private final Provider<ConduitProvider> masterCoordinatorConduit;
+  private final Provider<InformationSchemaServiceBlockingStub> informationSchemaStub;
   private final Provider<SpillService> spillService;
   private final Provider<ConnectionReader> connectionReaderProvider;
   private final Provider<ViewCreatorFactory> viewCreatorFactory;
@@ -118,6 +120,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<UserService> userService,
     Provider<CatalogService> catalogService,
     Provider<ConduitProvider> conduitProvider,
+    Provider<InformationSchemaServiceBlockingStub> informationSchemaStub,
     Provider<ViewCreatorFactory> viewCreatorFactory,
     Provider<SpillService> spillService,
     Provider<ConnectionReader> connectionReaderProvider,
@@ -134,7 +137,7 @@ public class ContextService implements Service, Provider<SabotContext> {
       kvStoreProvider, fabric, conduitServer, userServer,
       materializationDescriptorProvider, queryObserverFactory, accelerationManager,
       accelerationListManager, namespaceServiceFactory, datasetListingServiceProvider, userService, catalogService,
-      conduitProvider, viewCreatorFactory, spillService, connectionReaderProvider, credentialsService,
+      conduitProvider, informationSchemaStub, viewCreatorFactory, spillService, connectionReaderProvider, credentialsService,
       jobResultInfoProvider, optionManagerProvider, systemOptionManagerProvider, engineIdProvider, subEngineIdProvider, optionValidatorProvider,
       allRoles ? EnumSet.allOf(ClusterCoordinator.Role.class) : Sets.newHashSet(ClusterCoordinator.Role.EXECUTOR));
   }
@@ -157,6 +160,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     Provider<UserService> userService,
     Provider<CatalogService> catalogService,
     Provider<ConduitProvider> conduitProvider,
+    Provider<InformationSchemaServiceBlockingStub> informationSchemaStub,
     Provider<ViewCreatorFactory> viewCreatorFactory,
     Provider<SpillService> spillService,
     Provider<ConnectionReader> connectionReaderProvider,
@@ -186,6 +190,7 @@ public class ContextService implements Service, Provider<SabotContext> {
     this.userService = userService;
     this.catalogService = catalogService;
     this.masterCoordinatorConduit = conduitProvider;
+    this.informationSchemaStub = informationSchemaStub;
     this.viewCreatorFactory = viewCreatorFactory;
     this.spillService = spillService;
     this.connectionReaderProvider = connectionReaderProvider;
@@ -271,6 +276,7 @@ public class ContextService implements Service, Provider<SabotContext> {
       accelerationListManager,
       catalogService,
       masterCoordinatorConduit.get(),
+      informationSchemaStub,
       viewCreatorFactory,
       queryPlannerAllocator,
       spillService,
@@ -279,7 +285,8 @@ public class ContextService implements Service, Provider<SabotContext> {
       jobResultInfoProvider.get(),
       optionManagerProvider.get(),
       systemOptionManagerProvider.get(),
-      optionValidatorProvider.get()
+      optionValidatorProvider.get(),
+      bootstrapContext.getExecutor()
     );
   }
 

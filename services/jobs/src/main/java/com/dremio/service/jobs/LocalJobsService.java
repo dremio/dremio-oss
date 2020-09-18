@@ -1561,8 +1561,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
     }
 
     @Override
-    public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken) {
-      detailsPopulator.planSubstituted(materialization, substitutions, target, millisTaken);
+    public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken, boolean defaultReflection) {
+      detailsPopulator.planSubstituted(materialization, substitutions, target, millisTaken, defaultReflection);
     }
 
     @Override
@@ -1748,6 +1748,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
         // Join planning starts with multi-join analysis phase
         builder.addPreJoinPlan(before);
         break;
+      case REDUCE_EXPRESSIONS:
+        builder.addExpandedPlan(before);
       default:
         return;
       }
@@ -2018,14 +2020,27 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
   }
 
   /**
-   * Delete job details and profiles older than provided number of ms.
-   *
-   * @param maxMs Age of job after which it is deleted.
-   * @return
+   * Define how profile will be deleted
    */
-  DeleteResult deleteOldJobsAndProfiles(long maxMs) {
-    DeleteResult result = deleteOldJobs(kvStoreProvider.get(), maxMs);
-    for (AttemptId attemptId : result.attemptIds) {
+  public interface ProfileCleanup {
+
+    /**
+     * Delete a profile by attempt id
+     *
+     * @param attemptId id associated with a profile attempt
+     * @return
+     */
+    void go(AttemptId attemptId);
+  }
+
+  /**
+   * Online profile deletion using Job Telemetry Service
+   * Schedule in the background
+   */
+  class OnlineProfileCleanup implements ProfileCleanup {
+
+    @Override
+    public void go(AttemptId attemptId) {
       jobTelemetryServiceStub
         .deleteProfile(
           DeleteProfileRequest.newBuilder()
@@ -2033,42 +2048,59 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
             .build()
         );
     }
-    return result;
   }
 
   /**
-   * Delete job details older than provided number of ms.
+   * Delete job details and profiles older than provided number of ms.
    *
    * Exposed as static so that cleanup tasks can do this without needing to start a jobs service and supporting daemon.
    *
+   * @param profileCleanup defines how a profile will be deleted
    * @param provider KVStore provider
    * @param maxMs Age of job after which it is deleted.
-   * @return A result reporting how many details and the corresponding attempt ids.
+   * @return A result reporting how many details, the corresponding attempt ids and how many times attempt id fails to delete.
    */
-  public static DeleteResult deleteOldJobs(LegacyKVStoreProvider provider, long maxMs) {
-    int jobsDeleted = 0;
+  public static List<Long> deleteOldJobsAndProfiles(ProfileCleanup profileCleanup, LegacyKVStoreProvider provider, long maxMs) {
+    long jobsDeleted = 0;
+    long profilesDeleted = 0;
+    long attemptFailure = 0;
+    int countFailureMsg = 0;
+    List<String> failedAttemptIds = new ArrayList<>(10);
+    List<Exception> errors = new ArrayList<>(10);
     LegacyIndexedStore<JobId, JobResult> jobStore = provider.getStore(JobsStoreCreator.class);
-    List<AttemptId> attemptIds = new ArrayList<>();
 
     final LegacyFindByCondition oldJobs = getOldJobsCondition(System.currentTimeMillis() - maxMs)
       .setPageSize(MAX_NUMBER_JOBS_TO_FETCH);
     for(Entry<JobId, JobResult> entry : jobStore.find(oldJobs)) {
-      jobStore.delete(entry.getKey());
-      jobsDeleted++;
       JobResult result = entry.getValue();
       if(result.getAttemptsList() != null) {
         for(JobAttempt a : result.getAttemptsList()) {
-          AttemptId attemptId = AttemptIdUtils.fromString(a.getAttemptId());
           try {
-            attemptIds.add(attemptId);
+            AttemptId attemptId = AttemptIdUtils.fromString(a.getAttemptId());
+            profileCleanup.go(attemptId);
+            profilesDeleted++;
           } catch(Exception e) {
             // don't fail on miss.
+            if (countFailureMsg < 10) {
+              failedAttemptIds.add(a.getAttemptId());
+              errors.add(e);
+              countFailureMsg++;
+            }
+            attemptFailure++;
           }
         }
       }
+      jobStore.delete(entry.getKey());
+      jobsDeleted++;
     }
-
-    return new DeleteResult(jobsDeleted, attemptIds);
+    logger.debug("Job cleanup task completed with [{}] jobs deleted and and [{}] profiles deleted.", jobsDeleted, profilesDeleted);
+    if (countFailureMsg > 0) {
+      logger.warn("Delete profile failures: [{}].", attemptFailure);
+      for(int i = 0; i < countFailureMsg; i++) {
+        logger.warn("Failed to delete profile with attempt id: {}. ", failedAttemptIds.get(i), errors.get(i));
+      }
+    }
+    return ImmutableList.of(jobsDeleted, profilesDeleted, attemptFailure);
   }
 
   /**
@@ -2126,6 +2158,8 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
    * Removes the job details and profile
    */
   class JobProfilesCleanupTask implements Runnable {
+    private final OnlineProfileCleanup onlineProfileCleanup = new OnlineProfileCleanup();
+
     @Override
     public void run() {
       cleanup();
@@ -2136,8 +2170,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
       final OptionManager optionManager = optionManagerProvider.get();
       final long maxAgeInDays = optionManager.getOption(ExecConstants.JOB_MAX_AGE_IN_DAYS);
       if (maxAgeInDays != DISABLE_CLEANUP_VALUE) {
-        final DeleteResult deleteResult = deleteOldJobsAndProfiles(TimeUnit.DAYS.toMillis(maxAgeInDays));
-        logger.debug("Job cleanup task completed with [{}] jobs deleted and and [{}] profiles deleted ", deleteResult.getJobsDeleted(), deleteResult.getProfilesDeleted());
+        deleteOldJobsAndProfiles(onlineProfileCleanup, kvStoreProvider.get() ,TimeUnit.DAYS.toMillis(maxAgeInDays));
       }
     }
   }
@@ -2291,7 +2324,7 @@ public class LocalJobsService implements Service, JobResultInfoProvider {
   }
 
   String getReflectionSearchQuery(String reflectionId) {
-    StringBuilder stringBuilder = new StringBuilder().append("(")
+    StringBuilder stringBuilder = new StringBuilder().append("(qt==\"ACCELERATION\");(")
       .append("*")
       .append("=contains=")
       .append(reflectionId)

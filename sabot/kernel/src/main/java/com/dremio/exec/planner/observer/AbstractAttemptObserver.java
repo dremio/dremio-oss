@@ -98,7 +98,7 @@ public abstract class AbstractAttemptObserver implements AttemptObserver {
   public void planSubstituted(DremioMaterialization materialization,
                               List<RelNode> substitutions,
                               RelNode target,
-                              long millisTaken) {
+                              long millisTaken, boolean defaultReflection) {
   }
 
   @Override

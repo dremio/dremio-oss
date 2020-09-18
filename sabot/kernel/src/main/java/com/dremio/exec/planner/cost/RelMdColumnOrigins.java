@@ -87,6 +87,9 @@ public class RelMdColumnOrigins implements MetadataHandler<BuiltInMetadata.Colum
   }
 
   public Set<RelColumnOrigin> getColumnOrigins(ExpansionNode rel, RelMetadataQuery mq, int iOutputColumn) {
+    if (rel.isDefault()) {
+      return Collections.emptySet();
+    }
     return mq.getColumnOrigins(rel.getInput(), iOutputColumn);
   }
 

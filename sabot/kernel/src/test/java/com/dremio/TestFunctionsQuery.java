@@ -1353,6 +1353,38 @@ public class TestFunctionsQuery extends BaseTestQuery {
   }
 
   @Test
+  public void testBitwiseOperators() throws Exception {
+    // bitwise AND
+    final String andQuery = "select bitwise_and(2343, 6332), bitwise_and(34531, -324234)," +
+      "bitwise_and(134134531, 453324234523), bitwise_and(87453, 0), bitwise_and(-61243113, -342536472134)";
+    testBuilder()
+      .sqlQuery(andQuery)
+      .unOrdered()
+      .baselineColumns("EXPR$0", "EXPR$1", "EXPR$2", "EXPR$3", "EXPR$4")
+      .baselineValues(2084, 1122, 70949635L, 0, -342589177582L)
+      .go();
+
+    // bitwise OR
+    final String orQuery = "select bitwise_or(2343, 6332), bitwise_or(34531, -324234)," +
+      "bitwise_or(134134531, 453324234523), bitwise_or(87453, 0), bitwise_or(-61243113, -342536472134)";
+    testBuilder()
+      .sqlQuery(orQuery)
+      .unOrdered()
+      .baselineColumns("EXPR$0", "EXPR$1", "EXPR$2", "EXPR$3", "EXPR$4")
+      .baselineValues(6591, -290825, 453387419419L, 87453, -8537665L)
+      .go();
+
+    // bitwise NOT
+    final String notQuery = "select bitwise_not(13524231), bitwise_not(-61243113), bitwise_not(0), bitwise_not(453387419419)";
+    testBuilder()
+      .sqlQuery(notQuery)
+      .unOrdered()
+      .baselineColumns("EXPR$0", "EXPR$1", "EXPR$2", "EXPR$3")
+      .baselineValues(-13524232, 61243112, -1, -453387419420L)
+      .go();
+  }
+
+  @Test
   public void testKvGen() throws Exception {
     String query = "SELECT KVGEN(CONVERT_FROM('{\"1\": 0.123, \"2\": 0.456, \"3\": 0.789}', 'JSON')) FROM (values (1))";
     test(query);

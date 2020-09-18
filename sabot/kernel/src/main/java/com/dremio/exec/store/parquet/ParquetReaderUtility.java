@@ -223,7 +223,7 @@ public class ParquetReaderUtility {
     // Drill produced files have only ever have a single row group, if this changes in the future it won't matter
     // as we will know from the Drill version written in the files that the dates are correct
 
-    BlockMetaData blockMetaData = footer.getBlocks().get(0);
+    BlockMetaData blockMetaData = (footer.getBlocks().size() > 0) ? footer.getBlocks().get(0) : null;
     if (blockMetaData == null) {
       return DateCorruptionStatus.META_SHOWS_NO_CORRUPTION;
     }

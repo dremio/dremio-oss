@@ -110,7 +110,10 @@ public abstract class ContainerFileSystem extends FileSystem {
 
       for(ContainerHolder old : oldMap.values()) {
         try {
-          old.close();
+          if (getUnknownContainer(old.getName()) == null) {
+            logger.debug("Closing filesystem for the container {}", old.getName());
+            old.close();
+          }
         } catch (IOException ex) {
           logger.warn("Failure while closing {} named [{}].", containerName, old.getName(), ex);
         }
@@ -309,10 +312,6 @@ public abstract class ContainerFileSystem extends FileSystem {
           container = containerMap.get(name);
           if (container == null) {
             container = getUnknownContainer(name);
-            if (container == null) {
-              throw new ContainerNotFoundException(String.format("Unable to find %s named %s.", containerName, name));
-            }
-
             ImmutableMap.Builder<String, ContainerHolder> newMap = ImmutableMap.builder();
             newMap.putAll(containerMap);
             newMap.put(name, container);

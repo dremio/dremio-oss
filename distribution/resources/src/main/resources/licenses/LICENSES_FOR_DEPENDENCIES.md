@@ -102,12 +102,12 @@
 |API Common                                                  |1.8.1               |BSD 3-clause        |
 |array-find                                                  |1.0.0               |MIT                 |
 |array.prototype.flat                                        |1.2.1               |MIT                 |
-|Arrow Flight Core                                           |1.0.0-20200807090640-53d3935ff3-dremio|Apache 2.0          |
-|Arrow Flight GRPC                                           |1.0.0-20200807090640-53d3935ff3-dremio|Apache 2.0          |
-|Arrow Format                                                |1.0.0-20200807090640-53d3935ff3-dremio|Apache 2.0          |
-|Arrow Gandiva                                               |1.0.0-20200807090640-53d3935ff3-dremio|Apache 2.0          |
-|Arrow Memory                                                |1.0.0-20200807090640-53d3935ff3-dremio|Apache 2.0          |
-|Arrow Vectors                                               |1.0.0-20200807090640-53d3935ff3-dremio|Apache 2.0          |
+|Arrow Flight Core                                           |1.0.0-20200901214046-ee3a072f13-dremio|Apache 2.0          |
+|Arrow Flight GRPC                                           |1.0.0-20200901214046-ee3a072f13-dremio|Apache 2.0          |
+|Arrow Format                                                |1.0.0-20200901214046-ee3a072f13-dremio|Apache 2.0          |
+|Arrow Gandiva                                               |1.0.0-20200901214046-ee3a072f13-dremio|Apache 2.0          |
+|Arrow Memory                                                |1.0.0-20200901214046-ee3a072f13-dremio|Apache 2.0          |
+|Arrow Vectors                                               |1.0.0-20200901214046-ee3a072f13-dremio|Apache 2.0          |
 |asap                                                        |2.0.6               |MIT                 |
 |ASCII List                                                  |0.0.3               |Apache 2.0          |
 |Ascii Table                                                 |0.2.5               |Apache 2.0          |
@@ -154,8 +154,8 @@
 |brcast                                                      |3.0.1               |MIT                 |
 |c3                                                          |0.4.18              |MIT                 |
 |Caffeine cache                                              |2.7.0               |Apache 2.0          |
-|Calcite Core                                                |1.16.0-202007102336500716-f2a2361|Apache 2.0          |
-|Calcite Linq4j                                              |1.16.0-202007102336500716-f2a2361|Apache 2.0          |
+|Calcite Core                                                |1.16.0-202008202058330769-66e82b2|Apache 2.0          |
+|Calcite Linq4j                                              |1.16.0-202008202058330769-66e82b2|Apache 2.0          |
 |change-emitter                                              |0.1.6               |MIT                 |
 |Checker Qual                                                |2.8.1               |MIT                 |
 |cheerio                                                     |1.0.0-rc.2          |MIT                 |
@@ -222,12 +222,12 @@
 |domelementtype                                              |1.3.0               |BSD-2-Clause        |
 |domhandler                                                  |2.4.2               |BSD-2-Clause        |
 |domutils                                                    |1.5.1               |BSD-2-Clause        |
-|Dremio Cache Manager                                        |4.7.0               |Dremio Free Software License 1.0|
-|Dremio Fast Threads                                         |4.7.0               |Dremio Free Software License 1.0|
-|Dremio Joust Library                                        |4.7.0               |Dremio Free Software License 1.0|
-|Dremio Parquet Accelerator                                  |4.7.0               |Dremio Free Software License 1.0|
-|Dremio Pushdown Pack                                        |4.7.0               |Dremio Free Software License 1.0|
-|Dremio Smart Substitutions                                  |4.7.0               |Dremio Free Software License 1.0|
+|Dremio Cache Manager                                        |4.8.0               |Dremio Free Software License 1.0|
+|Dremio Fast Threads                                         |4.8.0               |Dremio Free Software License 1.0|
+|Dremio Joust Library                                        |4.8.0               |Dremio Free Software License 1.0|
+|Dremio Parquet Accelerator                                  |4.8.0               |Dremio Free Software License 1.0|
+|Dremio Pushdown Pack                                        |4.8.0               |Dremio Free Software License 1.0|
+|Dremio Smart Substitutions                                  |4.8.0               |Dremio Free Software License 1.0|
 |Elasticsearch SecureSM                                      |1.1                 |Apache 2.0          |
 |Elasticsearch: Core                                         |5.5.3               |Apache 2.0          |
 |element-closest                                             |2.0.2               |CC0-1.0             |

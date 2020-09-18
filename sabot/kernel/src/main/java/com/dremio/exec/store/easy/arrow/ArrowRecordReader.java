@@ -151,6 +151,10 @@ public class ArrowRecordReader extends AbstractRecordReader {
       inputStream.setPosition(0);
       nextBatchIndex = 0;
     } catch (final Exception e) {
+      String bestEffortMessage = bestEffortMessageForUnknownException(e.getCause());
+      if (bestEffortMessage != null) {
+        throw new ExecutionSetupException(bestEffortMessage);
+      }
       throw UserException.dataReadError(e)
           .message("Failed to read the Arrow formatted file.")
           .build(logger);

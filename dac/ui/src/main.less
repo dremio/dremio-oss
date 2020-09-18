@@ -52,6 +52,11 @@
   html {
     height: 100%;
 
+    // DX-24382. Apply this class to disable accidentally browser back button trigger on scroll
+    &.disable-back-on-scroll {
+      overscroll-behavior-x: none;
+    }
+
     // preventing the scroll bounce
     // but making sure can still scroll when below min width/height
     @media (min-width: @min-screen-width) and (min-height: @min-screen-height) {
@@ -408,6 +413,11 @@
     .ReactVirtualized__Table__row:nth-child(even) {
       background-color: #f9f9f9;
     }
+  }
+
+  // Hyperlink in popup menu should not have underline on hover (DX-24661)
+  .dremio-popover a:hover {
+    text-decoration: none;
   }
 }
 

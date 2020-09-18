@@ -35,7 +35,8 @@ public class ReflectionGoalChecker {
 
   private final java.util.function.Function<Output, Output> reflectionGoalMaterializationBlackLister =
     new BlackListOutput.Builder()
-      .blacklist(ReflectionGoal.getSchema(), "modifiedAt", "createdAt", "tag", "arrowCachingEnabled", "version")
+      .blacklist(ReflectionGoal.getSchema(),
+        "createdAt", "modifiedAt", "tag", "arrowCachingEnabled", "version", "name")
       .build(ReflectionGoal.getSchema());
 
   /***

@@ -797,6 +797,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     if (!isOpen.get()) {
       logger.debug("Tried to get the state of a Hive plugin that is either not started or already closed: {}.", this.getName());
       return new SourceState(SourceStatus.bad,
+        String.format("Could not connect to Hive source %s, check your Hive credentials and network settings.", this.getName()),
         ImmutableList.of(new SourceState.Message(MessageLevel.ERROR,
           String.format("Hive Metastore client on source %s was not started or already closed.", this.getName()))));
     }
@@ -807,6 +808,7 @@ public class HiveStoragePlugin extends BaseHiveStoragePlugin implements StorageP
     } catch (Exception ex) {
       logger.debug("Caught exception while trying to get status of HIVE source {}, error: ", this.getName(), ex);
       return new SourceState(SourceStatus.bad,
+          String.format("Could not connect to Hive source %s, check your Hive credentials and network settings.", this.getName()),
           Collections.singletonList(new SourceState.Message(MessageLevel.ERROR,
               "Failure connecting to source: " + ex.getMessage())));
     }

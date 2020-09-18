@@ -37,7 +37,7 @@ public class TestCreateWIthColumnLimit extends PlanTestBase {
 
   @After
   public void cleanUp() throws Exception {
-    test("ALTER SESSION RESET \"store.plugin.max_metadata_leaf_columns\"");
+    test("ALTER SYSTEM RESET \"store.plugin.max_metadata_leaf_columns\"");
   }
 
   @Test

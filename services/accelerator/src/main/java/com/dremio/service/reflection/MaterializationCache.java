@@ -227,6 +227,10 @@ class MaterializationCache {
     return Iterables.unmodifiableIterable(cached.get().values());
   }
 
+  MaterializationDescriptor get(MaterializationId mId) {
+    return cached.get().get(mId.getId());
+  }
+
   boolean contains(MaterializationId mId) {
     return cached.get().containsKey(mId.getId());
   }

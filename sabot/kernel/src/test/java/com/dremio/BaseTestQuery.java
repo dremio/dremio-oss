@@ -708,6 +708,12 @@ public class BaseTestQuery extends ExecTest {
       runSQL(unSetOptionQuery);
   }
 
+  protected static AutoCloseable setSystemOptionWithAutoReset(final String option, final String value ) {
+    setSystemOption(option, value);
+    return () ->
+      resetSystemOption(option);
+  }
+
   protected static AutoCloseable disableParquetVectorization() {
     setSystemOption(ExecConstants.PARQUET_READER_VECTORIZE, "false");
     return () ->

@@ -144,7 +144,7 @@ public class TestPluginsManager {
     doNothing().when(broadcaster).communicateChange(any());
     plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, dremioConfig,
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
-      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), CatalogServiceMonitor.DEFAULT, () -> broadcaster);
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), CatalogServiceMonitor.DEFAULT, () -> broadcaster,null);
     plugins.start();
   }
 

@@ -90,6 +90,8 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
       "[WORKING_PATH]/src/test/resources/parquet/4203_corrupt_dates/partitioned_with_corruption_4203_1_2";
   private static final String PARQUET_DATE_FILE_WITH_NULL_FILLED_COLS =
       "[WORKING_PATH]/src/test/resources/parquet/4203_corrupt_dates/null_date_cols_with_corruption_4203.parquet";
+  private static final String PARQUET_FILE_WITH_ZERO_ROWGROUPS =
+    "[WORKING_PATH]/src/test/resources/parquet/zero_row_groups_empty.parquet";
   private static final String CORRECTED_PARTITIONED_DATES_1_9_PATH =
       "[WORKING_PATH]/src/test/resources/parquet/4203_corrupt_dates/1_9_0_partitioned_no_corruption";
   private static final String CORRECTED_PARTITIONED_DATES_1_10_PATH =
@@ -329,6 +331,17 @@ public class TestCorruptParquetDateCorrection extends PlanTestBase {
         .baselineValues(null, null, new LocalDateTime(1900, 1, 1, 0, 0))
         .baselineValues(null, null, new LocalDateTime(2015, 1, 1, 0, 0))
         .go();
+  }
+
+  @Test
+  public void testReadZeroRowGroupEmptyParquetFile() throws Exception {
+    testBuilder()
+      .sqlQuery("select * from dfs.\"" +
+        PARQUET_FILE_WITH_ZERO_ROWGROUPS + "\"")
+      .unOrdered()
+      .baselineColumns("f1", "f2")
+      .expectsEmptyResultSet()
+      .go();
   }
 
   @Test

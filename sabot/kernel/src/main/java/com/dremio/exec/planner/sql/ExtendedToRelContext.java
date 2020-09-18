@@ -69,7 +69,7 @@ public class ExtendedToRelContext extends NoOpExpander implements ToRelContext {
 
     try {
       root = DremioSqlToRelConverter.expandView(view.getPath(),
-        view.getViewOwner(), view.getView().getSql(), view.getView().getWorkspaceSchemaPath(), sqlConverter);
+        view.getViewOwner(), view.getView().getSql(), view.getView().getWorkspaceSchemaPath(), sqlConverter, view.getSchema());
     } catch (Exception ex) {
       throw UserException.planError(ex)
           .message("Error while expanding view %s",view.getPath())

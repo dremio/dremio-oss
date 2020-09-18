@@ -330,20 +330,32 @@ class SourceAccessChecker implements Catalog {
   }
 
   @Override
+  public Catalog resolveCatalog(boolean checkValidity) {
+    return secureIfNeeded(options.cloneWith(options.getSchemaConfig().getUserName(), options.getSchemaConfig().getDefaultSchema(), checkValidity),
+      delegate.resolveCatalog(checkValidity));
+  }
+
+  @Override
   public Catalog resolveCatalog(String username) {
-    return secureIfNeeded(options.cloneWith(username, options.getSchemaConfig().getDefaultSchema()),
+    return secureIfNeeded(options.cloneWith(username, options.getSchemaConfig().getDefaultSchema(), options.checkValidity()),
         delegate.resolveCatalog(username));
   }
 
   @Override
   public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema) {
-    return secureIfNeeded(options.cloneWith(username, newDefaultSchema),
+    return secureIfNeeded(options.cloneWith(username, newDefaultSchema, options.checkValidity()),
         delegate.resolveCatalog(username, newDefaultSchema));
   }
 
   @Override
+  public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema, boolean checkValidity) {
+    return secureIfNeeded(options.cloneWith(username, newDefaultSchema, checkValidity),
+      delegate.resolveCatalog(username, newDefaultSchema, checkValidity));
+  }
+
+  @Override
   public Catalog resolveCatalog(NamespaceKey newDefaultSchema) {
-    return secureIfNeeded(options.cloneWith(options.getSchemaConfig().getUserName(), newDefaultSchema), delegate.resolveCatalog(newDefaultSchema));
+    return secureIfNeeded(options.cloneWith(options.getSchemaConfig().getUserName(), newDefaultSchema, options.checkValidity()), delegate.resolveCatalog(newDefaultSchema));
   }
 
   /**

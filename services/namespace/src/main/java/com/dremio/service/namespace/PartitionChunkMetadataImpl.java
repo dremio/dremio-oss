@@ -37,6 +37,9 @@ import com.google.common.collect.ImmutableList;
  * Note: if the parition chunk contains only a single split,
  */
 public class PartitionChunkMetadataImpl extends AbstractPartitionChunkMetadata {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PartitionChunkMetadataImpl.class);
+
+  private final PartitionChunkId partitionChunkId;
   private final Supplier<MultiSplit> multiSplitSupplier;
   private Iterable<DatasetSplit> materializedDatasetSplits;  // Materialized only on first lookup
 
@@ -46,10 +49,11 @@ public class PartitionChunkMetadataImpl extends AbstractPartitionChunkMetadata {
    * @param multiSplitSupplier   When invoked, materializes the backing MultiSplit that in turn contains this partition chunk's
    *                                 dataset splits
    */
-  public PartitionChunkMetadataImpl(PartitionChunk partitionChunk, Supplier<MultiSplit> multiSplitSupplier) {
+  public PartitionChunkMetadataImpl(PartitionChunk partitionChunk, PartitionChunkId partitionChunkId, Supplier<MultiSplit> multiSplitSupplier) {
     super(partitionChunk);
     Preconditions.checkNotNull(multiSplitSupplier);
     Preconditions.checkArgument(partitionChunk.hasSplitCount(), "Must be constructed with a partitionChunk with a set split_count");
+    this.partitionChunkId = partitionChunkId;
     this.multiSplitSupplier = Suppliers.memoize(multiSplitSupplier);
     this.materializedDatasetSplits = null;
   }
@@ -62,6 +66,7 @@ public class PartitionChunkMetadataImpl extends AbstractPartitionChunkMetadata {
 
     PartitionChunk partitionChunk = getPartitionChunk();
     if (partitionChunk.hasDatasetSplit()) {
+      logger.debug("Fetching dataset splits for partition chunk with key {}", partitionChunk.getSplitKey());
       Preconditions.checkState(partitionChunk.getSplitCount() == 1,
         String.format("Only a partition chunk with 1 split can possibly have a dataset split set directly. split_count == %d", partitionChunk.getSplitCount()));
       materializedDatasetSplits = ImmutableList.of(partitionChunk.getDatasetSplit());
@@ -69,7 +74,20 @@ public class PartitionChunkMetadataImpl extends AbstractPartitionChunkMetadata {
     }
     // Build a list of dataset splits from the now-materialized multiset split
     MultiSplit multiSplit = multiSplitSupplier.get();    // NB: multiSplit cached in the supplier
+    if (multiSplit == null) {
+      logger.warn("Failed to retrieve multi split. Multi split is null for partition chunk with partitionID {}, split key {}, split count {} and partition values {}.",
+        partitionChunkId,
+        partitionChunk.getSplitKey(),
+        partitionChunk.getSplitCount(),
+        partitionChunk.getPartitionValuesList());
+
+      throw new IllegalStateException(String.format("Selected partition %s does not have associated splits. Please report to administrator.", partitionChunkId));
+    }
+
+    logger.debug("Fetching split count for multi split with key {}", multiSplit.getMultiSplitKey());
+
     final long splitCount = multiSplit.getSplitCount();
+
     Preconditions.checkState(splitCount == partitionChunk.getSplitCount());
     ImmutableList.Builder<DatasetSplit> datasetSplits = new ImmutableList.Builder<>();
     InputStream splitDataStream = multiSplit.getSplitData().newInput();

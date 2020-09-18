@@ -134,8 +134,18 @@ public class DelegatingCatalog implements Catalog {
   }
 
   @Override
+  public Catalog resolveCatalog(boolean checkValidity) {
+    return delegate.resolveCatalog(checkValidity);
+  }
+
+  @Override
   public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema) {
     return delegate.resolveCatalog(username, newDefaultSchema);
+  }
+
+  @Override
+  public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema, boolean checkValidity) {
+    return delegate.resolveCatalog(username, newDefaultSchema, checkValidity);
   }
 
   @Override

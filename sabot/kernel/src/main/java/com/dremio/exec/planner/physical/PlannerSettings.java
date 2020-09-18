@@ -29,6 +29,7 @@ import com.dremio.common.config.SabotConfig;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.catalog.conf.SourceType;
 import com.dremio.exec.server.options.CachingOptionManager;
+import com.dremio.exec.testing.ExecutionControls;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidator;
 import com.dremio.options.OptionValue;
@@ -106,7 +107,7 @@ public class PlannerSettings implements Context{
   public static final BooleanValidator STREAM_AGG_WITH_GROUPS = new BooleanValidator("planner.streamagg.allow_grouping", false);
   public static final String ENABLE_DECIMAL_DATA_TYPE_KEY = "planner.enable_decimal_data_type";
   public static final BooleanValidator TRANSITIVE_FILTER_JOIN_PUSHDOWN = new BooleanValidator("planner.filter.transitive_pushdown", true);
-  public static final BooleanValidator ENABLE_RUNTIME_FILTER = new BooleanValidator("planner.filter.runtime_filter", false); // In Beta right now
+  public static final BooleanValidator ENABLE_RUNTIME_FILTER = new BooleanValidator("planner.filter.runtime_filter", true);
   public static final BooleanValidator ENABLE_TRANSPOSE_PROJECT_FILTER_LOGICAL = new BooleanValidator("planner.experimental.tpf_logical", false);
   public static final BooleanValidator ENABLE_PROJECT_CLEANUP_LOGICAL = new BooleanValidator("planner.experimental.pclean_logical", false);
   public static final BooleanValidator ENABLE_CROSS_JOIN = new BooleanValidator("planner.enable_cross_join", true);
@@ -211,7 +212,7 @@ public class PlannerSettings implements Context{
   public static final DoubleValidator FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR =
       new RangeDoubleValidator("planner.filter.max_selectivity_estimate_factor", 0.0, 1.0, DEFAULT_FILTER_MAX_SELECTIVITY_ESTIMATE_FACTOR);
 
-  public static final BooleanValidator REMOVE_ROW_ADJUSTMENT = new BooleanValidator("planner.remove_rowcount_adjustment", false);
+  public static final BooleanValidator REMOVE_ROW_ADJUSTMENT = new BooleanValidator("planner.remove_rowcount_adjustment", true);
 
   public static final BooleanValidator ENABLE_SCAN_MIN_COST = new BooleanValidator("planner.cost.minimum.enable", true);
   public static final DoubleValidator DEFAULT_SCAN_MIN_COST = new DoubleValidator("planner.default.min_cost_per_split", 0);
@@ -262,17 +263,27 @@ public class PlannerSettings implements Context{
   public static final PositiveLongValidator DATASET_MAX_SPLIT_LIMIT = new PositiveLongValidator("planner.dataset_max_split_limit", Integer.MAX_VALUE, 300_000);
 
   private final SabotConfig sabotConfig;
+  private final ExecutionControls executionControls;
   public final OptionManager options;
   private Supplier<GroupResourceInformation> resourceInformation;
 
   // This flag is used by AbstractRelOptPlanner to set it's "cancelFlag".
-  private final CancelFlag cancelFlag = new CancelFlag(new AtomicBoolean());
+  private final CancelFlag cancelFlag = new CancelFlag(new AtomicBoolean(false));
+
+  // This is used to set reason for cancelling the query in DremioHepPlanner and DremioVolcanoPlanner
+  private String cancelReason = "";
 
   public PlannerSettings(SabotConfig config, OptionManager options,
                          Supplier<GroupResourceInformation> resourceInformation) {
+    this(config, options, resourceInformation, null);
+  }
+
+  public PlannerSettings(SabotConfig config, OptionManager options,
+                         Supplier<GroupResourceInformation> resourceInformation, ExecutionControls executionControls) {
     this.sabotConfig = config;
     this.options = new CachingOptionManager(options);
     this.resourceInformation = resourceInformation;
+    this.executionControls = executionControls;
   }
 
   public SabotConfig getSabotConfig() {
@@ -564,10 +575,12 @@ public class PlannerSettings implements Context{
       return (T) this;
     } else if(clazz == CalciteConnectionConfig.class){
       return (T) CONFIG;
-    } if (clazz == SabotConfig.class) {
+    } else if (clazz == SabotConfig.class) {
       return (T) sabotConfig;
     } else if (CancelFlag.class.isAssignableFrom(clazz)) {
       return clazz.cast(cancelFlag);
+    } else if (clazz == ExecutionControls.class) {
+      return (T) executionControls;
     }
     return null;
   }
@@ -586,4 +599,12 @@ public class PlannerSettings implements Context{
     }
   }
 
+  public void cancelPlanning(String cancelReason) {
+    this.cancelReason = cancelReason;
+    cancelFlag.requestCancel();
+  }
+
+  public String getCancelReason() {
+    return cancelReason;
+  }
 }

@@ -20,6 +20,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.arrow.util.VisibleForTesting;
+
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.ExecConstants;
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
@@ -42,10 +44,16 @@ public class ExecutionControls {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(ExecutionControls.class);
 
   // used to map JSON specified injections to POJOs
-  public static final ObjectMapper controlsOptionMapper = new ObjectMapper();
+  private static ObjectMapper controlsOptionMapper;
+
+  @VisibleForTesting
+  public static void setControlsOptionMapper(ObjectMapper objectMapper) {
+    controlsOptionMapper = objectMapper;
+    controlsOptionMapper.addMixInAnnotations(Injection.class, InjectionMixIn.class);
+  }
 
   static {
-    controlsOptionMapper.addMixInAnnotations(Injection.class, InjectionMixIn.class);
+    setControlsOptionMapper(new ObjectMapper());
   }
 
   // Jackson MixIn: an annotated class that is used only by Jackson's ObjectMapper to allow a list of injections to
@@ -113,7 +121,8 @@ public class ExecutionControls {
   /**
    * POJO used to parse JSON-specified controls.
    */
-  private static class Controls {
+  @VisibleForTesting
+  public static class Controls {
     public Collection<? extends Injection> injections;
   }
 

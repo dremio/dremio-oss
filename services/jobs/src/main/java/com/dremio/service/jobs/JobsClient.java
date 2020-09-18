@@ -1,3 +1,4 @@
+
 /*
  * Copyright (C) 2017-2019 Dremio Corporation
  *
@@ -30,6 +31,7 @@ import com.dremio.service.conduit.client.ConduitProvider;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.service.job.ChronicleGrpc;
 import com.dremio.service.job.JobsServiceGrpc;
+import com.google.common.base.Preconditions;
 
 import io.grpc.ManagedChannel;
 
@@ -47,7 +49,7 @@ public class JobsClient implements Service {
   private final Provider<Integer> portProvider;
   private final ConduitProvider conduitProvider;
   private final Provider<CoordinationProtos.NodeEndpoint> selfEndpoint;
-  private FlightClient flightClient;
+  private volatile FlightClient flightClient;
   private volatile ManagedChannel prevChannel;
 
   JobsClient(GrpcChannelBuilderFactory grpcFactory, Provider<BufferAllocator> allocator,
@@ -97,13 +99,20 @@ public class JobsClient implements Service {
    *
    * @return Flight Client
    */
-  public synchronized FlightClient getFlightClient() {
+  public FlightClient getFlightClient() {
     final ManagedChannel curChannel = conduitProvider.getOrCreateChannel(selfEndpoint.get());
-    if (prevChannel != curChannel) { // channel has since changed
-      AutoCloseables.closeNoChecked(flightClient);
-      prevChannel = curChannel;
-      flightClient = FlightGrpcUtils.createFlightClient(allocator, prevChannel);
+
+    if (prevChannel != curChannel) {
+      synchronized (this) {
+        if (prevChannel != curChannel) {
+          AutoCloseables.closeNoChecked(flightClient);
+          prevChannel = curChannel;
+          flightClient = FlightGrpcUtils.createFlightClient(allocator, prevChannel);
+        }
+      }
     }
+
+    Preconditions.checkNotNull(flightClient, "FlightClient not instantiated");
     return flightClient;
   }
 

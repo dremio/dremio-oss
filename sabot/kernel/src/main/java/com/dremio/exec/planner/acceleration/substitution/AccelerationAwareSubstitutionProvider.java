@@ -15,12 +15,16 @@
  */
 package com.dremio.exec.planner.acceleration.substitution;
 
+import java.util.List;
+
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.type.RelDataType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.dremio.exec.planner.observer.AttemptObserver;
 import com.dremio.exec.planner.sql.handlers.RelTransformer;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.base.Preconditions;
 
 public class AccelerationAwareSubstitutionProvider implements SubstitutionProvider, Observable {
@@ -66,6 +70,26 @@ public class AccelerationAwareSubstitutionProvider implements SubstitutionProvid
   @Override
   public void setPostSubstitutionTransformer(RelTransformer transformer) {
     delegate.setPostSubstitutionTransformer(transformer);
+  }
+
+  @Override
+  public RelNode wrapExpansionNode(NamespaceKey path, final RelNode query, List<String> vdsFields, RelDataType rowType, boolean contextSensitive) {
+    return delegate.wrapExpansionNode(path, query, vdsFields, rowType, contextSensitive);
+  }
+
+  @Override
+  public boolean isDefaultRawReflectionEnabled() {
+    return delegate.isDefaultRawReflectionEnabled();
+  }
+
+  @Override
+  public void disableDefaultRawReflection() {
+    delegate.disableDefaultRawReflection();
+  }
+
+  @Override
+  public void resetDefaultRawReflection() {
+    delegate.resetDefaultRawReflection();
   }
 
   public static AccelerationAwareSubstitutionProvider of(final SubstitutionProvider delegate) {

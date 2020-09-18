@@ -108,7 +108,7 @@ public class HiveVarcharTruncationReader implements AutoCloseable {
       javaCodeGenWatch.stop();
       context.getStats().addLongStat(ScanOperator.Metric.TOTAL_HIVE_PARQUET_TRANSFER_VARCHAR, 1);
     }
-    context.getStats().addLongStat(ScanOperator.Metric.HIVE_PARQUET_CHECK_VARCHAR_CAST_TIME,
+    context.getStats().addLongStat(ScanOperator.Metric.HIVE_PARQUET_CHECK_VARCHAR_CAST_TIME_NS,
       varcharCheckCastWatch.elapsed(TimeUnit.NANOSECONDS));
     varcharCheckCastWatch.reset();
   }

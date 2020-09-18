@@ -18,10 +18,15 @@ package com.dremio.exec.planner.physical;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
+import org.apache.calcite.linq4j.Ord;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -52,7 +57,6 @@ import com.dremio.common.logical.data.Order.Ordering;
 import com.dremio.exec.record.BatchSchema.SelectionVectorMode;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 
 public class PrelUtil {
 
@@ -290,17 +294,24 @@ public class PrelUtil {
 
   /** Visitor that finds the set of inputs that are used. */
   private static class RefFieldsVisitor extends RexVisitorImpl<PathSegment> {
-    final private Set<SchemaPath> columns = Sets.newLinkedHashSet();
+    final private Set<SchemaPath> columns;
     final private List<RexNode> inputRefs = Lists.newArrayList();
     final private List<String> fieldNames;
     final private List<RelDataTypeField> fields;
-    final private Set<DesiredField> desiredFields = Sets.newLinkedHashSet();
+    final private Set<DesiredField> desiredFields;
+    final private Map<String,Integer> fieldNameMap = new HashMap<>();
 
     public RefFieldsVisitor(RelDataType rowType) {
       super(true);
       this.fieldNames = rowType.getFieldNames();
       this.fields = rowType.getFieldList();
+      Ord.zip(fieldNames).forEach(o -> fieldNameMap.put(o.e.toLowerCase(), o.i));
+      Comparator<SchemaPath> schemaPathComparator = Comparator.comparingInt((SchemaPath path) -> fieldNameMap.get(path.getRootSegment().getPath().toLowerCase())).thenComparing(path -> path);
+      this.columns = new TreeSet<>(schemaPathComparator);
+      Comparator<DesiredField> desiredFieldComparator = Comparator.comparingInt(field -> fieldNameMap.get(field.name.toLowerCase()));
+      this.desiredFields = new TreeSet<>(desiredFieldComparator);
     }
+
 
     public void addColumn(PathSegment segment) {
       if (segment != null && segment instanceof NameSegment) {

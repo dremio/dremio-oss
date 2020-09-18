@@ -482,7 +482,7 @@ public class TestWindowFunctions extends BaseTestQuery {
 
     // Validate the plan
     final String[] expectedPlan1 = {"Window.*partition \\{0\\} order by \\[\\].*COUNT\\(\\$1\\), \\$SUM0\\(\\$1\\)",
-        "Scan.*columns=\\[`col_varchar`, `col_int`\\]"}; // There are only two columns col_int and col_varchar
+        "Scan.*columns=\\[`col_int`, `col_varchar`\\]"}; // There are only two columns col_int and col_varchar
 
     PlanTestBase.testPlanMatchingPatterns(query, expectedPlan1, null);
 

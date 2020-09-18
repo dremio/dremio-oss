@@ -184,8 +184,8 @@ public class CopyingFilteringReader implements RecordReader {
       t.transfer();
     }
 
-    context.getStats().addLongStat(ScanOperator.Metric.COPY_MS, copyWatch.elapsed(TimeUnit.MILLISECONDS));
-    context.getStats().addLongStat(ScanOperator.Metric.FILTER_MS, filterWatch.elapsed(TimeUnit.MILLISECONDS));
+    context.getStats().addLongStat(ScanOperator.Metric.COPY_NS, copyWatch.elapsed(TimeUnit.NANOSECONDS));
+    context.getStats().addLongStat(ScanOperator.Metric.FILTER_NS, filterWatch.elapsed(TimeUnit.NANOSECONDS));
     return recordCount;
   }
 

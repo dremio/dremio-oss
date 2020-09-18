@@ -791,7 +791,7 @@ public class TestCatalogServiceImpl {
         goodAtStart = false;
         return SourceState.goodState();
       }
-      return SourceState.badState();
+      return SourceState.badState("");
     }
 
     @Override

@@ -16,6 +16,8 @@
 
 package com.dremio.service.conduit.client;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
@@ -24,6 +26,7 @@ import javax.net.ssl.SSLException;
 
 import com.dremio.exec.proto.CoordinationProtos.NodeEndpoint;
 import com.dremio.service.Service;
+import com.dremio.service.grpc.DefaultServiceConfigProvider;
 import com.dremio.service.grpc.GrpcChannelBuilderFactory;
 import com.dremio.ssl.SSLEngineFactory;
 import com.google.common.base.Preconditions;
@@ -50,12 +53,16 @@ public class ConduitProviderImpl implements ConduitProvider, Service {
   private final Object lastMasterLock = new Object();
   private volatile NodeEndpoint lastMaster = null;
 
+  // all grpc services that conduit channels should be whitelisted here for
+  // retries
+  private final List<String> serviceNames = Arrays.asList("dremio.job.JobsService", "dremio" +
+    ".catalog.InformationSchemaService", "dremio.job.Chronicle", "dremio.maestroservice.MaestroService");
+
   public ConduitProviderImpl(
     Provider<NodeEndpoint> masterEndpoint,
     Optional<SSLEngineFactory> sslEngineFactory
   ) {
     this.masterEndpoint = masterEndpoint;
-
     this.managedChannels = CacheBuilder.newBuilder()
       .removalListener((RemovalListener<NodeEndpoint, ManagedChannel>) notification -> {
         if (!notification.wasEvicted()) {
@@ -71,6 +78,7 @@ public class ConduitProviderImpl implements ConduitProvider, Service {
               .maxInboundMessageSize(Integer.MAX_VALUE)
               .maxInboundMetadataSize(Integer.MAX_VALUE)
               .enableRetry()
+              .defaultServiceConfig(DefaultServiceConfigProvider.getDefaultGrpcServiceConfig(serviceNames))
               .maxRetryAttempts(GrpcChannelBuilderFactory.MAX_RETRY);
 
           if (sslEngineFactory.isPresent()) {

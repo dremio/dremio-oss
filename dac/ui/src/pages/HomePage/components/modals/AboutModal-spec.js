@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { shallow } from 'enzyme';
+import { mount, shallow } from 'enzyme';
 import Immutable from 'immutable';
+
+import ApiUtils from 'utils/apiUtils/apiUtils';
 
 import AboutModal from './AboutModal';
 
@@ -43,5 +45,12 @@ describe('AboutModal', () => {
   it('should render with common props without exploding', () => {
     const wrapper = shallow(<AboutModal {...commonProps} />);
     expect(wrapper).to.have.length(1);
+  });
+
+  it('should load info on mount', () => {
+    const fetch = sinon.spy(ApiUtils, 'fetch');
+    mount(<AboutModal {...commonProps}/>);
+    expect(ApiUtils.fetch).to.have.been.calledWith('info');
+    fetch.restore();
   });
 });

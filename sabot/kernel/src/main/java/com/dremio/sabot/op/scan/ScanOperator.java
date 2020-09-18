@@ -27,7 +27,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.arrow.memory.ArrowBuf;
@@ -91,9 +90,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.protobuf.ByteString;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.NettyArrowBuf;
-
 /**
  * Record batch used for a particular scan. Operators against one or more
  */
@@ -112,8 +108,8 @@ public class ScanOperator implements ProducerOperator {
     NUM_ROW_GROUPS, // number of rowGroups for the FileSplitParquetRecordReader
     NUM_VECTORIZED_COLUMNS,
     NUM_NON_VECTORIZED_COLUMNS,
-    COPY_MS,
-    FILTER_MS,
+    COPY_NS,
+    FILTER_NS,
     PARQUET_EXEC_PATH, // type of readers (vectorized, non-vectorized or combination used) in parquet
     FILTER_EXISTS, // Is there a filter pushed into scan?
     PARQUET_BYTES_READ, // Represents total number of actual bytes (uncompressed) read while parquet scan.
@@ -128,22 +124,22 @@ public class ScanOperator implements ProducerOperator {
     PRELOADED_BYTES,           // Number of bytes pre-loaded
     NUM_CACHE_HITS,       // Number of C3 hits
     NUM_CACHE_MISSES,     // Number of C3 misses
-    AVG_PROCESSING_TIME,   // Average processing time of request by C3
-    JAVA_BUILD_TIME,   // time taken by Java (setup+evaluation) for type conversions in CoercionReader
-    JAVA_EXECUTE_TIME,
-    GANDIVA_BUILD_TIME, // time taken by Gandiva (setup+evaluation) for type conversions in CoercionReader,
-    GANDIVA_EXECUTE_TIME,
+    AVG_PROCESSING_TIME_NS,   // Average processing time of request by C3
+    JAVA_BUILD_TIME_NS,   // time taken by Java (setup+evaluation) for type conversions in CoercionReader
+    JAVA_EXECUTE_TIME_NS,
+    GANDIVA_BUILD_TIME_NS, // time taken by Gandiva (setup+evaluation) for type conversions in CoercionReader
+    GANDIVA_EXECUTE_TIME_NS,
     NUM_FILTERS_MODIFIED,   // Number of parquet filters modified
     NUM_HIVE_PARQUET_TRUNCATE_VARCHAR, // Number of fixed-len varchar fields in hive_parquet
     TOTAL_HIVE_PARQUET_TRUNCATE_VARCHAR, // Total number of fixed-len varchar truncation in haveParquetCoercion
     TOTAL_HIVE_PARQUET_TRANSFER_VARCHAR, //  Total number of fixed-len varchar transfers in haveParquetCoercion
-    HIVE_PARQUET_CHECK_VARCHAR_CAST_TIME, // Time spent checking if truncation is required for a varchar field
+    HIVE_PARQUET_CHECK_VARCHAR_CAST_TIME_NS, // Time spent checking if truncation is required for a varchar field
     NUM_ROW_GROUPS_PRUNED, // number of rowGroups pruned in ParquetVectorizedReader
     MAX_ROW_GROUPS_IN_HIVE_FILE_SPLITS, // max number of row groups across hive file splits
     NUM_HIVE_FILE_SPLITS_WITH_NO_ROWGROUPS, // Number of hive file splits with no rowgroups
-    MIN_IO_READ_TIME,   // Minimum IO read time
-    MAX_IO_READ_TIME,   // Maximum IO read time
-    AVG_IO_READ_TIME,   // Average IO read time
+    MIN_IO_READ_TIME_NS,   // Minimum IO read time
+    MAX_IO_READ_TIME_NS,   // Maximum IO read time
+    AVG_IO_READ_TIME_NS,   // Average IO read time
     NUM_IO_READ,        // Total Number of IO reads
     NUM_HIVE_PARQUET_DECIMAL_COERCIONS, // Number of decimal coercions in hive parquet
     NUM_ROW_GROUPS_TRIMMED, // Number of row groups trimmed from footer in memory
@@ -345,7 +341,7 @@ public class ScanOperator implements ProducerOperator {
 
   @Override
   public void workOnOOB(OutOfBandMessage message) {
-    final ByteBuf msgBuf = message.getBuffer();
+    final ArrowBuf msgBuf = message.getBuffer();
     final String senderInfo = String.format("Frag %d:%d, OpId %d", message.getSendingMajorFragmentId(),
             message.getSendingMinorFragmentId(), message.getSendingOperatorId());
     if (msgBuf==null || msgBuf.capacity()==0) {
@@ -356,9 +352,9 @@ public class ScanOperator implements ProducerOperator {
 
     logger.info("Filter received from {}", senderInfo);
     try(RollbackCloseable closeOnErr = new RollbackCloseable()) {
-      closeOnErr.add((NettyArrowBuf) msgBuf);
+      closeOnErr.add(msgBuf);
       // scan operator handles the OOB message that it gets from the join operator
-      final BloomFilter bloomFilter = BloomFilter.prepareFrom(((NettyArrowBuf) msgBuf).arrowBuf());
+      final BloomFilter bloomFilter = BloomFilter.prepareFrom(msgBuf);
       final ExecProtos.RuntimeFilter protoFilter = message.getPayload(ExecProtos.RuntimeFilter.parser());
       final RuntimeFilter filter = RuntimeFilter.getInstance(protoFilter, bloomFilter, senderInfo);
 
@@ -519,9 +515,9 @@ public class ScanOperator implements ProducerOperator {
 
     if (ioStats != null) {
       long minIOReadTime = ioStats.minIOTime.longValue() <= ioStats.maxIOTime.longValue() ? ioStats.minIOTime.longValue() : 0;
-      operatorStats.setLongStat(Metric.MIN_IO_READ_TIME, minIOReadTime);
-      operatorStats.setLongStat(Metric.MAX_IO_READ_TIME, ioStats.maxIOTime.longValue());
-      operatorStats.setLongStat(Metric.AVG_IO_READ_TIME, ioStats.numIO.get() == 0 ? 0 : ioStats.totalIOTime.longValue() / ioStats.numIO.get());
+      operatorStats.setLongStat(Metric.MIN_IO_READ_TIME_NS, minIOReadTime);
+      operatorStats.setLongStat(Metric.MAX_IO_READ_TIME_NS, ioStats.maxIOTime.longValue());
+      operatorStats.setLongStat(Metric.AVG_IO_READ_TIME_NS, ioStats.numIO.get() == 0 ? 0 : ioStats.totalIOTime.longValue() / ioStats.numIO.get());
       operatorStats.addLongStat(Metric.NUM_IO_READ, ioStats.numIO.longValue());
 
       operatorStats.setProfileDetails(UserBitShared.OperatorProfileDetails
@@ -529,11 +525,6 @@ public class ScanOperator implements ProducerOperator {
         .addAllSlowIoInfos(ioStats.slowIOInfoList)
         .build());
     }
-
-    operatorStats.setLongStat(Metric.JAVA_BUILD_TIME, TimeUnit.NANOSECONDS.toMillis(operatorStats.getLongStat(Metric.JAVA_BUILD_TIME)));
-    operatorStats.setLongStat(Metric.JAVA_EXECUTE_TIME, TimeUnit.NANOSECONDS.toMillis(operatorStats.getLongStat(Metric.JAVA_EXECUTE_TIME)));
-    operatorStats.setLongStat(Metric.GANDIVA_BUILD_TIME, TimeUnit.NANOSECONDS.toMillis(operatorStats.getLongStat(Metric.GANDIVA_BUILD_TIME)));
-    operatorStats.setLongStat(Metric.GANDIVA_EXECUTE_TIME, TimeUnit.NANOSECONDS.toMillis(operatorStats.getLongStat(Metric.GANDIVA_EXECUTE_TIME)));
 
     onScanDone();
   }

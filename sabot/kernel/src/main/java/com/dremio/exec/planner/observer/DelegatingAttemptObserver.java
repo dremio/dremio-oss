@@ -135,8 +135,8 @@ public class DelegatingAttemptObserver implements AttemptObserver {
   }
 
   @Override
-  public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken) {
-    observer.planSubstituted(materialization, substitutions, target, millisTaken);
+  public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken, boolean defaultReflection) {
+    observer.planSubstituted(materialization, substitutions, target, millisTaken, defaultReflection);
   }
 
   @Override

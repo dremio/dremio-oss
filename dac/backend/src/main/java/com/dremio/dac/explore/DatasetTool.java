@@ -72,6 +72,7 @@ import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.dac.service.errors.InvalidQueryException;
 import com.dremio.dac.service.errors.NewDatasetQueryException;
+import com.dremio.dac.util.InvalidQueryErrorConverter;
 import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.record.RecordBatchHolder;
 import com.dremio.exec.util.ViewFieldsHelper;
@@ -423,11 +424,12 @@ public class DatasetTool {
     case PARSE:
     case PLAN:
     case VALIDATION:
+      String errorMessage = InvalidQueryErrorConverter.convert(e.getOriginalMessage());
       throw new InvalidQueryException(
           new InvalidQueryException.Details(
               sql,
               context,
-              QueryError.of(e), datasetSummary), e, e.getOriginalMessage());
+              QueryError.of(e), datasetSummary), e, errorMessage);
 
       default:
         return e;

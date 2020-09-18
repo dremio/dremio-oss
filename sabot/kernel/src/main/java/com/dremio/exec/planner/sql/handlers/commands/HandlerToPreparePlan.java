@@ -169,8 +169,8 @@ public class HandlerToPreparePlan implements CommandRunner<CreatePreparedStateme
     @Override
     public void planSubstituted(final DremioMaterialization materialization,
                                 final List<RelNode> substitutions,
-                                final RelNode target, final long millisTaken) {
-      calls.add(observer -> observer.planSubstituted(materialization, substitutions, target, millisTaken));
+                                final RelNode target, final long millisTaken, boolean defaultReflection) {
+      calls.add(observer -> observer.planSubstituted(materialization, substitutions, target, millisTaken, defaultReflection));
     }
 
     @Override

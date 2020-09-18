@@ -22,6 +22,7 @@ import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalProject;
+import org.apache.calcite.rel.logical.LogicalSort;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +79,8 @@ public class IncrementalUpdateUtils {
 
   /**
    * Visitor that checks if a logical plan can support incremental update. The supported pattern right now is a plan
-   * that contains only ExpansionNode, Filters, Projects, Scans, and Aggregates. There can only be one Aggregate in the plan, and the
+   * that contains only ExpansionNode, Filters, Projects, Scans, Sorts and Aggregates.
+   * There can only be one Aggregate in the plan, the Sort must not have any FETCH and OFFSET, and the
    * Scan most support incremental update.
    */
   private static class IncrementalChecker extends RoutingShuttle {
@@ -93,11 +95,6 @@ public class IncrementalUpdateUtils {
     }
 
     public boolean isIncremental() {
-      if (!isIncremental) {
-        logger.debug("Cannot do incremental update because the table is not incrementally updateable");
-        return false;
-      }
-
       if (unsupportedOperator != null) {
         logger.debug("Cannot do incremental update because {} does not support incremental update", unsupportedOperator.getRelTypeName());
         return false;
@@ -108,7 +105,11 @@ public class IncrementalUpdateUtils {
         return false;
       }
 
-      return true;
+      if (!isIncremental) {
+        logger.debug("Cannot do incremental update because the table is not incrementally updateable");
+      }
+
+      return isIncremental;
     }
 
     @Override
@@ -116,7 +117,6 @@ public class IncrementalUpdateUtils {
       if (other instanceof ExpansionNode) {
         return visitChild(other, 0, other.getInput(0));
       }
-
       if (unsupportedOperator == null) {
         unsupportedOperator = other;
       }
@@ -134,6 +134,17 @@ public class IncrementalUpdateUtils {
     public RelNode visit(LogicalAggregate aggregate) {
       aggCount++;
       return visitChild(aggregate, 0, aggregate.getInput());
+    }
+
+    @Override
+    public RelNode visit(LogicalSort sort) {
+      if(sort.fetch == null && sort.offset == null) {
+        return visitChild(sort, 0, sort.getInput());
+      }
+      if (unsupportedOperator == null) {
+        unsupportedOperator = sort;
+      }
+      return sort;
     }
 
     @Override

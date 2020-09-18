@@ -25,6 +25,7 @@ import { LOGIN_USER_SUCCESS } from '@app/actions/account';
 import localStorageUtils from '@app/utils/storageUtils/localStorageUtils';
 import intercomUtils from '@app/utils/intercomUtils';
 import socket from '@app/utils/socket';
+import { expect } from 'chai';
 
 
 describe('login', () => {
@@ -55,7 +56,6 @@ describe('login', () => {
       gen = handleAppInit();
       expect(gen.next().value).to.be.eql(call([intercomUtils, intercomUtils.boot]));
       expect(gen.next().value).to.be.eql(call([socket, socket.open]));
-
       expect(gen.next().value).to.be.eql(select(getLocation));
     };
 

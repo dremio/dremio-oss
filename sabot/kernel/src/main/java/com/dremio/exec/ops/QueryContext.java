@@ -21,6 +21,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
 import javax.inject.Provider;
@@ -178,7 +179,7 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
       .build();
     this.executionControls = new ExecutionControls(optionManager, sabotContext.getEndpoint());
     this.plannerSettings = new PlannerSettings(sabotContext.getConfig(), optionManager,
-      () -> groupResourceInformation);
+      () -> groupResourceInformation, executionControls);
     functionImplementationRegistry = this.optionManager.getOption(PlannerSettings
       .ENABLE_DECIMAL_V2)? sabotContext.getDecimalFunctionImplementationRegistry() : sabotContext
       .getFunctionImplementationRegistry();
@@ -445,5 +446,9 @@ public class QueryContext implements AutoCloseable, ResourceSchedulingContext, O
   @Override
   public CompilationOptions getCompilationOptions() {
     return new CompilationOptions(optionManager);
+  }
+
+  public ExecutorService getExecutorService() {
+    return sabotContext.getExecutorService();
   }
 }

@@ -18,6 +18,7 @@ package com.dremio.exec.planner.sql.handlers.direct;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.RelNode;
@@ -25,6 +26,7 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlNode;
 
 import com.dremio.common.exceptions.UserException;
+import com.dremio.exec.planner.DremioVolcanoPlanner;
 import com.dremio.exec.planner.PlannerPhase;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.observer.AbstractAttemptObserver;
@@ -35,6 +37,7 @@ import com.dremio.exec.planner.sql.SqlExceptionHelper;
 import com.dremio.exec.planner.sql.handlers.ConvertedRelNode;
 import com.dremio.exec.planner.sql.handlers.PrelTransformer;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerConfig;
+import com.dremio.exec.planner.sql.handlers.ViewAccessEvaluator;
 import com.dremio.exec.planner.sql.parser.SqlExplainJson;
 
 /**
@@ -60,14 +63,27 @@ public class ExplainJsonHandler implements SqlDirectHandler<ExplainJsonHandler.E
       final SqlExplainJson node = SqlNodeUtil.unwrap(sqlNode, SqlExplainJson.class);
       final SqlNode innerNode = node.getQuery();
 
-        Rel drel;
-        final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, innerNode);
-        final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
-        final RelNode queryRelNode = convertedRelNode.getConvertedNode();
-        drel = PrelTransformer.convertToDrel(config, queryRelNode, validatedRowType);
-        PrelTransformer.convertToPrel(config, drel);
+      Rel drel;
+      final ConvertedRelNode convertedRelNode = PrelTransformer.validateAndConvert(config, innerNode);
+      final RelDataType validatedRowType = convertedRelNode.getValidatedRowType();
+      final RelNode queryRelNode = convertedRelNode.getConvertedNode();
+      ViewAccessEvaluator viewAccessEvaluator = null;
+      if (config.getConverter().getSubstitutionProvider().isDefaultRawReflectionEnabled()) {
+        final RelNode convertedRelWithExpansionNodes = ((DremioVolcanoPlanner) queryRelNode.getCluster().getPlanner()).getOriginalRoot();
+        viewAccessEvaluator = new ViewAccessEvaluator(convertedRelWithExpansionNodes, config);
+        config.getContext().getExecutorService().submit(viewAccessEvaluator);
+      }
+      drel = PrelTransformer.convertToDrel(config, queryRelNode, validatedRowType);
+      PrelTransformer.convertToPrel(config, drel);
 
-        return toResultInner(node.getPhase(), observer.nodes);
+      if (viewAccessEvaluator != null) {
+        viewAccessEvaluator.getLatch().await(config.getContext().getPlannerSettings().getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
+        if (viewAccessEvaluator.getException() != null) {
+          throw viewAccessEvaluator.getException();
+        }
+      }
+
+      return toResultInner(node.getPhase(), observer.nodes);
     } catch (Exception ex){
       throw SqlExceptionHelper.coerceException(logger, sql, ex, true);
     }

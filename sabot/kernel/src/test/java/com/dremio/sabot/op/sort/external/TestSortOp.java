@@ -214,8 +214,8 @@ public class TestSortOp extends BaseTestOperator {
       final long ioBytesWritten = stats.getLongStat(ExternalSortOperator.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortOperator.Metric.COMPRESSION_NANOS);
       final long decompressionTime = stats.getLongStat(ExternalSortOperator.Metric.DECOMPRESSION_NANOS);
-      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT);
-      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT);
+      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT_NANOS);
+      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortOperator.Metric.SPILL_COPY_NANOS);
 
       assertEquals(batchesSpilled, 20 /*numRows/targetBatchSize*/);
@@ -255,8 +255,8 @@ public class TestSortOp extends BaseTestOperator {
       final long ioBytesWritten = stats.getLongStat(ExternalSortOperator.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortOperator.Metric.COMPRESSION_NANOS);
       final long decompressionTime = stats.getLongStat(ExternalSortOperator.Metric.DECOMPRESSION_NANOS);
-      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT);
-      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT);
+      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT_NANOS);
+      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortOperator.Metric.SPILL_COPY_NANOS);
 
       assertEquals(batchesSpilled, 20 /*numRows/targetBatchSize*/);
@@ -296,8 +296,8 @@ public class TestSortOp extends BaseTestOperator {
       final long ioBytesWritten = stats.getLongStat(ExternalSortOperator.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortOperator.Metric.COMPRESSION_NANOS);
       final long decompressionTime = stats.getLongStat(ExternalSortOperator.Metric.DECOMPRESSION_NANOS);
-      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT);
-      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT);
+      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT_NANOS);
+      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortOperator.Metric.SPILL_COPY_NANOS);
 
       assertEquals(batchesSpilled, 20 /*numRows/targetBatchSize*/);
@@ -337,8 +337,8 @@ public class TestSortOp extends BaseTestOperator {
       final long ioBytesWritten = stats.getLongStat(ExternalSortOperator.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortOperator.Metric.COMPRESSION_NANOS);
       final long decompressionTime = stats.getLongStat(ExternalSortOperator.Metric.DECOMPRESSION_NANOS);
-      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT);
-      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT);
+      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT_NANOS);
+      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortOperator.Metric.SPILL_COPY_NANOS);
 
       assertEquals(batchesSpilled, 20 /*numRows/targetBatchSize*/);
@@ -377,8 +377,8 @@ public class TestSortOp extends BaseTestOperator {
       final long ioBytesWritten = stats.getLongStat(ExternalSortOperator.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortOperator.Metric.COMPRESSION_NANOS);
       final long decompressionTime = stats.getLongStat(ExternalSortOperator.Metric.DECOMPRESSION_NANOS);
-      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT);
-      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT);
+      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT_NANOS);
+      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortOperator.Metric.SPILL_COPY_NANOS);
 
       assertEquals(batchesSpilled, 0);
@@ -418,8 +418,8 @@ public class TestSortOp extends BaseTestOperator {
       final long ioBytesWritten = stats.getLongStat(ExternalSortOperator.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortOperator.Metric.COMPRESSION_NANOS);
       final long decompressionTime = stats.getLongStat(ExternalSortOperator.Metric.DECOMPRESSION_NANOS);
-      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT);
-      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT);
+      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT_NANOS);
+      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortOperator.Metric.SPILL_COPY_NANOS);
 
       assertEquals(batchesSpilled, 0);
@@ -459,8 +459,8 @@ public class TestSortOp extends BaseTestOperator {
       final long ioBytesWritten = stats.getLongStat(ExternalSortOperator.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortOperator.Metric.COMPRESSION_NANOS);
       final long decompressionTime = stats.getLongStat(ExternalSortOperator.Metric.DECOMPRESSION_NANOS);
-      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT);
-      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT);
+      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT_NANOS);
+      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortOperator.Metric.SPILL_COPY_NANOS);
 
       assertEquals(batchesSpilled, 0);
@@ -500,8 +500,8 @@ public class TestSortOp extends BaseTestOperator {
       final long ioBytesWritten = stats.getLongStat(ExternalSortOperator.Metric.IO_BYTES_WRITTEN);
       final long compressionTime = stats.getLongStat(ExternalSortOperator.Metric.COMPRESSION_NANOS);
       final long decompressionTime = stats.getLongStat(ExternalSortOperator.Metric.DECOMPRESSION_NANOS);
-      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT);
-      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT);
+      final long readIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_READ_WAIT_NANOS);
+      final long writeIOWaitTime = stats.getLongStat(ExternalSortOperator.Metric.IO_WRITE_WAIT_NANOS);
       final long spillCopyTime = stats.getLongStat(ExternalSortOperator.Metric.SPILL_COPY_NANOS);
 
       assertEquals(batchesSpilled, 0);

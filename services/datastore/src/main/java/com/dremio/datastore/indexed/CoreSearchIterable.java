@@ -37,6 +37,7 @@ import com.google.common.collect.Lists;
  * An iterable over search items.
  */
 public class CoreSearchIterable<K, V> implements Iterable<Document<KVStoreTuple<K>, KVStoreTuple<V>>> {
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(CoreSearchIterable.class);
 
   private enum State {
     INIT, NEXT_PENDING, NEXT_USED, DONE
@@ -73,6 +74,12 @@ public class CoreSearchIterable<K, V> implements Iterable<Document<KVStoreTuple<
     return new SearchIterator();
   }
 
+  private void logKVPairsWithNullValues(Document<KVStoreTuple<K>, KVStoreTuple<V>> document) {
+    if (document != null && (document.getValue() == null || document.getValue().getObject() == null)) {
+      logger.debug("Key {} in index store has no associated value", document.getKey());
+    }
+  }
+
   private class SearchIterator implements Iterator<Document<KVStoreTuple<K>, KVStoreTuple<V>>> {
 
     private int returned;
@@ -106,6 +113,7 @@ public class CoreSearchIterable<K, V> implements Iterable<Document<KVStoreTuple<
             .setTag(doc.getTag())
             .build());
         }
+        logKVPairsWithNullValues(doc);
       }
 
       return entries.iterator();

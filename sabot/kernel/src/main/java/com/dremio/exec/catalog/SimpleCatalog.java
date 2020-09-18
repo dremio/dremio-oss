@@ -40,6 +40,14 @@ public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplore
   NamespaceKey getDefaultSchema();
 
   /**
+   * Return a new Catalog contextualized to the validity check flag
+   *
+   * @param checkValidity
+   * @return
+   */
+  T resolveCatalog(boolean checkValidity);
+
+  /**
    * Return a new Catalog contextualized to the provided username and default schema
    *
    * @param username
@@ -47,6 +55,16 @@ public interface SimpleCatalog<T extends SimpleCatalog<T>> extends EntityExplore
    * @return
    */
   T resolveCatalog(String username, NamespaceKey newDefaultSchema);
+
+  /**
+   * Return a new Catalog contextualized to the provided username, default schema, and validity check flag
+   *
+   * @param username
+   * @param newDefaultSchema
+   * @param checkValidity
+   * @return
+   */
+  T resolveCatalog(String username, NamespaceKey newDefaultSchema, boolean checkValidity);
 
   /**
    * Return a new Catalog contextualized to the provided default schema

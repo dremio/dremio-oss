@@ -265,7 +265,7 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
-      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster)) {
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null)){
 
       mockUpPlugin.setThrowAtStart();
       assertEquals(0, mockUpPlugin.getNumFailedStarts());
@@ -308,7 +308,7 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
-      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster)) {
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null)) {
 
       // Setting bad state (eg. offline) at start, wakeup task should be running and no metadata refresh due to bad state
       mockUpPlugin.setSimulateBadState(true);
@@ -351,9 +351,10 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore = storeProvider.getStore(CatalogSourceDataCreator.class);
 
+
     try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
-      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster)) {
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null)) {
 
       // create a source with healthy state
       mockUpPlugin.setSimulateBadState(false);
@@ -408,7 +409,7 @@ public class TestFailedToStartPlugin extends DremioTest {
 
     try (PluginsManager plugins = new PluginsManager(sabotContext, mockNamespaceService, mockDatasetListingService, optionManager, DremioConfig.create(),
       EnumSet.allOf(ClusterCoordinator.Role.class), sourceDataStore, schedulerService,
-      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster)) {
+      ConnectionReader.of(sabotContext.getClasspathScan(), sabotConfig), monitor, () -> broadcaster,null)) {
 
       // add a source with bad state, SourceMetadataManager should be closed and no wakeup task
       mockUpPlugin.setSimulateBadState(true);

@@ -26,7 +26,7 @@
   <parent>
     <artifactId>dremio-plugin-parent</artifactId>
     <groupId>com.dremio.plugins</groupId>
-    <version>4.7.3-202008270723550726-918276ee</version>
+    <version>4.8.0-202009180238090394-b0a98b73</version>
   </parent>
 
   <artifactId>dremio-awsglue-plugin</artifactId>
@@ -151,8 +151,9 @@
               <!-- avoid using system range for ephemeral ports as servers are not 
                 immediately started, and pre-allocated ports might have been reused by OS 
                 Some tests also use fixed port in the 20000 range -->
-              <minPortNumber>10000</minPortNumber>
-              <maxPortNumber>19999</maxPortNumber>
+              <!-- Always use non-overlapping ranges in each pom to avoid port conflict -->
+              <minPortNumber>16000</minPortNumber>
+              <maxPortNumber>16999</maxPortNumber>
               <portNames>
                 <portName>s3mock.reserved.port</portName>
               </portNames>

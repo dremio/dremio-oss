@@ -16,6 +16,7 @@
 package com.dremio.exec.catalog;
 
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -58,7 +59,6 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 
 /**
  * Manages the creation, deletion and retrieval of storage plugins.
@@ -68,21 +68,21 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
 
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(PluginsManager.class);
 
-  private final SabotContext context;
-  private final OptionManager optionManager;
+  protected final SabotContext context;
+  protected final OptionManager optionManager;
   private final DremioConfig config;
-  private final ConnectionReader reader;
-  private final SchedulerService scheduler;
-  private final CloseableThreadPool executor = new CloseableThreadPool("source-management");
+  protected final ConnectionReader reader;
+  protected final SchedulerService scheduler;
+  protected final CloseableThreadPool executor = new CloseableThreadPool("source-management");
   private final DatasetListingService datasetListing;
   private final ConcurrentHashMap<String, ManagedStoragePlugin> plugins = new ConcurrentHashMap<>();
-  private final Set<String> beingCreatedSources = Sets.newConcurrentHashSet();
   private final long startupWait;
-  private final LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore;
-  private final CatalogServiceMonitor monitor;
+  protected final LegacyKVStore<NamespaceKey, SourceInternalData> sourceDataStore;
+  protected final CatalogServiceMonitor monitor;
   private Cancellable refresher;
-  private final NamespaceService systemNamespace;
-  private final Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider;
+  protected final NamespaceService systemNamespace;
+  protected final Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider;
+  private final Predicate<String> influxSourcePred;
 
   public PluginsManager(
     SabotContext context,
@@ -95,7 +95,8 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     SchedulerService scheduler,
     ConnectionReader reader,
     CatalogServiceMonitor monitor,
-    Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider
+    Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider,
+    Predicate<String> influxSourcePred
   ) {
     // context should only be used for MangedStoragePlugin
     this.context = context;
@@ -109,6 +110,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     this.startupWait = VM.isDebugEnabled() ? TimeUnit.DAYS.toMillis(365) : optionManager.getOption(CatalogOptions.STARTUP_WAIT_MAX);
     this.monitor = monitor;
     this.broadcasterProvider = broadcasterProvider;
+    this.influxSourcePred = influxSourcePred;
   }
 
   ConnectionReader getReader() {
@@ -132,7 +134,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     @Override
     public void run() {
       try {
-        synchronizeSources();
+        synchronizeSources(influxSourcePred);
       } catch (Exception ex) {
         logger.warn("Failure while synchronizing sources.");
       }
@@ -156,38 +158,30 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
    * @throws TimeoutException
    */
   public ManagedStoragePlugin create(SourceConfig config, String userName, NamespaceAttribute... attributes) throws TimeoutException, Exception {
-    if(hasPlugin(config.getName())) {
+    if (hasPlugin(config.getName())) {
       throw new SourceAlreadyExistsException();
     }
 
-    if (!beingCreatedSources.add(config.getName())) {
-      // Someone else is adding the same source
-      throw new SourceAlreadyExistsException();
+    ManagedStoragePlugin plugin = newPlugin(config);
+    plugin.createSource(config, userName, attributes);
+
+    // use concurrency features of concurrent hash map to avoid locking.
+    ManagedStoragePlugin existing = plugins.putIfAbsent(c(config.getName()), plugin);
+
+    if (existing == null) {
+      return plugin;
     }
 
+    // This means it  has been added by a concurrent thread doing create with the same name
+    final SourceAlreadyExistsException e = new SourceAlreadyExistsException();
     try {
-      ManagedStoragePlugin plugin = newPlugin(config);
-      plugin.createSource(config, userName, attributes);
-
-      // use concurrency features of concurrent hash map to avoid locking.
-      ManagedStoragePlugin existing = plugins.putIfAbsent(c(config.getName()), plugin);
-
-      if (existing == null) {
-        return plugin;
-      }
-
-      final SourceAlreadyExistsException e = new SourceAlreadyExistsException();
-      try {
-        // this happened in time with someone else.
-        plugin.close();
-      } catch (Exception ex) {
-        e.addSuppressed(ex);
-      }
-
-      throw e;
-    } finally {
-      beingCreatedSources.remove(config.getName());
+      // this happened in time with someone else.
+      plugin.close();
+    } catch (Exception ex) {
+      e.addSuppressed(ex);
     }
+
+    throw e;
   }
 
   /**
@@ -257,21 +251,23 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
   private ManagedStoragePlugin newPlugin(SourceConfig config) {
     final boolean isVirtualMaster = context.isMaster() ||
       (this.config.isMasterlessEnabled() && context.isCoordinator());
+    return newManagedStoragePlugin(config, isVirtualMaster);
+  }
 
-    final ManagedStoragePlugin msp = new ManagedStoragePlugin(
-        context,
-        executor,
-        isVirtualMaster,
-        scheduler,
-        systemNamespace,
-        sourceDataStore,
-        config,
-        optionManager,
-        reader,
-        monitor.forPlugin(config.getName()),
-        broadcasterProvider
-        );
-    return msp;
+  protected ManagedStoragePlugin newManagedStoragePlugin(SourceConfig config, boolean isVirtualMaster) {
+    return new ManagedStoragePlugin(
+      context,
+      executor,
+      isVirtualMaster,
+      scheduler,
+      systemNamespace,
+      sourceDataStore,
+      config,
+      optionManager,
+      reader,
+      monitor.forPlugin(config.getName()),
+      broadcasterProvider
+    );
   }
 
   /**
@@ -340,25 +336,35 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
     return plugins.containsKey(c(name));
   }
 
-  public ManagedStoragePlugin getSynchronized(SourceConfig pluginConfig) throws Exception {
-    while(true) {
+  public ManagedStoragePlugin getSynchronized(SourceConfig pluginConfig, Predicate<String> influxSourcePred) throws Exception {
+    while (true) {
       ManagedStoragePlugin plugin = plugins.get(c(pluginConfig.getName()));
 
-      if(plugin != null) {
+      if (plugin != null) {
         plugin.synchronizeSource(pluginConfig);
         return plugin;
       }
-
-      if (beingCreatedSources.contains(pluginConfig.getName())) {
-        throw new IllegalStateException(String.format("The source %s is still being created.", pluginConfig.getName()));
-      }
-
+      //Try to create the plugin to synchronize.
       plugin = newPlugin(pluginConfig);
       plugin.replacePluginWithLock(pluginConfig, createWaitMillis(), true);
 
-      // grab write lock before putting in map so we can finish starting.
-      ManagedStoragePlugin existing = plugins.putIfAbsent(c(pluginConfig.getName()), plugin);
+      // If this is a coordinator and a plugin is missing, it's probably been deleted from the CHM by a
+      // concurrent thread or a create operation may be in progress(check if it's in flux)  and has not
+      // yet added it to the CHM.
+      // So lets skip it and allow this to be picked up int he next refresher run .
+      // For an executor, there should be no clashes with any mutation.
+      if (influxSourcePred.test(pluginConfig.getName()) || (context.isCoordinator() && !systemNamespace.exists(new NamespaceKey(pluginConfig.getName())))) {
+        throw new ConcurrentModificationException(String.format(
+          "Source [%s] is being modified. Will refresh this source in next refresh cycle. ",
+          pluginConfig.getName()));
+      }
+      // Note: there is known window between the above "if" check and the next statement. This cannot be eliminated unless we
+      // get a distributed lock just before the if check above. So in theory there is a race possible if
+      // another thread managed to get a distributed lock, set the influxSources, get a reentrant write lock, creates/deletes a source
+      // all between the above if condition and the following call. But we are avoiding locks in the GetSources and Refresher thread
+      // (as was the design goal) Practically, very unlikely window for all the above to slip in.
 
+      ManagedStoragePlugin existing = plugins.putIfAbsent(c(pluginConfig.getName()), plugin);
       if (existing == null) {
         return plugin;
       }
@@ -411,9 +417,7 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
    * For each source, synchronize the sources definition to the namespace.
    */
   @VisibleForTesting
-  void synchronizeSources() {
-    logger.trace("Running scheduled source synchronization");
-
+  void synchronizeSources(Predicate<String> influxSourcePred) {
     // first collect up all the current source configs.
     final Map<String, SourceConfig> configs = FluentIterable.from(plugins.values()).transform(new Function<ManagedStoragePlugin, SourceConfig>(){
 
@@ -429,14 +433,16 @@ class PluginsManager implements AutoCloseable, Iterable<StoragePlugin> {
 
     // second, for each source, synchronize to latest state
     final Set<String> names = getSourceNameSet();
-    for(SourceConfig config : systemNamespace.getSources()) {
+    for (SourceConfig config : systemNamespace.getSources()) {
       names.remove(config.getName());
-      if (beingCreatedSources.contains(config.getName())) {
-        // skip this source since it's still being created
-        continue;
-      }
+
       try {
-        getSynchronized(config);
+        //if an active modification is happening, don't synchronize this source now
+        if (influxSourcePred.test(config.getName())) {
+          logger.warn("Skipping synchronizing source {} since it's being modified", config.getName());
+          continue;
+        }
+        getSynchronized(config, influxSourcePred);
       } catch (Exception ex) {
         logger.warn("Failure updating source [{}] during scheduled updates.", config, ex);
       }

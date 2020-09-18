@@ -16,10 +16,14 @@
 package com.dremio.service.grpc;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
+
+import javax.inject.Provider;
 
 import com.dremio.telemetry.utils.GrpcTracerFacade;
 import com.dremio.telemetry.utils.TracerFacade;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import io.grpc.ClientInterceptor;
@@ -34,14 +38,17 @@ import io.opentracing.contrib.grpc.TracingClientInterceptor;
 class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory {
   private final Tracer tracer;
   private final Set<ClientInterceptor> interceptors;
+  private final Provider<Map<String, Object>> defaultServiceConfigProvider;
 
   BaseGrpcChannelBuilderFactory(Tracer tracer) {
-    this(tracer, Collections.emptySet());
+    this(tracer, Collections.emptySet(), () -> Maps.newHashMap());
   }
 
-  BaseGrpcChannelBuilderFactory(Tracer tracer, Set<ClientInterceptor> interceptors) {
+  BaseGrpcChannelBuilderFactory(Tracer tracer, Set<ClientInterceptor> interceptors,
+                                Provider<Map<String, Object>> defaultServiceConfigProvider) {
     this.tracer = new GrpcTracerFacade((TracerFacade) tracer);
     this.interceptors = Sets.newHashSet(interceptors);
+    this.defaultServiceConfigProvider = defaultServiceConfigProvider;
   }
 
   /**
@@ -49,8 +56,16 @@ class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory {
    */
   @Override
   public ManagedChannelBuilder<?> newManagedChannelBuilder(String host, int port) {
+    return newManagedChannelBuilder(host, port, defaultServiceConfigProvider.get());
+  }
+
+  /**
+   * Returns a new gRPC ManagedChannelBuilder overriding the default service configuration
+   */
+  @Override
+  public ManagedChannelBuilder<?> newManagedChannelBuilder(String host, int port, Map<String, Object> defaultServiceConfigProvider) {
     final ManagedChannelBuilder<?> builder = ManagedChannelBuilder.forAddress(host, port);
-    addDefaultBuilderProperties(builder);
+    addDefaultBuilderProperties(builder, defaultServiceConfigProvider);
 
     return builder;
   }
@@ -60,8 +75,13 @@ class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory {
    */
   @Override
   public ManagedChannelBuilder<?> newManagedChannelBuilder(String target) {
+    return newManagedChannelBuilder(target, defaultServiceConfigProvider.get());
+  }
+
+  @Override
+  public ManagedChannelBuilder<?> newManagedChannelBuilder(String target, Map<String, Object> defaultServiceConfigProvider) {
     final ManagedChannelBuilder<?> builder = ManagedChannelBuilder.forTarget(target);
-    addDefaultBuilderProperties(builder);
+    addDefaultBuilderProperties(builder, defaultServiceConfigProvider);
 
     return builder;
   }
@@ -71,14 +91,18 @@ class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory {
    */
   @Override
   public ManagedChannelBuilder<?> newInProcessChannelBuilder(String processName) {
+    return newInProcessChannelBuilder(processName, defaultServiceConfigProvider.get());
+  }
+
+  public ManagedChannelBuilder<?> newInProcessChannelBuilder(String processName, Map<String, Object> defaultServiceConfigProvider) {
     final ManagedChannelBuilder<?> builder = InProcessChannelBuilder.forName(processName);
-    addDefaultBuilderProperties(builder);
+    addDefaultBuilderProperties(builder, defaultServiceConfigProvider);
 
     return builder;
   }
 
   /* Decorates a ManagedChannelBuilder with default properties.   */
-  private void addDefaultBuilderProperties(ManagedChannelBuilder<?> builder) {
+  private void addDefaultBuilderProperties(ManagedChannelBuilder<?> builder, Map<String, Object> defaultServiceConfigProvider) {
     final TracingClientInterceptor tracingInterceptor = TracingClientInterceptor
       .newBuilder()
       .withTracer(tracer)
@@ -89,6 +113,7 @@ class BaseGrpcChannelBuilderFactory implements GrpcChannelBuilderFactory {
     }
     builder.intercept(tracingInterceptor)
       .enableRetry()
+      .defaultServiceConfig(defaultServiceConfigProvider)
       .maxRetryAttempts(MAX_RETRY);
   }
 }

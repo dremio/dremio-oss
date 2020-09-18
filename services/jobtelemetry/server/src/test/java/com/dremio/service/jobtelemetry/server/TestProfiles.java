@@ -64,6 +64,8 @@ import com.dremio.service.jobtelemetry.server.store.LocalMetricsStore;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.jobtelemetry.server.store.MetricsStore;
 import com.dremio.service.jobtelemetry.server.store.ProfileStore;
+import com.dremio.telemetry.utils.GrpcTracerFacade;
+import com.dremio.telemetry.utils.TracerFacade;
 
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
@@ -100,7 +102,8 @@ public class TestProfiles {
 
     final String serverName = InProcessServerBuilder.generateName();
     profileService =
-      new JobTelemetryServiceImpl(metricsStore, profileStore, false, 100);
+      new JobTelemetryServiceImpl(metricsStore, profileStore,
+        new GrpcTracerFacade(TracerFacade.INSTANCE), false, 100);
 
     grpcCleanupRule.register(InProcessServerBuilder
       .forName(serverName)
@@ -415,7 +418,7 @@ public class TestProfiles {
 
     final JobTelemetryServiceImpl tmpService =
       new JobTelemetryServiceImpl(mockedMetricsStore, mockedProfileStore,
-        true, 100);
+        mock(GrpcTracerFacade.class), true, 100);
 
     when(mockedProfileStore.getPlanningProfile(any(QueryId.class)))
       .thenReturn(Optional.of(profileSet.planningProfileRequest.getProfile()));

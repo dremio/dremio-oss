@@ -15,8 +15,11 @@
  */
 package com.dremio.exec.planner.sql;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
+import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.rel.RelNode;
@@ -32,6 +35,7 @@ import com.dremio.exec.catalog.DremioCatalogReader;
 import com.dremio.exec.ops.ViewExpansionContext.ViewExpansionToken;
 import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.sql.SqlConverter.RelRootPlus;
+import com.dremio.exec.record.BatchSchema;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.users.UserNotFoundException;
 
@@ -70,12 +74,12 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
     return typeFlattener.rewrite(rootRel);
   }
 
-  private static RelRoot expandViewHelper(NamespaceKey path,
-                                          final String viewOwner,
-                                          final String queryString,
-                                          final List<String> context,
-                                          final SqlConverter sqlConverter) {
-    //RelDataType rowType = view.getRowType(cluster.getTypeFactory());
+  private static RelRoot getExpandedRelNode(NamespaceKey path,
+                                            final String viewOwner,
+                                            final String queryString,
+                                            final List<String> context,
+                                            final SqlConverter sqlConverter,
+                                            final BatchSchema batchSchema) {
     final DremioCatalogReader catalog;
     if(viewOwner != null) {
       catalog = sqlConverter.getCatalogReader().withSchemaPathAndUser(viewOwner, context);
@@ -85,7 +89,20 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
     final SqlConverter newConverter = new SqlConverter(sqlConverter, catalog);
     final SqlNode parsedNode = newConverter.parse(queryString);
     final SqlNode validatedNode = newConverter.validate(parsedNode);
-    final RelRootPlus root = newConverter.toConvertibleRelRoot(validatedNode, true);
+    if (path != null && sqlConverter.getSubstitutionProvider().isDefaultRawReflectionEnabled()) {
+      final RelRootPlus unflattenedRoot = newConverter.toConvertibleRelRoot(validatedNode, true, false);
+      ExpansionNode expansionNode = (ExpansionNode) wrapExpansionNode(
+        sqlConverter,
+        batchSchema,
+        path,
+        unflattenedRoot.rel,
+        unflattenedRoot.validatedRowType,
+        unflattenedRoot.isContextSensitive() || ExpansionNode.isContextSensitive(unflattenedRoot.rel));
+      if (expansionNode.isDefault()) {
+        return new RelRoot(expansionNode, unflattenedRoot.validatedRowType, unflattenedRoot.kind, unflattenedRoot.fields, unflattenedRoot.collation);
+      }
+    }
+    final RelRootPlus root = newConverter.toConvertibleRelRoot(validatedNode, true, true);
     if(path == null) {
       return root;
     }
@@ -94,27 +111,37 @@ public class DremioSqlToRelConverter extends SqlToRelConverter {
     // expansion context sensitive even if it isn't locally.
     final boolean contextSensitive = root.isContextSensitive() || ExpansionNode.isContextSensitive(root.rel);
 
-    return new RelRoot(ExpansionNode.wrap(path, root.rel, root.validatedRowType, contextSensitive), root.validatedRowType, root.kind, root.fields, root.collation);
+    return new RelRoot(ExpansionNode.wrap(path, root.rel, root.validatedRowType, contextSensitive, false), root.validatedRowType, root.kind, root.fields, root.collation);
   }
 
-  public static RelRoot expandView(NamespaceKey path, final String viewOwner, final String queryString, final List<String> context, final SqlConverter sqlConverter) {
+  public static RelRoot expandView(NamespaceKey path, final String viewOwner, final String queryString, final List<String> context, final SqlConverter sqlConverter, final BatchSchema batchSchema) {
     ViewExpansionToken token = null;
 
     try {
       token = sqlConverter.getViewExpansionContext().reserveViewExpansionToken(viewOwner);
-      return expandViewHelper(path, viewOwner, queryString, context, sqlConverter);
+      return getExpandedRelNode(path, viewOwner, queryString, context, sqlConverter, batchSchema);
     } catch (RuntimeException e) {
       if (!(e.getCause() instanceof UserNotFoundException)) {
         throw e;
       }
 
       final String delegatedUser = sqlConverter.getViewExpansionContext().getQueryUser();
-      return expandViewHelper(path, delegatedUser, queryString, context, sqlConverter);
+      return getExpandedRelNode(path, delegatedUser, queryString, context, sqlConverter, batchSchema);
     } finally {
       if (token != null) {
         token.release();
       }
     }
+  }
+
+  private static RelNode wrapExpansionNode(SqlConverter sqlConverter, BatchSchema batchSchema, NamespaceKey path, RelNode root, RelDataType rowType, boolean contextSensitive) {
+    List<String> vdsFields = batchSchema == null ?
+      new ArrayList<>() :
+      batchSchema.getFields().stream()
+        .map(Field::getName)
+        .sorted()
+        .collect(Collectors.toList());
+    return sqlConverter.getSubstitutionProvider().wrapExpansionNode(path, root, vdsFields, rowType, contextSensitive);
   }
 
   static class NoOpExpander implements RelOptTable.ViewExpander {

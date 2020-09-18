@@ -15,33 +15,69 @@
  */
 package com.dremio.sabot.exec;
 
-import com.dremio.exec.ExecConstants;
+import static com.dremio.exec.ExecConstants.COORDINATOR_ENABLE_HEAP_MONITORING;
+import static com.dremio.exec.ExecConstants.COORDINATOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE;
+import static com.dremio.exec.ExecConstants.EXECUTOR_ENABLE_HEAP_MONITORING;
+import static com.dremio.exec.ExecConstants.EXECUTOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE;
+
+import javax.inject.Provider;
+
 import com.dremio.options.OptionChangeListener;
 import com.dremio.options.OptionManager;
+import com.dremio.options.TypeValidators.AdminBooleanValidator;
+import com.dremio.options.TypeValidators.RangeLongValidator;
+import com.dremio.service.Service;
+import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
-public class HeapMonitorManager implements AutoCloseable {
+/**
+ * Manages heap monitor thread in coordinator and executor.
+ */
+public class HeapMonitorManager implements Service {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HeapMonitorManager.class);
-  private final OptionManager optionManager;
-  private final FragmentExecutors fragmentExecutors;
-  private final QueriesClerk queriesClerk;
+  private final Provider<OptionManager> optionManagerProvider;
+  private final HeapClawBackStrategy heapClawBackStrategy;
   private HeapMonitorThread heapMonitorThread;
+  private AdminBooleanValidator enableHeapMonitoringOption;
+  private RangeLongValidator clawBackThresholdOption;
+  private Role role;
 
-  public HeapMonitorManager(OptionManager optionManager, FragmentExecutors fragmentExecutors, QueriesClerk queriesClerk) {
-    this.optionManager = optionManager;
-    this.fragmentExecutors = fragmentExecutors;
-    this.queriesClerk = queriesClerk;
-    startHeapMonitorThread(optionManager.getOption(ExecConstants.ENABLE_HEAP_MONITORING),
-                           optionManager.getOption(ExecConstants.HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE));
+  public HeapMonitorManager(Provider<OptionManager> optionManagerProvider,
+                            HeapClawBackStrategy heapClawBackStrategy,
+                            Role role) {
+    Preconditions.checkNotNull(optionManagerProvider);
+    Preconditions.checkNotNull(heapClawBackStrategy);
+    this.optionManagerProvider = optionManagerProvider;
+    this.heapClawBackStrategy = heapClawBackStrategy;
+    this.role = role;
+
+    switch(role) {
+      case COORDINATOR:
+        this.enableHeapMonitoringOption = COORDINATOR_ENABLE_HEAP_MONITORING;
+        this.clawBackThresholdOption = COORDINATOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE;
+        break;
+      case EXECUTOR:
+        this.enableHeapMonitoringOption = EXECUTOR_ENABLE_HEAP_MONITORING;
+        this.clawBackThresholdOption = EXECUTOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE;
+        break;
+      default:
+        throw new UnsupportedOperationException("Heap monitor manager cannot be configured for provided role:" + role.name());
+    }
+  }
+
+  public void start() {
+    OptionManager optionManager = optionManagerProvider.get();
+    startHeapMonitorThread(optionManager.getOption(enableHeapMonitoringOption),
+                           optionManager.getOption(clawBackThresholdOption));
     optionManager.addOptionChangeListener(new HeapOptionChangeListener(optionManager));
   }
 
   // Start heap monitor thread, if heap monitoring is enabled
   private void startHeapMonitorThread(boolean enableHeapMonitoring, long thresholdPercentage) {
     if (enableHeapMonitoring) {
-      logger.info("Starting heap monitor thread...");
-      HeapClawBackStrategy strategy = new FailGreediestQueriesStrategy(fragmentExecutors, queriesClerk);
-      heapMonitorThread = new HeapMonitorThread(strategy, thresholdPercentage);
+      logger.info("Starting heap monitor thread in " + role.name().toLowerCase());
+      heapMonitorThread = new HeapMonitorThread(heapClawBackStrategy, thresholdPercentage, role);
       heapMonitorThread.start();
     }
   }
@@ -58,14 +94,14 @@ public class HeapMonitorManager implements AutoCloseable {
 
     public HeapOptionChangeListener(OptionManager optionManager) {
       this.optionManager = optionManager;
-      this.enableHeapMonitoring = optionManager.getOption(ExecConstants.ENABLE_HEAP_MONITORING);
-      this.thresholdPercentage = optionManager.getOption(ExecConstants.HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE);
+      this.enableHeapMonitoring = optionManager.getOption(enableHeapMonitoringOption);
+      this.thresholdPercentage = optionManager.getOption(clawBackThresholdOption);
     }
 
     @Override
     public synchronized void onChange() {
-      boolean newEnableHeapMonitoring = optionManager.getOption(ExecConstants.ENABLE_HEAP_MONITORING);
-      long newThresholdPercentage = optionManager.getOption(ExecConstants.HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE);
+      boolean newEnableHeapMonitoring = optionManager.getOption(enableHeapMonitoringOption);
+      long newThresholdPercentage = optionManager.getOption(clawBackThresholdOption);
       if (newEnableHeapMonitoring != enableHeapMonitoring ||
         newThresholdPercentage != thresholdPercentage) {
         logger.info("Heap monitor options changed.");

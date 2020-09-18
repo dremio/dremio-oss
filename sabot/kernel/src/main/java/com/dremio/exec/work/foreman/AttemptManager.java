@@ -118,6 +118,9 @@ public class AttemptManager implements Runnable {
   @VisibleForTesting
   public static final String INJECTOR_METADATA_RETRIEVAL_PAUSE = "metadata-retrieval-pause";
 
+  @VisibleForTesting
+  public static final String INJECTOR_DURING_PLANNING_PAUSE = "during-planning-pause";
+
   private final AttemptId attemptId;
   private final QueryId queryId;
   private final String queryIdString;
@@ -286,6 +289,9 @@ public class AttemptManager implements Runnable {
     // Note this can be called from outside of run() on another thread, or after run() completes
     this.clientCancelled = clientCancelled;
     profileTracker.setCancelReason(reason);
+    // Set the cancelFlag, so that query in planning phase will be canceled
+    // by super.checkCancel() in DremioVolcanoPlanner and DremioHepPlanner
+    queryContext.getPlannerSettings().cancelPlanning(reason);
     addToEventQueue(QueryState.CANCELED, null);
   }
 
@@ -687,9 +693,12 @@ public class AttemptManager implements Runnable {
         case CANCELED: {
           assert exception == null;
           recordNewState(QueryState.CANCELED);
-          maestroService.cancelQuery(queryId);
-          foremanResult.setCompleted(QueryState.CANCELED);
-          foremanResult.close();
+          try {
+            maestroService.cancelQuery(queryId);
+          } finally {
+            foremanResult.setCompleted(QueryState.CANCELED);
+            foremanResult.close();
+          }
           return;
         }
         }
@@ -706,8 +715,11 @@ public class AttemptManager implements Runnable {
           case CANCELED: {
             assert exception == null;
             recordNewState(QueryState.CANCELED);
-            maestroService.cancelQuery(queryId);
-            foremanResult.setCompleted(QueryState.CANCELED);
+            try {
+              maestroService.cancelQuery(queryId);
+            } finally {
+              foremanResult.setCompleted(QueryState.CANCELED);
+            }
           /*
            * We don't close the foremanResult until we've gotten
            * acknowledgements, which happens below in the case for current state
@@ -727,9 +739,12 @@ public class AttemptManager implements Runnable {
           case FAILED: {
             assert exception != null;
             recordNewState(QueryState.FAILED);
-            maestroService.cancelQuery(queryId);
-            foremanResult.setFailed(exception);
-            foremanResult.close();
+            try {
+              maestroService.cancelQuery(queryId);
+            } finally {
+              foremanResult.setFailed(exception);
+              foremanResult.close();
+            }
             return;
           }
 

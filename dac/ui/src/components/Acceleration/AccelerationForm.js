@@ -184,7 +184,7 @@ export class AccelerationForm extends Component {
         }
 
         this.setState({waitingForRecommendations: false});
-        this.updateInitialValues();
+        this.updateInitialValues(['aggregationReflections', 'columnsDimensions', 'columnsMeasures']);
       });
     }, error => {
       if (this.unmounted) return;
@@ -198,13 +198,21 @@ export class AccelerationForm extends Component {
     this.setState({waitingForRecommendations: false});
   };
 
-  updateInitialValues() {
+  updateInitialValues(fieldsToUpdate) {
     // let the redux update run so that this.props.values gets updated
     setTimeout(() => {
       //this.props.initializeForm(this.initialValues, true);
-      this.initialValues = {...this.props.values};
-      this.props.updateFormDirtyState(false);
-      this.setState({formIsDirty: false});
+      let isFormDirty = false;
+      if (fieldsToUpdate && fieldsToUpdate.length) {
+        fieldsToUpdate.forEach(field => {
+          this.initialValues[field] = this.props.values[field];
+        });
+        isFormDirty = !deepEqual(this.props.values, this.initialValues);
+      } else {
+        this.initialValues = {...this.props.values};
+      }
+      this.props.updateFormDirtyState(isFormDirty);
+      this.setState({formIsDirty: isFormDirty});
     }, 0);
   }
 
@@ -558,13 +566,13 @@ export class AccelerationForm extends Component {
 
   render() {
     const { handleSubmit, onCancel, isModal = true } = this.props;
-    const { formIsDirty } = this.state;
+    const { formIsDirty, waitingForRecommendations } = this.state;
     const modalFormStyle = isModal ? {} : styles.noModalForm;
     const confirmStyle = isModal ? {} : styles.noModalConfirmCancel;
     const cancelText = isModal ? la('Cancel') : la('Revert');
     const onCancelClick = isModal ? onCancel : this.resetForm;
-    const canSubmit = isModal ? true : formIsDirty;
-    const canCancel = isModal ? true : formIsDirty;
+    const canSubmit = isModal ? true : formIsDirty && !waitingForRecommendations;
+    const canCancel = isModal ? true : formIsDirty && !waitingForRecommendations;
 
     return (
       <div style={styles.base}>

@@ -24,21 +24,26 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.calcite.plan.RelOptCost;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.rel.RelShuttleImpl;
 import org.apache.calcite.rel.core.TableScan;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParserPos;
 import org.apache.calcite.tools.ValidationException;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.planner.StatelessRelShuttleImpl;
+import com.dremio.exec.planner.acceleration.ExpansionNode;
 import com.dremio.exec.planner.common.ContainerRel;
 import com.dremio.exec.planner.fragment.PlanningSet;
 import com.dremio.exec.planner.sql.handlers.SqlHandlerUtil;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.exec.tablefunctions.ExternalQueryRelBase;
 import com.dremio.exec.tablefunctions.ExternalQueryScanDrel;
 import com.dremio.service.job.proto.JoinInfo;
 import com.dremio.service.job.proto.ParentDatasetInfo;
@@ -58,11 +63,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -209,6 +212,7 @@ public class QueryMetadata {
     private RelNode logicalBefore;
     private RelNode logicalAfter;
     private RelNode prejoin;
+    private RelNode expanded;
     private SqlNode sql;
     private RelOptCost cost;
     private PlanningSet planningSet;
@@ -252,6 +256,11 @@ public class QueryMetadata {
       return this;
     }
 
+    public Builder addExpandedPlan(RelNode rel) {
+      this.expanded = rel;
+      return this;
+    }
+
     public Builder addParsedSql(SqlNode sql) {
       this.sql = sql;
       return this;
@@ -278,25 +287,39 @@ public class QueryMetadata {
     public QueryMetadata build() throws ValidationException {
       Preconditions.checkNotNull(rowType, "The validated row type must be observed before reporting metadata.");
 
-      List<SqlIdentifier> ancestors = null;
-      if (sql != null) {
-        ancestors = Lists.newArrayList(
-            Iterables.filter(
-                AncestorsVisitor.extractAncestors(sql),
-                new Predicate<SqlIdentifier>() {
-                  @Override
-                  public boolean apply(SqlIdentifier input) {
-                    return !RESERVED_PARENT_NAMES.contains(input.toString());
-                  }
-                }
-            )
-        );
+      final List<SqlIdentifier> ancestors = new ArrayList<>();
+      if (expanded != null) {
+        expanded.accept(new RelShuttleImpl() {
+          @Override
+          public RelNode visit(RelNode other) {
+            List<String> path = null;
+            if (other instanceof ExpansionNode) {
+              path = ((ExpansionNode) other).getPath().getPathComponents();
+            } else if (other instanceof ExternalQueryRelBase) {
+              path = ((ExternalQueryRelBase) other).getPath().getPathComponents();
+            }
+            if (path != null) {
+              ancestors.add(new SqlIdentifier(path, SqlParserPos.ZERO));
+              return other;
+            }
+            return super.visit(other);
+          }
+
+          @Override
+          public RelNode visit(TableScan scan) {
+            ancestors.add(new SqlIdentifier(scan.getTable().getQualifiedName(), SqlParserPos.ZERO));
+            return scan;
+          }
+        });
+      } else if (sql != null) {
+        ancestors.addAll(AncestorsVisitor.extractAncestors(sql).stream()
+          .filter(input -> !RESERVED_PARENT_NAMES.contains(input.toString())).collect(Collectors.toList()));
       }
 
       List<FieldOrigin> fieldOrigins = null;
-      if (logicalBefore != null && rowType != null) {
+      if (expanded != null && rowType != null) {
         try {
-          fieldOrigins = ImmutableList.copyOf(FieldOriginExtractor.getFieldOrigins(logicalBefore, rowType));
+          fieldOrigins = ImmutableList.copyOf(FieldOriginExtractor.getFieldOrigins(expanded, rowType));
         } catch (Exception e) {
           // If we fail to extract the column origins, don't fail the query
           logger.debug("Failed to extract column origins for query: " + sql);
@@ -307,7 +330,6 @@ public class QueryMetadata {
       SqlHandlerUtil.validateRowType(true, Lists.<String>newArrayList(), rowType);
 
       List<ScanPath> scanPaths = null;
-      //List<String> sourceNames = null;
       if (logicalAfter != null) {
         scanPaths = FluentIterable.from(getScans(logicalAfter))
           .transform(new Function<List<String>, ScanPath>() {
@@ -543,7 +565,7 @@ public class QueryMetadata {
                                                                   Set<String> sources) {
     for (ParentDataset parentDataset : parentDatasets) {
       final List<String> pathList = parentDataset.getDatasetPathList();
-      if (pathList.get(1).equalsIgnoreCase("external_query")) {
+      if (pathList.size() > 1 && pathList.get(1).equalsIgnoreCase("external_query")) {
         sources.add(pathList.get(0));
       }
     }

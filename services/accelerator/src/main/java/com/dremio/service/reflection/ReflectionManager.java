@@ -142,17 +142,18 @@ public class ReflectionManager implements Runnable {
   private final Path accelerationBasePath;
   private final BufferAllocator allocator;
   private final ReflectionGoalChecker reflectionGoalChecker;
+  private RefreshStartHandler refreshStartHandler;
 
   private volatile EntryCounts lastStats = new EntryCounts();
   private long lastWakeupTime;
 
-  ReflectionManager(SabotContext sabotContext, JobsService jobsService, NamespaceService namespaceService, OptionManager optionManager,
-                    ReflectionGoalsStore userStore, ReflectionEntriesStore reflectionStore,
+  ReflectionManager(SabotContext sabotContext, JobsService jobsService, NamespaceService namespaceService,
+                    OptionManager optionManager, ReflectionGoalsStore userStore, ReflectionEntriesStore reflectionStore,
                     ExternalReflectionStore externalReflectionStore, MaterializationStore materializationStore,
-                    DependencyManager dependencyManager,
-                    DescriptorCache descriptorCache, Set<ReflectionId> reflectionsToUpdate,
-                    WakeUpCallback wakeUpCallback, Supplier<ExpansionHelper> expansionHelper, BufferAllocator allocator,
-                    Path accelerationBasePath, ReflectionGoalChecker reflectionGoalChecker) {
+                    DependencyManager dependencyManager, DescriptorCache descriptorCache,
+                    Set<ReflectionId> reflectionsToUpdate, WakeUpCallback wakeUpCallback,
+                    Supplier<ExpansionHelper> expansionHelper, BufferAllocator allocator, Path accelerationBasePath,
+                    ReflectionGoalChecker reflectionGoalChecker, RefreshStartHandler refreshStartHandler) {
     this.sabotContext = Preconditions.checkNotNull(sabotContext, "sabotContext required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobsService required");
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespaceService required");
@@ -169,6 +170,7 @@ public class ReflectionManager implements Runnable {
     this.allocator = Preconditions.checkNotNull(allocator, "allocator required");
     this.accelerationBasePath = Preconditions.checkNotNull(accelerationBasePath);
     this.reflectionGoalChecker = Preconditions.checkNotNull(reflectionGoalChecker);
+    this.refreshStartHandler = Preconditions.checkNotNull(refreshStartHandler);
     Metrics.newGauge(Metrics.join("reflections", "unknown"), () -> ReflectionManager.this.lastStats.unknown);
     Metrics.newGauge(Metrics.join("reflections", "failed"), () -> ReflectionManager.this.lastStats.failed);
     Metrics.newGauge(Metrics.join("reflections", "active"), () -> ReflectionManager.this.lastStats.active);
@@ -179,27 +181,33 @@ public class ReflectionManager implements Runnable {
   public void run() {
     try (WarningTimer timer = new WarningTimer("Reflection Manager", TimeUnit.SECONDS.toMillis(5))) {
       logger.trace("running the reflection manager");
-      final long previousLastWakeupTime = lastWakeupTime - WAKEUP_OVERLAP_MS;
-      // updating the store's lastWakeupTime here. This ensures that if we're failing we don't do a denial of service attack
-      // this assumes we properly handle exceptions for each goal/entry independently and we don't exit the loop before we
-      // go through all entities otherwise we may "skip" handling some entities in case of failures
-      lastWakeupTime = System.currentTimeMillis();
-      final long deletionGracePeriod = optionManager.getOption(REFLECTION_DELETION_GRACE_PERIOD) * 1000;
-      final long deletionThreshold = System.currentTimeMillis() - deletionGracePeriod;
-      final int numEntriesToDelete = (int) optionManager.getOption(REFLECTION_DELETION_NUM_ENTRIES);
-
       try {
-        handleReflectionsToUpdate();
-        handleDeletedDatasets();
-        handleGoals(previousLastWakeupTime);
-        handleEntries();
-        deleteDeprecatedMaterializations(deletionThreshold, numEntriesToDelete);
-        deprecateMaterializations();
-        deleteDeprecatedGoals(deletionThreshold);
+        sync();
       } catch (Throwable e) {
         logger.error("Reflection manager failed", e);
       }
     }
+  }
+
+  @VisibleForTesting
+  void sync(){
+    long lastWakeupTime = System.currentTimeMillis();
+    final long previousLastWakeupTime = lastWakeupTime - WAKEUP_OVERLAP_MS;
+    // updating the store's lastWakeupTime here. This ensures that if we're failing we don't do a denial of service attack
+    // this assumes we properly handle exceptions for each goal/entry independently and we don't exit the loop before we
+    // go through all entities otherwise we may "skip" handling some entities in case of failures
+    final long deletionGracePeriod = optionManager.getOption(REFLECTION_DELETION_GRACE_PERIOD) * 1000;
+    final long deletionThreshold = System.currentTimeMillis() - deletionGracePeriod;
+    final int numEntriesToDelete = (int) optionManager.getOption(REFLECTION_DELETION_NUM_ENTRIES);
+
+    handleReflectionsToUpdate();
+    handleDeletedDatasets();
+    handleGoals(previousLastWakeupTime);
+    handleEntries();
+    deleteDeprecatedMaterializations(deletionThreshold, numEntriesToDelete);
+    deprecateMaterializations();
+    deleteDeprecatedGoals(deletionThreshold);
+    this.lastWakeupTime = lastWakeupTime;
   }
 
   /**
@@ -500,12 +508,7 @@ public class ReflectionManager implements Runnable {
       return; //no changes, do nothing
     } else if(reflectionGoalChecker.checkHash(goal, entry)){
       // Check if entries need to update meta data that is not used in the materialization
-
-      reflectionStore.save(
-        entry
-          .setArrowCachingEnabled(goal.getArrowCachingEnabled())
-          .setGoalVersion(goal.getTag())
-      );
+      updateThatHasChangedEntry(goal, entry);
 
       for (Materialization materialization : materializationStore.find(entry.getId())) {
         if (!Objects.equals(materialization.getArrowCachingEnabled(), goal.getArrowCachingEnabled())) {
@@ -528,6 +531,20 @@ public class ReflectionManager implements Runnable {
         .setReflectionGoalHash(reflectionGoalChecker.calculateReflectionGoalVersion(goal));
       reflectionStore.save(entry);
     }
+  }
+
+  private void updateThatHasChangedEntry(ReflectionGoal reflectionGoal, ReflectionEntry reflectionEntry) {
+    boolean shouldBeUnstuck =
+      reflectionGoal.getState() == ReflectionGoalState.ENABLED && reflectionEntry.getState() == FAILED;
+
+    reflectionStore.save(
+      reflectionEntry
+        .setArrowCachingEnabled(reflectionGoal.getArrowCachingEnabled())
+        .setGoalVersion(reflectionGoal.getTag())
+        .setName(reflectionGoal.getName())
+        .setState(shouldBeUnstuck ? UPDATE : reflectionEntry.getState())
+        .setNumFailures(shouldBeUnstuck ? 0 : reflectionEntry.getNumFailures())
+    );
   }
 
   private void deleteReflection(ReflectionEntry entry) {
@@ -888,7 +905,7 @@ public class ReflectionManager implements Runnable {
     }
 
     try {
-      final JobId refreshJobId = createStartHandler(entry).startJob(jobSubmissionTime);
+      final JobId refreshJobId = refreshStartHandler.startJob(entry, jobSubmissionTime);
 
       entry.setState(REFRESHING)
         .setRefreshJobId(refreshJobId);
@@ -932,10 +949,6 @@ public class ReflectionManager implements Runnable {
     }
   }
 
-  private RefreshStartHandler createStartHandler(ReflectionEntry entry) {
-    return new RefreshStartHandler(entry, namespaceService, jobsService, materializationStore, wakeUpCallback);
-  }
-
   private ReflectionEntry create(ReflectionGoal goal) {
     logger.debug("creating new reflection {}", goal.getId().getId());
     //We currently store meta data in the Reflection Entry that possibly should not be there such as boost
@@ -950,4 +963,7 @@ public class ReflectionManager implements Runnable {
       .setArrowCachingEnabled(goal.getArrowCachingEnabled());
   }
 
+  public long getLastWakeupTime() {
+    return lastWakeupTime;
+  }
 }

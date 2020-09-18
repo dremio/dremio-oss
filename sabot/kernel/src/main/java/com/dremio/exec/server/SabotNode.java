@@ -100,6 +100,8 @@ import com.dremio.security.CredentialsService;
 import com.dremio.service.BindingCreator;
 import com.dremio.service.BindingProvider;
 import com.dremio.service.SingletonRegistry;
+import com.dremio.service.catalog.InformationSchemaServiceGrpc;
+import com.dremio.service.catalog.InformationSchemaServiceGrpc.InformationSchemaServiceBlockingStub;
 import com.dremio.service.commandpool.CommandPool;
 import com.dremio.service.commandpool.CommandPoolFactory;
 import com.dremio.service.conduit.client.ConduitProvider;
@@ -136,10 +138,12 @@ import com.dremio.service.spill.SpillServiceImpl;
 import com.dremio.service.users.UserService;
 import com.dremio.services.fabric.FabricServiceImpl;
 import com.dremio.services.fabric.api.FabricService;
+import com.dremio.telemetry.utils.GrpcTracerFacade;
 import com.dremio.telemetry.utils.TracerFacade;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.Maps;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -411,7 +415,7 @@ public class SabotNode implements AutoCloseable {
       this.clusterCoordinator = clusterCoordinator;
       this.allRoles = allRoles;
       this.defaultRequestContext = RequestContext.empty()
-          .with(TenantContext.CTX_KEY, new TenantContext(TenantContext.DEFAULT_PRODUCT_TENANT_ID))
+          .with(TenantContext.CTX_KEY, TenantContext.DEFAULT_SERVICE_CONTEXT)
           .with(UserContext.CTX_KEY, new UserContext(SYSTEM_USERNAME));
       this.bootstrap = bootstrap;
     }
@@ -436,7 +440,8 @@ public class SabotNode implements AutoCloseable {
         bind(MaterializationDescriptorProvider.class).toInstance(MaterializationDescriptorProvider.EMPTY);
         bind(QueryObserverFactory.class).toInstance(QueryObserverFactory.DEFAULT);
         bind(GrpcChannelBuilderFactory.class).toInstance(
-          new SingleTenantGrpcChannelBuilderFactory(TracerFacade.INSTANCE, defaultRequestContext));
+          new SingleTenantGrpcChannelBuilderFactory(TracerFacade.INSTANCE, defaultRequestContext,
+            () -> Maps.newHashMap() ));
 
         GrpcServerBuilderFactory gRpcServerBuilderFactory =
           new MultiTenantGrpcServerBuilderFactory(TracerFacade.INSTANCE);
@@ -515,8 +520,10 @@ public class SabotNode implements AutoCloseable {
 
         bind(ConduitServer.class).toInstance(new ConduitServer(getProvider(ConduitServiceRegistry.class), 0,
           Optional.empty()));
-        bind(ConduitProvider.class)
-            .toInstance(new ConduitProviderImpl(getProvider(NodeEndpoint.class), Optional.empty()));
+        final ConduitProvider conduitProvider = new ConduitProviderImpl(
+          getProvider(NodeEndpoint.class), Optional.empty()
+        );
+        bind(ConduitProvider.class).toInstance(conduitProvider);
 
         final CoordExecService coordExecService = new CoordExecService(
                 bootstrap.getConfig(),
@@ -559,7 +566,8 @@ public class SabotNode implements AutoCloseable {
 
         bind(LocalJobTelemetryServer.class).toInstance(new LocalJobTelemetryServer(
           gRpcServerBuilderFactory, getProvider(LegacyKVStoreProvider.class),
-          getProvider(NodeEndpoint.class)));
+          getProvider(NodeEndpoint.class),
+          new GrpcTracerFacade(TracerFacade.INSTANCE)));
 
         bind(MaestroForwarder.class).toInstance(new NoOpMaestroForwarder());
       } catch (Exception e) {
@@ -635,6 +643,7 @@ public class SabotNode implements AutoCloseable {
             Provider<UserService> userService,
             Provider<CatalogService> catalogService,
             Provider<ConduitProvider> conduitProvider,
+            Provider<InformationSchemaServiceBlockingStub> informationSchemaStub,
             Provider<SpillService> spillService,
             Provider<ConnectionReader> connectionReader,
             Provider<OptionManager> optionManagerProvider,
@@ -659,6 +668,7 @@ public class SabotNode implements AutoCloseable {
               userService,
               catalogService,
               conduitProvider,
+              informationSchemaStub,
               Providers.of(null),
               spillService,
               connectionReader,
@@ -880,6 +890,11 @@ public class SabotNode implements AutoCloseable {
     @Singleton
     LegacyKVStoreProvider getLegacyKVStoreProvider(KVStoreProvider kvStoreProvider) {
       return new LegacyKVStoreProviderAdapter(kvStoreProvider);
+    }
+
+    @Provides
+    InformationSchemaServiceBlockingStub getInformationSchemaServiceBlockingStub(ConduitProvider conduitProvider) {
+      return InformationSchemaServiceGrpc.newBlockingStub(conduitProvider.getOrCreateChannelToMaster());
     }
   }
 }

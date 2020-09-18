@@ -47,4 +47,9 @@ public class AsyncHttpClientProviderTest {
         assertEquals(1, objectIdentities.size()); // same object returned every time
         ex.shutdownNow();
     }
+
+    @Test
+    public void testEncodeUrlWithSpaces() {
+        assertEquals("dir%20with%20spaces%2Fexample.parquet", AzureAsyncHttpClientUtils.encodeUrl("dir with spaces/example.parquet"));
+    }
 }

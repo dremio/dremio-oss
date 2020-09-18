@@ -71,7 +71,7 @@ export default class FinderNav extends Component {
               onClick={this.onToggleClick}
             />
           )}
-          {listHref ? <Link className='pointer' to={listHref}>{title} »</Link> : title }
+          {listHref ? <Link className='pointer' to={listHref}>{title} ({navItems.size}) »</Link> : `${title} (${navItems.size})` }
           {addHref && (
             <Link
               className='pull-right'

@@ -25,6 +25,8 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
+import java.util.Set;
+import java.util.function.BiConsumer;
 
 import org.junit.Test;
 
@@ -32,12 +34,16 @@ import com.dremio.common.config.LogicalPlanPersistence;
 import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
 import com.dremio.exec.ExecConstants;
+import com.dremio.exec.proto.UserBitShared.QueryResult.QueryState;
 import com.dremio.exec.server.options.OptionValidatorListingImpl;
 import com.dremio.exec.server.options.SystemOptionManager;
 import com.dremio.options.OptionManager;
 import com.dremio.options.OptionValidatorListing;
 import com.dremio.options.OptionValue;
 import com.dremio.options.OptionValueProtoList;
+import com.dremio.options.TypeValidators.AdminBooleanValidator;
+import com.dremio.options.TypeValidators.RangeLongValidator;
+import com.dremio.service.coordinator.ClusterCoordinator.Role;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class TestHeapMonitorManager {
@@ -68,26 +74,50 @@ public class TestHeapMonitorManager {
   }
 
   @Test
-  public void testHeapMonitorEnabledDisabled() throws Exception {
-    OptionManager som = setupSystemOptionManager();
+  public void testCoordinatorHeapMonitorEnabledDisabled() throws Exception {
+    BiConsumer<Set<QueryState>, String> noOpCancelConsumer = (queryStates, cancelReason) -> {};
+    HeapClawBackStrategy heapClawBackStrategy = new CoordinatorHeapClawBackStrategy(noOpCancelConsumer);
+    testHeapMonitorEnabledDisabled(heapClawBackStrategy,
+                                   ExecConstants.COORDINATOR_ENABLE_HEAP_MONITORING,
+                                   ExecConstants.COORDINATOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE,
+                                   Role.COORDINATOR);
+  }
+
+  @Test
+  public void testExecutorHeapMonitorEnabledDisabled() throws Exception {
     FragmentExecutors fragmentExecutors = mock(FragmentExecutors.class);
     QueriesClerk queriesClerk = mock(QueriesClerk.class);
+    HeapClawBackStrategy heapClawBackStrategy = new FailGreediestQueriesStrategy(fragmentExecutors, queriesClerk);
+    testHeapMonitorEnabledDisabled(heapClawBackStrategy,
+                                   ExecConstants.EXECUTOR_ENABLE_HEAP_MONITORING,
+                                   ExecConstants.EXECUTOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE,
+                                   Role.EXECUTOR);
+  }
+
+  private void testHeapMonitorEnabledDisabled(HeapClawBackStrategy heapClawBackStrategy,
+                                              AdminBooleanValidator enableHeapMonitoring,
+                                              RangeLongValidator clawbackThreshPercentage,
+                                              Role role) throws Exception {
+    OptionManager som = setupSystemOptionManager();
 
     // First enable heap monitoring and verify heapMonitoringThread is running.
-    doReturn(true).when(som).getOption(ExecConstants.ENABLE_HEAP_MONITORING);
-    doReturn(85L).when(som).getOption(ExecConstants.HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE);
-    HeapMonitorManager heapMonitorManager = new HeapMonitorManager(som, fragmentExecutors, queriesClerk);
+    doReturn(true).when(som).getOption(enableHeapMonitoring);
+    doReturn(85L).when(som).getOption(clawbackThreshPercentage);
+    HeapMonitorManager heapMonitorManager = new HeapMonitorManager(() -> som,
+                                                                   heapClawBackStrategy,
+                                                                   role);
+    heapMonitorManager.start();
     assertTrue("Heap monitor should be running.", heapMonitorManager.isHeapMonitorThreadRunning());
 
     // Disable heap monitoring and verify that heapMonitoringThread is NOT running.
-    doReturn(false).when(som).getOption(ExecConstants.ENABLE_HEAP_MONITORING);
+    doReturn(false).when(som).getOption(enableHeapMonitoring);
     // DeleteAllOptions is just to simulate change in option,
     // so that HeapMonitorManager.HeapOptionChangeListener.onChange() is triggered
     som.deleteAllOptions(OptionValue.OptionType.SYSTEM);
     assertTrue("Heap monitor should not be running.", !heapMonitorManager.isHeapMonitorThreadRunning());
 
     // Enable back heap monitoring and verify that heapMonitoringThread is running.
-    doReturn(true).when(som).getOption(ExecConstants.ENABLE_HEAP_MONITORING);
+    doReturn(true).when(som).getOption(enableHeapMonitoring);
     // DeleteAllOptions is just to simulate change in option,
     // so that HeapMonitorManager.HeapOptionChangeListener.onChange() is triggered
     som.deleteAllOptions(OptionValue.OptionType.SYSTEM);

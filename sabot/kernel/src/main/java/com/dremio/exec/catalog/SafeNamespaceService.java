@@ -160,6 +160,11 @@ class SafeNamespaceService implements NamespaceService {
   }
 
   @Override
+  public boolean hasChildren(NamespaceKey key) {
+    return runner.doSafe(() -> delegate.hasChildren(key));
+  }
+
+  @Override
   public boolean exists(NamespaceKey arg0, Type arg1) {
     return runner.doSafe(() -> delegate.exists(arg0, arg1));
   }

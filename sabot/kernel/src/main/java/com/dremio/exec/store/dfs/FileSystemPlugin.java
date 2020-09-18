@@ -147,6 +147,7 @@ import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -360,15 +361,14 @@ public class FileSystemPlugin<C extends FileSystemConf<C, ?>> implements Storage
     if (systemUserFS == null) {
       return SourceState.NOT_AVAILABLE;
     }
-    if (!systemUserFS.isPdfs()) {
-      try {
-        systemUserFS.list(config.getPath());
-        return SourceState.GOOD;
-      } catch (Exception e) {
-        return SourceState.badState(e);
-      }
-    } else {
+    if (systemUserFS.isPdfs() || ClassPathFileSystem.SCHEME.equals(systemUserFS.getUri().getScheme())) {
       return SourceState.GOOD;
+    }
+    try {
+      systemUserFS.access(config.getPath(), ImmutableSet.of(AccessMode.READ));
+      return SourceState.GOOD;
+    } catch (Exception e) {
+      return SourceState.badState("", e);
     }
   }
 

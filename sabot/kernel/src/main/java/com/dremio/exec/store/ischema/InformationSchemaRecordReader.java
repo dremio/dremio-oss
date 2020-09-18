@@ -193,7 +193,7 @@ public class InformationSchemaRecordReader extends AbstractRecordReader {
               //If an inconsistency is detected don't attempt converting to Arrow format since it will cause an assertion failure.  Put out a warning and move on to next row.
               if (bs.getFieldCount() == 0) {
                 // Add a warning message to indicate this table has missing fields
-                logger.warn(" {}.{}.{} has missing fields or incorrect format. ", currentSchema.getCatalogName(), currentSchema.getSchemaName(), currentSchema.getTableName());
+                logger.warn("{}.{}.{} has missing fields or incorrect format. ", currentSchema.getCatalogName(), currentSchema.getSchemaName(), currentSchema.getTableName());
                 continue;
               }
               final RelDataType rowType =

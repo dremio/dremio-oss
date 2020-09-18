@@ -117,7 +117,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
   private final CatalogServiceMonitor monitor;
   private final NamespaceService systemUserNamespaceService;
 
-  private volatile SourceConfig sourceConfig;
+  protected volatile SourceConfig sourceConfig;
   private volatile StoragePlugin plugin;
   private volatile MetadataPolicy metadataPolicy;
   private volatile StoragePluginId pluginId;
@@ -143,7 +143,8 @@ public class ManagedStoragePlugin implements AutoCloseable {
       OptionManager options,
       ConnectionReader reader,
       CatalogServiceMonitor monitor,
-      Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider) {
+      Provider<MetadataRefreshInfoBroadcaster> broadcasterProvider
+  ) {
     this.rwlock = new ReentrantReadWriteLock(true);
     this.executor = executor;
     this.readLock = rwlock.readLock();
@@ -156,8 +157,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
     this.conf = reader.getConnectionConf(sourceConfig);
     this.plugin = conf.newPlugin(context, sourceConfig.getName(), this::getId);
     this.metadataPolicy = sourceConfig.getMetadataPolicy() == null ? CatalogService.NEVER_REFRESH_POLICY : sourceConfig.getMetadataPolicy();
-    final Provider<Long> authTtlProvider = () -> ManagedStoragePlugin.this.metadataPolicy.getAuthTtlMs();
-    this.permissionsCache = new PermissionCheckCache(() -> plugin, authTtlProvider, 2500);
+    this.permissionsCache = new PermissionCheckCache(this::getPlugin, () -> getMetadataPolicy().getAuthTtlMs(), 2500);
     this.options = options;
     this.reader = reader;
     this.monitor = monitor;
@@ -175,7 +175,19 @@ public class ManagedStoragePlugin implements AutoCloseable {
         broadcasterProvider);
   }
 
-  private AutoCloseableLock readLock() {
+  protected PermissionCheckCache getPermissionsCache() {
+    return permissionsCache;
+  }
+
+  protected StoragePlugin getPlugin() {
+    return plugin;
+  }
+
+  protected MetadataPolicy getMetadataPolicy() {
+    return metadataPolicy;
+  }
+
+  protected AutoCloseableLock readLock() {
     return AutoCloseableLock.lockAndWrap(readLock, true);
   }
 
@@ -288,7 +300,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
 
       userNamespace.canSourceConfigBeSaved(config, existingConfig, attributes);
 
-      // if config can be saved we can set the oridinal
+      // if config can be saved we can set the ordinal
       config.setConfigOrdinal(existingConfig.getConfigOrdinal());
     } catch (NamespaceNotFoundException ex) {
       if (config.getTag() != null) {
@@ -377,9 +389,17 @@ public class ManagedStoragePlugin implements AutoCloseable {
       logger.debug("Source added [{}], took {} milliseconds", config.getName(), stopwatchForPlugin.elapsed(TimeUnit.MILLISECONDS));
 
     } catch (ConcurrentModificationException ex) {
-      throw UserException.concurrentModificationError(ex).message("Failure creating/updating source [%s].", config.getName()).build(logger);
+      throw UserException.concurrentModificationError(ex).message(
+          "Source update failed due to a concurrent update. Please try again [%s].", config.getName()).build(logger);
     } catch (Exception ex) {
-      throw UserException.validationError(ex).message("Failure creating/updating source [%s].", config.getName()).addContext(ex.getMessage()).build(logger);
+      String suggestedUserAction = getState().getSuggestedUserAction();
+      if (suggestedUserAction == null || suggestedUserAction.isEmpty()) {
+        // If no user action was suggested, fall back to a basic message.
+        suggestedUserAction = String.format("Failure creating/updating this source [%s].", config.getName());
+      }
+      throw UserException.validationError(ex)
+        .message(suggestedUserAction)
+        .build(logger);
     }
   }
 
@@ -673,7 +693,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
   /**
    * Before doing any operation associated with plugin, we should check the state of the plugin.
    */
-  private void checkState() {
+  protected void checkState() {
     try(AutoCloseableLock l = readLock()) {
       SourceState state = this.state;
       if(state.getStatus() == SourceState.SourceStatus.bad) {
@@ -727,7 +747,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
   public void checkAccess(NamespaceKey key, DatasetConfig datasetConfig, String userName, final MetadataRequestOptions options) {
     try(AutoCloseableLock l = readLock()) {
       checkState();
-      if (!permissionsCache.hasAccess(userName, key, datasetConfig, options.getStatsCollector())) {
+      if (!getPermissionsCache().hasAccess(userName, key, datasetConfig, options.getStatsCollector(), sourceConfig)) {
         throw UserException.permissionError()
           .message("Access denied reading dataset %s.", key)
           .build(logger);
@@ -909,7 +929,7 @@ public class ManagedStoragePlugin implements AutoCloseable {
       }
 
       // if we replaced the plugin successfully, clear the permission cache
-      permissionsCache.clear();
+      getPermissionsCache().clear();
 
       return existingConnectionConf.equalsIgnoringNotMetadataImpacting(newConnectionConf);
     } catch(Exception ex) {

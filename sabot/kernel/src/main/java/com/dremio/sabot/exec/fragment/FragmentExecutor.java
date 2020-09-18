@@ -22,6 +22,7 @@ import java.security.PrivilegedExceptionAction;
 import java.util.Optional;
 import java.util.Set;
 
+import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.OutOfMemoryException;
 
@@ -67,6 +68,7 @@ import com.dremio.sabot.task.Task.State;
 import com.dremio.sabot.task.TaskDescriptor;
 import com.dremio.sabot.threads.AvailabilityCallback;
 import com.dremio.sabot.threads.sharedres.ActivableResource;
+import com.dremio.sabot.threads.sharedres.SharedResource;
 import com.dremio.sabot.threads.sharedres.SharedResourceManager;
 import com.dremio.sabot.threads.sharedres.SharedResourceType;
 import com.dremio.sabot.threads.sharedres.SharedResourcesContextImpl;
@@ -77,7 +79,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.SettableFuture;
 
-import io.netty.buffer.NettyArrowBuf;
 import io.netty.util.internal.OutOfDirectMemoryError;
 
 /**
@@ -152,6 +153,8 @@ public class FragmentExecutor {
   // b. an incoming data/oob/finished msg from any upstream fragment.
   private final ActivableResource activateResource;
 
+  private final SharedResource allocatorLock;
+
   public FragmentExecutor(
       FragmentStatusReporter statusReporter,
       SabotConfig config,
@@ -203,6 +206,7 @@ public class FragmentExecutor {
     this.eventProvider = eventProvider;
     this.cancelled = SettableFuture.create();
     this.executionControls = executionControls;
+    this.allocatorLock = sharedResources.getGroup(PIPELINE_RES_GRP).createResource("frag-allocator", SharedResourceType.UNKNOWN);
   }
 
   /**
@@ -457,12 +461,14 @@ public class FragmentExecutor {
       taskState = State.DONE;
     }
 
-    workQueue.retire();
     clusterCoordinator.getServiceSet(ClusterCoordinator.Role.COORDINATOR).removeNodeStatusListener(crashListener);
 
     deferredException.suppressingClose(contextCreator);
     deferredException.suppressingClose(outputAllocator);
-    deferredException.suppressingClose(allocator);
+    synchronized (allocatorLock) {
+      workQueue.retire();
+      deferredException.suppressingClose(allocator);
+    }
     deferredException.suppressingClose(ticket);
     if (tunnelProvider != null && tunnelProvider.getCoordTunnel() != null) {
       deferredException.suppressingClose(tunnelProvider.getCoordTunnel().getTunnel());
@@ -631,28 +637,41 @@ public class FragmentExecutor {
 
     public void handle(OutOfBandMessage message) {
       requestActivate("out of band message");
-      message.retainBufferIfPresent();
-      final AutoCloseable closeable = message.getBuffer() != null ? (NettyArrowBuf) message.getBuffer() : () -> {};
-      workQueue.put(() -> {
+      synchronized (allocatorLock) {
+        if (message.getBuffer()!=null) {
+          try {
+            allocator.assertOpen(); // throws exception if allocator is closed
+            final ArrowBuf transferredBuf = message.getBuffer().getReferenceManager()
+                    .transferOwnership(message.getBuffer(), allocator).getTransferredBuffer();
+            message = new OutOfBandMessage(message.toProtoMessage(), transferredBuf);
+          } catch (Exception e) {
+            logger.error("Error while transferring OOBMessage buffer to the fragment allocator", e);
+            return; // Fragment will not be able to handle the buffer.
+          }
+        }
+
+        final AutoCloseable closeable = message.getBuffer()!=null ? message.getBuffer():() -> {};
+        final OutOfBandMessage finalMessage = message;
+        workQueue.put(() -> {
           try {
             if (!isSetup) {
-              if (message.getIsOptional()) {
+              if (finalMessage.getIsOptional()) {
                 logger.warn("Fragment {} received optional OOB message in state {} for operatorId {}. Fragment is not yet set up. Ignoring message.",
-                  this.getHandle().toString(), state.toString(), message.getOperatorId());
+                        this.getHandle().toString(), state.toString(), finalMessage.getOperatorId());
               } else {
                 logger.error("Fragment {} received OOB message in state {} for operatorId {}. Fragment is not yet set up.",
-                  this.getHandle().toString(), state.toString(), message.getOperatorId());
+                        this.getHandle().toString(), state.toString(), finalMessage.getOperatorId());
                 throw new IllegalStateException("Unable to handle OOB message");
               }
             } else {
-              pipeline.workOnOOB(message);
+              pipeline.workOnOOB(finalMessage);
             }
-          } catch(IllegalStateException e) {
-            logger.warn("Failure while handling OOB message. {}", message, e);
+          } catch (IllegalStateException e) {
+            logger.warn("Failure while handling OOB message. {}", finalMessage, e);
             throw e;
           } catch (Exception e) {
             //propagate the exception
-            logger.warn("Failure while handling OOB message. {}", message, e);
+            logger.warn("Failure while handling OOB message. {}", finalMessage, e);
             throw new IllegalStateException(e);
           } finally {
             try {
@@ -661,7 +680,8 @@ public class FragmentExecutor {
               logger.error("Error while closing OOBMessage ref", e);
             }
           }
-      }, closeable);
+        }, closeable);
+      }
     }
 
     public void activate() {

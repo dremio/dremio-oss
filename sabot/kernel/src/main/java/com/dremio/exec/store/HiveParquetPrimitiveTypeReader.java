@@ -100,8 +100,8 @@ public class HiveParquetPrimitiveTypeReader implements AutoCloseable {
     }
 
     OperatorStats stats = this.context.getStats();
-    stats.addLongStat(ScanOperator.Metric.JAVA_BUILD_TIME, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
-    stats.addLongStat(ScanOperator.Metric.GANDIVA_BUILD_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(ScanOperator.Metric.JAVA_BUILD_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(ScanOperator.Metric.GANDIVA_BUILD_TIME_NS, gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
     gandivaCodeGenWatch.reset();
     javaCodeGenWatch.reset();
   }
@@ -126,8 +126,8 @@ public class HiveParquetPrimitiveTypeReader implements AutoCloseable {
     }
 
     OperatorStats stats = this.context.getStats();
-    stats.addLongStat(ScanOperator.Metric.JAVA_EXECUTE_TIME, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
-    stats.addLongStat(ScanOperator.Metric.GANDIVA_EXECUTE_TIME, gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(ScanOperator.Metric.JAVA_EXECUTE_TIME_NS, javaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
+    stats.addLongStat(ScanOperator.Metric.GANDIVA_EXECUTE_TIME_NS, gandivaCodeGenWatch.elapsed(TimeUnit.NANOSECONDS));
     javaCodeGenWatch.reset();
     gandivaCodeGenWatch.reset();
   }

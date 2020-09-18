@@ -26,6 +26,7 @@ import static javax.ws.rs.core.MediaType.APPLICATION_JSON;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -99,6 +100,7 @@ import com.dremio.dac.resource.BaseResourceWithAllocator;
 import com.dremio.dac.server.BufferAllocatorFactory;
 import com.dremio.dac.service.datasets.DatasetVersionMutator;
 import com.dremio.dac.service.errors.ClientErrorException;
+import com.dremio.dac.service.errors.ConflictException;
 import com.dremio.dac.service.errors.DatasetNotFoundException;
 import com.dremio.dac.service.errors.DatasetVersionNotFoundException;
 import com.dremio.exec.server.SabotContext;
@@ -467,9 +469,11 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
 
   public DatasetUI save(VirtualDatasetUI vds, DatasetPath asDatasetPath, String savedTag, NamespaceAttribute... attributes)
       throws DatasetNotFoundException, UserNotFoundException, NamespaceException, DatasetVersionNotFoundException {
+    final String nameConflictErrorMsg = String.format("VDS '%s' already exists. Please enter a different name.",
+      asDatasetPath.getLeaf());
     final List<String> fullPathList = asDatasetPath.toPathList();
     if (isAncestor(vds, fullPathList)) {
-      throw new ClientErrorException("A dataset cannot have the same name as one of its ancestors.");
+      throw new ConflictException(nameConflictErrorMsg);
     }
 
     if (!datasetPath.equals(asDatasetPath)) {
@@ -503,6 +507,8 @@ public class DatasetVersionResource extends BaseResourceWithAllocator {
       vds.setPreviousVersion(rewrittenPrev);
     } catch(NamespaceNotFoundException nfe) {
       throw new ClientErrorException("Parent folder doesn't exist", nfe);
+    } catch(ConcurrentModificationException cme) {
+      throw new ConflictException(nameConflictErrorMsg, cme);
     }
 
     return newDataset(vds, null);

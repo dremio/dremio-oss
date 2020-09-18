@@ -19,6 +19,7 @@ package com.dremio.common.util;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -123,6 +124,10 @@ public final class Retryer<T> extends ExponentialBackoff {
 
     OperationFailedAfterRetriesException(Exception e) {
       super(e);
+    }
+
+    public <T extends Exception> T getWrappedCause(Class<T> clazz, Function<Throwable, T> conversionFunc) {
+      return clazz.isInstance(getCause()) ? (T)getCause() : conversionFunc.apply(getCause());
     }
   }
 }

@@ -26,6 +26,14 @@ import javax.management.ListenerNotFoundException;
 import javax.management.Notification;
 import javax.management.NotificationEmitter;
 
+import com.dremio.service.coordinator.ClusterCoordinator.Role;
+
+/**
+ * Monitors the heap space and calls clawBack() on provided HeapClawBackStrategy
+ * if heap usage crosses the configured threshold percentage.
+ *
+ * This is generic enough to be used in both coordinator and executor.
+ */
 public class HeapMonitorThread extends Thread implements AutoCloseable {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(HeapMonitorThread.class);
 
@@ -43,10 +51,10 @@ public class HeapMonitorThread extends Thread implements AutoCloseable {
 
   private boolean shutdown = false;
 
-  public HeapMonitorThread(HeapClawBackStrategy strategy, long thresholdPercentage) {
+  public HeapMonitorThread(HeapClawBackStrategy strategy, long thresholdPercentage, Role role) {
     super();
     setDaemon(true);
-    setName("heap-monitoring-thread");
+    setName("heap-monitoring-thread-"+ role.name().toLowerCase());
     this.strategy = strategy;
     this.thresholdPercentage = thresholdPercentage;
   }

@@ -81,6 +81,13 @@
 #DREMIO_GC_OPTS="-XX:+UseG1GC"
 
 #
+# Java version will be checked by default.
+# Currently only java 8 is supported by dremio.
+# This check can be disabled by changing value to false.
+#
+#DREMIO_JAVA_VERSION_CHECK="true"
+
+#
 # The scheduling priority for the server
 #
 # Default to 0

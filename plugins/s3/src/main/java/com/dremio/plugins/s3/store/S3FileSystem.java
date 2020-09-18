@@ -57,6 +57,7 @@ import com.amazonaws.SdkClientException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.Bucket;
+import com.amazonaws.services.s3.model.ListObjectsV2Request;
 import com.amazonaws.services.s3.model.Region;
 import com.dremio.aws.SharedInstanceProfileCredentialsProvider;
 import com.dremio.common.exceptions.UserException;
@@ -65,7 +66,9 @@ import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
 import com.dremio.exec.store.dfs.FileSystemConf;
 import com.dremio.io.AsyncByteReader;
+import com.dremio.plugins.util.ContainerAccessDeniedException;
 import com.dremio.plugins.util.ContainerFileSystem;
+import com.dremio.plugins.util.ContainerNotFoundException;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.FinalizablePhantomReference;
 import com.google.common.base.FinalizableReference;
@@ -316,17 +319,27 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     boolean containerFound = false;
     try {
       // getBucketLocation ensures that given user account has permissions for the bucket.
-      containerFound = s3.doesBucketExistV2(containerName) &&
-        s3.getBucketAcl(containerName).getGrantsAsList().stream()
-          .anyMatch(g -> g.getGrantee().getIdentifier().equals(s3.getS3AccountOwner().getId()));
+      if (s3.doesBucketExistV2(containerName)) {
+        // Listing one object to ascertain read permissions on the bucket.
+        final ListObjectsV2Request req = new ListObjectsV2Request()
+                .withMaxKeys(1)
+                .withRequesterPays(isRequesterPays())
+                .withEncodingType("url")
+                .withBucketName(containerName);
+        containerFound = s3.listObjectsV2(req).getBucketName().equals(containerName); // Exception if this account doesn't have access.
+      }
     } catch (AmazonS3Exception e) {
       if (e.getMessage().contains("Access Denied")) {
         // Ignorable because user doesn't have permissions. We'll omit this case.
-        logger.info("Ignoring \"" + containerName + "\" because of logged in AWS account doesn't have access rights on this bucket." + e.getMessage());
+        throw new ContainerAccessDeniedException("aws-bucket", containerName, e);
       }
-      logger.error("Error while looking up for the unknown container " + containerName, e);
+      throw new ContainerNotFoundException("Error while looking up bucket " + containerName, e);
     }
-    return containerFound ? new BucketCreator(getConf(), containerName).toContainerHolder() : null;
+    logger.debug("Unknown container '{}' found ? {}", containerName, containerFound);
+    if (!containerFound) {
+      throw new ContainerNotFoundException("Bucket " + containerName + " not found");
+    }
+    return new BucketCreator(getConf(), containerName).toContainerHolder();
   }
 
   private software.amazon.awssdk.regions.Region getAWSBucketRegion(String bucketName) throws SdkClientException {
@@ -625,7 +638,8 @@ public class S3FileSystem extends ContainerFileSystem implements MayProvideAsync
     return getConf().getBoolean(COMPATIBILITY_MODE, false);
   }
 
-  private boolean isRequesterPays() {
+  @VisibleForTesting
+  protected boolean isRequesterPays() {
     return getConf().getBoolean(ALLOW_REQUESTER_PAYS, false);
   }
 }

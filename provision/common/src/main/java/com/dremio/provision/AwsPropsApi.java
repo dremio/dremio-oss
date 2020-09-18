@@ -41,9 +41,10 @@ public interface AwsPropsApi {
 
   String getVpc();
   String getSubnetId();
-  @NotNull String getNodeIamInstanceProfile(); // role for the started ec2 instances, required
+  @NotNull @Deprecated String getNodeIamInstanceProfile(); // Deprecated, we will use the coordinator's IAM role
   String getAmiId(); // optional, used to override the default ami
   @Default default boolean getUseClusterPlacementGroup() {return true;}
+  @Default default boolean getDisablePublicIp() {return false;}
   @NotNull String getSecurityGroupId();
   @NotNull String getSshKeyName();
 

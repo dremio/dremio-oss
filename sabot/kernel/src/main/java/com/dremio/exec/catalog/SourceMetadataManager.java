@@ -363,6 +363,7 @@ class SourceMetadataManager implements AutoCloseable {
                 systemNamespace.addOrUpdateDataset(datasetKey, newConfig);
                 syncStatus.setRefreshed();
                 syncStatus.incrementShallowAdded();
+                logger.debug("Dataset '{}' added", datasetKey);
               } catch (ConcurrentModificationException ignored) {
                 // race condition
                 logger.debug("Dataset '{}' add failed (CME)", datasetKey);

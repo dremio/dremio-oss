@@ -15,6 +15,10 @@
  */
 package com.dremio.service.grpc;
 
+import java.util.Map;
+
+import javax.inject.Provider;
+
 import com.google.common.collect.Sets;
 
 import io.grpc.ClientInterceptor;
@@ -26,7 +30,7 @@ import io.opentracing.Tracer;
 public final class MultiTenantGrpcChannelBuilderFactory extends BaseGrpcChannelBuilderFactory {
   private static final ClientInterceptor mtInterceptor = new MultiTenantClientInterceptor();
 
-  public MultiTenantGrpcChannelBuilderFactory(Tracer tracer) {
-    super(tracer, Sets.newHashSet(mtInterceptor));
+  public MultiTenantGrpcChannelBuilderFactory(Tracer tracer, Provider<Map<String, Object>> defaultServiceConfigProvider) {
+    super(tracer, Sets.newHashSet(mtInterceptor), defaultServiceConfigProvider);
   }
 }

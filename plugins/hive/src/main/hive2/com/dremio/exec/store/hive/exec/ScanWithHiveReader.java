@@ -114,7 +114,7 @@ class ScanWithHiveReader {
   }
 
   private static Class<? extends HiveAbstractReader> getNativeReaderClass(Optional<String> formatName,
-                                                                          OptionManager options, Configuration configuration, boolean mixedSchema, boolean isTransactional) {
+                                                                          OptionManager options, Configuration configuration, boolean isTransactional) {
     if (!formatName.isPresent()) {
       return HiveDefaultReader.class;
     }
@@ -141,8 +141,8 @@ class ScanWithHiveReader {
         }
       }
 
-      if (new HiveSettings(options).vectorizeOrcReaders() && !mixedSchema && !isTransactional) {
-        // We don't use vectorized ORC reader if there is a schema change between table and partitions or the table is
+      if (new HiveSettings(options).vectorizeOrcReaders() && !isTransactional) {
+        // We don't use vectorized ORC reader if the table is
         // a transactional Hive table
         return HiveORCVectorizedReader.class;
       }
@@ -234,7 +234,7 @@ class ScanWithHiveReader {
     }
 
     final Class<? extends HiveAbstractReader> tableReaderClass =
-      getNativeReaderClass(tableInputFormat, context.getOptions(), hiveConf, false, isTransactional && hasDeltas);
+      getNativeReaderClass(tableInputFormat, context.getOptions(), hiveConf, isTransactional && hasDeltas);
 
     final Constructor<? extends HiveAbstractReader> tableReaderCtor = getNativeReaderCtor(tableReaderClass);
 
@@ -278,10 +278,9 @@ class ScanWithHiveReader {
       jobConf.setInputFormat(getInputFormatClass(jobConf, partitionInputFormat, partitionStorageHandlerName));
       partitionOI = getStructOI(partitionSerDe);
 
-      final boolean mixedSchema = !tableOI.equals(partitionOI);
-      if (!partitionInputFormat.equals(tableInputFormat) || mixedSchema || isTransactional && hasDeltas) {
+      if (!partitionInputFormat.equals(tableInputFormat) || isTransactional && hasDeltas) {
         final Class<? extends HiveAbstractReader> partitionReaderClass = getNativeReaderClass(
-          partitionInputFormat, context.getOptions(), jobConf, mixedSchema, isTransactional);
+          partitionInputFormat, context.getOptions(), jobConf, isTransactional);
         readerCtor = getNativeReaderCtor(partitionReaderClass);
       }
     } else {

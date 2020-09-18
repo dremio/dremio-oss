@@ -40,24 +40,19 @@ public class RefreshStartHandler {
   private final NamespaceService namespaceService;
   private final JobsService jobsService;
   private final MaterializationStore materializationStore;
-
-  private final ReflectionEntry entry;
-
-  private final ReflectionId reflectionId;
   private final WakeUpCallback wakeUpCallback;
 
-  public RefreshStartHandler(ReflectionEntry entry, NamespaceService namespaceService, JobsService jobsService,
+  public RefreshStartHandler(NamespaceService namespaceService, JobsService jobsService,
       MaterializationStore materializationStore, WakeUpCallback wakeUpCallback) {
-    this.entry = Preconditions.checkNotNull(entry, "entry required");
     this.namespaceService = Preconditions.checkNotNull(namespaceService, "namespace service required");
     this.jobsService = Preconditions.checkNotNull(jobsService, "jobs service required");
     this.materializationStore = Preconditions.checkNotNull(materializationStore, "materialization store required");
-    this.reflectionId = entry.getId();
     this.wakeUpCallback = Preconditions.checkNotNull(wakeUpCallback, "wakeup callback required");
-
   }
 
-  public JobId startJob(final long jobSubmissionTime) {
+  public JobId startJob(ReflectionEntry entry, long jobSubmissionTime) {
+    ReflectionId reflectionId = entry.getId();
+
     final MaterializationId id = new MaterializationId(UUID.randomUUID().toString());
     logger.debug("starting refresh for materialization {}/{}", reflectionId.getId(), id.getId());
     final Materialization materialization = new Materialization()

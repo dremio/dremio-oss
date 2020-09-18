@@ -169,8 +169,8 @@ public class ExternalSortOperator implements SingleInputOperator {
     IO_BYTES_READ,
     COMPRESSION_NANOS,
     DECOMPRESSION_NANOS,
-    IO_WRITE_WAIT,
-    IO_READ_WAIT,
+    IO_WRITE_WAIT_NANOS,
+    IO_READ_WAIT_NANOS,
 
     SPILL_COPY_NANOS,
 
@@ -416,8 +416,8 @@ public class ExternalSortOperator implements SingleInputOperator {
       stats.setLongStat(Metric.IO_BYTES_WRITTEN, diskRuns.getIOWriteBytes() == 0 ? diskRuns.getTotalDataSpilled() : diskRuns.getIOWriteBytes());
       stats.setLongStat(Metric.COMPRESSION_NANOS, diskRuns.getCompressionNanos());
       stats.setLongStat(Metric.DECOMPRESSION_NANOS, diskRuns.getDecompressionNanos());
-      stats.setLongStat(Metric.IO_READ_WAIT, diskRuns.getIOReadWait());
-      stats.setLongStat(Metric.IO_WRITE_WAIT, diskRuns.getIOWriteWait());
+      stats.setLongStat(Metric.IO_READ_WAIT_NANOS, diskRuns.getIOReadWait());
+      stats.setLongStat(Metric.IO_WRITE_WAIT_NANOS, diskRuns.getIOWriteWait());
       stats.setLongStat(Metric.OOM_ALLOCATE_COUNT, diskRuns.getOOMAllocateCount());
       stats.setLongStat(Metric.OOM_COPY_COUNT, diskRuns.getOOMCopyCount());
       stats.setLongStat(Metric.SPILL_COPY_NANOS, diskRuns.getSpillCopyNanos());

@@ -44,6 +44,7 @@ import com.dremio.datastore.api.FindByCondition;
 import com.dremio.datastore.api.FindByRange;
 import com.dremio.datastore.api.options.KVStoreOptionUtility;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UnsafeByteOperations;
 
@@ -193,12 +194,30 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
 
   @Override
   public com.dremio.datastore.api.Document<KVStoreTuple<K>, KVStoreTuple<V>> get(KVStoreTuple<K> key, GetOption... options) {
-    return base.get(key, options);
+    final com.dremio.datastore.api.Document<KVStoreTuple<K>, KVStoreTuple<V>> document = base.get(key, options);
+
+    logKVPairsWithNullValues(document);
+    return document;
   }
 
   @Override
   public Iterable<com.dremio.datastore.api.Document<KVStoreTuple<K>, KVStoreTuple<V>>> find(FindOption... options) {
-    return base.find(options);
+    final Iterable<com.dremio.datastore.api.Document<KVStoreTuple<K>, KVStoreTuple<V>>> documents = base.find(options);
+
+    if (logger.isDebugEnabled()) {
+      return Iterables.transform(documents, document -> {
+        logKVPairsWithNullValues(document);
+        return document;
+      });
+    }
+
+    return documents;
+  }
+
+  private void logKVPairsWithNullValues(com.dremio.datastore.api.Document<KVStoreTuple<K>, KVStoreTuple<V>> document) {
+    if (document != null && (document.getValue() == null || document.getValue().getObject() == null)) {
+      logger.debug("Key {} in index store has no associated value", document.getKey());
+    }
   }
 
   @Override
@@ -317,12 +336,30 @@ public class CoreIndexedStoreImpl<K, V> implements CoreIndexedStore<K, V> {
 
   @Override
   public Iterable<com.dremio.datastore.api.Document<KVStoreTuple<K>, KVStoreTuple<V>>> get(List<KVStoreTuple<K>> keys, GetOption... options) {
-    return base.get(keys, options);
+    final Iterable<com.dremio.datastore.api.Document<KVStoreTuple<K>, KVStoreTuple<V>>> documents = base.get(keys, options);
+
+    if (logger.isDebugEnabled()) {
+      return Iterables.transform(documents, document -> {
+        logKVPairsWithNullValues(document);
+        return document;
+      });
+    }
+
+    return documents;
   }
 
   @Override
   public Iterable<com.dremio.datastore.api.Document<KVStoreTuple<K>, KVStoreTuple<V>>> find(FindByRange<KVStoreTuple<K>> find, FindOption... options) {
-    return base.find(find, options);
+    final Iterable<com.dremio.datastore.api.Document<KVStoreTuple<K>, KVStoreTuple<V>>> documents = base.find(find, options);
+
+    if (logger.isDebugEnabled()) {
+      return Iterables.transform(documents, document -> {
+        logKVPairsWithNullValues(document);
+        return document;
+      });
+    }
+
+    return documents;
   }
 
   @Override

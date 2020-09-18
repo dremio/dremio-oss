@@ -15,6 +15,10 @@
  */
 package com.dremio.service.grpc;
 
+import java.util.Map;
+
+import javax.inject.Provider;
+
 import com.dremio.context.RequestContext;
 import com.google.common.collect.Sets;
 
@@ -24,7 +28,7 @@ import io.opentracing.Tracer;
  *  Channel builder factory where the client is a single-tenant service.
  */
 public class SingleTenantGrpcChannelBuilderFactory extends BaseGrpcChannelBuilderFactory {
-  public SingleTenantGrpcChannelBuilderFactory(Tracer tracer, RequestContext defaultContext) {
-    super(tracer, Sets.newHashSet(new SingleTenantClientInterceptor(defaultContext)));
+  public SingleTenantGrpcChannelBuilderFactory(Tracer tracer, RequestContext defaultContext, Provider<Map<String, Object>> defaultServiceConfigProvider) {
+    super(tracer, Sets.newHashSet(new SingleTenantClientInterceptor(defaultContext)), defaultServiceConfigProvider);
   }
 }

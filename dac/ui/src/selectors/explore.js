@@ -55,13 +55,13 @@ export function getColumnFilter(state) {
   return entities.getIn(['tableData', 'columnFilter']) || '';
 }
 
-export function getJobProgress(state) {
+export function getJobProgress(state, version) {
   const { entities } = state.resources;
-  return entities.getIn(['tableData', 'jobProgress']) || null;
+  return entities.getIn(['tableData', version, 'jobProgress']) || null;
 }
 
-export function getJobOutputRecords(state) {
-  const jobProgress = getJobProgress(state);
+export function getJobOutputRecords(state, version) {
+  const jobProgress = getJobProgress(state, version);
   const datasetVersion = jobProgress && jobProgress.datasetVersion;
   const tableData = getTableDataRaw(state, datasetVersion);
   return tableData && tableData.get('outputRecords');

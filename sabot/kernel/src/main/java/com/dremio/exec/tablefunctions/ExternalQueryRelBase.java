@@ -30,6 +30,8 @@ import org.apache.calcite.rel.type.RelDataType;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.cost.DremioCost;
 import com.dremio.exec.record.BatchSchema;
+import com.dremio.service.namespace.NamespaceKey;
+import com.google.common.collect.ImmutableList;
 
 /**
  * Rel base for ExternalQuery RelNodes
@@ -58,6 +60,10 @@ public abstract class ExternalQueryRelBase extends AbstractRelNode {
 
   public StoragePluginId getPluginId() {
     return pluginId;
+  }
+
+  public NamespaceKey getPath() {
+    return new NamespaceKey(ImmutableList.of(pluginId.getName(), "external_query"));
   }
 
   /**

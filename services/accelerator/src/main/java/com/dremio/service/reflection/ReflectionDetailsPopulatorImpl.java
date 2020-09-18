@@ -88,7 +88,7 @@ class ReflectionDetailsPopulatorImpl implements AccelerationDetailsPopulator {
   }
 
   @Override
-  public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken) {
+  public void planSubstituted(DremioMaterialization materialization, List<RelNode> substitutions, RelNode target, long millisTaken, boolean defaultReflection) {
     try {
       // reflection was considered and matched
       if (!consideredReflections.containsKey(materialization.getReflectionId())) {

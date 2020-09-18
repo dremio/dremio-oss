@@ -305,6 +305,7 @@ public class NamespaceServiceImpl implements NamespaceService {
       final int consideredRange = insertionPoint - 1; // since a normal match would come directly after the start range, we need to check the range directly above the insertion point.
 
       if (consideredRange < 0 || !ranges.get(consideredRange).contains(id)) {
+        logger.debug("Deleting partition chunk associated with key {} from the partition chunk store.", e.getKey());
         partitionChunkStore.delete(e.getKey());
         ++elementCount;
       }
@@ -322,6 +323,7 @@ public class NamespaceServiceImpl implements NamespaceService {
       final int consideredRange = insertionPoint - 1; // since a normal match would come directly after the start range, we need to check the range directly above the insertion point.
 
       if (consideredRange < 0 || !ranges.get(consideredRange).contains(id)) {
+        logger.debug("Deleting multi split associated with key {} from the multi split store.", e.getKey());
         multiSplitStore.delete(e.getKey());
       }
     }
@@ -467,6 +469,20 @@ public class NamespaceServiceImpl implements NamespaceService {
     }
 
     createOrUpdateEntity(NamespaceEntity.toEntity(DATASET, datasetPath, dataset, keyNormalization, new ArrayList<>()), attributes);
+  }
+
+  @Override
+  public boolean hasChildren(NamespaceKey key) {
+    final Iterable<NameSpaceContainer> children;
+    try {
+      children = iterateEntity(key);
+    } catch (NamespaceException e) {
+      throw new RuntimeException("failed during dataset listing of sub-tree under: " + key);
+    }
+    if (FluentIterable.from(children).size() > 0) {
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -1413,7 +1429,7 @@ public class NamespaceServiceImpl implements NamespaceService {
       .from(partitionChunks)
       .transform(item ->
         item.getValue().hasSplitCount()
-          ? new PartitionChunkMetadataImpl(item.getValue(),  () -> multiSplitStore.get(item.getKey()))
+          ? new PartitionChunkMetadataImpl(item.getValue(), item.getKey(), () -> multiSplitStore.get(item.getKey()))
           : new LegacyPartitionChunkMetadata(item.getValue())
         );
   }

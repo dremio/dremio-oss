@@ -285,6 +285,9 @@
           <#if layout.snowflake?has_content && layout.snowflake>
           Snowflake: yes<br>
           </#if>
+          <#if layout.defaultReflection?has_content && layout.defaultReflection>
+            Default Reflection: yes<br>
+          </#if>
           <#if layout.dimensionsList?has_content >
           Dimensions:
             <#list layout.getDimensionsList() as dim>

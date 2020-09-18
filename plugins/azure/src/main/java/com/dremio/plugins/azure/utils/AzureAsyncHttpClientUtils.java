@@ -16,8 +16,6 @@
 
 package com.dremio.plugins.azure.utils;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -29,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.azure.core.util.DateTimeRfc1123;
+import com.azure.storage.common.Utility;
 
 /**
  * Prepares new instances of AsyncHttpClient
@@ -63,12 +62,7 @@ public final class AzureAsyncHttpClientUtils {
   }
 
   public static String encodeUrl(String raw) {
-    try {
-      return URLEncoder.encode(raw, "UTF-8");
-    } catch (UnsupportedEncodingException e) {
-      logger.warn("Error while encoding " + raw, e);
-      return raw;
-    }
+    return Utility.urlEncode(Utility.urlDecode(raw));
   }
 
   public static String toHttpDateFormat(final long timeInMillis) {

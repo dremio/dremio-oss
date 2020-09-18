@@ -29,6 +29,7 @@ import org.apache.hadoop.fs.Path;
 import org.asynchttpclient.AsyncHttpClient;
 
 import com.dremio.common.AutoCloseables;
+import com.dremio.common.util.Retryer;
 import com.dremio.exec.hadoop.MayProvideAsyncStream;
 import com.dremio.exec.store.dfs.DremioFileSystemCache;
 import com.dremio.exec.store.dfs.FileSystemConf;
@@ -211,11 +212,12 @@ public class AzureStorageFileSystem extends ContainerFileSystem implements MayPr
 
   @Override
   protected ContainerHolder getUnknownContainer(String containerName) throws IOException {
-    if (containerProvider.doesContainerExists(containerName)) {
-      return new ContainerCreatorImpl(this, containerName).toContainerHolder();
+    try {
+      containerProvider.assertContainerExists(containerName);
+    } catch (Retryer.OperationFailedAfterRetriesException e) {
+      throw e.getWrappedCause(IOException.class, ex -> new IOException(ex));
     }
-
-    return null;
+    return new ContainerCreatorImpl(this, containerName).toContainerHolder();
   }
 
   @Override

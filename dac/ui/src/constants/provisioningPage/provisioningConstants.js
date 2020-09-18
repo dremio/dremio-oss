@@ -53,7 +53,7 @@ export const EC2_UI_FIELDS = ['engineSize'];
 export const EC2_DYNAMIC_CONFIG_FIELDS = ['containerCount'];
 export const EC2_AWS_PROPS = [
   'vpc', 'nodeIamInstanceProfile', 'amiId', 'sshKeyName', 'securityGroupId', 'subnetId', 'instanceType',
-  'extraConfProps', 'useClusterPlacementGroup'
+  'extraConfProps', 'useClusterPlacementGroup', 'disablePublicIp'
 ];
 export const EC2_AWS_PROPLIST_FIELDS = ['awsTags'];
 export const EC2_AWS_CONNECTION_PROPS = [
@@ -218,6 +218,13 @@ export const EC2_FORM_TAB_VLH = {
           propertyName: 'useClusterPlacementGroup',
           tooltip: 'Use placement groups to pack instances close together inside an Availability Zone. This provides higher performance but may require more time to start all of the nodes of this engine. (optional)',
           label: 'Use Clustered Placement'
+        },
+        {
+          type: 'checkbox',
+          propName: 'disablePublicIp',
+          propertyName: 'disablePublicIp',
+          tooltip: 'Don\'t associate public IPs with the nodes of this engine.',
+          label: 'Disable Public IPs'
         },
         {
           type: 'text',

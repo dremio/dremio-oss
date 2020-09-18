@@ -34,6 +34,7 @@ import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.DirectProvider;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.collect.Lists;
 
 public class TestPermissionCheckCache {
@@ -42,10 +43,11 @@ public class TestPermissionCheckCache {
   public void ensureNotCached() throws Exception {
     final String username = "ensureNotCached";
     final StoragePlugin plugin = mock(StoragePlugin.class);
+    final SourceConfig sourceConfig = new SourceConfig();
     final PermissionCheckCache checks = new PermissionCheckCache(DirectProvider.wrap(plugin), DirectProvider.wrap(0l), 1000);
     when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
         .thenReturn(true);
-    assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector()));
+    assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig));
     assertNull(checks.getPermissionsCache()
         .getIfPresent(new PermissionCheckCache.Key(username,
             new NamespaceKey(Lists.newArrayList("what")))));
@@ -55,40 +57,43 @@ public class TestPermissionCheckCache {
   public void ensureCached() throws Exception {
     final String username = "ensureCached";
     final StoragePlugin plugin = mock(StoragePlugin.class);
+    final SourceConfig sourceConfig = new SourceConfig();
     final PermissionCheckCache checks = new PermissionCheckCache(DirectProvider.wrap(plugin), DirectProvider.wrap(10_000L), 1000);
     when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
         .thenReturn(true, false);
-    assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector()));
+    assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig));
     assertNotNull(checks.getPermissionsCache()
         .getIfPresent(new PermissionCheckCache.Key(username,
             new NamespaceKey(Lists.newArrayList("what")))));
-    assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector()));
+    assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig));
   }
 
   @Test
   public void ensureReloaded() throws Exception {
     final String username = "ensureReloaded";
     final StoragePlugin plugin = mock(StoragePlugin.class);
+    final SourceConfig sourceConfig = new SourceConfig();
     final PermissionCheckCache checks = new PermissionCheckCache(DirectProvider.wrap(plugin), DirectProvider.wrap(500l), 1000);
     when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
         .thenReturn(true, false);
-    assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector()));
+    assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig));
     assertNotNull(checks.getPermissionsCache()
         .getIfPresent(new PermissionCheckCache.Key(username,
             new NamespaceKey(Lists.newArrayList("what")))));
     Thread.sleep(1000L);
-    assertFalse(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector()));
+    assertFalse(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig));
   }
 
   @Test
   public void throwsProperly() throws Exception {
     final String username = "throwsProperly";
     final StoragePlugin plugin = mock(StoragePlugin.class);
+    final SourceConfig sourceConfig = new SourceConfig();
     final PermissionCheckCache checks = new PermissionCheckCache(DirectProvider.wrap(plugin), DirectProvider.wrap(1000L), 1000);
     when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
         .thenThrow(new RuntimeException("you shall not pass"));
     try {
-      checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector());
+      checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig);
       fail();
     } catch (UserException e) {
       assertEquals(UserBitShared.DremioPBError.ErrorType.PERMISSION, e.getErrorType());
@@ -100,16 +105,17 @@ public class TestPermissionCheckCache {
   public void ensureNoPermissionIsNotCached() throws Exception {
     final String username = "ensureCached";
     final StoragePlugin plugin = mock(StoragePlugin.class);
+    final SourceConfig sourceConfig = new SourceConfig();
     final PermissionCheckCache checks = new PermissionCheckCache(DirectProvider.wrap(plugin), DirectProvider.wrap(10_000L), 1000);
     when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
       .thenReturn(false, false);
-    assertFalse(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector()));
+    assertFalse(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig));
 
     assertEquals(0, checks.getPermissionsCache().size());
 
     when(plugin.hasAccessPermission(anyString(), any(NamespaceKey.class), any(DatasetConfig.class)))
       .thenReturn(true, false);
-    assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector()));
+    assertTrue(checks.hasAccess(username, new NamespaceKey(Lists.newArrayList("what")), null, new MetadataStatsCollector(), sourceConfig));
 
     assertEquals(1, checks.getPermissionsCache().size());
   }

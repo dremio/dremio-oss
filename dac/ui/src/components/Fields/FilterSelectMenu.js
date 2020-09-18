@@ -32,7 +32,7 @@ FilterSelectMenuItem.propTypes = {
 };
 
 export function FilterSelectMenuItem({item, onChange, checked}) {
-  return (<div style={{display: 'flex', paddingLeft: 7}} key={item.id}>
+  return (<div style={{display: 'flex', padding: '0 7px'}} key={item.id}>
     <Checkbox
       onChange={() => onChange(checked, item.id)}
       label={[
@@ -240,7 +240,7 @@ const styles = {
     flexWrap: 'wrap',
     flexDirection: 'column',
     minWidth: 135,
-    paddingBottom: 3
+    paddingBottom: 7
   },
   divider: {
     borderTop: '1px solid #ccc',

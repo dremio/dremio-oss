@@ -38,7 +38,7 @@ import com.google.common.collect.Lists;
  */
 public class UserExceptionMapper implements ExceptionMapper<UserException> {
 
-  public static final String SYSTEM_ERROR_MSG = "Unexpected error occurred";
+  public static final String SYSTEM_ERROR_MSG = "Unexpected error occurred.";
 
   private static final String RESPONSE_STATUS = "RESPONSE_STATUS";
 
@@ -81,7 +81,7 @@ public class UserExceptionMapper implements ExceptionMapper<UserException> {
             @JsonProperty("errorMessage") String errorMessage,
             @JsonProperty("context") String[] context,
             @JsonProperty("stackTrace") String[] stackTrace) {
-      super(errorMessage, "", stackTrace);
+      super(errorMessage, GenericErrorMessage.CHECK_LOG_FILE, stackTrace);
       this.context = context;
     }
 

@@ -450,8 +450,11 @@ public interface ExecConstants {
   BooleanValidator TRIM_ROWGROUPS_FROM_FOOTER = new BooleanValidator("exec.parquet.memory.trim_rowgroups", true);
   BooleanValidator TRIM_COLUMNS_FROM_ROW_GROUP = new BooleanValidator("exec.parquet.memory.trim_columns", true);
 
-  AdminBooleanValidator ENABLE_HEAP_MONITORING = new AdminBooleanValidator("exec.heap.monitoring.enable", true);
-  RangeLongValidator HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE = new RangeLongValidator("exec.heap.monitoring.thresh.percentage", 50, 100, 85);
+  AdminBooleanValidator EXECUTOR_ENABLE_HEAP_MONITORING = new AdminBooleanValidator("exec.heap.monitoring.enable", true);
+  RangeLongValidator EXECUTOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE = new RangeLongValidator("exec.heap.monitoring.thresh.percentage", 50, 100, 85);
+
+  AdminBooleanValidator COORDINATOR_ENABLE_HEAP_MONITORING = new AdminBooleanValidator("coordinator.heap.monitoring.enable", false);
+  RangeLongValidator COORDINATOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE = new RangeLongValidator("coordinator.heap.monitoring.thresh.percentage", 50, 100, 85);
 
   BooleanValidator ENABLE_ICEBERG = new BooleanValidator("dremio.iceberg.enabled", false);
 
@@ -483,4 +486,7 @@ public interface ExecConstants {
   String CODE_CACHE_PREWARM_PROP = "CODE_CACHE_PREWARM";
   String CODE_CACHE_LOCATION_PROP = "CODE_CACHE_LOCATION";
   BooleanValidator EXEC_CODE_CACHE_SAVE_EXPR = new BooleanValidator("exec.code_cache.save_expr", false);
+
+  BooleanValidator ENABLE_RUNTIME_FILTER_ON_NON_PARTITIONED_PARQUET =  new BooleanValidator("exec.non_partitioned_parquet.enable_runtime_filter", false); // in beta right now
+  RangeLongValidator RUNTIME_FILTER_VALUE_FILTER_MAX_SIZE =  new RangeLongValidator("exec.non_partitioned_parquet.runtime_filter.max_size", 10, 1_000_000, 100);
 }

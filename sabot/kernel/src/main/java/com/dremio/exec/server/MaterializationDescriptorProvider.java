@@ -16,8 +16,10 @@
 package com.dremio.exec.server;
 
 import java.util.List;
+import java.util.Optional;
 
 import com.dremio.exec.planner.acceleration.MaterializationDescriptor;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.collect.ImmutableList;
 
 /**
@@ -32,6 +34,13 @@ public interface MaterializationDescriptorProvider {
   List<MaterializationDescriptor> get();
 
   /**
+   * Returns the default raw materialization that provider considers for substitution
+   * for the VDS with the given path
+   * @return The default reflection for the VDS
+   */
+  Optional<MaterializationDescriptor> getDefaultRawMaterialization(NamespaceKey path, List<String> vdsFields);
+
+  /**
    * Empty materialization provider.
    */
   MaterializationDescriptorProvider EMPTY = new MaterializationDescriptorProvider() {
@@ -39,6 +48,11 @@ public interface MaterializationDescriptorProvider {
     @Override
     public List<MaterializationDescriptor> get() {
       return ImmutableList.of();
+    }
+
+    @Override
+    public Optional<MaterializationDescriptor> getDefaultRawMaterialization(NamespaceKey path, List<String> vdsFields) {
+      return Optional.empty();
     }
   };
 }

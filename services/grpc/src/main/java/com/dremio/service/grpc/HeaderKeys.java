@@ -21,11 +21,14 @@ import io.grpc.Metadata;
  * grpc header keys used across dremio services.
  */
 public class HeaderKeys {
-  public static final Metadata.Key<String> TENANT_ID_HEADER_KEY =
-    Metadata.Key.of("tenant_id_key", Metadata.ASCII_STRING_MARSHALLER);
+  public static final Metadata.Key<String> PROJECT_ID_HEADER_KEY =
+    Metadata.Key.of("x-dremio-project-id-key", Metadata.ASCII_STRING_MARSHALLER);
+
+  public static final Metadata.Key<String> ORG_ID_HEADER_KEY =
+    Metadata.Key.of("x-dremio-org-id-key", Metadata.ASCII_STRING_MARSHALLER);
 
   public static final Metadata.Key<String> USER_HEADER_KEY =
-    Metadata.Key.of("user_key", Metadata.ASCII_STRING_MARSHALLER);
+    Metadata.Key.of("x-dremio-user-key", Metadata.ASCII_STRING_MARSHALLER);
 
   public static final Metadata.Key<String> RELEASE_NAME_HEADER_KEY =
     Metadata.Key.of("x-dremio-control-plane-service-release-name",

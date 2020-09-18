@@ -30,7 +30,6 @@ import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -50,7 +49,9 @@ import org.slf4j.LoggerFactory;
 
 import com.dremio.common.util.Retryer;
 import com.dremio.plugins.azure.utils.AzureAsyncHttpClientUtils;
+import com.dremio.plugins.util.ContainerAccessDeniedException;
 import com.dremio.plugins.util.ContainerFileSystem;
+import com.dremio.plugins.util.ContainerNotFoundException;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -103,7 +104,7 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
   }
 
   @Override
-  public boolean doesContainerExists(final String containerName) {
+  public void assertContainerExists(final String containerName) {
     // API: https://docs.microsoft.com/en-gb/rest/api/storageservices/datalakestoragegen2/filesystem/getproperties
     logger.debug("Checking for missing azure container " + account + ":" + containerName);
     final Request req = new RequestBuilder(HttpConstants.Methods.HEAD)
@@ -116,21 +117,24 @@ public class AzureAsyncContainerProvider implements ContainerProvider {
       .addQueryParam("timeout", String.valueOf(requestTimeoutSeconds)).build();
 
     req.getHeaders().add("Authorization", authProvider.getAuthzHeaderValue(req));
-    final AtomicBoolean containerExists = new AtomicBoolean(false);
     retryer.call(() -> {
-      int status = asyncHttpClient.executeRequest(req).get().getStatusCode();
-      if (status != 200 && status != 404) {
+      Response response = asyncHttpClient.executeRequest(req).get();
+      int status = response.getStatusCode();
+      if (status >= 500) {
         logger.error("Error while checking for azure container " + account + ":" + containerName + " status code " + status);
         throw new RuntimeException(String.format("Error response %d while checking for existence of container %s", status, containerName));
       }
       if (status == 200) {
         logger.debug("Azure container is found valid " + account + ":" + containerName);
-        containerExists.set(true);
+      } else if (status == 403) {
+        throw new ContainerAccessDeniedException(String.format("Access to container %s denied - [%d %s]", containerName,
+                status, response.getStatusText()));
+      } else {
+        throw new ContainerNotFoundException(String.format("Unable to find container %s - [%d %s]", containerName,
+                status, response.getStatusText()));
       }
       return true;
     });
-
-    return containerExists.get();
   }
 
   static class DFSContainerIterator extends AbstractIterator<String> {

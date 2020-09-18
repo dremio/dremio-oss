@@ -129,6 +129,7 @@ describe('Tests for time utils', () => {
 
   describe('formatTime', () => {
     const unixTimestamp = +new Date(2019, 1, 15, 20, 0, 1, 0);
+    const isoDate = '2019-01-15T20:00:01';
 
     it('should return invalid message', () => {
       expect(TimeUtils.formatTime('')).to.equal('Invalid date');
@@ -141,6 +142,10 @@ describe('Tests for time utils', () => {
     it('should use localized format for non en-US', () => {
       expect(TimeUtils.formatTime(unixTimestamp, 'Invalid', 'en-GB')).to.equal('15/02/2019 20:00:01');
     });
+    it('should use the provided timeformat for reading the date time', () => {
+      expect(TimeUtils.formatTime(isoDate, 'Invalid', 'en-US', TimeUtils.formats.ISO)).to.equal('01/15/2019 20:00:01');
+    });
+
   });
 
   describe('formatTimeDiff', () => {

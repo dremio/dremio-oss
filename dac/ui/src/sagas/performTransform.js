@@ -77,7 +77,7 @@ export function* performTransform({
     const didTransform = !!apiAction;
     if (apiAction) {
       yield call(cancelDataLoad);
-      yield put(initializeExploreJobProgress(isRun));
+      yield put(initializeExploreJobProgress(isRun, resultDataset.get('datasetVersion')));
       // response will be not empty. See transformThenNavigate
       const response = yield call(transformThenNavigate, apiAction, viewId, navigateOptions);
       if (!response || response.error) {

@@ -103,7 +103,16 @@ public class FragmentExecutors implements AutoCloseable, Iterable<FragmentExecut
       new CacheLoader<FragmentHandle, FragmentHandler>() {
         @Override
         public FragmentHandler load(FragmentHandle key) throws Exception {
-          return new FragmentHandler(key, evictionDelayMillis);
+          // Underlying loading cache's refresh() calls reload() on this
+          // cacheLoader, which indirectly calls this load() method.
+          // So new FragmentHandler should not be created, instead
+          // existing handler should be used. This will avoid using
+          // extra heap memory.
+          FragmentHandler exitingFragmentHandler = handlers.getIfPresent(key);
+          if(exitingFragmentHandler == null) {
+            return new FragmentHandler(key, evictionDelayMillis);
+          }
+          return exitingFragmentHandler;
         }
       },
       null, evictionDelayMillis);

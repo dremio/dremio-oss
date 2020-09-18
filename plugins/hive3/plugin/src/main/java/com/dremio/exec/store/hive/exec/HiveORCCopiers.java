@@ -59,6 +59,7 @@ import org.apache.hadoop.hive.serde2.io.HiveDecimalWritable;
 import com.dremio.common.exceptions.UserException;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
 public class HiveORCCopiers {
 
@@ -382,21 +383,26 @@ public class HiveORCCopiers {
     @Override
     public void copy(int inputIdx, int count, int outputIdx) {
       ensureHasRequiredCapacity(outputIdx + count);
-      int fieldCount = inputVector.fields.length;
-      for (int idx=0; idx<fieldCount; ++idx) {
-        fieldCopiers.get(idx).copy(inputIdx, count, outputIdx);
-      }
-
-      if (inputVector.noNulls) {
-        for (int rowIndex = 0; rowIndex < count; rowIndex++) {
-          outputVector.setIndexDefined(outputIdx + rowIndex);
-        }
+      if (inputVector.isRepeating) {
+        Preconditions.checkState(inputVector.isNull[0], "ORC Struct vector has non null repeated element");
+        return; // If all repeating values are null, then there is no need to write anything to vector
       } else {
-        for (int rowIndex = 0; rowIndex < count; rowIndex++) {
-          if (inputVector.isNull[rowIndex]) {
-            outputVector.setNull(outputIdx + rowIndex);
-          } else {
+        int fieldCount = inputVector.fields.length;
+        for (int idx = 0; idx < fieldCount; ++idx) {
+          fieldCopiers.get(idx).copy(inputIdx, count, outputIdx);
+        }
+
+        if (inputVector.noNulls) {
+          for (int rowIndex = 0; rowIndex < count; rowIndex++) {
             outputVector.setIndexDefined(outputIdx + rowIndex);
+          }
+        } else {
+          for (int rowIndex = 0; rowIndex < count; rowIndex++) {
+            if (inputVector.isNull[rowIndex]) {
+              outputVector.setNull(outputIdx + rowIndex);
+            } else {
+              outputVector.setIndexDefined(outputIdx + rowIndex);
+            }
           }
         }
       }

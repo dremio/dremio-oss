@@ -207,6 +207,8 @@ public final class QueryParser {
         // set final pre-accelerated cost
         builder.addCost(cost);
         break;
+      case REDUCE_EXPRESSIONS:
+        builder.addExpandedPlan(before);
       default:
         // noop.
       }

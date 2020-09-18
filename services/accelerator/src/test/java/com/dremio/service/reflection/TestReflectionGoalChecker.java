@@ -99,8 +99,10 @@ public class TestReflectionGoalChecker {
   public void testHashingEmptyIfExcludingBlackListFieldsGoal(){
     ReflectionGoal goal = new ReflectionGoal()
       .setTag(Long.toString(System.currentTimeMillis()))
+      .setCreatedAt(System.currentTimeMillis())
       .setModifiedAt(System.currentTimeMillis())
       .setVersion(System.currentTimeMillis())
+      .setName("Name")
       .setArrowCachingEnabled(false);
 
     ReflectionGoalHash actual = ReflectionGoalChecker.Instance.calculateReflectionGoalVersion(goal);

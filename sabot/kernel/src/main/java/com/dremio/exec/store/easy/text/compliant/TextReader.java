@@ -57,6 +57,16 @@ final class TextReader implements AutoCloseable {
   private final boolean ignoreLeadingWhitespace;
   private final boolean parseUnescapedQuotes;
 
+  /**
+   * Input line delimiter differs with normalized line delimiter in two cases:
+   * - It is multi-byte
+   * - It is single byte but not same as normalized one
+   * Is there a third case? What if it is multi-byte but the first byte is same as
+   * normalized one?
+   * This flag tells whether input line delimiter is same as normalized line delimiter.
+   */
+  private final boolean isNormalLineDelimiter;
+
   /** Key Characters **/
   private final byte comment;
   private final byte delimiter;
@@ -90,6 +100,10 @@ final class TextReader implements AutoCloseable {
 
     this.input = input;
     this.output = output;
+
+    final byte[] newLineDelimiter = settings.getNewLineDelimiter();
+    isNormalLineDelimiter = ((newLineDelimiter.length == 1) && (newLineDelimiter[0] == settings.getNormalizedNewLine())) ?
+      true : false;
   }
 
   public TextOutput getOutput(){
@@ -358,6 +372,9 @@ final class TextReader implements AutoCloseable {
         ch = input.nextChar();
         if (ch == comment) {
           input.skipLines(1);
+          continue;
+        }
+        if ((ch == newLine) && !isNormalLineDelimiter) {
           continue;
         }
         break;

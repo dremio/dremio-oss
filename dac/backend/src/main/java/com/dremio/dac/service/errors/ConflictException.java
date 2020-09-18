@@ -29,4 +29,12 @@ public class ConflictException extends WebApplicationException {
   public ConflictException(Exception e) {
     super(e.getMessage(), Response.Status.CONFLICT);
   }
+
+  public ConflictException(String message, Throwable cause) {
+    super(message, cause, Response.Status.CONFLICT);
+  }
+
+  public ConflictException(String message) {
+    super(message, Response.Status.CONFLICT);
+  }
 }

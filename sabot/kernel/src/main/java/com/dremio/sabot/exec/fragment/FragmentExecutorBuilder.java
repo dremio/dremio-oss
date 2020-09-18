@@ -234,9 +234,9 @@ public class FragmentExecutorBuilder {
           boolean thresholdOptionPresent = false;
 
           for (OptionValue option : list.getSystemOptions()) {
-            if(ExecConstants.ENABLE_HEAP_MONITORING.getOptionName().equals(option.getName())) {
+            if(ExecConstants.EXECUTOR_ENABLE_HEAP_MONITORING.getOptionName().equals(option.getName())) {
               enableHeapMonitoringOptionPresent = true;
-            } else if(ExecConstants.HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE.getOptionName().equals(option.getName())) {
+            } else if(ExecConstants.EXECUTOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE.getOptionName().equals(option.getName())) {
               thresholdOptionPresent = true;
             }
             optionManager.setOption(option);
@@ -246,12 +246,12 @@ public class FragmentExecutorBuilder {
           // This will ensure that heap monitor system options which were reset
           // (to default) on coordinator will be also reset on non-coordinator nodes.
           if (!enableHeapMonitoringOptionPresent) {
-            optionManager.deleteOption(ExecConstants.ENABLE_HEAP_MONITORING.getOptionName(),
+            optionManager.deleteOption(ExecConstants.EXECUTOR_ENABLE_HEAP_MONITORING.getOptionName(),
                                        OptionValue.OptionType.SYSTEM);
           }
 
           if (!thresholdOptionPresent) {
-            optionManager.deleteOption(ExecConstants.HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE.getOptionName(),
+            optionManager.deleteOption(ExecConstants.EXECUTOR_HEAP_MONITORING_CLAWBACK_THRESH_PERCENTAGE.getOptionName(),
                                        OptionValue.OptionType.SYSTEM);
           }
         }

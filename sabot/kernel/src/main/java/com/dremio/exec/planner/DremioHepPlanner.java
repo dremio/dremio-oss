@@ -15,6 +15,8 @@
  */
 package com.dremio.exec.planner;
 
+import static com.dremio.exec.work.foreman.AttemptManager.INJECTOR_DURING_PLANNING_PAUSE;
+
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -29,27 +31,36 @@ import org.apache.calcite.plan.hep.HepProgram;
 import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rel.RelCollations;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.runtime.CalciteException;
 
 import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.planner.logical.CancelFlag;
 import com.dremio.exec.planner.physical.DistributionTrait;
 import com.dremio.exec.planner.physical.DistributionTraitDef;
 import com.dremio.exec.planner.physical.PlannerSettings;
+import com.dremio.exec.testing.ControlsInjector;
+import com.dremio.exec.testing.ControlsInjectorFactory;
+import com.dremio.exec.testing.ExecutionControls;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 
 public class DremioHepPlanner extends HepPlanner {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DremioHepPlanner.class);
+  private static final ControlsInjector INJECTOR = ControlsInjectorFactory.getInjector(DremioHepPlanner.class);
 
   private final CancelFlag cancelFlag;
   private final PlannerPhase phase;
   private final MaxNodesListener listener;
+  private final ExecutionControls executionControls;
+  private final PlannerSettings plannerSettings;
 
   public DremioHepPlanner(final HepProgram program, final Context context, final RelOptCostFactory costFactory, PlannerPhase phase) {
     super(program, context, false, null, costFactory);
-    this.cancelFlag = new CancelFlag(context.unwrap(PlannerSettings.class).getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
+    plannerSettings = context.unwrap(PlannerSettings.class);
+    this.cancelFlag = new CancelFlag(plannerSettings.getMaxPlanningPerPhaseMS(), TimeUnit.MILLISECONDS);
+    this.executionControls = plannerSettings.unwrap(ExecutionControls.class);
     this.phase = phase;
-    this.listener = new MaxNodesListener(context.unwrap(PlannerSettings.class).getMaxNodesPerPlan());
+    this.listener = new MaxNodesListener(plannerSettings.getMaxNodesPerPlan());
     addListener(listener);
   }
 
@@ -83,14 +94,33 @@ public class DremioHepPlanner extends HepPlanner {
   @Override
   public void checkCancel() {
     if (cancelFlag.isCancelRequested()) {
-      UserException.Builder builder = UserException.planError()
-          .message("Query was cancelled because planning time exceeded %d seconds", cancelFlag.getTimeoutInSecs());
-      if (phase != null) {
-        builder = builder.addContext("Planner Phase", phase.description);
-      }
-      throw builder.build(logger);
+      throwUserException(String.format("Query was cancelled because planning time exceeded %d seconds",
+                                       cancelFlag.getTimeoutInSecs()), null);
     }
-    super.checkCancel();
+
+    if (executionControls != null) {
+      INJECTOR.injectPause(executionControls, INJECTOR_DURING_PLANNING_PAUSE, logger);
+    }
+
+    try {
+      super.checkCancel();
+    } catch (CalciteException e) {
+      throwUserException(plannerSettings.getCancelReason(), e);
+    }
+  }
+
+  private void throwUserException(String message, Throwable t) {
+    UserException.Builder builder;
+    if (t != null) {
+      builder = UserException.planError(t);
+    } else {
+      builder = UserException.planError();
+    }
+    builder = builder.message(message);
+    if (phase != null) {
+      builder = builder.addContext("Planner Phase", phase.description);
+    }
+    throw builder.build(logger);
   }
 
 }

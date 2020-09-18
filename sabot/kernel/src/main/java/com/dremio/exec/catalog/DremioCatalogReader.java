@@ -179,7 +179,11 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
 
   @Override
   public DremioPrepareTable getTableForMember(List<String> paramList) {
-    return getTable(paramList);
+    final DremioTable table = catalog.getTableNoResolve(new NamespaceKey(paramList));
+    if(table == null) {
+      return null;
+    }
+    return new DremioPrepareTable(this, typeFactory, table);
   }
 
   @Override
@@ -191,6 +195,15 @@ public class DremioCatalogReader implements SqlValidatorCatalogReader, Prepare.C
   public DremioCatalogReader withSchemaPathAndUser(String username, List<String> newNamespacePath) {
     NamespaceKey withSchemaPath = newNamespacePath == null ? null : new NamespaceKey(newNamespacePath);
     return new DremioCatalogReader(catalog.resolveCatalog(username, withSchemaPath), typeFactory);
+  }
+
+  public DremioCatalogReader withSchemaPathAndUser(String username, List<String> newNamespacePath, boolean checkValidity) {
+    NamespaceKey withSchemaPath = newNamespacePath == null ? null : new NamespaceKey(newNamespacePath);
+    return new DremioCatalogReader(catalog.resolveCatalog(username, withSchemaPath, checkValidity), typeFactory);
+  }
+
+  public DremioCatalogReader withCheckValidity(boolean checkValidity) {
+    return new DremioCatalogReader(catalog.resolveCatalog(checkValidity), typeFactory);
   }
 
   @Override

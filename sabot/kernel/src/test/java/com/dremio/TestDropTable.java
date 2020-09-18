@@ -37,6 +37,7 @@ public class TestDropTable extends PlanTestBase {
   private static final String DROP_VIEW_IF_EXISTS = "drop view if exists %s";
   private static final String DOUBLE_QUOTE = "\"";
   private static final String REFRESH = "alter table %s refresh metadata";
+  private static final String PROMOTE = "alter pds  %s refresh metadata auto promotion";
 
   @Test
   public void testDropJsonTable() throws Exception {
@@ -253,5 +254,41 @@ public class TestDropTable extends PlanTestBase {
         .baselineColumns("ok", "summary")
         .baselineValues(true, String.format("Table [dfs_test.%s] dropped", tableName))
         .go();
+  }
+
+  @Test
+  public void dropTableWithChild() throws Exception {
+
+    final String parentTableName = "dfs_test.pt";
+    final String childTableName = "dfs_test.pt.ct";
+    // create a  table
+    test(String.format(CREATE_SIMPLE_TABLE, parentTableName));
+    test(String.format(PROMOTE, parentTableName));
+
+    test(String.format(CREATE_SIMPLE_TABLE, childTableName));
+    test(String.format(PROMOTE, childTableName));
+
+    // drop the parent table - should fail
+    String dropSql = String.format(DROP_TABLE, parentTableName);
+    errorMsgTestHelper(String.format(DROP_TABLE, parentTableName), String.format("VALIDATION ERROR: Cannot drop table [%s] since it has child tables",parentTableName));
+
+
+    // drop the child table - should succeed
+    dropSql = String.format(DROP_TABLE, childTableName);
+    testBuilder()
+      .sqlQuery(dropSql)
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, String.format("Table [%s] dropped", childTableName))
+      .go();
+
+    // drop the parent table - now it should succeed
+    dropSql = String.format(DROP_TABLE, parentTableName);
+    testBuilder()
+      .sqlQuery(dropSql)
+      .unOrdered()
+      .baselineColumns("ok", "summary")
+      .baselineValues(true, String.format("Table [%s] dropped", parentTableName))
+      .go();
   }
 }

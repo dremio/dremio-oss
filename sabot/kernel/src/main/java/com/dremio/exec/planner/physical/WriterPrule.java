@@ -68,6 +68,10 @@ public class WriterPrule extends Prule {
 
   private static RelNode convertWriter(WriterRel writer, RelNode rel) {
     DistributionTrait childDist = rel.getTraitSet().getTrait(DistributionTraitDef.INSTANCE);
+    final boolean isSingleWriter = writer.getCreateTableEntry().getOptions().isSingleWriter();
+    final RelTraitSet traits = writer.getTraitSet()
+      .plus(DistributionTrait.SINGLETON)
+      .plus(Prel.PHYSICAL);
 
     // Create the Writer with the child's distribution because the degree of parallelism for the writer
     // should correspond to the number of child minor fragments. The Writer itself is not concerned with
@@ -76,9 +80,9 @@ public class WriterPrule extends Prule {
     // child's output RowType.
     final WriterPrel child = new WriterPrel(writer.getCluster(),
       writer.getTraitSet()
-        .plus(writer.getCreateTableEntry().getOptions().isSingleWriter() ? DistributionTrait.SINGLETON : childDist)
+        .plus(isSingleWriter ? DistributionTrait.SINGLETON : childDist)
         .plus(Prel.PHYSICAL),
-      rel, writer.getCreateTableEntry(), writer.getExpectedInboundRowType());
+      isSingleWriter ? convert(rel, traits) : rel, writer.getCreateTableEntry(), writer.getExpectedInboundRowType());
 
     if (!(child.getCreateTableEntry() instanceof FileSystemCreateTableEntry)) {
       // we can only rename using file system
@@ -91,11 +95,6 @@ public class WriterPrule extends Prule {
     final String finalPath = fileEntry.getLocation();
     final String userName = fileEntry.getUserName();
     final Path finalStructuredPath = Path.of(finalPath);
-
-    final RelTraitSet traits = writer.getTraitSet()
-      .plus(DistributionTrait.SINGLETON)
-      .plus(Prel.PHYSICAL);
-
     final FileSystemPlugin<?> plugin = fileEntry.getPlugin();
 
     if (PrelUtil.getPlannerSettings(rel.getCluster()).options.getOption(PlannerSettings.WRITER_TEMP_FILE)) {
@@ -104,11 +103,10 @@ public class WriterPrule extends Prule {
 
       final WriterPrel childWithTempPath = new WriterPrel(child.getCluster(),
         child.getTraitSet(),
-        rel,
+        isSingleWriter ? convert(rel, traits) : rel,
         ((FileSystemCreateTableEntry) child.getCreateTableEntry()).cloneWithNewLocation(tempPath),
         writer.getExpectedInboundRowType()
       );
-
       final RelNode newChild = convert(childWithTempPath, traits);
       return new WriterCommitterPrel(writer.getCluster(),
         traits, newChild, plugin, tempPath, finalPath, userName, fileEntry);

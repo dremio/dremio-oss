@@ -68,7 +68,7 @@ import com.google.common.collect.Sets;
  * Service managing fragment execution.
  */
 public class FragmentWorkManager implements Service, SafeExit {
-//  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentWorkManager.class);
+  private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FragmentWorkManager.class);
 
   private final BootStrapContext context;
   private final Provider<NodeEndpoint> identity;
@@ -331,8 +331,12 @@ public class FragmentWorkManager implements Service, SafeExit {
     statsCollectorThread.start();
 
     if (bitContext.isExecutor()) {
-      // This makes sense only on executor nodes.
-      heapMonitorManager = new HeapMonitorManager(bitContext.getOptionManager(), fragmentExecutors, clerk);
+      HeapClawBackStrategy heapClawBackStrategy = new FailGreediestQueriesStrategy(fragmentExecutors, clerk);
+      logger.info("Starting heap monitor manager in executor");
+      heapMonitorManager = new HeapMonitorManager(() -> bitContext.getOptionManager(),
+                                                  heapClawBackStrategy,
+                                                  ClusterCoordinator.Role.EXECUTOR);
+      heapMonitorManager.start();
     }
 
     final String prefix = "rpc";

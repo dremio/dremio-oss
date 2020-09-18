@@ -316,8 +316,8 @@ const styles = {
     flexWrap: 'nowrap',
     alignItems: 'center',
     justifyContent: 'center',
-    //padding: '2px 0',
-    minWidth: 100
+    minWidth: 100,
+    margin: '5px 0 0'
   },
   dragStyle: {
     borderBottom: '1px dotted gray',

@@ -296,6 +296,8 @@ public class ITInfoSchemaOnHiveStorage extends HiveTestBase {
         .baselineValues("hive.default", "deeply_nested_list_test")
         .baselineValues("hive.default", "deeply_nested_struct_test")
         .baselineValues("hive.default", "struct_extra_test_ext")
+        .baselineValues("hive.default", "orcnullstruct")
+        .baselineValues("hive.default", "orc_part_test")
       .go();
 
     testBuilder()

@@ -119,7 +119,7 @@ public class ExecTunnel {
 
     @Override
     public void doRpcCall(RpcOutcomeListener<Ack> outcomeListener, ProxyConnection connection) {
-      ByteBuf[] buffers = (message.getBuffer()==null) ? new ByteBuf[0]:new ByteBuf[]{message.getBuffer()};
+      ByteBuf[] buffers = (message.getBuffer()==null) ? new ByteBuf[0]:new ByteBuf[]{message.getBuffer().asNettyBuffer()};
       connection.send(outcomeListener, RpcType.REQ_OOB_MESSAGE, message.toProtoMessage(), Ack.class, buffers);
     }
 

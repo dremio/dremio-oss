@@ -42,21 +42,30 @@ public class SourceState {
     INFO, WARN, ERROR
   }
 
-  public static final SourceState GOOD = new SourceState(SourceStatus.good, Collections.<Message>emptyList());
+  public static final SourceState GOOD = new SourceState(SourceStatus.good, "", Collections.<Message>emptyList());
   public static final SourceState NOT_AVAILABLE = SourceState.badState("Source is not currently available.");
 
   private final SourceStatus status;
   private final List<Message> messages;
+  private final String suggestedUserAction;
 
   @JsonCreator
-  public SourceState(@JsonProperty("status") SourceStatus status, @JsonProperty("messages") List<Message> messages) {
+  public SourceState(@JsonProperty("status") SourceStatus status,
+                     @JsonProperty("suggestedUserAction") String suggestedUserAction,
+                     @JsonProperty("messages") List<Message> messages) {
     this.status = status;
+    this.suggestedUserAction = suggestedUserAction;
     this.messages = messages;
   }
 
   @JsonProperty("status")
   public SourceStatus getStatus() {
     return status;
+  }
+
+  @JsonProperty("suggestedUserAction")
+  public String getSuggestedUserAction() {
+    return suggestedUserAction;
   }
 
   @JsonProperty("messages")
@@ -66,7 +75,7 @@ public class SourceState {
 
   @Override
   public int hashCode() {
-    return Objects.hash(status, messages);
+    return Objects.hash(status, suggestedUserAction, messages);
   }
 
   @Override
@@ -76,6 +85,7 @@ public class SourceState {
     }
     SourceState that = (SourceState) obj;
     return Objects.equals(this.status, that.status) &&
+      Objects.equals(this.suggestedUserAction, that.suggestedUserAction) &&
       Objects.equals(this.messages, that.messages);
   }
 
@@ -127,28 +137,28 @@ public class SourceState {
     }
   }
 
-  private static SourceState getSourceState(SourceState.SourceStatus status, MessageLevel level, String... msgs) {
+  private static SourceState getSourceState(SourceState.SourceStatus status, String suggestedUserAction, MessageLevel level, String... msgs) {
     List<Message> messageList = new ArrayList<>();
     for (String msg : msgs) {
       messageList.add(new Message(level, msg));
     }
-    return new SourceState(status, messageList);
+    return new SourceState(status, suggestedUserAction, messageList);
   }
 
-  public static SourceState warnState(String... e) {
-    return getSourceState(SourceStatus.warn, MessageLevel.WARN, e);
+  public static SourceState warnState(String suggestedUserAction, String... e) {
+    return getSourceState(SourceStatus.warn, suggestedUserAction, MessageLevel.WARN, e);
   }
 
   public static SourceState goodState(String... e){
-    return getSourceState(SourceStatus.good, MessageLevel.INFO, e);
+    return getSourceState(SourceStatus.good, "", MessageLevel.INFO, e);
   }
 
-  public static SourceState badState(String... e) {
-    return getSourceState(SourceStatus.bad, MessageLevel.ERROR, e);
+  public static SourceState badState(String suggestedUserAction, String... e) {
+    return getSourceState(SourceStatus.bad, suggestedUserAction, MessageLevel.ERROR, e);
   }
 
-  public static SourceState badState(Exception e) {
-    return getSourceState(SourceStatus.bad, MessageLevel.ERROR, e.getMessage());
+  public static SourceState badState(String suggestedUserAction, Exception e) {
+    return getSourceState(SourceStatus.bad, suggestedUserAction, MessageLevel.ERROR, e.getMessage());
   }
 
   @Override
@@ -167,7 +177,10 @@ public class SourceState {
     default:
       throw new IllegalStateException(status.name());
     }
-
+    if (suggestedUserAction != null && suggestedUserAction.length() > 0) {
+      sb.append("\n\tSuggested User Action: ");
+      sb.append(suggestedUserAction);
+    }
     if (messages != null) {
       for (Message m : messages) {
         if (messages.size() > 1) {

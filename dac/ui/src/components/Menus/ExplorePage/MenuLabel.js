@@ -44,6 +44,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     paddingLeft: 8,
+    paddingRight: 8,
     height: 24,
     ...formDefault,
     fontWeight: '500'

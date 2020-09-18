@@ -57,6 +57,7 @@ import FontIcon from 'components/Icon/FontIcon';
 import DatasetItemLabel from 'components/Dataset/DatasetItemLabel';
 import SimpleButton from '@app/components/Buttons/SimpleButton';
 import Art from '@app/components/Art';
+import { Divider } from '@app/components/InfoHeader/Divider';
 
 import { getIconDataTypeFromDatasetType } from 'utils/iconUtils';
 
@@ -360,14 +361,12 @@ export class ExploreInfoHeader extends PureComponent {
       <div className='right-part'>
         { this.renderAccelerationButton() }
         { this.renderAnalyzeButtons() }
+        <Divider/>
         { this.renderEllipsisButton() }
         { this.renderSaveButton() }
+        <Divider/>
         { this.renderRunButton('preview', this.doButtonAction) }
         { this.renderRunButton('run', this.doButtonAction) }
-        { /* this feature disabled for now
-            <div style={[style.divider]} />
-            {this.renderRightTreeToggler()}
-          */ }
       </div>
     );
   }
@@ -378,10 +377,13 @@ export class ExploreInfoHeader extends PureComponent {
     }
     const fullPath = ExploreInfoHeader.getFullPathListForDisplay(this.props.dataset);
     return (
-      <DatasetAccelerationButton
-        style={{ marginLeft: 20 }}
-        fullPath={fullPath}
-        isEditedDataset={this.isEditedDataset()}/>
+      <Fragment>
+        <DatasetAccelerationButton
+          style={{ marginLeft: 20 }}
+          fullPath={fullPath}
+          isEditedDataset={this.isEditedDataset()}/>
+        <Divider/>
+      </Fragment>
     );
   };
 
@@ -592,15 +594,13 @@ const style = {
     position: 'relative',
     width: 30
   },
-  divider: {
-    height: 28,
-    borderLeft: '2px solid rgba(0,0,0,0.1)'
-  },
   noTextButton: {
-    minWidth: 50
+    minWidth: 50,
+    marginRight: 5
   },
   actionBtnWrap: {
     marginBottom: 0,
+    marginLeft: 0,
     minWidth: 80
   },
   narwhal: {

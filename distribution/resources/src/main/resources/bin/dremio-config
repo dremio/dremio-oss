@@ -166,7 +166,7 @@ if [ -z "$JAVA_HOME" ]; then
 +======================================================================+
 |      Error: JAVA_HOME is not set and Java could not be found         |
 +----------------------------------------------------------------------+
-| Dremio requires Java 1.8 or later.                                   |
+| Dremio requires Java 8 or later.                                   |
 +======================================================================+
 EOF
     exit 1
@@ -207,8 +207,13 @@ else
     exit 1
 fi
 
-if [ $JAVA_MAJOR_VERSION -lt 8 ]; then
-  echo "Java 1.8 or later is required to run Dremio."
+if [ "$DREMIO_JAVA_VERSION_CHECK" == "false" ]; then
+  if [ $JAVA_MAJOR_VERSION -lt 8 ]; then
+    echo "Java 8 or later is required to run Dremio."
+    exit 1
+  fi
+elif [ $JAVA_MAJOR_VERSION -ne 8 ]; then
+  echo "Java 8 is required to run Dremio. Java $JAVA_MAJOR_VERSION is being used."
   exit 1
 fi
 

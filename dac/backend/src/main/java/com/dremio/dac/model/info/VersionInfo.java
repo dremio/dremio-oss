@@ -13,36 +13,41 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.dremio.dac.service.admin;
+package com.dremio.dac.model.info;
 
+import com.dremio.dac.api.JsonISODateTime;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Description of commit information.
+ * Description of version information.
  */
-public class CommitInfo {
-  private final String hash;
-  private final String builder;
-  private final long time;
+public class VersionInfo {
+  private final String version;
+  @JsonISODateTime
+  private final long buildTime;
+  private final CommitInfo commit;
 
   @JsonCreator
-  public CommitInfo(
-      @JsonProperty("hash") String hash,
-      @JsonProperty("builder") String builder,
-      @JsonProperty("time") long time) {
+  public VersionInfo(
+      @JsonProperty("version") String version,
+      @JsonProperty("buildTime") long buildTime,
+      @JsonProperty("commit") CommitInfo commit) {
     super();
-    this.hash = hash;
-    this.builder = builder;
-    this.time = time;
+    this.version = version;
+    this.buildTime = buildTime;
+    this.commit = commit;
   }
-  public String getHash() {
-    return hash;
+
+  public String getVersion() {
+    return version;
   }
-  public String getBuilder() {
-    return builder;
+
+  public long getBuildTime() {
+    return buildTime;
   }
-  public long getTime() {
-    return time;
+
+  public CommitInfo getCommit() {
+    return commit;
   }
 }

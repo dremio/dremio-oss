@@ -97,8 +97,24 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     options = inMemory ? new InMemoryLocalStore<>() : storeProvider.get().getStore(OptionStoreCreator.class);
     migrateLegacyOptions();
     updateBasedOnSystemProperties();
+    filterInvalidOptions();
   }
 
+  private void filterInvalidOptions() {
+    boolean shouldUpdate = false;
+    List<OptionValueProto> filteredList = new ArrayList<>();
+    for (OptionValueProto optionValueProto : getOptionProtoList()) {
+      if(isValid(optionValueProto.getName())) {
+        filteredList.add(optionValueProto);
+      } else {
+        shouldUpdate = true;
+        logger.warn("Ignoring deprecated option `{}`", optionValueProto.getName());
+      }
+    }
+    if (shouldUpdate) {
+      options.put(OPTIONS_KEY, OptionValueProtoUtils.toOptionValueProtoList(filteredList));
+    }
+  }
 
   private void migrateLegacyOptions() {
     if (inMemory) {
@@ -120,7 +136,9 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     final Iterable<Entry<String, OptionValue>> legacyOptionValues = legacyStore.getAll();
     legacyOptionValues.forEach(
       entry -> {
-        optionList.add(OptionValueProtoUtils.toOptionValueProto(entry.getValue()));
+        if (optionValidatorListing.isValid(entry.getKey())) {
+          optionList.add(OptionValueProtoUtils.toOptionValueProto(entry.getValue()));
+        }
       }
     );
     if (!optionList.isEmpty()) {
@@ -140,7 +158,9 @@ public class SystemOptionManager extends BaseOptionManager implements Service, P
     final Iterable<Entry<String, OptionValueProto>> legacyOptionValues = legacyStore.find();
     legacyOptionValues.forEach(
       entry -> {
-        optionList.add(entry.getValue());
+        if (optionValidatorListing.isValid(entry.getKey())) {
+          optionList.add(entry.getValue());
+        }
       }
     );
     if (!optionList.isEmpty()) {

@@ -59,8 +59,6 @@ import com.dremio.sabot.exec.rpc.TunnelProvider;
 import com.dremio.test.AllocatorRule;
 import com.google.common.collect.Lists;
 
-import io.netty.buffer.ByteBuf;
-
 /**
  * Tests for {@link VectorizedHashJoinOperator}
  */
@@ -146,6 +144,7 @@ public class VectorizedHashJoinOperatorTest {
     @Test
     public void testTryPushRuntimeFilterShuffleJoin() throws Exception {
         try (ArrowBuf recvBuffer = bfTestAllocator.buffer(64)) {
+            recvBuffer.setBytes(0, new byte[64]); // set all bytes to zero
             FragmentHandle fh = FragmentHandle.newBuilder().setMinorFragmentId(1).build();
             VectorizedHashJoinOperator joinOp = spy(newVecHashJoinOp(newRuntimeFilterInfo(false, "col1"), fh));
 
@@ -163,7 +162,7 @@ public class VectorizedHashJoinOperatorTest {
 
             // Get pieces from all other fragments. At last piece's merge, filter is sent to probe scan
             for (int sendingFragment = 2; sendingFragment <= 4; sendingFragment++) {
-                OutOfBandMessage oobMsg = runtimeFilterOOBFromMinorFragment(sendingFragment, recvBuffer.asNettyBuffer(), "col1");
+                OutOfBandMessage oobMsg = runtimeFilterOOBFromMinorFragment(sendingFragment, recvBuffer, "col1");
                 joinOp.workOnOOB(oobMsg);
                 oobMsg.getBuffer().release();
             }
@@ -198,7 +197,7 @@ public class VectorizedHashJoinOperatorTest {
             joinOp.setTable(joinTable);
 
             for (int sendingFragment = 2; sendingFragment <= 4; sendingFragment++) {
-                OutOfBandMessage oobMsg = runtimeFilterOOBFromMinorFragment(sendingFragment, recvBuffer.asNettyBuffer(), "col1");
+                OutOfBandMessage oobMsg = runtimeFilterOOBFromMinorFragment(sendingFragment, recvBuffer, "col1");
                 joinOp.workOnOOB(oobMsg);
                 oobMsg.getBuffer().release();
             }
@@ -226,6 +225,7 @@ public class VectorizedHashJoinOperatorTest {
         int buildOpId = 65541;
         QueryId queryId = QueryId.newBuilder().build();
         try (ArrowBuf recvBuffer = bfTestAllocator.buffer(64)) {
+            recvBuffer.setBytes(0, new byte[64]); // set all bytes to zero
             FragmentHandle fh = FragmentHandle.newBuilder()
                     .setQueryId(queryId).setMajorFragmentId(buildMajorFragment).setMinorFragmentId(buildMinorFragment).build();
 
@@ -347,7 +347,7 @@ public class VectorizedHashJoinOperatorTest {
         verify(tunnel, never()).sendOOBMessage(oobMessageCaptor.capture());
     }
 
-    private OutOfBandMessage runtimeFilterOOBFromMinorFragment(int sendingMinorFragment, ByteBuf buf, String... col) {
+    private OutOfBandMessage runtimeFilterOOBFromMinorFragment(int sendingMinorFragment, ArrowBuf buf, String... col) {
         List<Integer> allFragments = Lists.newArrayList(1,2,3,4);
         allFragments.removeIf(val -> val == sendingMinorFragment);
         RuntimeFilter filter = RuntimeFilter.newBuilder().setProbeScanOperatorId(101).setProbeScanMajorFragmentId(1)

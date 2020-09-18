@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { BINARY, DATE, DATETIME, TEXT, TIME, VARCHAR } from './DataTypes';
+import { BINARY, DATE, DATETIME, TEXT, TIME, VARCHAR, TIMESTAMP } from './DataTypes';
 
 
 export const allMeasureTypes = {
@@ -37,7 +37,8 @@ export const cellTypesWithNoSum = [
   DATETIME,
   TEXT,
   BINARY,
-  VARCHAR
+  VARCHAR,
+  TIMESTAMP
 ];
 
 export const fieldTypes = {

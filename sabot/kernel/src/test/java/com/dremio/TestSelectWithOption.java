@@ -70,15 +70,12 @@ public class TestSelectWithOption extends BaseTestQuery {
     );
 
     String queryTemplate = "select columns from table(%s (type => 'TeXT', fieldDelimiter => '%s', extractHeader => true))";
-    try {
-      test("ALTER SYSTEM SET \"store.plugin.max_metadata_leaf_columns\" = 2");
+    try (AutoCloseable closeable = setSystemOptionWithAutoReset("store.plugin.max_metadata_leaf_columns", "2")) {
       test(format(queryTemplate, tableName, ","));
       fail("query should have failed");
     } catch (UserException e) {
       assertEquals(e.getErrorType(), UserBitShared.DremioPBError.ErrorType.VALIDATION);
       assertTrue(e.getMessage().contains("exceeded the maximum number of fields of 2"));
-    } finally {
-      test("ALTER SESSION RESET \"store.plugin.max_metadata_leaf_columns\"");
     }
   }
 

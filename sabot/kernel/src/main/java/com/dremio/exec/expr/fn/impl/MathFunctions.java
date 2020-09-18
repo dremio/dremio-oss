@@ -21,6 +21,7 @@ import javax.inject.Inject;
 
 import org.apache.arrow.vector.holders.BigIntHolder;
 import org.apache.arrow.vector.holders.Float8Holder;
+import org.apache.arrow.vector.holders.IntHolder;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
 import org.apache.arrow.vector.holders.VarCharHolder;
@@ -107,6 +108,38 @@ public class MathFunctions{
     public void eval() {
       out.isSet = 1;
       out.value = random.nextDouble();
+    }
+  }
+
+  @FunctionTemplate(name = "bitwise_not", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class IntBitwiseNot implements SimpleFunction {
+
+    @Param IntHolder in;
+    @Output IntHolder out;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      out.value = ~in.value;
+    }
+  }
+
+  @FunctionTemplate(name = "bitwise_not", scope = FunctionScope.SIMPLE, nulls = NullHandling.NULL_IF_NULL)
+  public static class BigIntBitwiseNot implements SimpleFunction {
+
+    @Param BigIntHolder in;
+    @Output BigIntHolder out;
+
+    @Override
+    public void setup() {
+    }
+
+    @Override
+    public void eval() {
+      out.value = ~in.value;
     }
   }
 

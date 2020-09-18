@@ -15,6 +15,8 @@
  */
 package com.dremio.dac.cmd;
 
+import java.util.List;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -23,15 +25,23 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
 import com.beust.jcommander.Parameters;
 import com.dremio.common.utils.protos.AttemptId;
+import com.dremio.common.utils.protos.AttemptIdUtils;
 import com.dremio.dac.server.DACConfig;
 import com.dremio.dac.service.collaboration.CollaborationHelper;
 import com.dremio.datastore.CoreStoreProviderImpl.StoreWithId;
 import com.dremio.datastore.KVAdmin;
 import com.dremio.datastore.LocalKVStoreProvider;
+import com.dremio.datastore.api.LegacyIndexedStore;
+import com.dremio.datastore.api.LegacyKVStore;
 import com.dremio.datastore.api.LegacyKVStoreProvider;
+import com.dremio.exec.proto.UserBitShared.QueryProfile;
+import com.dremio.service.job.proto.JobId;
+import com.dremio.service.job.proto.JobResult;
 import com.dremio.service.jobs.LocalJobsService;
-import com.dremio.service.jobs.LocalJobsService.DeleteResult;
+import com.dremio.service.jobs.LocalJobsService.JobsStoreCreator;
+import com.dremio.service.jobs.LocalJobsService.ProfileCleanup;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
+import com.dremio.service.jobtelemetry.server.store.LocalProfileStore.KVProfileStoreCreator;
 import com.dremio.service.namespace.NamespaceServiceImpl;
 import com.dremio.service.namespace.PartitionChunkId;
 
@@ -52,6 +62,9 @@ public class Clean {
 
     @Parameter(names= {"-j", "--max-job-days"}, description="delete jobs older than provided number of days", required=false, validateWith=PositiveInteger.class)
     private int maxJobDays = Integer.MAX_VALUE;
+
+    @Parameter(names= {"-p", "--delete-orphan-profiles"}, description="delete orphans profiles in kvstore", required=false)
+    private boolean deleteOrphanProfiles = false;
 
     @Parameter(names= {"-o", "--delete-orphans"}, description="delete orphans records in kvstore (e.g. old splits)", required=false)
     private boolean deleteOrphans = false;
@@ -178,7 +191,11 @@ public class Clean {
       }
 
       if(options.maxJobDays < Integer.MAX_VALUE) {
-        deleteOldJobs(provider.asLegacy(), options.maxJobDays);
+        deleteOldJobsAndProfiles(provider.asLegacy(), options.maxJobDays);
+      }
+
+      if (options.deleteOrphanProfiles) {
+        deleteOrphanProfiles(provider.asLegacy());
       }
 
       if(options.reindexData) {
@@ -210,14 +227,53 @@ public class Clean {
     }
   }
 
+  /**
+   * Offline profile deletion using LocalProfileStore.
+   */
+  private static class OfflineProfileCleanup implements ProfileCleanup {
+    private final LegacyKVStoreProvider provider;
 
-  private static void deleteOldJobs(LegacyKVStoreProvider provider, int maxDays) {
-    AdminLogger.log("Deleting jobs details & profiles older {} days... ", maxDays);
-    DeleteResult result = LocalJobsService.deleteOldJobs(provider, TimeUnit.DAYS.toMillis(maxDays));
-    for (AttemptId attemptId : result.getDeletedAttemptIds()) {
+    public OfflineProfileCleanup(LegacyKVStoreProvider provider) {
+      this.provider = provider;
+    }
+
+    @Override
+    public void go(AttemptId attemptId) {
       LocalProfileStore.deleteOldProfile(provider, attemptId);
     }
-    AdminLogger.log("Completed. Deleted {} jobs and {} profiles.", result.getJobsDeleted(), result.getProfilesDeleted());
+  }
+
+  /**
+   * Method to delete jobs and their corresponding profiles older than provided number of maxDays.
+   */
+  private static void deleteOldJobsAndProfiles(LegacyKVStoreProvider provider, int maxDays) {
+    AdminLogger.log("Deleting jobs details & profiles older {} days... ", maxDays);
+    OfflineProfileCleanup offlineProfileCleanup = new OfflineProfileCleanup(provider);
+    List<Long> result = LocalJobsService.deleteOldJobsAndProfiles(offlineProfileCleanup, provider, TimeUnit.DAYS.toMillis(maxDays));
+    AdminLogger.log("Completed. Deleted {} jobs and {} profiles. Delete profile failures: [{}].", result.get(0), result.get(1), result.get(2));
+  }
+
+  /**
+   * Method to delete any orphan profiles (i.e a profile without a corresponding entry in the job store).
+   */
+  private static void deleteOrphanProfiles(LegacyKVStoreProvider provider) {
+    AdminLogger.log("Deleting orphan profiles... ");
+    long profilesDeleted = 0;
+    final LegacyKVStore<AttemptId, QueryProfile> legacyProfileStore = provider.getStore(KVProfileStoreCreator.class);
+    final LegacyIndexedStore<JobId, JobResult> legacyJobStore = provider.getStore(JobsStoreCreator.class);
+
+    // full scan of the profile store
+    for (Entry<AttemptId, QueryProfile> entry : legacyProfileStore.find()) {
+      // convert attempt id to job id (attemptId = "{jobId}/{indexOfAttempt}")
+      AttemptId attemptId = entry.getKey();
+      JobId jobId = new JobId(AttemptIdUtils.toString(attemptId));
+      // if the corresponding job id is not in job store, then it's an orphan
+      if (!legacyJobStore.contains(jobId)) {
+        legacyProfileStore.delete(attemptId);
+        profilesDeleted++;
+      }
+    }
+    AdminLogger.log("Completed. Deleted {} orphan profiles.", profilesDeleted);
   }
 
   private static void deleteSplitOrphans(LegacyKVStoreProvider provider) {

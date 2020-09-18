@@ -52,7 +52,7 @@ public abstract class MetadataRequestOptions {
     return true;
   }
 
-  MetadataRequestOptions cloneWith(String newUser, NamespaceKey newDefaultSchema) {
+  MetadataRequestOptions cloneWith(String newUser, NamespaceKey newDefaultSchema, boolean checkValidity) {
     final SchemaConfig newSchemaConfig = SchemaConfig.newBuilder(newUser)
         .defaultSchema(newDefaultSchema)
         .exposeInternalSources(getSchemaConfig().exposeInternalSources())
@@ -64,6 +64,7 @@ public abstract class MetadataRequestOptions {
 
     return new ImmutableMetadataRequestOptions.Builder().from(this)
         .setSchemaConfig(newSchemaConfig)
+        .setCheckValidity(checkValidity)
         .build();
   }
 

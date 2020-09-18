@@ -28,6 +28,7 @@ import com.dremio.common.exceptions.UserException;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
+import com.dremio.service.namespace.source.proto.SourceConfig;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Stopwatch;
 import com.google.common.cache.Cache;
@@ -47,7 +48,7 @@ class PermissionCheckCache {
   }
 
   private final Cache<Key, Value> permissionsCache;
-  private final Provider<StoragePlugin> plugin;
+  protected final Provider<StoragePlugin> plugin;
   private final Provider<Long> authTtlMs;
 
   public PermissionCheckCache(
@@ -66,25 +67,30 @@ class PermissionCheckCache {
     return permissionsCache;
   }
 
-  /**
-   * Delegates call to the actual {@link StoragePlugin#hasAccessPermission permission check} and caches the
-   * result based on the metadata policy defined in the source configuration.
-   *
-   * See {@link StoragePlugin#hasAccessPermission}.
-   *
-   * @param username username to check access for
-   * @param namespaceKey path to check access for
-   * @param config dataset properties
-   * @param metadataStatsCollector stat collector
-   * @return true iff user has access
-   * @throws UserException if the underlying calls throws any exception
-   */
-  public boolean hasAccess(final String username, final NamespaceKey namespaceKey, final DatasetConfig config, final MetadataStatsCollector metadataStatsCollector) {
+  protected boolean checkPlugin(final String username, final NamespaceKey namespaceKey, final DatasetConfig config, final SourceConfig sourceConfig) {
+    return plugin.get().hasAccessPermission(username, namespaceKey, config);
+  }
+
+    /**
+     * Delegates call to the actual {@link StoragePlugin#hasAccessPermission permission check} and caches the
+     * result based on the metadata policy defined in the source configuration.
+     *
+     * See {@link StoragePlugin#hasAccessPermission}.
+     *
+     * @param username username to check access for
+     * @param namespaceKey path to check access for
+     * @param config dataset properties
+     * @param metadataStatsCollector stat collector
+     * @param sourceConfig source config
+     * @return true iff user has access
+     * @throws UserException if the underlying calls throws any exception
+     */
+  public boolean hasAccess(final String username, final NamespaceKey namespaceKey, final DatasetConfig config, final MetadataStatsCollector metadataStatsCollector, final SourceConfig sourceConfig) {
     final Stopwatch permissionCheck = Stopwatch.createStarted();
 
     // if we are unable to cache, go direct.
     if (authTtlMs.get() == 0) {
-      boolean hasAccess = plugin.get().hasAccessPermission(username, namespaceKey, config);
+      boolean hasAccess = checkPlugin(username, namespaceKey, config, sourceConfig);
       permissionCheck.stop();
       metadataStatsCollector.addDatasetStat(namespaceKey.getSchemaPath(), PermissionCheckAccessType.PERMISSION_CACHE_MISS.name(), permissionCheck.elapsed(TimeUnit.MILLISECONDS));
       return hasAccess;
@@ -94,7 +100,7 @@ class PermissionCheckCache {
     final long now = System.currentTimeMillis();
 
     final Callable<Value> loader = () -> {
-      final boolean hasAccess = plugin.get().hasAccessPermission(username, namespaceKey, config);
+      final boolean hasAccess = checkPlugin(username, namespaceKey, config, sourceConfig);
       if (!hasAccess) {
         throw NoAccessException.INSTANCE;
       }
@@ -136,7 +142,7 @@ class PermissionCheckCache {
     }
   }
 
-  private Value getFromPermissionsCache(Key key, Callable<Value> loader) throws ExecutionException {
+  protected Value getFromPermissionsCache(Key key, Callable<Value> loader) throws ExecutionException {
     Value value;
 
     try {
@@ -202,8 +208,8 @@ class PermissionCheckCache {
   /**
    * Exception used if user has to access. This ensures that we do not cache any no-access permissions.
    */
-  private static final class NoAccessException extends RuntimeException {
+  protected static final class NoAccessException extends RuntimeException {
     // we create a singleton since we always catch and don't need a stack trace
-    private static final NoAccessException INSTANCE = new NoAccessException();
+    protected static final NoAccessException INSTANCE = new NoAccessException();
   }
 }

@@ -20,6 +20,7 @@ import pureRender from 'pure-render-decorator';
 import PropTypes from 'prop-types';
 
 import classNames from 'classnames';
+import TooltipEnabledLabel from 'components/TooltipEnabledLabel';
 import {
   onoffBtn,
   onoffDot,
@@ -54,7 +55,8 @@ export const checkboxPropTypes = {
   visited: PropTypes.any,
   autofilled: PropTypes.any,
   isOnOffSwitch: PropTypes.bool,
-  toolTip: PropTypes.string
+  toolTip: PropTypes.string,
+  toolTipPosition: PropTypes.string
 };
 
 @pureRender
@@ -102,21 +104,21 @@ export default class Checkbox extends Component {
       inputType, labelBefore,
       className, inverted, renderDummyInput,
       dataQa, initialValue, autofill, onUpdate, valid, invalid, dirty, pristine, error, active, touched, visited, autofilled, // eslint-disable-line @typescript-eslint/no-unused-vars
+      toolTip, toolTipPosition,
       ...props
     } = this.props;
-    const labelSpan = <span className={labelContent}>{label}</span>;
     const dummyCheckState = (inverted) ? !props.checked : props.checked;
 
     // <input .../> should be before dummy input to '~' css selector work
     return (
-      <label className={classNames(['field', base, this.props.disabled && disabledCls, className])} key='container' style={style}>
-        {labelBefore && this.renderLabel(label)}
+      <TooltipEnabledLabel className={classNames(['field', base, this.props.disabled && disabledCls, className])} key='container'
+        style={style} labelBefore={labelBefore} label={label} labelContentClass={labelContent}
+        tooltip={toolTip} toolTipPosition={toolTipPosition}>
         <input disabled={this.props.disabled} type={inputType} style={{position: 'absolute', left: -10000}} {...props}/>
         {renderDummyInput && renderDummyInput(props.checked, dummyInputStyle)}
         {isOnOffSwitch && this.renderOnOffSwitch(props.checked, label, labelBefore)}
         {!renderDummyInput && !isOnOffSwitch && this.renderDummyCheckbox(dummyCheckState, dummyInputStyle)}
-        {!labelBefore && labelSpan}
-      </label>
+      </TooltipEnabledLabel>
     );
   }
 }

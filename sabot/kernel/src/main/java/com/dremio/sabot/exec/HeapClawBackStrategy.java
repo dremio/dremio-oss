@@ -18,7 +18,7 @@ package com.dremio.sabot.exec;
 /**
  * Interface for reducing heap usage when we detect that we are on the verge of an outage.
  */
-interface HeapClawBackStrategy {
+public interface HeapClawBackStrategy {
   HeapClawBackStrategy NO_OP = (() -> {});
 
   /**

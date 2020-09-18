@@ -114,6 +114,9 @@ export default class Message extends Component {
       // note: #errorMessage is legacy
       // fall back to #code (better than empty string)
       messageText = this.renderMessageForCode() || messageText.get('message') || messageText.get('errorMessage') || messageText.get('code');
+      if (typeof messageText === 'string' && !(messageText.endsWith('.'))) {
+        messageText += '.';
+      }
     }
 
     return this.getMessage(messageText);
@@ -249,13 +252,13 @@ export default class Message extends Component {
       onMouseUp={this.prevent}
       style={{...styles.showMoreLink, marginRight: this.props.isDismissable ? 30 : 5 }}>
 
-      {this.state.showMore ? la('show less') : la('show more')}
+      <FormattedMessage id={this.state.showMore ? 'Message.Show.Less' : 'Message.Show.More'} />
     </span>;
   }
 
-  renderShowMore(details) {
+  renderShowMore(details, linkOptions) {
     if (!details) return null;
-    if (!this.props.useModalShowMore) return this.state.showMore && <div style={[styles.details, this.props.detailsStyle]}>{details}</div>;
+    if (!this.props.useModalShowMore) return this.state.showMore && <div className='message-content' style={[styles.details, this.props.detailsStyle]}><Linkify options={linkOptions}>{details}</Linkify></div>;
 
     const hide = () => this.setState({showMore: false});
 
@@ -266,7 +269,7 @@ export default class Message extends Component {
       hide={hide}
     >
       <ModalForm onSubmit={hide} confirmText={la('Close')} isNestedForm> {/* best to assume isNestedForm */}
-        <FormBody>{details}</FormBody>
+        <FormBody className='message-content'><Linkify options={linkOptions}>{details}</Linkify></FormBody>
       </ModalForm>
     </Modal>;
   }
@@ -293,13 +296,13 @@ export default class Message extends Component {
           {this.renderIcon(messageType)}
           <span className='message-content' style={{...styles.messageText, ...messageTextStyle}} onMouseUp={this.prevent}>
             <Linkify options={linkOptions}>{this.renderErrorMessageText()}</Linkify>
+            {details && this.renderShowMoreToggle()}
           </span>
-          {details && this.renderShowMoreToggle()}
           {this.props.isDismissable && <div style={styles.close}>
             <FontIcon type='XSmall' onClick={this.onDismiss} style={styles.dismissBtn}/>
           </div>}
         </div>
-        {this.renderShowMore(details)}
+        {this.renderShowMore(details, linkOptions)}
       </div>
     );
   }
@@ -346,7 +349,7 @@ const styles = {
     flexShrink: 0
   },
   details: {
-    padding: '10px 30px',
+    padding: '10px 34px',
     maxHeight: 200,
     width: '100%',
     overflowX: 'auto',

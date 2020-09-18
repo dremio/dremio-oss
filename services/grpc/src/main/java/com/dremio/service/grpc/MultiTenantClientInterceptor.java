@@ -38,7 +38,10 @@ public class MultiTenantClientInterceptor implements ClientInterceptor {
       @Override
       public void start(ClientCall.Listener<RespT> responseListener, Metadata headers) {
 
-        headers.put(HeaderKeys.TENANT_ID_HEADER_KEY, RequestContext.current().get(TenantContext.CTX_KEY).serialize());
+        headers.put(HeaderKeys.PROJECT_ID_HEADER_KEY,
+          RequestContext.current().get(TenantContext.CTX_KEY).getProjectId().toString());
+        headers.put(HeaderKeys.ORG_ID_HEADER_KEY,
+          RequestContext.current().get(TenantContext.CTX_KEY).getOrgId().toString());
         headers.put(HeaderKeys.USER_HEADER_KEY, RequestContext.current().get(UserContext.CTX_KEY).serialize());
 
         super.start(new ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT>(responseListener) {

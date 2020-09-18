@@ -679,6 +679,8 @@ public class HiveTestDataGenerator {
     createParquetTableWithDoubleFloatType(hiveDriver, "parquet_double_to_float");
     createParquetTableWithDeeplyNestedColumns(hiveDriver);
     createParquetStructExtraField(hiveDriver);
+    createNullORCStructTable(hiveDriver);
+    createORCPartitionSchemaTestTable(hiveDriver);
     ss.close();
   }
 
@@ -2593,5 +2595,40 @@ public class HiveTestDataGenerator {
       "col1 int, col2 array<struct<f1:int, f2:struct<f_f_1:int, f_f_2:int>>>)" +
       "stored as parquet location '" + structWithExtraFieldFile.getParent() + "'";
     executeQuery(hiveDriver, structExtraFieldTest);
+  }
+
+  private void createNullORCStructTable(final Driver hiveDriver) throws Exception {
+    final File structWithNullsOrc = new File(BaseTestQuery.getTempDir("struct_with_nulls_orc_test"));
+    structWithNullsOrc.mkdirs();
+    final URL structWithNullsOrcUrl = Resources.getResource("struct_with_nulls.orc");
+    if (structWithNullsOrcUrl == null) {
+      throw new IOException(String.format("Unable to find path %s.", "struct_with_nulls.orc"));
+    }
+
+    final File structWithNullsOrcFile = new File(structWithNullsOrc, "struct_with_nulls.orc");
+    structWithNullsOrcFile.deleteOnExit();
+    structWithNullsOrc.deleteOnExit();
+    Files.write(Paths.get(structWithNullsOrcFile.toURI()), Resources.toByteArray(structWithNullsOrcUrl));
+
+    executeQuery(hiveDriver,
+      "CREATE EXTERNAL TABLE orcnullstruct (" +
+        " id int," +
+        " emp_name string," +
+        " city struct<f1:string>, " +
+        " prm_borr struct<FRST_NM:string," +
+        "LAST_NM:string,MID_NM:string,APPLNT_TYPE_CD:string," +
+        "EMAIL_ADDR_TXT:string,BIRTH_DT:date,AGE_NBR:int," +
+        "APPLNT_ID:int,POSITN_NBR:int> " +
+      ") STORED AS ORC location '" + structWithNullsOrcFile.getParent() + "'");
+  }
+
+  private void createORCPartitionSchemaTestTable(final Driver hiveDriver) {
+    executeQuery(hiveDriver, "create table orc_part_test (col1 decimal(5,3)) partitioned by (partcol1 int) stored as orc");
+    executeQuery(hiveDriver, "insert into orc_part_test partition (partcol1=1) values (12.345)");
+    executeQuery(hiveDriver, "alter table orc_part_test change col1 col1 decimal(3,1)");
+    executeQuery(hiveDriver, "insert into orc_part_test partition (partcol1=1) values (12.9)");
+    executeQuery(hiveDriver, "insert into orc_part_test partition (partcol1=2) values (23.9)");
+    executeQuery(hiveDriver, "alter table orc_part_test change col1 col1 decimal(5,3)");
+    executeQuery(hiveDriver, "insert into orc_part_test partition (partcol1=2) values (23.987)");
   }
 }

@@ -26,6 +26,7 @@ import com.dremio.exec.planner.acceleration.substitution.MaterializationProvider
 import com.dremio.exec.planner.sql.SqlConverter;
 import com.dremio.exec.server.MaterializationDescriptorProvider;
 import com.dremio.sabot.rpc.user.UserSession;
+import com.dremio.service.namespace.NamespaceKey;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -71,6 +72,11 @@ public class MaterializationList implements MaterializationProvider {
   @Override
   public List<DremioMaterialization> getMaterializations() {
     return factory.get();
+  }
+
+  @Override
+  public java.util.Optional<DremioMaterialization> getDefaultRawMaterialization(NamespaceKey path, List<String> vdsFields) {
+    return getDefaultRawMaterialization(provider, path, vdsFields);
   }
 
   public Optional<MaterializationDescriptor> getDescriptor(final List<String> path) {
@@ -119,6 +125,39 @@ public class MaterializationList implements MaterializationProvider {
     return materializations;
   }
 
+  /**
+   * Returns available default raw materialization from the given provider and the path for the VDS/PDS
+   *
+   * @param provider materialization provider.
+   * @param path     dataset path
+   * @param vdsFields
+   * @return materializations used by planner
+   */
+  @VisibleForTesting
+  protected java.util.Optional<DremioMaterialization> getDefaultRawMaterialization(final MaterializationDescriptorProvider provider, NamespaceKey path, List<String> vdsFields) {
+    final Set<String> exclusions = Sets.newHashSet(session.getSubstitutionSettings().getExclusions());
+    final Set<String> inclusions = Sets.newHashSet(session.getSubstitutionSettings().getInclusions());
+    final boolean hasInclusions = !inclusions.isEmpty();
+    final java.util.Optional<MaterializationDescriptor> opt = provider.getDefaultRawMaterialization(path, vdsFields);
+
+    if (opt.isPresent()) {
+      MaterializationDescriptor descriptor = opt.get();
+      if (
+        !(
+          (hasInclusions && !inclusions.contains(descriptor.getLayoutId()))
+            ||
+            exclusions.contains(descriptor.getLayoutId())
+        )
+      ) {
+        try {
+          return java.util.Optional.of(descriptor.getMaterializationFor(converter));
+        } catch (Throwable e) {
+          logger.warn("Failed to expand materialization {}", descriptor.getMaterializationId(), e);
+        }
+      }
+    }
+    return java.util.Optional.empty();
+  }
 
   static class TablePath {
     public final List<String> path;

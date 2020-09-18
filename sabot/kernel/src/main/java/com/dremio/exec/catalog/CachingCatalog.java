@@ -114,4 +114,14 @@ public class CachingCatalog extends DelegatingCatalog {
   public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema) {
     return new CachingCatalog(delegate.resolveCatalog(username, newDefaultSchema), tablesByNamespaceKey);
   }
+
+  @Override
+  public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema, boolean checkValidity) {
+    return new CachingCatalog(delegate.resolveCatalog(username, newDefaultSchema, checkValidity), tablesByNamespaceKey);
+  }
+
+  @Override
+  public Catalog resolveCatalog(boolean checkValidity) {
+    return new CachingCatalog(delegate.resolveCatalog(checkValidity), tablesByNamespaceKey);
+  }
 }

@@ -25,4 +25,8 @@ public class ServerErrorException extends WebApplicationException {
   public ServerErrorException(Throwable cause) {
     super(cause.getMessage(), cause, Response.Status.INTERNAL_SERVER_ERROR);
   }
+
+  public ServerErrorException(String message, Throwable cause) {
+    super(message, cause, Response.Status.INTERNAL_SERVER_ERROR);
+  }
 }

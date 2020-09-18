@@ -140,6 +140,9 @@ export class LeftTree extends PureComponent {
     const homeItem = this.getHomeObject();
     const dataLakeSources = sources.filter(source => !isExternalSourceType(source.get('type')));
     const externalSources = sources.filter(source => isExternalSourceType([source.get('type')]));
+    const haveOnlySampleSource = dataLakeSources.size && dataLakeSources.toJS().every(isSampleSource);
+    // When the user only added in a single source, allow more height to show the "Add own Data Lake" message
+    const dataLakeListHeight = haveOnlySampleSource ? '195px' : '155px';
     return (
       <div className={classes} style={[styles.leftTreeHolder]}>
         <h3 style={[styles.headerViewer]}>
@@ -150,10 +153,8 @@ export class LeftTree extends PureComponent {
         </ul>
         <SpacesSection />
         <div className='left-tree-wrap' style={{
-          minHeight: '175px',
-          maxHeight: 'calc(100vh - 430px)',
-          overflow: 'hidden',
-          height: dataLakeSources && dataLakeSources.size ? '100%' : 'auto'
+          height: dataLakeSources.size ? dataLakeListHeight : '175px',
+          overflow: 'hidden'
         }}>
           <ViewStateWrapper viewState={sourcesViewState}>
             <FinderNav
@@ -168,10 +169,9 @@ export class LeftTree extends PureComponent {
           </ViewStateWrapper>
         </div>
         <div className='left-tree-wrap' style={{
-          minHeight: '150px',
-          maxHeight: 'calc(100vh - 455px)',
+          maxHeight: '155px',
           overflow: 'hidden',
-          height: externalSources && externalSources.size ? '100%' : 'auto'
+          height: externalSourcesExpanded ? '100%' : 'auto'
         }}>
           <ViewStateWrapper viewState={sourcesViewState}>
             <FinderNav

@@ -173,7 +173,7 @@ describe('table', () => {
           datasetVersion: '12345'
         }
       });
-      const jobProgress = result.getIn(['tableData', 'jobProgress']);
+      const jobProgress = result.getIn(['tableData', '12345', 'jobProgress']);
       expect(jobProgress).to.eql({
         jobId: 'abc',
         status: 'COMPLETED',
@@ -199,7 +199,7 @@ describe('table', () => {
     });
     it('should ignore job update if there is no change', () => {
       let prevState = Immutable.fromJS({});
-      prevState = prevState.setIn(['tableData', 'jobProgress'], {
+      prevState = prevState.setIn(['tableData', '12345', 'jobProgress'], {
         jobId: 'abc', status: 'RUNNING', startTime: 100, datasetVersion: '12345'
       });
       const result = table(prevState, {
@@ -215,7 +215,7 @@ describe('table', () => {
     });
     it('should update jobProgress if there is change in payload', () => {
       let prevState = Immutable.fromJS({});
-      prevState = prevState.setIn(['tableData', 'jobProgress'], {
+      prevState = prevState.setIn(['tableData', '12345', 'jobProgress'], {
         jobId: 'abc', status: 'RUNNING', startTime: 100, datasetVersion: '12345'
       });
       const jobProgress = table(prevState, {
@@ -229,7 +229,7 @@ describe('table', () => {
           datasetVersion: '12345'
         }
       });
-      expect(jobProgress.getIn(['tableData', 'jobProgress'])).to.eql({
+      expect(jobProgress.getIn(['tableData', '12345', 'jobProgress'])).to.eql({
         jobId: 'abc',
         status: 'COMPLETED',
         startTime: 100,
@@ -246,7 +246,7 @@ describe('table', () => {
         jobId: 'abc',
         datasetVersion: '12345'
       });
-      const jobProgress = result.getIn(['tableData', 'jobProgress']);
+      const jobProgress = result.getIn(['tableData', '12345', 'jobProgress']);
       expect(jobProgress.jobId).to.equal('abc');
       expect(jobProgress.datasetVersion).to.equal('12345');
     });
@@ -257,12 +257,20 @@ describe('table', () => {
       let result = table(initialState, {
         type: INIT_EXPLORE_JOB_PROGRESS
       });
+      let jobProgress = result.getIn(['tableData', 'jobProgress']);
+      expect(jobProgress.status).to.equal('STARTING');
+
+      result = table(initialState, {
+        type: SET_EXPLORE_JOBID_IN_PROGRESS,
+        datasetVersion: '12345'
+      });
+
       result = table(result, {
         type: UPDATE_EXPLORE_JOB_RECORDS,
-        recordCount: 100
+        recordCount: 100,
+        datasetVersion: '12345'
       });
-      const jobProgress = result.getIn(['tableData', 'jobProgress']);
-      expect(jobProgress.status).to.equal('STARTING');
+      jobProgress = result.getIn(['tableData', '12345', 'jobProgress']);
       expect(jobProgress.recordCount).to.equal(100);
     });
   });

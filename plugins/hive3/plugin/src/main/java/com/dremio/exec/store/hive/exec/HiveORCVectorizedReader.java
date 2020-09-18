@@ -176,6 +176,73 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
     return false;
   }
 
+  private void includeNodeAndItsChildren(SearchResult position, boolean[] include) {
+    // Function starts from a list element. It includes the list and its children.
+    ObjectInspector lOI = position.oI;
+    // include root node
+    include[position.index] = true;
+    switch (lOI.getCategory()) {
+      case PRIMITIVE:
+        // no children. so return.
+        break;
+      case LIST:
+        // move to child
+        position.index++;
+        if (position.index >= include.length) {
+          return;
+        }
+        lOI = ((ListObjectInspector)lOI).getListElementObjectInspector();
+        position.oI = lOI;
+
+        // include child
+        includeNodeAndItsChildren(position, include);
+        break;
+      case MAP:
+        position.index++; // first child is immediately next to parent
+        if (position.index >= include.length) {
+          // input schema has more columns than what reader can read
+          return;
+        }
+        ObjectInspector kOi = ((MapObjectInspector) lOI).getMapKeyObjectInspector();
+        position.oI = kOi;
+        includeNodeAndItsChildren(position, include);
+
+        position.index++;
+        if (position.index >= include.length) {
+          // input schema has more columns than what reader can read
+          return;
+        }
+        ObjectInspector vOi = ((MapObjectInspector) lOI).getMapValueObjectInspector();
+        position.oI = vOi;
+        includeNodeAndItsChildren(position, include);
+        break;
+      case STRUCT:
+        StructObjectInspector sOi = (StructObjectInspector) lOI;
+        for (StructField sf : sOi.getAllStructFieldRefs()) {
+          // move to next child
+          position.index++;
+          if (position.index >= include.length) {
+            return;
+          }
+          position.oI = sf.getFieldObjectInspector();
+
+          // include next child
+          includeNodeAndItsChildren(position, include);
+        }
+        break;
+      case UNION:
+        for (ObjectInspector fOi : ((UnionObjectInspector) lOI).getObjectInspectors()) {
+          position.index++;
+          if (position.index >= include.length) {
+            return;
+          }
+          position.oI = fOi;
+          includeNodeAndItsChildren(position, include);
+        }
+        break;
+    }
+  }
+
   // Takes SchemaPath and sets included bits of only fields in selected schema path
   // and all children of last segment
   // Example: if table schema is  <col1: int, col2:struct<f1:int, f2:string>, col3: string>
@@ -192,6 +259,10 @@ public class HiveORCVectorizedReader extends HiveAbstractReader {
       String name = listIterator.next();
       boolean found = searchAllFields(rootOI, name, childCounts, searchResult);
       if (found) {
+        if (listIterator.hasNext() && searchResult.oI.getCategory() == Category.LIST) {
+          includeNodeAndItsChildren(searchResult, include);
+          return;
+        }
         rootColumn = searchResult.index;
         rootOI = searchResult.oI;
         if (rootColumn < include.length) {

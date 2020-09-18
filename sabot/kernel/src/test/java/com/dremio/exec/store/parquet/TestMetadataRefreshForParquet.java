@@ -35,15 +35,12 @@ public class TestMetadataRefreshForParquet extends BaseTestQuery {
         "select t1.amount, t1.\"date\", t1.marketing_info, t1.\"time\", t1.trans_id, t1.trans_info, t1.user_info " +
             "from %s t1", DATAFILE);
 
-    try {
-      test("ALTER SYSTEM SET \"store.plugin.max_metadata_leaf_columns\" = 2");
+    try (AutoCloseable closeable = setSystemOptionWithAutoReset("store.plugin.max_metadata_leaf_columns", "2")) {
       test(query);
       fail("query should have failed");
     } catch (UserException e) {
       assertEquals(e.getErrorType(), UserBitShared.DremioPBError.ErrorType.VALIDATION);
       Assert.assertTrue(e.getMessage().contains("exceeded the maximum number of fields of 2"));
-    } finally {
-      test("ALTER SESSION RESET \"store.plugin.max_metadata_leaf_columns\"");
     }
   }
 }

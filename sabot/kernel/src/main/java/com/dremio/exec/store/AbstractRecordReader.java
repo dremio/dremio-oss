@@ -20,6 +20,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.Nullable;
+
 import org.apache.arrow.memory.OutOfMemoryException;
 import org.apache.arrow.vector.ValueVector;
 
@@ -136,4 +138,33 @@ public abstract class AbstractRecordReader implements RecordReader {
       v.allocateNew();
     }
   }
+
+  /**
+   * Returns a message to be shown to the user if an exception is thrown that can't be processed
+   * properly because its cause is not recognizable, typically because we can't hava dependency
+   * on its type.
+   * The message is a best-effort one.
+   * @param t Throwable presented as the cause of the IOException.
+   * @return a String to be shown to the user, or null if there is no reasonable response.
+   */
+  @Nullable
+  public String bestEffortMessageForUnknownException(Throwable t) {
+    if (t == null) {
+      return null;
+    }
+    String tString = t.toString();
+    // For exceptions involving AmazonS3Exception (DX-21818):
+    if (tString.contains("AmazonS3Exception")) {
+      if (tString.contains("Requests specifying Server Side Encryption with "
+        + "AWS KMS managed keys must be made over a secure connection.")) {
+        return "The request failed because it was made over an insecure connection. "
+          + "Check the 'Encrypt Connection' box when creating the source.";
+      } else {
+        return "The request failed with the following cause: " + tString;
+      }
+    } else {
+      return null;
+    }
+  }
+
 }

@@ -23,21 +23,28 @@ import java.util.UUID;
 public class TenantContext {
   public static final RequestContext.Key<TenantContext> CTX_KEY = RequestContext.newKey("tenant_ctx_key");
   // The default tenant id used in product.
-  public static final String DEFAULT_PRODUCT_TENANT_ID = "77a89f85-c936-4f42-ab21-2ee90e9609b8";
+  public static final String DEFAULT_PRODUCT_PROJECT_ID = "77a89f85-c936-4f42-ab21-2ee90e9609b8";
   // The default tenant id used in service (for testing)
-  public static final String DEFAULT_SERVICE_TENANT_ID = "77a89f85-c936-4f42-ab21-2ee90e9609b9";
+  public static final String DEFAULT_SERVICE_PROJECT_ID = "77a89f85-c936-4f42-ab21-2ee90e9609b9";
+  public static final String DEFAULT_SERVICE_ORG_ID = "77a89f85-c936-4f42-ab21-2ee90e96099b";
 
-  private final UUID id;
+  public static TenantContext DEFAULT_SERVICE_CONTEXT =
+    new TenantContext(DEFAULT_SERVICE_PROJECT_ID, DEFAULT_SERVICE_ORG_ID);
 
-  public TenantContext(String uuidStr) {
-    id = UUID.fromString(uuidStr);
+  private final UUID projectId;
+  private final UUID orgId;
+
+  public TenantContext(String projectId, String orgId) {
+    this.projectId = UUID.fromString(projectId);
+    this.orgId = UUID.fromString(orgId);
   }
 
-  public UUID getId() {
-    return id;
+  public UUID getProjectId() {
+    return projectId;
   }
 
-  public String serialize() {
-    return id.toString();
+  public UUID getOrgId() {
+    return orgId;
   }
+
 }

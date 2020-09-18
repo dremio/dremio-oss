@@ -31,6 +31,7 @@ import com.dremio.service.jobtelemetry.server.store.LocalMetricsStore;
 import com.dremio.service.jobtelemetry.server.store.LocalProfileStore;
 import com.dremio.service.jobtelemetry.server.store.MetricsStore;
 import com.dremio.service.jobtelemetry.server.store.ProfileStore;
+import com.dremio.telemetry.utils.GrpcTracerFacade;
 
 import io.grpc.Server;
 import io.grpc.util.TransmitStatusRuntimeExceptionInterceptor;
@@ -43,16 +44,19 @@ public class LocalJobTelemetryServer implements Service {
   private final GrpcServerBuilderFactory grpcFactory;
   private final Provider<LegacyKVStoreProvider> kvStoreProvider;
   private final Provider<CoordinationProtos.NodeEndpoint> selfEndpoint;
+  private GrpcTracerFacade tracer;
   private ProfileStore profileStore;
   private MetricsStore metricsStore;
   private Server server;
 
   public LocalJobTelemetryServer(GrpcServerBuilderFactory grpcServerBuilderFactory,
                                  Provider<LegacyKVStoreProvider> kvStoreProvider,
-                                 Provider<CoordinationProtos.NodeEndpoint> selfEndpoint) {
+                                 Provider<CoordinationProtos.NodeEndpoint> selfEndpoint,
+                                 GrpcTracerFacade tracer) {
     this.grpcFactory = grpcServerBuilderFactory;
     this.kvStoreProvider = kvStoreProvider;
     this.selfEndpoint = selfEndpoint;
+    this.tracer = tracer;
   }
 
   @Override
@@ -67,7 +71,7 @@ public class LocalJobTelemetryServer implements Service {
       selfEndpoint.get().getFabricPort())
       .maxInboundMetadataSize(81920) // GrpcUtil.DEFAULT_MAX_HEADER_LIST_SIZE * 10
       .intercept(TransmitStatusRuntimeExceptionInterceptor.instance())
-      .addService(new JobTelemetryServiceImpl(metricsStore, profileStore, true))
+      .addService(new JobTelemetryServiceImpl(metricsStore, profileStore, tracer, true))
       .build();
 
     server.start();

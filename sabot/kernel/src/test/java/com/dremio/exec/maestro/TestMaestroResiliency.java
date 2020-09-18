@@ -274,7 +274,7 @@ public class TestMaestroResiliency extends BaseTestQuery {
       Thread.sleep(10);
     }
     // wait for the pause to be hit
-    Thread.sleep(1000);
+    Thread.sleep(3000);
 
     // cancel query
     client.cancelQuery(queryId);

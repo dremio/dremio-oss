@@ -16,7 +16,11 @@
 package com.dremio.datastore.api;
 
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
+import com.dremio.context.TenantContext;
 import com.dremio.datastore.SearchTypes.SearchQuery;
 
 /**
@@ -58,4 +62,15 @@ public interface IndexedStore<K, V> extends KVStore<K, V> {
    * @throws com.dremio.datastore.DatastoreException when one or more runtime failures are encountered.
    */
   List<Integer> getCounts(SearchQuery ... conditions);
+
+  /**
+   *
+   * @param condition condition to search for
+   * @param consumer the consumer that must be applied for each matching tuple
+   * @param executor the execution context which executes the consumer
+   */
+  default void applyForAllTenants(FindByCondition condition, Consumer<V> consumer, ExecutorService executor,
+                                  Function<V, TenantContext> documentToTenantConverter, FindOption... options) {
+    throw new UnsupportedOperationException("Only applicable for MultiTenantKVstore");
+  }
 }

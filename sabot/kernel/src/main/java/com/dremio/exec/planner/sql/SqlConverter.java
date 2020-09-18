@@ -72,11 +72,6 @@ import com.dremio.options.OptionManager;
 import com.dremio.sabot.exec.context.FunctionContext;
 import com.dremio.sabot.rpc.user.UserSession;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-
-//import org.apache.calcite.sql.SqlNodeList;
-//import org.apache.calcite.sql.dialect.CalciteSqlDialect;
-
 
 /**
  * Class responsible for managing parsing, validation and toRel conversion for sql statements.
@@ -130,12 +125,12 @@ public class SqlConverter {
     this.isInnerQuery = false;
     this.typeFactory = JavaTypeFactoryImpl.INSTANCE;
     this.catalogReader = new DremioCatalogReader(catalog, typeFactory);
-    this.opTab = new ChainedSqlOperatorTable(ImmutableList.<SqlOperatorTable>of(operatorTable, this.catalogReader));
+    this.opTab = operatorTable;
     this.costFactory = (settings.useDefaultCosting()) ? null : new DremioCost.Factory();
-    this.validator = new SqlValidatorImpl(flattenCounter, opTab, this.catalogReader, typeFactory, DremioSqlConformance.INSTANCE);
+    this.validator = new SqlValidatorImpl(flattenCounter, ChainedSqlOperatorTable.of(opTab, catalogReader), this.catalogReader, typeFactory, DremioSqlConformance.INSTANCE);
     validator.setIdentifierExpansion(true);
     this.materializations = new MaterializationList(this, session, materializationProvider);
-    this.substitutions = AccelerationAwareSubstitutionProvider.of(factory.getSubstitutionProvider(config, materializations, this.settings.options));
+    this.substitutions = AccelerationAwareSubstitutionProvider.of(factory.getSubstitutionProvider(config,  materializations, this.settings.options));
     this.planner = DremioVolcanoPlanner.of(this);
     this.cluster = RelOptCluster.create(planner, new DremioRexBuilder(typeFactory));
     this.cluster.setMetadataProvider(DefaultRelMetadataProvider.INSTANCE);
@@ -163,7 +158,9 @@ public class SqlConverter {
     this.opTab = parent.opTab;
     this.planner = parent.planner;
     this.materializations = parent.materializations;
-    this.validator = new SqlValidatorImpl(parent.flattenCounter, opTab, catalog, typeFactory, DremioSqlConformance.INSTANCE);
+    // Note: Do not use the parent SqlConverter's catalog's operator table to validate user-defined table functions.
+    // They may be inaccessible and will cause validation errors before checking if the functions are valid within the local context.
+    this.validator = new SqlValidatorImpl(parent.flattenCounter, ChainedSqlOperatorTable.of(opTab, catalog), catalog, typeFactory, DremioSqlConformance.INSTANCE);
     validator.setIdentifierExpansion(true);
     this.viewExpansionContext = parent.viewExpansionContext;
     this.config = parent.config;
@@ -306,7 +303,7 @@ public class SqlConverter {
    *
    * Used for serialization.
    */
-  public RelRootPlus toConvertibleRelRoot(final SqlNode validatedNode, boolean expand) {
+  public RelRootPlus toConvertibleRelRoot(final SqlNode validatedNode, boolean expand, boolean flatten) {
 
     final OptionManager o = settings.getOptions();
     final long inSubQueryThreshold =  o.getOption(ExecConstants.FAST_OR_ENABLE) ? o.getOption(ExecConstants.FAST_OR_MAX_THRESHOLD) : settings.getOptions().getOption(ExecConstants.PLANNER_IN_SUBQUERY_THRESHOLD);
@@ -320,6 +317,9 @@ public class SqlConverter {
     final SqlToRelConverter sqlToRelConverter = new DremioSqlToRelConverter(this, validator, convertletTable, config);
     // Previously we had "top" = !innerQuery, but calcite only adds project if it is not a top query.
     final RelRoot rel = sqlToRelConverter.convertQuery(validatedNode, false /* needs validate */, false /* top */);
+    if (!flatten) {
+      return RelRootPlus.of(rel.rel, rel.validatedRowType, rel.kind, convertletTable.isReflectionDisallowed());
+    }
     final RelNode rel2 = sqlToRelConverter.flattenTypes(rel.rel, true);
     RelNode converted;
     final RelNode rel3 = expand ? rel2 : rel2.accept(new RelsWithRexSubQueryFlattener(sqlToRelConverter));

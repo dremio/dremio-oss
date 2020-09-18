@@ -89,6 +89,8 @@ public interface NamespaceService {
   boolean exists(NamespaceKey key, Type type);
   boolean exists(NamespaceKey key);
 
+  boolean hasChildren(NamespaceKey key);
+
   SourceConfig getSource(NamespaceKey sourcePath) throws NamespaceException;
 
   SourceConfig getSourceById(String id) throws NamespaceException;

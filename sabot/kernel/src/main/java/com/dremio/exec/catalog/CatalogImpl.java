@@ -23,6 +23,8 @@ import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -70,7 +72,9 @@ import com.dremio.service.namespace.NamespaceService;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.dataset.proto.DatasetConfig;
 import com.dremio.service.namespace.dataset.proto.DatasetField;
+import com.dremio.service.namespace.dataset.proto.DatasetType;
 import com.dremio.service.namespace.dataset.proto.ParentDataset;
+import com.dremio.service.namespace.dataset.proto.VirtualDataset;
 import com.dremio.service.namespace.proto.NameSpaceContainer;
 import com.dremio.service.namespace.proto.NameSpaceContainer.Type;
 import com.dremio.service.namespace.source.proto.SourceConfig;
@@ -403,11 +407,37 @@ public class CatalogImpl implements Catalog {
   }
 
   @Override
-  public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema) {
+  public Catalog resolveCatalog(boolean checkValidity) {
     return new CatalogImpl(
-      options.cloneWith(username, newDefaultSchema),
+      options.cloneWith(options.getSchemaConfig().getUserName(), options.getSchemaConfig().getDefaultSchema(), checkValidity),
       pluginRetriever,
       sourceModifier,
+      optionManager,
+      systemNamespaceService,
+      namespaceFactory,
+      datasetListingService,
+      viewCreatorFactory);
+  }
+
+  @Override
+  public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema, boolean checkValidity) {
+    return new CatalogImpl(
+      options.cloneWith(username, newDefaultSchema, checkValidity),
+      pluginRetriever,
+      sourceModifier,
+      optionManager,
+      systemNamespaceService,
+      namespaceFactory,
+      datasetListingService,
+      viewCreatorFactory);
+  }
+
+  @Override
+  public Catalog resolveCatalog(String username, NamespaceKey newDefaultSchema) {
+    return new CatalogImpl(
+      options.cloneWith(username, newDefaultSchema, options.checkValidity()),
+      pluginRetriever,
+      sourceModifier.cloneWith(username),
       optionManager,
       systemNamespaceService,
       namespaceFactory,
@@ -418,9 +448,9 @@ public class CatalogImpl implements Catalog {
   @Override
   public Catalog resolveCatalog(String username) {
     return new CatalogImpl(
-      options.cloneWith(username, options.getSchemaConfig().getDefaultSchema()),
+      options.cloneWith(username, options.getSchemaConfig().getDefaultSchema(), options.checkValidity()),
       pluginRetriever,
-      sourceModifier,
+      sourceModifier.cloneWith(username),
       optionManager,
       systemNamespaceService,
       namespaceFactory,
@@ -431,9 +461,9 @@ public class CatalogImpl implements Catalog {
   @Override
   public Catalog resolveCatalog(NamespaceKey newDefaultSchema) {
     return new CatalogImpl(
-      options.cloneWith(username, newDefaultSchema),
+      options.cloneWith(username, newDefaultSchema, options.checkValidity()),
       pluginRetriever,
-      sourceModifier,
+      sourceModifier.cloneWith(username),
       optionManager,
       systemNamespaceService,
       namespaceFactory,
@@ -584,6 +614,12 @@ public class CatalogImpl implements Catalog {
       throw new RuntimeException(ex);
     }
 
+    if (userNamespaceService.hasChildren(key)) {
+      throw UserException.validationError()
+        .message("Cannot drop table [%s] since it has child tables ", key)
+        .buildSilently();
+    }
+
     boolean isLayered = DatasetHelper.isIcebergDataset(dataset);
 
     asMutable(key, "does not support dropping tables")
@@ -629,21 +665,50 @@ public class CatalogImpl implements Catalog {
    */
   @Override
   public boolean alterDataset(final NamespaceKey key, final Map<String, AttributeValue> attributes) {
+    final DatasetConfig datasetConfig;
+    try {
+      datasetConfig = systemNamespaceService.getDataset(key);
+      if (datasetConfig.getType() == DatasetType.VIRTUAL_DATASET) {
+        boolean changed = updateOptions(datasetConfig.getVirtualDataset(), attributes);
+        if (changed) {
+          // user userNamespaceService so that only those with "CAN EDIT" permission can make the change
+          userNamespaceService.addOrUpdateDataset(key, datasetConfig);
+        }
+        return changed;
+      }
+    } catch (NamespaceException | ConcurrentModificationException ex) {
+      throw UserException.validationError(ex)
+        .message("Failure while accessing dataset")
+        .buildSilently();
+    }
     final ManagedStoragePlugin plugin = pluginRetriever.getPlugin(key.getRoot(), true);
     if (plugin == null) {
       throw UserException.validationError()
                          .message("Unknown source [%s]", key.getRoot())
                          .buildSilently();
     }
-    final DatasetConfig datasetConfig;
-    try {
-      datasetConfig = systemNamespaceService.getDataset(key);
-    } catch (NamespaceException ex) {
-      throw UserException.validationError(ex)
-                         .message("Failure while retrieving dataset")
-                         .buildSilently();
-    }
     return plugin.alterDataset(key, datasetConfig, attributes);
+  }
+
+  private boolean updateOptions(VirtualDataset virtualDataset, Map<String, AttributeValue> attributes) {
+    boolean changed = false;
+    for (Entry<String,AttributeValue> attribute : attributes.entrySet()) {
+      switch (attribute.getKey().toLowerCase()) {
+      case "enable_default_reflection":
+        AttributeValue.BooleanValue value = (AttributeValue.BooleanValue) attribute.getValue();
+        boolean oldValue = Optional.ofNullable(virtualDataset.getDefaultReflectionEnabled()).orElse(true);
+        if (value.getValue() != oldValue) {
+          changed = true;
+          virtualDataset.setDefaultReflectionEnabled(value.getValue());
+        }
+        break;
+      default:
+        throw UserException.validationError()
+          .message("Unknown option [%s]", attribute.getKey())
+          .buildSilently();
+      }
+    }
+    return changed;
   }
 
   @Override

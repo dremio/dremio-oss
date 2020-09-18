@@ -38,22 +38,27 @@ import com.dremio.exec.planner.StatelessRelShuttleImpl;
 import com.dremio.service.namespace.NamespaceKey;
 
 /**
- * Represents a location where the query was expanded from an VDS.
+ * Represents a location where the query was expanded from a
+ * from a default raw reflection of a VDS.
  */
 public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatteningRel {
 
   private final NamespaceKey path;
   private final boolean contextSensitive;
 
-  private ExpansionNode(NamespaceKey path, RelDataType rowType, RelOptCluster cluster, RelTraitSet traits, RelNode input, boolean contextSensitive) {
+  protected ExpansionNode(NamespaceKey path, RelDataType rowType, RelOptCluster cluster, RelTraitSet traits, RelNode input, boolean contextSensitive) {
     super(cluster, traits, input);
     this.path = path;
     this.contextSensitive = contextSensitive;
     this.rowType = rowType;
   }
 
-  public static RelNode wrap(NamespaceKey path, RelNode node, RelDataType rowType, boolean contextSensitive) {
-    return new ExpansionNode(path, rowType, node.getCluster(), node.getTraitSet(), node, contextSensitive);
+  public static RelNode wrap(NamespaceKey path, RelNode node, RelDataType rowType, boolean contextSensitive, boolean isDefault) {
+    if (isDefault) {
+      return new DefaultExpansionNode(path, rowType, node.getCluster(), node.getTraitSet(), node, contextSensitive);
+    } else {
+      return new ExpansionNode(path, rowType, node.getCluster(), node.getTraitSet(), node, contextSensitive);
+    }
   }
 
   @Override
@@ -69,12 +74,16 @@ public class ExpansionNode extends SingleRel implements CopyToCluster, SelfFlatt
   @Override
   public RelWriter explainTerms(RelWriter pw) {
     return super.explainTerms(pw)
-        .item("path", path.toUnescapedString())
-        .itemIf("contextSensitive", contextSensitive, contextSensitive);
+      .item("path", path.toUnescapedString())
+      .itemIf("contextSensitive", contextSensitive, contextSensitive);
   }
 
   public boolean isContextSensitive() {
     return contextSensitive;
+  }
+
+  public boolean isDefault() {
+    return false;
   }
 
   @Override

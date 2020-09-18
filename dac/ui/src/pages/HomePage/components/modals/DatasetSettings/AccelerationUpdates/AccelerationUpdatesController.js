@@ -106,12 +106,19 @@ export class AccelerationUpdatesController extends Component {
       this.setState({dataset: json});
       this.props.loadDatasetAccelerationSettings(entity.get('fullPathList'), VIEW_ID);
     }, error => {
-      updateVS({
+      // DX-22985: Server might return a valid error message.
+      //    - In case it does, we need to extract it out of the JSON and display the message.
+      //    - If not we need to display a generic error message.
+      error.json().then(json => updateVS({
+        isFailed: true,
+        error: { message: json.errorMessage }
+      })).catch(jsonError => updateVS({
+        // JSON parsing failed. So we are displaying a generic Error Message.
         isFailed: true,
         error: {
           message: formatMessage('Message.ApiErr.Load.Dataset', {err: error.statusText})
         }
-      });
+      }));
     });
   }
 
